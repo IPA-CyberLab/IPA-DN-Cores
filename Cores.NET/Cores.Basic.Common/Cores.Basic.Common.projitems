@@ -13,7 +13,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Console.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)CoreUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Csv.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Debug.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Env.cs" />
