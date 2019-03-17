@@ -30,8 +30,6 @@ namespace IPA.Cores.Helper.Basic
         public static T ConvertJsonObject<T>(this object obj, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject<T>(obj, include_null, max_depth, reference_handling);
         public static object ConvertJsonObject(this object obj, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject(obj, type, include_null, max_depth, reference_handling);
         public static dynamic JsonToDynamic(this string str) => Json.DeserializeDynamic(str);
-        public static string ObjectToYaml(this object obj) => Yaml.Serialize(obj);
-        public static T YamlToObject<T>(this string str) => Yaml.Deserialize<T>(str);
         public static ulong GetObjectHash(this object o) => Util.GetObjectHash(o);
     }
 }

@@ -11,5 +11,6 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Cfg.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Yaml.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)YamlHelper.cs" />
   </ItemGroup>
 </Project>

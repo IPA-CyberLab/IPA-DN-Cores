@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Crypto.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PackWithSecurity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Wpc.cs" />
   </ItemGroup>
 </Project>
