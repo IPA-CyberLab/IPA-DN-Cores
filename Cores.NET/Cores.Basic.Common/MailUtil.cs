@@ -20,7 +20,7 @@ using System.Net.Mail;
 
 namespace IPA.Cores.Basic
 {
-    public class MailUser : IComparable<MailUser>
+    class MailUser : IComparable<MailUser>
     {
         public string MailAddress;
         public string Company;
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MailUserList
+    class MailUserList
     {
         public readonly List<MailUser> UserList = new List<MailUser>();
 
@@ -196,7 +196,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MailItem : IComparable<MailItem>
+    class MailItem : IComparable<MailItem>
     {
         public string From;
         public MailUser DestMailUser;
@@ -347,7 +347,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MailUtilResourceFile
+    class MailUtilResourceFile
     {
         public readonly byte[] Data;
         public readonly string Id;
@@ -361,7 +361,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MailUtilAttachedFile
+    class MailUtilAttachedFile
     {
         public readonly byte[] Data;
         public readonly string Filename;
@@ -375,7 +375,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class MailUtil
+    static class MailUtil
     {
         public static MailItem[] GenerateMailItemListToSend(string from, MailUserList destList, string subject, string body)
         {

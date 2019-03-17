@@ -16,7 +16,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    public enum PackerFileFormat
+    enum PackerFileFormat
     {
         ZipRaw,
         ZipCompressed,
@@ -24,9 +24,9 @@ namespace IPA.Cores.Basic
         TarGZip,
     }
 
-    public delegate bool ProgressDelegate(string fileNameFullPath, string fileNameRelative, int currentFileNum, int totalFileNum);
+    delegate bool ProgressDelegate(string fileNameFullPath, string fileNameRelative, int currentFileNum, int totalFileNum);
 
-    public static class Packer
+    static class Packer
     {
         public static byte[] PackDir(PackerFileFormat format, string rootDirPath, string appendPrefixDirName)
         {

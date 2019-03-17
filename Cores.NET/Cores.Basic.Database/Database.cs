@@ -25,11 +25,11 @@ using System.Reflection;
 using System.Drawing;
 using Dapper;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class DbConsoleDebugPrinterProvider : ILoggerProvider
+    class DbConsoleDebugPrinterProvider : ILoggerProvider
     {
         Ref<bool> enable_console_logger;
 
@@ -42,7 +42,7 @@ namespace IPA.Cores.Basic
         public void Dispose() { }
     }
 
-    public class DbConsoleDebugPrinter : ILogger
+    class DbConsoleDebugPrinter : ILogger
     {
         Ref<bool> enable_console_logger;
 
@@ -84,7 +84,7 @@ namespace IPA.Cores.Basic
     }
 
     // データベース値
-    public class DatabaseValue
+    class DatabaseValue
     {
         public bool IsNull
         {
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
     }
 
     // 行
-    public class Row
+    class Row
     {
         public readonly DatabaseValue[] ValueList;
         public readonly string[] FieldList;
@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
     }
 
     // データ
-    public class Data : IEnumerable
+    class Data : IEnumerable
     {
         public readonly Row[] RowList;
         public readonly string[] FieldList;
@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
     }
 
     // Using トランザクション
-    public class UsingTran : IDisposable
+    class UsingTran : IDisposable
     {
         Database db;
 
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
     }
 
     // デッドロック再試行設定
-    public class DeadlockRetryConfig
+    class DeadlockRetryConfig
     {
         public readonly int RetryAverageInterval;
         public readonly int RetryCount;
@@ -264,7 +264,7 @@ namespace IPA.Cores.Basic
     }
 
     // データベースアクセス
-    public class Database : IDisposable
+    class Database : IDisposable
     {
         SqlConnection con = null;
         SqlTransaction tran = null;

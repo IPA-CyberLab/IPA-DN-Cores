@@ -23,13 +23,13 @@ using System.Net.Mime;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 #pragma warning disable 0618
 
 namespace IPA.Cores.Basic
 {
-    public class BatchQueueItem<T>
+    class BatchQueueItem<T>
     {
         internal BatchQueueItem(T item)
         {
@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class BatchQueue<T>
+    class BatchQueue<T>
     {
         object lockobj = new object();
         Queue<BatchQueueItem<T>> queue = new Queue<BatchQueueItem<T>>();
@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class GlobalLockHandle : IDisposable
+    class GlobalLockHandle : IDisposable
     {
         public GlobalLock GlobalLock { get; }
         Mutant mutant;
@@ -198,7 +198,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class GlobalLock
+    class GlobalLock
     {
         public string Name { get; }
 
@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    internal class MutantUnix : Mutant
+    class MutantUnix : Mutant
     {
 
         string filename;
@@ -266,7 +266,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    internal class MutantWin32 : Mutant
+    class MutantWin32 : Mutant
     {
         Mutex mutex;
         int locked_count = 0;
@@ -309,7 +309,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class Mutant
+    abstract class Mutant
     {
         public static string GenerateInternalName(string name)
         {
@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SemaphoneArray
+    class SemaphoneArray
     {
         Dictionary<string, SemaphoneArrayItem> array = new Dictionary<string, SemaphoneArrayItem>();
 
@@ -522,7 +522,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class Tick64
+    static class Tick64
     {
         static object lock_obj = new object();
         static uint last_value = 0;
@@ -573,7 +573,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Event
+    class Event
     {
         EventWaitHandle h;
         public const int Infinite = Timeout.Infinite;
@@ -753,7 +753,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ThreadData
+    class ThreadData
     {
         static LocalDataStoreSlot slot = Thread.AllocateDataSlot();
 
@@ -789,9 +789,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate void ThreadProc(object userObject);
+    delegate void ThreadProc(object userObject);
 
-    public class ThreadObj
+    class ThreadObj
     {
         public readonly static RefInt NumCurrentThreads = new RefInt();
 
@@ -984,7 +984,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class StillRunningThreadRegister
+    static class StillRunningThreadRegister
     {
         public static int RegularWatchInterval = 1 * 1000;
 

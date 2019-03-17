@@ -24,7 +24,7 @@ using System.Net.Mail;
 
 namespace IPA.Cores.Basic
 {
-    public class FullRouteIPInfoEntry : IComparable<FullRouteIPInfoEntry>
+    class FullRouteIPInfoEntry : IComparable<FullRouteIPInfoEntry>
     {
         public uint From;
         public uint To;
@@ -46,7 +46,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class FullRouteIPInfoCache
+    class FullRouteIPInfoCache
     {
         public List<FullRouteIPInfoEntry> EntryList = new List<FullRouteIPInfoEntry>();
         public DateTime TimeStamp;
@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class FullRouteIPInfo
+    static class FullRouteIPInfo
     {
         public static readonly TimeSpan LifeTime = new TimeSpan(15, 0, 0, 0);
         public const long DownloadRetryMSecs = (3600 * 1000);

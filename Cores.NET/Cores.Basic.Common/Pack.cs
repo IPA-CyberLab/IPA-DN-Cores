@@ -321,7 +321,7 @@ namespace IPA.Cores.Basic
     }
 
     // Pack の値
-    public class PackValue
+    class PackValue
     {
         public string StrValue = null;
         public string UniStrValue = null;
@@ -333,7 +333,7 @@ namespace IPA.Cores.Basic
     }
 
     // Pack
-    public class Pack
+    partial class Pack
     {
         List<Element> elements; // 要素リスト
         bool elementsSorted;
@@ -477,15 +477,6 @@ namespace IPA.Cores.Basic
         {
             Element e = getElementAndCreateIfNotExists(name, ValueType.Data);
             e.AddValue(new Value(index, data));
-        }
-
-        public void AddCert(string name, Cert cert)
-        {
-            AddCert(name, cert, 0);
-        }
-        public void AddCert(string name, Cert cert, uint index)
-        {
-            AddData(name, cert.ByteData, index);
         }
 
         // 要素の取得
@@ -653,29 +644,6 @@ namespace IPA.Cores.Basic
                 return null;
             }
             return v.Data;
-        }
-
-        public Cert GetCert(string name)
-        {
-            return GetCert(name, 0);
-        }
-        public Cert GetCert(string name, uint index)
-        {
-            byte[] data = GetData(name, index);
-            if (data == null)
-            {
-                return null;
-            }
-            try
-            {
-                Cert c = new Cert(data);
-
-                return c;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         // 読み込む

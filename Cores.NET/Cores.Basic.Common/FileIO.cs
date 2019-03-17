@@ -16,12 +16,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.NetworkInformation;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
     // 古いファイルから順番に削除する
-    public class OldFileEraser
+    class OldFileEraser
     {
         string[] dir_list;
         string extension_list;
@@ -123,7 +123,7 @@ namespace IPA.Cores.Basic
     }
 
     // HamCore エントリ
-    internal class HamCoreEntry : IComparable
+    class HamCoreEntry : IComparable
     {
         public string FileName = "";
         public uint Size = 0;
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
     }
 
     // HamCore ビルダー
-    public class HamCoreBuilderFileEntry : IComparable<HamCoreBuilderFileEntry>
+    class HamCoreBuilderFileEntry : IComparable<HamCoreBuilderFileEntry>
     {
         public string Name;
         public Buf RawData;
@@ -156,7 +156,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class HamCoreBuilder
+    class HamCoreBuilder
     {
         List<HamCoreBuilderFileEntry> fileList;
         public List<HamCoreBuilderFileEntry> FileList
@@ -305,7 +305,7 @@ namespace IPA.Cores.Basic
     }
 
     // HamCore ファイル
-    public class HamCore
+    class HamCore
     {
         public const string HamcoreDirName = "@hamcore";
         public const string HamcoreHeaderData = "HamCore";
@@ -504,7 +504,7 @@ namespace IPA.Cores.Basic
     }
 
     // ディレクトリエントリ
-    public class DirEntry : IComparable<DirEntry>
+    class DirEntry : IComparable<DirEntry>
     {
         internal bool folder;
         public bool IsFolder => folder;
@@ -546,7 +546,7 @@ namespace IPA.Cores.Basic
     };
 
     // ファイル操作
-    public class IO
+    class IO
     {
         // ディレクトリのコピー
         public delegate bool CopyDirPreCopyDelegate(FileInfo srcFileInfo);

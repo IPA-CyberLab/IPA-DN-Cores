@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace IPA.Cores.Basic
 {
-    public enum CacheType
+    enum CacheType
     {
         UpdateExpiresWhenAccess = 0,
         DoNotUpdateExpiresWhenAccess = 1,
     }
 
-    public class Cache<TKey, TValue>
+    class Cache<TKey, TValue>
     {
         class Entry
         {

@@ -5,7 +5,7 @@ using System.IO;
 namespace IPA.Cores.Basic
 {
     // FIFO
-    public class Fifo
+    class Fifo
     {
         byte[] p;
         int pos, size;
@@ -202,7 +202,7 @@ namespace IPA.Cores.Basic
     }
 
     // バッファ
-    public class Buf
+    class Buf
     {
         MemoryStream buf;
 

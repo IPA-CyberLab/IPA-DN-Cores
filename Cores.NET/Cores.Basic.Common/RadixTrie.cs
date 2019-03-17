@@ -35,7 +35,7 @@ namespace IPA.Cores.Basic
     /// a label - string that the tree holds
     /// a list of the node's subnodes - a list of other objects of this type
     /// </summary>
-    public class RadixNode
+    class RadixNode
     {
         public RadixNode() { }
 
@@ -91,8 +91,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-    public class RadixTrie
+    class RadixTrie
     {
         /// <summary>
         /// store the tree's root
@@ -320,35 +319,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /// <summary>
     /// represents a node in the radix tree
     /// stores:
     /// a label - string that the tree holds
     /// a list of the node's subnodes - a list of other objects of this type
     /// </summary>
-    public class RadixNode<T> where T : class
+    class RadixNode<T> where T : class
     {
         public RadixNode() { }
 
@@ -405,7 +382,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    public class RadixTrie<T> where T : class
+    class RadixTrie<T> where T : class
     {
         /// <summary>
         /// store the tree's root

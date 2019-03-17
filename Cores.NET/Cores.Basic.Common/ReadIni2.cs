@@ -17,7 +17,7 @@ using System.Drawing;
 namespace IPA.Cores.Basic
 {
     // Ini ファイルの読み込み
-    public class ReadIni2
+    class ReadIni2
     {
         // Ini ファイルのキャッシュ
         class IniCache

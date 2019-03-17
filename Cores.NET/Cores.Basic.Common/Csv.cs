@@ -33,7 +33,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Csv
+    class Csv
     {
         List<CsvEntry> entryList;
         Encoding encoding;
@@ -316,9 +316,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate int CsvCompare(object o1, object o2);
+    delegate int CsvCompare(object o1, object o2);
 
-    public class CsvEntry
+    class CsvEntry
     {
         List<string> strings;
 

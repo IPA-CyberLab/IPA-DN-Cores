@@ -20,15 +20,15 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    public enum ListenerStatus
+    enum ListenerStatus
     {
         Trying = 0,
         Listening = 1,
     }
 
-    public delegate void AcceptProc(Listener listener, Sock sock, object param);
+    delegate void AcceptProc(Listener listener, Sock sock, object param);
 
-    public class Listener
+    class Listener
     {
         public const int ListenRetryTimeDefault = 2 * 1000;
 

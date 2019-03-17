@@ -18,14 +18,12 @@ using System.Net.Sockets;
 using System.Net.NetworkInformation;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 
 using IPA.Cores.Basic;
 
-namespace IPA.DN.CoreUtil.Helper.Basic
+namespace IPA.Cores.Helper.Basic
 {
-    public static class HelperBasic
+    static class HelperBasic
     {
         public static byte[] GetBytes_UTF8(this string s, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(s));
         public static byte[] GetBytes_UTF16LE(this string s, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.UniEncoding.GetBytes(s));
@@ -168,7 +166,6 @@ namespace IPA.DN.CoreUtil.Helper.Basic
         public static object BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
         public static object Print(this object s, bool newline = true) { Console.Write((s == null ? "null" : s.ToString()) + (newline ? Env.NewLine : "")); return s; }
         public static object Debug(this object s) { Dbg.WriteLine((s == null ? "null" : s.ToString())); return s; }
-        public static ulong GetObjectHash(this object o) => Util.GetObjectHash(o);
 
         public static string ToStr3(this long s) => Str.ToStr3(s);
         public static string ToStr3(this int s) => Str.ToStr3(s);
@@ -183,15 +180,6 @@ namespace IPA.DN.CoreUtil.Helper.Basic
 
         public static DateTime NormalizeDateTime(this DateTime dt) => Util.NormalizeDateTime(dt);
         public static DateTimeOffset NormalizeDateTimeOffset(this DateTimeOffset dt) => Util.NormalizeDateTime(dt);
-
-        public static string ObjectToJson(this object obj, bool include_null = false, bool escape_html = false, int? max_depth = Json.DefaultMaxDepth, bool compact = false, bool reference_handling = false) => Json.Serialize(obj, include_null, escape_html, max_depth, compact, reference_handling);
-        public static T JsonToObject<T>(this string str, bool include_null = false, int? max_depth = Json.DefaultMaxDepth) => Json.Deserialize<T>(str, include_null, max_depth);
-        public static object JsonToObject(this string str, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth) => Json.Deserialize(str, type, include_null, max_depth);
-        public static T ConvertJsonObject<T>(this object obj, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject<T>(obj, include_null, max_depth, reference_handling);
-        public static object ConvertJsonObject(this object obj, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject(obj, type, include_null, max_depth, reference_handling);
-        public static dynamic JsonToDynamic(this string str) => Json.DeserializeDynamic(str);
-        public static string ObjectToYaml(this object obj) => Yaml.Serialize(obj);
-        public static T YamlToObject<T>(this string str) => Yaml.Deserialize<T>(str);
 
         public static byte[] ReadToEnd(this Stream s, int max_size = 0) => IO.ReadStreamToEnd(s, max_size);
         public static async Task<byte[]> ReadToEndAsync(this Stream s, int max_size = 0, CancellationToken cancel = default(CancellationToken)) => await IO.ReadStreamToEndAsync(s, max_size, cancel);
@@ -256,20 +244,6 @@ namespace IPA.DN.CoreUtil.Helper.Basic
         //public static void AddArrayItemsToList(this IList list, IEnumerable items) => Util.AddArrayItemsToList(items, list);
 
         public static string TryGetContentsType(this HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString().NonNull());
-
-        public static Task SendStringContents(this HttpResponse h, string body, string contents_type = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
-        {
-            if (encoding == null) encoding = Str.Utf8Encoding;
-            h.ContentType = contents_type;
-            byte[] ret_data = encoding.GetBytes(body);
-            return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
-        }
-
-        public static async Task<string> RecvStringContents(this HttpRequest h, int max_request_body_len = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
-        {
-            if (encoding == null) encoding = Str.Utf8Encoding;
-            return (await h.Body.ReadToEndAsync(max_request_body_len, cancel)).GetString_UTF8();
-        }
 
         public static string GetStrOrEmpty(this NameValueCollection d, string key)
         {

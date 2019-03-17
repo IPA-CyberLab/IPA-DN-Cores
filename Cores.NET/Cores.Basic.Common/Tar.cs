@@ -17,7 +17,7 @@ using System.Runtime.InteropServices;
 namespace IPA.Cores.Basic
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct TarHeader
+    struct TarHeader
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 100)]
         public byte[] Name;
@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class TarUtil
+    static class TarUtil
     {
         public static TarHeader CreateTarHeader(string name, Encoding encoding, int type, long size, DateTime dt)
         {
@@ -217,7 +217,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class TarPacker
+    class TarPacker
     {
         Fifo fifo;
         Dictionary<string, int> dirList;

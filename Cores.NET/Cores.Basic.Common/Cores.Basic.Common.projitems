@@ -9,7 +9,6 @@
     <Import_RootNamespace>Cores.Basic.Common</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)BigNumber.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Buf.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Compress.cs" />
@@ -31,12 +30,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)MailUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MultiLang.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Network.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)NumberBig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Pack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Packer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RadixTrie.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)RC4.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ReadIni.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ReadIni2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Secure.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Smtp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stb.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Str.cs" />
@@ -47,7 +48,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UnixSyscall.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Util.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Wpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ZLib.cs" />
   </ItemGroup>

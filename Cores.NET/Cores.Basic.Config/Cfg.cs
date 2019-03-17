@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Threading;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class Cfg<T> : IDisposable
+    class Cfg<T> : IDisposable
         where T : class, new()
     {
         public readonly object ConfigLock = new object();

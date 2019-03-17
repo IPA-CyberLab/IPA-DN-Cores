@@ -17,7 +17,7 @@ using System.Net.NetworkInformation;
 
 namespace IPA.Cores.Basic
 {
-    public class FileLogger
+    class FileLogger
     {
         object lockObj;
         string logDir;

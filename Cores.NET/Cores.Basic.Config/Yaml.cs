@@ -17,11 +17,11 @@ using System.Runtime.InteropServices;
 using YamlDotNet;
 using YamlDotNet.Serialization;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static class Yaml
+    static class Yaml
     {
         public static string Serialize(object obj)
         {

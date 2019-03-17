@@ -22,14 +22,14 @@ using System.Net.Mime;
 
 namespace IPA.Cores.Basic
 {
-    public enum SmtpLanguage
+    enum SmtpLanguage
     {
         Japanese,
         Simpled_Chinese,
         Engligh,
     }
 
-    public class SmtpCharsetList
+    class SmtpCharsetList
     {
         public readonly List<Encoding> CharsetList;
 
@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SmtpBody
+    class SmtpBody
     {
         public string XMailer = Env.FrameworkInfoString;
         public string MimeOLE = "Produced By " + Env.FrameworkInfoString;
@@ -311,11 +311,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SmtpConfig
+    class SmtpConfig
     {
         public string SmtpServer;
         public int SmtpPort;
-        public bool UseSSL;
+        public bool UseSSL = false;
 
         public SmtpConfig(string smtpServer, int smtpPort)
         {

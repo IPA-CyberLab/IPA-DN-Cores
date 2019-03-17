@@ -10,21 +10,17 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class SubnetSpaceSubnet<T> where T: class
+    class SubnetSpaceSubnet<T> where T: class
     {
         public IPAddr Address;
         public int SubnetLength;
         public List<T> DataList;
 
-        [JsonIgnore]
-        public T DataFirst { get => this.DataList.GetFirstOrNull(); }
+        public T GetDataFirst() => this.DataList.GetFirstOrNull();
 
         internal List<(int sort_key, T data)> tmp_sort_list = new List<(int sort_key, T data)>();
 
@@ -123,7 +119,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SubnetSpace<T> where T : class
+    class SubnetSpace<T> where T : class
     {
         public AddressFamily AddressFamily;
         public RadixTrie<SubnetSpaceSubnet<T>> Trie;

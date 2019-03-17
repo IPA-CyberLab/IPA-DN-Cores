@@ -20,7 +20,7 @@ using IPA.Cores.Basic.Internal;
 namespace IPA.Cores.Basic
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct GZipHeader
+    struct GZipHeader
     {
         public byte ID1, ID2, CM, FLG;
         public uint MTIME;
@@ -28,13 +28,13 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct GZipFooter
+    struct GZipFooter
     {
         public uint CRC32;
         public uint ISIZE;
     }
 
-    public static class GZipUtil
+    static class GZipUtil
     {
         public static byte[] Decompress(byte[] gzip)
         {
@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class GZipPacker
+    class GZipPacker
     {
         Fifo fifo;
         ZStream zs;

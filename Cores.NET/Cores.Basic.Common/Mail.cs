@@ -23,12 +23,12 @@ using System.Net.Mime;
 
 namespace IPA.Cores.Basic
 {
-    public enum SendMailVersion
+    enum SendMailVersion
     {
         Ver2_With_NetMail,
     }
 
-    public class SendMail
+    class SendMail
     {
         string smtpServer;
         public string SmtpServer

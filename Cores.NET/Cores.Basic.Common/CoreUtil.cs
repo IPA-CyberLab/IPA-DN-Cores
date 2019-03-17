@@ -9,11 +9,6 @@ using System.Data.SqlTypes;
 using System.Data.SqlClient;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
@@ -59,7 +54,7 @@ using static System.Console;
 
 namespace IPA.Cores.Basic
 {
-    public class Class1
+    class Class1
     {
         public static void Test()
         {

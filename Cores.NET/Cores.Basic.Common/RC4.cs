@@ -19,7 +19,7 @@ using System.Net.NetworkInformation;
 
 namespace IPA.Cores.Basic
 {
-    public class RC4 : ICloneable
+    class RC4 : ICloneable
     {
         uint x, y;
         uint[] state;

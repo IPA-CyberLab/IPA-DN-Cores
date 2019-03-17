@@ -22,7 +22,7 @@ using System.Reflection;
 
 namespace IPA.Cores.Basic
 {
-    public class Stb
+    class Stb
     {
         Dictionary<string, StbEntry> entryList;
 
@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class StbEntry
+    class StbEntry
     {
         string name;
         public string Name

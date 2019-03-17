@@ -17,7 +17,7 @@ using System.Runtime.InteropServices;
 namespace IPA.Cores.Basic
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct ZipDataHeader
+    struct ZipDataHeader
     {
         public uint Signature;
         public ushort NeedVer;
@@ -33,7 +33,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct ZipDataFooter
+    struct ZipDataFooter
     {
         public uint Signature;
         public uint Crc32;
@@ -42,7 +42,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct ZipDirHeader
+    struct ZipDirHeader
     {
         public uint Signature;
         public ushort MadeVer;
@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct ZipEndHeader
+    struct ZipEndHeader
     {
         public uint Signature;
         public ushort DiskNum;
@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
         public ushort CommentLen;
     }
 
-    public static class ZipUtil
+    static class ZipUtil
     {
         static ZipUtil()
         {
@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ZipPacker
+    class ZipPacker
     {
         public const uint Signature = 0x04034B50;
         public const uint SignatureEnd = 0x06054B50;

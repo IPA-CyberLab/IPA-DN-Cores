@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic.Security</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Secure.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Crypto.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Wpc.cs" />
   </ItemGroup>
 </Project>

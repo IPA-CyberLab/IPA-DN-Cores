@@ -27,19 +27,19 @@ using System.Runtime.Serialization;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
     // 言語一覧
-    public enum CoreLanguage
+    enum CoreLanguage
     {
         Japanese = 0,
         English = 1,
     }
 
     // 言語クラス
-    public class CoreLanguageClass
+    class CoreLanguageClass
     {
         public readonly CoreLanguage Language;
         public readonly int Id;
@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
     }
 
     // 言語リスト
-    public static class CoreLanguageList
+    static class CoreLanguageList
     {
         public static readonly CoreLanguageClass DefaultLanguage;
         public static readonly CoreLanguageClass Japanese;
@@ -175,7 +175,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class RefInt
+    class RefInt
     {
         public RefInt() : this(0) { }
         public RefInt(int value)
@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
         public int Decrement() => Interlocked.Decrement(ref this.Value);
     }
 
-    public class RefBool
+    class RefBool
     {
         public RefBool() : this(false) { }
         public RefBool(bool value)
@@ -203,7 +203,7 @@ namespace IPA.Cores.Basic
         public override string ToString() => this.Value.ToString();
     }
 
-    public class Ref<T>
+    class Ref<T>
     {
         public Ref() : this(default(T)) { }
         public Ref(T value)
@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
     }
 
     // ユーティリティクラス
-    public static class Util
+    static partial class Util
     {
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
@@ -361,20 +361,6 @@ namespace IPA.Cores.Basic
         //    foreach (var o in items)
         //        list.Add(o);
         //}
-
-        // オブジェクトのハッシュ値を計算
-        public static ulong GetObjectHash(object o)
-        {
-            if (o == null) return 0;
-            try
-            {
-                return Str.HashStrToLong(Json.Serialize(o, true, false, null));
-            }
-            catch
-            {
-                return 0;
-            }
-        }
 
         // ストリームからすべて読み出す
         public static byte[] ReadAllFromStream(Stream st)
@@ -1211,7 +1197,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class XmlAndXsd
+    class XmlAndXsd
     {
         public byte[] XmlData;
         public byte[] XsdData;
@@ -1220,7 +1206,7 @@ namespace IPA.Cores.Basic
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体
-    public struct Once
+    struct Once
     {
         volatile private int flag;
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
@@ -1228,7 +1214,7 @@ namespace IPA.Cores.Basic
     }
 
     // 再試行ヘルパー
-    public class RetryHelper<T>
+    class RetryHelper<T>
     {
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
@@ -1274,7 +1260,7 @@ namespace IPA.Cores.Basic
     }
 
     // シングルトン
-    public struct Singleton<T> where T: class
+    struct Singleton<T> where T: class
     {
         static object lockobj = new object();
         T obj;
@@ -1290,7 +1276,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class GlobalObjectExchange
+    static class GlobalObjectExchange
     {
         static Dictionary<string, object> table = new Dictionary<string, object>();
 
@@ -1323,7 +1309,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class IntervalManager
+    class IntervalManager
     {
         long last_tick = 0;
         public int Interval { get; private set; }
@@ -1362,7 +1348,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Distinct<T>
+    class Distinct<T>
     {
         Dictionary<T, T> d = new Dictionary<T, T>();
 
@@ -1382,7 +1368,7 @@ namespace IPA.Cores.Basic
         public T[] Values { get => d.Keys.ToArrayList(); }
     }
 
-    public class DelayLoader<T> : IDisposable
+    class DelayLoader<T> : IDisposable
     {
         Func<long, (T, long)> load_proc;
         int retry_interval;

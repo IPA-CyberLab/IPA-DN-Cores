@@ -24,11 +24,11 @@ using System.Net.Mail;
 using System.Net.Mime;
 using System.Runtime.InteropServices;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static class Kernel
+    static class Kernel
     {
         [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
     }
 
     // 子プロセスの起動・制御用クラス
-    public class ChildProcess
+    class ChildProcess
     {
         string stdout = "", stderr = "";
         int exitcode = -1;

@@ -28,18 +28,16 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.NetworkInformation;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static class Dbg
+    static partial class Dbg
     {
         static bool is_debug_mode = false;
         public static bool IsDebugMode => is_debug_mode;
 
         public static void SetDebugMode(bool b = true) => is_debug_mode = b;
-
-        public static void Report(string name, object obj) => Report(name, obj.ObjectToJson(compact: true));
 
         public static void Report(string name, string value)
         {
@@ -313,7 +311,7 @@ namespace IPA.Cores.Basic
         public static void Break() => Debugger.Break();
     }
 
-    public class DebugVars
+    class DebugVars
     {
         public string BaseName = "";
 
@@ -364,7 +362,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class IntervalDebug
+    class IntervalDebug
     {
         public string Name { get; }
         public IntervalDebug(string name = "Interval") => this.Name = name.NonNullTrim();
@@ -382,7 +380,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Benchmark : IDisposable
+    class Benchmark : IDisposable
     {
         public int Interval { get; }
         public long IncrementMe = 0;
@@ -454,7 +452,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class SingletonFactory
+    static class SingletonFactory
     {
         static Dictionary<string, object> table = new Dictionary<string, object>();
 
@@ -477,7 +475,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class GlobalIntervalReporter
+    partial class GlobalIntervalReporter
     {
         public const int Interval = 1000;
         SortedList<string, Ref<(int ver, string value)>> table = new SortedList<string, Ref<(int ver, string value)>>();
@@ -508,9 +506,6 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-
-        public void Report(string name, object obj)
-            => Report(name, obj.ObjectToJson(compact: true));
 
         public void Report(string name, string value)
         {
@@ -575,7 +570,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    public class IntervalReporter : IDisposable
+    class IntervalReporter : IDisposable
     {
         public int Interval { get; }
         Once d;

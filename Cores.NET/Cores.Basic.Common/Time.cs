@@ -42,7 +42,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class Time
+    static class Time
     {
         static TimeHelper h = new TimeHelper();
         static TimeSpan baseTimeSpan = new TimeSpan(0, 0, 1);

@@ -24,7 +24,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    public static class Env
+    static class Env
     {
         static object lockObj = new object();
 

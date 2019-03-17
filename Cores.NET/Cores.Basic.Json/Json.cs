@@ -18,11 +18,11 @@ using System.Runtime.InteropServices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static class Json
+    static class Json
     {
         public const int DefaultMaxDepth = 8;
 

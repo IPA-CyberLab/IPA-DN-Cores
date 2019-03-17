@@ -25,7 +25,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace IPA.Cores.Basic
 {
-    public static class Unisys
+    static class Unisys
     {
         static class Libraries
         {

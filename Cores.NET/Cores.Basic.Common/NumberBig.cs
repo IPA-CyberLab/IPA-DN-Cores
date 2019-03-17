@@ -136,7 +136,7 @@ using System;
 namespace IPA.Cores.Basic
 {
 
-    public class BigNumber
+    class BigNumber
     {
         // maximum length of the BigInteger in uint (4 bytes)
         // change this to suit the required level of precision.

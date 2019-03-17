@@ -20,12 +20,12 @@ using System.Reflection;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
-    public class AsyncLock : IDisposable
+    class AsyncLock : IDisposable
     {
         public class LockHolder : IDisposable
         {
@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    internal class TaskVarObject
+    class TaskVarObject
     {
         Dictionary<string, object> data = new Dictionary<string, object>();
 
@@ -105,12 +105,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class TaskVar<T>
+    static class TaskVar<T>
     {
         public static T Value { get => TaskVar.Get<T>(); set => TaskVar.Set<T>(value); }
     }
 
-    public static class TaskVar
+    static class TaskVar
     {
         internal static AsyncLocal<TaskVarObject> async_local_obj = new AsyncLocal<TaskVarObject>();
 
@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
         public static void Set(string name, object obj) => async_local_obj.Value.Set(name, obj);
     }
 
-    public static class BackgroundWorker
+    static class BackgroundWorker
     {
         static volatile int num_busy_worker_threads = 0;
         static volatile int num_worker_threads = 0;
@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    public static class AsyncPreciseDelay
+    static class AsyncPreciseDelay
     {
         static SortedList<long, AsyncManualResetEvent> wait_list = new SortedList<long, AsyncManualResetEvent>();
 
@@ -464,7 +464,7 @@ namespace IPA.Cores.Basic
         }
     }*/
 
-    public class AsyncAutoResetEvent
+    class AsyncAutoResetEvent
     {
         object lockobj = new object();
         List<AsyncManualResetEvent> event_queue = new List<AsyncManualResetEvent>();
@@ -534,7 +534,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class AsyncManualResetEvent
+    class AsyncManualResetEvent
     {
         object lockobj = new object();
         volatile TaskCompletionSource<bool> tcs;
@@ -607,16 +607,16 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class TaskUtil
+    static partial class TaskUtil
     {
         public static void Test()
         {
-            Dbg.WhereThread();
-            //Task<string> t = (Task<string>)ConvertTask(f1(), typeof(object), typeof(string));
-            Task<object> t = (Task<object>)ConvertTask(f2(), typeof(string), typeof(object));
-            Dbg.WhereThread();
-            t.Result.Print();
-            Dbg.WhereThread();
+            //Dbg.WhereThread();
+            ////Task<string> t = (Task<string>)ConvertTask(f1(), typeof(object), typeof(string));
+            //Task<object> t = (Task<object>)ConvertTask(f2(), typeof(string), typeof(object));
+            //Dbg.WhereThread();
+            //t.Result.Print();
+            //Dbg.WhereThread();
         }
 
         static async Task<object> f1()
@@ -685,66 +685,6 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-        }
-
-        public static object ConvertTask(object src_task_object, Type old_task_type, Type new_task_type)
-        {
-            Type src_task_def = typeof(Task<>).MakeGenericType(old_task_type);
-
-            var cont_with_methods = src_task_def.GetMethods();
-            MethodInfo cont_with = null;
-            int num = 0;
-            foreach (var m in cont_with_methods)
-            {
-                if (m.Name == "ContinueWith" && m.ContainsGenericParameters)
-                {
-                    var pinfos = m.GetParameters();
-                    if (pinfos.Length == 1)
-                    {
-                        var pinfo = pinfos[0];
-                        var ptype = pinfo.ParameterType;
-                        var generic_args = ptype.GenericTypeArguments;
-                        if (generic_args.Length == 2)
-                        {
-                            if (generic_args[0].IsGenericType)
-                            {
-                                if (generic_args[1].IsGenericParameter)
-                                {
-                                    if (generic_args[0].BaseType == typeof(Task))
-                                    {
-                                        cont_with = m;
-                                        num++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (num != 1) throw new ApplicationException("ConvertTask: num != 1");
-
-            object ret = null;
-
-            var cont_with_generic = cont_with.MakeGenericMethod(new_task_type);
-
-            var convert_task_proc_method = typeof(TaskUtil).GetMethod(nameof(convert_task_proc), BindingFlags.NonPublic | BindingFlags.Static).MakeGenericMethod(new_task_type);
-
-            var func_type = typeof(Func<,>).MakeGenericType(typeof(Task<>).MakeGenericType(old_task_type), new_task_type);
-
-            Delegate delegate_instance = convert_task_proc_method.CreateDelegate(func_type);
-
-            ret = cont_with_generic.Invoke(src_task_object, new object[] { delegate_instance });
-
-            return ret;
-        }
-
-        static TNewResult convert_task_proc<TNewResult>(object t)
-        {
-            Type old_task_type = t.GetType();
-            object result_old = old_task_type.GetProperty("Result").GetValue(t);
-            TNewResult result_new = Json.ConvertObject<TNewResult>(result_old);
-            return result_new;
         }
 
         public static Task PreciseDelay(int msec)
@@ -1001,7 +941,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class TimeoutDetector : IDisposable
+    class TimeoutDetector : IDisposable
     {
         Task main_loop;
 
@@ -1103,7 +1043,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class CancelWatcher : IDisposable
+    class CancelWatcher : IDisposable
     {
         CancellationTokenSource cts = new CancellationTokenSource();
         public CancellationToken CancelToken { get => cts.Token; }
@@ -1216,7 +1156,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class TaskVmAbortException : Exception
+    class TaskVmAbortException : Exception
     {
         public TaskVmAbortException(string message) : base(message) { }
     }
@@ -1324,7 +1264,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class TaskVm<TResult, TIn>
+    class TaskVm<TResult, TIn>
     {
         readonly ThreadObj thread;
         public ThreadObj ThreadObj => this.thread;

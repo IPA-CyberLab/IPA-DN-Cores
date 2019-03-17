@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 namespace IPA.Cores.Basic
 {
     // WPC クライアント情報
-    public class WpcClient
+    class WpcClient
     {
         string ipAddress;
         public string IpAddress
@@ -237,7 +237,7 @@ namespace IPA.Cores.Basic
     }
 
     // WpcEntry
-    public class WpcEntry
+    class WpcEntry
     {
         byte[] entryName;
         public byte[] EntryName
@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
     }
 
     // Packet
-    public class WpcPacket
+    class WpcPacket
     {
         Pack pack;
         public Pack Pack
@@ -494,7 +494,7 @@ namespace IPA.Cores.Basic
     }
 
     // Web Procedure Call
-    public static class Wpc
+    static class Wpc
     {
         // Base 64 エンコード
         public static string Base64Encode(byte[] data)

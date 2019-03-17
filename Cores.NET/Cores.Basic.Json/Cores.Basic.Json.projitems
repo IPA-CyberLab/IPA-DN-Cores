@@ -9,6 +9,11 @@
     <Import_RootNamespace>Cores.Basic.Json</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)DebugWithJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JsonHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TaskVmWithJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UtilWithJson.cs" />
   </ItemGroup>
 </Project>

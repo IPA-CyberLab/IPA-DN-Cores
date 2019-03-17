@@ -20,12 +20,12 @@ using System.Reflection;
 using HtmlAgilityPack;
 
 using IPA.Cores.Basic;
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
     // ヘッダ付きテーブルのデータ
-    public class HtmlParsedTableData
+    class HtmlParsedTableData
     {
         public HtmlNode TdNode { get; }
         public string SimpleText { get; }
@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     }
 
     // HTML をパースして読み込まれたヘッダ付きテーブル
-    public class HtmlParsedTableWithHeader
+    class HtmlParsedTableWithHeader
     {
         public HtmlNode TableNode { get; }
         public List<string> HeaderList { get; }
@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class HtmlParser
+    static class HtmlParser
     {
         public static HtmlDocument ParseHtml(string body)
         {
@@ -121,9 +121,9 @@ namespace IPA.Cores.Basic
     }
 }
 
-namespace IPA.DN.CoreUtil.Helper.Basic
+namespace IPA.Cores.Helper.Basic
 {
-    public static class HelperHtmlParser
+    static class HelperHtmlParser
     {
         public static string GetSimpleText(this HtmlNode node)
         {

@@ -25,12 +25,12 @@ using System.Xml.Serialization;
 using System.Runtime.InteropServices;
 using System.Reflection;
 
-using IPA.DN.CoreUtil.Helper.Basic;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
     // DateTime をシンブル文字列に変換
-    public enum DtstrOption
+    enum DtstrOption
     {
         All,
         DateOnly,
@@ -38,7 +38,7 @@ namespace IPA.Cores.Basic
     }
 
     // キーバリューリスト
-    public class KeyValueList
+    class KeyValueList
     {
         SortedDictionary<string, string> data = new SortedDictionary<string, string>();
 
@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
     }
 
     // シリアライズされたエラー文字列
-    public class SerializedError
+    class SerializedError
     {
         public string Code;
         public string Language;
@@ -185,7 +185,7 @@ namespace IPA.Cores.Basic
 
     // Printf 風フラグ
     [FlagsAttribute]
-    public enum PrintFFLags
+    enum PrintFFLags
     {
         Minus = 1,
         Plus = 2,
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
     }
 
     // Printf 風パース結果
-    public class PrintFParsedParam
+    class PrintFParsedParam
     {
         public bool Ok = false;
         public readonly PrintFFLags Flags = 0;
@@ -621,7 +621,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class StrEqualityComparer : IEqualityComparer<string>
+    class StrEqualityComparer : IEqualityComparer<string>
     {
         bool caseSensitive;
 
@@ -648,7 +648,7 @@ namespace IPA.Cores.Basic
 
 
     // 文字列比較インターフェイス
-    public class StrComparer : IComparer<string>
+    class StrComparer : IComparer<string>
     {
         bool caseSensitive;
 
@@ -668,10 +668,10 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate bool RemoveStringFunction(string str);
+    delegate bool RemoveStringFunction(string str);
 
     // 文字列操作
-    public static class Str
+    static class Str
     {
         public static Encoding AsciiEncoding { get; }
         public static Encoding ShiftJisEncoding { get; }
@@ -5297,13 +5297,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class XmlCheckObjectInternal
+    class XmlCheckObjectInternal
     {
         public string Str;
     }
 
     // 文字列トークン操作
-    public class StrToken
+    class StrToken
     {
         string[] tokens;
 
@@ -5366,7 +5366,7 @@ namespace IPA.Cores.Basic
     }
 
     // 文字列を各種のデータ型に変換
-    public class StrData
+    class StrData
     {
         string strValue;
 

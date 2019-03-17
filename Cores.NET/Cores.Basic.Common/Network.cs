@@ -15,7 +15,7 @@ using System.Threading;
 namespace IPA.Cores.Basic
 {
     // ソケットの種類
-    public enum SockType
+    enum SockType
     {
         Unknown = 0,
         Tcp = 1,
@@ -23,7 +23,7 @@ namespace IPA.Cores.Basic
     }
 
     // ソケットイベント
-    public class SockEvent : IDisposable
+    class SockEvent : IDisposable
     {
         Event win32_event;
 
@@ -193,7 +193,7 @@ namespace IPA.Cores.Basic
     }
 
     // ソケットセット
-    public class SockSet
+    class SockSet
     {
         List<Sock> list;
 
@@ -286,7 +286,7 @@ namespace IPA.Cores.Basic
     }
 
     // IPv6 アドレスの種類
-    public struct IPv6AddressType
+    struct IPv6AddressType
     {
         public bool Unicast;
         public bool LocalUnicast;
@@ -300,7 +300,7 @@ namespace IPA.Cores.Basic
     }
 
     // IP ユーティリティ
-    public static class IPUtil
+    static class IPUtil
     {
         // ユーザーが利用できるホストアドレスかどうか確認
         public static bool IsIPv4UserHostAddress(IPAddress ip, IPAddress subnet)
@@ -359,7 +359,7 @@ namespace IPA.Cores.Basic
 
             IPAddress broadcast = IPOr(network, IPNot(subnet));
 
-            IPAddress router = (new IPv4Addr(broadcast).Add(-1)).IPAddress;
+            IPAddress router = (new IPv4Addr(broadcast).Add(-1)).GetIPAddress();
 
             return router;
         }
@@ -452,7 +452,7 @@ namespace IPA.Cores.Basic
 
                 BigNumber bi = new IPv4Addr(network_address).GetBigNumber() + (new IPv4Addr(mask).GetBigNumber());
 
-                IPAddress end = new IPv4Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetwork)).IPAddress;
+                IPAddress end = new IPv4Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetwork)).GetIPAddress();
 
                 return new KeyValuePair<IPAddress, IPAddress>(network_address, end);
             }
@@ -463,7 +463,7 @@ namespace IPA.Cores.Basic
 
                 BigNumber bi = new IPv6Addr(network_address).GetBigNumber() + (new IPv6Addr(mask).GetBigNumber());
 
-                IPAddress end = new IPv6Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetworkV6)).IPAddress;
+                IPAddress end = new IPv6Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetworkV6)).GetIPAddress();
 
                 return new KeyValuePair<IPAddress, IPAddress>(network_address, end);
             }
@@ -1572,7 +1572,7 @@ namespace IPA.Cores.Basic
     }
 
     // ソケット
-    public class Sock
+    class Sock
     {
         static readonly SocketFlags DefaultSocketFlags;
         static Sock()
@@ -2697,7 +2697,7 @@ namespace IPA.Cores.Basic
     }
 
     // Ping 応答
-    public class SendPingReply
+    class SendPingReply
     {
         private TimeSpan rttTimeSpan;
         public TimeSpan RttTimeSpan
@@ -2748,7 +2748,7 @@ namespace IPA.Cores.Basic
     }
 
     // Ping 送信
-    public class SendPing
+    class SendPing
     {
         public const int DefaultSendSize = 32;
         public const int DefaultTimeout = 1000;
@@ -2817,7 +2817,7 @@ namespace IPA.Cores.Basic
     }
 
     // DNS
-    public class Domain
+    class Domain
     {
         public static readonly TimeSpan DnsCacheLifeTime = new TimeSpan(0, 1, 0, 0);
         static Cache<string, IPAddress[]> dnsACache = new Cache<string, IPAddress[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);

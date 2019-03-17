@@ -21,7 +21,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    public class DnHttpPostData
+    class DnHttpPostData
     {
         NameValueCollection nv = new NameValueCollection();
 
@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class DnHttpClient
+    class DnHttpClient
     {
         CookieContainer cc = new CookieContainer();
         public CookieContainer CookieContainer

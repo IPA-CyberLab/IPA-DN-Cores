@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソール入出力
-    public static class Con
+    static class Con
     {
         static ConsoleService cs = null;
 
@@ -160,7 +160,7 @@ namespace IPA.Cores.Basic
     }
 
     // ユーザーによるキャンセル例外
-    public class ConsoleUserCancelException : Exception
+    class ConsoleUserCancelException : Exception
     {
         public ConsoleUserCancelException(string msg)
             : base(msg)
@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
     }
 
     // パラメータの最小 / 最大値評価
-    public class ConsoleEvalMinMaxParam
+    class ConsoleEvalMinMaxParam
     {
         public readonly string ErrorMessageString;
         public readonly int MinValue, MaxValue;
@@ -183,14 +183,14 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールの種類
-    public enum ConsoleType
+    enum ConsoleType
     {
         Local,      // ローカルコンソール
         Csv,        // CSV 出力モード
     }
 
     // パラメータ項目
-    public class ConsoleParam
+    class ConsoleParam
     {
         public readonly string Name;                // パラメータ名
         public readonly ConsolePromptProcDelegate PromptProc;   // パラメータが指定されていない場合に自動的に呼び出すプロンプト関数 (NULL の場合は呼ばない)
@@ -224,8 +224,8 @@ namespace IPA.Cores.Basic
     }
 
     // デリゲート
-    public delegate string ConsolePromptProcDelegate(ConsoleService c, object param);
-    public delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object param);
+    delegate string ConsolePromptProcDelegate(ConsoleService c, object param);
+    delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object param);
 
     delegate void ConsoleFreeDelegate();
     delegate string ConsoleReadLineDelegate(string prompt, bool nofile);
@@ -234,7 +234,7 @@ namespace IPA.Cores.Basic
     delegate int ConsoleGetWidthDelegate();
 
     // パラメータ値リスト
-    public class ConsoleParamValueList
+    class ConsoleParamValueList
     {
         List<ConsoleParamValue> o;
 
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
     }
 
     // パラメータ値
-    public class ConsoleParamValue : IComparable<ConsoleParamValue>, IEquatable<ConsoleParamValue>
+    class ConsoleParamValue : IComparable<ConsoleParamValue>, IEquatable<ConsoleParamValue>
     {
         public readonly string Name;            // 名前
         public readonly string StrValue;        // 文字列値
@@ -366,12 +366,12 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールコマンドパラメータ属性
-    public class ConsoleCommandParam : Attribute
+    class ConsoleCommandParam : Attribute
     {
     }
 
     // コンソールコマンドメソッド属性
-    public class ConsoleCommandMethod : Attribute
+    class ConsoleCommandMethod : Attribute
     {
         public readonly string Description;
         public readonly string ArgsHelp;
@@ -404,7 +404,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールエラーコード
-    public static class ConsoleErrorCode
+    static class ConsoleErrorCode
     {
         public const int ERR_BAD_COMMAND_OR_PARAM = -100001;
         public const int ERR_INNER_EXCEPTION = -100002;
@@ -437,7 +437,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールサービス
-    public class ConsoleService
+    class ConsoleService
     {
         IO inFile;                      // 入力ファイル
         Buf inBuf;                      // 入力バッファ
