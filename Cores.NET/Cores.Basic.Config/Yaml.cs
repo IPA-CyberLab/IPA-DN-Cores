@@ -41,7 +41,7 @@ namespace IPA.Cores.Basic
         {
             SerializerBuilder sb = new SerializerBuilder();
             sb.EmitDefaults();
-            Serializer s = sb.Build();
+            ISerializer s = sb.Build();
             StringWriter w = new StringWriter();
             s.Serialize(w, obj, obj.GetType());
             return w.ToString();
@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
         {
             DeserializerBuilder db = new DeserializerBuilder();
             db.IgnoreUnmatchedProperties();
-            Deserializer d = db.Build();
+            IDeserializer d = db.Build();
             return d.Deserialize<T>(str);
         }
     }
