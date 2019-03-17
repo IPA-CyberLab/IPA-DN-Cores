@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>1c674893-7c84-4e7c-834e-6e2370225da0</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Cores.Basic.Common</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)BigNumber.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Buf.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Compress.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Console.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CoreUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Csv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Debug.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Env.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileIO.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileLogger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FullRoute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GZip.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HttpClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IPInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Kernel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Listener.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Mail.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MailUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MultiLang.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Network.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Pack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Packer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RadixTrie.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RC4.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ReadIni.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ReadIni2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Smtp.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stb.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Str.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SubnetSpace.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Tar.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TaskVm.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Thread.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Time.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UnixSyscall.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Wpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Zip.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ZLib.cs" />
+  </ItemGroup>
+</Project>

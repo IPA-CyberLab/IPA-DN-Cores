@@ -14,5 +14,51 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <!-- Cores.Basic.Common -->
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
+
+    <!-- Cores.Basic.Config -->
+    <!--<PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="YamlDotNet" Version="5.0.1" />-->
+
+    <!-- Cores.Basic.Database -->
+    <!--<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.1" />
+    <PackageReference Include="Dapper" Version="1.50.5" />-->
+
+    <!-- Cores.Basic.Html -->
+    <!--<PackageReference Include="HtmlAgilityPack" Version="1.8.7" />-->
+
+    <!-- Cores.Basic.Json -->
+    <!--<PackageReference Include="Newtonsoft.Json" Version="11.0.2" />-->
+
+    <!-- Cores.Basic.Security -->
+    <!--<PackageReference Include="BouncyCastle.NetCore" Version="1.8.2" />-->
+
+    <!-- Cores.Basic.Web -->
+    <!--<PackageReference Include="Microsoft.AspNetCore" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" />
+    <PackageReference Include="Castle.Core" Version="4.3.1" />-->
+
+  </ItemGroup>
+  
+  <Import Project="..\Cores.Basic.Common\Cores.Basic.Common.projitems" Label="Shared" />
+  
+  <!--<Import Project="..\Cores.Basic.Config\Cores.Basic.Config.projitems" Label="Shared" />
+  
+  <Import Project="..\Cores.Basic.Database\Cores.Basic.Database.projitems" Label="Shared" />
+  
+  <Import Project="..\Cores.Basic.Html\Cores.Basic.Html.projitems" Label="Shared" />
+  
+  <Import Project="..\Cores.Basic.Json\Cores.Basic.Json.projitems" Label="Shared" />
+  
+  <Import Project="..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
+  
+  <Import Project="..\Cores.Basic.Web\Cores.Basic.Web.projitems" Label="Shared" />-->
 
 </Project>
