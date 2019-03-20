@@ -191,14 +191,14 @@ namespace IPA.Cores.Helper.Basic
 
         public static object Print(this object o)
         {
-            string str = o.ObjectToJson() ?? "null";
+            string str = o.ToString() ?? "null";
             if (o is string) str = (string)o;
             Console.WriteLine(str);
             return o;
         }
         public static object Debug(this object o)
         {
-            string str = o.ObjectToJson() ?? "null";
+            string str = o.ToString() ?? "null";
             if (o is string) str = (string)o;
             Dbg.WriteLine(str);
             return o;

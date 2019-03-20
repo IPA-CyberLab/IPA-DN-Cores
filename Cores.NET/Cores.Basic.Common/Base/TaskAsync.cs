@@ -324,6 +324,24 @@ namespace IPA.Cores.Basic
 
     static partial class TaskUtil
     {
+        public static int GetMinTimeout(params int[] values)
+        {
+            long minValue = long.MaxValue;
+            foreach (int v in values)
+            {
+                long vv;
+                if (v < 0)
+                    vv = long.MaxValue;
+                else
+                    vv = v;
+                minValue = Math.Min(minValue, vv);
+            }
+            if (minValue == long.MaxValue)
+                return Timeout.Infinite;
+            else
+                return (int)minValue;
+        }
+
         public static async Task<TResult> DoAsyncWithTimeout<TResult>(Func<CancellationToken, Task<TResult>> mainProc, Action cancelProc = null, int timeout = Timeout.Infinite, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout < 0) timeout = Timeout.Infinite;

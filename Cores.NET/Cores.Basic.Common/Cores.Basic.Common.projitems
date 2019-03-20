@@ -56,5 +56,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalNetwork.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\ProtoApp\SpeedTest.cs" />
   </ItemGroup>
 </Project>
