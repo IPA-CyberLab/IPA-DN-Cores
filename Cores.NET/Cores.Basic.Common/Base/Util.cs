@@ -40,6 +40,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using IPA.Cores.Helper.Basic;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
@@ -187,32 +190,81 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RefInt
+    class RefInt : IEquatable<RefInt>, IComparable<RefInt>
     {
         public RefInt() : this(0) { }
         public RefInt(int value)
         {
             this.Value = value;
         }
-        public int Value;
+        public volatile int Value;
         public void Set(int value) => this.Value = value;
         public int Get() => this.Value;
         public override string ToString() => this.Value.ToString();
         public int Increment() => Interlocked.Increment(ref this.Value);
         public int Decrement() => Interlocked.Decrement(ref this.Value);
+
+        public override bool Equals(object obj) => obj is RefInt x && this.Value == x.Value;
+        public override int GetHashCode() => Value.GetHashCode();
+
+        public bool Equals(RefInt other) => this.Value.Equals(other.Value);
+        public int CompareTo(RefInt other) => this.Value.CompareTo(other.Value);
+
+        public static bool operator ==(RefInt left, int right) => left.Value == right;
+        public static bool operator !=(RefInt left, int right) => left.Value != right;
+        public static implicit operator int(RefInt r) => r.Value;
+        public static implicit operator RefInt(int value) => new RefInt(value);
     }
 
-    class RefBool
+    class RefLong : IEquatable<RefLong>, IComparable<RefLong>
+    {
+        public RefLong() : this(0) { }
+        public RefLong(long value)
+        {
+            this.Value = value;
+        }
+        long _value;
+        public long Value { get => Get(); set => Set(value); }
+        public void Set(long value) => Interlocked.Exchange(ref this._value, value);
+        public long Get() => Interlocked.Read(ref this._value);
+        public override string ToString() => this.Value.ToString();
+        public long Increment() => Interlocked.Increment(ref this._value);
+        public long Decrement() => Interlocked.Decrement(ref this._value);
+
+        public override bool Equals(object obj) => obj is RefLong x && this.Value == x.Value;
+        public override int GetHashCode() => Value.GetHashCode();
+
+        public bool Equals(RefLong other) => this.Value.Equals(other.Value);
+        public int CompareTo(RefLong other) => this.Value.CompareTo(other.Value);
+
+        public static bool operator ==(RefLong left, long right) => left.Value == right;
+        public static bool operator !=(RefLong left, long right) => left.Value != right;
+        public static implicit operator long(RefLong r) => r.Value;
+        public static implicit operator RefLong(long value) => new RefLong(value);
+    }
+
+    class RefBool : IEquatable<RefBool>, IComparable<RefBool>
     {
         public RefBool() : this(false) { }
         public RefBool(bool value)
         {
             this.Value = value;
         }
-        public bool Value;
+        public volatile bool Value;
         public void Set(bool value) => this.Value = value;
         public bool Get() => this.Value;
         public override string ToString() => this.Value.ToString();
+
+        public override bool Equals(object obj) => obj is RefBool x && this.Value == x.Value;
+        public override int GetHashCode() => Value.GetHashCode();
+
+        public bool Equals(RefBool other) => this.Value.Equals(other.Value);
+        public int CompareTo(RefBool other) => this.Value.CompareTo(other.Value);
+
+        public static bool operator ==(RefBool left, bool right) => left.Value == right;
+        public static bool operator !=(RefBool left, bool right) => left.Value != right;
+        public static implicit operator bool(RefBool r) => r.Value;
+        public static implicit operator RefBool(bool value) => new RefBool(value);
     }
 
     class Ref<T>
@@ -235,9 +287,9 @@ namespace IPA.Cores.Basic
                 case int i:
                     return (i != 0);
                 case string s:
-                    return Str.StrToBool(s);
+                    return bool.TryParse(s, out bool ret2) ? ret2 : false;
             }
-            return Str.StrToBool(this.Value.ToString());
+            return bool.TryParse(this.Value.ToString(), out bool ret) ? ret : false;
         }
         public override string ToString() => Value?.ToString() ?? null;
 
@@ -253,11 +305,13 @@ namespace IPA.Cores.Basic
             return -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value);
         }
 
-        public static bool operator true(Ref<T> r) { return r.IsTrue();  }
+        public static bool operator true(Ref<T> r) { return r.IsTrue(); }
         public static bool operator false(Ref<T> r) { return !r.IsTrue(); }
         public static bool operator ==(Ref<T> r, bool b) { return r.IsTrue() == b; }
         public static bool operator !=(Ref<T> r, bool b) { return r.IsTrue() != b; }
-        public static bool operator !(Ref<T> r) { return !r.IsTrue();  }
+        public static bool operator !(Ref<T> r) { return !r.IsTrue(); }
+        public static implicit operator T(Ref<T> r) => r.Value;
+        public static implicit operator Ref<T>(T value) => new Ref<T>(value);
     }
 
     // ユーティリティクラス
@@ -265,6 +319,8 @@ namespace IPA.Cores.Basic
     {
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
+
+        static readonly Random random = new Random();
 
         // サイズ定数
         public const int SizeOfInt32 = 4;
@@ -1207,6 +1263,160 @@ namespace IPA.Cores.Basic
             }
             return ret.ToArray();*/
         }
+
+        public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
+
+        public static void Rand(Span<byte> dest)
+        {
+            lock (random)
+            {
+                random.NextBytes(dest);
+            }
+        }
+
+        public static byte RandUInt8()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            return mem.GetUInt8();
+        }
+
+        public static ushort RandUInt16()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            return mem.GetUInt16();
+        }
+
+        public static uint RandUInt32()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            return mem.GetUInt32();
+        }
+
+        public static ulong RandUInt64()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            return mem.GetUInt64();
+        }
+
+        public static byte RandUInt7()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetUInt8();
+        }
+
+        public static ushort RandUInt15()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetUInt16();
+        }
+
+        public static uint RandUInt31()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetUInt32();
+        }
+
+        public static ulong RandUInt63()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetUInt64();
+        }
+
+        public static sbyte RandSInt8()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            return mem.GetSInt8();
+        }
+
+        public static short RandSInt16()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            return mem.GetSInt16();
+        }
+
+        public static int RandSInt32()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            return mem.GetSInt32();
+        }
+
+        public static long RandSInt64()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            return mem.GetSInt64();
+        }
+
+        public static sbyte RandSInt7()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetSInt8();
+        }
+
+        public static short RandSInt15()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetSInt16();
+        }
+
+        public static int RandSInt31()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetSInt32();
+        }
+
+        public static long RandSInt63()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem.GetSInt64();
+        }
+
+        public static bool RandBool()
+        {
+            return (RandUInt32() % 2) == 0;
+        }
+
+        public static int GenRandInterval(int min, int max)
+        {
+            int a = Math.Min(min, max);
+            int b = Math.Max(min, max);
+
+            if (a == b)
+            {
+                return a;
+            }
+
+            return (RandSInt31() % (b - 1)) + a;
+        }
+
+        public static T NewWithoutConstructor<T>()
+            => (T)NewWithoutConstructor(typeof(T));
+
+        public static object NewWithoutConstructor(Type t)
+            => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(t);
     }
 
     class XmlAndXsd
@@ -1456,4 +1666,408 @@ namespace IPA.Cores.Basic
             }
         }
     }
+    static class FastHashHelper
+    {
+        public static int ComputeHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
+            => data.GetHashCode(cmp);
+
+        public static int ComputeHash32(this ReadOnlySpan<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        public static int ComputeHash32(this Span<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        public static int ComputeHash32(this byte[] data, int offset, int size)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan(offset, size));
+
+        public static int ComputeHash32(this byte[] data, int offset)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan(offset));
+
+        public static int ComputeHash32(this byte[] data)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan());
+
+        public static int ComputeHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
+        {
+            unsafe
+            {
+                void* ptr = Unsafe.AsPointer(ref data);
+                Span<byte> span = new Span<byte>(ptr, sizeof(TStruct));
+                return ComputeHash32(span);
+            }
+        }
+
+        public static int ComputeHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
+        {
+            var span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return ComputeHash32(span);
+        }
+
+        public static int ComputeHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
+        {
+            var span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return ComputeHash32(span);
+        }
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan(offset, size));
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan(offset));
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan());
+
+
+        #region AutoGenerated
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a) => (a);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b) => (a ^ b);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c) => (a ^ b ^ c);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d) => (a ^ b ^ c ^ d);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e) => (a ^ b ^ c ^ d ^ e);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f) => (a ^ b ^ c ^ d ^ e ^ f);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g) => (a ^ b ^ c ^ d ^ e ^ f ^ g);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y, int z) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y ^ z);
+
+        #endregion
+
+        public static int Xor(params int[] hashList)
+        {
+            int ret = 0;
+            foreach (var i in hashList)
+                ret ^= i;
+            return ret;
+        }
+
+        #region Marvin
+        public static class Marvin
+        {
+            // From: https://github.com/dotnet/corefx/blob/master/src/Common/src/System/Marvin.cs
+            /* The MIT License (MIT)
+             * Copyright (c) .NET Foundation and Contributors
+             * All rights reserved.
+             * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal
+             * in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+             * copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+             * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+             * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+             * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+             * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+             * SOFTWARE. */
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed)
+            {
+                long hash64 = ComputeHash(data, seed);
+                return ((int)(hash64 >> 32)) ^ (int)hash64;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int ComputeHash32(ReadOnlySpan<byte> data) => ComputeHash32(data, DefaultSeed);
+
+            public static long ComputeHash(ReadOnlySpan<byte> data, ulong seed)
+            {
+                uint p0 = (uint)seed;
+                uint p1 = (uint)(seed >> 32);
+
+                if (data.Length >= sizeof(uint))
+                {
+                    ReadOnlySpan<uint> uData = MemoryMarshal.Cast<byte, uint>(data);
+
+                    for (int i = 0; i < uData.Length; i++)
+                    {
+                        p0 += uData[i];
+                        Block(ref p0, ref p1);
+                    }
+
+                    int byteOffset = data.Length & (~3);
+                    data = data.Slice(byteOffset);
+                }
+
+                switch (data.Length)
+                {
+                    case 0:
+                        p0 += 0x80u;
+                        break;
+
+                    case 1:
+                        p0 += 0x8000u | data[0];
+                        break;
+
+                    case 2:
+                        p0 += 0x800000u | MemoryMarshal.Cast<byte, ushort>(data)[0];
+                        break;
+
+                    case 3:
+                        p0 += 0x80000000u | (((uint)data[2]) << 16) | (uint)(MemoryMarshal.Cast<byte, ushort>(data)[0]);
+                        break;
+                }
+
+                Block(ref p0, ref p1);
+                Block(ref p0, ref p1);
+
+                return (((long)p1) << 32) | p0;
+            }
+
+            public static long ComputeHash(ReadOnlySpan<byte> data) => ComputeHash(data, DefaultSeed);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static void Block(ref uint rp0, ref uint rp1)
+            {
+                uint p0 = rp0;
+                uint p1 = rp1;
+
+                p1 ^= p0;
+                p0 = _rotl(p0, 20);
+
+                p0 += p1;
+                p1 = _rotl(p1, 9);
+
+                p1 ^= p0;
+                p0 = _rotl(p0, 27);
+
+                p0 += p1;
+                p1 = _rotl(p1, 19);
+
+                rp0 = p0;
+                rp1 = p1;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static uint _rotl(uint value, int shift)
+            {
+                return (value << shift) | (value >> (32 - shift));
+            }
+
+            public static ulong DefaultSeed { get; } = 0;
+
+            private static ulong GenerateSeed()
+            {
+                using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+                {
+                    var bytes = new byte[sizeof(ulong)];
+                    rng.GetBytes(bytes);
+                    return BitConverter.ToUInt64(bytes, 0);
+                }
+            }
+        }
+        #endregion
+
+    }
+
+    class CachedProperty<T>
+    {
+        object LockObj = new object();
+        bool IsCached = false;
+        T CachedValue;
+
+        Func<T> Getter;
+        Func<T, T> Setter;
+        Func<T, T> Normalizer;
+
+        public CachedProperty(Func<T, T> setter = null, Func<T> getter = null, Func<T, T> normalizer = null)
+        {
+            Setter = setter;
+            Getter = getter;
+            Normalizer = normalizer;
+        }
+
+        public void Set(T value)
+        {
+            if (Setter == null) throw new NotImplementedException();
+            if (Normalizer != null)
+                value = Normalizer(value);
+
+            lock (LockObj)
+            {
+                value = Setter(value);
+                CachedValue = value;
+                IsCached = true;
+            }
+        }
+
+        public T Get()
+        {
+            lock (LockObj)
+            {
+                if (IsCached)
+                    return CachedValue;
+
+                if (Getter == null) throw new NotImplementedException("The value is undefined yet.");
+
+                T value = Getter();
+
+                if (Normalizer != null)
+                    value = Normalizer(value);
+
+                CachedValue = value;
+                IsCached = true;
+
+                return value;
+            }
+        }
+
+        public void Flush()
+        {
+            lock (LockObj)
+            {
+                IsCached = false;
+                CachedValue = default;
+            }
+        }
+
+        public T GetFast()
+        {
+            if (IsCached)
+                return CachedValue;
+
+            return Get();
+        }
+
+        public T Value { get => Get(); set => Set(value); }
+        public T ValueFast { get => GetFast(); }
+
+        public static implicit operator T(CachedProperty<T> r) => r.Value;
+    }
+
+    static class Limbo
+    {
+        public static long SInt = 0;
+        public static ulong UInt = 0;
+        public volatile static object ObjectSlow = null;
+    }
+    class MicroBenchmarkGlobalParam
+    {
+        public static int DefaultDurationMSecs = 250;
+    }
+
+    interface IMicroBenchmark
+    {
+        double Start(int duration = 0);
+        double StartAndPrint(int duration = 0);
+    }
+
+    class MicroBenchmark<TUserVariable> : IMicroBenchmark
+    {
+        public readonly string Name;
+        volatile bool StopFlag;
+        object LockObj = new object();
+        public readonly int Iterations;
+
+        public readonly Func<TUserVariable> Init;
+        public readonly Action<TUserVariable, int> Proc;
+
+        readonly Action<TUserVariable, int> DummyLoopProc = (state, count) =>
+        {
+            for (int i = 0; i < count; i++) Limbo.SInt++;
+        };
+
+        public MicroBenchmark(string name, int iterations, Action<TUserVariable, int> proc, Func<TUserVariable> init = null)
+        {
+            Name = name;
+            Init = init;
+            Proc = proc;
+            Iterations = Math.Max(iterations, 1);
+        }
+
+        public double StartAndPrint(int duration = 0)
+        {
+            double ret = Start(duration);
+
+            Console.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns");
+
+            return ret;
+        }
+
+        double MeasureInternal(int duration, TUserVariable state, Action<TUserVariable, int> proc, int interationsPassValue)
+        {
+            StopFlag = false;
+
+            ManualResetEventSlim ev = new ManualResetEventSlim();
+
+            Thread thread = new Thread(() =>
+            {
+                ev.Wait();
+                Thread.Sleep(duration);
+                StopFlag = true;
+            });
+
+            thread.IsBackground = true;
+            thread.Priority = ThreadPriority.Highest;
+            thread.Start();
+
+            long count = 0;
+            Stopwatch sw = new Stopwatch();
+            ev.Set();
+            sw.Start();
+            TimeSpan ts1 = sw.Elapsed;
+            while (StopFlag == false)
+            {
+                if (Init == null && interationsPassValue == 0)
+                {
+                    DummyLoopProc(state, Iterations);
+                }
+                else
+                {
+                    proc(state, interationsPassValue);
+                    if (interationsPassValue == 0)
+                    {
+                        for (int i = 0; i < Iterations; i++) Limbo.SInt++;
+                    }
+                }
+                count += Iterations;
+            }
+            TimeSpan ts2 = sw.Elapsed;
+            TimeSpan ts = ts2 - ts1;
+            thread.Join();
+
+            double nano = (double)ts.Ticks * 100.0;
+            double nanoPerCall = nano / (double)count;
+
+            return nanoPerCall;
+        }
+
+        public double Start(int duration = 0)
+        {
+            lock (LockObj)
+            {
+                if (duration <= 0) duration = MicroBenchmarkGlobalParam.DefaultDurationMSecs;
+
+                TUserVariable state = default(TUserVariable);
+
+                double v1 = 0;
+                double v2 = 0;
+
+                if (Init != null) state = Init();
+                v2 = MeasureInternal(duration, state, Proc, 0);
+
+                if (Init != null) state = Init();
+                v1 = MeasureInternal(duration, state, Proc, Iterations);
+
+                double v = Math.Max(v1 - v2, 0);
+                //v -= EmptyBaseLine;
+                v = Math.Max(v, 0);
+                return v;
+            }
+        }
+    }
+
 }

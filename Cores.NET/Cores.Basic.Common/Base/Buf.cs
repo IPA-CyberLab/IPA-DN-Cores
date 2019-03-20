@@ -34,6 +34,8 @@ using System;
 using System.Text;
 using System.IO;
 
+using IPA.Cores.Helper.Basic;
+
 namespace IPA.Cores.Basic
 {
     // FIFO
@@ -123,34 +125,37 @@ namespace IPA.Cores.Basic
         }
         public void Write(byte[] src, int offset, int size)
         {
-            int i, need_size;
-            bool realloc_flag;
-
-            i = this.size;
-            this.size += size;
-            need_size = this.pos + this.size;
-            realloc_flag = false;
-
-            int memsize = p.Length;
-            while (need_size > memsize)
+            checked
             {
-                memsize = Math.Max(memsize, FifoInitMemSize) * 3;
-                realloc_flag = true;
-            }
+                int i, need_size;
+                bool realloc_flag;
 
-            if (realloc_flag)
-            {
-                byte[] new_p = new byte[memsize];
-                Util.CopyByte(new_p, 0, this.p, 0, this.p.Length);
-                this.p = new_p;
-            }
+                i = this.size;
+                this.size += size;
+                need_size = this.pos + this.size;
+                realloc_flag = false;
 
-            if (src != null)
-            {
-                Util.CopyByte(this.p, this.pos + i, src, offset, size);
-            }
+                int memsize = p.Length;
+                while (need_size > memsize)
+                {
+                    memsize = Math.Max(memsize, FifoInitMemSize) * 3;
+                    realloc_flag = true;
+                }
 
-            totalWriteSize += size;
+                if (realloc_flag)
+                {
+                    byte[] new_p = new byte[memsize];
+                    Util.CopyByte(new_p, 0, this.p, 0, this.p.Length);
+                    this.p = new_p;
+                }
+
+                if (src != null)
+                {
+                    Util.CopyByte(this.p, this.pos + i, src, offset, size);
+                }
+
+                totalWriteSize += size;
+            }
         }
 
         public byte[] Read()
@@ -191,46 +196,214 @@ namespace IPA.Cores.Basic
         }
         public int Read(byte[] dst, int offset, int size)
         {
-            int read_size;
-
-            read_size = Math.Min(size, this.size);
-            if (read_size == 0)
+            checked
             {
-                return 0;
+                int read_size;
+
+                read_size = Math.Min(size, this.size);
+                if (read_size == 0)
+                {
+                    return 0;
+                }
+                if (dst != null)
+                {
+                    Util.CopyByte(dst, offset, this.p, this.pos, size);
+                }
+                this.pos += read_size;
+                this.size -= read_size;
+
+                if (this.size == 0)
+                {
+                    this.pos = 0;
+                }
+
+                // メモリの詰め直し
+                if (this.pos >= FifoInitMemSize &&
+                    this.p.Length >= this.reallocMemSize &&
+                    (this.p.Length / 2) > this.size)
+                {
+                    byte[] new_p;
+                    int new_size;
+
+                    new_size = Math.Max(this.p.Length / 2, FifoInitMemSize);
+                    new_p = new byte[new_size];
+                    Util.CopyByte(new_p, 0, this.p, this.pos, this.size);
+
+                    this.p = new_p;
+
+                    this.pos = 0;
+                }
+
+                totalReadSize += read_size;
+
+                return read_size;
             }
-            if (dst != null)
-            {
-                Util.CopyByte(dst, offset, this.p, this.pos, size);
-            }
-            this.pos += read_size;
-            this.size -= read_size;
-
-            if (this.size == 0)
-            {
-                this.pos = 0;
-            }
-
-            // メモリの詰め直し
-            if (this.pos >= FifoInitMemSize &&
-                this.p.Length >= this.reallocMemSize &&
-                (this.p.Length / 2) > this.size)
-            {
-                byte[] new_p;
-                int new_size;
-
-                new_size = Math.Max(this.p.Length / 2, FifoInitMemSize);
-                new_p = new byte[new_size];
-                Util.CopyByte(new_p, 0, this.p, this.pos, this.size);
-
-                this.p = new_p;
-
-                this.pos = 0;
-            }
-
-            totalReadSize += read_size;
-
-            return read_size;
         }
+
+        public Span<byte> Span
+        {
+            get
+            {
+                return this.Data.AsSpan(this.pos, this.size);
+            }
+        }
+    }
+
+    class Fifo<T>
+    {
+        public T[] PhysicalData { get; private set; }
+        public int Size { get; private set; }
+        public int Position { get; private set; }
+        public int PhysicalSize { get => PhysicalData.Length; }
+
+        public const int FifoInitSize = 32;
+        public const int FifoReAllocSize = 1024;
+        public const int FifoReAllocSizeSmall = 1024;
+
+        public int ReAllocMemSize { get; }
+
+        public Fifo(int reAllocMemSize = FifoReAllocSize)
+        {
+            ReAllocMemSize = reAllocMemSize;
+            Size = Position = 0;
+            PhysicalData = new T[FifoInitSize];
+        }
+
+        public void Clear()
+        {
+            Size = Position = 0;
+        }
+
+        public void Write(Span<T> data)
+        {
+            WriteInternal(data, data.Length);
+        }
+
+        public void Write(T data)
+        {
+            WriteInternal(data);
+        }
+
+        public void WriteSkip(int length)
+        {
+            WriteInternal(null, length);
+        }
+
+        void WriteInternal(Span<T> src, int size)
+        {
+            checked
+            {
+                int oldSize, newSize, needSize;
+
+                oldSize = Size;
+                newSize = oldSize + size;
+                needSize = Position + newSize;
+
+                bool reallocFlag = false;
+                int newPhysicalSize = PhysicalData.Length;
+                while (needSize > newPhysicalSize)
+                {
+                    newPhysicalSize = Math.Max(newPhysicalSize, FifoInitSize) * 3;
+                    reallocFlag = true;
+                }
+
+                if (reallocFlag)
+                    PhysicalData = PhysicalData.ReAlloc(newPhysicalSize);
+
+                if (src != null)
+                    src.CopyTo(PhysicalData.AsSpan().Slice(Position + oldSize));
+
+                Size = newSize;
+            }
+        }
+
+        void WriteInternal(T src)
+        {
+            checked
+            {
+                int oldSize, newSize, needSize;
+
+                oldSize = Size;
+                newSize = oldSize + 1;
+                needSize = Position + newSize;
+
+                bool reallocFlag = false;
+                int newPhysicalSize = PhysicalData.Length;
+                while (needSize > newPhysicalSize)
+                {
+                    newPhysicalSize = Math.Max(newPhysicalSize, FifoInitSize) * 3;
+                    reallocFlag = true;
+                }
+
+                if (reallocFlag)
+                    PhysicalData = PhysicalData.ReAlloc(newPhysicalSize);
+
+                if (src != null)
+                    PhysicalData[Position + oldSize] = src;
+
+                Size = newSize;
+            }
+        }
+
+
+        public int Read(Span<T> dest)
+        {
+            return ReadInternal(dest, dest.Length);
+        }
+
+        public T[] Read(int size)
+        {
+            int readSize = Math.Min(this.Size, size);
+            T[] ret = new T[readSize];
+            Read(ret);
+            return ret;
+        }
+
+        public T[] Read() => Read(this.Size);
+
+        int ReadInternal(Span<T> dest, int size)
+        {
+            checked
+            {
+                int readSize;
+
+                readSize = Math.Min(size, Size);
+                if (readSize == 0)
+                {
+                    return 0;
+                }
+                if (dest != null)
+                {
+                    PhysicalData.AsSpan(this.Position, size).CopyTo(dest);
+                }
+                Position += readSize;
+                Size -= readSize;
+
+                if (Size == 0)
+                {
+                    Position = 0;
+                }
+
+                if (this.Position >= FifoInitSize &&
+                    this.PhysicalData.Length >= this.ReAllocMemSize &&
+                    (this.PhysicalData.Length / 2) > this.Size)
+                {
+                    int newPhysicalSize;
+
+                    newPhysicalSize = Math.Max(this.PhysicalData.Length / 2, FifoInitSize);
+
+                    T[] newArray = new T[newPhysicalSize];
+                    this.PhysicalData.AsSpan(this.Position, this.Size).CopyTo(newArray);
+                    this.PhysicalData = newArray;
+
+                    this.Position = 0;
+                }
+
+                return readSize;
+            }
+        }
+
+        public Span<T> Span { get => this.PhysicalData.AsSpan(this.Position, this.Size); }
     }
 
     // バッファ

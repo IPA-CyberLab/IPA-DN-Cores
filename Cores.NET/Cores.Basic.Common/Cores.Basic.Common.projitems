@@ -9,7 +9,11 @@
     <Import_RootNamespace>Cores.Basic.Common</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Base\TaskAsync.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Buf.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Buffer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\BufferHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\BigNumber.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Console.cs" />
@@ -29,11 +33,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\MailUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\MultiLang.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Network.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\NumberBig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Pack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Packer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\RadixTrie.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\RC4.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ReadIni.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ReadIni2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Secure.cs" />
@@ -49,5 +51,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastBuffer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastGlobalConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalNetwork.cs" />
   </ItemGroup>
 </Project>

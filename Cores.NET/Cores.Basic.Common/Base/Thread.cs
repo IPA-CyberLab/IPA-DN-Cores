@@ -459,6 +459,73 @@ namespace IPA.Cores.Basic
         }
     }
 
+    static class BackgroundWorker
+    {
+        static volatile int num_busy_worker_threads = 0;
+        static volatile int num_worker_threads = 0;
+
+        static Queue<Tuple<Action<object>, object>> queue = new Queue<Tuple<Action<object>, object>>();
+
+        static AutoResetEvent signal = new AutoResetEvent(false);
+
+        static void worker_thread_proc()
+        {
+            while (true)
+            {
+                Interlocked.Increment(ref num_busy_worker_threads);
+                while (true)
+                {
+                    Tuple<Action<object>, object> work = null;
+                    lock (queue)
+                    {
+                        if (queue.Count != 0)
+                        {
+                            work = queue.Dequeue();
+                        }
+                    }
+
+                    if (work != null)
+                    {
+                        try
+                        {
+                            work.Item1(work.Item2);
+                        }
+                        catch (Exception ex)
+                        {
+                            Dbg.WriteLine(ex.ToString());
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                Interlocked.Decrement(ref num_busy_worker_threads);
+
+                signal.WaitOne();
+            }
+        }
+
+        public static void Run(Action<object> action, object arg)
+        {
+            if (num_busy_worker_threads == num_worker_threads)
+            {
+                Interlocked.Increment(ref num_worker_threads);
+                Thread t = new Thread(worker_thread_proc);
+                t.IsBackground = true;
+                t.Start();
+            }
+
+            lock (queue)
+            {
+                queue.Enqueue(new Tuple<Action<object>, object>(action, arg));
+            }
+
+            signal.Set();
+        }
+
+    }
+
     class WorkerQueuePrivate
     {
         object lockObj = new object();
@@ -538,42 +605,7 @@ namespace IPA.Cores.Basic
 
     static class Tick64
     {
-        static object lock_obj = new object();
-        static uint last_value = 0;
-        static bool is_first = true;
-        static uint num_round = 0;
-
-        public static long Value
-        {
-            get
-            {
-                unchecked
-                {
-                    lock (lock_obj)
-                    {
-                        uint current_value = (uint)(System.Environment.TickCount + 3864700935);
-
-                        if (is_first)
-                        {
-                            last_value = current_value;
-                            is_first = false;
-                        }
-
-                        if (last_value > current_value)
-                        {
-                            // カウンタが 1 周した
-                            num_round++;
-                        }
-
-                        last_value = current_value;
-
-                        ulong ret = 4294967296UL * (ulong)num_round + current_value;
-
-                        return (long)ret;
-                    }
-                }
-            }
-        }
+        public static long Value => FastTick64.Now;
 
         public static uint ValueUInt32
         {

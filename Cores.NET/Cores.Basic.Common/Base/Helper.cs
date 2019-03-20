@@ -41,6 +41,9 @@ using System.Net;
 using System.Net.Http.Headers;
 
 using IPA.Cores.Basic;
+using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -185,8 +188,23 @@ namespace IPA.Cores.Helper.Basic
         public static object CloneSerializableObject(this object o) => Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
         public static object BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
-        public static object Print(this object s, bool newline = true) { Console.Write((s == null ? "null" : s.ToString()) + (newline ? Env.NewLine : "")); return s; }
-        public static object Debug(this object s) { Dbg.WriteLine((s == null ? "null" : s.ToString())); return s; }
+
+        public static object Print(this object o)
+        {
+            string str = o.ObjectToJson() ?? "null";
+            if (o is string) str = (string)o;
+            Console.WriteLine(str);
+            return o;
+        }
+        public static object Debug(this object o)
+        {
+            string str = o.ObjectToJson() ?? "null";
+            if (o is string) str = (string)o;
+            Dbg.WriteLine(str);
+            return o;
+        }
+
+        public static T[] ToSingleArray<T>(this T t) => new T[] { t };
 
         public static string ToStr3(this long s) => Str.ToStr3(s);
         public static string ToStr3(this int s) => Str.ToStr3(s);
@@ -210,8 +228,8 @@ namespace IPA.Cores.Helper.Basic
         public static async Task CancelAsync(this CancellationTokenSource cts, bool throwOnFirstException = false) => await TaskUtil.CancelAsync(cts, throwOnFirstException);
         public static async Task TryCancelAsync(this CancellationTokenSource cts) => await TaskUtil.TryCancelAsync(cts);
 
-        public static void TryWait(Task t) => TaskUtil.TryWait(t);
-        public static Task TryWaitAsync(this Task t) => TaskUtil.TryWaitAsync(t);
+        public static void TryWait(this Task t) => TaskUtil.TryWait(t);
+        public static Task TryWaitAsync(this Task t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
 
         public static T[] ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 
@@ -254,7 +272,7 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static List<T> ToList<T>(this IEnumerable<T> i) => new List<T>(i);
+        //public static List<T> ToList<T>(this IEnumerable<T> i) => new List<T>(i);
 
         public static IPAddress ToIPAddress(this string s) => IPUtil.StrToIP(s);
 
@@ -306,49 +324,51 @@ namespace IPA.Cores.Helper.Basic
             }, null);
         }
 
-        public static async Task<byte[]> ReadAsyncWithTimeout(this Stream stream, int max_size = 65536, int? timeout = null, bool? read_all = false, CancellationToken cancel = default(CancellationToken))
+        public static async Task<byte[]> ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool? readAll = false, CancellationToken cancel = default)
         {
-            byte[] tmp = new byte[max_size];
+            byte[] tmp = new byte[maxSize];
             int ret = await stream.ReadAsyncWithTimeout(tmp, 0, tmp.Length, timeout,
-                read_all: read_all,
+                readAll: readAll,
                 cancel: cancel);
             return Util.CopyByte(tmp, 0, ret);
         }
 
-        public static async Task<int> ReadAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int ?count = null, int? timeout = null, bool? read_all = false, CancellationToken cancel = default(CancellationToken), params CancellationToken[] cancel_tokens)
+        public static async Task<int> ReadAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int? count = null, int? timeout = null, bool? readAll = false, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout == null) timeout = stream.ReadTimeout;
             if (timeout <= 0) timeout = Timeout.Infinite;
-            int target_read_size = count ?? (buffer.Length - offset);
-            if (target_read_size == 0) return 0;
+            int targetReadSize = count ?? (buffer.Length - offset);
+            if (targetReadSize == 0) return 0;
 
             try
             {
-                int ret = await TaskUtil.DoAsyncWithTimeout<int>(async (cancel_for_proc) =>
+                int ret = await TaskUtil.DoAsyncWithTimeout(async (cancelLocal) =>
                 {
-                    if (read_all == false)
+                    if (readAll == false)
                     {
-                        return await stream.ReadAsync(buffer, offset, target_read_size, cancel_for_proc);
+                        return await stream.ReadAsync(buffer, offset, targetReadSize, cancelLocal);
                     }
                     else
                     {
-                        int current_read_size = 0;
+                        int currentReadSize = 0;
 
-                        while (current_read_size != target_read_size)
+                        while (currentReadSize != targetReadSize)
                         {
-                            int sz = await stream.ReadAsync(buffer, offset + current_read_size, target_read_size - current_read_size, cancel_for_proc);
+                            int sz = await stream.ReadAsync(buffer, offset + currentReadSize, targetReadSize - currentReadSize, cancelLocal);
                             if (sz == 0)
                             {
                                 return 0;
                             }
+
+                            currentReadSize += sz;
                         }
 
-                        return current_read_size;
+                        return currentReadSize;
                     }
                 },
                 timeout: (int)timeout,
                 cancel: cancel,
-                cancel_tokens: cancel_tokens);
+                cancelTokens: cancelTokens);
 
                 if (ret <= 0)
                 {
@@ -364,23 +384,23 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task WriteAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int ?count = null, int? timeout = null, CancellationToken cancel = default(CancellationToken), params CancellationToken[] cancel_tokens)
+        public static async Task WriteAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int? count = null, int? timeout = null, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout == null) timeout = stream.WriteTimeout;
             if (timeout <= 0) timeout = Timeout.Infinite;
-            int target_write_size = count ?? (buffer.Length - offset);
-            if (target_write_size == 0) return;
+            int targetWriteSize = count ?? (buffer.Length - offset);
+            if (targetWriteSize == 0) return;
 
             try
             {
-                await TaskUtil.DoAsyncWithTimeout<int>(async (cancel_for_proc) =>
+                await TaskUtil.DoAsyncWithTimeout(async (cancelLocal) =>
                 {
-                    await stream.WriteAsync(buffer, offset, target_write_size, cancel_for_proc);
+                    await stream.WriteAsync(buffer, offset, targetWriteSize, cancelLocal);
                     return 0;
                 },
                 timeout: (int)timeout,
                 cancel: cancel,
-                cancel_tokens: cancel_tokens);
+                cancelTokens: cancelTokens);
 
             }
             catch
@@ -406,6 +426,9 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static byte[] AsciiToByteArray(this object o) => Encoding.ASCII.GetBytes(o.ToString());
+
+        public static string ByteArrayToAscii(this byte[] d) => Encoding.ASCII.GetString(d);
 
         public static void DisposeSafe(this IDisposable obj)
         {
@@ -462,7 +485,48 @@ namespace IPA.Cores.Helper.Basic
             return tcs.Task;
         }
 
+        public static async Task ConnectAsync(this TcpClient tc, string host, int port,
+            int timeout = Timeout.Infinite, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
+        {
+            await TaskUtil.DoAsyncWithTimeout(
+            mainProc: async c =>
+            {
+                await tc.ConnectAsync(host, port);
+                return 0;
+            },
+            cancelProc: () =>
+            {
+                tc.DisposeSafe();
+            },
+            timeout: timeout,
+            cancel: cancel,
+            cancelTokens: cancelTokens);
+        }
 
+        public static void ThrowIfErrorOrCanceled(this Task task)
+        {
+            if (task == null) return;
+            if (task.IsFaulted) task.Exception.ReThrow();
+            if (task.IsCanceled) throw new TaskCanceledException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool Bit<T>(this T value, T flag) where T : Enum
+            => value.HasFlag(flag);
+
+        public static Exception GetSingleException(this Exception ex)
+        {
+            if (ex == null) return null;
+            var aex = ex as AggregateException;
+            if (aex != null) return aex.Flatten().InnerExceptions[0];
+            return ex;
+        }
+
+        public static void ReThrow(this Exception ex)
+        {
+            if (ex == null) throw ex;
+            ExceptionDispatchInfo.Capture(ex.GetSingleException()).Throw();
+        }
     }
 }
 

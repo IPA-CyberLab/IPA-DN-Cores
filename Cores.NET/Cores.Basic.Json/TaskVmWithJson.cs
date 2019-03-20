@@ -33,11 +33,29 @@
 using System;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Threading;
 
 namespace IPA.Cores.Basic
 {
     static partial class TaskUtil
     {
+        public static int GetMinTimeout(params int[] values)
+        {
+            long minValue = long.MaxValue;
+            foreach (int v in values)
+            {
+                long vv;
+                if (v < 0)
+                    vv = long.MaxValue;
+                else
+                    vv = v;
+                minValue = Math.Min(minValue, vv);
+            }
+            if (minValue == long.MaxValue)
+                return Timeout.Infinite;
+            else
+                return (int)minValue;
+        }
 
         public static object ConvertTask(object src_task_object, Type old_task_type, Type new_task_type)
         {

@@ -37,6 +37,8 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
@@ -3121,6 +3123,282 @@ namespace IPA.Cores.Basic
         public static string NormalizeHostName(string hostName)
         {
             return hostName.Trim().ToLower();
+        }
+    }
+    class NonBlockSocket : IDisposable
+    {
+        public PalSocket Sock { get; }
+        public bool IsStream { get; }
+        public bool IsDisconnected { get => Watcher.Canceled; }
+        public CancellationToken CancelToken { get => Watcher.CancelToken; }
+
+        public AsyncAutoResetEvent EventSendReady { get; } = new AsyncAutoResetEvent();
+        public AsyncAutoResetEvent EventRecvReady { get; } = new AsyncAutoResetEvent();
+        public AsyncAutoResetEvent EventSendNow { get; } = new AsyncAutoResetEvent();
+
+        CancelWatcher Watcher;
+        byte[] TmpRecvBuffer;
+
+        public Fifo RecvTcpFifo { get; } = new Fifo();
+        public Fifo SendTcpFifo { get; } = new Fifo();
+
+        public Queue<Datagram> RecvUdpQueue { get; } = new Queue<Datagram>();
+        public Queue<Datagram> SendUdpQueue { get; } = new Queue<Datagram>();
+
+        int MaxRecvFifoSize;
+        public int MaxRecvUdpQueueSize { get; }
+
+        Task RecvLoopTask = null;
+        Task SendLoopTask = null;
+
+        AsyncBulkReceiver<Datagram, int> UdpBulkReader;
+
+        public NonBlockSocket(PalSocket s, CancellationToken cancel = default, int tmpBufferSize = 65536, int maxRecvBufferSize = 65536, int maxRecvUdpQueueSize = 4096)
+        {
+            if (tmpBufferSize < 65536) tmpBufferSize = 65536;
+            TmpRecvBuffer = new byte[tmpBufferSize];
+            MaxRecvFifoSize = maxRecvBufferSize;
+            MaxRecvUdpQueueSize = maxRecvUdpQueueSize;
+
+            EventSendReady.Set();
+            EventRecvReady.Set();
+
+            Sock = s;
+            IsStream = (s.SocketType == SocketType.Stream);
+            Watcher = new CancelWatcher(cancel);
+
+            if (IsStream)
+            {
+                RecvLoopTask = TCP_RecvLoop();
+                SendLoopTask = TCP_SendLoop();
+            }
+            else
+            {
+                UdpBulkReader = new AsyncBulkReceiver<Datagram, int>(async x =>
+                {
+                    PalSocketReceiveFromResult ret = await Sock.ReceiveFromAsync(TmpRecvBuffer);
+                    return new ValueOrClosed<Datagram>(new Datagram(TmpRecvBuffer.AsSpan().Slice(0, ret.ReceivedBytes).ToArray(), (IPEndPoint)ret.RemoteEndPoint));
+                });
+
+                RecvLoopTask = UDP_RecvLoop();
+                SendLoopTask = UDP_SendLoop();
+            }
+        }
+
+        async Task TCP_RecvLoop()
+        {
+            try
+            {
+                await TaskUtil.DoAsyncWithTimeout(async (cancel) =>
+                {
+                    while (cancel.IsCancellationRequested == false)
+                    {
+                        int r = await Sock.ReceiveAsync(TmpRecvBuffer);
+                        if (r <= 0) break;
+
+                        while (cancel.IsCancellationRequested == false)
+                        {
+                            lock (RecvTcpFifo)
+                            {
+                                if (RecvTcpFifo.Size <= MaxRecvFifoSize)
+                                {
+                                    RecvTcpFifo.Write(TmpRecvBuffer, r);
+                                    break;
+                                }
+                            }
+
+                            await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { cancel },
+                                timeout: 10);
+                        }
+
+                        EventRecvReady.Set();
+                    }
+
+                    return 0;
+                },
+                cancel: Watcher.CancelToken
+                );
+            }
+            finally
+            {
+                this.Watcher.Cancel();
+                EventSendReady.Set();
+                EventRecvReady.Set();
+            }
+        }
+
+        async Task UDP_RecvLoop()
+        {
+            try
+            {
+                await TaskUtil.DoAsyncWithTimeout(async (cancel) =>
+                {
+                    while (cancel.IsCancellationRequested == false)
+                    {
+                        Datagram[] recvPackets = await UdpBulkReader.Recv(cancel);
+
+                        bool fullQueue = false;
+                        bool pktReceived = false;
+
+                        lock (RecvUdpQueue)
+                        {
+                            foreach (Datagram p in recvPackets)
+                            {
+                                if (RecvUdpQueue.Count <= MaxRecvUdpQueueSize)
+                                {
+                                    RecvUdpQueue.Enqueue(p);
+                                    pktReceived = true;
+                                }
+                                else
+                                {
+                                    fullQueue = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (fullQueue)
+                        {
+                            await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { cancel },
+                                timeout: 10);
+                        }
+
+                        if (pktReceived)
+                        {
+                            EventRecvReady.Set();
+                        }
+                    }
+
+                    return 0;
+                },
+                cancel: Watcher.CancelToken
+                );
+            }
+            finally
+            {
+                this.Watcher.Cancel();
+                EventSendReady.Set();
+                EventRecvReady.Set();
+            }
+        }
+
+        async Task TCP_SendLoop()
+        {
+            try
+            {
+                await TaskUtil.DoAsyncWithTimeout(async (cancel) =>
+                {
+                    while (cancel.IsCancellationRequested == false)
+                    {
+                        byte[] sendData = null;
+
+                        while (cancel.IsCancellationRequested == false)
+                        {
+                            lock (SendTcpFifo)
+                            {
+                                sendData = SendTcpFifo.Read();
+                            }
+
+                            if (sendData != null && sendData.Length >= 1)
+                            {
+                                break;
+                            }
+
+                            await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { cancel },
+                                events: new AsyncAutoResetEvent[] { EventSendNow });
+                        }
+
+                        int r = await Sock.SendAsync(sendData);
+                        if (r <= 0) break;
+
+                        EventSendReady.Set();
+                    }
+
+                    return 0;
+                },
+                cancel: Watcher.CancelToken
+                );
+            }
+            finally
+            {
+                this.Watcher.Cancel();
+                EventSendReady.Set();
+                EventRecvReady.Set();
+            }
+        }
+
+        async Task UDP_SendLoop()
+        {
+            try
+            {
+                await TaskUtil.DoAsyncWithTimeout(async (cancel) =>
+                {
+                    while (cancel.IsCancellationRequested == false)
+                    {
+                        Datagram pkt = null;
+
+                        while (cancel.IsCancellationRequested == false)
+                        {
+                            lock (SendUdpQueue)
+                            {
+                                if (SendUdpQueue.Count >= 1)
+                                {
+                                    pkt = SendUdpQueue.Dequeue();
+                                }
+                            }
+
+                            if (pkt != null)
+                            {
+                                break;
+                            }
+
+                            await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { cancel },
+                                events: new AsyncAutoResetEvent[] { EventSendNow });
+                        }
+
+                        int r = await Sock.SendToAsync(pkt.Data.AsSegment(), pkt.IPEndPoint);
+                        if (r <= 0) break;
+
+                        EventSendReady.Set();
+                    }
+
+                    return 0;
+                },
+                cancel: Watcher.CancelToken
+                );
+            }
+            catch (Exception ex)
+            {
+                Dbg.Where(ex.ToString());
+            }
+            finally
+            {
+                this.Watcher.Cancel();
+                EventSendReady.Set();
+                EventRecvReady.Set();
+            }
+        }
+
+        public Datagram RecvFromNonBlock()
+        {
+            if (IsDisconnected) return null;
+            lock (RecvUdpQueue)
+            {
+                if (RecvUdpQueue.TryDequeue(out Datagram ret))
+                {
+                    return ret;
+                }
+            }
+            return null;
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            Watcher.DisposeSafe();
+            Sock.DisposeSafe();
         }
     }
 }

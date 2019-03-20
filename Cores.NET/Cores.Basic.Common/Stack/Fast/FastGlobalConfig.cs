@@ -31,22 +31,42 @@
 // LAW OR COURT RULE.
 
 using System;
-using IPA.Cores.Basic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using System.Collections.Generic;
+using System.Linq;
+
 using IPA.Cores.Helper.Basic;
 
-namespace TestDev
+#pragma warning disable CS0162
+
+namespace IPA.Cores.Basic
 {
-    class TestDevMain
+    static class FastPipeGlobalConfig
     {
-        static void Main(string[] args)
+        public static int MaxStreamBufferLength = 4 * 65536;
+        public static int MaxDatagramQueueLength = 65536;
+        public static int MaxPollingTimeout = 256 * 1000;
+
+        public static void ApplyHeavyLoadServerConfig()
         {
-            using (WebApi api = new WebApi())
+            MaxStreamBufferLength = 65536;
+            MaxPollingTimeout = 4321;
+            MaxDatagramQueueLength = 1024;
+        }
+
+        public static int PollingTimeout
+        {
+            get
             {
-                var ret = api.RequestWithQuery(WebApiMethods.GET, "https://www.google.com/").Result;
-
-                string s = ret.Data.GetString();
-
-                Con.WriteLine(s);
+                int v = MaxPollingTimeout / 10;
+                if (v != 0)
+                    v = Util.RandSInt31() % v;
+                return MaxPollingTimeout - v;
             }
         }
     }
