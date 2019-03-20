@@ -2,26 +2,13 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Net.Security;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Console;
-using System.Runtime.CompilerServices;
-using System.Xml.Serialization;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Buffers;
-using System.Buffers.Binary;
-using System.Collections;
-using System.Net.NetworkInformation;
-using System.Security.Cryptography;
-using System.Collections.Concurrent;
 
 #pragma warning disable CS0162
 
