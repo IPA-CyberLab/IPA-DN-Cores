@@ -3,7 +3,7 @@ using System.Threading;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 
-namespace IPA.TestDev.Basic.Common
+namespace IPA.TestDev.Basic.Full
 {
     static class MainClass
     {
@@ -11,7 +11,9 @@ namespace IPA.TestDev.Basic.Common
         {
             try
             {
-                Console.WriteLine("TestDev.Full.Common 40");
+                Console.WriteLine("TestDev.Full.Common 42");
+
+                JsonRpcTest.TestMain();
             }
             finally
             {

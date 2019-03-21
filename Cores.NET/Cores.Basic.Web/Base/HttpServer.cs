@@ -37,7 +37,6 @@ using System.Security.Authentication;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -72,7 +71,7 @@ namespace IPA.Cores.Basic
 
         public virtual void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddRouting();
         }
 
         public abstract void SetupStartupConfig(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
@@ -89,15 +88,15 @@ namespace IPA.Cores.Basic
 
     class HttpServerBuilderConfig
     {
-        public List<int> HttpPortsList = new List<int>(new int[] { 88, 8080 });
-        public List<int> HttpsPortsList = new List<int>(new int[] { 8081 });
+        public List<int> HttpPortsList { get; } = new List<int>(new int[] { 88, 8080 });
+        public List<int> HttpsPortsList { get; } = new List<int>(new int[] { 8081 });
 
-        public string ContentsRoot = Env.AppRootDir.CombinePath("wwwroot");
-        public bool LocalHostOnly = false;
-        public bool IPv4Only = false;
-        public bool DebugToConsole = true;
-        public bool UseStaticFiles = true;
-        public bool ShowDetailError = true;
+        public string ContentsRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
+        public bool LocalHostOnly { get; set; } = false;
+        public bool IPv4Only { get; set; } = false;
+        public bool DebugToConsole { get; set; } = true;
+        public bool UseStaticFiles { get; set; } = true;
+        public bool ShowDetailError { get; set; } = true;
     }
 
     class HttpServer<THttpServerStartup> where THttpServerStartup : HttpServerImplementation

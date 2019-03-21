@@ -599,7 +599,7 @@ namespace IPA.Cores.Basic
 
     class JsonRpcServerConfig
     {
-        public int MaxRequestBodyLen = 100 * 1024 * 1024;
+        public int MaxRequestBodyLen { get; set; } = 100 * 1024 * 1024;
     }
 
     class JsonHttpRpcListener : HttpServerImplementation
