@@ -30,17 +30,20 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Security.Authentication;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
+using Newtonsoft.Json;
 
 using IPA.Cores.Helper.Basic;
 
@@ -88,8 +91,8 @@ namespace IPA.Cores.Basic
 
     class HttpServerBuilderConfig
     {
-        public List<int> HttpPortsList { get; } = new List<int>(new int[] { 88, 8080 });
-        public List<int> HttpsPortsList { get; } = new List<int>(new int[] { 8081 });
+        public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
+        public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
 
         public string ContentsRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
@@ -97,6 +100,9 @@ namespace IPA.Cores.Basic
         public bool DebugToConsole { get; set; } = true;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
+
+        [JsonIgnore]
+        public CertSelectorCallback ServerCertSelector { get; set; } = null;
     }
 
     class HttpServer<THttpServerStartup> : AsyncCleanupableCancellable
@@ -132,34 +138,28 @@ namespace IPA.Cores.Basic
                         if (config.LocalHostOnly)
                         {
                             foreach (int port in config.HttpPortsList) opt.ListenLocalhost(port);
-                            foreach (int port in config.HttpsPortsList) opt.ListenLocalhost(port, lo =>
-                            {
-                                lo.UseHttps(so =>
-                                {
-                                    so.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                });
-                            });
+                            foreach (int port in config.HttpsPortsList) opt.ListenLocalhost(port, lo => InitHttpsOptions(lo));
                         }
                         else if (config.IPv4Only)
                         {
                             foreach (int port in config.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                            foreach (int port in config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo =>
-                            {
-                                lo.UseHttps(so =>
-                                {
-                                    so.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                });
-                            });
+                            foreach (int port in config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => InitHttpsOptions(lo));
                         }
                         else
                         {
                             foreach (int port in config.HttpPortsList) opt.ListenAnyIP(port);
-                            foreach (int port in config.HttpsPortsList) opt.ListenAnyIP(port, lo =>
+                            foreach (int port in config.HttpsPortsList) opt.ListenAnyIP(port, lo => InitHttpsOptions(lo));
+                        }
+
+                        void InitHttpsOptions(ListenOptions listenOptions)
+                        {
+                            listenOptions.UseHttps(httpsOptions =>
                             {
-                                lo.UseHttps(so =>
+                                httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+                                if (config.ServerCertSelector != null)
                                 {
-                                    so.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                });
+                                    httpsOptions.ServerCertificateSelector = ((ctx, sni) => config.ServerCertSelector(param, sni));
+                                }
                             });
                         }
                     })

@@ -692,13 +692,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void TryWait(Task t)
+        public static void TryWait(Task t, bool noDebugMessage = false)
         {
+            if (t == null) return;
             try
             {
                 t.Wait();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                    Dbg.WriteLine("Task exception: " + ex.ToString());
+            }
         }
 
         // いずれかの CancellationToken がキャンセルされたときにキャンセルされる CancellationToken を作成する
@@ -3072,5 +3077,80 @@ namespace IPA.Cores.Basic
 
         public static object Get(string name) => async_local_obj.Value.Get(name);
         public static void Set(string name, object obj) => async_local_obj.Value.Set(name, obj);
+    }
+
+    class AsyncOneShotTester : AsyncCleanupable
+    {
+        Task t = null;
+        public AsyncOneShotTester(AsyncCleanuperLady lady, Func<Task> Proc) : base(lady)
+        {
+            t = Proc();
+            t.TryWaitAsync(false).LaissezFaire();
+        }
+
+        public override async Task _CleanupAsyncInternal()
+        {
+            try
+            {
+                await t;
+            }
+            finally { await base._CleanupAsyncInternal(); }
+        }
+    }
+
+    class AsyncServerClientTester : IDisposable
+    {
+        List<AsyncCleanuperLady> LadyList = new List<AsyncCleanuperLady>();
+
+        public AsyncServerClientTester(params AsyncCleanuperLady[] ladyList)
+        {
+            foreach (AsyncCleanuperLady lady in ladyList)
+                AddLady(lady);
+        }
+
+        public void AddLady(params AsyncCleanuperLady[] ladyList)
+        {
+            if (OnceFlag.IsSet || DisposeFlag.IsSet)
+                throw new ApplicationException("Already exiting.");
+
+            lock (LadyList)
+            {
+                foreach (AsyncCleanuperLady lady in ladyList)
+                    LadyList.Add(lady);
+            }
+        }
+
+        Once OnceFlag;
+
+        public void EnterKeyPrompt(string message = "Enter to quit :")
+        {
+            if (OnceFlag.IsFirstCall())
+            {
+                Console.Write(message);
+                Console.ReadLine();
+                Console.WriteLine();
+
+                Dispose();
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            AsyncCleanuperLady[] ladyListCopy;
+
+            lock (LadyList)
+            {
+                ladyListCopy = LadyList.ToArray();
+            }
+
+            foreach (var lady in ladyListCopy)
+            {
+                lady.CleanupAsync().TryWait();
+            }
+        }
     }
 }

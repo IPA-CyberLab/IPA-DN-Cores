@@ -6,7 +6,7 @@
     <SharedGUID>1c674893-7c84-4e7c-834e-6e2370225da0</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>Cores.Basic.Common</Import_RootNamespace>
+    <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Base\AppConfig.cs" />

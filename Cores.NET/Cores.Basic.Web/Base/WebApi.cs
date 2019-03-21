@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
 
         public const long DefaultMaxRecvSize = 100 * 1024 * 1024;
         public long MaxRecvSize { get => this.Client.MaxResponseContentBufferSize; set => this.Client.MaxResponseContentBufferSize = value; }
-        public bool SslAccentAnyCerts { get; set; } = false;
+        public bool SslAcceptAnyCerts { get; set; } = false;
         public List<string> SslAcceptCertSHA1HashList { get; set; } = new List<string>();
         public Encoding RequestEncoding { get; set; } = Str.Utf8Encoding;
 
@@ -240,7 +240,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                if (this.SslAccentAnyCerts)
+                if (this.SslAcceptAnyCerts)
                 {
                     this.client_handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
                 }

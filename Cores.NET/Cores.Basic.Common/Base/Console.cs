@@ -34,7 +34,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using System.Reflection;
-
+using System.Threading.Tasks;
 
 namespace IPA.Cores.Basic
 {
@@ -1205,7 +1205,17 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    ret = (int)cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
+                                    object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
+
+                                    if (retobj is int)
+                                    {
+                                        ret = (int)retobj;
+                                    }
+                                    else if (retobj is Task<int>)
+                                    {
+                                        Task<int> task = (Task<int>)retobj;
+                                        ret = task.Result;
+                                    }
                                 }
                                 catch (TargetInvocationException ex)
                                 {

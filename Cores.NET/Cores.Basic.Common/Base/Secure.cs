@@ -32,6 +32,7 @@
 
 using System;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
 
 using IPA.Cores.Helper.Basic;
@@ -212,15 +213,21 @@ namespace IPA.Cores.Basic
         }
 
         // PKCS 証明書の読み込み
-        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(byte[] data, string password)
+        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(byte[] data, string password = null)
         {
             password = password.NonNull();
             return new System.Security.Cryptography.X509Certificates.X509Certificate2(data, password, System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.MachineKeySet);
         }
-        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string filename, string password)
+        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string filename, string password = null)
         {
             return LoadPkcs12(IO.ReadFile(filename), password);
         }
+        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string embeddedResourceName, Type assemblyType)
+        {
+            return LoadPkcs12(IO.ReadEmbeddedFileData(embeddedResourceName, assemblyType));
+        }
+
+        public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
     }
 
     static class ExeSignChecker
@@ -557,4 +564,6 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 証明書関係
+    delegate X509Certificate2 CertSelectorCallback(object param, string sni);
 }

@@ -39,11 +39,12 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
-
-using IPA.Cores.Basic;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Security.Cryptography.X509Certificates;
+
+using IPA.Cores.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -228,7 +229,7 @@ namespace IPA.Cores.Helper.Basic
         public static async Task CancelAsync(this CancellationTokenSource cts, bool throwOnFirstException = false) => await TaskUtil.CancelAsync(cts, throwOnFirstException);
         public static async Task TryCancelAsync(this CancellationTokenSource cts) => await TaskUtil.TryCancelAsync(cts);
 
-        public static void TryWait(this Task t) => TaskUtil.TryWait(t);
+        public static void TryWait(this Task t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
         public static Task TryWaitAsync(this Task t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
 
         public static T[] ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
@@ -527,6 +528,8 @@ namespace IPA.Cores.Helper.Basic
             if (ex == null) throw ex;
             ExceptionDispatchInfo.Capture(ex.GetSingleException()).Throw();
         }
+
+        public static CertSelectorCallback GetStaticServerCertSelector(this X509Certificate2 cert) => Secure.StaticServerCertSelector(cert);
     }
 }
 

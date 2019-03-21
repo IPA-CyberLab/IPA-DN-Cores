@@ -2108,5 +2108,13 @@ namespace IPA.Cores.Basic
 
             return ms.ToArray();
         }
+
+        public static Stream ReadEmbeddedFileStream(string name, Type assemblyType = null)
+        {
+            if (assemblyType == null) assemblyType = typeof(IO).GetType();
+            return assemblyType.Assembly.GetManifestResourceStream(name);
+        }
+
+        public static byte[] ReadEmbeddedFileData(string name, Type assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType).ReadToEnd();
     }
 }
