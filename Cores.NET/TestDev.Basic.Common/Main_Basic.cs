@@ -11,7 +11,7 @@ namespace IPA.TestDev.Basic.Common
         {
             try
             {
-                Console.WriteLine("TestDev.Basic.Common 37");
+                Console.WriteLine("TestDev.Basic.Common 45");
 
                 PipeTest.TestMain();
             }

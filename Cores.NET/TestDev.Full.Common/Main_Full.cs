@@ -11,7 +11,7 @@ namespace IPA.TestDev.Basic.Full
         {
             try
             {
-                Console.WriteLine("TestDev.Full.Common 42");
+                Console.WriteLine("TestDev.Full.Common 46");
 
                 JsonRpcTest.TestMain();
             }
