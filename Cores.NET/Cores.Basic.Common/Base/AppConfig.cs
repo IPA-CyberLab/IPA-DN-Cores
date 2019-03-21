@@ -33,47 +33,54 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 using System.Collections.Generic;
-using System.Reflection;
+using System.IO;
 
 using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcClient<TInterface> where TInterface: class
+    abstract class AppConfig
     {
-        JsonRpcHttpClient<TInterface> Client;
-
-        public TInterface Call { get => this.Client.Call; }
-
-        public EasyJsonRpcClient(string baseUrl)
-        {
-            this.Client = new JsonRpcHttpClient<TInterface>(baseUrl);
-        }
+        public virtual object CloneAppConfig() => this.MemberwiseClone();
     }
 
-    abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
+    static class AppConfig<T> where T : AppConfig, new()
     {
-        HttpServer<JsonHttpRpcListener> HttpServer;
+        static T CachedData = null;
+        static CriticalSection Lock = new CriticalSection();
+        static bool IsReadOnly = false;
 
-        public EasyJsonRpcServer(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public static T Value { get => GetData(); set => SetData(value); }
+
+        public static T GetData()
         {
-            try
+            lock (Lock)
             {
-                HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
+                if (CachedData == null)
                 {
-                    DebugToConsole = false,
-                };
-                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
-                {
-                };
+                    T data = new T();
+                    SetData(data);
+                }
 
-                this.HttpServer = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, this, lady, cancel);
+                IsReadOnly = true;
+
+                return (T)CachedData.CloneAppConfig();
             }
-            catch
+        }
+
+        public static void SetData(T data)
+        {
+            lock (Lock)
             {
-                Lady.DisposeAllSafe();
-                throw;
+                if (CachedData != null)
+                {
+                    if (IsReadOnly)
+                        throw new ApplicationException($"AppConfig<{typeof(T).ToString()}> is read only.");
+                }
+
+                CachedData = (T)data.CloneAppConfig();
             }
         }
     }

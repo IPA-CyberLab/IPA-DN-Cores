@@ -388,7 +388,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                if (ex.InnerException != null) ex = ex.InnerException;
+                ex = ex.GetSingleException();
                 return new JsonRpcResponseError()
                 {
                     Id = req.Id,
@@ -443,7 +443,7 @@ namespace IPA.Cores.Basic
                             {
                                 JsonRpcException json_ex;
                                 if (ex is JsonRpcException) json_ex = ex as JsonRpcException;
-                                else json_ex = new JsonRpcException(new JsonRpcError(-32603, ex.Message, ex.ToString()));
+                                else json_ex = new JsonRpcException(new JsonRpcError(-32603, ex.GetSingleException().Message, ex.ToString()));
                                 JsonRpcResponseError res = new JsonRpcResponseError()
                                 {
                                     Id = req.Id,
@@ -567,7 +567,7 @@ namespace IPA.Cores.Basic
             {
                 JsonRpcException json_ex;
                 if (ex is JsonRpcException) json_ex = ex as JsonRpcException;
-                else json_ex = new JsonRpcException(new JsonRpcError(1234, ex.Message, ex.ToString()));
+                else json_ex = new JsonRpcException(new JsonRpcError(1234, ex.GetSingleException().Message, ex.ToString()));
 
                 ret_str = new JsonRpcResponseError()
                 {
@@ -776,7 +776,7 @@ namespace IPA.Cores.Basic
                 foreach (var q in items)
                 {
                     var item = q.UserItem;
-                    item.Response.Error = new JsonRpcError(-1, ex.ToString());
+                    item.Response.Error = new JsonRpcError(-1, ex.GetSingleException().ToString());
                 }
             }
             finally

@@ -33,48 +33,18 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 using System.Collections.Generic;
-using System.Reflection;
+using System.IO;
 
 using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcClient<TInterface> where TInterface: class
+    class LoggerConfig : AppConfig
     {
-        JsonRpcHttpClient<TInterface> Client;
+        public static LoggerConfig Global { get => AppConfig<LoggerConfig>.Value; set => AppConfig<LoggerConfig>.Value = value; }
 
-        public TInterface Call { get => this.Client.Call; }
-
-        public EasyJsonRpcClient(string baseUrl)
-        {
-            this.Client = new JsonRpcHttpClient<TInterface>(baseUrl);
-        }
-    }
-
-    abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
-    {
-        HttpServer<JsonHttpRpcListener> HttpServer;
-
-        public EasyJsonRpcServer(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
-        {
-            try
-            {
-                HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
-                {
-                    DebugToConsole = false,
-                };
-                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
-                {
-                };
-
-                this.HttpServer = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, this, lady, cancel);
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
-        }
+        public string LogDir = Path.Combine(Env.AppRootDir, "logs");
     }
 }
