@@ -1142,7 +1142,7 @@ namespace IPA.Cores.Basic
                     }
                 }
                 else if (Str.StrCmpi(cmd_name, "exit") ||
-                    Str.StrCmpi(cmd_name, "quit"))
+                    Str.StrCmpi(cmd_name, "quit") || Str.StrCmpi(cmd_name, "q"))
                 {
                     // 終了
                     b_exit = true;
