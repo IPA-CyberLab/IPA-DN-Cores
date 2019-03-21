@@ -14,7 +14,6 @@ namespace IPA.TestDev
     {
         public static void TestMain()
         {
-            Dbg.SetDebugMode();
 
             jsonrpc_client_server_both_test();
         }

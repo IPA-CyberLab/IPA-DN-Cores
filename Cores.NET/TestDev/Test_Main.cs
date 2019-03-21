@@ -9,11 +9,13 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
+            Dbg.SetDebugMode();
+
             try
             {
-                Console.WriteLine("TestDev.Full.Common 48");
-
-                //JsonRpcTest.TestMain();
+                Console.WriteLine("TestDev program  a a a aa!");
+                
+                JsonRpcTest.TestMain();
             }
             finally
             {
