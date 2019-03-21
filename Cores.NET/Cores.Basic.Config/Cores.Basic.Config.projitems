@@ -9,8 +9,11 @@
     <Import_RootNamespace>Cores.Basic.Config</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Cfg.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Yaml.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)YamlHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Cfg.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Yaml.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\YamlHelper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Base\" />
   </ItemGroup>
 </Project>

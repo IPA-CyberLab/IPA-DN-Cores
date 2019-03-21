@@ -11,7 +11,7 @@ namespace IPA.TestDev.Basic.Common
         {
             try
             {
-                Console.WriteLine("TestDev.Full.Common");
+                Console.WriteLine("TestDev.Full.Common 40");
             }
             finally
             {

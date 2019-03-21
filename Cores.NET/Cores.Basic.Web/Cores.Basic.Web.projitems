@@ -9,9 +9,13 @@
     <Import_RootNamespace>Cores.Basic.Web</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)HttpServer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JsonRpc.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)WebApi.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)WebHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\HttpServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\JsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\WebApi.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\WebHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ClientApi\SlackApi.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Base\" />
   </ItemGroup>
 </Project>

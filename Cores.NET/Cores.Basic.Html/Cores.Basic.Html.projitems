@@ -9,6 +9,9 @@
     <Import_RootNamespace>Cores.Basic.Html</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)HtmlParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\HtmlParser.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Base\" />
   </ItemGroup>
 </Project>
