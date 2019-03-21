@@ -261,19 +261,18 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class JsonRpcServerApi
+    abstract class JsonRpcServerApi : AsyncCleanupableCancellable
     {
         public Type RpcInterface { get; }
 
-        public JsonRpcServerApi()
+        public JsonRpcServerApi(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
             this.RpcInterface = get_rpc_interface();
         }
 
         protected JsonRpcClientInfo ClientInfo { get => TaskVar<JsonRpcClientInfo>.Value; }
 
-        public CancellationTokenSource CancelSource { get; } = new CancellationTokenSource();
-        public CancellationToken CancelToken { get => this.CancelSource.Token; }
+        public CancellationToken CancelToken { get => this.CancelWatcher.CancelToken; }
 
         Dictionary<string, RpcMethodInfo> method_info_cache = new Dictionary<string, RpcMethodInfo>();
         public RpcMethodInfo GetMethodInfo(string method_name)
@@ -342,7 +341,7 @@ namespace IPA.Cores.Basic
         public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg, CancellationToken cancel_token)
         {
             this.Api = api;
-            TaskUtil.ChainCancellationTokensToCancellationTokenSource(this.Api.CancelSource, true, cancel_token);
+            this.Api.CancelWatcher.AddWatch(cancel_token);
             this.Config = cfg;
         }
 
@@ -613,8 +612,8 @@ namespace IPA.Cores.Basic
             JsonServer = new JsonRpcHttpServer(p.api, p.rpc_cfg, this.CancelToken);
         }
 
-        public static HttpServer<JsonHttpRpcListener> StartServer(HttpServerBuilderConfig http_cfg, JsonRpcServerConfig rpc_server_cfg, JsonRpcServerApi rpc_api)
-            => new HttpServer<JsonHttpRpcListener>(http_cfg, (rpc_server_cfg, rpc_api));
+        public static HttpServer<JsonHttpRpcListener> StartServer(HttpServerBuilderConfig http_cfg, JsonRpcServerConfig rpc_server_cfg, JsonRpcServerApi rpc_api, AsyncCleanuperLady lady, CancellationToken cancel = default)
+            => new HttpServer<JsonHttpRpcListener>(http_cfg, (rpc_server_cfg, rpc_api), lady, cancel);
 
         public override void SetupStartupConfig(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
             => this.JsonServer.RegisterToHttpServer(app);

@@ -40,13 +40,23 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcServer<TServer> : AsyncCleanupableCancellable
-        where TServer : JsonRpcServerApi
+    abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
     {
+        HttpServer<JsonHttpRpcListener> HttpServer;
+
         public EasyJsonRpcServer(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
             try
             {
+                HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
+                {
+                    DebugToConsole = false,
+                };
+                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
+                {
+                };
+
+                this.HttpServer = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, this, lady, cancel);
             }
             catch
             {
@@ -55,4 +65,31 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    //abstract class EasyJsonRpcServer<TServer> : AsyncCleanupableCancellable
+    //    where TServer : JsonRpcServerApi
+    //{
+    //    public EasyJsonRpcServer(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+    //    {
+    //        try
+    //        {
+    //            HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
+    //            {
+    //                DebugToConsole = false,
+    //            };
+    //            JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
+    //            {
+    //            };
+
+    //            new TServer();
+
+    //            JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, 
+    //        }
+    //        catch
+    //        {
+    //            Lady.DisposeAllSafe();
+    //            throw;
+    //        }
+    //    }
+    //}
 }

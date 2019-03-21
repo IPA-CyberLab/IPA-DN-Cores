@@ -99,20 +99,20 @@ namespace IPA.Cores.Basic
         public bool ShowDetailError { get; set; } = true;
     }
 
-    class HttpServer<THttpServerStartup> where THttpServerStartup : HttpServerImplementation
+    class HttpServer<THttpServerStartup> : AsyncCleanupableCancellable
+        where THttpServerStartup : HttpServerImplementation
     {
         HttpServerBuilderConfig config;
-        CancellationTokenSource cancel = new CancellationTokenSource();
         Task hosttask;
 
-        public HttpServer(HttpServerBuilderConfig cfg, object param)
+        public HttpServer(HttpServerBuilderConfig cfg, object param, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
             this.config = cfg;
 
             IO.MakeDirIfNotExists(config.ContentsRoot);
 
             string param_token = GlobalObjectExchange.Deposit(param);
-            string cancel_token = GlobalObjectExchange.Deposit(cancel.Token);
+            string cancel_token = GlobalObjectExchange.Deposit(this.CancelWatcher.CancelToken);
             try
             {
                 var dict = new Dictionary<string, string>
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic
                     .UseStartup<THttpServerStartup>()
                     .Build();
 
-                hosttask = h.RunAsync(cancel.Token);
+                hosttask = h.RunAsync(this.CancelWatcher.CancelToken);
             }
             catch
             {
@@ -191,18 +191,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Once stop_flag;
-
-        public void Stop() => this.StopAsync().Wait();
-
-        public async Task StopAsync()
+        public override async Task _CleanupAsyncInternal()
         {
-            if (stop_flag.IsFirstCall())
+            try
             {
-                cancel.TryCancelNoBlock();
+                await hosttask;
             }
-
-            await hosttask;
+            finally { await base._CleanupAsyncInternal(); }
         }
     }
 }
