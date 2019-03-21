@@ -1855,13 +1855,13 @@ namespace IPA.Cores.Basic
 
         public WhenAll(IEnumerable<Task> tasks, bool throwException = false) : this(throwException, tasks.ToArray()) { }
 
-        public WhenAll(Task t, bool throwException = false) : this(throwException, t.ToSingleArray()) { }
+        public WhenAll(Task t, bool throwException = false) : this(throwException, t.SingleArray()) { }
 
         public static Task Await(IEnumerable<Task> tasks, bool throwException = false)
             => Await(throwException, tasks.ToArray());
 
         public static Task Await(Task t, bool throwException = false)
-            => Await(throwException, t.ToSingleArray());
+            => Await(throwException, t.SingleArray());
 
         public static async Task Await(bool throwException = false, params Task[] tasks)
         {
@@ -2076,7 +2076,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     await TaskUtil.WaitObjectsAsync(timeout: this.Timeout,
-                        cancels: CancelSource.Token.ToSingleArray(),
+                        cancels: CancelSource.Token.SingleArray(),
                         exceptions: ExceptionWhen.CancelException);
 
                     InternalInvokeAction();

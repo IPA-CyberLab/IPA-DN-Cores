@@ -835,7 +835,7 @@ namespace IPA.Cores.Basic
                 keyword_width = Str.GetStrWidth(candidateList[i]);
                 if (cmdName != null)
                 {
-                    if (candidateList[i].StartsWith("[", StringComparison.InvariantCultureIgnoreCase) == false)
+                    if (candidateList[i].StartsWith("[", StringComparison.OrdinalIgnoreCase) == false)
                     {
                         keyword_width += 1;
                     }
@@ -873,7 +873,7 @@ namespace IPA.Cores.Basic
                 }
 
                 // 名前を生成する
-                if (cmdName != null && name.StartsWith("[", StringComparison.InvariantCultureIgnoreCase) == false)
+                if (cmdName != null && name.StartsWith("[", StringComparison.OrdinalIgnoreCase) == false)
                 {
                     // パラメータの場合は先頭に "/" を付ける
                     tmp = Str.FormatC("/%s", name);
@@ -921,7 +921,7 @@ namespace IPA.Cores.Basic
                 }
 
                 space = Str.MakeCharArray(' ', max_keyword_width - Str.GetStrWidth(name) -
-                    (cmdName == null ? 0 : (name.StartsWith("[", StringComparison.InvariantCultureIgnoreCase) == false ? 1 : -2)));
+                    (cmdName == null ? 0 : (name.StartsWith("[", StringComparison.OrdinalIgnoreCase) == false ? 1 : -2)));
 
                 t = Str.StrArrayToList(SeparateStringByWidth(help, descript_width));
 
@@ -1469,21 +1469,21 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            if (oname.StartsWith(inputName, StringComparison.InvariantCultureIgnoreCase))
+            if (oname.StartsWith(inputName, StringComparison.OrdinalIgnoreCase))
             {
                 // 例: AccountSecureCertSet の oname は ascs だが
                 //     ユーザーが asc と入力した場合は true を返す
                 return true;
             }
 
-            if (inputName.StartsWith(oname, StringComparison.InvariantCultureIgnoreCase))
+            if (inputName.StartsWith(oname, StringComparison.OrdinalIgnoreCase))
             {
                 // 例: AccountConnect と
                 //     AccountCreate の 2 つのコマンドが実在する際、
                 //     ユーザーが "aconnect" と入力すると、
                 //     AccountConnect のみ true になるようにする
 
-                if (realName.EndsWith(inputName.Substring(oname.Length), StringComparison.InvariantCultureIgnoreCase))
+                if (realName.EndsWith(inputName.Substring(oname.Length), StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -1528,7 +1528,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            if (realName.StartsWith(inputName, StringComparison.InvariantCultureIgnoreCase))
+            if (realName.StartsWith(inputName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

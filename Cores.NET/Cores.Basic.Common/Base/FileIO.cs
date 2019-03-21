@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
 
                             // 親ディレクトリが削除できる場合は削除する
                             // (検索した対象ディレクトリは削除しない)
-                            if (v.RelativePath.FindStringsMulti(0, StringComparison.InvariantCultureIgnoreCase, out _, "\\", "/") != -1)
+                            if (v.RelativePath.FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "\\", "/") != -1)
                             {
                                 Directory.Delete(v.FullPath.GetDirectoryName());
 
@@ -189,7 +189,7 @@ namespace IPA.Cores.Basic
         {
             foreach (HamCoreBuilderFileEntry f in fileList)
             {
-                if (f.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))
+                if (f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -202,7 +202,7 @@ namespace IPA.Cores.Basic
         {
             foreach (HamCoreBuilderFileEntry f in fileList)
             {
-                if (f.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase))
+                if (f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                 {
                     fileList.Remove(f);
                     return true;
@@ -512,7 +512,7 @@ namespace IPA.Cores.Basic
                     if (cc.Buffer != null)
                     {
                         if (((cc.LastAccess + HamcoreCacheExpires) < now) ||
-                            cc.FileName.StartsWith("Li", StringComparison.CurrentCultureIgnoreCase))
+                            cc.FileName.StartsWith("Li", StringComparison.OrdinalIgnoreCase))
                         {
                             cc.Buffer = null;
                         }
@@ -736,7 +736,7 @@ namespace IPA.Cores.Basic
             if (extension.StartsWith(".") == false) extension = "." + extension;
 
             filename = Path.GetFileName(filename);
-            return filename.EndsWith(extension, StringComparison.InvariantCultureIgnoreCase);
+            return filename.EndsWith(extension, StringComparison.OrdinalIgnoreCase);
         }
         public static bool IsExtensionsMatch(string filename, string extensions)
         {
@@ -1696,7 +1696,7 @@ namespace IPA.Cores.Basic
                 throw new ArgumentException("fileName, baseDirName");
             }
 
-            if (fileName.StartsWith(baseDirName, StringComparison.InvariantCultureIgnoreCase) == false)
+            if (fileName.StartsWith(baseDirName, StringComparison.OrdinalIgnoreCase) == false)
             {
                 throw new ArgumentException("fileName, baseDirName");
             }

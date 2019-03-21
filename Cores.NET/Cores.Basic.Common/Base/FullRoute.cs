@@ -815,14 +815,14 @@ namespace IPA.Cores.Basic
             int pos = 0;
             while (true)
             {
-                int i = body.IndexOf("\">AS", pos, StringComparison.InvariantCultureIgnoreCase);
+                int i = body.IndexOf("\">AS", pos, StringComparison.OrdinalIgnoreCase);
                 if (i == -1)
                 {
                     break;
                 }
                 pos = i + 4;
 
-                int j = body.IndexOf("</a>", pos, StringComparison.InvariantCultureIgnoreCase);
+                int j = body.IndexOf("</a>", pos, StringComparison.OrdinalIgnoreCase);
                 if (j == -1)
                 {
                     break;
@@ -831,10 +831,10 @@ namespace IPA.Cores.Basic
 
                 string as_num_str = body.Substring(i + 4, j - i - 4).Trim();
 
-                int k = body.IndexOf("<", pos, StringComparison.InvariantCultureIgnoreCase);
+                int k = body.IndexOf("<", pos, StringComparison.OrdinalIgnoreCase);
                 if (k == -1)
                 {
-                    k = body.IndexOf("\r", pos, StringComparison.InvariantCultureIgnoreCase);
+                    k = body.IndexOf("\r", pos, StringComparison.OrdinalIgnoreCase);
                     if (k == -1)
                     {
                         break;
@@ -936,14 +936,14 @@ namespace IPA.Cores.Basic
 
         public bool Equals(FullRouteCountryEntry other)
         {
-            return this.Country2.Equals(other.Country2, StringComparison.InvariantCultureIgnoreCase);
+            return this.Country2.Equals(other.Country2, StringComparison.OrdinalIgnoreCase);
         }
 
         public override bool Equals(object obj)
         {
             if (obj is FullRouteCountryEntry)
             {
-                return this.Country2.Equals(((FullRouteCountryEntry)obj).Country2, StringComparison.InvariantCultureIgnoreCase);
+                return this.Country2.Equals(((FullRouteCountryEntry)obj).Country2, StringComparison.OrdinalIgnoreCase);
             }
 
             return false;
@@ -2496,7 +2496,7 @@ namespace IPA.Cores.Basic
                                 // find as_path
                                 if (current_ip_and_subnet != null)
                                 {
-                                    int i = line.IndexOf(tag, StringComparison.InvariantCultureIgnoreCase);
+                                    int i = line.IndexOf(tag, StringComparison.OrdinalIgnoreCase);
                                     if (i != -1)
                                     {
                                         int j = i + tag.Length;

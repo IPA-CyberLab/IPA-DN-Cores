@@ -651,7 +651,7 @@ namespace IPA.Cores.Basic
 
         public bool Equals(string x, string y)
         {
-            return x.Equals(y, caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase);
+            return x.Equals(y, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
         }
 
         public int GetHashCode(string obj)
@@ -1769,7 +1769,7 @@ namespace IPA.Cores.Basic
             while (true)
             {
                 int foundStrIndex;
-                int foundIndex = FindStrings(text, findStart, StringComparison.InvariantCultureIgnoreCase, out foundStrIndex,
+                int foundIndex = FindStrings(text, findStart, StringComparison.OrdinalIgnoreCase, out foundStrIndex,
                     "http://", "https://", "ftp://", "telnet://", "mailto://", "news://");
 
                 // URL の末尾まで検索
@@ -1789,7 +1789,7 @@ namespace IPA.Cores.Basic
 
                         if (c == '<' || c == '&')
                         {
-                            if (StartsWithMulti(text.Substring(i), StringComparison.InvariantCultureIgnoreCase,
+                            if (StartsWithMulti(text.Substring(i), StringComparison.OrdinalIgnoreCase,
                                 HtmlSpacing, HtmlCrlf, HtmlBr, HtmlLt, HtmlGt))
                             {
                                 endOfUrl = i;
@@ -2978,7 +2978,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                return str.IndexOf(keyword, start, (caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase));
+                return str.IndexOf(keyword, start, (caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase));
             }
             catch
             {
@@ -3701,12 +3701,12 @@ namespace IPA.Cores.Basic
 
             Str.NormalizeString(ref s, true, true, false, false);
 
-            if (s.StartsWith("y", StringComparison.InvariantCultureIgnoreCase))
+            if (s.StartsWith("y", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            if (s.StartsWith("t", StringComparison.InvariantCultureIgnoreCase))
+            if (s.StartsWith("t", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -3844,9 +3844,9 @@ namespace IPA.Cores.Basic
 
             if (tokens.Length != 2)
             {
-                int r1 = str.IndexOf("年", StringComparison.InvariantCultureIgnoreCase);
-                int r2 = str.IndexOf("月", StringComparison.InvariantCultureIgnoreCase);
-                int r3 = str.IndexOf("日", StringComparison.InvariantCultureIgnoreCase);
+                int r1 = str.IndexOf("年", StringComparison.OrdinalIgnoreCase);
+                int r2 = str.IndexOf("月", StringComparison.OrdinalIgnoreCase);
+                int r3 = str.IndexOf("日", StringComparison.OrdinalIgnoreCase);
 
                 if (r1 != -1 && r2 != -1 && r3 != -1)
                 {
@@ -4525,7 +4525,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                if (s1.Equals(s2, StringComparison.InvariantCultureIgnoreCase))
+                if (s1.Equals(s2, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -4912,7 +4912,7 @@ namespace IPA.Cores.Basic
         }
         public static bool InStr(string str, string keyword, bool caseSensitive)
         {
-            if (str.IndexOf(keyword, (caseSensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase)) == -1)
+            if (str.IndexOf(keyword, (caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)) == -1)
             {
                 return false;
             }
@@ -5415,19 +5415,19 @@ namespace IPA.Cores.Basic
                 {
                     return false;
                 }
-                if (s.StartsWith("true", StringComparison.CurrentCultureIgnoreCase))
+                if (s.StartsWith("true", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
-                if ("true".StartsWith(s, StringComparison.CurrentCultureIgnoreCase))
+                if ("true".StartsWith(s, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
-                if (s.StartsWith("yes", StringComparison.CurrentCultureIgnoreCase))
+                if (s.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
-                if ("yes".StartsWith(s, StringComparison.CurrentCultureIgnoreCase))
+                if ("yes".StartsWith(s, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

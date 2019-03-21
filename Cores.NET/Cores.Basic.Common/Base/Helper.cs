@@ -85,6 +85,7 @@ namespace IPA.Cores.Helper.Basic
         public static decimal ToDecimal(this string s) => Str.StrToDecimal(s);
         public static bool IsSame(this string s, string t, bool ignore_case = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignore_case ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
         public static bool IsSamei(this string s, string t) => IsSame(s, t, true);
+        public static bool IsSameiIgnoreUnderscores(this string s, string t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "").IsSamei(t.Replace("_", "")))));
         public static int Cmp(this string s, string t, bool ignore_case = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignore_case ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
         public static int Cmpi(this string s, string t, bool ignore_case = false) => Cmp(s, t, true);
         public static string[] GetLines(this string s) => Str.GetLines(s);
@@ -110,8 +111,8 @@ namespace IPA.Cores.Helper.Basic
         public static string Debug(this string s) { Dbg.WriteLine(s); return s; }
         public static int Search(this string s, string keyword, int start = 0, bool case_senstive = false) => Str.SearchStr(s, keyword, start, case_senstive);
         public static string TrimCrlf(this string s) => Str.TrimCrlf(s);
-        public static string TrimStartWith(this string s, string key, bool case_sensitive = false) { Str.TrimStartWith(ref s, key, case_sensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase); return s; }
-        public static string TrimEndsWith(this string s, string key, bool case_sensitive = false) { Str.TrimEndsWith(ref s, key, case_sensitive ? StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase); return s; }
+        public static string TrimStartWith(this string s, string key, bool case_sensitive = false) { Str.TrimStartWith(ref s, key, case_sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
+        public static string TrimEndsWith(this string s, string key, bool case_sensitive = false) { Str.TrimEndsWith(ref s, key, case_sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string NonNull(this string s) { if (s == null) return ""; else return s; }
         public static string NonNullTrim(this string s) { if (s == null) return ""; else return s.Trim(); }
         public static string NormalizeSoftEther(this string s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
@@ -205,7 +206,7 @@ namespace IPA.Cores.Helper.Basic
             return o;
         }
 
-        public static T[] ToSingleArray<T>(this T t) => new T[] { t };
+        public static T[] SingleArray<T>(this T t) => new T[] { t };
 
         public static string ToStr3(this long s) => Str.ToStr3(s);
         public static string ToStr3(this int s) => Str.ToStr3(s);

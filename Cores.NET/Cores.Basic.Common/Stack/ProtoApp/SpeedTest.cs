@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
 
                     Con.WriteLine("Listening.");
 
-                    await TaskUtil.WaitObjectsAsync(cancels: this.Cancel.ToSingleArray());
+                    await TaskUtil.WaitObjectsAsync(cancels: this.Cancel.SingleArray());
                 }
                 finally
                 {
@@ -324,8 +324,8 @@ namespace IPA.Cores.Basic
                     {
                         await TaskUtil.WaitObjectsAsync(
                             tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
-                            cancels: cancelWatcher.CancelToken.ToSingleArray(),
-                            manualEvents: ExceptionQueue.WhenExceptionAdded.ToSingleArray());
+                            cancels: cancelWatcher.CancelToken.SingleArray(),
+                            manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
                     }
 
                     Cancel.ThrowIfCancellationRequested();
@@ -346,8 +346,8 @@ namespace IPA.Cores.Basic
                         using (var whenAllCompleted = new WhenAll(tasks))
                         {
                             await TaskUtil.WaitObjectsAsync(
-                                tasks: whenAllCompleted.WaitMe.ToSingleArray(),
-                                cancels: cancelWatcher.CancelToken.ToSingleArray()
+                                tasks: whenAllCompleted.WaitMe.SingleArray(),
+                                cancels: cancelWatcher.CancelToken.SingleArray()
                                 );
 
                             await whenAllCompleted.WaitMe;
@@ -434,8 +434,8 @@ namespace IPA.Cores.Basic
                     cancel.ThrowIfCancellationRequested();
 
                     await TaskUtil.WaitObjectsAsync(
-                        manualEvents: ClientStartEvent.ToSingleArray(),
-                        cancels: cancel.ToSingleArray()
+                        manualEvents: ClientStartEvent.SingleArray(),
+                        cancels: cancel.SingleArray()
                         );
 
                     long tickStart = FastTick64.Now;
@@ -459,7 +459,7 @@ namespace IPA.Cores.Basic
                                 break;
 
                             await TaskUtil.WaitObjectsAsync(
-                                tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize).ToSingleArray(),
+                                tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize).SingleArray(),
                                 timeout: (int)(tickEnd - now),
                                 exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);
 
@@ -504,7 +504,7 @@ namespace IPA.Cores.Basic
                                 await st.SendAsync(surprise);
 
                                 await TaskUtil.WaitObjectsAsync(
-                                    manualEvents: sock.Pipe.OnDisconnectedEvent.ToSingleArray(),
+                                    manualEvents: sock.Pipe.OnDisconnectedEvent.SingleArray(),
                                     timeout: 200);
                             }
                         });

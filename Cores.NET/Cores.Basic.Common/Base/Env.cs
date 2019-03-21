@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
         static Env()
         {
             FrameworkVersion = Environment.Version;
-            if (FrameworkInfoString.StartsWith(".NET Core", StringComparison.InvariantCultureIgnoreCase))
+            if (FrameworkInfoString.StartsWith(".NET Core", StringComparison.OrdinalIgnoreCase))
             {
                 IsDotNetCore = true;
             }
@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic
             {
                 if (e.IsFolder)
                 {
-                    if (e.FileName.StartsWith("NET_", StringComparison.CurrentCultureIgnoreCase) && e.FileName.Length == 8)
+                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 8)
                     {
                         string dirFullName = Path.Combine(Env.TempDir, e.fileName);
                         string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
