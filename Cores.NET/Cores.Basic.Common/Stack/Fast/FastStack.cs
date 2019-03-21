@@ -1670,22 +1670,16 @@ namespace IPA.Cores.Basic
 
     abstract class FastStackOptionsBase { }
 
-    abstract class FastStackBase : AsyncCleanupable
+    abstract class FastStackBase : AsyncCleanupableCancellable
     {
-        public CancelWatcher CancelWatcher { get; }
-
-        public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
-
         public FastStackOptionsBase StackOptions { get; }
 
         public FastStackBase(AsyncCleanuperLady lady, FastStackOptionsBase options, CancellationToken cancel = default) :
-            base(lady)
+            base(lady, cancel)
         {
             try
             {
                 StackOptions = options;
-
-                CancelWatcher = new CancelWatcher(Lady, cancel);
             }
             catch
             {

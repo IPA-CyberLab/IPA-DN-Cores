@@ -11,11 +11,9 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Base\HttpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\JsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\JsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\WebHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClientApi\SlackApi.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)Base\" />
   </ItemGroup>
 </Project>

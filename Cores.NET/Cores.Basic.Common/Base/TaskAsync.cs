@@ -1091,6 +1091,26 @@ namespace IPA.Cores.Basic
         Task _CleanupAsyncInternal();
     }
 
+    abstract class AsyncCleanupableCancellable : AsyncCleanupable
+    {
+        public CancelWatcher CancelWatcher { get; }
+
+        public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
+
+        public AsyncCleanupableCancellable(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady)
+        {
+            try
+            {
+                CancelWatcher = new CancelWatcher(Lady, cancel);
+            }
+            catch
+            {
+                Lady.DisposeAllSafe();
+                throw;
+            }
+        }
+    }
+
     abstract class AsyncCleanupable : IAsyncCleanupable
     {
         public AsyncCleanuper AsyncCleanuper { get; }
