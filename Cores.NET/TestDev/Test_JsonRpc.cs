@@ -8,7 +8,7 @@ using IPA.Cores.Helper.Basic;
 
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 
-namespace IPA.TestDev.Basic.Full
+namespace IPA.TestDev
 {
     static class JsonRpcTest
     {

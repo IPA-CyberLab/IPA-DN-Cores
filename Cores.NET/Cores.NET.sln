@@ -17,9 +17,7 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Config", "Cores
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Html", "Cores.Basic.Html\Cores.Basic.Html.shproj", "{6EBC798C-0969-41B5-B0E0-28914FB2D7F5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestDev.Basic.Common", "TestDev.Basic.Common\TestDev.Basic.Common.csproj", "{773DDEAA-014C-40F0-8249-61FF01925AE6}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestDev.Full.Common", "TestDev.Full.Common\TestDev.Full.Common.csproj", "{5AB9C002-FE64-4531-9D2B-9B77663110EF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestDev", "TestDev\TestDev.csproj", "{5AB9C002-FE64-4531-9D2B-9B77663110EF}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -36,10 +34,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{773DDEAA-014C-40F0-8249-61FF01925AE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{773DDEAA-014C-40F0-8249-61FF01925AE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{773DDEAA-014C-40F0-8249-61FF01925AE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{773DDEAA-014C-40F0-8249-61FF01925AE6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5AB9C002-FE64-4531-9D2B-9B77663110EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5AB9C002-FE64-4531-9D2B-9B77663110EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5AB9C002-FE64-4531-9D2B-9B77663110EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
