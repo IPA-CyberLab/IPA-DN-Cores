@@ -20,83 +20,88 @@ namespace IPA.TestDev
 
         public static void jsonrpc_client_server_both_test()
         {
-            //jsonrpc_server_invoke_test().Wait();return;
-
-            // start server
-            HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
+            AsyncCleanuperLady lady = new AsyncCleanuperLady();
+            try
             {
-                DebugToConsole = false,
-            };
-            JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
-            {
-            };
-            rpc_server_api_test h = new rpc_server_api_test();
-            var s = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, h);
+                //jsonrpc_server_invoke_test().Wait();return;
 
-            Ref<bool> client_stop_flag = new Ref<bool>();
-
-            // start client
-            ThreadObj client_thread = ThreadObj.Start(param =>
-            {
-                //Kernel.SleepThread(-1);
-
-                //using ()
+                // start server
+                HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
                 {
-                    //c.AddHeader("X-1", "Hello");
+                    DebugToConsole = false,
+                };
+                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
+                {
+                };
+                rpc_server_api_test h = new rpc_server_api_test(lady);
+                var s = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, h, lady);
 
-                    rpctmp1 t = new rpctmp1();
-                    t.a = new rpc_t()
+                Ref<bool> client_stop_flag = new Ref<bool>();
+
+                // start client
+                ThreadObj client_thread = ThreadObj.Start(param =>
+                {
+                    //Kernel.SleepThread(-1);
+
+                    //using ()
                     {
-                        Int1 = 2,
-                        Str1 = "Neko",
-                    };
+                        //c.AddHeader("X-1", "Hello");
 
-                    //JsonRpcResponse<object> ret = c.CallOne<object>("Test1", t).Result;
-                    //JsonRpcResponse<object> ret = c.CallOne<object>("Test2", t).Result;
-
-                    Benchmark b = new Benchmark("rpccall");
-
-                    JsonRpcHttpClient<rpc_server_api_interface_test> c = new JsonRpcHttpClient<rpc_server_api_interface_test>("http://127.0.0.1:88/rpc");
-                    var threads = ThreadObj.StartMany(256, par =>
-                    {
-
-                        while (client_stop_flag.Value == false)
+                        rpctmp1 t = new rpctmp1();
+                        t.a = new rpc_t()
                         {
-                            //c.Call.Divide(8, 2).Wait();
-                            TMP1 a = new TMP1() { a = 4, b = 2 };
-                            c.MT_Call<object>("Divide", a, true).Wait();
-                            //c.ST_CallOne<object>("Divide", a, true).Wait();
-                            b.IncrementMe++;
+                            Int1 = 2,
+                            Str1 = "Neko",
+                        };
+
+                        //JsonRpcResponse<object> ret = c.CallOne<object>("Test1", t).Result;
+                        //JsonRpcResponse<object> ret = c.CallOne<object>("Test2", t).Result;
+
+                        Benchmark b = new Benchmark("rpccall");
+
+                        JsonRpcHttpClient<rpc_server_api_interface_test> c = new JsonRpcHttpClient<rpc_server_api_interface_test>("http://127.0.0.1:88/rpc");
+                        var threads = ThreadObj.StartMany(256, par =>
+                        {
+
+                            while (client_stop_flag.Value == false)
+                            {
+                                //c.Call.Divide(8, 2).Wait();
+                                TMP1 a = new TMP1() { a = 4, b = 2 };
+                                c.MT_Call<object>("Divide", a, true).Wait();
+                                //c.ST_CallOne<object>("Divide", a, true).Wait();
+                                b.IncrementMe++;
+                            }
                         }
+                        );
+
+                        foreach (var thread in threads)
+                        {
+                            thread.WaitForEnd();
+                        }
+
+                        //c.Call.Divide(8, 2).Result.Print();
+                        //c.Call.Divide(8, 2).Result.Print();
+                        //c.Call.Test3(1, 2, 3).Result.Print();
+                        //c.Call.Test5(1, "2").Result.ObjectToJson().Print();
+                        //var fnlist = c.Call.Test6().Result;
+                        ////foreach (var fn in fnlist) fn.Print();
+                        //c.Call.Test7(fnlist).Result.Print();
+
+                        //Con.WriteLine(ret.ObjectToJson());
                     }
-                    );
+                }, null);
 
-                    foreach (var thread in threads)
-                    {
-                        thread.WaitForEnd();
-                    }
+                Con.ReadLine("Enter to quit>");
 
-                    //c.Call.Divide(8, 2).Result.Print();
-                    //c.Call.Divide(8, 2).Result.Print();
-                    //c.Call.Test3(1, 2, 3).Result.Print();
-                    //c.Call.Test5(1, "2").Result.ObjectToJson().Print();
-                    //var fnlist = c.Call.Test6().Result;
-                    ////foreach (var fn in fnlist) fn.Print();
-                    //c.Call.Test7(fnlist).Result.Print();
+                client_stop_flag.Set(true);
 
-                    //Con.WriteLine(ret.ObjectToJson());
-                }
-            }, null);
+                client_thread.WaitForEnd();
 
-            Con.ReadLine("Enter to quit>");
-
-            client_stop_flag.Set(true);
-
-            client_thread.WaitForEnd();
-
-            s.StopAsync().Wait();
-
-
+            }
+            finally
+            {
+                lady.CleanupAsync().Wait();
+            }
         }
     }
 
@@ -125,6 +130,10 @@ namespace IPA.TestDev
 
     class rpc_server_api_test : JsonRpcServerApi, rpc_server_api_interface_test
     {
+        public rpc_server_api_test(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        {
+        }
+
 #pragma warning disable CS1998
         public async Task<rpc_t> Test1(rpc_t a)
         {
