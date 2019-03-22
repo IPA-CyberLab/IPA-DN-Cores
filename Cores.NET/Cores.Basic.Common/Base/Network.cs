@@ -1541,7 +1541,7 @@ namespace IPA.Cores.Basic
         }
         public static bool IsInSubnet(IPAddress ip1, IPAddress ip2, IPAddress subnet)
         {
-            if (IsSubnetMask6(subnet) == false)
+            if (IsSubnetMask(subnet) == false)
                 throw new ArgumentException("mask is not a subnet.");
             return IsInSameNetwork(ip1, ip2, subnet);
         }
