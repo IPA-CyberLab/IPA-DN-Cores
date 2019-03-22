@@ -688,7 +688,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 if (noDebugMessage == false)
-                    Dbg.WriteLine("Task exception: " + ex.ToString());
+                    Dbg.WriteLine("Task exception: " + ex.GetSingleException().ToString());
             }
         }
 

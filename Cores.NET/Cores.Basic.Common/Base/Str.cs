@@ -5294,6 +5294,13 @@ namespace IPA.Cores.Basic
             uri = new Uri(url_string);
             query_string = HttpUtility.ParseQueryString(uri.Query.NonNull());
         }
+
+        public static string GetSimpleHostnameFromFqdn(string fqdn)
+        {
+            fqdn = fqdn.NonNullTrim();
+            if (fqdn.IsEmpty()) return "";
+            return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)[0];
+        }
     }
 
     class XmlCheckObjectInternal

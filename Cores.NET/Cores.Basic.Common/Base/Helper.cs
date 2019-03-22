@@ -43,6 +43,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 
 using IPA.Cores.Basic;
 
@@ -287,6 +288,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static IPAddress ToIPAddress(this string s) => IPUtil.StrToIP(s);
 
+        public static IPAddress UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
+
         public static void ParseUrl(this string url_string, out Uri uri, out NameValueCollection query_string) => Str.ParseUrl(url_string, out uri, out query_string);
 
         //public static void AddArrayItemsToList<T>(this IEnumerable<T> items, List<T> list) => Util.AddArrayItemsToList<T>(items, list);
@@ -528,8 +531,13 @@ namespace IPA.Cores.Helper.Basic
         public static Exception GetSingleException(this Exception ex)
         {
             if (ex == null) return null;
+
+            var tex = ex as TargetInvocationException;
+            if (tex != null) ex = tex.InnerException;
+
             var aex = ex as AggregateException;
-            if (aex != null) return aex.Flatten().InnerExceptions[0];
+            if (aex != null) ex = aex.Flatten().InnerExceptions[0];
+
             return ex;
         }
 

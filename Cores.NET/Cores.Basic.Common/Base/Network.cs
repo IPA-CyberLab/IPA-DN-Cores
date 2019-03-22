@@ -313,18 +313,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    // IPv6 アドレスの種類
-    struct IPv6AddressType
+    // IP アドレスの種類
+    struct IPAddressType
     {
+        public int IPVersion;
         public bool Unicast;
-        public bool LocalUnicast;
         public bool GlobalUnicast;
+        public bool LocalUnicast;
         public bool Multicast;
-        public bool AllNodeMulticast;
-        public bool AllRouterMulticast;
-        public bool SoliciationMulticast;
         public bool Zero;
         public bool Loopback;
+        public bool IPv4_APIPA;
+        public bool IPv4_IspShared;
+        public bool IPv4_Broadcast;
+        public bool IPv6_AllNodeMulticast;
+        public bool IPv6_AllRouterMulticast;
+        public bool IPv6_SoliciationMulticast;
     }
 
     // IP ユーティリティ
@@ -449,6 +453,31 @@ namespace IPA.Cores.Basic
                 }
                 return (long)(1UL << v);
             }
+        }
+
+        // IPv6 射影アドレスを IPv4 アドレスに変換
+        public static IPAddress UnmapIPv6AddressToIPv4Address(IPAddress addr)
+        {
+            if (IsIPv4MappedIPv6Address(addr, out IPAddress ret))
+                return ret;
+
+            return addr;
+        }
+
+        // IPv6 射影アドレスかどうか取得
+        public static bool IsIPv4MappedIPv6Address(IPAddress addr) => IsIPv4MappedIPv6Address(addr, out _);
+        public static bool IsIPv4MappedIPv6Address(IPAddress addr, out IPAddress ipv4_ret)
+        {
+            ipv4_ret = default;
+            if (IsIPv6(addr) == false) return false;
+            byte[] b = addr.GetAddressBytes();
+            if (b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 &&
+                b[10] == 0xff && b[11] == 0xff)
+            {
+                ipv4_ret = new IPAddress(b.AsSpan(12, 4));
+                return true;
+            }
+            return false;
         }
 
         // 文字列を IP アドレスに変換
@@ -1251,15 +1280,87 @@ namespace IPA.Cores.Basic
             throw new ApplicationException("a.AddressFamily != AddressFamily.InterNetwork");
         }
 
-        // IPv6 アドレスの種類を取得する
-        public static IPv6AddressType GetIPv6AddressType(IPAddress ip)
+        // IP アドレスの種類を取得する
+        public static IPAddressType GetIPAddressType(string ipStr) => GetIPAddressType(IPUtil.StrToIP(ipStr));
+        public static IPAddressType GetIPAddressType(IPAddress ip)
         {
-            IPv6AddressType ret = new IPv6AddressType();
+            if (IsIPv4(ip)) return GetIPv4AddressType(ip);
+            if (IsIPv6(ip)) return GetIPv6AddressType(ip);
+            throw new ApplicationException("ip is not IPv4/IPv6.");
+        }
+
+        // IPv4 アドレスの種類を取得する
+        public static IPAddressType GetIPv4AddressType(IPAddress ip)
+        {
+            IPAddressType ret = new IPAddressType();
+            if (IsIPv4(ip) == false)
+            {
+                throw new ArgumentException("ip is not IPv6.");
+            }
+            ret.IPVersion = 4;
+
+            byte[] data = ip.GetAddressBytes();
+
+            ret.Zero = Util.IsZero(data);
+
+            if (ret.Zero == false)
+            {
+                ret.Loopback = IPUtil.IsInSubnet(ip, "127.0.0.0/8");
+
+                if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff && data[3] == 0xff)
+                {
+                    ret.IPv4_Broadcast = true;
+                }
+                else
+                {
+                    if (data[0] >= 224 && data[0] <= 239)
+                    {
+                        ret.Multicast = true;
+                    }
+                    else
+                    {
+                        ret.Unicast = true;
+
+                        if (IPUtil.IsInSubnet(ip, "100.64.0.0/16"))
+                        {
+                            ret.IPv4_IspShared = true;
+                        }
+                        else if (IPUtil.IsInSubnet(ip, "192.168.0.0/16") ||
+                            IPUtil.IsInSubnet(ip, "172.16.0.0/12") ||
+                            IPUtil.IsInSubnet(ip, "10.0.0.0/8"))
+                        {
+                            ret.LocalUnicast = true;
+                        }
+                        else if (IPUtil.IsInSubnet(ip, "169.254.0.0/16"))
+                        {
+                            ret.IPv4_APIPA = true;
+                            ret.LocalUnicast = true;
+                        }
+                        else
+                        {
+                            ret.GlobalUnicast = true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                ret.Unicast = true;
+            }
+
+            return ret;
+        }
+
+        // IPv6 アドレスの種類を取得する
+        public static IPAddressType GetIPv6AddressType(IPAddress ip)
+        {
+            IPAddressType ret = new IPAddressType();
             byte[] data;
             if (IsIPv6(ip) == false)
             {
                 throw new ArgumentException("ip is not IPv6.");
             }
+            ret.IPVersion = 6;
 
             data = ip.GetAddressBytes();
 
@@ -1272,11 +1373,11 @@ namespace IPA.Cores.Basic
 
                 if (CompareIPAddress(ip, all_node))
                 {
-                    ret.AllNodeMulticast = true;
+                    ret.IPv6_AllNodeMulticast = true;
                 }
                 else if (CompareIPAddress(ip, all_router))
                 {
-                    ret.AllRouterMulticast = true;
+                    ret.IPv6_AllRouterMulticast = true;
                 }
                 else
                 {
@@ -1286,7 +1387,7 @@ namespace IPA.Cores.Basic
                         addr[7] == 0 && addr[8] == 0 && addr[9] == 0 &&
                         addr[10] == 0 && addr[11] == 0x01 && addr[12] == 0xff)
                     {
-                        ret.SoliciationMulticast = true;
+                        ret.IPv6_SoliciationMulticast = true;
                     }
                 }
             }
@@ -1430,6 +1531,19 @@ namespace IPA.Cores.Basic
             host = GetHostAddress(ip, subnet);
 
             return IsZeroIP(host);
+        }
+
+        // IP アドレスがサブネットに属しているかどうか調べる
+        public static bool IsInSubnet(IPAddress ip, string subnetString)
+        {
+            ParseIPAndSubnetMask(subnetString, out IPAddress ip2, out IPAddress subnet);
+            return IsInSubnet(ip, ip2, subnet);
+        }
+        public static bool IsInSubnet(IPAddress ip1, IPAddress ip2, IPAddress subnet)
+        {
+            if (IsSubnetMask6(subnet) == false)
+                throw new ArgumentException("mask is not a subnet.");
+            return IsInSameNetwork(ip1, ip2, subnet);
         }
 
         // 同一のネットワークかどうか調べる

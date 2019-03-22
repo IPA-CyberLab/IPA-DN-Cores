@@ -553,8 +553,8 @@ namespace IPA.Cores.Basic
                 }
 
                 var conn = request.HttpContext.Connection;
-                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress.ToString(), conn.LocalPort,
-                    conn.RemoteIpAddress.ToString(), conn.RemotePort,
+                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress.UnmapIPv4().ToString(), conn.LocalPort,
+                    conn.RemoteIpAddress.UnmapIPv4().ToString(), conn.RemotePort,
                     headers);
 
                 //string in_str = request.Body.ReadToEnd().GetString_UTF8();
@@ -713,6 +713,28 @@ namespace IPA.Cores.Basic
                             q.response.Id = res.Id;
                             q.response.Result = res.Result;
                             q.response.Version = res.Version;
+                        }
+                    }
+                }
+
+                if (ret_list.Count == 1)
+                {
+                    foreach (var res in ret_list)
+                    {
+                        if (res.IsError)
+                        {
+                            if (res.Id.IsEmpty())
+                            {
+                                foreach (var q in requests_table.Values)
+                                {
+                                    q.response.Error = res.Error;
+                                    q.response.Id = res.Id;
+                                    q.response.Result = res.Result;
+                                    q.response.Version = res.Version;
+                                }
+
+                                break;
+                            }
                         }
                     }
                 }
@@ -920,6 +942,9 @@ namespace IPA.Cores.Basic
         public DateTime ConnectedDateTime { get; }
         public SortedDictionary<string, string> Headers { get; }
         public JsonRpcServer RpcServer { get; }
+        public object Param1 { get; set; }
+        public object Param2 { get; set; }
+        public object Param3 { get; set; }
 
         public JsonRpcClientInfo(JsonRpcServer rpc_server, string local_ip, int local_port, string remote_ip, int remote_port, SortedDictionary<string, string> headers)
         {

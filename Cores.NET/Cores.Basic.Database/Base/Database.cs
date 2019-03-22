@@ -369,6 +369,7 @@ namespace IPA.Cores.Basic
 
         public async Task EnsureOpenAsync()
         {
+            if (IsOpened) return;
             using (await OpenCloseLock.LockWithAwait())
             {
                 if (IsOpened == false)
@@ -380,7 +381,7 @@ namespace IPA.Cores.Basic
         }
 
         // バルク書き込み
-        public void BulkWrite(string tableName, DataTable dt)
+        public void SqlBulkWrite(string tableName, DataTable dt)
         {
             EnsureOpen();
 
@@ -392,7 +393,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task BulkWriteAsync(string tableName, DataTable dt)
+        public async Task SqlBulkWriteAsync(string tableName, DataTable dt)
         {
             await EnsureOpenAsync();
 
@@ -474,6 +475,24 @@ namespace IPA.Cores.Basic
             CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction);
 
             return cmd;
+        }
+
+        public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
+        {
+            IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
+            T t = ret.SingleOrDefault();
+            if (t == default)
+            {
+                await ExecuteScalarAsync<T>(insertStr, insertParam);
+
+                long newId = await this.GetLastID64Async();
+
+                ret = await QueryAsync<T>(newCreatedRowSelectWithIdCmd, new { id = newId });
+
+                t = ret.Single();
+            }
+
+            return t;
         }
 
         public async Task<IEnumerable<T>> QueryAsync<T>(string commandStr, object param = null)
@@ -876,7 +895,10 @@ namespace IPA.Cores.Basic
         }
 
         public delegate bool TransactionalTask();
+        public delegate void TransactionalReadonlyTask();
+
         public delegate Task<bool> TransactionalTaskAsync();
+        public delegate Task TransactionalReadOnlyTaskAsync();
 
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
         public void Tran(TransactionalTask task) => Tran(IsolationLevel.Serializable, null, task);
@@ -924,6 +946,15 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void TranReadSnapshot(TransactionalReadonlyTask task)
+        {
+            Tran(IsolationLevel.Snapshot, () =>
+            {
+                task();
+                return false;
+            });
+        }
+
         public Task TranAsync(TransactionalTaskAsync task) => TranAsync(IsolationLevel.Serializable, null, task);
         public Task TranAsync(IsolationLevel iso, TransactionalTaskAsync task) => TranAsync(iso, null, task);
         public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig retry_config, TransactionalTaskAsync task)
@@ -967,6 +998,15 @@ namespace IPA.Cores.Basic
                     throw;
                 }
             }
+        }
+
+        public Task TranReadSnapshotAsync(TransactionalReadOnlyTaskAsync task)
+        {
+            return TranAsync(IsolationLevel.Snapshot, async () =>
+            {
+                await task();
+                return false;
+            });
         }
 
         // トランザクションの開始 (UsingTran オブジェクト作成)
