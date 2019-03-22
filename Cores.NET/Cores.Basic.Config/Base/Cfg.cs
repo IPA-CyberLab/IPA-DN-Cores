@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
             {
                 lock (this.ConfigLock)
                 {
-                    return (T)this.Config.CloneSerializableObject();
+                    return (T)this.Config.CloneDeep();
                 }
             }
         }
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
         public Cfg(bool read_only = true, int read_polling_interval_secs = 2, int update_polling_interval_secs = 1, T default_config = null, string filename = null, string header_str = null)
         {
             if (default_config == null) default_config = new T();
-            this.DefaultConfig = (T)default_config.CloneSerializableObject();
+            this.DefaultConfig = (T)default_config.CloneDeep();
             if (filename.IsEmpty()) filename = "@" + Str.GetLastToken(default_config.GetType().ToString(), '+', '.').MakeSafeFileName() + ".cfg";
             this.FileName = IO.InnerFilePath(filename);
             this.DirName = this.FileName.GetDirectoryName();
@@ -290,7 +290,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    return (T)default_config.CloneSerializableObject();
+                    return (T)default_config.CloneDeep();
                 }
             }
 
@@ -308,7 +308,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    return (T)default_config.CloneSerializableObject();
+                    return (T)default_config.CloneDeep();
                 }
             }
         }

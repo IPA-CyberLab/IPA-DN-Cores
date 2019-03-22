@@ -99,8 +99,7 @@ namespace IPA.Cores.Helper.Basic
         public static string NormalizeCrlfUnix(this string s) => Str.NormalizeCrlfUnix(s);
         public static string NormalizeCrlfThisPlatform(this string s) => Str.NormalizeCrlfThisPlatform(s);
         public static string[] ParseCmdLine(this string s) => Str.ParseCmdLine(s);
-        public static object XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple(s, t);
-        public static bool IsXmlStrForObjectPubllic(this string s) => Str.IsStrOkForXML(s);
+        public static object Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken ToToken(this string s, string split_str = " ,\t\r\n") => new StrToken(s, split_str);
         public static string OneLine(this string s) => Str.OneLine(s);
         public static string FormatC(this string s) => Str.FormatC(s);
@@ -186,10 +185,20 @@ namespace IPA.Cores.Helper.Basic
         public static void InnerDebug(this object o, string instance_base_name = "") => Dbg.WriteObject(o, instance_base_name);
         public static void InnerPrint(this object o, string instance_base_name = "") => Dbg.PrintObjectInnerString(o, instance_base_name);
         public static string GetInnerStr(this object o, string instance_base_name = "") => Dbg.GetObjectInnerString(o, instance_base_name);
-        public static string ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple(o, t ?? o.GetType());
-        public static object CloneSerializableObject(this object o) => Util.CloneObject_UsingBinary(o);
+        public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
+        public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
         public static object BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
+        public static void ObjectToXml(this object obj, MemoryBuffer<byte> dst) => Util.ObjectToXml(obj, dst);
+        public static byte[] ObjectToXml(this object obj) => Util.ObjectToXml(obj);
+        public static object XmlToObject(this MemoryBuffer<byte> src, Type type) => Util.XmlToObject(src, type);
+        public static T XmlToObject<T>(this MemoryBuffer<byte> src) => Util.XmlToObject<T>(src);
+        public static object XmlToObject(this byte[] src, Type type) => Util.XmlToObject(src, type);
+        public static T XmlToObject<T>(this byte[] src) => Util.XmlToObject<T>(src);
+
+        public static string ObjectToXmlStr(this object obj) => Str.ObjectToXmlStr(obj);
+        public static object XmlStrToObject(this string src, Type type) => Str.XmlStrToObject(src, type);
+        public static T XmlStrToObject<T>(this string src) => Str.XmlStrToObject<T>(src);
 
         public static object Print(this object o)
         {
@@ -251,11 +260,11 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static T ClonePublics<T>(this T o)
+        public static T Old_ClonePublic<T>(this T o)
         {
-            byte[] data = Util.ObjectToXml(o);
+            byte[] data = Util.ObjectToXml_PublicLegacy(o);
 
-            return (T)Util.XmlToObject(data, o.GetType());
+            return (T)Util.XmlToObject_PublicLegacy(data, o.GetType());
         }
 
         public static TValue GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key) where TValue: new()

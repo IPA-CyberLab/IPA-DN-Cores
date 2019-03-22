@@ -12,23 +12,38 @@ namespace IPA.Cores.Helper.Basic
     {
         public static SpanBuffer<T> AsSpanBuffer<T>(this Span<T> span) => new SpanBuffer<T>(span);
         public static SpanBuffer<T> AsSpanBuffer<T>(this Memory<T> memory) => new SpanBuffer<T>(memory.Span);
+        public static SpanBuffer<T> AsSpanBuffer<T>(this T[] data) => new SpanBuffer<T>(data.AsSpan());
+        public static SpanBuffer<T> AsSpanBuffer<T>(this T[] data, int offset) => new SpanBuffer<T>(data.AsSpan(offset));
         public static SpanBuffer<T> AsSpanBuffer<T>(this T[] data, int offset, int size) => new SpanBuffer<T>(data.AsSpan(offset, size));
 
         public static ReadOnlySpanBuffer<T> AsReadOnlySpanBuffer<T>(this ReadOnlySpan<T> span) => new ReadOnlySpanBuffer<T>(span);
         public static ReadOnlySpanBuffer<T> AsReadOnlySpanBuffer<T>(this ReadOnlyMemory<T> memory) => new ReadOnlySpanBuffer<T>(memory.Span);
+        public static ReadOnlySpanBuffer<T> AsReadOnlySpanBuffer<T>(this T[] data) => new ReadOnlySpanBuffer<T>(data.AsReadOnlySpan());
+        public static ReadOnlySpanBuffer<T> AsReadOnlySpanBuffer<T>(this T[] data, int offset) => new ReadOnlySpanBuffer<T>(data.AsReadOnlySpan(offset));
         public static ReadOnlySpanBuffer<T> AsReadOnlySpanBuffer<T>(this T[] data, int offset, int size) => new ReadOnlySpanBuffer<T>(data.AsReadOnlySpan(offset, size));
 
         public static FastMemoryBuffer<T> AsFastMemoryBuffer<T>(this Memory<T> memory) => new FastMemoryBuffer<T>(memory);
+        public static FastMemoryBuffer<T> AsFastMemoryBuffer<T>(this T[] data) => new FastMemoryBuffer<T>(data.AsMemory());
+        public static FastMemoryBuffer<T> AsFastMemoryBuffer<T>(this T[] data, int offset) => new FastMemoryBuffer<T>(data.AsMemory(offset));
         public static FastMemoryBuffer<T> AsFastMemoryBuffer<T>(this T[] data, int offset, int size) => new FastMemoryBuffer<T>(data.AsMemory(offset, size));
 
         public static FastReadOnlyMemoryBuffer<T> AsFastReadOnlyMemoryBuffer<T>(this ReadOnlyMemory<T> memory) => new FastReadOnlyMemoryBuffer<T>(memory);
+        public static FastReadOnlyMemoryBuffer<T> AsFastReadOnlyMemoryBuffer<T>(this T[] data) => new FastReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory());
+        public static FastReadOnlyMemoryBuffer<T> AsFastReadOnlyMemoryBuffer<T>(this T[] data, int offset) => new FastReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset));
         public static FastReadOnlyMemoryBuffer<T> AsFastReadOnlyMemoryBuffer<T>(this T[] data, int offset, int size) => new FastReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset, size));
 
         public static MemoryBuffer<T> AsMemoryBuffer<T>(this Memory<T> memory) => new MemoryBuffer<T>(memory);
+        public static MemoryBuffer<T> AsMemoryBuffer<T>(this T[] data) => new MemoryBuffer<T>(data.AsMemory());
+        public static MemoryBuffer<T> AsMemoryBuffer<T>(this T[] data, int offset) => new MemoryBuffer<T>(data.AsMemory(offset));
         public static MemoryBuffer<T> AsMemoryBuffer<T>(this T[] data, int offset, int size) => new MemoryBuffer<T>(data.AsMemory(offset, size));
 
         public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this ReadOnlyMemory<T> memory) => new ReadOnlyMemoryBuffer<T>(memory);
+        public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this T[] data) => new ReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory());
+        public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this T[] data, int offset) => new ReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset));
         public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this T[] data, int offset, int size) => new ReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset, size));
+
+        public static BufferStream AsStream(this MemoryBuffer<byte> buffer) => new BufferStream(buffer);
+        public static BufferStream AsStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferStream(buffer);
     }
 
     static class HelperMemory

@@ -5257,11 +5257,11 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        public static string ObjectToXMLSimple(object o)
+        public static string ObjectToXMLSimple_PublicLegacy(object o)
         {
-            return ObjectToXMLSimple(o, o.GetType());
+            return ObjectToXMLSimple_PublicLegacy(o, o.GetType());
         }
-        public static string ObjectToXMLSimple(object o, Type t)
+        public static string ObjectToXMLSimple_PublicLegacy(object o, Type t)
         {
             XmlSerializer xs = new XmlSerializer(t);
 
@@ -5271,7 +5271,7 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding.GetString(ms.ToArray());
         }
 
-        public static object XMLToObjectSimple(string str, Type t)
+        public static object XMLToObjectSimple_PublicLegacy(string str, Type t)
         {
             XmlSerializer xs = new XmlSerializer(t);
 
@@ -5283,24 +5283,9 @@ namespace IPA.Cores.Basic
             return xs.Deserialize(ms);
         }
 
-        public static bool IsStrOkForXML(string str)
-        {
-            try
-            {
-                XmlCheckObjectInternal o = new XmlCheckObjectInternal();
-                o.Str = str;
-
-                string xmlstr = ObjectToXMLSimple(o);
-
-                XMLToObjectSimple(xmlstr, typeof(XmlCheckObjectInternal));
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        public static string ObjectToXmlStr(object obj) => Util.ObjectToXml(obj).GetString_UTF8();
+        public static object XmlStrToObject(string src, Type type) => Util.XmlToObject(src.GetBytes_UTF8(), type);
+        public static T XmlStrToObject<T>(string src) => Util.XmlToObject<T>(src.GetBytes_UTF8());
 
         public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
         {

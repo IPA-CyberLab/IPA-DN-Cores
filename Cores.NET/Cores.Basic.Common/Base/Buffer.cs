@@ -39,6 +39,8 @@ using System.Runtime.InteropServices;
 using System.Buffers;
 
 using IPA.Cores.Helper.Basic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IPA.Cores.Basic
 {
@@ -760,8 +762,100 @@ namespace IPA.Cores.Basic
         }
     }
 
+    interface IBuffer<T>
+    {
+        int CurrentPosition { get; }
+        int Length { get; }
+        void Write(ReadOnlySpan<T> data);
+        ReadOnlySpan<T> Read(int size, bool allowPartial = false);
+        ReadOnlySpan<T> Peek(int size, bool allowPartial = false);
+        void Seek(int offset, SeekOrigin mode);
+        void Clear();
+    }
 
-    class MemoryBuffer<T>
+    class BufferStream : Stream
+    {
+        public IBuffer<byte> BaseBuffer { get; }
+
+        public BufferStream(IBuffer<byte> baseBuffer)
+        {
+            BaseBuffer = baseBuffer;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => true;
+        public override long Length => BaseBuffer.Length;
+
+        public override long Position
+        {
+            get => BaseBuffer.CurrentPosition;
+            set => Seek(value, SeekOrigin.Begin);
+        }
+
+        public override void Flush() { }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            checked
+            {
+                BaseBuffer.Seek((int)offset, origin);
+                return BaseBuffer.CurrentPosition;
+            }
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            return base.FlushAsync(cancellationToken);
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var readSpan = BaseBuffer.Read(buffer.Length, true);
+            readSpan.CopyTo(buffer);
+            return readSpan.Length;
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            BaseBuffer.Write(buffer);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(this.Read(buffer, offset, count));
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.CompletedTask;
+            return this.Read(buffer.Span);
+        }
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            this.Write(buffer, offset, count);
+            return Task.CompletedTask;
+        }
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.CompletedTask;
+            this.Write(buffer.Span);
+        }
+    }
+
+    class MemoryBuffer<T> : IBuffer<T>
     {
         Memory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
@@ -996,7 +1090,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ReadOnlyMemoryBuffer<T>
+    class ReadOnlyMemoryBuffer<T> : IBuffer<T>
     {
         ReadOnlyMemory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
@@ -1177,6 +1271,8 @@ namespace IPA.Cores.Basic
             CurrentPosition = 0;
             Length = 0;
         }
+
+        void IBuffer<T>.Write(ReadOnlySpan<T> data) => throw new NotSupportedException();
     }
 
     static class SpanMemoryBufferHelper

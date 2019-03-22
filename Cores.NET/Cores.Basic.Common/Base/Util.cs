@@ -37,7 +37,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Xml;
 
 using IPA.Cores.Helper.Basic;
 using System.Runtime.CompilerServices;
@@ -989,7 +991,7 @@ namespace IPA.Cores.Basic
         }
 
         // 型から XML スキーマを生成
-        public static byte[] GetXmlSchemaFromType(Type type)
+        public static byte[] GetXmlSchemaFromType_PublicLegacy(Type type)
         {
             XmlSchemas sms = new XmlSchemas();
             XmlSchemaExporter ex = new XmlSchemaExporter(sms);
@@ -1010,21 +1012,21 @@ namespace IPA.Cores.Basic
             byte[] data = ms.ToArray();
             return data;
         }
-        public static string GetXmlSchemaFromTypeString(Type type)
+        public static string GetXmlSchemaFromTypeString_PublicLegacy(Type type)
         {
-            byte[] data = GetXmlSchemaFromType(type);
+            byte[] data = GetXmlSchemaFromType_PublicLegacy(type);
 
             return Str.Utf8Encoding.GetString(data);
         }
 
         // オブジェクトを XML に変換
-        public static string ObjectToXmlString(object o)
+        public static string ObjectToXmlString_PublicLegacy(object o)
         {
-            byte[] data = ObjectToXml(o);
+            byte[] data = ObjectToXml_PublicLegacy(o);
 
             return Str.Utf8Encoding.GetString(data);
         }
-        public static byte[] ObjectToXml(object o)
+        public static byte[] ObjectToXml_PublicLegacy(object o)
         {
             if (o == null)
             {
@@ -1032,15 +1034,15 @@ namespace IPA.Cores.Basic
             }
             Type t = o.GetType();
 
-            return ObjectToXml(o, t);
+            return ObjectToXml_PublicLegacy(o, t);
         }
-        public static string ObjectToXmlString(object o, Type t)
+        public static string ObjectToXmlString_PublicLegacy(object o, Type t)
         {
-            byte[] data = ObjectToXml(o, t);
+            byte[] data = ObjectToXml_PublicLegacy(o, t);
 
             return Str.Utf8Encoding.GetString(data);
         }
-        public static byte[] ObjectToXml(object o, Type t)
+        public static byte[] ObjectToXml_PublicLegacy(object o, Type t)
         {
             if (o == null)
             {
@@ -1055,9 +1057,36 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
+        public static void ObjectToXml(object obj, MemoryBuffer<byte> dst)
+        {
+            DataContractSerializerSettings settings = new DataContractSerializerSettings();
+            settings.PreserveObjectReferences = true;
+            DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
+            d.WriteObject(dst.AsStream(), obj);
+        }
+        public static byte[] ObjectToXml(object obj)
+        {
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            ObjectToXml(obj, buf);
+            return buf.Span.ToArray();
+        }
+
+        public static object XmlToObject(MemoryBuffer<byte> src, Type type)
+        {
+            DataContractSerializerSettings settings = new DataContractSerializerSettings();
+            settings.PreserveObjectReferences = true;
+            DataContractSerializer d = new DataContractSerializer(type, settings);
+            return d.ReadObject(src.AsStream());
+        }
+        public static T XmlToObject<T>(MemoryBuffer<byte> src) => (T)XmlToObject(src, typeof(T));
+
+        public static object XmlToObject(byte[] src, Type type) => XmlToObject(src.AsMemoryBuffer(), type);
+        public static T XmlToObject<T>(byte[] src) => XmlToObject<T>(src.AsMemoryBuffer());
+
         // オブジェクトをクローンする
         public static object CloneObject_UsingBinary(object o)
         {
+            if (o == null) return null;
             return BinaryToObject(ObjectToBinary(o));
         }
 
@@ -1083,15 +1112,15 @@ namespace IPA.Cores.Basic
         }
 
         // オブジェクトの内容をクローンする
-        public static object CloneObject_UsingXml(object o)
+        public static object CloneObject_UsingXml_PublicLegacy(object o)
         {
-            byte[] data = Util.ObjectToXml(o);
+            byte[] data = Util.ObjectToXml_PublicLegacy(o);
 
-            return Util.XmlToObject(data, o.GetType());
+            return Util.XmlToObject_PublicLegacy(data, o.GetType());
         }
 
         // XML をオブジェクトに変換
-        public static object XmlToObject(string str, Type t)
+        public static object XmlToObject_PublicLegacy(string str, Type t)
         {
             if (Str.IsEmptyStr(str))
             {
@@ -1100,9 +1129,9 @@ namespace IPA.Cores.Basic
 
             byte[] data = Str.Utf8Encoding.GetBytes(str);
 
-            return XmlToObject(data, t);
+            return XmlToObject_PublicLegacy(data, t);
         }
-        public static object XmlToObject(byte[] data, Type t)
+        public static object XmlToObject_PublicLegacy(byte[] data, Type t)
         {
             if (data == null || data.Length == 0)
             {
@@ -1228,10 +1257,10 @@ namespace IPA.Cores.Basic
             Type type = obj.GetType();
 
             ret.XsdFileName = Str.MakeSafeFileName(type.Name + ".xsd");
-            ret.XsdData = GetXmlSchemaFromType(type);
+            ret.XsdData = GetXmlSchemaFromType_PublicLegacy(type);
 
             ret.XmlFileName = Str.MakeSafeFileName(type.Name + ".xml");
-            string str = Util.ObjectToXmlString(obj);
+            string str = Util.ObjectToXmlString_PublicLegacy(obj);
             str = str.Replace(
                 "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"",
                 "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xsi:noNamespaceSchemaLocation=\""
