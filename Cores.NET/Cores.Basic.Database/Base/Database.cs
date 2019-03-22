@@ -43,12 +43,27 @@ using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Dapper;
+using Dapper.Contrib;
+using Dapper.Contrib.Extensions;
 
 using IPA.Cores.Helper.Basic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IPA.Cores.Basic
 {
+    class EasyTable : TableAttribute
+    {
+        public EasyTable(string tableName) : base(tableName) { }
+    }
+    class EasyKey : KeyAttribute { }
+    class EasyManualKey : ExplicitKeyAttribute { }
+    class EasyReadOnly : WriteAttribute { public EasyReadOnly() : base(false) { } }
+
+    class DapperColumn : Attribute
+    {
+        public string Name;
+        public DapperColumn(string name) { this.Name = name; }
+    }
+
     class DbConsoleDebugPrinterProvider : ILoggerProvider
     {
         Ref<bool> enable_console_logger;
@@ -410,25 +425,51 @@ namespace IPA.Cores.Basic
             DataReader = await cmd.ExecuteReaderAsync();
         }
 
-        void EnsureDapperTypeMapping(Type t)
+        static CriticalSection DapperTypeMapLock = new CriticalSection();
+        static HashSet<Type> DapperInstalledTypes = new HashSet<Type>();
+        static void EnsureDapperTypeMapping(Type t)
         {
-            Dapper.SqlMapper.SetTypeMap(t,
-                new CustomPropertyTypeMap(t, (type, columnName) =>
+            if (t == null) return;
+            lock (DapperTypeMapLock)
+            {
+                if (DapperInstalledTypes.Contains(t) == false)
                 {
-                    var properties = type.GetProperties();
+                    DapperInstalledTypes.Add(t);
+                    Dapper.SqlMapper.SetTypeMap(t,
+                        new CustomPropertyTypeMap(t, (type, columnName) =>
+                        {
+                            var properties = type.GetProperties();
 
-                    var r = properties.FirstOrDefault(p => p.Name.IsSameiIgnoreUnderscores(columnName)
-                        || p.GetCustomAttributes(true).OfType<ColumnAttribute>().Any(a => a.Name.IsSameiIgnoreUnderscores(columnName)));
-                    
-                    return r;
-                }));
+                            // UserName == USER_NAME
+                            var c1 = properties.SingleOrDefault(p => p.Name.IsSameiIgnoreUnderscores(columnName)
+                                || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name.IsSameiIgnoreUnderscores(columnName)));
+                            if (c1 != null) return c1;
+
+                            int i = columnName.IndexOf("_");
+                            if (i >= 2)
+                            {
+                                // UserName == USERS_USERNAME
+                                string columnName2 = columnName.Substring(i + 1);
+
+                                var c2 = properties.SingleOrDefault(p => p.Name.IsSameiIgnoreUnderscores(columnName2)
+                                    || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name.IsSameiIgnoreUnderscores(columnName2)));
+                                if (c2 != null) return c2;
+                            }
+
+                            return null;
+                        }));
+                }
+            }
         }
 
-        async Task<CommandDefinition> SetupDapperAsync<T>(string commandStr, object param = null)
+        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object param, Type type = null)
         {
             await EnsureOpenAsync();
 
-            EnsureDapperTypeMapping(typeof(T));
+            EnsureDapperTypeMapping(type);
+
+            if (param != null)
+                EnsureDapperTypeMapping(param.GetType());
 
             CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction);
 
@@ -436,11 +477,95 @@ namespace IPA.Cores.Basic
         }
 
         public async Task<IEnumerable<T>> QueryAsync<T>(string commandStr, object param = null)
-        {
-            var cmd = await SetupDapperAsync<T>(commandStr, param);
+            => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
 
-            return await Connection.QueryAsync<T>(cmd);
+        public async Task<int> ExecuteAsync(string commandStr, object param = null)
+            => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
+
+        public async Task<T> ExecuteScalarAsync<T>(string commandStr, object param = null)
+            => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
+
+        public IEnumerable<T> Query<T>(string commandStr, object param = null)
+            => QueryAsync<T>(commandStr, param).Result;
+
+        public int Execute(string commandStr, object param = null)
+            => ExecuteAsync(commandStr, param).Result;
+
+        public T ExecuteScalar<T>(string commandStr, object param = null)
+            => ExecuteScalarAsync<T>(commandStr, param).Result;
+
+
+        public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = false) where T : class
+        {
+            await EnsureOpenAsync();
+            EnsureDapperTypeMapping(typeof(T));
+
+            var ret = await SqlMapperExtensions.GetAsync<T>(Connection, id, Transaction);
+
+            if (throwErrorIfNotFound && ret == null)
+                throw new KeyNotFoundException();
+
+            return ret;
         }
+
+        public async Task<IEnumerable<T>> EasyGetAllAsync<T>(bool throwErrorIfNotFound = false) where T : class
+        {
+            await EnsureOpenAsync();
+            EnsureDapperTypeMapping(typeof(T));
+
+            var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
+
+            if (throwErrorIfNotFound && ret.Count() == 0)
+                throw new KeyNotFoundException();
+
+            return ret;
+        }
+
+        public async Task<int> EasyInsertAsync<T>(T data) where T : class
+        {
+            await EnsureOpenAsync();
+            EnsureDapperTypeMapping(typeof(T));
+
+            return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
+        }
+
+        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        {
+            await EnsureOpenAsync();
+            EnsureDapperTypeMapping(typeof(T));
+
+            bool ret = await SqlMapperExtensions.UpdateAsync<T>(Connection, data, Transaction);
+
+            if (throwErrorIfNotFound && ret == false)
+                throw new KeyNotFoundException();
+
+            return ret;
+        }
+
+        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        {
+            await EnsureOpenAsync();
+            EnsureDapperTypeMapping(typeof(T));
+
+            bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
+
+            if (throwErrorIfNotFound && ret == false)
+                throw new KeyNotFoundException();
+
+            return ret;
+        }
+
+        public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
+            => EasyGetAllAsync<T>(throwErrorIfNotFound).Result;
+
+        public int EasyInsert<T>(T data) where T : class
+            => EasyInsertAsync(data).Result;
+
+        public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
+            => EasyUpdateAsync(data, throwErrorIfNotFound).Result;
+
+        public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
+            => EasyDeleteAsync(data, throwErrorIfNotFound).Result;
 
         public int QueryWithNoReturn(string commandStr, params object[] args)
         {
@@ -751,16 +876,11 @@ namespace IPA.Cores.Basic
         }
 
         public delegate bool TransactionalTask();
+        public delegate Task<bool> TransactionalTaskAsync();
 
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
-        public void Tran(TransactionalTask task)
-        {
-            Tran(IsolationLevel.Serializable, null, task);
-        }
-        public void Tran(IsolationLevel iso, TransactionalTask task)
-        {
-            Tran(iso, null, task);
-        }
+        public void Tran(TransactionalTask task) => Tran(IsolationLevel.Serializable, null, task);
+        public void Tran(IsolationLevel iso, TransactionalTask task) => Tran(iso, null, task);
         public void Tran(IsolationLevel iso, DeadlockRetryConfig retry_config, TransactionalTask task)
         {
             EnsureOpen();
@@ -791,6 +911,51 @@ namespace IPA.Cores.Basic
                     if (num_retry <= retry_config.RetryCount)
                     {
                         Kernel.SleepThread(Secure.Rand31i() % retry_config.RetryAverageInterval);
+
+                        goto LABEL_RETRY;
+                    }
+
+                    throw;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        public Task TranAsync(TransactionalTaskAsync task) => TranAsync(IsolationLevel.Serializable, null, task);
+        public Task TranAsync(IsolationLevel iso, TransactionalTaskAsync task) => TranAsync(iso, null, task);
+        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig retry_config, TransactionalTaskAsync task)
+        {
+            await EnsureOpenAsync();
+            if (retry_config == null)
+            {
+                retry_config = this.DeadlockRetryConfig;
+            }
+
+            int num_retry = 0;
+
+            LABEL_RETRY:
+            try
+            {
+                using (UsingTran u = this.UsingTran(iso))
+                {
+                    if (await task())
+                    {
+                        u.Commit();
+                    }
+                }
+            }
+            catch (SqlException sqlex)
+            {
+                if (sqlex.Number == 1205)
+                {
+                    // デッドロック発生
+                    num_retry++;
+                    if (num_retry <= retry_config.RetryCount)
+                    {
+                        await Task.Delay(Secure.Rand31i() % retry_config.RetryAverageInterval);
 
                         goto LABEL_RETRY;
                     }
@@ -870,7 +1035,7 @@ namespace IPA.Cores.Basic
             {
                 throw new ApplicationException("DbOverwriteValues: dst.GetType() != src.GetType()");
             }
-            object ret = Util.CloneObject_UsingXml_PublicLegacy(dst);
+            object ret = dst.CloneDeep();
             Type t = dst.GetType();
             var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
