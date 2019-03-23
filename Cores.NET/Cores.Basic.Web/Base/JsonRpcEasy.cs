@@ -44,6 +44,7 @@ namespace IPA.Cores.Basic
     {
         public JsonRpcHttpClient<TInterface> Client { get; }
         public WebApi WebApi { get => this.Client.WebApi; }
+        public bool UseProxy { get => WebApi.UseProxy; set => WebApi.UseProxy = value; }
 
         public TInterface Call { get => this.Client.Call; }
 

@@ -152,6 +152,7 @@ namespace IPA.Cores.Basic
         public const long DefaultMaxRecvSize = 100 * 1024 * 1024;
         public long MaxRecvSize { get => this.Client.MaxResponseContentBufferSize; set => this.Client.MaxResponseContentBufferSize = value; }
         public bool SslAcceptAnyCerts { get; set; } = false;
+        public bool UseProxy { get; set; } = true;
         public List<string> SslAcceptCertSHA1HashList { get; set; } = new List<string>();
         public Encoding RequestEncoding { get; set; } = Str.Utf8Encoding;
 
@@ -254,9 +255,13 @@ namespace IPA.Cores.Basic
                     };
                 }
             }
-            catch
+            catch { }
+
+            try
             {
+                this.client_handler.UseProxy = this.UseProxy;
             }
+            catch { }
 
             foreach (string name in this.RequestHeaders.Keys)
             {
