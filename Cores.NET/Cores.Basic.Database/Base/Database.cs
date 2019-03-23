@@ -544,6 +544,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+
         public async Task<int> EasyInsertAsync<T>(T data) where T : class
         {
             await EnsureOpenAsync();
