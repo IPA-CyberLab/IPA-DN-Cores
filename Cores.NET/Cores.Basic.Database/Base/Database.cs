@@ -477,6 +477,10 @@ namespace IPA.Cores.Basic
             return cmd;
         }
 
+        /*public async Task<T> EasyGetOrCreateAsync<T>(string selectStr, object selectParam, T newObject)
+        {
+        }*/
+
         public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
         {
             IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
@@ -514,7 +518,7 @@ namespace IPA.Cores.Basic
             => ExecuteScalarAsync<T>(commandStr, param).Result;
 
 
-        public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = false) where T : class
+        public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
         {
             await EnsureOpenAsync();
             EnsureDapperTypeMapping(typeof(T));
@@ -548,7 +552,7 @@ namespace IPA.Cores.Basic
             return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
         }
 
-        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = true) where T : class
         {
             await EnsureOpenAsync();
             EnsureDapperTypeMapping(typeof(T));
@@ -561,7 +565,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = true) where T : class
         {
             await EnsureOpenAsync();
             EnsureDapperTypeMapping(typeof(T));
@@ -585,6 +589,70 @@ namespace IPA.Cores.Basic
 
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
             => EasyDeleteAsync(data, throwErrorIfNotFound).Result;
+
+        public async Task<dynamic> EasyFindIdAsync<T>(string selectStr, object selectParam) where T: class
+        {
+            var list = await QueryAsync<T>(selectStr, selectParam);
+            var entity = list.SingleOrDefault();
+
+            if (entity == null) return null;
+
+            Type type = typeof(T);
+            var keyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any())
+                .Concat(type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()))
+                .Single();
+            return keyProperty.GetValue(entity);
+        }
+
+        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object selectParam, T newEntity = null) where T: class
+        {
+            if (newEntity == null)
+                newEntity = (T)selectParam;
+
+            dynamic id = await EasyFindIdAsync<T>(selectStr, selectParam);
+
+            if (id == null)
+            {
+                await EasyInsertAsync(newEntity);
+
+                Type type = typeof(T);
+                var explicitKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()).SingleOrDefault();
+
+                if (explicitKeyProperty != null)
+                {
+                    id = explicitKeyProperty.GetValue(newEntity);
+                }
+                else
+                {
+                    var autoKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any()).SingleOrDefault();
+                    if (autoKeyProperty.DeclaringType == typeof(long))
+                    {
+                        id = await this.GetLastID64Async();
+                    }
+                    else
+                    {
+                        id = await this.GetLastIDAsync();
+                    }
+                }
+            }
+
+            return await EasyGetAsync<T>(id, true);
+        }
+
+        public async Task<T> EasyFindAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = true) where T : class
+        {
+            dynamic id = await EasyFindIdAsync<T>(selectStr, selectParam);
+
+            if (id == null)
+            {
+                if (throwErrorIfNotFound)
+                    throw new KeyNotFoundException();
+                else
+                    return null;
+            }
+
+            return await EasyGetAsync<T>(id, true);
+        }
 
         public int QueryWithNoReturn(string commandStr, params object[] args)
         {
@@ -1062,115 +1130,6 @@ namespace IPA.Cores.Basic
             Transaction.Rollback();
             Transaction.Dispose();
             Transaction = null;
-        }
-
-        // データベースのテーブルのクラスで値を上書きする
-        public static T DbOverwriteValues<T>(T dst, T src)
-        {
-            return (T)DbOverwriteValues((object)dst, (object)src);
-        }
-        public static object DbOverwriteValues(object dst, object src)
-        {
-            if (dst.GetType() != src.GetType())
-            {
-                throw new ApplicationException("DbOverwriteValues: dst.GetType() != src.GetType()");
-            }
-            object ret = dst.CloneDeep();
-            Type t = dst.GetType();
-            var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-            foreach (var p in props)
-            {
-                var ptype = p.PropertyType;
-                object value = p.GetValue(src);
-                if (value != null)
-                {
-                    bool ok = true;
-                    if (ptype == typeof(DateTime))
-                    {
-                        DateTime d = (DateTime)p.GetValue(src);
-                        if (Util.IsZero(d))
-                        {
-                            ok = false;
-                        }
-                    }
-                    else if (ptype == typeof(DateTimeOffset))
-                    {
-                        DateTimeOffset d = (DateTimeOffset)p.GetValue(src);
-                        if (Util.IsZero(d))
-                        {
-                            ok = false;
-                        }
-                    }
-                    else if (ptype == typeof(int))
-                    {
-                        int i = (int)p.GetValue(src);
-                        if (i == 0) ok = false;
-                    }
-                    else if (ptype == typeof(long))
-                    {
-                        long i = (long)p.GetValue(src);
-                        if (i == 0) ok = false;
-                    }
-                    else if (ptype == typeof(decimal))
-                    {
-                        decimal i = (decimal)p.GetValue(src);
-                        if (i == 0) ok = false;
-                    }
-                    else if (ptype == typeof(double))
-                    {
-                        double i = (double)p.GetValue(src);
-                        if (i == 0) ok = false;
-                    }
-                    else if (ptype == typeof(float))
-                    {
-                        float i = (float)p.GetValue(src);
-                        if (i == 0) ok = false;
-                    }
-
-                    if (ok)
-                    {
-                        p.SetValue(ret, value);
-                    }
-                }
-            }
-
-            return ret;
-        }
-
-        // データベースのテーブルのクラスで Non NULL を強制する
-        public static object DbEnforceNonNull(object obj)
-        {
-            if (obj == null) return null;
-
-            Type t = obj.GetType();
-
-            var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-            foreach (var p in props)
-            {
-                var ptype = p.PropertyType;
-                if (ptype.IsNullable() == false)
-                {
-                    if (ptype == typeof(string))
-                    {
-                        string s = (string)p.GetValue(obj);
-                        if (s == null) p.SetValue(obj, "");
-                    }
-                    else if (ptype == typeof(DateTime))
-                    {
-                        DateTime d = (DateTime)p.GetValue(obj);
-                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeValue);
-                    }
-                    else if (ptype == typeof(DateTimeOffset))
-                    {
-                        DateTimeOffset d = (DateTimeOffset)p.GetValue(obj);
-                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
-                    }
-                }
-            }
-
-            return obj;
         }
     }
 }

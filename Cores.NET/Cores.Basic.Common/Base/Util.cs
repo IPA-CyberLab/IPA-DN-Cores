@@ -39,12 +39,15 @@ using System.Xml.Serialization;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Linq;
 using System.Xml;
-
-using IPA.Cores.Helper.Basic;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Diagnostics;
+using System.Numerics;
+using System.Reflection;
+
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
@@ -808,6 +811,40 @@ namespace IPA.Cores.Basic
             return dt;
         }
 
+        // 指定されたオブジェクトが Null、0 または空データであるかどうか判別する
+        public static bool IsEmpty<T>(T data)
+        {
+            if (data == default) return true;
+            if (data is byte[] x) return Util.IsZero(x);
+            switch (data)
+            {
+                case Array a: return a.Length == 0;
+                case char c: return c == 0;
+                case byte b: return b == 0;
+                case sbyte sb: return sb == 0;
+                case ushort us: return us == 0;
+                case short s: return s == 0;
+                case uint ui: return ui == 0;
+                case int i: return i == 0;
+                case ulong ul: return ul == 0;
+                case long l: return l == 0;
+                case float f: return f == 0;
+                case double d: return d == 0;
+                case IntPtr p: return p == IntPtr.Zero;
+                case UIntPtr up: return up == UIntPtr.Zero;
+                case decimal v: return v == 0;
+                case bool b: return b == false;
+                case BigNumber bn: return bn == 0;
+                case BigInteger bi: return bi == 0;
+                case DateTime dt: return Util.IsZero(dt);
+                case DateTimeOffset dt: return Util.IsZero(dt);
+                case string s: return s.Length == 0 || s.Trim().Length == 0;
+                case Memory<byte> m: return m.IsZero();
+            }
+            return false;
+        }
+        public static bool IsFilled<T>(T data) => !IsEmpty(data);
+
         // DateTime がゼロかどうか検査する
         public static bool IsZero(DateTime dt)
         {
@@ -829,11 +866,13 @@ namespace IPA.Cores.Basic
         // byte[] 配列がオールゼロかどうか検査する
         public static bool IsZero(byte[] data)
         {
+            if (data == null) return true;
             return IsZero(data, 0, data.Length);
         }
         public static bool IsZero(byte[] data, int offset, int size)
         {
             int i;
+            if (data == null) return true;
             for (i = offset; i < offset + size; i++)
             {
                 if (data[i] != 0)
@@ -843,6 +882,19 @@ namespace IPA.Cores.Basic
             }
             return true;
         }
+        public static bool IsZero(Span<byte> data)
+        {
+            int i;
+            for (i = 0; i <data.Length; i++)
+            {
+                if (data[i] != 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        public static bool IsZero(Memory<byte> data) => IsZero(data.Span);
 
         // byte[] 配列同士を比較する
         public static bool CompareByte(byte[] b1, byte[] b2)
@@ -1446,6 +1498,65 @@ namespace IPA.Cores.Basic
 
         public static object NewWithoutConstructor(Type t)
             => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(t);
+
+        // baseData に overwriteData の値 (NULL 以外の場合) を上書きしたオブジェクトを返す
+        public static T DbOverwriteValues<T>(T baseData, T overwriteData) where T : new()
+        {
+            T ret = new T();
+            Type t = typeof(T);
+            var propertyList = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+            foreach (var p in propertyList)
+            {
+                var propertyType = p.PropertyType;
+                object value = p.GetValue(overwriteData);
+                if (value.IsEmpty())
+                {
+                    value = p.GetValue(baseData);
+                }
+                p.SetValue(ret, value);
+            }
+
+            DbEnforceNonNull(ret);
+
+            return ret;
+        }
+
+        // データベースのテーブルのクラスで Non NULL を強制する
+        public static void DbEnforceNonNull(object obj)
+        {
+            Type t = obj.GetType();
+
+            var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+            foreach (var p in props)
+            {
+                var ptype = p.PropertyType;
+                if (ptype.IsNullable() == false)
+                {
+                    if (ptype == typeof(string))
+                    {
+                        string s = (string)p.GetValue(obj);
+                        if (s == null) p.SetValue(obj, "");
+                    }
+                    else if (ptype == typeof(DateTime))
+                    {
+                        DateTime d = (DateTime)p.GetValue(obj);
+                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeValue);
+                    }
+                    else if (ptype == typeof(DateTimeOffset))
+                    {
+                        DateTimeOffset d = (DateTimeOffset)p.GetValue(obj);
+                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
+                    }
+                    else if (ptype == typeof(byte[]))
+                    {
+                        byte[] b = (byte[])p.GetValue(obj);
+                        if (b == null) p.SetValue(obj, new byte[0]);
+                    }
+                }
+            }
+        }
     }
 
     class XmlAndXsd

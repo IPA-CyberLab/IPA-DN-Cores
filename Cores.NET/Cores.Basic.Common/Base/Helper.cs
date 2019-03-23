@@ -70,8 +70,6 @@ namespace IPA.Cores.Helper.Basic
         public static string GetHexString(this byte[] b, string padding = "") => Str.ByteToHex(b, padding);
         public static byte[] GetHexBytes(this string s) => Str.HexToByte(s);
 
-        public static bool IsEmpty(this string s) => Str.IsEmptyStr(s);
-        public static bool IsFilled(this string s) => !Str.IsEmptyStr(s);
         public static bool ToBool(this string s) => Str.StrToBool(s);
         public static byte[] ToByte(this string s) => Str.StrToByte(s);
         public static DateTime ToDate(this string s, bool to_utc = false, bool empty_to_zero_dt = false) => Str.StrToDate(s, to_utc, empty_to_zero_dt);
@@ -548,6 +546,22 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static CertSelectorCallback GetStaticServerCertSelector(this X509Certificate2 cert) => Secure.StaticServerCertSelector(cert);
+
+        public static bool IsZero(this byte[] data) => Util.IsZero(data);
+        public static bool IsZero(this byte[] data, int offset, int size) => Util.IsZero(data, offset, size);
+        public static bool IsZero(this Span<byte> data) => Util.IsZero(data);
+        public static bool IsZero(this Memory<byte> data) => Util.IsZero(data);
+
+        public static bool IsEmpty<T>(this T data) => Util.IsEmpty(data);
+        public static bool IsFilled<T>(this T data) => Util.IsFilled(data);
+
+        public static T DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);
+        public static void DbEnforceNonNull(this object obj) => Util.DbEnforceNonNull(obj);
+        public static T DbEnforceNonNullSelf<T>(this T obj)
+        {
+            obj.DbEnforceNonNull();
+            return obj;
+        }
     }
 }
 
