@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
         public bool IsOk => exitcode == 0;
         public bool IsError => !IsOk;
 
-        public ChildProcess(string exe, string args = "", string input = "", bool throw_exception_on_exit_error = false, int timeout = ThreadObj.Infinite)
+        public ChildProcess(string exe, string args = "", string input = "", bool throwExceptionOnExitError = false, int timeout = ThreadObj.Infinite)
         {
             this.timeout = timeout;
 
@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
 
                 exitcode = p.ExitCode;
 
-                if (throw_exception_on_exit_error)
+                if (throwExceptionOnExitError)
                 {
                     if (exitcode != 0)
                     {

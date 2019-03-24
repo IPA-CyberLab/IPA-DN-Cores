@@ -54,7 +54,7 @@ namespace IPA.TestDev
                     //g.Add(new AsyncLogRecord("Hello"));
                     while (test.Cancelled.IsCancellationRequested == false)
                     {
-                        await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), LogPendingTreatment.Wait);
+                        await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(withNanoSecs: true) + dummy), LogPendingTreatment.Wait);
                         //await Task.Delay(1);
                         //break;
                     }

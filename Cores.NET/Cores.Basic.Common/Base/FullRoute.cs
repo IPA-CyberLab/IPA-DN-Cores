@@ -53,7 +53,6 @@ namespace IPA.Cores.Basic
             return Bytes;
         }
 
-
         public virtual BigNumber GetBigNumber()
         {
             return FullRoute.ByteToBigNumber(this.Bytes, this.AddressFamily);
@@ -433,9 +432,9 @@ namespace IPA.Cores.Basic
         public object TmpObject;
         int hash_code;
 
-        public FullRouteEntry(Buf buf, int address_size)
+        public FullRouteEntry(Buf buf, int addressSize)
         {
-            this.Address = IPAddr.FromBytes(buf.Read((uint)address_size));
+            this.Address = IPAddr.FromBytes(buf.Read((uint)addressSize));
             this.SubnetLength = (int)buf.RawReadInt();
             int num_aspath = (int)buf.RawReadInt();
             int i;
@@ -448,17 +447,17 @@ namespace IPA.Cores.Basic
             this.hash_code = (int)buf.RawReadInt();
         }
 
-        public FullRouteEntry(IPAddr addr, int subnet_len, string as_path_str)
+        public FullRouteEntry(IPAddr addr, int subnetLen, string asPathStr)
         {
             this.Address = addr;
-            this.SubnetLength = subnet_len;
+            this.SubnetLength = subnetLen;
 
             if (this.SubnetLength > FullRoute.GetMaxSubnetSize(addr.AddressFamily))
             {
                 throw new ApplicationException("subnet_len is too large.");
             }
 
-            this.AsPath = FullRoute.ParseAsPath(as_path_str);
+            this.AsPath = FullRoute.ParseAsPath(asPathStr);
 
             if (this.AsPath.Length >= 1)
             {
@@ -508,18 +507,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static FullRouteEntry Parse(string ip_and_mask, string as_path_str, AddressFamily family)
+        public static FullRouteEntry Parse(string ipAndMask, string asPathStr, AddressFamily addressFamily)
         {
-            int max_size = FullRoute.GetMaxSubnetSize(family);
+            int max_size = FullRoute.GetMaxSubnetSize(addressFamily);
 
-            int i = ip_and_mask.IndexOf('/');
+            int i = ipAndMask.IndexOf('/');
             if (i == -1)
             {
                 throw new ApplicationException("ip_and_mask format error.");
             }
 
-            string str1 = ip_and_mask.Substring(0, i);
-            string str2 = ip_and_mask.Substring(i + 1);
+            string str1 = ipAndMask.Substring(0, i);
+            string str2 = ipAndMask.Substring(i + 1);
 
             int subnet_len = Str.StrToInt(str2);
 
@@ -530,7 +529,7 @@ namespace IPA.Cores.Basic
 
             IPAddress tmpa = IPAddress.Parse(str1);
 
-            if (tmpa.AddressFamily != family)
+            if (tmpa.AddressFamily != addressFamily)
             {
                 throw new ApplicationException("ip address wrong format.");
             }
@@ -539,12 +538,12 @@ namespace IPA.Cores.Basic
 
             IPAddr a = IPAddr.FromBytes(tmpa.GetAddressBytes());
 
-            if (a.AddressFamily != family)
+            if (a.AddressFamily != addressFamily)
             {
                 throw new ApplicationException("ip address wrong format.");
             }
 
-            return new FullRouteEntry(a, subnet_len, as_path_str);
+            return new FullRouteEntry(a, subnet_len, asPathStr);
         }
 
         public override string ToString()
@@ -1323,13 +1322,13 @@ namespace IPA.Cores.Basic
 
         FullRouteSet current_fs = null;
 
-        public FullRouteSetThread(bool calc_statistics)
+        public FullRouteSetThread(bool calcStatistics)
         {
-            init(DefaultURL, calc_statistics);
+            init(DefaultURL, calcStatistics);
         }
-        public FullRouteSetThread(string url, bool calc_statistics)
+        public FullRouteSetThread(string url, bool calcStatistics)
         {
-            init(url, calc_statistics);
+            init(url, calcStatistics);
         }
 
         public FullRouteSet FullRouteSet
@@ -1396,9 +1395,9 @@ namespace IPA.Cores.Basic
             ready_event.Set();
         }
 
-        void init(string url, bool calc_statistics)
+        void init(string url, bool calcStatistics)
         {
-            this.calc_statistics = calc_statistics;
+            this.calc_statistics = calcStatistics;
 
             this.url = url;
 
@@ -1472,11 +1471,11 @@ namespace IPA.Cores.Basic
         public readonly string AsURL = "http://bgp.potaroo.net/cidr/autnums.html";
         public readonly string AsTmpData;
 
-        public FullRouteCompiler(string base_dir)
+        public FullRouteCompiler(string baseDir)
         {
-            if (Str.IsEmptyStr(base_dir) == false)
+            if (Str.IsEmptyStr(baseDir) == false)
             {
-                this.BaseDir = base_dir;
+                this.BaseDir = baseDir;
             }
 
             this.MasterDir = Path.Combine(BaseDir, "master");
@@ -1513,7 +1512,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    as_list = load_ad_list_from_url(AsURL);
+                    as_list = LoadAsListFromUrl(AsURL);
 
                     // 検査
                     if (Str.StrCmpi(as_list.Lookup(59103).Country2, "jp") == false)
@@ -1534,9 +1533,9 @@ namespace IPA.Cores.Basic
 
                 // フルルートのダウンロード
                 Con.WriteLine("IPv4");
-                FullRoute ipv4 = load_full_route_from_url(FullRouteURL_IPv4, AddressFamily.InterNetwork);
+                FullRoute ipv4 = LoadFullRouteFromUrl(FullRouteURL_IPv4, AddressFamily.InterNetwork);
                 Con.WriteLine("IPv6");
-                FullRoute ipv6 = load_full_route_from_url(FullRouteURL_IPv6, AddressFamily.InterNetworkV6);
+                FullRoute ipv6 = LoadFullRouteFromUrl(FullRouteURL_IPv6, AddressFamily.InterNetworkV6);
 
                 Con.WriteLine("country={0} ipv4={1} ipv6={2} as={3}", country_list.List.Count, ipv4.Trie.Count, ipv6.Trie.Count, as_list.List.Count);
 
@@ -1642,7 +1641,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        FullRouteAsList load_ad_list_from_url(string url)
+        FullRouteAsList LoadAsListFromUrl(string url)
         {
             DnHttpClient hc = new DnHttpClient();
             Buf buf = hc.Get(new Uri(url));
@@ -1654,7 +1653,7 @@ namespace IPA.Cores.Basic
             return as_list;
         }
 
-        FullRoute load_full_route_from_url(string url, AddressFamily family)
+        FullRoute LoadFullRouteFromUrl(string url, AddressFamily family)
         {
             DnHttpClient hc = new DnHttpClient();
 
@@ -1702,11 +1701,11 @@ namespace IPA.Cores.Basic
         public object Key;
         public FullRouteEntry[] EntryList;
 
-        public FullRouteIPFilterList(FullRouteSpaceType type, object key, FullRouteEntry[] entry_list)
+        public FullRouteIPFilterList(FullRouteSpaceType type, object key, FullRouteEntry[] entryList)
         {
             this.Type = type;
             this.Key = key;
-            this.EntryList = entry_list;
+            this.EntryList = entryList;
         }
 
         public string ToCsv()
@@ -1764,28 +1763,28 @@ namespace IPA.Cores.Basic
         public readonly FullRouteCountryList CountryList;
         public readonly FullRouteAsList AsList;
 
-        public FullRouteSpace(FullRoute full_route, FullRouteCountryList country_list, FullRouteAsList as_list, FullRouteSpaceType type)
+        public FullRouteSpace(FullRoute fullRoute, FullRouteCountryList countryList, FullRouteAsList asList, FullRouteSpaceType type)
         {
             this.Type = type;
-            this.AddressFamily = full_route.AddressFamily;
-            this.CountryList = country_list;
-            this.AsList = as_list;
+            this.AddressFamily = fullRoute.AddressFamily;
+            this.CountryList = countryList;
+            this.AsList = asList;
 
             Dictionary<IPAddr, int> boundary_list = new Dictionary<IPAddr, int>();
 
-            add_to_boundary_list(boundary_list, IPAddr.GetMinValue(full_route.AddressFamily));
-            add_to_boundary_list(boundary_list, IPAddr.GetMaxValue(full_route.AddressFamily));
+            AddToBoundaryList(boundary_list, IPAddr.GetMinValue(fullRoute.AddressFamily));
+            AddToBoundaryList(boundary_list, IPAddr.GetMaxValue(fullRoute.AddressFamily));
 
-            ArrayList all_nodes = full_route.Trie.EnumAllObjects();
+            ArrayList all_nodes = fullRoute.Trie.EnumAllObjects();
 
             foreach (FullRouteEntry e in all_nodes)
             {
-                add_to_boundary_list(boundary_list, e.Address);
+                AddToBoundaryList(boundary_list, e.Address);
 
                 IPAddr a = e.Address;
                 IPAddr b = null;
 
-                if (full_route.AddressFamily == AddressFamily.InterNetwork)
+                if (fullRoute.AddressFamily == AddressFamily.InterNetwork)
                 {
                     IPAddress mask = IPUtil.IntToSubnetMask4(e.SubnetLength);
                     mask = IPUtil.IPNot(mask);
@@ -1794,7 +1793,7 @@ namespace IPA.Cores.Basic
 
                     b = new IPv4Addr(IPAddr.PadBytes(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetwork), 4));
                 }
-                else if (full_route.AddressFamily == AddressFamily.InterNetworkV6)
+                else if (fullRoute.AddressFamily == AddressFamily.InterNetworkV6)
                 {
                     IPAddress mask = IPUtil.IntToSubnetMask6(e.SubnetLength);
                     mask = IPUtil.IPNot(mask);
@@ -1808,7 +1807,7 @@ namespace IPA.Cores.Basic
                     throw new ApplicationException("invalid address family.");
                 }
 
-                add_to_boundary_list(boundary_list, b);
+                AddToBoundaryList(boundary_list, b);
             }
 
             List<IPAddr> tmp2 = new List<IPAddr>();
@@ -1826,7 +1825,7 @@ namespace IPA.Cores.Basic
 
             foreach (IPAddr a in tmp2)
             {
-                FullRouteEntry entry = full_route.Lookup(a);
+                FullRouteEntry entry = fullRoute.Lookup(a);
 
                 object value = null;
 
@@ -1834,7 +1833,7 @@ namespace IPA.Cores.Basic
                 {
                     if (type == FullRouteSpaceType.ByAS)
                     {
-                        value = as_list.Lookup(entry.OriginAs);
+                        value = asList.Lookup(entry.OriginAs);
                         if (value == null)
                         {
                             value = FullRouteAsNumber.NewDummyAs(entry.OriginAs);
@@ -1842,12 +1841,12 @@ namespace IPA.Cores.Basic
                     }
                     else if (type == FullRouteSpaceType.ByCountry)
                     {
-                        FullRouteAsNumber asn = as_list.Lookup(entry.OriginAs);
+                        FullRouteAsNumber asn = asList.Lookup(entry.OriginAs);
                         if (asn == null)
                         {
                             asn = FullRouteAsNumber.NewDummyAs(entry.OriginAs);
                         }
-                        value = country_list.Lookup(asn.Country2);
+                        value = countryList.Lookup(asn.Country2);
                     }
                     else
                     {
@@ -1855,7 +1854,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                if (compare_obj(current_value, value) == false)
+                if (CompareObj(current_value, value) == false)
                 {
                     if (current_value != null)
                     {
@@ -1918,9 +1917,9 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public void SaveIPListCsv(string output_dir, string all_txt_file)
+        public void SaveIPListCsv(string outputDir, string allTxtFile)
         {
-            IO.MakeDirIfNotExists(output_dir);
+            IO.MakeDirIfNotExists(outputDir);
 
             FullRouteIPFilterList[] ip_list = GenerateIPFilterLists();
             List<FullRouteEntry> all_list = new List<FullRouteEntry>();
@@ -1932,7 +1931,7 @@ namespace IPA.Cores.Basic
                 {
                     key2 = "AS" + key2;
                 }
-                string fn = Path.Combine(output_dir, key2 + ".txt");
+                string fn = Path.Combine(outputDir, key2 + ".txt");
 
                 Con.WriteLine("Processing {0}, {1}, {2}", key2, this.AddressFamily.ToString(), this.Type.ToString());
 
@@ -2001,8 +2000,8 @@ namespace IPA.Cores.Basic
             }
 
             byte[] filedata = Str.AsciiEncoding.GetBytes(w.ToString());
-            IO.SaveFile(all_txt_file, filedata);
-            IO.SaveFile(all_txt_file + ".gz", GZipUtil.Compress(filedata));
+            IO.SaveFile(allTxtFile, filedata);
+            IO.SaveFile(allTxtFile + ".gz", GZipUtil.Compress(filedata));
         }
 
         public string ToCsv()
@@ -2095,7 +2094,7 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        static bool compare_obj(object obj1, object obj2)
+        static bool CompareObj(object obj1, object obj2)
         {
             if (obj1 == null && obj2 == null)
             {
@@ -2110,7 +2109,7 @@ namespace IPA.Cores.Basic
             return obj1.Equals(obj2);
         }
 
-        static void add_to_boundary_list(Dictionary<IPAddr, int> o, IPAddr a)
+        static void AddToBoundaryList(Dictionary<IPAddr, int> o, IPAddr a)
         {
             if (o.ContainsKey(a) == false)
             {
@@ -2132,75 +2131,75 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static string fill_remain_bit(string current_bits, int max_depth, int bit)
+        static string FillRemainBit(string currentBits, int maxDepth, int bit)
         {
-            int len = current_bits.Length;
+            int len = currentBits.Length;
 
-            if (len >= max_depth)
+            if (len >= maxDepth)
             {
-                return current_bits;
+                return currentBits;
             }
             else
             {
-                return current_bits + Str.MakeCharArray((bit == 0 ? '0' : '1'), (max_depth - len));
+                return currentBits + Str.MakeCharArray((bit == 0 ? '0' : '1'), (maxDepth - len));
             }
         }
 
-        static void proc_bit(Context ctx, string current_bits, string bits_start, string bits_end)
+        static void ProcBit(Context ctx, string currentBits, string bitsStart, string bitsEnd)
         {
-            int bits_depth = current_bits.Length;
+            int bits_depth = currentBits.Length;
 
-            if (current_bits == "0001110")
+            if (currentBits == "0001110")
             {
                 Util.NoOP();
             }
 
-            if (bits_start == bits_end)
+            if (bitsStart == bitsEnd)
             {
                 Util.NoOP();
             }
 
-            string f1 = current_bits + "0";
-            string f2 = current_bits + "1";
+            string f1 = currentBits + "0";
+            string f2 = currentBits + "1";
 
             //			if (bits_start.StartsWith(f1) && bits_end.StartsWith(f2))
-            if (fill_remain_bit(current_bits, ctx.MaxDepth, 0) == bits_start &&
-                fill_remain_bit(current_bits, ctx.MaxDepth, 1) == bits_end)
+            if (FillRemainBit(currentBits, ctx.MaxDepth, 0) == bitsStart &&
+                FillRemainBit(currentBits, ctx.MaxDepth, 1) == bitsEnd)
             {
                 //Con.WriteLine(current_bits);
-                ctx.MatchBitsList.Add(current_bits);
+                ctx.MatchBitsList.Add(currentBits);
                 return;
             }
 
-            if (bits_start[bits_depth] == '0')
+            if (bitsStart[bits_depth] == '0')
             {
-                string tmp = bits_end;
-                string tmp2 = fill_remain_bit(current_bits + "0", ctx.MaxDepth, 1);
+                string tmp = bitsEnd;
+                string tmp2 = FillRemainBit(currentBits + "0", ctx.MaxDepth, 1);
                 if (tmp.CompareTo(tmp2) > 0)
                 {
                     tmp = tmp2;
                 }
-                proc_bit(ctx, current_bits + "0", bits_start, tmp);
+                ProcBit(ctx, currentBits + "0", bitsStart, tmp);
             }
-            if (bits_end[bits_depth] == '1')
+            if (bitsEnd[bits_depth] == '1')
             {
-                string tmp = bits_start;
-                string tmp2 = fill_remain_bit(current_bits + "1", ctx.MaxDepth, 0);
+                string tmp = bitsStart;
+                string tmp2 = FillRemainBit(currentBits + "1", ctx.MaxDepth, 0);
                 if (tmp.CompareTo(tmp2) < 0)
                 {
                     tmp = tmp2;
                 }
-                proc_bit(ctx, current_bits + "1", tmp, bits_end);
+                ProcBit(ctx, currentBits + "1", tmp, bitsEnd);
             }
         }
 
-        public static FullRouteEntry[] GenerateSubnets(FullRouteSpaceEntry[] full_space_entries)
+        public static FullRouteEntry[] GenerateSubnets(FullRouteSpaceEntry[] fullSpaceEntries)
         {
             List<FullRouteEntry> ret = new List<FullRouteEntry>();
 
-            if (full_space_entries != null)
+            if (fullSpaceEntries != null)
             {
-                foreach (FullRouteSpaceEntry e in full_space_entries)
+                foreach (FullRouteSpaceEntry e in fullSpaceEntries)
                 {
                     FullRouteEntry[] gs = GenerateSubnets(e.IPStart, e.IPEnd);
 
@@ -2214,31 +2213,31 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public static FullRouteEntry[] GenerateSubnets(IPAddr ip_start, IPAddr ip_end)
+        public static FullRouteEntry[] GenerateSubnets(IPAddr ipStart, IPAddr ipEnd)
         {
-            if (ip_start.AddressFamily != ip_end.AddressFamily)
+            if (ipStart.AddressFamily != ipEnd.AddressFamily)
             {
                 throw new ApplicationException("ip_start.AddressFamily != ip_end.AddressFamily");
             }
 
-            Context ctx = new Context(ip_start.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
+            Context ctx = new Context(ipStart.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
 
-            string bits_start = ip_start.GetBinaryString();
-            string bits_end = ip_end.GetBinaryString();
+            string bits_start = ipStart.GetBinaryString();
+            string bits_end = ipEnd.GetBinaryString();
 
             if (bits_start.CompareTo(bits_end) > 0)
             {
-                bits_end = ip_start.GetBinaryString();
-                bits_start = ip_end.GetBinaryString();
+                bits_end = ipStart.GetBinaryString();
+                bits_start = ipEnd.GetBinaryString();
             }
 
-            proc_bit(ctx, "", bits_start, bits_end);
+            ProcBit(ctx, "", bits_start, bits_end);
 
             List<FullRouteEntry> ret = new List<FullRouteEntry>();
 
             foreach (string str in ctx.MatchBitsList)
             {
-                string str2 = fill_remain_bit(str, ctx.MaxDepth, 0);
+                string str2 = FillRemainBit(str, ctx.MaxDepth, 0);
 
                 IPAddr a = IPAddr.FromBinaryString(str2);
 
@@ -2257,15 +2256,15 @@ namespace IPA.Cores.Basic
         readonly bool is_readonly = false;
         public readonly int AddressSize = 0;
 
-        public FullRoute(AddressFamily address_family)
+        public FullRoute(AddressFamily addressFamily)
         {
-            this.AddressFamily = address_family;
+            this.AddressFamily = addressFamily;
             this.AddressSize = IPAddr.GetAddressSizeFromAddressFamily(this.AddressFamily);
         }
 
-        public FullRoute(AddressFamily address_family, Buf buf)
+        public FullRoute(AddressFamily addressFamily, Buf buf)
         {
-            this.AddressFamily = address_family;
+            this.AddressFamily = addressFamily;
             this.AddressSize = IPAddr.GetAddressSizeFromAddressFamily(this.AddressFamily);
 
             this.is_readonly = true;
@@ -2279,7 +2278,7 @@ namespace IPA.Cores.Basic
 
             // addr family
             int fam = (int)buf.ReadInt();
-            if (fam != (int)address_family)
+            if (fam != (int)addressFamily)
             {
                 throw new ApplicationException("wrong address_family");
             }
@@ -2287,7 +2286,7 @@ namespace IPA.Cores.Basic
             RadixNode root = new RadixNode(null);
             this.Trie = new RadixTrie(root);
 
-            read_dump_node(buf, root);
+            ReadDumpNode(buf, root);
         }
 
         public string ToCsv()
@@ -2317,7 +2316,7 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        void read_dump_node(Buf buf, RadixNode n)
+        void ReadDumpNode(Buf buf, RadixNode n)
         {
             int len = (int)buf.RawReadInt();
             n.Label = buf.Read((uint)len);
@@ -2336,13 +2335,13 @@ namespace IPA.Cores.Basic
             for (i = 0; i < count; i++)
             {
                 RadixNode cn = new RadixNode(n);
-                read_dump_node(buf, cn);
+                ReadDumpNode(buf, cn);
 
                 n.SubNodes.Add(cn);
             }
         }
 
-        void dump_node(Buf buf, RadixNode n)
+        void DumpNode(Buf buf, RadixNode n)
         {
             buf.RawWriteInt((uint)n.Label.Length);
             buf.Write(n.Label);
@@ -2360,7 +2359,7 @@ namespace IPA.Cores.Basic
             buf.RawWriteInt((uint)n.SubNodes.Count);
             foreach (RadixNode cn in n.SubNodes)
             {
-                dump_node(buf, cn);
+                DumpNode(buf, cn);
             }
         }
 
@@ -2374,7 +2373,7 @@ namespace IPA.Cores.Basic
             // addr family
             buf.WriteInt((uint)this.AddressFamily);
 
-            dump_node(buf, this.Trie.Root);
+            DumpNode(buf, this.Trie.Root);
         }
 
         public void Insert(FullRouteEntry e)
@@ -2536,9 +2535,9 @@ namespace IPA.Cores.Basic
 
             len = Math.Min(len, size);
 
-            int pad_size = size - len;
+            int padSize = size - len;
 
-            return Str.MakeCharArray('1', len) + Str.MakeCharArray('0', pad_size);
+            return Str.MakeCharArray('1', len) + Str.MakeCharArray('0', padSize);
         }
 
         public static int GetMaxSubnetSize(AddressFamily family)
@@ -2575,9 +2574,9 @@ namespace IPA.Cores.Basic
         {
             WriteCreditHeaderString(w, title, summary, false);
         }
-        public static void WriteCreditHeaderString(StringWriter w, string title, string summary, bool no_se_credit)
+        public static void WriteCreditHeaderString(StringWriter w, string title, string summary, bool noSoftEtherCredit)
         {
-            w.WriteLine("# {0}" + (no_se_credit ? "" : " - by open.ad.jp AS59103"), title);
+            w.WriteLine("# {0}" + (noSoftEtherCredit ? "" : " - by open.ad.jp AS59103"), title);
             w.WriteLine("# Generated on " + DateTime.Now.ToString("s").Replace("T", " "));
             w.WriteLine("# ");
             w.WriteLine("# {0}", summary);

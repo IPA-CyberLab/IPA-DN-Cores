@@ -492,7 +492,7 @@ namespace IPA.Cores.Basic
                 string rpc_method = route_data.Values.GetStrOrEmpty("rpc_method");
                 if (rpc_method.IsEmpty())
                 {
-                    await response.SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now.ToDtStr(with_nanosecs: true)}", cancel: this.CancelToken);
+                    await response.SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now.ToDtStr(withNanoSecs: true)}", cancel: this.CancelToken);
                 }
                 else
                 {

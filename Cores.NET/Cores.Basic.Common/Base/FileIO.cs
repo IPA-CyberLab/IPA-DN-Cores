@@ -774,7 +774,7 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルに文字列を書きこむ
-        public static void WriteAllTextWithEncoding(string fileName, string str, Encoding encoding, bool appendBom = false, bool if_same_contents_do_nothing = false)
+        public static void WriteAllTextWithEncoding(string fileName, string str, Encoding encoding, bool appendBom = false, bool ifSameContentsDoNothing = false)
         {
             fileName = InnerFilePath(fileName);
 
@@ -787,12 +787,12 @@ namespace IPA.Cores.Basic
 
             data = Util.CombineByteArray(bom, data);
 
-            IO.SaveFile(fileName, data, 0, data.Length, if_same_contents_do_nothing);
+            IO.SaveFile(fileName, data, 0, data.Length, ifSameContentsDoNothing);
         }
 
         // ファイルを自動的に文字コードを認識して文字列を読み込む
         public static string ReadAllTextWithAutoGetEncoding(string fileName) => ReadAllTextWithAutoGetEncoding(fileName, out _, out _);
-        public static string ReadAllTextWithAutoGetEncoding(string fileName, out Encoding applied_encoding, out bool bom_exists)
+        public static string ReadAllTextWithAutoGetEncoding(string fileName, out Encoding appliedEncoding, out bool bomExists)
         {
             fileName = InnerFilePath(fileName);
 
@@ -807,9 +807,9 @@ namespace IPA.Cores.Basic
 
             data = Util.RemoveStartByteArray(data, bomSize);
 
-            applied_encoding = enc;
+            appliedEncoding = enc;
 
-            bom_exists = (bomSize != 0);
+            bomExists = (bomSize != 0);
 
             return enc.GetString(data);
         }
@@ -863,15 +863,15 @@ namespace IPA.Cores.Basic
         }
 
         // サブディレクトリを含んだディレクトリの列挙 (キャンセル可能)
-        class enum_dir_param
+        class EnumDirParam
         {
             public CancellationToken cancel;
             public List<DirEntry> DirList = new List<DirEntry>();
             public bool ExcludeDirectory;
         }
-        static bool enumDirWithCancel_callback(DirEntry e, object param)
+        static bool EnumDirWithCancelCallback(DirEntry e, object param)
         {
-            enum_dir_param p = (enum_dir_param)param;
+            EnumDirParam p = (EnumDirParam)param;
 
             if (p.cancel.IsCancellationRequested)
             {
@@ -885,19 +885,19 @@ namespace IPA.Cores.Basic
 
             return true;
         }
-        public static List<DirEntry> EnumDirWithCancel(string dir_list, string file_exts = null, CancellationToken cancel = default(CancellationToken))
+        public static List<DirEntry> EnumDirWithCancel(string dirList, string fileExtensions = null, CancellationToken cancel = default(CancellationToken))
         {
-            return EnumDirsWithCancel(new string[] { dir_list }, file_exts, cancel);
+            return EnumDirsWithCancel(new string[] { dirList }, fileExtensions, cancel);
         }
-        public static List<DirEntry> EnumDirsWithCancel(string[] dir_list, string file_exts = null, CancellationToken cancel = default(CancellationToken))
+        public static List<DirEntry> EnumDirsWithCancel(string[] dirList, string fileExtensions = null, CancellationToken cancel = default(CancellationToken))
         {
-            enum_dir_param p = new enum_dir_param();
+            EnumDirParam p = new EnumDirParam();
             p.cancel = cancel;
             p.DirList = new List<DirEntry>();
 
-            p.ExcludeDirectory = file_exts.IsFilled();
+            p.ExcludeDirectory = fileExtensions.IsFilled();
 
-            bool ret = EnumDirsWithCallback(dir_list, file_exts, enumDirWithCancel_callback, p);
+            bool ret = EnumDirsWithCallback(dirList, fileExtensions, EnumDirWithCancelCallback, p);
 
             if (ret == false)
             {
@@ -909,19 +909,19 @@ namespace IPA.Cores.Basic
 
         // サブディレクトリを含んだディレクトリの列挙 (コールバック)
         public delegate bool EnumDirCallbackProc(DirEntry e, object param);
-        public static bool EnumDirsWithCallback(string[] dir_list, string file_exts, EnumDirCallbackProc cb, object cb_param)
+        public static bool EnumDirsWithCallback(string[] dirList, string fileExtensions, EnumDirCallbackProc callback, object callbackParam)
         {
-            foreach (string dir in dir_list)
+            foreach (string dir in dirList)
             {
-                if (EnumDirWithCallback(dir, file_exts, cb, cb_param) == false) return false;
+                if (EnumDirWithCallback(dir, fileExtensions, callback, callbackParam) == false) return false;
             }
             return true;
         }
-        public static bool EnumDirWithCallback(string dirName, string file_exts, EnumDirCallbackProc cb, object cb_param)
+        public static bool EnumDirWithCallback(string dirName, string fileExtensions, EnumDirCallbackProc callback, object callbackParam)
         {
-            return enumDirWithCallback(dirName, dirName, cb, file_exts, cb_param);
+            return enumDirWithCallback(dirName, dirName, callback, fileExtensions, callbackParam);
         }
-        static bool enumDirWithCallback(string dirName, string baseDirName, EnumDirCallbackProc cb, string ext_list, object cb_param)
+        static bool enumDirWithCallback(string dirName, string baseDirName, EnumDirCallbackProc callback, string fileExtensions, object cb_param)
         {
             string tmp = IO.InnerFilePath(dirName);
 
@@ -964,12 +964,12 @@ namespace IPA.Cores.Basic
                         e.fullPath = fullPath;
                         e.relativePath = GetRelativeFileName(fullPath, baseDirName);
 
-                        if (cb(e, cb_param) == false)
+                        if (callback(e, cb_param) == false)
                         {
                             return false;
                         }
 
-                        enumDirWithCallback(fullPath, baseDirName, cb, ext_list, cb_param);
+                        enumDirWithCallback(fullPath, baseDirName, callback, fileExtensions, cb_param);
                     }
                 }
             }
@@ -993,7 +993,7 @@ namespace IPA.Cores.Basic
 
                     bool ok = false;
 
-                    ok = IO.IsExtensionsMatch(fullPath, ext_list);
+                    ok = IO.IsExtensionsMatch(fullPath, fileExtensions);
 
                     if (ok)
                     {
@@ -1019,7 +1019,7 @@ namespace IPA.Cores.Basic
                             e.fullPath = fullPath;
                             e.relativePath = GetRelativeFileName(fullPath, baseDirName);
 
-                            if (cb(e, cb_param) == false)
+                            if (callback(e, cb_param) == false)
                             {
                                 return false;
                             }
@@ -1250,11 +1250,11 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルの日付を上書きする
-        public static void SetFileTimestamp(string dstFileName, FileInfo fi)
+        public static void SetFileTimestamp(string dstFileName, FileInfo fileInfo)
         {
-            File.SetCreationTimeUtc(dstFileName, fi.CreationTimeUtc);
-            File.SetLastAccessTimeUtc(dstFileName, fi.LastAccessTimeUtc);
-            File.SetLastWriteTimeUtc(dstFileName, fi.LastWriteTimeUtc);
+            File.SetCreationTimeUtc(dstFileName, fileInfo.CreationTimeUtc);
+            File.SetLastAccessTimeUtc(dstFileName, fileInfo.LastAccessTimeUtc);
+            File.SetLastWriteTimeUtc(dstFileName, fileInfo.LastWriteTimeUtc);
         }
 
         // ファイルを読み込む
@@ -1278,9 +1278,9 @@ namespace IPA.Cores.Basic
         {
             SaveFile(name, data, 0, data.Length);
         }
-        static public void SaveFile(string name, byte[] data, int offset, int size, bool do_nothing_if_same_contents = false)
+        static public void SaveFile(string name, byte[] data, int offset, int size, bool doNothingIfSameContents = false)
         {
-            if (do_nothing_if_same_contents)
+            if (doNothingIfSameContents)
             {
                 try
                 {
@@ -1867,7 +1867,7 @@ namespace IPA.Cores.Basic
         {
             DeleteFilesAndSubDirsInDir(dirName, false);
         }
-        public static void DeleteFilesAndSubDirsInDir(string dirName, bool ignore_error)
+        public static void DeleteFilesAndSubDirsInDir(string dirName, bool ignoreError)
         {
             dirName = InnerFilePath(dirName);
 
@@ -1882,7 +1882,7 @@ namespace IPA.Cores.Basic
 
             foreach (string file in files)
             {
-                if (ignore_error == false)
+                if (ignoreError == false)
                 {
                     File.SetAttributes(file, FileAttributes.Normal);
                     File.Delete(file);
@@ -1909,7 +1909,7 @@ namespace IPA.Cores.Basic
 
             foreach (string dir in dirs)
             {
-                if (ignore_error == false)
+                if (ignoreError == false)
                 {
                     Directory.Delete(dir, true);
                 }
@@ -2198,9 +2198,9 @@ namespace IPA.Cores.Basic
         }
 
         // Stream を最後まで読む
-        public static byte[] ReadStreamToEnd(Stream s, int max_size = 0)
+        public static byte[] ReadStreamToEnd(Stream s, int maxSize = 0)
         {
-            if (max_size <= 0) max_size = int.MaxValue;
+            if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
             byte[] tmp = new byte[200000];
@@ -2212,15 +2212,15 @@ namespace IPA.Cores.Basic
                     break;
                 }
                 ms.Write(tmp, 0, r);
-                if (ms.Length > max_size) throw new OverflowException();
+                if (ms.Length > maxSize) throw new OverflowException();
             }
 
             return ms.ToArray();
         }
 
-        public static async Task<byte[]> ReadStreamToEndAsync(Stream s, int max_size = 0, CancellationToken cancel = default(CancellationToken))
+        public static async Task<byte[]> ReadStreamToEndAsync(Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken))
         {
-            if (max_size <= 0) max_size = int.MaxValue;
+            if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
             byte[] tmp = new byte[200000];
@@ -2233,7 +2233,7 @@ namespace IPA.Cores.Basic
                     break;
                 }
                 ms.Write(tmp, 0, r);
-                if (ms.Length > max_size) throw new OverflowException("ReadStreamToEndAsync: too large data");
+                if (ms.Length > maxSize) throw new OverflowException("ReadStreamToEndAsync: too large data");
             }
 
             return ms.ToArray();

@@ -53,49 +53,49 @@ namespace IPA.Cores.Basic
     // ソケットイベント
     class SockEvent : IDisposable
     {
-        Event win32_event;
+        Event Win32Event;
 
-        internal List<Sock> unix_socklist;
-        IntPtr unix_pipe_read, unix_pipe_write;
-        int unix_current_pipe_data;
+        internal List<Sock> UnixSockList;
+        IntPtr UnixPipeRead, UnixPipeWrite;
+        int UnixCurrentPipeData;
 
-        bool is_released = false;
-        object release_lock = new object();
+        bool IsReleased = false;
+        CriticalSection ReleaseLock = new CriticalSection();
 
         public SockEvent()
         {
             if (Env.IsWindows)
             {
-                win32_event = new Event();
+                Win32Event = new Event();
             }
             else
             {
-                unix_socklist = new List<Sock>();
-                Unisys.NewPipe(out this.unix_pipe_read, out this.unix_pipe_write);
+                UnixSockList = new List<Sock>();
+                Unisys.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
             }
         }
 
         ~SockEvent()
         {
-            release();
+            Release();
         }
 
         public void Dispose()
         {
-            release();
+            Release();
         }
 
-        void release()
+        void Release()
         {
-            lock (release_lock)
+            lock (ReleaseLock)
             {
-                if (is_released == false)
+                if (IsReleased == false)
                 {
-                    is_released = true;
+                    IsReleased = true;
                     if (Env.IsUnix)
                     {
-                        Unisys.Close(this.unix_pipe_read);
-                        Unisys.Close(this.unix_pipe_write);
+                        Unisys.Close(this.UnixPipeRead);
+                        Unisys.Close(this.UnixPipeWrite);
                     }
                 }
             }
@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
                         return;
                     }
 
-                    Sock.WSAEventSelect(sock.Socket.Handle, win32_event.Handle, 35);
+                    Sock.WSAEventSelect(sock.Socket.Handle, Win32Event.Handle, 35);
                     sock.Socket.Blocking = false;
 
                     sock.SockEvent = this;
@@ -140,9 +140,9 @@ namespace IPA.Cores.Basic
 
                 sock.asyncMode = true;
 
-                lock (unix_socklist)
+                lock (UnixSockList)
                 {
-                    unix_socklist.Add(sock);
+                    UnixSockList.Add(sock);
                 }
 
                 sock.Socket.Blocking = false;
@@ -158,14 +158,14 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows)
             {
-                this.win32_event.Set();
+                this.Win32Event.Set();
             }
             else
             {
-                if (this.unix_current_pipe_data <= 100)
+                if (this.UnixCurrentPipeData <= 100)
                 {
-                    Unisys.Write(this.unix_pipe_write, new byte[] { 0 }, 0, 1);
-                    this.unix_current_pipe_data++;
+                    Unisys.Write(this.UnixPipeWrite, new byte[] { 0 }, 0, 1);
+                    this.UnixCurrentPipeData++;
                 }
             }
         }
@@ -180,16 +180,16 @@ namespace IPA.Cores.Basic
                     return false;
                 }
 
-                return this.win32_event.Wait(timeout);
+                return this.Win32Event.Wait(timeout);
             }
             else
             {
                 List<IntPtr> reads = new List<IntPtr>();
                 List<IntPtr> writes = new List<IntPtr>();
 
-                lock (this.unix_socklist)
+                lock (this.UnixSockList)
                 {
-                    foreach (Sock s in this.unix_socklist)
+                    foreach (Sock s in this.UnixSockList)
                     {
                         reads.Add(s.Fd);
                         if (s.writeBlocked)
@@ -199,19 +199,19 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                reads.Add(this.unix_pipe_read);
+                reads.Add(this.UnixPipeRead);
 
-                if (this.unix_current_pipe_data == 0)
+                if (this.UnixCurrentPipeData == 0)
                 {
                     Unisys.Poll(reads.ToArray(), writes.ToArray(), timeout);
                 }
 
                 int readret;
                 byte[] tmp = new byte[1024];
-                this.unix_current_pipe_data = 0;
+                this.UnixCurrentPipeData = 0;
                 do
                 {
-                    readret = Unisys.Read(this.unix_pipe_read, tmp, 0, tmp.Length);
+                    readret = Unisys.Read(this.UnixPipeRead, tmp, 0, tmp.Length);
                 }
                 while (readret >= 1);
 
@@ -223,7 +223,7 @@ namespace IPA.Cores.Basic
     // ソケットセット
     class SockSet
     {
-        List<Sock> list;
+        List<Sock> List;
 
         public const int MaxSocketNum = 60;
 
@@ -239,17 +239,17 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            if (list.Count >= MaxSocketNum)
+            if (List.Count >= MaxSocketNum)
             {
                 return;
             }
 
-            list.Add(sock);
+            List.Add(sock);
         }
 
         public void Clear()
         {
-            list = new List<Sock>();
+            List = new List<Sock>();
         }
 
         public void Poll()
@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
                 List<Event> array = new List<Event>();
 
                 // イベント配列の設定
-                foreach (Sock s in list)
+                foreach (Sock s in List)
                 {
                     s.initAsyncSocket();
                     if (s.hEvent != null)
@@ -440,15 +440,15 @@ namespace IPA.Cores.Basic
         }
 
         // IP 個数を計算
-        public static long CalcNumIPFromSubnetLen(AddressFamily af, int subnet_len)
+        public static long CalcNumIPFromSubnetLen(AddressFamily af, int subnetLen)
         {
             if (af == AddressFamily.InterNetwork)
             {
-                return (long)(1UL << (32 - subnet_len));
+                return (long)(1UL << (32 - subnetLen));
             }
             else
             {
-                int v = 64 - subnet_len;
+                int v = 64 - subnetLen;
                 if (v < 0)
                 {
                     v = 0;
@@ -500,31 +500,31 @@ namespace IPA.Cores.Basic
         }
 
         // 指定された IP ネットワークとサブネットマスクから、最初と最後の IP を取得
-        public static KeyValuePair<IPAddress, IPAddress> GetMinMaxIPFromSubnet(IPAddress network_address, int subnet_len)
+        public static KeyValuePair<IPAddress, IPAddress> GetMinMaxIPFromSubnet(IPAddress networkAddress, int subnetLen)
         {
-            network_address = NormalizeIpNetworkAddress(network_address, subnet_len);
+            networkAddress = NormalizeIpNetworkAddress(networkAddress, subnetLen);
 
-            if (network_address.AddressFamily == AddressFamily.InterNetwork)
+            if (networkAddress.AddressFamily == AddressFamily.InterNetwork)
             {
-                IPAddress mask = IPUtil.IntToSubnetMask4(subnet_len);
+                IPAddress mask = IPUtil.IntToSubnetMask4(subnetLen);
                 mask = IPUtil.IPNot(mask);
 
-                BigNumber bi = new IPv4Addr(network_address).GetBigNumber() + (new IPv4Addr(mask).GetBigNumber());
+                BigNumber bi = new IPv4Addr(networkAddress).GetBigNumber() + (new IPv4Addr(mask).GetBigNumber());
 
                 IPAddress end = new IPv4Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetwork)).GetIPAddress();
 
-                return new KeyValuePair<IPAddress, IPAddress>(network_address, end);
+                return new KeyValuePair<IPAddress, IPAddress>(networkAddress, end);
             }
-            else if (network_address.AddressFamily == AddressFamily.InterNetworkV6)
+            else if (networkAddress.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                IPAddress mask = IPUtil.IntToSubnetMask6(subnet_len);
+                IPAddress mask = IPUtil.IntToSubnetMask6(subnetLen);
                 mask = IPUtil.IPNot(mask);
 
-                BigNumber bi = new IPv6Addr(network_address).GetBigNumber() + (new IPv6Addr(mask).GetBigNumber());
+                BigNumber bi = new IPv6Addr(networkAddress).GetBigNumber() + (new IPv6Addr(mask).GetBigNumber());
 
                 IPAddress end = new IPv6Addr(FullRoute.BigNumberToByte(bi, AddressFamily.InterNetworkV6)).GetIPAddress();
 
-                return new KeyValuePair<IPAddress, IPAddress>(network_address, end);
+                return new KeyValuePair<IPAddress, IPAddress>(networkAddress, end);
             }
             else
             {
@@ -1036,17 +1036,17 @@ namespace IPA.Cores.Basic
         }
 
         // IP ネットワークアドレスの正規化
-        public static IPAddress NormalizeIpNetworkAddress(IPAddress a, int subnet_length)
+        public static IPAddress NormalizeIpNetworkAddress(IPAddress a, int subnetLength)
         {
             IPAddress mask;
 
             if (a.AddressFamily == AddressFamily.InterNetwork)
             {
-                mask = IPUtil.IntToSubnetMask4(subnet_length);
+                mask = IPUtil.IntToSubnetMask4(subnetLength);
             }
             else if (a.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                mask = IPUtil.IntToSubnetMask6(subnet_length);
+                mask = IPUtil.IntToSubnetMask6(subnetLength);
             }
             else
             {
@@ -1229,16 +1229,16 @@ namespace IPA.Cores.Basic
         }
 
         // バイト配列を MAC アドレスに変換する
-        public static string BytesToMac(byte[] b, bool linux_style)
+        public static string BytesToMac(byte[] b, bool linuxStyle)
         {
             if (b.Length != 6)
             {
                 throw new ApplicationException("Invalid MAC address");
             }
 
-            string ret = Str.ByteToHex(b, linux_style ? ":" : "-");
+            string ret = Str.ByteToHex(b, linuxStyle ? ":" : "-");
 
-            if (linux_style == false)
+            if (linuxStyle == false)
             {
                 ret = ret.ToUpperInvariant();
             }
@@ -1251,9 +1251,9 @@ namespace IPA.Cores.Basic
         }
 
         // MAC アドレスを正規化する
-        public static string NormalizeMac(string mac, bool linux_style)
+        public static string NormalizeMac(string mac, bool linuxStyle)
         {
-            return BytesToMac(MacToBytes(mac), linux_style);
+            return BytesToMac(MacToBytes(mac), linuxStyle);
         }
 
         // IPv6 アドレスを正規化する
@@ -1743,118 +1743,34 @@ namespace IPA.Cores.Basic
         internal object lockObj;
         internal object disconnectLockObj;
         internal object sslLockObj;
-        internal Socket socket;
-        public Socket Socket
-        {
-            get { return socket; }
-        }
-        internal SockType type;
-        public SockType Type
-        {
-            get { return type; }
-        }
-        internal bool connected;
-        public bool Connected
-        {
-            get { return connected; }
-        }
-        internal bool serverMode;
-        public bool ServerMode
-        {
-            get { return serverMode; }
-        }
+        public Socket Socket { get; private set; }
+        public SockType Type { get; private set; }
+        public bool Connected { get; private set; }
+        public bool ServerMode { get; private set; }
         internal bool asyncMode;
-        public bool AsyncMode
-        {
-            get { return asyncMode; }
-        }
-        internal bool secureMode;
-        public bool SecureMode
-        {
-            get { return secureMode; }
-        }
-        internal bool listenMode;
-        public bool ListenMode
-        {
-            get { return listenMode; }
-        }
-        internal bool cancelAccept;
-        internal IPAddress remoteIP;
-        public IPAddress RemoteIP
-        {
-            get { return remoteIP; }
-        }
-        internal IPAddress localIP;
-        public IPAddress LocalIP
-        {
-            get { return localIP; }
-        }
-        internal string remoteHostName;
-        public string RemoteHostName
-        {
-            get { return remoteHostName; }
-        }
-        internal int remotePort;
-        public int RemotePort
-        {
-            get { return remotePort; }
-        }
-        internal int localPort;
-        public int LocalPort
-        {
-            get { return localPort; }
-        }
-        internal long sendSize;
-        public long SendSize
-        {
-            get { return sendSize; }
-        }
-        internal long recvSize;
-        public long RecvSize
-        {
-            get { return recvSize; }
-        }
-        internal long sendNum;
-        public long SendNum
-        {
-            get { return sendNum; }
-        }
-        internal long recvNum;
-        public long RecvNum
-        {
-            get { return recvNum; }
-        }
-        internal bool ignoreRecvErr;
-        public bool IgnoreLastRecvError
-        {
-            get { return ignoreRecvErr; }
-        }
+        public bool AsyncMode => asyncMode;
+        public bool SecureMode { get; private set; }
+        public bool ListenMode { get; private set; }
+        bool cancelAccept;
+        public IPAddress RemoteIP { get; private set; }
+        public IPAddress LocalIP { get; private set; }
+        public string RemoteHostName { get; private set; }
+        public int RemotePort { get; private set; }
+        public int LocalPort { get; private set; }
+        public long SendSize { get; private set; }
+        public long RecvSize { get; private set; }
+        public long SendNum { get; private set; }
+        public long RecvNum { get; private set; }
+        public bool IgnoreLastRecvError { get; private set; }
         public ulong LastRecvError = 0;
-        internal bool ignoreSendErr;
-        public bool IgnoreLastSendError
-        {
-            get { return IgnoreLastSendError; }
-        }
-        internal int timeOut;
+        public bool IgnoreLastSendError { get; private set; }
+
+        int timeOut;
         internal bool writeBlocked;
         internal bool disconnecting;
-        internal bool udpBroadcast;
-        public bool UDPBroadcastMode
-        {
-            get { return udpBroadcast; }
-        }
-        internal object param;
-        public object Param
-        {
-            get
-            {
-                return param;
-            }
-            set
-            {
-                param = value;
-            }
-        }
+        public bool UDPBroadcastMode { get; private set; }
+        public object Param { get; set; }
+
         internal Event hEvent;
 
         public SockEvent SockEvent = null;
@@ -1870,9 +1786,9 @@ namespace IPA.Cores.Basic
             this.lockObj = new object();
             this.disconnectLockObj = new object();
             this.sslLockObj = new object();
-            this.socket = null;
-            this.type = SockType.Unknown;
-            this.ignoreRecvErr = this.ignoreSendErr = false;
+            this.Socket = null;
+            this.Type = SockType.Unknown;
+            this.IgnoreLastRecvError = this.IgnoreLastSendError = false;
         }
 
         // UDP 受信
@@ -1910,7 +1826,7 @@ namespace IPA.Cores.Basic
         {
             Socket s;
             src = null;
-            if (this.type != SockType.Udp || this.socket == null)
+            if (this.Type != SockType.Udp || this.Socket == null)
             {
                 return 0;
             }
@@ -1919,7 +1835,7 @@ namespace IPA.Cores.Basic
                 return 0;
             }
 
-            s = this.socket;
+            s = this.Socket;
 
             int ret = -1;
             SocketError err = SocketError.Success;
@@ -1942,20 +1858,20 @@ namespace IPA.Cores.Basic
             {
                 lock (this.lockObj)
                 {
-                    this.recvNum++;
-                    this.recvSize += (long)ret;
+                    this.RecvNum++;
+                    this.RecvSize += (long)ret;
                 }
 
                 return ret;
             }
             else
             {
-                this.ignoreRecvErr = false;
+                this.IgnoreLastRecvError = false;
 
                 if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
                     err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
                 {
-                    this.ignoreRecvErr = true;
+                    this.IgnoreLastRecvError = true;
                 }
                 else if (err == SocketError.WouldBlock)
                 {
@@ -1983,7 +1899,7 @@ namespace IPA.Cores.Basic
         {
             Socket s;
             bool isBroadcast = false;
-            if (this.type != SockType.Udp || this.socket == null)
+            if (this.Type != SockType.Udp || this.Socket == null)
             {
                 return 0;
             }
@@ -1992,7 +1908,7 @@ namespace IPA.Cores.Basic
                 return 0;
             }
 
-            s = this.socket;
+            s = this.Socket;
 
             byte[] destBytes = destAddr.GetAddressBytes();
             if (destAddr.AddressFamily == AddressFamily.InterNetwork)
@@ -2008,7 +1924,7 @@ namespace IPA.Cores.Basic
 
                         isBroadcast = true;
 
-                        this.udpBroadcast = true;
+                        this.UDPBroadcastMode = true;
                     }
                 }
             }
@@ -2030,12 +1946,12 @@ namespace IPA.Cores.Basic
 
             if (ret != size)
             {
-                this.ignoreSendErr = false;
+                this.IgnoreLastSendError = false;
 
                 if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
                     err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
                 {
-                    this.ignoreSendErr = true;
+                    this.IgnoreLastSendError = true;
                 }
                 else if (err == SocketError.WouldBlock)
                 {
@@ -2047,8 +1963,8 @@ namespace IPA.Cores.Basic
 
             lock (this.lockObj)
             {
-                this.sendSize += (long)ret;
-                this.sendNum++;
+                this.SendSize += (long)ret;
+                this.SendNum++;
             }
 
             return ret;
@@ -2085,17 +2001,17 @@ namespace IPA.Cores.Basic
             s.Bind(ep);
 
             sock = new Sock();
-            sock.type = SockType.Udp;
-            sock.connected = false;
+            sock.Type = SockType.Udp;
+            sock.Connected = false;
             sock.asyncMode = false;
-            sock.serverMode = false;
+            sock.ServerMode = false;
             sock.IsIPv6 = ipv6;
             if (port != 0)
             {
-                sock.serverMode = true;
+                sock.ServerMode = true;
             }
 
-            sock.socket = s;
+            sock.Socket = s;
             sock.Fd = s.Handle;
 
             sock.querySocketInformation();
@@ -2164,7 +2080,7 @@ namespace IPA.Cores.Basic
                 {
                     return;
                 }
-                if (this.listenMode != false || (this.type == SockType.Tcp && this.connected == false))
+                if (this.ListenMode != false || (this.Type == SockType.Tcp && this.Connected == false))
                 {
                     return;
                 }
@@ -2172,8 +2088,8 @@ namespace IPA.Cores.Basic
                 this.hEvent = new Event();
 
                 // 関連付け
-                WSAEventSelect((IntPtr)this.socket.Handle, this.hEvent.Handle, 35);
-                this.socket.Blocking = false;
+                WSAEventSelect((IntPtr)this.Socket.Handle, this.hEvent.Handle, 35);
+                this.Socket.Blocking = false;
 
                 this.asyncMode = true;
             }
@@ -2267,14 +2183,14 @@ namespace IPA.Cores.Basic
         {
             Socket s;
 
-            if (this.type != SockType.Tcp || this.connected == false || this.listenMode != false ||
-                this.socket == null)
+            if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
+                this.Socket == null)
             {
                 return 0;
             }
 
             // 受信
-            s = this.socket;
+            s = this.Socket;
 
             int ret = -1;
             SocketError err = 0;
@@ -2295,8 +2211,8 @@ namespace IPA.Cores.Basic
                 // 受信成功
                 lock (lockObj)
                 {
-                    this.recvSize += (long)ret;
-                    this.recvNum++;
+                    this.RecvSize += (long)ret;
+                    this.RecvNum++;
                 }
 
                 return ret;
@@ -2329,14 +2245,14 @@ namespace IPA.Cores.Basic
         {
             Socket s;
             size = Math.Min(size, MaxSendBufMemSize);
-            if (this.type != SockType.Tcp || this.connected == false || this.listenMode != false ||
-                this.socket == null)
+            if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
+                this.Socket == null)
             {
                 return 0;
             }
 
             // 送信
-            s = this.socket;
+            s = this.Socket;
             int ret = -1;
             SocketError err = 0;
             try
@@ -2356,8 +2272,8 @@ namespace IPA.Cores.Basic
                 // 送信成功
                 lock (this.lockObj)
                 {
-                    this.sendSize += (long)ret;
-                    this.sendNum++;
+                    this.SendSize += (long)ret;
+                    this.SendNum++;
                 }
                 this.writeBlocked = false;
 
@@ -2423,7 +2339,7 @@ namespace IPA.Cores.Basic
         // TCP 接続受諾
         public Sock Accept(bool getHostName = false)
         {
-            if (this.listenMode == false || this.type != SockType.Tcp || this.serverMode == false)
+            if (this.ListenMode == false || this.Type != SockType.Tcp || this.ServerMode == false)
             {
                 return null;
             }
@@ -2432,7 +2348,7 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
-            Socket s = this.socket;
+            Socket s = this.Socket;
             if (s == null)
             {
                 return null;
@@ -2454,17 +2370,17 @@ namespace IPA.Cores.Basic
                 }
 
                 Sock ret = new Sock();
-                ret.socket = newSocket;
-                ret.connected = true;
+                ret.Socket = newSocket;
+                ret.Connected = true;
                 ret.asyncMode = false;
-                ret.type = SockType.Tcp;
-                ret.serverMode = true;
-                ret.secureMode = false;
+                ret.Type = SockType.Tcp;
+                ret.ServerMode = true;
+                ret.SecureMode = false;
                 newSocket.NoDelay = true;
 
                 ret.SetTimeout(TimeoutInfinite);
 
-                ret.Fd = (IntPtr)ret.socket.Handle;
+                ret.Fd = (IntPtr)ret.Socket.Handle;
 
                 ret.querySocketInformation();
 
@@ -2472,11 +2388,11 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        ret.remoteHostName = Domain.GetHostName(ret.remoteIP, TimeoutGetHostname)[0];
+                        ret.RemoteHostName = Domain.GetHostName(ret.RemoteIP, TimeoutGetHostname)[0];
                     }
                     catch
                     {
-                        ret.remoteHostName = ret.remoteIP.ToString();
+                        ret.RemoteHostName = ret.RemoteIP.ToString();
                     }
                 }
 
@@ -2514,21 +2430,21 @@ namespace IPA.Cores.Basic
 
             Sock sock = new Sock();
             sock.Fd = s.Handle;
-            sock.connected = false;
+            sock.Connected = false;
             sock.asyncMode = false;
-            sock.serverMode = true;
-            sock.type = SockType.Tcp;
-            sock.socket = s;
-            sock.listenMode = true;
-            sock.secureMode = false;
-            sock.localPort = port;
+            sock.ServerMode = true;
+            sock.Type = SockType.Tcp;
+            sock.Socket = s;
+            sock.ListenMode = true;
+            sock.SecureMode = false;
+            sock.LocalPort = port;
             sock.IsIPv6 = ipv6;
 
             return sock;
         }
 
         // TCP 接続
-        public static Sock Connect(string hostName, int port, int timeout = 0, bool use46 = false, bool no_cache = false)
+        public static Sock Connect(string hostName, int port, int timeout = 0, bool use46 = false, bool noDnsCache = false)
         {
             if (timeout == 0)
             {
@@ -2540,51 +2456,51 @@ namespace IPA.Cores.Basic
 
             if (use46 == false)
             {
-                ip = Domain.GetIP(hostName, no_cache)[0];
+                ip = Domain.GetIP(hostName, noDnsCache)[0];
             }
             else
             {
-                ip = Domain.GetIP46(hostName, no_cache)[0];
+                ip = Domain.GetIP46(hostName, noDnsCache)[0];
             }
 
             IPEndPoint endPoint = new IPEndPoint(ip, port);
 
             // ソケット作成
             Sock sock = new Sock();
-            sock.socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            sock.type = SockType.Tcp;
-            sock.serverMode = false;
+            sock.Socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            sock.Type = SockType.Tcp;
+            sock.ServerMode = false;
 
             // 接続の実施
-            connectTimeout(sock.socket, endPoint, timeout);
+            connectTimeout(sock.Socket, endPoint, timeout);
 
             // ホスト名解決
             try
             {
                 string[] hostname = Domain.GetHostName(ip, TimeoutGetHostname);
-                sock.remoteHostName = hostname[0];
+                sock.RemoteHostName = hostname[0];
             }
             catch
             {
-                sock.remoteHostName = ip.ToString();
+                sock.RemoteHostName = ip.ToString();
             }
 
-            sock.socket.LingerState = new LingerOption(false, 0);
+            sock.Socket.LingerState = new LingerOption(false, 0);
             try
             {
-                sock.socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+                sock.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
             }
             catch
             {
             }
-            sock.socket.NoDelay = true;
+            sock.Socket.NoDelay = true;
 
             sock.querySocketInformation();
 
-            sock.connected = true;
+            sock.Connected = true;
             sock.asyncMode = false;
-            sock.secureMode = false;
-            sock.Fd = sock.socket.Handle;
+            sock.SecureMode = false;
+            sock.Fd = sock.Socket.Handle;
 
             sock.IsIPv6 = (ip.AddressFamily == AddressFamily.InterNetworkV6) ? true : false;
 
@@ -2623,9 +2539,9 @@ namespace IPA.Cores.Basic
 
                             if (this.SockEvent != null)
                             {
-                                lock (this.SockEvent.unix_socklist)
+                                lock (this.SockEvent.UnixSockList)
                                 {
-                                    this.SockEvent.unix_socklist.Remove(this);
+                                    this.SockEvent.UnixSockList.Remove(this);
                                 }
 
                                 SockEvent se = this.SockEvent;
@@ -2645,13 +2561,13 @@ namespace IPA.Cores.Basic
             {
                 this.disconnecting = true;
 
-                if (this.type == SockType.Tcp && this.listenMode)
+                if (this.Type == SockType.Tcp && this.ListenMode)
                 {
                     this.cancelAccept = true;
 
                     try
                     {
-                        Sock s = Sock.Connect((this.IsIPv6 ? "::1" : "127.0.0.1"), this.localPort);
+                        Sock s = Sock.Connect((this.IsIPv6 ? "::1" : "127.0.0.1"), this.LocalPort);
 
                         s.Disconnect();
                     }
@@ -2662,13 +2578,13 @@ namespace IPA.Cores.Basic
 
                 lock (disconnectLockObj)
                 {
-                    if (this.type == SockType.Tcp)
+                    if (this.Type == SockType.Tcp)
                     {
-                        if (this.socket != null)
+                        if (this.Socket != null)
                         {
                             try
                             {
-                                this.socket.LingerState = new LingerOption(false, 0);
+                                this.Socket.LingerState = new LingerOption(false, 0);
                             }
                             catch
                             {
@@ -2676,7 +2592,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                this.socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+                                this.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
                             }
                             catch
                             {
@@ -2685,14 +2601,14 @@ namespace IPA.Cores.Basic
 
                         lock (lockObj)
                         {
-                            if (this.socket == null)
+                            if (this.Socket == null)
                             {
                                 return;
                             }
 
-                            Socket s = this.socket;
+                            Socket s = this.Socket;
 
-                            if (this.connected)
+                            if (this.Connected)
                             {
                                 s.Shutdown(SocketShutdown.Both);
                             }
@@ -2702,31 +2618,31 @@ namespace IPA.Cores.Basic
 
                         lock (sslLockObj)
                         {
-                            if (this.secureMode)
+                            if (this.SecureMode)
                             {
 
                             }
                         }
 
-                        this.socket = null;
-                        this.type = SockType.Unknown;
-                        this.asyncMode = this.connected = this.listenMode = this.secureMode = false;
+                        this.Socket = null;
+                        this.Type = SockType.Unknown;
+                        this.asyncMode = this.Connected = this.ListenMode = this.SecureMode = false;
                     }
-                    else if (this.type == SockType.Udp)
+                    else if (this.Type == SockType.Udp)
                     {
                         lock (lockObj)
                         {
-                            if (this.socket == null)
+                            if (this.Socket == null)
                             {
                                 return;
                             }
 
-                            Socket s = this.socket;
+                            Socket s = this.Socket;
 
                             s.Close();
 
-                            this.type = SockType.Unknown;
-                            this.asyncMode = this.connected = this.listenMode = this.secureMode = false;
+                            this.Type = SockType.Unknown;
+                            this.asyncMode = this.Connected = this.ListenMode = this.SecureMode = false;
                         }
                     }
                 }
@@ -2741,14 +2657,14 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                if (this.type == SockType.Tcp)
+                if (this.Type == SockType.Tcp)
                 {
                     if (timeout < 0)
                     {
                         timeout = TimeoutInfinite;
                     }
 
-                    this.socket.SendTimeout = this.socket.ReceiveTimeout = timeout;
+                    this.Socket.SendTimeout = this.Socket.ReceiveTimeout = timeout;
                     this.timeOut = timeout;
                 }
             }
@@ -2762,7 +2678,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                if (this.type != SockType.Tcp)
+                if (this.Type != SockType.Tcp)
                 {
                     return TimeoutInfinite;
                 }
@@ -2782,20 +2698,20 @@ namespace IPA.Cores.Basic
             {
                 lock (this.lockObj)
                 {
-                    if (this.type == SockType.Tcp)
+                    if (this.Type == SockType.Tcp)
                     {
                         // リモートホストの情報を取得
-                        IPEndPoint ep1 = (IPEndPoint)this.socket.RemoteEndPoint;
+                        IPEndPoint ep1 = (IPEndPoint)this.Socket.RemoteEndPoint;
 
-                        this.remotePort = ep1.Port;
-                        this.remoteIP = ep1.Address;
+                        this.RemotePort = ep1.Port;
+                        this.RemoteIP = ep1.Address;
                     }
 
                     // ローカルホストの情報を取得
-                    IPEndPoint ep2 = (IPEndPoint)this.socket.LocalEndPoint;
+                    IPEndPoint ep2 = (IPEndPoint)this.Socket.LocalEndPoint;
 
-                    this.localPort = ep2.Port;
-                    this.localIP = ep2.Address;
+                    this.LocalPort = ep2.Port;
+                    this.LocalIP = ep2.Address;
                 }
             }
             catch

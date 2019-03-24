@@ -37,7 +37,7 @@ namespace IPA.Cores.Basic
 {
     class FileLogger
     {
-        object lockObj;
+        CriticalSection LockObj = new CriticalSection();
         string logDir;
         string lastFileName;
         IO fs;
@@ -45,8 +45,6 @@ namespace IPA.Cores.Basic
 
         public FileLogger(string logDir)
         {
-            lockObj = new Object();
-
             SetLogDir(logDir);
 
             lastFileName = "";
@@ -56,7 +54,7 @@ namespace IPA.Cores.Basic
 
         public void SetLogDir(string logDir)
         {
-            lock (lockObj)
+            lock (LockObj)
             {
                 this.logDir = IO.InnerFilePath(logDir);
             }
@@ -69,7 +67,7 @@ namespace IPA.Cores.Basic
 
         string generateFullFileName(DateTime dt)
         {
-            lock (lockObj)
+            lock (LockObj)
             {
                 return IO.CombinePath(logDir, generateFileName(dt));
             }
@@ -77,7 +75,7 @@ namespace IPA.Cores.Basic
 
         void write(DateTime now, byte[] data, bool flush)
         {
-            lock (lockObj)
+            lock (LockObj)
             {
                 string filename = generateFullFileName(now);
 
@@ -144,7 +142,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                lock (lockObj)
+                lock (LockObj)
                 {
                     DateTime now = DateTime.Now;
                     string nowStr = Str.DateTimeToDtstr(now, true);

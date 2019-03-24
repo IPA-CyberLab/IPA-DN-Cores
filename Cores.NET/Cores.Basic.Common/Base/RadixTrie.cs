@@ -524,16 +524,16 @@ namespace IPA.Cores.Basic
         /// <param name="word">a string that is to be compared with the node's label</param>
         /// <param name="curNode">a node</param>
         /// <returns></returns>
-        private int MatchingConsecutiveCharacters(byte[] word, int word_pos, RadixNode<T> curNode)
+        private int MatchingConsecutiveCharacters(byte[] word, int wordPos, RadixNode<T> curNode)
         {
             int matches = 0;
             int minLength = 0;
 
             //see which string is smaller and save it's lenght
             //when cycling throught the two strings we won't go any further than that
-            if (curNode.Label.Length >= (word.Length - word_pos))
-                minLength = word.Length - word_pos;
-            else if (curNode.Label.Length < (word.Length - word_pos))
+            if (curNode.Label.Length >= (word.Length - wordPos))
+                minLength = word.Length - wordPos;
+            else if (curNode.Label.Length < (word.Length - wordPos))
                 minLength = curNode.Label.Length;
 
             if (minLength > 0)
@@ -541,7 +541,7 @@ namespace IPA.Cores.Basic
                 for (int i = 0; i < minLength; i++)
                 {
                     //if two characters at the same position have the same value we have one more match
-                    if (word[i + word_pos] == curNode.Label[i])
+                    if (word[i + wordPos] == curNode.Label[i])
                         matches++;
                     else
                         //if at any position the two strings have different characters break the cycle
