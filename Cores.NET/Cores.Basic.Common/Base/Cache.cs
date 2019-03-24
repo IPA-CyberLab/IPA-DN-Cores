@@ -45,113 +45,78 @@ namespace IPA.Cores.Basic
     {
         class Entry
         {
-            DateTime createdDateTime;
-            public DateTime CreatedDateTime
-            {
-                get { return createdDateTime; }
-            }
-            DateTime updatedDateTime;
-            public DateTime UpdatedDateTime
-            {
-                get { return updatedDateTime; }
-            }
-            DateTime lastAccessedDateTime;
-            public DateTime LastAccessedDateTime
-            {
-                get { return lastAccessedDateTime; }
-            }
+            public DateTime CreatedDateTime { get; }
+            public DateTime UpdatedDateTime { get; private set; }
+            public DateTime LastAccessedDateTime { get; private set; }
+            public TKey Key { get; }
 
-            TKey key;
-            public TKey Key
-            {
-                get
-                {
-                    return key;
-                }
-            }
-
-            TValue value;
+            TValue _value;
             public TValue Value
             {
                 get
                 {
-                    lastAccessedDateTime = Time.NowHighResDateTimeUtc;
-                    return this.value;
+                    LastAccessedDateTime = Time.NowHighResDateTimeUtc;
+                    return this._value;
                 }
                 set
                 {
-                    this.value = value;
-                    updatedDateTime = Time.NowHighResDateTimeUtc;
-                    lastAccessedDateTime = Time.NowHighResDateTimeUtc;
+                    this._value = value;
+                    UpdatedDateTime = Time.NowHighResDateTimeUtc;
+                    LastAccessedDateTime = Time.NowHighResDateTimeUtc;
                 }
             }
 
             public Entry(TKey key, TValue value)
             {
-                this.key = key;
-                this.value = value;
-                lastAccessedDateTime = updatedDateTime = createdDateTime = Time.NowHighResDateTimeUtc;
+                this.Key = key;
+                this._value = value;
+                LastAccessedDateTime = UpdatedDateTime = CreatedDateTime = Time.NowHighResDateTimeUtc;
             }
 
-            public override int GetHashCode()
-            {
-                return key.GetHashCode();
-            }
+            public override int GetHashCode() => Key.GetHashCode();
 
-            public override string ToString()
-            {
-                return key.ToString() + "," + value.ToString();
-            }
+            public override string ToString() => Key.ToString() + "," + _value.ToString();
         }
 
         public static readonly TimeSpan DefaultExpireSpan = new TimeSpan(0, 5, 0);
         public const CacheType DefaultCacheType = CacheType.UpdateExpiresWhenAccess;
-
-        TimeSpan expireSpan;
-        public TimeSpan ExpireSpan
-        {
-            get { return expireSpan; }
-        }
-        CacheType type;
-        public CacheType Type
-        {
-            get { return type; }
-        }
+        public TimeSpan ExpireSpan { get; private set; }
+        public CacheType Type { get; private set; }
         Dictionary<TKey, Entry> list;
-        object lockObj;
+        CriticalSection LockObj;
 
         public Cache()
         {
-            init(DefaultExpireSpan, DefaultCacheType);
+            InternalInit(DefaultExpireSpan, DefaultCacheType);
         }
         public Cache(CacheType type)
         {
-            init(DefaultExpireSpan, type);
+            InternalInit(DefaultExpireSpan, type);
         }
         public Cache(TimeSpan expireSpan)
         {
-            init(expireSpan, DefaultCacheType);
+            InternalInit(expireSpan, DefaultCacheType);
         }
         public Cache(TimeSpan expireSpan, CacheType type)
         {
-            init(expireSpan, type);
+            InternalInit(expireSpan, type);
         }
-        void init(TimeSpan expireSpan, CacheType type)
+        void InternalInit(TimeSpan expireSpan, CacheType type)
         {
-            this.expireSpan = expireSpan;
-            this.type = type;
+            this.ExpireSpan = expireSpan;
+            this.Type = type;
 
             list = new Dictionary<TKey, Entry>();
-            lockObj = new object();
+            LockObj = new CriticalSection();
         }
 
         public void Add(TKey key, TValue value)
         {
-            lock (lockObj)
+            lock (LockObj)
             {
                 Entry e;
 
-                deleteExpired();
+                DeleteExpired();
 
                 if (list.ContainsKey(key) == false)
                 {
@@ -159,7 +124,7 @@ namespace IPA.Cores.Basic
 
                     list.Add(e.Key, e);
 
-                    deleteExpired();
+                    DeleteExpired();
                 }
                 else
                 {
@@ -171,7 +136,7 @@ namespace IPA.Cores.Basic
 
         public void Delete(TKey key)
         {
-            lock (lockObj)
+            lock (LockObj)
             {
                 if (list.ContainsKey(key))
                 {
@@ -184,9 +149,9 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                lock (lockObj)
+                lock (LockObj)
                 {
-                    deleteExpired();
+                    DeleteExpired();
 
                     if (list.ContainsKey(key) == false)
                     {
@@ -198,36 +163,36 @@ namespace IPA.Cores.Basic
             }
         }
 
-        long last_deleted = 0;
+        long LastDeleted = 0;
 
-        void deleteExpired()
+        void DeleteExpired()
         {
-            bool do_delete = false;
+            bool doDelete = false;
             long now = Tick64.Value;
-            long delete_inveral = expireSpan.Milliseconds / 10;
+            long deleteInterval = ExpireSpan.Milliseconds / 10;
 
-            lock (lockObj)
+            lock (LockObj)
             {
-                if (last_deleted == 0 || now > (last_deleted + delete_inveral))
+                if (LastDeleted == 0 || now > (LastDeleted + deleteInterval))
                 {
-                    last_deleted = now;
-                    do_delete = true;
+                    LastDeleted = now;
+                    doDelete = true;
                 }
             }
 
-            if (do_delete == false)
+            if (doDelete == false)
             {
                 return;
             }
 
-            lock (lockObj)
+            lock (LockObj)
             {
                 List<Entry> o = new List<Entry>();
-                DateTime expire = Time.NowHighResDateTimeUtc - this.expireSpan;
+                DateTime expire = Time.NowHighResDateTimeUtc - this.ExpireSpan;
 
                 foreach (Entry e in list.Values)
                 {
-                    if (this.type == CacheType.UpdateExpiresWhenAccess)
+                    if (this.Type == CacheType.UpdateExpiresWhenAccess)
                     {
                         if (e.LastAccessedDateTime < expire)
                         {

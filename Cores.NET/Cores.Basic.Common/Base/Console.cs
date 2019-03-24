@@ -59,9 +59,8 @@ namespace IPA.Cores.Basic
         public const string CMD_HELP_HELP = "Description:";
         public const string CMD_HELP_TITLE = "Help for command \"%S\"";
         public const string CMD_HELP_USAGE = "Usage:";
-        public const string CMD_PARSE_IP_SUBNET_ERROR_1 = "\"IP アドレス/サブネットマスク\" の形式で指定してください。\nIP アドレスは 192.168.0.1 のように 10 進数をドットで区切って指定します。サブネットマスクは 255.255.255.0 のように 10 進数をドットで区切って指定するか、24 のように先頭からのビット長を 10 進数で指定できます。\n単一のホストを指定するには、サブネットマスクを 255.255.255.255 または 32 として指定します。\n(例)\n192.168.0.1/24"
-            + "\n192.168.0.1/255.255.255.0\n192.168.0.5/255.255.255.255\n\n";
-        public const string CMD_PARSE_IP_SUBNET_ERROR_2 = "指定された IP アドレスはネットワークアドレスではありません。";
+        public const string CMD_PARSE_IP_SUBNET_ERROR_1 = "Specify in the format of \"IPv4 address/subnet mask\". \nSpecify the IPv4 address by separating the decimal values using dots such as \"192.168.0.1\". For the subnet mask, either specify decimal values separated by dots such as \"255.255.255.0\", or you can specify the bit length of subnet mask using a decimal value such as 24. \nTo specify a standalone host, specify the subnet mask as either \"255.255.255.255\" or \"32\". \n(Example)\n 192.168.0.1/24\n 192.168.0.1/255.255.255.0\n192.168.0.5/255.255.255.255\n\n";
+        public const string CMD_PARSE_IP_SUBNET_ERROR_2 = "	The specified IP address is not a network address.";
         public const string CMD_PROMPT = "Enter a value: ";
         public const string CMD_PROPMT_PORT = "Input the port number: ";
         public const string CMD_UNKNOWM = "There is no description for this command.";

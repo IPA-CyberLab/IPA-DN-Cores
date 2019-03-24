@@ -48,11 +48,9 @@ namespace IPA.Cores.Basic
     static partial class Dbg
     {
         static GlobalInitializer gInit = new GlobalInitializer();
+        public static bool IsDebugMode { get; private set; } = false;
 
-        static bool is_debug_mode = false;
-        public static bool IsDebugMode => is_debug_mode;
-
-        public static void SetDebugMode(bool b = true) => is_debug_mode = b;
+        public static void SetDebugMode(bool b = true) => IsDebugMode = b;
 
         public static void Report(string name, string value)
         {
@@ -113,63 +111,63 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectInnerString(object obj, string instance_base_name = "")
+        public static string GetObjectInnerString(object obj, string instanceBaseName = "")
         {
-            return GetObjectInnerString(obj.GetType(), obj, instance_base_name);
+            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName);
         }
         public static string GetObjectInnerString(Type t)
         {
             return GetObjectInnerString(t, null, null);
         }
-        public static string GetObjectInnerString(Type t, object obj, string instance_base_name)
+        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName)
         {
-            DebugVars v = GetVarsFromClass(t, instance_base_name, obj);
+            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
 
             return v.ToString();
         }
 
-        public static void WriteObject(object obj, string instance_base_name = "")
+        public static void WriteObject(object obj, string instanceBaseName = "")
         {
-            WriteObject(obj.GetType(), obj, instance_base_name);
+            WriteObject(obj.GetType(), obj, instanceBaseName);
         }
         public static void WriteObject(Type t)
         {
             WriteObject(t, null, null);
         }
-        public static void WriteObject(Type t, object obj, string instance_base_name)
+        public static void WriteObject(Type t, object obj, string instanceBaseName)
         {
             if (Dbg.IsDebugMode == false)
             {
                 return;
             }
 
-            DebugVars v = GetVarsFromClass(t, instance_base_name, obj);
+            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
 
             string str = v.ToString();
 
             Console.WriteLine(str);
         }
 
-        public static void PrintObjectInnerString(object obj, string instance_base_name = "")
+        public static void PrintObjectInnerString(object obj, string instanceBaseName = "")
         {
-            PrintObjectInnerString(obj.GetType(), obj, instance_base_name);
+            PrintObjectInnerString(obj.GetType(), obj, instanceBaseName);
         }
         public static void PrintObjectInnerString(Type t)
         {
             PrintObjectInnerString(t, null, null);
         }
-        public static void PrintObjectInnerString(Type t, object obj, string instance_base_name)
+        public static void PrintObjectInnerString(Type t, object obj, string instanceBaseName)
         {
-            DebugVars v = GetVarsFromClass(t, instance_base_name, obj);
+            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
 
             string str = v.ToString();
 
             Console.WriteLine(str);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string name = null, object obj = null, ImmutableHashSet<object> duplicate_check = null)
+        public static DebugVars GetVarsFromClass(Type t, string name = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
         {
-            if (duplicate_check == null) duplicate_check = ImmutableHashSet<object>.Empty;
+            if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
             if (Str.IsEmptyStr(name)) name = t.Name;
 
@@ -222,7 +220,7 @@ namespace IPA.Cores.Basic
                                 int n = 0;
                                 foreach (object item in (IEnumerable)data)
                                 {
-                                    if (duplicate_check.Contains(item) == false)
+                                    if (duplicateCheck.Contains(item) == false)
                                     {
                                         Type data_type2 = item?.GetType() ?? null;
 
@@ -236,7 +234,7 @@ namespace IPA.Cores.Basic
                                         }
                                         else
                                         {
-                                            ret.Childlen.Add(GetVarsFromClass(data_type2, info.Name, item, duplicate_check.Add(data)));
+                                            ret.Childlen.Add(GetVarsFromClass(data_type2, info.Name, item, duplicateCheck.Add(data)));
                                         }
                                     }
 
@@ -245,9 +243,9 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                if (duplicate_check.Contains(data) == false)
+                                if (duplicateCheck.Contains(data) == false)
                                 {
-                                    ret.Childlen.Add(GetVarsFromClass(data_type, info.Name, data, duplicate_check.Add(data)));
+                                    ret.Childlen.Add(GetVarsFromClass(data_type, info.Name, data, duplicateCheck.Add(data)));
                                 }
                             }
                         }
@@ -260,17 +258,17 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static MemberInfo[] GetAllMembersFromType(Type t, bool hide_static, bool hide_instance)
+        public static MemberInfo[] GetAllMembersFromType(Type t, bool hideStatic, bool hideInstance)
         {
             HashSet<MemberInfo> a = new HashSet<MemberInfo>();
 
-            if (hide_static == false)
+            if (hideStatic == false)
             {
                 a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public));
                 a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.NonPublic));
             }
 
-            if (hide_instance == false)
+            if (hideInstance == false)
             {
                 a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.Public));
                 a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic));
@@ -330,12 +328,12 @@ namespace IPA.Cores.Basic
     {
         public string BaseName = "";
 
-        public List<(MemberInfo member_info, object data)> Vars = new List<(MemberInfo, object)>();
+        public List<(MemberInfo memberInfo, object data)> Vars = new List<(MemberInfo, object)>();
         public List<DebugVars> Childlen = new List<DebugVars>();
 
         public void WriteToString(StringWriter w, ImmutableList<string> parents)
         {
-            this.Vars.Sort((a, b) => string.Compare(a.member_info.Name, b.member_info.Name));
+            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
             this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
 
             foreach (DebugVars var in Childlen)
@@ -345,7 +343,7 @@ namespace IPA.Cores.Basic
 
             foreach (var data in Vars)
             {
-                MemberInfo p = data.member_info;
+                MemberInfo p = data.memberInfo;
                 object o = data.data;
                 string print_str = "null";
                 string closure = "'";
@@ -381,9 +379,9 @@ namespace IPA.Cores.Basic
     {
         public string Name { get; }
         public IntervalDebug(string name = "Interval") => this.Name = name.NonNullTrim();
-        long start_tick = 0;
-        public void Start() => this.start_tick = Time.Tick64;
-        public int Elapsed => (int)(Time.Tick64 - this.start_tick);
+        long StartTick = 0;
+        public void Start() => this.StartTick = Time.Tick64;
+        public int Elapsed => (int)(Time.Tick64 - this.StartTick);
         public void PrintElapsed()
         {
             if (Dbg.IsDebugMode)
@@ -399,10 +397,10 @@ namespace IPA.Cores.Basic
     {
         public int Interval { get; }
         public long IncrementMe = 0;
-        Once d;
-        ThreadObj thread;
-        ManualResetEventSlim halt_event = new ManualResetEventSlim();
-        bool halt_flag = false;
+        Once DisposeFlag;
+        ThreadObj Thread;
+        ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
+        bool HaltFlag = false;
         public string Name { get; }
 
         public Benchmark(string name = "Benchmark", int interval = 1000, bool disabled = false)
@@ -412,16 +410,16 @@ namespace IPA.Cores.Basic
 
             if (disabled == false)
             {
-                this.thread = new ThreadObj(thread_proc);
+                this.Thread = new ThreadObj(thread_proc);
             }
         }
 
         void thread_proc(object param)
         {
-            Thread.CurrentThread.IsBackground = true;
+            System.Threading.Thread.CurrentThread.IsBackground = true;
             try
             {
-                Thread.CurrentThread.Priority = ThreadPriority.Highest;
+                System.Threading.Thread.CurrentThread.Priority = ThreadPriority.Highest;
             }
             catch
             {
@@ -431,9 +429,9 @@ namespace IPA.Cores.Basic
             while (true)
             {
                 int wait_interval = this.Interval;
-                if (halt_flag) break;
-                halt_event.Wait(wait_interval);
-                if (halt_flag) break;
+                if (HaltFlag) break;
+                HaltEvent.Wait(wait_interval);
+                if (HaltFlag) break;
 
                 long now_value = this.IncrementMe;
                 long diff_value = now_value - last_value;
@@ -458,32 +456,32 @@ namespace IPA.Cores.Basic
 
         public void Dispose()
         {
-            if (d.IsFirstCall())
+            if (DisposeFlag.IsFirstCall())
             {
-                halt_flag = true;
-                halt_event.Set();
-                this.thread.WaitForEnd();
+                HaltFlag = true;
+                HaltEvent.Set();
+                this.Thread.WaitForEnd();
             }
         }
     }
 
     static class SingletonFactory
     {
-        static Dictionary<string, object> table = new Dictionary<string, object>();
+        static Dictionary<string, object> Table = new Dictionary<string, object>();
 
         public static T New<T>() where T : new()
         {
             Type t = typeof(T);
             string name = t.AssemblyQualifiedName;
-            lock (table)
+            lock (Table)
             {
                 object ret = null;
-                if (table.ContainsKey(name))
-                    ret = table[name];
+                if (Table.ContainsKey(name))
+                    ret = Table[name];
                 else
                 {
                     ret = new T();
-                    table[name] = ret;
+                    Table[name] = ret;
                 }
                 return (T)ret;
             }
@@ -504,20 +502,20 @@ namespace IPA.Cores.Basic
             thread = new ThreadObj(main_thread);
         }
 
-        public void ReportRefObject(string name, object ref_obj)
+        public void ReportRefObject(string name, object refObj)
         {
             name = name.NonNullTrim();
             lock (table2)
             {
                 if (table2.ContainsKey(name))
                 {
-                    if (ref_obj == null) table2.Remove(name);
-                    table2[name] = ref_obj;
+                    if (refObj == null) table2.Remove(name);
+                    table2[name] = refObj;
                 }
                 else
                 {
-                    if (ref_obj == null) return;
-                    table2.Add(name, ref_obj);
+                    if (refObj == null) return;
+                    table2.Add(name, refObj);
                 }
             }
         }
@@ -597,12 +595,12 @@ namespace IPA.Cores.Basic
         public const int DefaultInterval = 1000;
         public Func<string> PrintProc { get; }
 
-        public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string> print_proc = null)
+        public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string> printProc = null)
         {
             if (interval == 0) interval = DefaultInterval;
             this.Interval = interval;
             this.Name = name;
-            this.PrintProc = print_proc;
+            this.PrintProc = printProc;
 
             if (Dbg.IsDebugMode)
             {
@@ -661,7 +659,7 @@ namespace IPA.Cores.Basic
         {
             return thread_pool_stat_reporter.CreateOrGet(() =>
             {
-                return new IntervalReporter("<Stat>", print_proc: () =>
+                return new IntervalReporter("<Stat>", printProc: () =>
                 {
                     List<string> o = new List<string>();
 

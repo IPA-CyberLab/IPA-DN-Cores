@@ -43,70 +43,41 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        byte[] p;
-        int pos, size;
-        public int Size
-        {
-            get { return size; }
-        }
-        public byte[] Data
-        {
-            get
-            {
-                return this.p;
-            }
-        }
-        public int DataOffset
-        {
-            get
-            {
-                return this.pos;
-            }
-        }
-        public int PhysicalSize
-        {
-            get
-            {
-                return p.Length;
-            }
-        }
+        byte[] InternalBuffer;
+        int Position;
+        public int Size { get; private set; }
+        public byte[] Data => this.InternalBuffer;
+        public int DataOffset => this.Position;
+        public int PhysicalSize => InternalBuffer.Length;
 
-        int reallocMemSize;
+        int ReallocMemSize;
         public const int FifoInitMemSize = 4096;
         public const int FifoReallocMemSize = 65536;
         public const int FifoReallocMemSizeSmall = 65536;
 
-        long totalWriteSize = 0, totalReadSize = 0;
-
-        public long TotalReadSize
-        {
-            get { return totalReadSize; }
-        }
-        public long TotalWriteSize
-        {
-            get { return totalWriteSize; }
-        }
+        public long TotalWriteSize { get; private set; } = 0;
+        public long TotalReadSize { get; private set; } = 0;
 
         public Fifo()
         {
-            init(0);
+            InternalInit(0);
         }
         public Fifo(int reallocMemSize)
         {
-            init(reallocMemSize);
+            InternalInit(reallocMemSize);
         }
 
-        void init(int reallocMemSize)
+        void InternalInit(int reallocMemSize)
         {
             if (reallocMemSize == 0)
             {
                 reallocMemSize = FifoReallocMemSize;
             }
 
-            this.size = this.pos = 0;
-            this.reallocMemSize = reallocMemSize;
+            this.Size = this.Position = 0;
+            this.ReallocMemSize = reallocMemSize;
 
-            this.p = new byte[FifoInitMemSize];
+            this.InternalBuffer = new byte[FifoInitMemSize];
         }
 
         public void Write(Buf buf)
@@ -129,34 +100,34 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                int i, need_size;
-                bool realloc_flag;
+                int i, needSize;
+                bool reallocFlag;
 
-                i = this.size;
-                this.size += size;
-                need_size = this.pos + this.size;
-                realloc_flag = false;
+                i = this.Size;
+                this.Size += size;
+                needSize = this.Position + this.Size;
+                reallocFlag = false;
 
-                int memsize = p.Length;
-                while (need_size > memsize)
+                int memSize = InternalBuffer.Length;
+                while (needSize > memSize)
                 {
-                    memsize = Math.Max(memsize, FifoInitMemSize) * 3;
-                    realloc_flag = true;
+                    memSize = Math.Max(memSize, FifoInitMemSize) * 3;
+                    reallocFlag = true;
                 }
 
-                if (realloc_flag)
+                if (reallocFlag)
                 {
-                    byte[] new_p = new byte[memsize];
-                    Util.CopyByte(new_p, 0, this.p, 0, this.p.Length);
-                    this.p = new_p;
+                    byte[] newPtr = new byte[memSize];
+                    Util.CopyByte(newPtr, 0, this.InternalBuffer, 0, this.InternalBuffer.Length);
+                    this.InternalBuffer = newPtr;
                 }
 
                 if (src != null)
                 {
-                    Util.CopyByte(this.p, this.pos + i, src, offset, size);
+                    Util.CopyByte(this.InternalBuffer, this.Position + i, src, offset, size);
                 }
 
-                totalWriteSize += size;
+                TotalWriteSize += size;
             }
         }
 
@@ -200,55 +171,49 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                int read_size;
+                int readSize;
 
-                read_size = Math.Min(size, this.size);
-                if (read_size == 0)
+                readSize = Math.Min(size, this.Size);
+                if (readSize == 0)
                 {
                     return 0;
                 }
                 if (dst != null)
                 {
-                    Util.CopyByte(dst, offset, this.p, this.pos, size);
+                    Util.CopyByte(dst, offset, this.InternalBuffer, this.Position, size);
                 }
-                this.pos += read_size;
-                this.size -= read_size;
+                this.Position += readSize;
+                this.Size -= readSize;
 
-                if (this.size == 0)
+                if (this.Size == 0)
                 {
-                    this.pos = 0;
+                    this.Position = 0;
                 }
 
                 // メモリの詰め直し
-                if (this.pos >= FifoInitMemSize &&
-                    this.p.Length >= this.reallocMemSize &&
-                    (this.p.Length / 2) > this.size)
+                if (this.Position >= FifoInitMemSize &&
+                    this.InternalBuffer.Length >= this.ReallocMemSize &&
+                    (this.InternalBuffer.Length / 2) > this.Size)
                 {
-                    byte[] new_p;
-                    int new_size;
+                    byte[] newPtr;
+                    int newSize;
 
-                    new_size = Math.Max(this.p.Length / 2, FifoInitMemSize);
-                    new_p = new byte[new_size];
-                    Util.CopyByte(new_p, 0, this.p, this.pos, this.size);
+                    newSize = Math.Max(this.InternalBuffer.Length / 2, FifoInitMemSize);
+                    newPtr = new byte[newSize];
+                    Util.CopyByte(newPtr, 0, this.InternalBuffer, this.Position, this.Size);
 
-                    this.p = new_p;
+                    this.InternalBuffer = newPtr;
 
-                    this.pos = 0;
+                    this.Position = 0;
                 }
 
-                totalReadSize += read_size;
+                TotalReadSize += readSize;
 
-                return read_size;
+                return readSize;
             }
         }
 
-        public Span<byte> Span
-        {
-            get
-            {
-                return this.Data.AsSpan(this.pos, this.size);
-            }
-        }
+        public Span<byte> Span => this.Data.AsSpan(this.Position, this.Size);
     }
 
     class Fifo<T>
@@ -276,20 +241,11 @@ namespace IPA.Cores.Basic
             Size = Position = 0;
         }
 
-        public void Write(Span<T> data)
-        {
-            WriteInternal(data, data.Length);
-        }
+        public void Write(Span<T> data) => WriteInternal(data, data.Length);
 
-        public void Write(T data)
-        {
-            WriteInternal(data);
-        }
+        public void Write(T data) => WriteInternal(data);
 
-        public void WriteSkip(int length)
-        {
-            WriteInternal(null, length);
-        }
+        public void WriteSkip(int length) => WriteInternal(null, length);
 
         void WriteInternal(Span<T> src, int size)
         {
@@ -348,10 +304,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        public int Read(Span<T> dest)
-        {
-            return ReadInternal(dest, dest.Length);
-        }
+        public int Read(Span<T> dest) => ReadInternal(dest, dest.Length);
 
         public T[] Read(int size)
         {
@@ -413,20 +366,20 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        MemoryStream buf;
+        MemoryStream InternalBuffer;
 
         // コンストラクタ
         public Buf()
         {
-            init(new byte[0]);
+            InternalInit(new byte[0]);
         }
         public Buf(byte[] data)
         {
-            init(data);
+            InternalInit(data);
         }
-        void init(byte[] data)
+        void InternalInit(byte[] data)
         {
-            buf = new MemoryStream();
+            InternalBuffer = new MemoryStream();
             Write(data);
             SeekToBegin();
         }
@@ -434,61 +387,43 @@ namespace IPA.Cores.Basic
         // クリア
         public void Clear()
         {
-            buf.SetLength(0);
+            InternalBuffer.SetLength(0);
         }
 
         // 書き込み
         public void WriteByte(byte data)
         {
-            buf.WriteByte(data);
+            InternalBuffer.WriteByte(data);
         }
         public void Write(byte[] data)
         {
-            buf.Write(data, 0, data.Length);
+            InternalBuffer.Write(data, 0, data.Length);
         }
         public void Write(byte[] data, int pos, int len)
         {
-            buf.Write(data, pos, len);
+            InternalBuffer.Write(data, pos, len);
         }
 
         // サイズの取得
-        public uint Size
-        {
-            get
-            {
-                return (uint)buf.Length;
-            }
-        }
+        public uint Size => (uint)InternalBuffer.Length;
 
         // 現在位置の取得
-        public uint Pos
-        {
-            get
-            {
-                return (uint)buf.Position;
-            }
-        }
+        public uint Pos => (uint)InternalBuffer.Position;
 
         // バイト列の取得
-        public byte[] ByteData
-        {
-            get
-            {
-                return buf.ToArray();
-            }
-        }
+        public byte[] ByteData => InternalBuffer.ToArray();
 
         // インデクサによる編集
         public byte this[uint i]
         {
             get
             {
-                return buf.GetBuffer()[i];
+                return InternalBuffer.GetBuffer()[i];
             }
 
             set
             {
-                buf.GetBuffer()[i] = value;
+                InternalBuffer.GetBuffer()[i] = value;
             }
         }
 
@@ -500,7 +435,7 @@ namespace IPA.Cores.Basic
         public byte[] Read(uint size)
         {
             byte[] tmp = new byte[size];
-            int i = buf.Read(tmp, 0, (int)size);
+            int i = InternalBuffer.Read(tmp, 0, (int)size);
 
             byte[] ret = new byte[i];
             Array.Copy(tmp, 0, ret, 0, i);
@@ -529,7 +464,7 @@ namespace IPA.Cores.Basic
         }
         public void Seek(uint offset, SeekOrigin mode)
         {
-            buf.Seek(offset, mode);
+            InternalBuffer.Seek(offset, mode);
         }
 
         // short 型の読み出し
@@ -609,10 +544,10 @@ namespace IPA.Cores.Basic
         {
             return ReadStr(false);
         }
-        public string ReadStr(bool include_null)
+        public string ReadStr(bool includeNull)
         {
             uint len = ReadInt();
-            byte[] data = Read(len - (uint)(include_null ? 1 : 0));
+            byte[] data = Read(len - (uint)(includeNull ? 1 : 0));
             return Str.ShiftJisEncoding.GetString(data);
         }
 
@@ -620,10 +555,10 @@ namespace IPA.Cores.Basic
         {
             return ReadAsciiStr(false);
         }
-        public string ReadAsciiStr(bool include_null)
+        public string ReadAsciiStr(bool includeNull)
         {
             uint len = ReadInt();
-            byte[] data = Read(len - (uint)(include_null ? 1 : 0));
+            byte[] data = Read(len - (uint)(includeNull ? 1 : 0));
             return Str.AsciiEncoding.GetString(data);
         }
 
@@ -632,14 +567,14 @@ namespace IPA.Cores.Basic
         {
             return ReadUniStr(false);
         }
-        public string ReadUniStr(bool include_null)
+        public string ReadUniStr(bool includeNull)
         {
             uint len = ReadInt();
             if (len == 0)
             {
                 return null;
             }
-            byte[] data = Read(len - (uint)(include_null ? 2 : 0));
+            byte[] data = Read(len - (uint)(includeNull ? 2 : 0));
             return Str.Utf8Encoding.GetString(data);
         }
 
@@ -717,20 +652,20 @@ namespace IPA.Cores.Basic
             }
 
             // 現在位置を記憶
-            long pos = buf.Position;
+            long pos = InternalBuffer.Position;
 
             // 13 または 10 を探索
             long i;
             byte[] tmp = new byte[1];
-            for (i = pos; i < buf.Length; i++)
+            for (i = pos; i < InternalBuffer.Length; i++)
             {
-                buf.Read(tmp, 0, 1);
+                InternalBuffer.Read(tmp, 0, 1);
 
                 if (tmp[0] == 13 || tmp[0] == 10)
                 {
                     if (tmp[0] == 13)
                     {
-                        if ((i + 2) < buf.Length)
+                        if ((i + 2) < InternalBuffer.Length)
                         {
                             i++;
                         }
@@ -742,7 +677,7 @@ namespace IPA.Cores.Basic
 
             long len = i - pos;
 
-            buf.Position = pos;
+            InternalBuffer.Position = pos;
 
             // len だけ読み込む
             byte[] ret = Read((uint)((int)len));
@@ -769,20 +704,20 @@ namespace IPA.Cores.Basic
         {
             WriteStr(strValue, false);
         }
-        public void WriteStr(string strValue, bool include_null)
+        public void WriteStr(string strValue, bool includeNull)
         {
             byte[] data = Str.ShiftJisEncoding.GetBytes(strValue);
-            WriteInt((uint)data.Length + (uint)(include_null ? 1 : 0));
+            WriteInt((uint)data.Length + (uint)(includeNull ? 1 : 0));
             Write(data);
         }
         public void WriteAsciiStr(string strValue)
         {
             WriteAsciiStr(strValue, false);
         }
-        public void WriteAsciiStr(string strValue, bool include_null)
+        public void WriteAsciiStr(string strValue, bool includeNull)
         {
             byte[] data = Str.AsciiEncoding.GetBytes(strValue);
-            WriteInt((uint)data.Length + (uint)(include_null ? 1 : 0));
+            WriteInt((uint)data.Length + (uint)(includeNull ? 1 : 0));
             Write(data);
         }
 
@@ -791,10 +726,10 @@ namespace IPA.Cores.Basic
         {
             WriteUniStr(strValue, false);
         }
-        public void WriteUniStr(string strValue, bool include_null)
+        public void WriteUniStr(string strValue, bool includeNull)
         {
             byte[] data = Str.Utf8Encoding.GetBytes(strValue);
-            WriteInt((uint)data.Length + (uint)(include_null ? 2 : 0));
+            WriteInt((uint)data.Length + (uint)(includeNull ? 2 : 0));
             Write(data);
         }
 

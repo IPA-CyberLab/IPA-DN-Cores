@@ -166,8 +166,8 @@ namespace IPA.Cores.Basic
             else
                 newPosition = offset;
 
-            if (newPosition < 0) throw new ArgumentOutOfRangeException("new_position < 0");
-            if (newPosition > Length) throw new ArgumentOutOfRangeException("new_position > Size");
+            if (newPosition < 0) throw new ArgumentOutOfRangeException("newPosition < 0");
+            if (newPosition > Length) throw new ArgumentOutOfRangeException("newPosition > Size");
 
             CurrentPosition = newPosition;
         }
