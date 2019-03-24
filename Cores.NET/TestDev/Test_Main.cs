@@ -11,6 +11,10 @@ namespace IPA.TestDev
     {
         static void TestMain()
         {
+            //DateTimeOffset.Now.ToDtStr().Print();
+
+            //return;
+
             //JsonRpcTest.TestMain();
 
             //List<long> o = new List<long>();
@@ -35,16 +39,16 @@ namespace IPA.TestDev
 
             using (AsyncTester test = new AsyncTester(true))
             {
-                AsyncLogger g = new AsyncLogger(test.SingleLady, @"C:\tmp\deltest\log", "test", AsyncLoggerSwitchType.Hour, autoDeleteTotalMaxSize: 0);
+                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", AsyncLoggerSwitchType.Hour, autoDeleteTotalMaxSize: 0);
                 g.MaxPendingRecords = 100;
 
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
-                    string dummy = Str.MakeCharArray('x', 10000);
+                    string dummy = Str.MakeCharArray('x', 10);
                     //g.Add(new AsyncLogRecord("Hello"));
                     while (test.Cancelled.IsCancellationRequested == false)
                     {
-                        await g.AddAsync(new AsyncLogRecord(Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), AsyncLoggerPendingTreatment.Wait);
+                        await g.AddAsync(new AsyncLogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), AsyncLoggerPendingTreatment.Wait);
                         //await Task.Delay(1);
                         //break;
                     }

@@ -577,6 +577,10 @@ namespace IPA.Cores.Helper.Basic
         }
         public static Task<bool> WaitUntilCancelledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
             => WaitUntilCancelledAsync(cancel.Token, timeout);
+
+        public static DateTime OverwriteKind(this DateTime dt, DateTimeKind kind) => new DateTime(dt.Ticks, kind);
+
+        public static DateTimeOffset AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt.OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
     }
 }
 

@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 using IPA.Cores.Helper.Basic;
 
@@ -637,6 +639,8 @@ namespace IPA.Cores.Basic
 
         // 定数
         public const string DefaultHamcoreFileName = "@hamcore.se2";
+
+        public const int FileStreamBufferSize = 4096;
 
         // クラス変数
         static string hamcoreFileName = DefaultHamcoreFileName;
@@ -1504,6 +1508,59 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public Task<bool> ReadAsync(byte[] buf) => ReadAsync(buf, 0, buf.Length);
+        public Task<bool> ReadAsync(byte[] buf, int size) => ReadAsync(buf, 0, size);
+        public Task<bool> ReadAsync(byte[] buf, int offset, int size) => ReadAsync(buf.AsMemory(offset, size));
+        public async Task<bool> ReadAsync(Memory<byte> memory)
+        {
+            if (memory.Length == 0)
+            {
+                return true;
+            }
+
+            if (this.HamMode)
+            {
+                byte[] ret = hamBuf.Read((uint)memory.Length);
+
+                if (ret.Length != memory.Length)
+                {
+                    return false;
+                }
+
+                ret.CopyTo(memory);
+
+                return true;
+            }
+
+            using (await AsyncLockObj.LockWithAwait())
+            {
+                if (p != null)
+                {
+                    try
+                    {
+                        int ret = await p.ReadAsync(memory);
+                        if (ret == memory.Length)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Dbg.Where($"IO.ReadAsync('{this.Name}') failed. {ex.Message}");
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
         // ファイルに書き込む
         public bool Write(byte[] buf) => Write(buf, 0, buf.Length);
         public bool Write(byte[] buf, int size) => Write(buf, 0, size);
@@ -1564,8 +1621,9 @@ namespace IPA.Cores.Basic
 
                         return true;
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Dbg.Where($"IO.WriteAsync('{this.Name}') failed. {ex.Message}");
                         return false;
                     }
                 }
@@ -1671,13 +1729,13 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルを作成する
-        public static IO FileCreate(string name, bool no_share = false)
+        public static IO FileCreate(string name, bool noShare = false, bool useAsync = false)
         {
             name = InnerFilePath(name);
 
-            return fileCreateInner(name, no_share);
+            return fileCreateInner(name, noShare, useAsync);
         }
-        static IO fileCreateInner(string name, bool no_share)
+        static IO fileCreateInner(string name, bool noShare, bool useAsync)
         {
             IO o = new IO();
 
@@ -1685,7 +1743,7 @@ namespace IPA.Cores.Basic
 
             lock (o.lockObj)
             {
-                o.p = File.Open(name2, FileMode.Create, FileAccess.ReadWrite, no_share ? FileShare.None : FileShare.Read);
+                o.p = new FileStream(name2, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, FileStreamBufferSize, useAsync);
                 o.name = name2;
                 o.writeMode = true;
             }
@@ -1694,15 +1752,7 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルを開く
-        public static IO FileOpen(string name)
-        {
-            return FileOpen(name, false);
-        }
-        public static IO FileOpen(string name, bool writeMode)
-        {
-            return FileOpen(name, writeMode, false);
-        }
-        public static IO FileOpen(string name, bool writeMode, bool readLock)
+        public static IO FileOpen(string name, bool writeMode = false, bool readLock = false, bool useAsync = false)
         {
             name = InnerFilePath(name);
 
@@ -1725,10 +1775,10 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return fileOpenInner(name, writeMode, readLock);
+                return fileOpenInner(name, writeMode, readLock, useAsync);
             }
         }
-        static IO fileOpenInner(string name, bool writeMode, bool readLock)
+        static IO fileOpenInner(string name, bool writeMode, bool readLock, bool useAsync)
         {
             IO o = new IO();
 
@@ -1736,8 +1786,8 @@ namespace IPA.Cores.Basic
 
             lock (o.lockObj)
             {
-                o.p = File.Open(name2, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
-                    (readLock ? FileShare.None : FileShare.Read));
+                o.p = new FileStream(name2, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
+                    (readLock ? FileShare.None : FileShare.Read), FileStreamBufferSize, useAsync);
 
                 o.name = name2;
                 o.writeMode = writeMode;
@@ -2196,5 +2246,68 @@ namespace IPA.Cores.Basic
         }
 
         public static byte[] ReadEmbeddedFileData(string name, Type assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType).ReadToEnd();
+    }
+
+    // Win32 フォルダ圧縮操ユーティリティ
+    static class Win32FolderCompression
+    {
+        private const int FSCTL_SET_COMPRESSION = 0x9C040;
+        private const short COMPRESSION_FORMAT_NONE = 0;
+        private const short COMPRESSION_FORMAT_DEFAULT = 1;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern int DeviceIoControl(
+            SafeFileHandle hDevice,
+            int dwIoControlCode,
+            ref short lpInBuffer,
+            int nInBufferSize,
+            IntPtr lpOutBuffer,
+            int nOutBufferSize,
+            ref int lpBytesReturned,
+            IntPtr lpOverlapped);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern SafeFileHandle CreateFileW(
+             [MarshalAs(UnmanagedType.LPWStr)] string filename,
+             [MarshalAs(UnmanagedType.U4)] FileAccess access,
+             [MarshalAs(UnmanagedType.U4)] FileShare share,
+             IntPtr securityAttributes,
+             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+             IntPtr templateFile);
+
+        public static bool SetFolderCompress(string path, bool compressed)
+        {
+            if (Env.IsWindows == false)
+                return false;
+
+            try
+            {
+                path = path.InnerFilePath();
+
+                using (SafeFileHandle h = CreateFileW(path, FileAccess.Read | FileAccess.Write, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open,
+                    (FileAttributes)0x02000000, IntPtr.Zero))
+                {
+                    if (h.IsInvalid)
+                    {
+                        return false;
+                    }
+
+                    short lpInBuffer = compressed ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
+                    int lpBytesReturned = 0;
+
+                    if (DeviceIoControl(h, FSCTL_SET_COMPRESSION, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, ref lpBytesReturned, IntPtr.Zero) == 0)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

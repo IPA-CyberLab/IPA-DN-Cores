@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
@@ -234,6 +235,8 @@ namespace IPA.Cores.Basic
 
         public static long Tick64ToTime64(long tick) => History.Tick64ToTime64(tick);
         public static DateTime Tick64ToDateTime(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick));
+        public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).AsDateTimeOffset(false);
+        public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).ToLocalTime().AsDateTimeOffset(true);
     }
 
     static class Time
@@ -309,10 +312,16 @@ namespace IPA.Cores.Basic
 
         public static long DateTimeToTime64(DateTime dt) => (long)Util.ConvertDateTime(dt);
         public static DateTime Time64ToDateTime(long time64) => Util.ConvertDateTime((ulong)time64);
+        public static DateTimeOffset Time64ToDateTimeOffsetUtc(long time64) => Time64ToDateTime(time64);
+
+        //public static DateTimeOffset Time64ToDateTimeOffset(long time64) => Time64ToDateTime(
+
         public static long SystemTime64 => DateTimeToTime64(DateTime.UtcNow);
         public static long LocalTime64 => DateTimeToTime64(DateTime.Now);
 
         public static long Tick64ToTime64(long tick) => FastTick64.Tick64ToTime64(tick);
         public static DateTime Tick64ToDateTime(long tick) => FastTick64.Tick64ToDateTime(tick);
+        public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => FastTick64.Tick64ToDateTimeOffsetUtc(tick);
+        public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => FastTick64.Tick64ToDateTimeOffsetLocal(tick);
     }
 }

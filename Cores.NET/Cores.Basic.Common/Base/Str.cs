@@ -4377,14 +4377,14 @@ namespace IPA.Cores.Basic
             string msecStr = "";
             if (with_nanosecs)
             {
-                msecStr = ((decimal)ticks / (decimal)10000000).ToString(".0000000");
+                msecStr = dt.ToString("fffffff");
             }
             else if (with_msecs)
             {
-                msecStr = ((decimal)ticks / (decimal)10000000).ToString(".000");
+                msecStr = dt.ToString("ffff").Substring(0, 3);
             }
 
-            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr.Split('.')[1] : "");
+            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr : "");
 
             if (option == DtstrOption.DateOnly)
             {
@@ -4411,14 +4411,14 @@ namespace IPA.Cores.Basic
             string msecStr = "";
             if (with_nanosecs)
             {
-                msecStr = ((decimal)ticks / (decimal)10000000).ToString(".0000000");
+                msecStr = dt.ToString("fffffff");
             }
             else if (with_msecs)
             {
-                msecStr = ((decimal)ticks / (decimal)10000000).ToString(".000");
+                msecStr = dt.ToString("ffff").Substring(0, 3);
             }
 
-            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr.Split('.')[1] : "");
+            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr : "");
 
             if (option == DtstrOption.DateOnly)
             {

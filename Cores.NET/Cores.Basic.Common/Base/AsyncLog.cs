@@ -56,40 +56,38 @@ namespace IPA.Cores.Basic
     enum AsyncLoggerPendingTreatment
     {
         Discard,
-        Ignore,
         Wait,
+        WriteForcefully,
     }
+    
 
     class AsyncLogRecord
     {
-        public long Tick { get; }
+        public DateTimeOffset DateTime { get; }
         public object Data { get; }
 
         public AsyncLogRecord(object data) : this(0, data) { }
-        public AsyncLogRecord(long tick, object data)
+        public AsyncLogRecord(long tick, object data) : this(Time.Tick64ToDateTimeOffsetLocal(tick), data) { }
+        public AsyncLogRecord(DateTimeOffset dateTime, object data)
         {
-            if (tick == 0) tick = FastTick64.Now;
-            this.Tick = tick;
+            this.DateTime = dateTime;
             this.Data = data;
         }
 
         public void WriteRecordToBuffer(MemoryBuffer<byte> b)
         {
-            // Get the time
-            DateTime dt = Time.Tick64ToDateTime(this.Tick).ToLocalTime();
-
             // Convert a time to a string
-            string writeStr = dt.ToDtStr(true, DtstrOption.All, false) + " " + this.Data.ToString() + "\r\n";
+            string writeStr = DateTime.ToDtStr(true, DtstrOption.All, false) + " " + this.Data.ToString() + "\r\n";
             b.Write(writeStr.GetBytes_Ascii());
         }
     }
 
-    class AsyncLogger : AsyncCleanupable
+    class Logger : AsyncCleanupable
     {
         public const long DefaultMaxLogSize = 1073741823;
         public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;
-        public const int DefaultMaxPendingRecords = 1000;
+        public const int DefaultMaxPendingRecords = 10000;
 
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
@@ -113,7 +111,7 @@ namespace IPA.Cores.Basic
         bool LogNumberIncremented = false;
         string LastCachedStr = null;
 
-        public AsyncLogger(AsyncCleanuperLady lady, string dir, string prefix, AsyncLoggerSwitchType switchType = AsyncLoggerSwitchType.Day,
+        public Logger(AsyncCleanuperLady lady, string dir, string prefix, AsyncLoggerSwitchType switchType = AsyncLoggerSwitchType.Day,
             long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
             long autoDeleteTotalMaxSize = 0)
             : base(lady)
@@ -218,6 +216,8 @@ namespace IPA.Cores.Basic
                             {
                                 if (await io.WriteAsync(b.Memory) == false)
                                 {
+                                    Dbg.Where();
+
                                     io.Close(true);
                                     io = null;
                                     b.Clear();
@@ -250,6 +250,8 @@ namespace IPA.Cores.Basic
                                 {
                                     if (await io.WriteAsync(b.Memory) == false)
                                     {
+                                        Dbg.Where();
+
                                         io.Close(true);
                                         io = null;
                                         b.Clear();
@@ -272,17 +274,17 @@ namespace IPA.Cores.Basic
                     lock (this.Lock)
                     {
                         logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
-                            rec.Tick, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
+                            rec.DateTime, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
 
                         if (logDateChanged)
                         {
                             this.CurrentLogNumber = 0;
                             MakeLogFileName(out fileName, this.DirName, this.Prefix,
-                                rec.Tick, this.SwitchType, 0, ref currentLogFileDateName);
+                                rec.DateTime, this.SwitchType, 0, ref currentLogFileDateName);
                             for (int i = 0; ; i++)
                             {
                                 MakeLogFileName(out string tmp, this.DirName, this.Prefix,
-                                    rec.Tick, this.SwitchType, i, ref currentLogFileDateName);
+                                    rec.DateTime, this.SwitchType, i, ref currentLogFileDateName);
 
                                 if (IO.IsFileExists(tmp) == false)
                                     break;
@@ -308,6 +310,7 @@ namespace IPA.Cores.Basic
                                     {
                                         if (await io.WriteAsync(b.Memory) == false)
                                         {
+                                            Dbg.Where();
                                             io.Close(true);
                                             b.Clear();
                                             io = null;
@@ -333,7 +336,7 @@ namespace IPA.Cores.Basic
                             currentFileName = fileName;
                             try
                             {
-                                io = IO.FileOpen(fileName, true);
+                                io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
                                 this.CurrentFilePointer = io.FileSize64;
                                 io.Seek(SeekOrigin.End, 0);
                             }
@@ -345,14 +348,18 @@ namespace IPA.Cores.Basic
                                     try
                                     {
                                         IO.MakeDirIfNotExists(this.DirName);
+                                        Win32FolderCompression.SetFolderCompress(this.DirName, true);
                                     }
                                     catch { }
                                 }
                                 try
                                 {
-                                    io = IO.FileCreate(fileName);
+                                    io = IO.FileCreate(fileName, useAsync: true);
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    Dbg.Where($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                }
                                 this.CurrentFilePointer = 0;
                             }
                         }
@@ -363,7 +370,7 @@ namespace IPA.Cores.Basic
                         currentFileName = fileName;
                         try
                         {
-                            io = IO.FileOpen(fileName, true);
+                            io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
                             this.CurrentFilePointer = io.FileSize64;
                             io.Seek(SeekOrigin.End, 0);
                         }
@@ -375,16 +382,18 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     IO.MakeDirIfNotExists(this.DirName);
+                                    Win32FolderCompression.SetFolderCompress(this.DirName, true);
                                 }
                                 catch { }
                             }
                             this.CurrentFilePointer = 0;
                             try
                             {
-                                io = IO.FileCreate(fileName);
+                                io = IO.FileCreate(fileName, useAsync: true);
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                Dbg.Where($"IO.FileCreate('{fileName}') failed. {ex.Message}");
                                 await Task.Delay(30);
                             }
                         }
@@ -443,7 +452,7 @@ namespace IPA.Cores.Basic
 
             while (MaxPendingRecords >= 1 && this.RecordQueue.Count >= this.MaxPendingRecords)
             {
-                if (pendingTreatment == AsyncLoggerPendingTreatment.Ignore)
+                if (pendingTreatment == AsyncLoggerPendingTreatment.WriteForcefully)
                 {
                     break;
                 }
@@ -505,10 +514,10 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        bool MakeLogFileName(out string name, string dir, string prefix, long tick, AsyncLoggerSwitchType switchType, int num, ref string oldDateStr)
+        bool MakeLogFileName(out string name, string dir, string prefix, DateTimeOffset dateTime, AsyncLoggerSwitchType switchType, int num, ref string oldDateStr)
         {
             prefix = prefix.TrimNonNull();
-            string tmp = MakeLogFileNameStringFromTick(tick, switchType);
+            string tmp = MakeLogFileNameStringFromTick(dateTime, switchType);
             string tmp2 = "";
             bool ret = false;
 
@@ -542,40 +551,39 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        string MakeLogFileNameStringFromTick(long tick, AsyncLoggerSwitchType switchType)
+        string MakeLogFileNameStringFromTick(DateTimeOffset dateTime, AsyncLoggerSwitchType switchType)
         {
             if (this.LastCachedStr != null)
-                if (this.LastTick == tick && this.LastSwitchType == switchType)
+                if (this.LastTick == dateTime.Ticks && this.LastSwitchType == switchType)
                     return this.LastCachedStr;
 
-            DateTime dt = Time.Tick64ToDateTime(tick).ToLocalTime();
             string str = "";
 
             switch (switchType)
             {
                 case AsyncLoggerSwitchType.Second:
-                    str = dt.ToString("_yyyyMMdd_HHmmss");
+                    str = dateTime.ToString("_yyyyMMdd_HHmmss");
                     break;
 
                 case AsyncLoggerSwitchType.Minute:
-                    str = dt.ToString("_yyyyMMdd_HHmm");
+                    str = dateTime.ToString("_yyyyMMdd_HHmm");
                     break;
 
                 case AsyncLoggerSwitchType.Hour:
-                    str = dt.ToString("_yyyyMMdd_HH");
+                    str = dateTime.ToString("_yyyyMMdd_HH");
                     break;
 
                 case AsyncLoggerSwitchType.Day:
-                    str = dt.ToString("_yyyyMMdd");
+                    str = dateTime.ToString("_yyyyMMdd");
                     break;
 
                 case AsyncLoggerSwitchType.Month:
-                    str = dt.ToString("_yyyyMM");
+                    str = dateTime.ToString("_yyyyMM");
                     break;
             }
 
             this.LastCachedStr = str;
-            this.LastTick = tick;
+            this.LastTick = dateTime.Ticks;
             this.LastSwitchType = SwitchType;
 
             return str;

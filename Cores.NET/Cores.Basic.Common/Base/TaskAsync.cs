@@ -333,11 +333,11 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public static Task StartSyncTaskAsync(Action action) => Task.Factory.StartNew(action);
-        public static Task<T> StartSyncTaskAsync<T>(Func<T> action) => Task.Factory.StartNew(action);
+        public static async Task StartSyncTaskAsync(Action action) { await Task.Yield(); await Task.Factory.StartNew(action); }
+        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action) { await Task.Yield(); return await Task.Factory.StartNew(action); }
 
-        public static Task StartAsyncTaskAsync(Func<Task> action) => action();
-        public static Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action) => action();
+        public static async Task StartAsyncTaskAsync(Func<Task> action) { await Task.Yield(); await action(); }
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action) { await Task.Yield(); return await action(); }
 
         public static int GetMinTimeout(params int[] values)
         {
