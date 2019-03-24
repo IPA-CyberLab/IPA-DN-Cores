@@ -37,7 +37,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    static class Unisys
+    static class UnixSysCalls
     {
         static class Libraries
         {

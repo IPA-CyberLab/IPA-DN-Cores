@@ -424,18 +424,6 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        //// IEnumerable の項目を List に追加
-        //public static void AddArrayItemsToList<T>(IEnumerable<T> items, List<T> list)
-        //{
-        //    foreach (var o in items)
-        //        list.Add(o);
-        //}
-        //public static void AddArrayItemsToList(IEnumerable items, IList list)
-        //{
-        //    foreach (var o in items)
-        //        list.Add(o);
-        //}
-
         // ストリームからすべて読み出す
         public static byte[] ReadAllFromStream(Stream st)
         {
@@ -1237,31 +1225,13 @@ namespace IPA.Cores.Basic
         }
 
         // false
-        public static bool False
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public static bool False => false;
 
         // true
-        public static bool True
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public static bool True => true;
 
         // Zero
-        public static int Zero
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public static int Zero => 0;
 
         // バイト配列から構造体にコピー
         public static object ByteToStruct(byte[] src, Type type)
@@ -1596,22 +1566,22 @@ namespace IPA.Cores.Basic
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
 
-        public RetryHelper(int default_retry_interval, int default_try_count)
+        public RetryHelper(int defaultRetry_interval, int defaultTryCount)
         {
-            this.DefaultRetryInterval = default_retry_interval;
-            this.DefaultTryCount = default_try_count;
+            this.DefaultRetryInterval = defaultRetry_interval;
+            this.DefaultTryCount = defaultTryCount;
         }
 
-        public async Task<T> RunAsync(Func<Task<T>> proc, int? retry_interval = null, int? try_count = null)
+        public async Task<T> RunAsync(Func<Task<T>> proc, int? retryInterval = null, int? tryCount = null)
         {
-            if (retry_interval == null) retry_interval = DefaultRetryInterval;
-            if (try_count == null) try_count = DefaultTryCount;
-            try_count = Math.Max((int)try_count, 1);
-            retry_interval = Math.Max((int)retry_interval, 0);
+            if (retryInterval == null) retryInterval = DefaultRetryInterval;
+            if (tryCount == null) tryCount = DefaultTryCount;
+            tryCount = Math.Max((int)tryCount, 1);
+            retryInterval = Math.Max((int)retryInterval, 0);
 
             Exception first_exception = null;
 
-            for (int i = 0; i < try_count; i++)
+            for (int i = 0; i < tryCount; i++)
             {
                 try
                 {
@@ -1626,9 +1596,9 @@ namespace IPA.Cores.Basic
                         first_exception = ex;
                     }
 
-                    Dbg.WriteLine($"RetryHelper: round {i} error. Retrying in {retry_interval} msecs...");
+                    Dbg.WriteLine($"RetryHelper: round {i} error. Retrying in {retryInterval} msecs...");
 
-                    await Task.Delay((int)retry_interval);
+                    await Task.Delay((int)retryInterval);
                 }
             }
 
@@ -1642,12 +1612,12 @@ namespace IPA.Cores.Basic
         static object lockobj = new object();
         T obj;
 
-        public T CreateOrGet(Func<T> create_proc)
+        public T CreateOrGet(Func<T> createProc)
         {
             lock (lockobj)
             {
                 if (obj == null)
-                    obj = create_proc();
+                    obj = createProc();
                 return obj;
             }
         }
@@ -1688,39 +1658,39 @@ namespace IPA.Cores.Basic
 
     class IntervalManager
     {
-        long last_tick = 0;
+        long LastTick = 0;
         public int Interval { get; private set; }
-        int last_interval;
+        int LastInterval;
 
         public IntervalManager(int interval)
         {
-            last_tick = Time.Tick64;
-            this.last_interval = this.Interval = interval;
+            LastTick = Time.Tick64;
+            this.LastInterval = this.Interval = interval;
         }
 
-        public int GetNextInterval(int? next_interval = null)
-            => GetNextInterval(out _, next_interval);
+        public int GetNextInterval(int? nextInterval = null)
+            => GetNextInterval(out _, nextInterval);
 
-        int count = 0;
+        int Count = 0;
 
-        public int GetNextInterval(out int last_timediff, int? next_interval = null)
+        public int GetNextInterval(out int lastTimediff, int? nextInterval = null)
         {
             long now = Time.Tick64;
-            last_timediff = (int)(now - last_tick);
-            int over = last_timediff - this.last_interval;
-            if (next_interval != null) this.Interval = (int)next_interval;
-            this.last_interval = this.Interval;
+            lastTimediff = (int)(now - LastTick);
+            int over = lastTimediff - this.LastInterval;
+            if (nextInterval != null) this.Interval = (int)nextInterval;
+            this.LastInterval = this.Interval;
             int ret = this.Interval;
             if (over > 0)
             {
                 ret = this.Interval - over;
             }
-            last_tick = now;
+            LastTick = now;
             if (ret <= 0) ret = 1;
             if (this.Interval == Timeout.Infinite) ret = Timeout.Infinite;
-            if (last_timediff <= 0) last_timediff = 1;
-            if (count == 0) last_timediff = this.last_interval;
-            count++;
+            if (lastTimediff <= 0) lastTimediff = 1;
+            if (Count == 0) lastTimediff = this.LastInterval;
+            Count++;
             return ret;
         }
     }
@@ -1747,44 +1717,44 @@ namespace IPA.Cores.Basic
 
     class DelayLoader<T> : IDisposable
     {
-        Func<long, (T, long)> load_proc;
-        int retry_interval;
-        int update_interval;
-        ThreadObj thread;
-        ManualResetEventSlim halt_event = new ManualResetEventSlim();
+        Func<long, (T, long)> LoadProc;
+        int RetryInterval;
+        int UpdateInterval;
+        ThreadObj Thread;
+        ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
         public readonly ManualResetEventSlim LoadCompleteEvent = new ManualResetEventSlim();
-        bool halt_flag = false;
+        bool HaltFlag = false;
 
         public T Data { get; private set; }
 
-        public DelayLoader(Func<long, (T data, long data_timestamp)> load_proc, int retry_interval = 1000, int update_interval = 1000)
+        public DelayLoader(Func<long, (T data, long dataTimeStamp)> loadProc, int retryInterval = 1000, int updateInterval = 1000)
         {
-            this.load_proc = load_proc;
-            this.retry_interval = retry_interval;
-            this.update_interval = update_interval;
+            this.LoadProc = loadProc;
+            this.RetryInterval = retryInterval;
+            this.UpdateInterval = updateInterval;
 
-            this.thread = new ThreadObj(thread_proc, is_background: true);
+            this.Thread = new ThreadObj(ThreadProc, isBackground: true);
         }
 
-        void thread_proc(object param)
+        void ThreadProc(object param)
         {
-            long last_timestamp = 0;
+            long lastTimeStamp = 0;
 
-            (T data, long data_timestamp) ret;
+            (T data, long dataTimeStamp) ret;
 
             LABEL_RETRY:
             try
             {
                 // データの読み込み
-                ret = load_proc(last_timestamp);
+                ret = LoadProc(lastTimeStamp);
             }
             catch (Exception ex)
             {
                 Dbg.WriteLine(ex.ToString());
 
-                halt_event.Wait(retry_interval);
+                HaltEvent.Wait(RetryInterval);
 
-                if (halt_flag)
+                if (HaltFlag)
                 {
                     return;
                 }
@@ -1795,14 +1765,14 @@ namespace IPA.Cores.Basic
             if (ret.data != null)
             {
                 // 読み込んだデータをグローバルにセット
-                last_timestamp = ret.data_timestamp;
+                lastTimeStamp = ret.dataTimeStamp;
                 this.Data = ret.data;
                 LoadCompleteEvent.Set();
             }
 
             // 次回まで待機
-            halt_event.Wait(update_interval);
-            if (halt_flag)
+            HaltEvent.Wait(UpdateInterval);
+            if (HaltFlag)
             {
                 return;
             }
@@ -1810,14 +1780,14 @@ namespace IPA.Cores.Basic
             goto LABEL_RETRY;
         }
 
-        Once dispose_flag;
+        Once DisposeFlag;
         public void Dispose()
         {
-            if (dispose_flag.IsFirstCall())
+            if (DisposeFlag.IsFirstCall())
             {
-                halt_flag = true;
-                halt_event.Set();
-                thread.WaitForEnd();
+                HaltFlag = true;
+                HaltEvent.Set();
+                Thread.WaitForEnd();
             }
         }
     }

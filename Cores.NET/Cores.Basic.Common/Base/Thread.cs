@@ -65,24 +65,24 @@ namespace IPA.Cores.Basic
 
     class BatchQueue<T>
     {
-        object lockobj = new object();
-        Queue<BatchQueueItem<T>> queue = new Queue<BatchQueueItem<T>>();
-        AutoResetEvent new_event_signal = new AutoResetEvent(false);
+        CriticalSection LockObj = new CriticalSection();
+        Queue<BatchQueueItem<T>> ItemQueue = new Queue<BatchQueueItem<T>>();
+        AutoResetEvent NewEventSignal = new AutoResetEvent(false);
         public int IdleThreadRemainTimeMsecs { get; }
         public const int DefaultIdleThreadRemainTimeMsecs = 1000;
-        Action<BatchQueueItem<T>[]> process_items_proc;
+        Action<BatchQueueItem<T>[]> ProcessItemsProc;
 
         public BatchQueue(Action<BatchQueueItem<T>[]> process_items_proc, int idle_thread_remain_time_msecs = DefaultIdleThreadRemainTimeMsecs)
         {
             this.IdleThreadRemainTimeMsecs = idle_thread_remain_time_msecs;
-            this.process_items_proc = process_items_proc;
+            this.ProcessItemsProc = process_items_proc;
         }
 
-        void do_process_list(List<BatchQueueItem<T>> current)
+        void DoProcessList(List<BatchQueueItem<T>> current)
         {
             try
             {
-                this.process_items_proc(current.ToArray());
+                this.ProcessItemsProc(current.ToArray());
             }
             catch (Exception ex)
             {
@@ -95,13 +95,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        int thread_mode = 0;
+        int threadMode = 0;
 
         static Benchmark th = new Benchmark("num_thread_created", disabled: true);
-        void bg_thread_proc(object param)
+        void BackgroundThreadProc(object param)
         {
             Thread.CurrentThread.IsBackground = true;
-            long last_queue_proc_tick = 0;
+            long lastQueueProcTick = 0;
 
             //Dbg.WhereThread($"BatchQueue<{typeof(T).Name}>: Start background thread.");
             th.IncrementMe++;
@@ -110,43 +110,43 @@ namespace IPA.Cores.Basic
             {
                 List<BatchQueueItem<T>> current = new List<BatchQueueItem<T>>();
 
-                lock (lockobj)
+                lock (LockObj)
                 {
-                    while (this.queue.Count >= 1)
+                    while (this.ItemQueue.Count >= 1)
                     {
-                        BatchQueueItem<T> item = this.queue.Dequeue();
+                        BatchQueueItem<T> item = this.ItemQueue.Dequeue();
                         current.Add(item);
                     }
                 }
 
                 if (current.Count >= 1)
                 {
-                    do_process_list(current);
+                    DoProcessList(current);
 
-                    last_queue_proc_tick = Time.Tick64;
+                    lastQueueProcTick = Time.Tick64;
                 }
 
-                if (this.queue.Count >= 1)
+                if (this.ItemQueue.Count >= 1)
                 {
                     continue;
                 }
 
                 long now = Time.Tick64;
-                long remain_time = last_queue_proc_tick + (long)this.IdleThreadRemainTimeMsecs - now;
-                if (remain_time >= 1)
+                long remainTime = lastQueueProcTick + (long)this.IdleThreadRemainTimeMsecs - now;
+                if (remainTime >= 1)
                 {
-                    new_event_signal.WaitOne((int)remain_time);
+                    NewEventSignal.WaitOne((int)remainTime);
                 }
                 else
                 {
-                    lock (lockobj)
+                    lock (LockObj)
                     {
-                        if (this.queue.Count >= 1)
+                        if (this.ItemQueue.Count >= 1)
                         {
                             continue;
                         }
 
-                        thread_mode = 0;
+                        threadMode = 0;
 
                         //Dbg.WhereThread($"BatchQueue<{typeof(T).Name}>: Stop background thread.");
 
@@ -160,20 +160,20 @@ namespace IPA.Cores.Basic
         {
             BatchQueueItem<T> q = new BatchQueueItem<T>(item);
 
-            lock (lockobj)
+            lock (LockObj)
             {
-                this.queue.Enqueue(q);
+                this.ItemQueue.Enqueue(q);
 
-                if (thread_mode == 0)
+                if (threadMode == 0)
                 {
-                    thread_mode = 1;
+                    threadMode = 1;
 
-                    ThreadObj t = new ThreadObj(bg_thread_proc);
+                    ThreadObj t = new ThreadObj(BackgroundThreadProc);
                 }
 
             }
 
-            new_event_signal.Set();
+            NewEventSignal.Set();
 
             return q;
         }
@@ -231,95 +231,94 @@ namespace IPA.Cores.Basic
 
     class MutantUnix : Mutant
     {
-
-        string filename;
-        int locked_count = 0;
-        IntPtr fs;
+        string Filename;
+        int LockedCount = 0;
+        IntPtr FileHandle;
 
         public MutantUnix(string name)
         {
-            filename = Path.Combine(Env.UnixMutantDir, Mutant.GenerateInternalName(name) + ".lock");
+            Filename = Path.Combine(Env.UnixMutantDir, Mutant.GenerateInternalName(name) + ".lock");
             IO.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
         public override void Lock()
         {
-            if (locked_count == 0)
+            if (LockedCount == 0)
             {
                 IO.MakeDirIfNotExists(Env.UnixMutantDir);
 
-                Unisys.Permissions perm = Unisys.Permissions.S_IRUSR | Unisys.Permissions.S_IWUSR | Unisys.Permissions.S_IRGRP | Unisys.Permissions.S_IWGRP | Unisys.Permissions.S_IROTH | Unisys.Permissions.S_IWOTH;
+                UnixSysCalls.Permissions perm = UnixSysCalls.Permissions.S_IRUSR | UnixSysCalls.Permissions.S_IWUSR | UnixSysCalls.Permissions.S_IRGRP | UnixSysCalls.Permissions.S_IWGRP | UnixSysCalls.Permissions.S_IROTH | UnixSysCalls.Permissions.S_IWOTH;
 
-                IntPtr f = Unisys.Open(filename, Unisys.OpenFlags.O_CREAT, (int)perm);
-                if (f.ToInt64() < 0)
+                IntPtr fd = UnixSysCalls.Open(Filename, UnixSysCalls.OpenFlags.O_CREAT, (int)perm);
+                if (fd.ToInt64() < 0)
                 {
                     throw new IOException("Open failed.");
                 }
 
-                if (Unisys.FLock(f, Unisys.LockOperations.LOCK_EX) == -1)
+                if (UnixSysCalls.FLock(fd, UnixSysCalls.LockOperations.LOCK_EX) == -1)
                 {
                     throw new IOException("FLock failed.");
                 }
 
-                this.fs = f;
+                this.FileHandle = fd;
 
-                locked_count++;
+                LockedCount++;
             }
         }
 
         public override void Unlock()
         {
-            if (locked_count <= 0) throw new ApplicationException("locked_count <= 0");
-            if (locked_count == 1)
+            if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
+            if (LockedCount == 1)
             {
-                Unisys.Close(this.fs);
+                UnixSysCalls.Close(this.FileHandle);
 
-                this.fs = IntPtr.Zero;
+                this.FileHandle = IntPtr.Zero;
             }
-            locked_count--;
+            LockedCount--;
         }
     }
 
     class MutantWin32 : Mutant
     {
-        Mutex mutex;
-        int locked_count = 0;
+        Mutex MutexObj;
+        int LockedCount = 0;
 
         public MutantWin32(string name)
         {
             bool f;
-            mutex = new Mutex(false, Mutant.GenerateInternalName(name), out f);
+            MutexObj = new Mutex(false, Mutant.GenerateInternalName(name), out f);
         }
 
         public override void Lock()
         {
-            if (locked_count == 0)
+            if (LockedCount == 0)
             {
-                int num_retry = 0;
+                int numRetry = 0;
                 LABEL_RETRY:
 
                 try
                 {
-                    mutex.WaitOne();
+                    MutexObj.WaitOne();
                 }
                 catch (AbandonedMutexException)
                 {
-                    if (num_retry >= 100) throw;
-                    num_retry++;
+                    if (numRetry >= 100) throw;
+                    numRetry++;
                     goto LABEL_RETRY;
                 }
             }
-            locked_count++;
+            LockedCount++;
         }
 
         public override void Unlock()
         {
-            if (locked_count <= 0) throw new ApplicationException("locked_count <= 0");
-            if (locked_count == 1)
+            if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
+            if (LockedCount == 1)
             {
-                mutex.ReleaseMutex();
+                MutexObj.ReleaseMutex();
             }
-            locked_count--;
+            LockedCount--;
         }
     }
 
@@ -364,7 +363,7 @@ namespace IPA.Cores.Basic
     {
         Dictionary<string, SemaphoneArrayItem> array = new Dictionary<string, SemaphoneArrayItem>();
 
-        string normalize_name(string name)
+        string NormalizeName(string name)
         {
             Str.NormalizeString(ref name);
             name = name.ToUpperInvariant();
@@ -384,7 +383,7 @@ namespace IPA.Cores.Basic
 
         public void Release(string name)
         {
-            name = normalize_name(name);
+            name = NormalizeName(name);
 
             SemaphoneArrayItem sem;
 
@@ -419,7 +418,7 @@ namespace IPA.Cores.Basic
                 throw new ApplicationException("Invalid args.");
             }
 
-            name = normalize_name(name);
+            name = NormalizeName(name);
 
             SemaphoneArrayItem sem = null;
 
@@ -463,26 +462,26 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        static volatile int num_busy_worker_threads = 0;
-        static volatile int num_worker_threads = 0;
+        static volatile int NumBusyWorkerThreads = 0;
+        static volatile int NumWorkerThreads = 0;
 
-        static Queue<Tuple<Action<object>, object>> queue = new Queue<Tuple<Action<object>, object>>();
+        static Queue<Tuple<Action<object>, object>> ActionQueue = new Queue<Tuple<Action<object>, object>>();
 
         static AutoResetEvent signal = new AutoResetEvent(false);
 
-        static void worker_thread_proc()
+        static void WorkerThreadProc()
         {
             while (true)
             {
-                Interlocked.Increment(ref num_busy_worker_threads);
+                Interlocked.Increment(ref NumBusyWorkerThreads);
                 while (true)
                 {
                     Tuple<Action<object>, object> work = null;
-                    lock (queue)
+                    lock (ActionQueue)
                     {
-                        if (queue.Count != 0)
+                        if (ActionQueue.Count != 0)
                         {
-                            work = queue.Dequeue();
+                            work = ActionQueue.Dequeue();
                         }
                     }
 
@@ -502,7 +501,7 @@ namespace IPA.Cores.Basic
                         break;
                     }
                 }
-                Interlocked.Decrement(ref num_busy_worker_threads);
+                Interlocked.Decrement(ref NumBusyWorkerThreads);
 
                 signal.WaitOne();
             }
@@ -510,17 +509,17 @@ namespace IPA.Cores.Basic
 
         public static void Run(Action<object> action, object arg)
         {
-            if (num_busy_worker_threads == num_worker_threads)
+            if (NumBusyWorkerThreads == NumWorkerThreads)
             {
-                Interlocked.Increment(ref num_worker_threads);
-                Thread t = new Thread(worker_thread_proc);
+                Interlocked.Increment(ref NumWorkerThreads);
+                Thread t = new Thread(WorkerThreadProc);
                 t.IsBackground = true;
                 t.Start();
             }
 
-            lock (queue)
+            lock (ActionQueue)
             {
-                queue.Enqueue(new Tuple<Action<object>, object>(action, arg));
+                ActionQueue.Enqueue(new Tuple<Action<object>, object>(action, arg));
             }
 
             signal.Set();
@@ -530,40 +529,40 @@ namespace IPA.Cores.Basic
 
     class WorkerQueuePrivate
     {
-        object lockObj = new object();
+        CriticalSection LockObj = new CriticalSection();
 
-        List<ThreadObj> thread_list;
-        ThreadProc thread_proc;
-        int num_worker_threads;
-        Queue<object> taskQueue = new Queue<object>();
-        Exception raised_exception = null;
+        List<ThreadObj> ThreadList;
+        ThreadProc ThreadProc;
+        int NumWorkerThreads;
+        Queue<object> TaskQueue = new Queue<object>();
+        Exception RaisedException = null;
 
-        void worker_thread(object param)
+        void WorkerThread(object param)
         {
             while (true)
             {
                 object task = null;
 
                 // キューから 1 個取得する
-                lock (lockObj)
+                lock (LockObj)
                 {
-                    if (taskQueue.Count == 0)
+                    if (TaskQueue.Count == 0)
                     {
                         return;
                     }
-                    task = taskQueue.Dequeue();
+                    task = TaskQueue.Dequeue();
                 }
 
                 // タスクを処理する
                 try
                 {
-                    this.thread_proc(task);
+                    this.ThreadProc(task);
                 }
                 catch (Exception ex)
                 {
-                    if (raised_exception == null)
+                    if (RaisedException == null)
                     {
-                        raised_exception = ex;
+                        RaisedException = ex;
                     }
 
                     Dbg.WriteLine(ex.Message);
@@ -571,36 +570,36 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public WorkerQueuePrivate(ThreadProc thread_proc, int num_worker_threads, object[] tasks)
+        public WorkerQueuePrivate(ThreadProc threadProc, int numWorkerThreads, object[] tasks)
         {
-            thread_list = new List<ThreadObj>();
+            ThreadList = new List<ThreadObj>();
             int i;
 
-            this.thread_proc = thread_proc;
-            this.num_worker_threads = num_worker_threads;
+            this.ThreadProc = threadProc;
+            this.NumWorkerThreads = numWorkerThreads;
 
             foreach (object task in tasks)
             {
-                taskQueue.Enqueue(task);
+                TaskQueue.Enqueue(task);
             }
 
-            raised_exception = null;
+            RaisedException = null;
 
-            for (i = 0; i < num_worker_threads; i++)
+            for (i = 0; i < numWorkerThreads; i++)
             {
-                ThreadObj t = new ThreadObj(worker_thread);
+                ThreadObj t = new ThreadObj(WorkerThread);
 
-                thread_list.Add(t);
+                ThreadList.Add(t);
             }
 
-            foreach (ThreadObj t in thread_list)
+            foreach (ThreadObj t in ThreadList)
             {
                 t.WaitForEnd();
             }
 
-            if (raised_exception != null)
+            if (RaisedException != null)
             {
-                throw raised_exception;
+                throw RaisedException;
             }
         }
     }
@@ -623,27 +622,27 @@ namespace IPA.Cores.Basic
 
     class Event
     {
-        EventWaitHandle h;
+        EventWaitHandle EventObj;
         public const int Infinite = Timeout.Infinite;
 
         public Event()
         {
-            init(false);
+            InternalInit(false);
         }
 
         public Event(bool manualReset)
         {
-            init(manualReset);
+            InternalInit(manualReset);
         }
 
-        void init(bool manualReset)
+        void InternalInit(bool manualReset)
         {
-            h = new EventWaitHandle(false, (manualReset ? EventResetMode.ManualReset : EventResetMode.AutoReset));
+            EventObj = new EventWaitHandle(false, (manualReset ? EventResetMode.ManualReset : EventResetMode.AutoReset));
         }
 
         public void Set()
         {
-            h.Set();
+            EventObj.Set();
         }
 
         public bool Wait()
@@ -652,16 +651,16 @@ namespace IPA.Cores.Basic
         }
         public bool Wait(int millisecs)
         {
-            return h.WaitOne(millisecs, false);
+            return EventObj.WaitOne(millisecs, false);
         }
 
         public delegate bool WaitWithPollDelegate();
 
-        public bool WaitWithPoll(int wait_millisecs, int poll_interval, WaitWithPollDelegate proc)
+        public bool WaitWithPoll(int waitMillisecs, int pollInterval, WaitWithPollDelegate proc)
         {
-            long end_tick = Time.Tick64 + (long)wait_millisecs;
+            long end_tick = Time.Tick64 + (long)waitMillisecs;
 
-            if (wait_millisecs == Infinite)
+            if (waitMillisecs == Infinite)
             {
                 end_tick = long.MaxValue;
             }
@@ -669,7 +668,7 @@ namespace IPA.Cores.Basic
             while (true)
             {
                 long now = Time.Tick64;
-                if (wait_millisecs != Infinite)
+                if (waitMillisecs != Infinite)
                 {
                     if (now >= end_tick)
                     {
@@ -678,7 +677,7 @@ namespace IPA.Cores.Basic
                 }
 
                 long next_wait = (end_tick - now);
-                next_wait = Math.Min(next_wait, (long)poll_interval);
+                next_wait = Math.Min(next_wait, (long)pollInterval);
                 next_wait = Math.Max(next_wait, 1);
 
                 if (proc != null)
@@ -696,13 +695,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static EventWaitHandle[] toArray(Event[] events)
+        static EventWaitHandle[] ToArray(Event[] events)
         {
             List<EventWaitHandle> list = new List<EventWaitHandle>();
 
             foreach (Event e in events)
             {
-                list.Add(e.h);
+                list.Add(e.EventObj);
             }
 
             return list.ToArray();
@@ -716,15 +715,15 @@ namespace IPA.Cores.Basic
         {
             if (events.Length <= 64)
             {
-                return waitAllInner(events, millisecs);
+                return WaitAllInner(events, millisecs);
             }
             else
             {
-                return waitAllMulti(events, millisecs);
+                return WaitAllMulti(events, millisecs);
             }
         }
 
-        static bool waitAllMulti(Event[] events, int millisecs)
+        static bool WaitAllMulti(Event[] events, int millisecs)
         {
             int numBlocks = (events.Length + 63) / 64;
             List<Event>[] list = new List<Event>[numBlocks];
@@ -755,7 +754,7 @@ namespace IPA.Cores.Basic
                         waitmsecs = Timeout.Infinite;
                     }
 
-                    bool ret = waitAllInner(o.ToArray(), waitmsecs);
+                    bool ret = WaitAllInner(o.ToArray(), waitmsecs);
                     if (ret == false)
                     {
                         return false;
@@ -770,13 +769,13 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        static bool waitAllInner(Event[] events, int millisecs)
+        static bool WaitAllInner(Event[] events, int millisecs)
         {
             if (events.Length == 1)
             {
                 return events[0].Wait(millisecs);
             }
-            return EventWaitHandle.WaitAll(toArray(events), millisecs, false);
+            return EventWaitHandle.WaitAll(ToArray(events), millisecs, false);
         }
 
         public static bool WaitAny(Event[] events)
@@ -789,21 +788,21 @@ namespace IPA.Cores.Basic
             {
                 return events[0].Wait(millisecs);
             }
-            return ((WaitHandle.WaitTimeout == EventWaitHandle.WaitAny(toArray(events), millisecs, false)) ? false : true);
+            return ((WaitHandle.WaitTimeout == EventWaitHandle.WaitAny(ToArray(events), millisecs, false)) ? false : true);
         }
 
         public IntPtr Handle
         {
             get
             {
-                return h.Handle;
+                return EventObj.Handle;
             }
         }
     }
 
     class ThreadData
     {
-        static LocalDataStoreSlot slot = Thread.AllocateDataSlot();
+        static LocalDataStoreSlot Slot = Thread.AllocateDataSlot();
 
         public static ConcurrentDictionary<string, object> CurrentThreadData
         {
@@ -819,7 +818,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                t = (ConcurrentDictionary<string, object>)Thread.GetData(slot);
+                t = (ConcurrentDictionary<string, object>)Thread.GetData(Slot);
             }
             catch
             {
@@ -830,7 +829,7 @@ namespace IPA.Cores.Basic
             {
                 t = new ConcurrentDictionary<string, object>();
 
-                Thread.SetData(slot, t);
+                Thread.SetData(Slot, t);
             }
 
             return t;
@@ -845,51 +844,36 @@ namespace IPA.Cores.Basic
 
         public readonly static RefInt NumCurrentThreads = new RefInt();
 
-        static Once g_DebugReportNumCurrentThreads_flag;
+        static Once Global_DebugReportNumCurrentThreads_Flag;
         public static void DebugReportNumCurrentThreads()
         {
-            if (g_DebugReportNumCurrentThreads_flag.IsFirstCall())
+            if (Global_DebugReportNumCurrentThreads_Flag.IsFirstCall())
             {
                 GlobalIntervalReporter.Singleton.ReportRefObject("NumThreads", NumCurrentThreads);
             }
         }
 
-        static int defaultStackSize = 100000;
-
-        static LocalDataStoreSlot currentObjSlot = Thread.AllocateDataSlot();
+        static LocalDataStoreSlot CurrentObjSlot = Thread.AllocateDataSlot();
 
         public const int Infinite = Timeout.Infinite;
 
-        bool stopped = false;
+        public bool IsFinished { get; private set; } = false;
 
-        public bool IsFinished
-        {
-            get
-            {
-                return this.stopped;
-            }
-        }
-
-        ThreadProc proc;
-        Thread thread;
-        EventWaitHandle waitEnd;
-        AsyncManualResetEvent waitEndAsync;
-        EventWaitHandle waitInitForUser;
-        AsyncManualResetEvent waitInitForUserAsync;
-        public Thread Thread
-        {
-            get { return thread; }
-        }
-        object userObject;
-        int index;
-        public int Index { get => this.index; }
+        ThreadProc Proc;
+        EventWaitHandle WaitEnd;
+        AsyncManualResetEvent WaitEndAsync;
+        EventWaitHandle WaitInitForUser;
+        AsyncManualResetEvent WaitInitForUserAsync;
+        public Thread Thread { get; }
+        object UserObject;
+        public int Index { get; }
         public string Name { get; }
 
-        public ThreadObj(ThreadProc threadProc, object userObject = null, int stacksize = 0, int index = 0, string name = null, bool is_background = false)
+        public ThreadObj(ThreadProc threadProc, object userObject = null, int stacksize = 0, int index = 0, string name = null, bool isBackground = false)
         {
             if (stacksize == 0)
             {
-                stacksize = defaultStackSize;
+                stacksize = DefaultStackSize;
             }
 
             if (name.IsEmpty())
@@ -912,66 +896,55 @@ namespace IPA.Cores.Basic
 
             this.Name = name;
 
-            this.proc = threadProc;
-            this.userObject = userObject;
-            this.index = index;
-            waitEnd = new EventWaitHandle(false, EventResetMode.ManualReset);
-            waitEndAsync = new AsyncManualResetEvent();
-            waitInitForUser = new EventWaitHandle(false, EventResetMode.ManualReset);
-            waitInitForUserAsync = new AsyncManualResetEvent();
+            this.Proc = threadProc;
+            this.UserObject = userObject;
+            this.Index = index;
+            WaitEnd = new EventWaitHandle(false, EventResetMode.ManualReset);
+            WaitEndAsync = new AsyncManualResetEvent();
+            WaitInitForUser = new EventWaitHandle(false, EventResetMode.ManualReset);
+            WaitInitForUserAsync = new AsyncManualResetEvent();
             NumCurrentThreads.Increment();
-            this.thread = new Thread(new ParameterizedThreadStart(commonThreadProc), stacksize);
+            this.Thread = new Thread(new ParameterizedThreadStart(commonThreadProc), stacksize);
             if (this.Name.IsFilled())
             {
-                this.thread.Name = this.Name;
+                this.Thread.Name = this.Name;
             }
-            this.thread.IsBackground = is_background;
-            this.thread.Start(this);
+            this.Thread.IsBackground = isBackground;
+            this.Thread.Start(this);
         }
 
-        public static ThreadObj Start(ThreadProc proc, object param = null, bool is_background = false)
+        public static ThreadObj Start(ThreadProc proc, object param = null, bool isBackground = false)
         {
-            return new ThreadObj(proc, param, is_background: is_background);
+            return new ThreadObj(proc, param, isBackground: isBackground);
         }
 
-        public static ThreadObj[] StartMany(int num, ThreadProc proc, object param = null, bool is_background = false)
+        public static ThreadObj[] StartMany(int num, ThreadProc proc, object param = null, bool isBackground = false)
         {
             List<ThreadObj> ret = new List<ThreadObj>();
             for (int i = 0; i < num; i++)
             {
-                ThreadObj t = new ThreadObj(proc, param, 0, i, is_background: is_background);
+                ThreadObj t = new ThreadObj(proc, param, 0, i, isBackground: isBackground);
                 ret.Add(t);
             }
             return ret.ToArray();
         }
 
-        public static int DefaultStackSize
-        {
-            get
-            {
-                return defaultStackSize;
-            }
-
-            set
-            {
-                defaultStackSize = value;
-            }
-        }
+        public static int DefaultStackSize { get; set; } = 100000;
 
         void commonThreadProc(object obj)
         {
-            Thread.SetData(currentObjSlot, this);
+            Thread.SetData(CurrentObjSlot, this);
 
             try
             {
-                this.proc(this.userObject);
+                this.Proc(this.UserObject);
             }
             finally
             {
-                stopped = true;
+                IsFinished = true;
                 NumCurrentThreads.Decrement();
-                waitEnd.Set();
-                waitEndAsync.Set();
+                WaitEnd.Set();
+                WaitEndAsync.Set();
             }
         }
 
@@ -980,37 +953,37 @@ namespace IPA.Cores.Basic
 
         public static ThreadObj GetCurrentThreadObj()
         {
-            return (ThreadObj)Thread.GetData(currentObjSlot);
+            return (ThreadObj)Thread.GetData(CurrentObjSlot);
         }
 
         public static void NoticeInited()
         {
-            GetCurrentThreadObj().waitInitForUser.Set();
-            GetCurrentThreadObj().waitInitForUserAsync.Set();
+            GetCurrentThreadObj().WaitInitForUser.Set();
+            GetCurrentThreadObj().WaitInitForUserAsync.Set();
         }
 
         public void WaitForInit()
         {
-            waitInitForUser.WaitOne();
+            WaitInitForUser.WaitOne();
         }
 
         public Task WaitForInitAsync()
         {
-            return waitInitForUserAsync.WaitAsync();
+            return WaitInitForUserAsync.WaitAsync();
         }
 
         public void WaitForEnd(int timeout)
         {
-            waitEnd.WaitOne(timeout, false);
+            WaitEnd.WaitOne(timeout, false);
         }
         public void WaitForEnd()
         {
-            waitEnd.WaitOne();
+            WaitEnd.WaitOne();
         }
 
         public Task WaitForEndAsync()
         {
-            return waitEndAsync.WaitAsync();
+            return WaitEndAsync.WaitAsync();
         }
 
         public static void Sleep(int millisec)
@@ -1028,9 +1001,9 @@ namespace IPA.Cores.Basic
             Thread.Sleep(0);
         }
 
-        public static void ProcessWorkQueue(ThreadProc thread_proc, int num_worker_threads, object[] tasks)
+        public static void ProcessWorkQueue(ThreadProc threadProc, int numWorkerThreads, object[] tasks)
         {
-            WorkerQueuePrivate q = new WorkerQueuePrivate(thread_proc, num_worker_threads, tasks);
+            WorkerQueuePrivate q = new WorkerQueuePrivate(threadProc, numWorkerThreads, tasks);
         }
     }
 
@@ -1038,13 +1011,13 @@ namespace IPA.Cores.Basic
     {
         public static int RegularWatchInterval = 1 * 1000;
 
-        static ConcurrentDictionary<string, Func<bool>> callbacks_list = new ConcurrentDictionary<string, Func<bool>>();
+        static ConcurrentDictionary<string, Func<bool>> CallbacksList = new ConcurrentDictionary<string, Func<bool>>();
 
         static AutoResetEvent ev = new AutoResetEvent(true);
 
         static StillRunningThreadRegister()
         {
-            ThreadObj t = new ThreadObj(thread_proc);
+            ThreadObj t = new ThreadObj(ThreadProc);
         }
 
         public static string RegisterRefInt(RefInt r)
@@ -1070,7 +1043,7 @@ namespace IPA.Cores.Basic
             ManualResetEventSlim ev = new ManualResetEventSlim(false);
             Once once_flag = new Once();
 
-            callbacks_list[key] = new Func<bool>(() =>
+            CallbacksList[key] = new Func<bool>(() =>
             {
                 if (once_flag.IsFirstCall())
                 {
@@ -1088,7 +1061,7 @@ namespace IPA.Cores.Basic
 
         public static void Unregister(string key)
         {
-            callbacks_list.TryRemove(key, out _);
+            CallbacksList.TryRemove(key, out _);
         }
 
         public static void NotifyStatusChanges()
@@ -1096,13 +1069,13 @@ namespace IPA.Cores.Basic
             ev.Set();
         }
 
-        static void thread_proc(object param)
+        static void ThreadProc(object param)
         {
             Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
             while (true)
             {
-                var procs = callbacks_list.Values;
+                var procs = CallbacksList.Values;
 
                 bool prevent = false;
 

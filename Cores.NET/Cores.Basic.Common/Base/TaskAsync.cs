@@ -3118,11 +3118,11 @@ namespace IPA.Cores.Basic
 
     static class TaskVar
     {
-        internal static AsyncLocal<TaskVarObject> async_local_obj = new AsyncLocal<TaskVarObject>();
+        internal static AsyncLocal<TaskVarObject> AsyncLocalObj = new AsyncLocal<TaskVarObject>();
 
         public static T Get<T>()
         {
-            var v = async_local_obj.Value;
+            var v = AsyncLocalObj.Value;
             if (v == null) return default(T);
 
             T ret = (T)v.Get(typeof(T));
@@ -3130,12 +3130,12 @@ namespace IPA.Cores.Basic
         }
         public static void Set<T>(T obj)
         {
-            if (async_local_obj.Value == null) async_local_obj.Value = new TaskVarObject();
-            async_local_obj.Value.Set(typeof(T), obj);
+            if (AsyncLocalObj.Value == null) AsyncLocalObj.Value = new TaskVarObject();
+            AsyncLocalObj.Value.Set(typeof(T), obj);
         }
 
-        public static object Get(string name) => async_local_obj.Value.Get(name);
-        public static void Set(string name, object obj) => async_local_obj.Value.Set(name, obj);
+        public static object Get(string name) => AsyncLocalObj.Value.Get(name);
+        public static void Set(string name, object obj) => AsyncLocalObj.Value.Set(name, obj);
     }
 
     class AsyncOneShotTester : AsyncCleanupable

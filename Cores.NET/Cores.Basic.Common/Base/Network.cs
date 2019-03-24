@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
             else
             {
                 UnixSockList = new List<Sock>();
-                Unisys.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
+                UnixSysCalls.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
             }
         }
 
@@ -94,8 +94,8 @@ namespace IPA.Cores.Basic
                     IsReleased = true;
                     if (Env.IsUnix)
                     {
-                        Unisys.Close(this.UnixPipeRead);
-                        Unisys.Close(this.UnixPipeWrite);
+                        UnixSysCalls.Close(this.UnixPipeRead);
+                        UnixSysCalls.Close(this.UnixPipeWrite);
                     }
                 }
             }
@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
             {
                 if (this.UnixCurrentPipeData <= 100)
                 {
-                    Unisys.Write(this.UnixPipeWrite, new byte[] { 0 }, 0, 1);
+                    UnixSysCalls.Write(this.UnixPipeWrite, new byte[] { 0 }, 0, 1);
                     this.UnixCurrentPipeData++;
                 }
             }
@@ -203,7 +203,7 @@ namespace IPA.Cores.Basic
 
                 if (this.UnixCurrentPipeData == 0)
                 {
-                    Unisys.Poll(reads.ToArray(), writes.ToArray(), timeout);
+                    UnixSysCalls.Poll(reads.ToArray(), writes.ToArray(), timeout);
                 }
 
                 int readret;
@@ -211,7 +211,7 @@ namespace IPA.Cores.Basic
                 this.UnixCurrentPipeData = 0;
                 do
                 {
-                    readret = Unisys.Read(this.UnixPipeRead, tmp, 0, tmp.Length);
+                    readret = UnixSysCalls.Read(this.UnixPipeRead, tmp, 0, tmp.Length);
                 }
                 while (readret >= 1);
 
