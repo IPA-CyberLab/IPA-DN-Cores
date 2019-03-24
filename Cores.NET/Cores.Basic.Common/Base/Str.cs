@@ -4704,16 +4704,12 @@ namespace IPA.Cores.Basic
             return "";
         }
         // 空かどうか調べる
-        public static bool IsEmptyStr(string str)
+        public static bool IsEmptyStr(string s)
         {
-            if (str == null || str.Trim().Length == 0)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            if (s == null) return true;
+            if (s.Length == 0) return true;
+            if (Char.IsWhiteSpace(s[0]) == false) return false;
+            return s.Trim().Length == 0;
         }
         public static bool IsFilledStr(string str)
         {

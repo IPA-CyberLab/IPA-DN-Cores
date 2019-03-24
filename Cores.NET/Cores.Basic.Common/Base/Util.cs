@@ -839,7 +839,10 @@ namespace IPA.Cores.Basic
                 case BigInteger bi: return bi == 0;
                 case DateTime dt: return Util.IsZero(dt);
                 case DateTimeOffset dt: return Util.IsZero(dt);
-                case string s: return s.Length == 0 || s.Trim().Length == 0;
+                case string s:
+                    if (s.Length == 0) return true;
+                    if (Char.IsWhiteSpace(s[0]) == false) return false;
+                    return s.Trim().Length == 0;
                 case Memory<byte> m: return m.IsZero();
             }
             return false;

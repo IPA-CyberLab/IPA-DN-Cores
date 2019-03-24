@@ -59,26 +59,66 @@ namespace IPA.Cores.Basic
         Wait,
         WriteForcefully,
     }
-    
+
+    [Serializable]
+    class LogInfoOptions
+    {
+        public bool WithTimeStamp = true;
+        public bool WithMachineName = false;
+        public bool WithAppName = false;
+        public bool WithKind = false;
+
+        public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
+        public string AppName = Env.ExeAssemblySimpleName;
+        public string Kind = "";
+
+        public void Normalize(string prefix)
+        {
+            this.MachineName = this.MachineName.NonNullTrim().NoSpace();
+            this.AppName = this.AppName.NonNullTrim().NoSpace();
+            this.Kind = this.Kind.NonNullTrim().Default(prefix).NoSpace();
+        }
+    }
 
     class LogRecord
     {
-        public DateTimeOffset DateTime { get; }
+        static readonly byte[] NewLineBytes = "\r\n".GetBytes_Ascii();
+
+        public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
 
         public LogRecord(object data) : this(0, data) { }
         public LogRecord(long tick, object data) : this(Time.Tick64ToDateTimeOffsetLocal(tick), data) { }
         public LogRecord(DateTimeOffset dateTime, object data)
         {
-            this.DateTime = dateTime;
+            this.TimeStamp = dateTime;
             this.Data = data;
         }
 
-        public void WriteRecordToBuffer(MemoryBuffer<byte> b)
+        public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
         {
             // Convert a time to a string
-            string writeStr = DateTime.ToDtStr(true, DtstrOption.All, false) + " " + this.Data.ToString() + "\r\n";
-            b.Write(writeStr.GetBytes_Ascii());
+            List<string> o = new List<string>();
+
+            if (opt.WithTimeStamp)
+                o.Add(TimeStamp.ToDtStr(true, DtstrOption.All, false));
+
+            if (opt.WithMachineName)
+                o.Add(opt.MachineName);
+
+            if (opt.WithAppName)
+                o.Add(opt.AppName);
+
+            if (opt.WithKind)
+                o.Add(opt.Kind);
+
+            string dataStr = this.Data.ToString();
+            o.Add(dataStr);
+
+            string str = Str.CombineStringArray2(" ", o.ToArray());
+
+            b.Write(str.GetBytes_Ascii());
+            b.Write(NewLineBytes);
         }
     }
 
@@ -103,6 +143,8 @@ namespace IPA.Cores.Basic
 
         public int MaxPendingRecords { get; set; } = DefaultMaxPendingRecords;
 
+        LogInfoOptions InfoOptions { get; }
+
         readonly CancellationTokenSource Cancel = new CancellationTokenSource();
         long LastTick = 0;
         LogSwitchType LastSwitchType = LogSwitchType.None;
@@ -112,6 +154,7 @@ namespace IPA.Cores.Basic
         string LastCachedStr = null;
 
         public Logger(AsyncCleanuperLady lady, string dir, string prefix, LogSwitchType switchType = LogSwitchType.Day,
+            LogInfoOptions infoOptions = default,
             long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
             long autoDeleteTotalMaxSize = 0)
             : base(lady)
@@ -119,12 +162,16 @@ namespace IPA.Cores.Basic
             try
             {
                 this.DirName = dir.NonNullTrim();
-                this.Prefix = prefix.NonNullTrim();
+                this.Prefix = prefix.NonNullTrim().Default("log");
                 this.SwitchType = switchType;
-                this.Extension = extension.IsFilledOrDefault(DefaultExtension);
+                this.Extension = extension.Default(DefaultExtension);
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
                 if (this.Extension.StartsWith(".") == false)
                     this.Extension = "." + this.Extension;
+
+                this.InfoOptions = infoOptions.CloneDeep();
+                this.InfoOptions.Normalize(this.Prefix);
+
 
                 if (autoDeleteTotalMaxSize != 0)
                 {
@@ -274,17 +321,17 @@ namespace IPA.Cores.Basic
                     lock (this.Lock)
                     {
                         logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
-                            rec.DateTime, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
+                            rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
 
                         if (logDateChanged)
                         {
                             this.CurrentLogNumber = 0;
                             MakeLogFileName(out fileName, this.DirName, this.Prefix,
-                                rec.DateTime, this.SwitchType, 0, ref currentLogFileDateName);
+                                rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
                             for (int i = 0; ; i++)
                             {
                                 MakeLogFileName(out string tmp, this.DirName, this.Prefix,
-                                    rec.DateTime, this.SwitchType, i, ref currentLogFileDateName);
+                                    rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
                                 if (IO.IsFileExists(tmp) == false)
                                     break;
@@ -402,7 +449,7 @@ namespace IPA.Cores.Basic
                     }
 
                     // Write the contents of the log to the buffer
-                    rec.WriteRecordToBuffer(b);
+                    rec.WriteRecordToBuffer(this, this.InfoOptions, b);
 
                     if (io == null)
                         break;

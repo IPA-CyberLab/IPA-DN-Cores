@@ -82,6 +82,9 @@ namespace IPA.Cores.Basic
         public static string PathSeparator { get; }
         public static string StartupCurrentDir { get; }
         public static bool IsDotNetCore { get; }
+        public static Assembly ExeAssembly { get; }
+        public static string ExeAssemblySimpleName { get; }
+        public static string ExeAssemblyFullName { get; }
 
         static IO lockFile;
 
@@ -97,6 +100,11 @@ namespace IPA.Cores.Basic
         // 初期化
         static Env()
         {
+            ExeAssembly = Assembly.GetExecutingAssembly();
+            var asmName = ExeAssembly.GetName();
+            ExeAssemblySimpleName = asmName.Name;
+            ExeAssemblyFullName = asmName.FullName;
+
             FrameworkVersion = Environment.Version;
             if (FrameworkInfoString.StartsWith(".NET Core", StringComparison.OrdinalIgnoreCase))
             {
@@ -283,7 +291,6 @@ namespace IPA.Cores.Basic
             // ロックファイルの作成
             string lockFileName = Path.Combine(Env.MyTempDir, "LockFile.dat");
             lockFile = IO.FileCreate(lockFileName, Env.IsUnix);
-
 
         }
 
