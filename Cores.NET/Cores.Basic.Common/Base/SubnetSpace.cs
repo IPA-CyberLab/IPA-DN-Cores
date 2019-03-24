@@ -48,19 +48,19 @@ namespace IPA.Cores.Basic
 
         public T GetDataFirst() => this.DataList.GetFirstOrNull();
 
-        internal List<(int sort_key, T data)> tmp_sort_list = new List<(int sort_key, T data)>();
+        internal List<(int sortKey, T data)> TmpSortList = new List<(int sortKey, T data)>();
 
         int hash_code;
 
         public SubnetSpaceSubnet() { }
 
-        public SubnetSpaceSubnet(IPAddr address, int subnet_len, T data) : this(address, subnet_len, new T[] { data }.ToList()) { }
+        public SubnetSpaceSubnet(IPAddr address, int subnetLen, T data) : this(address, subnetLen, new T[] { data }.ToList()) { }
 
-        public SubnetSpaceSubnet(IPAddr address, int subnet_len, List<T> data_list = null)
+        public SubnetSpaceSubnet(IPAddr address, int subnetLen, List<T> dataList = null)
         {
             this.Address = address;
-            this.SubnetLength = subnet_len;
-            this.DataList = data_list;
+            this.SubnetLength = subnetLen;
+            this.DataList = dataList;
 
             if (this.DataList == null)
             {
@@ -149,51 +149,51 @@ namespace IPA.Cores.Basic
     {
         public AddressFamily AddressFamily;
         public RadixTrie<SubnetSpaceSubnet<T>> Trie;
-        bool is_readonly = false;
+        bool IsReadOnly = false;
 
         public SubnetSpace()
         {
-            is_readonly = true;
+            IsReadOnly = true;
         }
 
-        public SubnetSpace(AddressFamily address_family)
+        public SubnetSpace(AddressFamily addressFamily)
         {
-            is_readonly = false;
-            this.AddressFamily = address_family;
+            IsReadOnly = false;
+            this.AddressFamily = addressFamily;
         }
 
         // バッチ処理のためサブネット情報を追加する
-        List<(IPAddress address, int subnet_length, T data, int data_sort_key)> batch_add_list = new List<(IPAddress address, int subnet_length, T data, int data_sort_key)>();
-        public void BatchAddOne(IPAddress address, int subnet_length, T data, int data_sort_key)
+        List<(IPAddress address, int subnetLength, T data, int dataSortKey)> BatchAddList = new List<(IPAddress address, int subnetLength, T data, int dataSortKey)>();
+        public void BatchAddOne(IPAddress address, int subnetLength, T data, int dataSortKey)
         {
-            if (is_readonly) throw new ApplicationException("The SubnetSpace object is readonly.");
+            if (IsReadOnly) throw new ApplicationException("The SubnetSpace object is readonly.");
 
-            batch_add_list.Add((address, subnet_length, data, data_sort_key));
+            BatchAddList.Add((address, subnetLength, data, dataSortKey));
         }
 
         public void BatchAddFinish()
         {
-            if (is_readonly) throw new ApplicationException("The SubnetSpace object is readonly.");
+            if (IsReadOnly) throw new ApplicationException("The SubnetSpace object is readonly.");
 
-            SetData(batch_add_list.ToArray());
-            batch_add_list.Clear();
+            SetData(BatchAddList.ToArray());
+            BatchAddList.Clear();
         }
 
         // サブネット情報を投入する
-        public void SetData((IPAddress address, int subnet_length, T data, int data_sort_key)[] items)
+        public void SetData((IPAddress address, int subnetLength, T data, int dataSortKey)[] items)
         {
-            if (is_readonly) throw new ApplicationException("The SubnetSpace object is readonly.");
+            if (IsReadOnly) throw new ApplicationException("The SubnetSpace object is readonly.");
 
             // 重複するものを 1 つにまとめる
             Distinct<SubnetSpaceSubnet<T>> distinct = new Distinct<SubnetSpaceSubnet<T>>();
 
             foreach (var item in items)
             {
-                SubnetSpaceSubnet<T> s = new SubnetSpaceSubnet<T>(IPAddr.FromAddress(item.address), item.subnet_length);
+                SubnetSpaceSubnet<T> s = new SubnetSpaceSubnet<T>(IPAddr.FromAddress(item.address), item.subnetLength);
 
                 s = distinct.AddOrGet(s);
 
-                s.tmp_sort_list.Add((item.data_sort_key, item.data));
+                s.TmpSortList.Add((item.subnetLength, item.data));
             }
 
             SubnetSpaceSubnet<T>[] subnets = distinct.Values;
@@ -201,26 +201,26 @@ namespace IPA.Cores.Basic
             foreach (SubnetSpaceSubnet<T> subnet in subnets)
             {
                 // tmp_sort_list の内容を sort_key に基づき逆ソートする
-                subnet.tmp_sort_list.Sort((a, b) =>
+                subnet.TmpSortList.Sort((a, b) =>
                 {
-                    return -a.sort_key.CompareTo(b.sort_key);
+                    return -a.sortKey.CompareTo(b.sortKey);
                 });
 
                 // ソート済みオブジェクトを順に保存する
                 subnet.DataList = new List<T>();
-                foreach (var a in subnet.tmp_sort_list)
+                foreach (var a in subnet.TmpSortList)
                 {
                     subnet.DataList.Add(a.data);
                 }
             }
 
-            List<SubnetSpaceSubnet<T>> subnets_list = subnets.ToList();
+            List<SubnetSpaceSubnet<T>> subnetsList = subnets.ToList();
 
-            subnets_list.Sort(SubnetSpaceSubnet<T>.CompareBySubnetLength);
+            subnetsList.Sort(SubnetSpaceSubnet<T>.CompareBySubnetLength);
 
             var trie = new RadixTrie<SubnetSpaceSubnet<T>>();
 
-            foreach (var subnet in subnets_list)
+            foreach (var subnet in subnetsList)
             {
                 var node = trie.Insert(subnet.GetBinaryBytes());
 
@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
 
             this.Trie = trie;
 
-            is_readonly = true;
+            IsReadOnly = true;
         }
 
         // 検索をする

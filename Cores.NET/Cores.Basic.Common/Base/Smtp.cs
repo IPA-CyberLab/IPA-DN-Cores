@@ -186,7 +186,6 @@ namespace IPA.Cores.Basic
                 a.ContentId = id;
             }
             a.TransferEncoding = TransferEncoding.Base64;
-            //a.ContentLink = new Uri("http://www.softether.co.jp/" + id);
 
             AddLinkedResourceFile(a);
         }

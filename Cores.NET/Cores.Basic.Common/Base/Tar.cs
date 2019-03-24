@@ -286,9 +286,9 @@ namespace IPA.Cores.Basic
             AddFileSimple(name, data, pos, len, dt, "0000777", "0000777");
         }
 
-        public void AddFileSimple(string name, byte[] data, int pos, int len, DateTime dt, string directory_mode, string mode)
+        public void AddFileSimple(string name, byte[] data, int pos, int len, DateTime dt, string directoryMode, string mode)
         {
-            AddFileStart(name, len, dt, directory_mode, mode);
+            AddFileStart(name, len, dt, directoryMode, mode);
             AddFileData(data, pos, len);
         }
 
@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic
             AddFileStart(name, size, dt, "0000777", "0000777");
         }
 
-        public void AddFileStart(string name, long size, DateTime dt, string directory_mode, string mode)
+        public void AddFileStart(string name, long size, DateTime dt, string directoryMode, string mode)
         {
             if (currentFileSize != 0 || currentPos != 0)
             {
@@ -307,7 +307,7 @@ namespace IPA.Cores.Basic
             name = name.Replace('\\', '/');
             if (Str.InStr(name, "/", true))
             {
-                AddDirectory(Path.GetDirectoryName(name), dt, directory_mode);
+                AddDirectory(Path.GetDirectoryName(name), dt, directoryMode);
             }
 
             TarHeader h = TarUtil.CreateTarHeader(name, encoding, 0, size, dt, mode);

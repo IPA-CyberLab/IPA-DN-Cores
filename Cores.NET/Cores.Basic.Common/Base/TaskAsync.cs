@@ -48,24 +48,24 @@ namespace IPA.Cores.Basic
     {
         public class LockHolder : IDisposable
         {
-            AsyncLock parent;
+            AsyncLock Parent;
             internal LockHolder(AsyncLock parent)
             {
-                this.parent = parent;
+                this.Parent = parent;
             }
 
-            Once dispose_flag;
+            Once DisposeFlag;
             public void Dispose()
             {
-                if (dispose_flag.IsFirstCall())
+                if (DisposeFlag.IsFirstCall())
                 {
-                    this.parent.Unlock();
+                    this.Parent.Unlock();
                 }
             }
         }
 
-        SemaphoreSlim semaphone = new SemaphoreSlim(1, 1);
-        Once dispose_flag;
+        SemaphoreSlim Semaphone = new SemaphoreSlim(1, 1);
+        Once DisposeFlag;
 
         public async Task<LockHolder> LockWithAwait()
         {
@@ -80,67 +80,67 @@ namespace IPA.Cores.Basic
             return new LockHolder(this);
         }
 
-        public Task _LockAsync() => semaphone.WaitAsync();
-        public void _Lock() => semaphone.Wait();
-        public void Unlock() => semaphone.Release();
+        public Task _LockAsync() => Semaphone.WaitAsync();
+        public void _Lock() => Semaphone.Wait();
+        public void Unlock() => Semaphone.Release();
 
         public void Dispose()
         {
-            if (dispose_flag.IsFirstCall())
+            if (DisposeFlag.IsFirstCall())
             {
-                semaphone.DisposeSafe();
-                semaphone = null;
+                Semaphone.DisposeSafe();
+                Semaphone = null;
             }
         }
     }
 
     static class AsyncPreciseDelay
     {
-        static SortedList<long, AsyncManualResetEvent> wait_list = new SortedList<long, AsyncManualResetEvent>();
+        static SortedList<long, AsyncManualResetEvent> WaitList = new SortedList<long, AsyncManualResetEvent>();
 
-        static Stopwatch w;
+        static Stopwatch stopWatch;
 
-        static Thread background_thread;
+        static Thread BackgroundThread;
 
         static AutoResetEvent ev = new AutoResetEvent(false);
 
-        static List<Thread> worker_thread_list = new List<Thread>();
+        static List<Thread> WorkerThreadList = new List<Thread>();
 
-        static Queue<AsyncManualResetEvent> queued_tcs = new Queue<AsyncManualResetEvent>();
+        static Queue<AsyncManualResetEvent> QueuedManualResetEvents = new Queue<AsyncManualResetEvent>();
 
-        static AutoResetEvent queued_tcs_signal = new AutoResetEvent(false);
+        static AutoResetEvent QueuedAutoResetEvents = new AutoResetEvent(false);
 
         static AsyncPreciseDelay()
         {
-            w = new Stopwatch();
-            w.Start();
+            stopWatch = new Stopwatch();
+            stopWatch.Start();
 
-            background_thread = new Thread(background_thread_proc);
+            BackgroundThread = new Thread(BackgroundThreadProc);
             try
             {
-                background_thread.Priority = ThreadPriority.Highest;
+                BackgroundThread.Priority = ThreadPriority.Highest;
             }
             catch { }
-            background_thread.IsBackground = true;
-            background_thread.Start();
+            BackgroundThread.IsBackground = true;
+            BackgroundThread.Start();
         }
 
-        static volatile int num_busy_worker_threads = 0;
-        static volatile int num_worker_threads = 0;
+        static volatile int NumBusyWorkerThreads = 0;
+        static volatile int NumWorkerThreads = 0;
 
-        static void worker_thread_proc()
+        static void WorkerThreadProc()
         {
             while (true)
             {
-                Interlocked.Increment(ref num_busy_worker_threads);
+                Interlocked.Increment(ref NumBusyWorkerThreads);
                 while (true)
                 {
                     AsyncManualResetEvent tcs = null;
-                    lock (queued_tcs)
+                    lock (QueuedManualResetEvents)
                     {
-                        if (queued_tcs.Count != 0)
+                        if (QueuedManualResetEvents.Count != 0)
                         {
-                            tcs = queued_tcs.Dequeue();
+                            tcs = QueuedManualResetEvents.Dequeue();
                         }
                     }
 
@@ -153,31 +153,31 @@ namespace IPA.Cores.Basic
                         break;
                     }
                 }
-                Interlocked.Decrement(ref num_busy_worker_threads);
+                Interlocked.Decrement(ref NumBusyWorkerThreads);
 
-                queued_tcs_signal.WaitOne();
+                QueuedAutoResetEvents.WaitOne();
             }
         }
 
         static void FireWorkerThread(AsyncManualResetEvent tc)
         {
-            if (num_busy_worker_threads == num_worker_threads)
+            if (NumBusyWorkerThreads == NumWorkerThreads)
             {
-                Interlocked.Increment(ref num_worker_threads);
-                Thread t = new Thread(worker_thread_proc);
+                Interlocked.Increment(ref NumWorkerThreads);
+                Thread t = new Thread(WorkerThreadProc);
                 t.IsBackground = true;
                 t.Start();
                 //Console.WriteLine($"num_worker_threads = {num_worker_threads}");
             }
 
-            lock (queued_tcs)
+            lock (QueuedManualResetEvents)
             {
-                queued_tcs.Enqueue(tc);
+                QueuedManualResetEvents.Enqueue(tc);
             }
-            queued_tcs_signal.Set();
+            QueuedAutoResetEvents.Set();
         }
 
-        static void background_thread_proc()
+        static void BackgroundThreadProc()
         {
             //Benchmark b1 = new Benchmark("num_fired");
             //Benchmark b2 = new Benchmark("num_loop");
@@ -185,48 +185,48 @@ namespace IPA.Cores.Basic
             while (true)
             {
                 long now = Tick;
-                long next_wait_target = -1;
+                long nextWaitTarget = -1;
 
-                List<AsyncManualResetEvent> fire_event_list = new List<AsyncManualResetEvent>();
+                List<AsyncManualResetEvent> fireEventList = new List<AsyncManualResetEvent>();
 
-                lock (wait_list)
+                lock (WaitList)
                 {
-                    List<long> past_target_list = new List<long>();
-                    List<long> future_target_list = new List<long>();
+                    List<long> pastTargetList = new List<long>();
+                    List<long> futureTargetList = new List<long>();
 
-                    foreach (long target in wait_list.Keys)
+                    foreach (long target in WaitList.Keys)
                     {
                         if (now >= target)
                         {
-                            past_target_list.Add(target);
-                            next_wait_target = 0;
+                            pastTargetList.Add(target);
+                            nextWaitTarget = 0;
                         }
                         else
                         {
-                            future_target_list.Add(target);
+                            futureTargetList.Add(target);
                         }
                     }
 
-                    foreach (long target in past_target_list)
+                    foreach (long target in pastTargetList)
                     {
-                        AsyncManualResetEvent e = wait_list[target];
+                        AsyncManualResetEvent e = WaitList[target];
 
-                        wait_list.Remove(target);
+                        WaitList.Remove(target);
 
-                        fire_event_list.Add(e);
+                        fireEventList.Add(e);
                     }
 
-                    if (next_wait_target == -1)
+                    if (nextWaitTarget == -1)
                     {
-                        if (wait_list.Count >= 1)
+                        if (WaitList.Count >= 1)
                         {
-                            next_wait_target = wait_list.Keys[0];
+                            nextWaitTarget = WaitList.Keys[0];
                         }
                     }
                 }
 
                 int n = 0;
-                foreach (AsyncManualResetEvent tc in fire_event_list)
+                foreach (AsyncManualResetEvent tc in fireEventList)
                 {
                     //tc.TrySetResult(0);
                     //Task.Factory.StartNew(() => tc.TrySetResult(0));
@@ -238,18 +238,18 @@ namespace IPA.Cores.Basic
                 //b2.IncrementMe++;
 
                 now = Tick;
-                long next_wait_tick = (Math.Max(next_wait_target - now, 0));
-                if (next_wait_target == -1)
+                long nextWaitTick = (Math.Max(nextWaitTarget - now, 0));
+                if (nextWaitTarget == -1)
                 {
-                    next_wait_tick = -1;
+                    nextWaitTick = -1;
                 }
-                if (next_wait_tick >= 1 || next_wait_tick == -1)
+                if (nextWaitTick >= 1 || nextWaitTick == -1)
                 {
-                    if (next_wait_tick == -1 || next_wait_tick >= 100)
+                    if (nextWaitTick == -1 || nextWaitTick >= 100)
                     {
-                        next_wait_tick = 100;
+                        nextWaitTick = 100;
                     }
-                    ev.WaitOne((int)next_wait_tick);
+                    ev.WaitOne((int)nextWaitTick);
                 }
             }
         }
@@ -258,9 +258,9 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                lock (w)
+                lock (stopWatch)
                 {
-                    return w.ElapsedMilliseconds + 1L;
+                    return stopWatch.ElapsedMilliseconds + 1L;
                 }
             }
         }
@@ -276,41 +276,41 @@ namespace IPA.Cores.Basic
                 return Task.CompletedTask;
             }
 
-            long target_time = Tick + (long)msec;
+            long targetTime = Tick + (long)msec;
 
             AsyncManualResetEvent tc = null;
 
-            bool set_event = false;
+            bool setEvent = false;
 
-            lock (wait_list)
+            lock (WaitList)
             {
-                long first_target_before = -1;
-                long first_target_after = -1;
+                long firstTargetBefore = -1;
+                long firstTargetAfter = -1;
 
-                if (wait_list.Count >= 1)
+                if (WaitList.Count >= 1)
                 {
-                    first_target_before = wait_list.Keys[0];
+                    firstTargetBefore = WaitList.Keys[0];
                 }
 
-                if (wait_list.ContainsKey(target_time) == false)
+                if (WaitList.ContainsKey(targetTime) == false)
                 {
                     tc = new AsyncManualResetEvent();
-                    wait_list.Add(target_time, tc);
+                    WaitList.Add(targetTime, tc);
                 }
                 else
                 {
-                    tc = wait_list[target_time];
+                    tc = WaitList[targetTime];
                 }
 
-                first_target_after = wait_list.Keys[0];
+                firstTargetAfter = WaitList.Keys[0];
 
-                if (first_target_before != first_target_after)
+                if (firstTargetBefore != firstTargetAfter)
                 {
-                    set_event = true;
+                    setEvent = true;
                 }
             }
 
-            if (set_event)
+            if (setEvent)
             {
                 ev.Set();
             }
@@ -477,12 +477,12 @@ namespace IPA.Cores.Basic
                 lock (instance)
                 {
                     object timer = instance.GetType().GetField("m_timers", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(instance);
-                    Type timer_type = timer.GetType();
-                    FieldInfo next_field = timer_type.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
+                    Type timerType = timer.GetType();
+                    FieldInfo nextField = timerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
 
                     while (timer != null)
                     {
-                        timer = next_field.GetValue(timer);
+                        timer = nextField.GetValue(timer);
                         num++;
                     }
 
@@ -726,21 +726,21 @@ namespace IPA.Cores.Basic
         }
 
         // いずれかの CancellationToken がキャンセルされたときにキャンセルされる CancellationToken を作成する
-        public static CancellationToken CombineCancellationTokens(bool no_wait, params CancellationToken[] tokens)
+        public static CancellationToken CombineCancellationTokens(bool noWait, params CancellationToken[] tokens)
         {
             CancellationTokenSource cts = new CancellationTokenSource();
-            ChainCancellationTokensToCancellationTokenSource(cts, no_wait, tokens);
+            ChainCancellationTokensToCancellationTokenSource(cts, noWait, tokens);
             return cts.Token;
         }
 
         // いずれかの CancellationToken がキャンセルされたときに CancellationTokenSource をキャンセルするように設定する
-        public static void ChainCancellationTokensToCancellationTokenSource(CancellationTokenSource cts, bool no_wait, params CancellationToken[] tokens)
+        public static void ChainCancellationTokensToCancellationTokenSource(CancellationTokenSource cts, bool noWait, params CancellationToken[] tokens)
         {
             foreach (CancellationToken t in tokens)
             {
                 t.Register(() =>
                 {
-                    if (no_wait == false)
+                    if (noWait == false)
                         cts.TryCancel();
                     else
                         cts.TryCancelNoBlock();

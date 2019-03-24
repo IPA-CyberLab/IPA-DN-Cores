@@ -60,10 +60,10 @@ namespace IPA.Cores.Basic
         {
         }
 
-        public KeyValueList(string from_string)
+        public KeyValueList(string fromString)
         {
             KeyValueList v = this;
-            StringReader r = new StringReader(from_string);
+            StringReader r = new StringReader(fromString);
             while (true)
             {
                 string line = r.ReadLine();
@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void normalize_name(ref string name)
+        void NormalizeName(ref string name)
         {
             Str.NormalizeString(ref name);
             name = name.ToUpperInvariant();
@@ -113,7 +113,7 @@ namespace IPA.Cores.Basic
 
         public void Set(string name, string value)
         {
-            normalize_name(ref name);
+            NormalizeName(ref name);
 
             if (value == null)
             {
@@ -138,7 +138,7 @@ namespace IPA.Cores.Basic
 
         public string Get(string name)
         {
-            normalize_name(ref name);
+            NormalizeName(ref name);
 
             if (data.ContainsKey(name))
             {
@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
 
         public void Delete(string name)
         {
-            normalize_name(ref name);
+            NormalizeName(ref name);
 
             if (data.ContainsKey(name))
             {
@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
         public readonly bool NoPrecision = true;
         public readonly string Type = "";
 
-        static PrintFFLags charToFlag(char c)
+        static PrintFFLags CharToFlag(char c)
         {
             switch (c)
             {
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
             while (q.Count >= 1)
             {
                 char c = q.Peek();
-                PrintFFLags f = charToFlag(c);
+                PrintFFLags f = CharToFlag(c);
 
                 if (f == 0)
                 {
@@ -637,21 +637,16 @@ namespace IPA.Cores.Basic
 
     class StrEqualityComparer : IEqualityComparer<string>
     {
-        bool caseSensitive;
+        public bool CaseSensitive { get; }
 
-        public StrEqualityComparer()
+        public StrEqualityComparer(bool caseSensitive = false)
         {
-            this.caseSensitive = false;
-        }
-
-        public StrEqualityComparer(bool caseSensitive)
-        {
-            this.caseSensitive = caseSensitive;
+            this.CaseSensitive = caseSensitive;
         }
 
         public bool Equals(string x, string y)
         {
-            return x.Equals(y, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+            return x.Equals(y, CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
         }
 
         public int GetHashCode(string obj)
@@ -664,21 +659,16 @@ namespace IPA.Cores.Basic
     // 文字列比較インターフェイス
     class StrComparer : IComparer<string>
     {
-        bool caseSensitive;
+        public bool CaseSensitive { get; }
 
-        public StrComparer()
+        public StrComparer(bool caseSensitive = false)
         {
-            this.caseSensitive = false;
-        }
-
-        public StrComparer(bool caseSensitive)
-        {
-            this.caseSensitive = caseSensitive;
+            this.CaseSensitive = caseSensitive;
         }
 
         public int Compare(string x, string y)
         {
-            return string.Compare(x, y, !caseSensitive);
+            return string.Compare(x, y, !CaseSensitive);
         }
     }
 
@@ -726,8 +716,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static object lock_new_id = new object();
-        static ulong last_new_id_msecs = 0;
+        static CriticalSection LockNewId = new CriticalSection();
+        static ulong LastNewIdMSecs = 0;
 
         // エラー文字列のシリアライズ
         public static string SerializeErrorStr(string code, string lang, string msg)
@@ -830,14 +820,14 @@ namespace IPA.Cores.Basic
 
             ulong msecs = Util.ConvertTimeSpan(now - start_dt);
 
-            lock (lock_new_id)
+            lock (LockNewId)
             {
-                if (last_new_id_msecs >= msecs)
+                if (LastNewIdMSecs >= msecs)
                 {
-                    msecs = last_new_id_msecs + 1;
+                    msecs = LastNewIdMSecs + 1;
                 }
 
-                last_new_id_msecs = msecs;
+                LastNewIdMSecs = msecs;
             }
 
             string a = ((msecs / 1000UL) % 10000000000UL).ToString("D10");
@@ -855,17 +845,17 @@ namespace IPA.Cores.Basic
         }
 
         // ID 文字列を短縮する
-        public static string GetShortId(string full_id)
+        public static string GetShortId(string fullId)
         {
-            Str.NormalizeString(ref full_id);
-            full_id = full_id.ToUpperInvariant();
+            Str.NormalizeString(ref fullId);
+            fullId = fullId.ToUpperInvariant();
 
-            if (full_id.StartsWith("ID-") == false)
+            if (fullId.StartsWith("ID-") == false)
             {
                 return null;
             }
 
-            string[] tokens = full_id.Split('-');
+            string[] tokens = fullId.Split('-');
             if (tokens.Length != 7)
             {
                 return null;
@@ -1417,15 +1407,15 @@ namespace IPA.Cores.Basic
 
 
         // テキストファイルに書き込む
-        public static void WriteTextFile(string filename, string contents, Encoding enc, bool writeBom)
+        public static void WriteTextFile(string filename, string contents, Encoding encoding, bool writeBom)
         {
             Buf buf = new Buf();
-            byte[] bom = GetBOM(enc);
+            byte[] bom = GetBOM(encoding);
             if (writeBom && bom != null && bom.Length >= 1)
             {
                 buf.Write(bom);
             }
-            buf.Write(enc.GetBytes(contents));
+            buf.Write(encoding.GetBytes(contents));
 
             buf.SeekToBegin();
 
@@ -1433,33 +1423,33 @@ namespace IPA.Cores.Basic
         }
 
         // 受信した byte[] 配列を自動的にエンコーディング検出して string に変換する
-        public static string DecodeStringAutoDetect(byte[] data, out Encoding detected_encoding)
+        public static string DecodeStringAutoDetect(byte[] data, out Encoding detectedEncoding)
         {
             int bomSize;
-            detected_encoding = Str.GetEncoding(data, out bomSize);
-            if (detected_encoding == null)
+            detectedEncoding = Str.GetEncoding(data, out bomSize);
+            if (detectedEncoding == null)
             {
-                detected_encoding = Encoding.UTF8;
+                detectedEncoding = Encoding.UTF8;
             }
 
             data = Util.RemoveStartByteArray(data, bomSize);
 
-            return detected_encoding.GetString(data);
+            return detectedEncoding.GetString(data);
         }
 
         // 文字列をデコードする (BOM があれば BOM に従う)
-        public static string DecodeString(byte[] data, Encoding default_encoding, out Encoding detected_encoding)
+        public static string DecodeString(byte[] data, Encoding defaultEncoding, out Encoding detectedEncoding)
         {
             int bomSize;
-            detected_encoding = CheckBOM(data, out bomSize);
-            if (detected_encoding == null)
+            detectedEncoding = CheckBOM(data, out bomSize);
+            if (detectedEncoding == null)
             {
-                detected_encoding = default_encoding;
+                detectedEncoding = defaultEncoding;
             }
 
             data = Util.RemoveStartByteArray(data, bomSize);
 
-            return detected_encoding.GetString(data);
+            return detectedEncoding.GetString(data);
         }
 
         // テキストファイルのエンコーディングを取得する
@@ -1656,13 +1646,13 @@ namespace IPA.Cores.Basic
         }
 
         // いずれかの文字が最初に一致するかどうか
-        public static bool StartsWithMulti(string str, StringComparison comp, params string[] keys)
+        public static bool StartsWithMulti(string str, StringComparison comparison, params string[] keys)
         {
             NormalizeString(ref str);
 
             foreach (string key in keys)
             {
-                if (str.StartsWith(key, comp))
+                if (str.StartsWith(key, comparison))
                 {
                     return true;
                 }
@@ -1834,7 +1824,7 @@ namespace IPA.Cores.Basic
         }
 
         // いずれかの最初に発見される文字列を検索
-        public static int FindStrings(string str, int findStartIndex, StringComparison comp, out int foundKeyIndex, params string[] keys)
+        public static int FindStrings(string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys)
         {
             int ret = -1;
             foundKeyIndex = -1;
@@ -1842,7 +1832,7 @@ namespace IPA.Cores.Basic
 
             foreach (string key in keys)
             {
-                int i = str.IndexOf(key, findStartIndex, comp);
+                int i = str.IndexOf(key, findStartIndex, comparison);
 
                 if (i != -1)
                 {
@@ -1942,18 +1932,18 @@ namespace IPA.Cores.Basic
         }
 
         // 先頭文字列の除去
-        public static void TrimStartWith(ref string str, string key, StringComparison sc)
+        public static void TrimStartWith(ref string str, string key, StringComparison comparison)
         {
-            if (str.StartsWith(key, sc))
+            if (str.StartsWith(key, comparison))
             {
                 str = str.Substring(key.Length);
             }
         }
 
         // 末尾文字列の除去
-        public static void TrimEndsWith(ref string str, string key, StringComparison sc)
+        public static void TrimEndsWith(ref string str, string key, StringComparison comparison)
         {
-            if (str.EndsWith(key, sc))
+            if (str.EndsWith(key, comparison))
             {
                 str = str.Substring(0, str.Length - key.Length);
             }
@@ -2225,27 +2215,27 @@ namespace IPA.Cores.Basic
         }
 
         // URL エンコード
-        public static string ToUrl(string str, Encoding e = null)
+        public static string ToUrl(string str, Encoding encoding = null)
         {
-            if (e == null) e = Str.Utf8Encoding;
+            if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
-            return HttpUtility.UrlEncode(str, e);
+            return HttpUtility.UrlEncode(str, encoding);
         }
 
         // URL デコード
-        public static string FromUrl(string str, Encoding e = null)
+        public static string FromUrl(string str, Encoding encoding = null)
         {
-            if (e == null) e = Str.Utf8Encoding;
+            if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
-            return HttpUtility.UrlDecode(str, e);
+            return HttpUtility.UrlDecode(str, encoding);
         }
 
         // HTML デコード
-        public static string FromHtml(string str, bool normalize_multi_spaces = false)
+        public static string FromHtml(string str, bool normalizeMultiSpaces = false)
         {
             str = str.NonNull();
 
-            if (normalize_multi_spaces)
+            if (normalizeMultiSpaces)
             {
                 string[] strs = str.Split(new char[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 str = strs.Combine(" ").Trim();
@@ -2329,16 +2319,16 @@ namespace IPA.Cores.Basic
         {
             return IsPrintableAndSafe(c, false, false);
         }
-        public static bool IsPrintableAndSafe(char c, bool crlf_ok, bool html_tag_ng)
+        public static bool IsPrintableAndSafe(char c, bool crlfIsOk, bool htmlTagAreNotGood)
         {
             try
             {
                 if (c == '\t' || c == '　')
                     return true;
-                if (crlf_ok)
+                if (crlfIsOk)
                     if (c == '\r' || c == '\n')
                         return true;
-                if (html_tag_ng)
+                if (htmlTagAreNotGood)
                 {
                     if (c == '<' || c == '>')
                         return false;
@@ -2364,7 +2354,7 @@ namespace IPA.Cores.Basic
         {
             return IsPrintableAndSafe(s, false, false);
         }
-        public static bool IsPrintableAndSafe(string s, bool crlf_ok, bool html_tag_ng)
+        public static bool IsPrintableAndSafe(string s, bool crlfIsOk, bool htmlTagAreNotGood)
         {
             try
             {
@@ -2651,13 +2641,13 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列配列を文字列リストに変換
-        public static List<string> StrArrayToList(string[] strArray, bool remove_empty = false, bool distinct = false, bool distinct_case_sensitive = false)
+        public static List<string> StrArrayToList(string[] strArray, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
         {
             List<string> ret = new List<string>();
 
             foreach (string s in strArray)
             {
-                if (remove_empty == false || s.IsEmpty() == false)
+                if (removeEmpty == false || s.IsEmpty() == false)
                 {
                     ret.Add(s);
                 }
@@ -2670,7 +2660,7 @@ namespace IPA.Cores.Basic
                 foreach (string s in ret)
                 {
                     string t = s;
-                    if (distinct_case_sensitive == false) t = s.ToUpperInvariant();
+                    if (distinctCaseSensitive == false) t = s.ToUpperInvariant();
                     if (tmp.Add(t))
                     {
                         ret2.Add(t);
@@ -2822,9 +2812,9 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の置換 (置換クラスを利用)
-        public static string ReplaceStrWithReplaceClass(string str, object replace_class, bool case_sensitive = false)
+        public static string ReplaceStrWithReplaceClass(string str, object replaceClass, bool caseSensitive = false)
         {
-            Type t = replace_class.GetType();
+            Type t = replaceClass.GetType();
 
             MemberInfo[] members = t.GetMembers(BindingFlags.Instance | BindingFlags.Public);
             foreach (MemberInfo member in members)
@@ -2832,13 +2822,13 @@ namespace IPA.Cores.Basic
                 FieldInfo fi = member as FieldInfo;
                 if (fi != null)
                 {
-                    object value = (object)fi.GetValue(replace_class);
+                    object value = (object)fi.GetValue(replaceClass);
                     string s = value?.ToString() ?? null;
                     s = s.NonNull();
 
                     string name = fi.Name;
 
-                    str = str.ReplaceStr(name, s, case_sensitive);
+                    str = str.ReplaceStr(name, s, caseSensitive);
                 }
             }
 
@@ -2846,7 +2836,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列が出現する位置のリストを取得
-        public static int[] FindStringIndexes(string str, string keyword, bool case_sensitive = false)
+        public static int[] FindStringIndexes(string str, string keyword, bool caseSensitive = false)
         {
             List<int> ret = new List<int>();
 
@@ -2865,7 +2855,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                i = SearchStr(str, keyword, i, case_sensitive);
+                i = SearchStr(str, keyword, i, caseSensitive);
                 if (i == -1)
                 {
                     break;
@@ -2883,9 +2873,9 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列が出現する回数のカウント
-        public static int GetCountSearchKeywordInStr(string str, string keyword, bool case_sensitive = false)
+        public static int GetCountSearchKeywordInStr(string str, string keyword, bool caseSensitive = false)
         {
-            var r = FindStringIndexes(str, keyword, case_sensitive);
+            var r = FindStringIndexes(str, keyword, caseSensitive);
             if (r == null) return 0;
             return r.Length;
         }
@@ -3211,11 +3201,11 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列が安全かどうか検査する
-        public static bool IsSafe(string s, bool path_char_ng = false)
+        public static bool IsSafe(string s, bool pathCharsAreNotGood = false)
         {
             foreach (char c in s)
             {
-                if (IsSafe(c, path_char_ng) == false)
+                if (IsSafe(c, pathCharsAreNotGood) == false)
                 {
                     return false;
                 }
@@ -3225,7 +3215,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字が安全かどうか検査する
-        public static bool IsSafe(char c, bool path_char_ng = false)
+        public static bool IsSafe(char c, bool pathCharsAreNotGood = false)
         {
             char[] b = Path.GetInvalidFileNameChars();
 
@@ -3237,7 +3227,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            if (path_char_ng)
+            if (pathCharsAreNotGood)
             {
                 if (c == '\\' || c == '/')
                 {
@@ -3467,11 +3457,11 @@ namespace IPA.Cores.Basic
         {
             return TruncStrEx(str, len, null);
         }
-        public static string TruncStrEx(string str, int len, string append_code)
+        public static string TruncStrEx(string str, int len, string appendCode)
         {
-            if (Str.IsEmptyStr(append_code))
+            if (Str.IsEmptyStr(appendCode))
             {
-                append_code = "...";
+                appendCode = "...";
             }
             if (str == null)
             {
@@ -3483,7 +3473,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return str.Substring(0, len) + append_code;
+                return str.Substring(0, len) + appendCode;
             }
         }
 
@@ -3663,19 +3653,19 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static object ParseEnum(object value, object default_value)
+        public static object ParseEnum(object value, object defaultValue)
         {
-            return ParseEnum(value.ToString(), default_value);
+            return ParseEnum(value.ToString(), defaultValue);
         }
-        public static object ParseEnum(string str, object default_value)
+        public static object ParseEnum(string str, object defaultValue)
         {
-            return StrToEnum(str, default_value);
+            return StrToEnum(str, defaultValue);
         }
-        public static object StrToEnum(string str, object default_value)
+        public static object StrToEnum(string str, object defaultValue)
         {
             try
             {
-                string[] names = Enum.GetNames(default_value.GetType());
+                string[] names = Enum.GetNames(defaultValue.GetType());
                 bool is_ok = false;
                 foreach (string name in names)
                     if (Str.StrCmpi(str, name))
@@ -3684,12 +3674,12 @@ namespace IPA.Cores.Basic
                         break;
                     }
                 if (is_ok == false)
-                    return default_value;
-                return Enum.Parse(default_value.GetType(), str, true);
+                    return defaultValue;
+                return Enum.Parse(defaultValue.GetType(), str, true);
             }
             catch
             {
-                return default_value;
+                return defaultValue;
             }
         }
 
@@ -3825,9 +3815,9 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToDateTime(string str, bool toUtc = false, bool empty_to_zero_dt = false)
+        public static DateTime StrToDateTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (empty_to_zero_dt && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
             DateTime ret = new DateTime(0);
             if (Str.IsEmptyStr(str)) return Util.ZeroDateTimeValue;
 
@@ -3916,9 +3906,9 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToTime(string str, bool toUtc = false, bool empty_to_zero_dt = false)
+        public static DateTime StrToTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (empty_to_zero_dt && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
 
             DateTime ret = new DateTime(0);
 
@@ -4073,9 +4063,9 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToDate(string str, bool toUtc = false, bool empty_to_zero_dt = false)
+        public static DateTime StrToDate(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (empty_to_zero_dt && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
 
             string[] sps =
                 {
@@ -4364,7 +4354,7 @@ namespace IPA.Cores.Basic
             return dt.ToString("yyyyMMdd_HHmmss") + "." + msecStr.Split('.')[1];
         }
 
-        public static string DateTimeToDtstr(DateTime dt, bool with_msecs = false, DtstrOption option = DtstrOption.All, bool with_nanosecs = false)
+        public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false)
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
@@ -4375,16 +4365,16 @@ namespace IPA.Cores.Basic
             }
 
             string msecStr = "";
-            if (with_nanosecs)
+            if (withNanoSecs)
             {
                 msecStr = dt.ToString("fffffff");
             }
-            else if (with_msecs)
+            else if (withMSecs)
             {
                 msecStr = dt.ToString("ffff").Substring(0, 3);
             }
 
-            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr : "");
+            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((withMSecs || withNanoSecs) ? "." + msecStr : "");
 
             if (option == DtstrOption.DateOnly)
             {
@@ -4398,7 +4388,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static string DateTimeToDtstr(DateTimeOffset dt, bool with_msecs = false, DtstrOption option = DtstrOption.All, bool with_nanosecs = false)
+        public static string DateTimeToDtstr(DateTimeOffset dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false)
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
@@ -4409,16 +4399,16 @@ namespace IPA.Cores.Basic
             }
 
             string msecStr = "";
-            if (with_nanosecs)
+            if (withNanoSecs)
             {
                 msecStr = dt.ToString("fffffff");
             }
-            else if (with_msecs)
+            else if (withMSecs)
             {
                 msecStr = dt.ToString("ffff").Substring(0, 3);
             }
 
-            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((with_msecs || with_nanosecs) ? "." + msecStr : "");
+            string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((withMSecs || withNanoSecs) ? "." + msecStr : "");
 
             if (option == DtstrOption.DateOnly)
             {
@@ -5372,34 +5362,17 @@ namespace IPA.Cores.Basic
     // 文字列を各種のデータ型に変換
     class StrData
     {
-        string strValue;
+        public string StrValue { get; }
 
-        public string StrValue
-        {
-            get { return strValue; }
-        }
+        public uint IntValue => Str.StrToUInt(StrValue);
 
-        public uint IntValue
-        {
-            get
-            {
-                return Str.StrToUInt(strValue);
-            }
-        }
-
-        public ulong Int64Value
-        {
-            get
-            {
-                return Str.StrToULong(strValue);
-            }
-        }
+        public ulong Int64Value => Str.StrToULong(StrValue);
 
         public bool BoolValue
         {
             get
             {
-                string s = strValue.Trim();
+                string s = StrValue.Trim();
 
                 if (Str.IsEmptyStr(s))
                 {
@@ -5437,7 +5410,7 @@ namespace IPA.Cores.Basic
             {
                 str = "";
             }
-            strValue = str;
+            StrValue = str;
         }
     }
 }
