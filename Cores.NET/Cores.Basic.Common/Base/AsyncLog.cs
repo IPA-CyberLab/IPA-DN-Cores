@@ -42,7 +42,7 @@ using IPA.Cores.Helper.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum AsyncLoggerSwitchType
+    enum LogSwitchType
     {
         None,
         Second,
@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum AsyncLoggerPendingTreatment
+    enum LogPendingTreatment
     {
         Discard,
         Wait,
@@ -61,14 +61,14 @@ namespace IPA.Cores.Basic
     }
     
 
-    class AsyncLogRecord
+    class LogRecord
     {
         public DateTimeOffset DateTime { get; }
         public object Data { get; }
 
-        public AsyncLogRecord(object data) : this(0, data) { }
-        public AsyncLogRecord(long tick, object data) : this(Time.Tick64ToDateTimeOffsetLocal(tick), data) { }
-        public AsyncLogRecord(DateTimeOffset dateTime, object data)
+        public LogRecord(object data) : this(0, data) { }
+        public LogRecord(long tick, object data) : this(Time.Tick64ToDateTimeOffsetLocal(tick), data) { }
+        public LogRecord(DateTimeOffset dateTime, object data)
         {
             this.DateTime = dateTime;
             this.Data = data;
@@ -92,9 +92,9 @@ namespace IPA.Cores.Basic
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
         public string Prefix { get; }
-        public AsyncLoggerSwitchType SwitchType { get; set; }
+        public LogSwitchType SwitchType { get; set; }
         public long MaxLogSize { get; }
-        readonly Queue<AsyncLogRecord> RecordQueue = new Queue<AsyncLogRecord>();
+        readonly Queue<LogRecord> RecordQueue = new Queue<LogRecord>();
         readonly AsyncAutoResetEvent Event = new AsyncAutoResetEvent();
         readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
         readonly AsyncAutoResetEvent WaitPendingEvent = new AsyncAutoResetEvent();
@@ -105,13 +105,13 @@ namespace IPA.Cores.Basic
 
         readonly CancellationTokenSource Cancel = new CancellationTokenSource();
         long LastTick = 0;
-        AsyncLoggerSwitchType LastSwitchType = AsyncLoggerSwitchType.None;
+        LogSwitchType LastSwitchType = LogSwitchType.None;
         long CurrentFilePointer = 0;
         int CurrentLogNumber = 0;
         bool LogNumberIncremented = false;
         string LastCachedStr = null;
 
-        public Logger(AsyncCleanuperLady lady, string dir, string prefix, AsyncLoggerSwitchType switchType = AsyncLoggerSwitchType.Day,
+        public Logger(AsyncCleanuperLady lady, string dir, string prefix, LogSwitchType switchType = LogSwitchType.Day,
             long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
             long autoDeleteTotalMaxSize = 0)
             : base(lady)
@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
             {
                 await Task.Yield();
 
-                AsyncLogRecord rec = null;
+                LogRecord rec = null;
                 long s = FastTick64.Now;
 
                 while (true)
@@ -443,7 +443,7 @@ namespace IPA.Cores.Basic
             b.Clear();
         }
 
-        public async Task<bool> AddAsync(AsyncLogRecord r, AsyncLoggerPendingTreatment pendingTreatment = AsyncLoggerPendingTreatment.Discard, CancellationToken pendingWaitCancel = default)
+        public async Task<bool> AddAsync(LogRecord r, LogPendingTreatment pendingTreatment = LogPendingTreatment.Discard, CancellationToken pendingWaitCancel = default)
         {
             if (this.Cancel.IsCancellationRequested)
             {
@@ -452,11 +452,11 @@ namespace IPA.Cores.Basic
 
             while (MaxPendingRecords >= 1 && this.RecordQueue.Count >= this.MaxPendingRecords)
             {
-                if (pendingTreatment == AsyncLoggerPendingTreatment.WriteForcefully)
+                if (pendingTreatment == LogPendingTreatment.WriteForcefully)
                 {
                     break;
                 }
-                else if (pendingTreatment == AsyncLoggerPendingTreatment.Wait)
+                else if (pendingTreatment == LogPendingTreatment.Wait)
                 {
                     await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.Cancel.Token }, events: this.WaitPendingEvent.SingleArray());
                 }
@@ -476,7 +476,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public bool Add(AsyncLogRecord r)
+        public bool Add(LogRecord r)
         {
             if (this.Cancel.IsCancellationRequested)
             {
@@ -514,7 +514,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        bool MakeLogFileName(out string name, string dir, string prefix, DateTimeOffset dateTime, AsyncLoggerSwitchType switchType, int num, ref string oldDateStr)
+        bool MakeLogFileName(out string name, string dir, string prefix, DateTimeOffset dateTime, LogSwitchType switchType, int num, ref string oldDateStr)
         {
             prefix = prefix.TrimNonNull();
             string tmp = MakeLogFileNameStringFromTick(dateTime, switchType);
@@ -551,7 +551,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        string MakeLogFileNameStringFromTick(DateTimeOffset dateTime, AsyncLoggerSwitchType switchType)
+        string MakeLogFileNameStringFromTick(DateTimeOffset dateTime, LogSwitchType switchType)
         {
             if (this.LastCachedStr != null)
                 if (this.LastTick == dateTime.Ticks && this.LastSwitchType == switchType)
@@ -561,23 +561,23 @@ namespace IPA.Cores.Basic
 
             switch (switchType)
             {
-                case AsyncLoggerSwitchType.Second:
+                case LogSwitchType.Second:
                     str = dateTime.ToString("_yyyyMMdd_HHmmss");
                     break;
 
-                case AsyncLoggerSwitchType.Minute:
+                case LogSwitchType.Minute:
                     str = dateTime.ToString("_yyyyMMdd_HHmm");
                     break;
 
-                case AsyncLoggerSwitchType.Hour:
+                case LogSwitchType.Hour:
                     str = dateTime.ToString("_yyyyMMdd_HH");
                     break;
 
-                case AsyncLoggerSwitchType.Day:
+                case LogSwitchType.Day:
                     str = dateTime.ToString("_yyyyMMdd");
                     break;
 
-                case AsyncLoggerSwitchType.Month:
+                case LogSwitchType.Month:
                     str = dateTime.ToString("_yyyyMM");
                     break;
             }

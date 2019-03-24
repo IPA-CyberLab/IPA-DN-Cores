@@ -39,7 +39,7 @@ namespace IPA.TestDev
 
             using (AsyncTester test = new AsyncTester(true))
             {
-                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", AsyncLoggerSwitchType.Hour, autoDeleteTotalMaxSize: 0);
+                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", LogSwitchType.Hour, autoDeleteTotalMaxSize: 0);
                 g.MaxPendingRecords = 100;
 
                 TaskUtil.StartAsyncTaskAsync(async () =>
@@ -48,7 +48,7 @@ namespace IPA.TestDev
                     //g.Add(new AsyncLogRecord("Hello"));
                     while (test.Cancelled.IsCancellationRequested == false)
                     {
-                        await g.AddAsync(new AsyncLogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), AsyncLoggerPendingTreatment.Wait);
+                        await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), LogPendingTreatment.Wait);
                         //await Task.Delay(1);
                         //break;
                     }
