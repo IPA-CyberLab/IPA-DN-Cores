@@ -41,18 +41,18 @@ namespace IPA.Cores.Helper.Basic
 {
     static class HelperWeb
     {
-        public static Task SendStringContents(this HttpResponse h, string body, string contents_type = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static Task SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            h.ContentType = contents_type;
+            h.ContentType = contentsType;
             byte[] ret_data = encoding.GetBytes(body);
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
-        public static async Task<string> RecvStringContents(this HttpRequest h, int max_request_body_len = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static async Task<string> RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            return (await h.Body.ReadToEndAsync(max_request_body_len, cancel)).GetString_UTF8();
+            return (await h.Body.ReadToEndAsync(maxRequestBodyLen, cancel)).GetString_UTF8();
         }
     }
 }

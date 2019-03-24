@@ -74,9 +74,9 @@ namespace IPA.Cores.Basic
         public List<string> HeaderList { get; }
         public List<Dictionary<string, HtmlParsedTableData>> DataList { get; }
 
-        public HtmlParsedTableWithHeader(HtmlNode table_node, string[] alternative_headers = null)
+        public HtmlParsedTableWithHeader(HtmlNode tableNode, string[] alternativeHeaders = null)
         {
-            this.TableNode = table_node;
+            this.TableNode = tableNode;
 
             var rows = TableNode.SelectNodes("tr");
 
@@ -85,7 +85,7 @@ namespace IPA.Cores.Basic
             // ヘッダリストの取得
             HeaderList = new List<string>();
 
-            if (alternative_headers == null)
+            if (alternativeHeaders == null)
             {
                 var header_coulmns = rows[0].SelectNodes("td");
 
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                HeaderList = alternative_headers.ToList();
+                HeaderList = alternativeHeaders.ToList();
             }
 
             // データリストの取得

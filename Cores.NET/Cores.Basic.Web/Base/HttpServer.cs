@@ -56,8 +56,8 @@ namespace IPA.Cores.Basic
     abstract class HttpServerImplementation
     {
         public IConfiguration Configuration { get; }
-        HttpServerBuilderConfig builder_config;
-        HttpServerStartupConfig startup_config;
+        HttpServerBuilderConfig BuilderConfig;
+        HttpServerStartupConfig StartupConfig;
         protected object Param;
         public CancellationToken CancelToken { get; }
 
@@ -68,8 +68,8 @@ namespace IPA.Cores.Basic
             this.Param = GlobalObjectExchange.Withdraw(this.Configuration["coreutil_param_token"]);
             this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"]);
 
-            this.builder_config = this.Configuration["coreutil_ServerBuilderConfig"].JsonToObject<HttpServerBuilderConfig>();
-            this.startup_config = new HttpServerStartupConfig();
+            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"].JsonToObject<HttpServerBuilderConfig>();
+            this.StartupConfig = new HttpServerStartupConfig();
         }
 
         public virtual void ConfigureServices(IServiceCollection services)
@@ -81,10 +81,10 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            SetupStartupConfig(this.startup_config, app, env);
+            SetupStartupConfig(this.StartupConfig, app, env);
 
-            if (builder_config.UseStaticFiles) app.UseStaticFiles();
-            if (builder_config.ShowDetailError) app.UseDeveloperExceptionPage();
+            if (BuilderConfig.UseStaticFiles) app.UseStaticFiles();
+            if (BuilderConfig.ShowDetailError) app.UseDeveloperExceptionPage();
             app.UseStatusCodePages();
         }
     }
@@ -108,24 +108,24 @@ namespace IPA.Cores.Basic
     class HttpServer<THttpServerStartup> : AsyncCleanupableCancellable
         where THttpServerStartup : HttpServerImplementation
     {
-        HttpServerBuilderConfig config;
-        Task hosttask;
+        HttpServerBuilderConfig Config;
+        Task HostTask;
 
         public HttpServer(HttpServerBuilderConfig cfg, object param, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
-            this.config = cfg;
+            this.Config = cfg;
 
-            IO.MakeDirIfNotExists(config.ContentsRoot);
+            IO.MakeDirIfNotExists(Config.ContentsRoot);
 
-            string param_token = GlobalObjectExchange.Deposit(param);
-            string cancel_token = GlobalObjectExchange.Deposit(this.CancelWatcher.CancelToken);
+            string paramToken = GlobalObjectExchange.Deposit(param);
+            string cancelToken = GlobalObjectExchange.Deposit(this.CancelWatcher.CancelToken);
             try
             {
                 var dict = new Dictionary<string, string>
                 {
-                    {"coreutil_ServerBuilderConfig", this.config.ObjectToJson() },
-                    {"coreutil_param_token", param_token },
-                    {"coreutil_cancel_token", cancel_token },
+                    {"coreutil_ServerBuilderConfig", this.Config.ObjectToJson() },
+                    {"coreutil_param_token", paramToken },
+                    {"coreutil_cancel_token", cancelToken },
                 };
 
                 IConfiguration iconf = new ConfigurationBuilder()
@@ -135,20 +135,20 @@ namespace IPA.Cores.Basic
                 var h = new WebHostBuilder()
                     .UseKestrel(opt =>
                     {
-                        if (config.LocalHostOnly)
+                        if (Config.LocalHostOnly)
                         {
-                            foreach (int port in config.HttpPortsList) opt.ListenLocalhost(port);
-                            foreach (int port in config.HttpsPortsList) opt.ListenLocalhost(port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpPortsList) opt.ListenLocalhost(port);
+                            foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => InitHttpsOptions(lo));
                         }
-                        else if (config.IPv4Only)
+                        else if (Config.IPv4Only)
                         {
-                            foreach (int port in config.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                            foreach (int port in config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpPortsList) opt.Listen(IPAddress.Any, port);
+                            foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => InitHttpsOptions(lo));
                         }
                         else
                         {
-                            foreach (int port in config.HttpPortsList) opt.ListenAnyIP(port);
-                            foreach (int port in config.HttpsPortsList) opt.ListenAnyIP(port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpPortsList) opt.ListenAnyIP(port);
+                            foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => InitHttpsOptions(lo));
                         }
 
                         void InitHttpsOptions(ListenOptions listenOptions)
@@ -156,22 +156,22 @@ namespace IPA.Cores.Basic
                             listenOptions.UseHttps(httpsOptions =>
                             {
                                 httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                if (config.ServerCertSelector != null)
+                                if (Config.ServerCertSelector != null)
                                 {
-                                    httpsOptions.ServerCertificateSelector = ((ctx, sni) => config.ServerCertSelector(param, sni));
+                                    httpsOptions.ServerCertificateSelector = ((ctx, sni) => Config.ServerCertSelector(param, sni));
                                 }
                             });
                         }
                     })
-                    .UseWebRoot(config.ContentsRoot)
-                    .UseContentRoot(config.ContentsRoot)
+                    .UseWebRoot(Config.ContentsRoot)
+                    .UseContentRoot(Config.ContentsRoot)
                     .ConfigureAppConfiguration((hostingContext, config) =>
                     {
 
                     })
                     .ConfigureLogging((hostingContext, logging) =>
                     {
-                        if (config.DebugToConsole)
+                        if (Config.DebugToConsole)
                         {
                             logging.AddConsole();
                             logging.AddDebug();
@@ -181,12 +181,12 @@ namespace IPA.Cores.Basic
                     .UseStartup<THttpServerStartup>()
                     .Build();
 
-                hosttask = h.RunAsync(this.CancelWatcher.CancelToken);
+                HostTask = h.RunAsync(this.CancelWatcher.CancelToken);
             }
             catch
             {
-                GlobalObjectExchange.TryWithdraw(param_token);
-                GlobalObjectExchange.TryWithdraw(cancel_token);
+                GlobalObjectExchange.TryWithdraw(paramToken);
+                GlobalObjectExchange.TryWithdraw(cancelToken);
                 throw;
             }
         }
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                await hosttask;
+                await HostTask;
             }
             finally { await base._CleanupAsyncInternal(); }
         }

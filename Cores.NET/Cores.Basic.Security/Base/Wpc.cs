@@ -39,113 +39,37 @@ namespace IPA.Cores.Basic
     // WPC クライアント情報
     class WpcClient
     {
-        string ipAddress;
-        public string IpAddress
-        {
-            get { return ipAddress; }
-        }
-
-        string hostName;
-        public string HostName
-        {
-            get { return hostName; }
-        }
-
-        string guid;
-        public string Guid
-        {
-            get
-            {
-                return guid;
-            }
-        }
-
-        int seLang = 0;
-        public int SeLang
-        {
-            get { return seLang; }
-        }
-
-        bool isUser = false;
-        string svcName = "";
-        string msid = "";
-        public bool IsUser
-        {
-            get
-            {
-                return isUser;
-            }
-        }
-        public string SvcName
-        {
-            get
-            {
-                return svcName;
-            }
-        }
-        public string Msid
-        {
-            get
-            {
-                return msid;
-            }
-        }
-        string pcid;
-        public string Pcid
-        {
-            get { return pcid; }
-        }
-        int machineId;
-        public int MachineId
-        {
-            get { return machineId; }
-        }
-        DateTime createDate;
-        public DateTime CreateDate
-        {
-            get { return createDate; }
-        }
-        DateTime updateDate;
-        public DateTime UpdateDate
-        {
-            get { return updateDate; }
-        }
-        DateTime lastServerDate;
-        public DateTime LastServerDate
-        {
-            get { return lastServerDate; }
-        }
-        DateTime lastClientDate;
-        public DateTime LastClientDate
-        {
-            get { return lastClientDate; }
-        }
-        int numServer;
-        public int NumServer
-        {
-            get { return numServer; }
-        }
-        int numClient;
-        public int NumClient
-        {
-            get { return numClient; }
-        }
+        public string IpAddress { get; private set; }
+        public string HostName { get; private set; }
+        public string Guid { get; private set; }
+        public int SeLang { get; private set; } = 0;
+        public bool IsUser { get; private set; } = false;
+        public string SvcName { get; private set; } = "";
+        public string Msid { get; private set; } = "";
+        public string Pcid { get; private set; }
+        public int MachineId { get; private set; }
+        public DateTime CreateDate { get; private set; }
+        public DateTime UpdateDate { get; private set; }
+        public DateTime LastServerDate { get; private set; }
+        public DateTime LastClientDate { get; private set; }
+        public int NumServer { get; private set; }
+        public int NumClient { get; private set; }
 
         public void SetUserInfo(int machineId, string svcName, string msid, string pcid, DateTime createDate, DateTime updateDate, DateTime lastServerDate,
             DateTime lastClientDate, int numServer, int numClient, int seLang)
         {
-            this.isUser = true;
-            this.machineId = machineId;
-            this.svcName = svcName;
-            this.msid = msid;
-            this.pcid = pcid;
-            this.createDate = createDate;
-            this.updateDate = updateDate;
-            this.lastServerDate = lastServerDate;
-            this.lastClientDate = lastClientDate;
-            this.numServer = numServer;
-            this.numClient = numClient;
-            this.seLang = seLang;
+            this.IsUser = true;
+            this.MachineId = machineId;
+            this.SvcName = svcName;
+            this.Msid = msid;
+            this.Pcid = pcid;
+            this.CreateDate = createDate;
+            this.UpdateDate = updateDate;
+            this.LastServerDate = lastServerDate;
+            this.LastClientDate = lastClientDate;
+            this.NumServer = numServer;
+            this.NumClient = numClient;
+            this.SeLang = seLang;
         }
 
         bool isGate = false;
@@ -195,25 +119,25 @@ namespace IPA.Cores.Basic
 
         void init(string ip)
         {
-            ipAddress = ip;
-            hostName = "";
+            IpAddress = ip;
+            HostName = "";
             try
             {
-                hostName = Domain.GetHostName(IPAddress.Parse(ip), 250)[0];
+                HostName = Domain.GetHostName(IPAddress.Parse(ip), 250)[0];
             }
             catch
             {
             }
-            if (Str.IsEmptyStr(hostName))
+            if (Str.IsEmptyStr(HostName))
             {
-                hostName = ip;
+                HostName = ip;
             }
             requestPack = null;
             requestCert = null;
             responsePack = null;
             responseCert = null;
             responseKey = null;
-            guid = System.Guid.NewGuid().ToString();
+            Guid = System.Guid.NewGuid().ToString();
         }
 
         public void ParseRequest(string requestStr)
@@ -247,28 +171,19 @@ namespace IPA.Cores.Basic
     // WpcEntry
     class WpcEntry
     {
-        byte[] entryName;
-        public byte[] EntryName
-        {
-            get { return entryName; }
-        }
-
-        byte[] data;
-        public byte[] Data
-        {
-            get { return data; }
-        }
+        public byte[] EntryName { get; }
+        public byte[] Data { get; }
 
         public WpcEntry(string entryName, byte[] data)
         {
-            this.entryName = GenerateEntryName(entryName);
-            this.data = data;
+            this.EntryName = GenerateEntryName(entryName);
+            this.Data = data;
         }
 
         public WpcEntry(byte[] entryNameByte, byte[] data)
         {
-            this.entryName = entryNameByte;
-            this.data = data;
+            this.EntryName = entryNameByte;
+            this.Data = data;
         }
 
         public static List<WpcEntry> ParseDataEntry(string str)
@@ -368,35 +283,16 @@ namespace IPA.Cores.Basic
     // Packet
     class WpcPacket
     {
-        Pack pack;
-        public Pack Pack
-        {
-            get { return pack; }
-        }
-
-        byte[] hash;
-        public byte[] Hash
-        {
-            get { return hash; }
-        }
-
-        Cert cert;
-        public Cert Cert
-        {
-            get { return cert; }
-        }
-
-        byte[] sign;
-        public byte[] Sign
-        {
-            get { return sign; }
-        }
+        public Pack Pack { get; }
+        public byte[] Hash { get; }
+        public Cert Cert { get; }
+        public byte[] Sign { get; }
 
         public bool IsSigned
         {
             get
             {
-                return (cert != null);
+                return (Cert != null);
             }
         }
 
@@ -406,10 +302,10 @@ namespace IPA.Cores.Basic
         }
         private WpcPacket(Pack pack, byte[] hash, Cert cert, byte[] sign)
         {
-            this.pack = pack;
-            this.hash = hash;
-            this.cert = cert;
-            this.sign = sign;
+            this.Pack = pack;
+            this.Hash = hash;
+            this.Cert = cert;
+            this.Sign = sign;
         }
 
         public static string GeneratePacket(Pack pack)

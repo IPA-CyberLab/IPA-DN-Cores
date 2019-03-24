@@ -66,30 +66,30 @@ namespace IPA.Cores.Basic
 
     class DbConsoleDebugPrinterProvider : ILoggerProvider
     {
-        Ref<bool> enable_console_logger;
+        Ref<bool> EnableConsoleLogger;
 
-        public DbConsoleDebugPrinterProvider(Ref<bool> enable_console_logger)
+        public DbConsoleDebugPrinterProvider(Ref<bool> enableConsoleLogger)
         {
-            this.enable_console_logger = enable_console_logger;
+            this.EnableConsoleLogger = enableConsoleLogger;
         }
 
-        public ILogger CreateLogger(string categoryName) => new DbConsoleDebugPrinter(this.enable_console_logger);
+        public ILogger CreateLogger(string categoryName) => new DbConsoleDebugPrinter(this.EnableConsoleLogger);
         public void Dispose() { }
     }
 
     class DbConsoleDebugPrinter : ILogger
     {
-        Ref<bool> enable_console_logger;
+        Ref<bool> EnableConsoleLogger;
 
-        public DbConsoleDebugPrinter(Ref<bool> enable_console_logger)
+        public DbConsoleDebugPrinter(Ref<bool> enableConsoleLogger)
         {
-            this.enable_console_logger = enable_console_logger;
+            this.EnableConsoleLogger = enableConsoleLogger;
         }
 
         public IDisposable BeginScope<TState>(TState state) => null;
         public bool IsEnabled(LogLevel logLevel)
         {
-            if (enable_console_logger == false) return false;
+            if (EnableConsoleLogger == false) return false;
 
             switch (logLevel)
             {
@@ -216,14 +216,14 @@ namespace IPA.Cores.Basic
             int i;
             int num = r.FieldCount;
 
-            List<string> fields_list = new List<string>();
+            List<string> fieldsList = new List<string>();
 
             for (i = 0; i < num; i++)
             {
-                fields_list.Add(r.GetName(i));
+                fieldsList.Add(r.GetName(i));
             }
 
-            this.FieldList = fields_list.ToArray();
+            this.FieldList = fieldsList.ToArray();
 
             List<Row> row_list = new List<Row>();
             while (db.ReadNext())
@@ -248,14 +248,14 @@ namespace IPA.Cores.Basic
             int i;
             int num = r.FieldCount;
 
-            List<string> fields_list = new List<string>();
+            List<string> fieldsList = new List<string>();
 
             for (i = 0; i < num; i++)
             {
-                fields_list.Add(r.GetName(i));
+                fieldsList.Add(r.GetName(i));
             }
 
-            this.FieldList = fields_list.ToArray();
+            this.FieldList = fieldsList.ToArray();
 
             List<Row> row_list = new List<Row>();
             while (await db.ReadNextAsync())
@@ -293,7 +293,7 @@ namespace IPA.Cores.Basic
             this.db = db;
         }
 
-        object lock_obj = new object();
+        CriticalSection LockObj = new CriticalSection();
 
         public void Commit()
         {
@@ -303,7 +303,7 @@ namespace IPA.Cores.Basic
         public void Dispose()
         {
             Database db = null;
-            lock (lock_obj)
+            lock (LockObj)
             {
                 if (this.db != null)
                 {
@@ -476,10 +476,6 @@ namespace IPA.Cores.Basic
 
             return cmd;
         }
-
-        /*public async Task<T> EasyGetOrCreateAsync<T>(string selectStr, object selectParam, T newObject)
-        {
-        }*/
 
         public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
         {
@@ -972,15 +968,15 @@ namespace IPA.Cores.Basic
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
         public void Tran(TransactionalTask task) => Tran(IsolationLevel.Serializable, null, task);
         public void Tran(IsolationLevel iso, TransactionalTask task) => Tran(iso, null, task);
-        public void Tran(IsolationLevel iso, DeadlockRetryConfig retry_config, TransactionalTask task)
+        public void Tran(IsolationLevel iso, DeadlockRetryConfig retryConfig, TransactionalTask task)
         {
             EnsureOpen();
-            if (retry_config == null)
+            if (retryConfig == null)
             {
-                retry_config = this.DeadlockRetryConfig;
+                retryConfig = this.DeadlockRetryConfig;
             }
 
-            int num_retry = 0;
+            int numRetry = 0;
 
             LABEL_RETRY:
             try
@@ -998,10 +994,10 @@ namespace IPA.Cores.Basic
                 if (sqlex.Number == 1205)
                 {
                     // デッドロック発生
-                    num_retry++;
-                    if (num_retry <= retry_config.RetryCount)
+                    numRetry++;
+                    if (numRetry <= retryConfig.RetryCount)
                     {
-                        Kernel.SleepThread(Secure.Rand31i() % retry_config.RetryAverageInterval);
+                        Kernel.SleepThread(Secure.Rand31i() % retryConfig.RetryAverageInterval);
 
                         goto LABEL_RETRY;
                     }
@@ -1026,15 +1022,15 @@ namespace IPA.Cores.Basic
 
         public Task TranAsync(TransactionalTaskAsync task) => TranAsync(IsolationLevel.Serializable, null, task);
         public Task TranAsync(IsolationLevel iso, TransactionalTaskAsync task) => TranAsync(iso, null, task);
-        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig retry_config, TransactionalTaskAsync task)
+        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig retryConfig, TransactionalTaskAsync task)
         {
             await EnsureOpenAsync();
-            if (retry_config == null)
+            if (retryConfig == null)
             {
-                retry_config = this.DeadlockRetryConfig;
+                retryConfig = this.DeadlockRetryConfig;
             }
 
-            int num_retry = 0;
+            int numRetry = 0;
 
             LABEL_RETRY:
             try
@@ -1052,10 +1048,10 @@ namespace IPA.Cores.Basic
                 if (sqlex.Number == 1205)
                 {
                     // デッドロック発生
-                    num_retry++;
-                    if (num_retry <= retry_config.RetryCount)
+                    numRetry++;
+                    if (numRetry <= retryConfig.RetryCount)
                     {
-                        await Task.Delay(Secure.Rand31i() % retry_config.RetryAverageInterval);
+                        await Task.Delay(Secure.Rand31i() % retryConfig.RetryAverageInterval);
 
                         goto LABEL_RETRY;
                     }

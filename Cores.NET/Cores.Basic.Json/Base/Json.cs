@@ -46,60 +46,61 @@ namespace IPA.Cores.Basic
     {
         public const int DefaultMaxDepth = 8;
 
-        public static string SerializeLog(IEnumerable item_array, bool include_null = false, bool escape_html = false, int? max_depth = Json.DefaultMaxDepth)
+        public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
         {
             StringWriter w = new StringWriter();
-            SerializeLogToTextWriterAsync(w, item_array, include_null, escape_html, max_depth).Wait();
+            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth).Wait();
             return w.ToString();
         }
 
-        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable item_array, bool include_null = false, bool escape_html = false, int? max_depth = Json.DefaultMaxDepth)
+        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
         {
-            foreach (var item in item_array)
+            foreach (var item in itemArray)
             {
-                await w.WriteLineAsync(Serialize(item, include_null, escape_html, max_depth, true));
+                await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true));
             }
         }
 
-        public static string Serialize(object obj, bool include_null = false, bool escape_html = false, int? max_depth = Json.DefaultMaxDepth, bool compact = false, bool reference_handling = false)
+        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
-                MaxDepth = max_depth,
-                NullValueHandling = include_null ? NullValueHandling.Include : NullValueHandling.Ignore,
+                MaxDepth = maxDepth,
+                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
                 ReferenceLoopHandling = ReferenceLoopHandling.Error,
-                PreserveReferencesHandling = reference_handling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
-                StringEscapeHandling = escape_html ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+                PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+                StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
                 
             };
             return JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
         }
 
-        public static T Deserialize<T>(string str, bool include_null = false, int? max_depth = Json.DefaultMaxDepth)
-            => (T)Deserialize(str, typeof(T), include_null, max_depth);
+        public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            => (T)Deserialize(str, typeof(T), includeNull, maxDepth);
 
-        public static object Deserialize(string str, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth)
+        public static object Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
-                MaxDepth = max_depth,
-                NullValueHandling = include_null ? NullValueHandling.Include : NullValueHandling.Ignore,
+                MaxDepth = maxDepth,
+                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
                 ObjectCreationHandling = ObjectCreationHandling.Replace,
                 ReferenceLoopHandling = ReferenceLoopHandling.Error,
             };
             return JsonConvert.DeserializeObject(str, type, setting);
         }
 
-        public static T ConvertObject<T>(object src, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false)
-            => (T)ConvertObject(src, typeof(T), include_null, max_depth, reference_handling);
+        public static T ConvertObject<T>(object src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+            => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling);
 
-        public static object ConvertObject(object src, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false)
+        public static object ConvertObject(object src, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
         {
-            string str = Serialize(src, include_null, false, max_depth, true, reference_handling);
-            return Deserialize(str, type, max_depth: max_depth);
+            string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
+            return Deserialize(str, type, maxDepth: maxDepth);
         }
 
-        public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T, bool> item_read_callback, Func<string, Exception, bool> parse_error_callback = null, bool include_null = false, int? max_depth = Json.DefaultMaxDepth)
+        public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T, bool> itemReadCallback,
+            Func<string, Exception, bool> parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
         {
             while (true)
             {
@@ -113,17 +114,17 @@ namespace IPA.Cores.Basic
                     object obj = null;
                     try
                     {
-                        obj = (object)Deserialize<T>(line, include_null, max_depth);
+                        obj = (object)Deserialize<T>(line, includeNull, maxDepth);
                     }
                     catch (Exception ex)
                     {
-                        if (parse_error_callback(line, ex) == false)
+                        if (parseErrorCallback(line, ex) == false)
                         {
                             return false;
                         }
                     }
 
-                    if (item_read_callback((T)obj) == false)
+                    if (itemReadCallback((T)obj) == false)
                     {
                         return false;
                     }

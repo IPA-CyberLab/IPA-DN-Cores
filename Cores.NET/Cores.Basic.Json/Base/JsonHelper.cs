@@ -38,11 +38,11 @@ namespace IPA.Cores.Helper.Basic
 {
     static class HelperJson
     {
-        public static string ObjectToJson(this object obj, bool include_null = false, bool escape_html = false, int? max_depth = Json.DefaultMaxDepth, bool compact = false, bool reference_handling = false) => Json.Serialize(obj, include_null, escape_html, max_depth, compact, reference_handling);
-        public static T JsonToObject<T>(this string str, bool include_null = false, int? max_depth = Json.DefaultMaxDepth) => Json.Deserialize<T>(str, include_null, max_depth);
-        public static object JsonToObject(this string str, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth) => Json.Deserialize(str, type, include_null, max_depth);
-        public static T ConvertJsonObject<T>(this object obj, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject<T>(obj, include_null, max_depth, reference_handling);
-        public static object ConvertJsonObject(this object obj, Type type, bool include_null = false, int? max_depth = Json.DefaultMaxDepth, bool reference_handling = false) => Json.ConvertObject(obj, type, include_null, max_depth, reference_handling);
+        public static string ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false) => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+        public static T JsonToObject<T>(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth) => Json.Deserialize<T>(str, includeNull, maxDepth);
+        public static object JsonToObject(this string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth) => Json.Deserialize(str, type, includeNull, maxDepth);
+        public static T ConvertJsonObject<T>(this object obj, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false) => Json.ConvertObject<T>(obj, includeNull, maxDepth, referenceHandling);
+        public static object ConvertJsonObject(this object obj, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false) => Json.ConvertObject(obj, type, includeNull, maxDepth, referenceHandling);
         public static dynamic JsonToDynamic(this string str) => Json.DeserializeDynamic(str);
         public static ulong GetObjectHash(this object o) => Util.GetObjectHash(o);
     }

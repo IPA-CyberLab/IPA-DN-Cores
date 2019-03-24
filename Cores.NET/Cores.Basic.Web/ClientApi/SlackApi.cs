@@ -69,15 +69,15 @@ namespace IPA.Cores.ClientApi.SlackApi
         public string ClientId { get; set; }
         public string AccessTokenStr { get; set; }
 
-        public SlackApi(string client_id = "", string access_token = "") : base()
+        public SlackApi(string clientId = "", string accessToken = "") : base()
         {
-            this.ClientId = client_id;
-            this.AccessTokenStr = access_token;
+            this.ClientId = clientId;
+            this.AccessTokenStr = accessToken;
         }
 
-        protected override HttpRequestMessage CreateWebRequest(WebApiMethods method, string url, params (string name, string value)[] query_list)
+        protected override HttpRequestMessage CreateWebRequest(WebApiMethods method, string url, params (string name, string value)[] queryList)
         {
-            HttpRequestMessage r = base.CreateWebRequest(method, url, query_list);
+            HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
 
             if (this.AccessTokenStr.IsFilled())
             {
@@ -87,13 +87,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             return r;
         }
 
-        public string AuthGenerateAuthorizeUrl(string scope, string redirect_url, string state = "")
+        public string AuthGenerateAuthorizeUrl(string scope, string redirectUrl, string state = "")
         {
             return "https://slack.com/oauth/authorize?" +
                 BuildQueryString(
                     ("client_id", this.ClientId),
                     ("scope", scope),
-                    ("redirect_uri", redirect_url),
+                    ("redirect_uri", redirectUrl),
                     ("state", state));
         }
 
@@ -106,13 +106,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string team_id;
         }
 
-        public async Task<AccessToken> AuthGetAccessTokenAsync(string client_secret, string code, string redirect_url)
+        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl)
         {
             WebRet ret = await this.RequestWithQuery(WebApiMethods.POST, "https://slack.com/api/oauth.access",
                 null,
                 ("client_id", this.ClientId),
-                ("client_secret", client_secret),
-                ("redirect_uri", redirect_url),
+                ("client_secret", clientSecret),
+                ("redirect_uri", redirectUrl),
                 ("code", code));
 
             AccessToken a = ret.DeserializeAndCheckError<AccessToken>();
@@ -155,13 +155,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             return (await RequestWithQuery(WebApiMethods.POST, "https://slack.com/api/channels.list")).DeserializeAndCheckError<ChannelsList>();
         }
 
-        public async Task PostMessageAsync(string channel_id, string text, bool as_user)
+        public async Task PostMessageAsync(string channelId, string text, bool asUser)
         {
             PostMessageData m = new PostMessageData()
             {
-                channel = channel_id,
+                channel = channelId,
                 text = text,
-                as_user = as_user,
+                as_user = asUser,
             };
 
             await PostMessageAsync(m);

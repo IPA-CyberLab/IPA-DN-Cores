@@ -62,9 +62,9 @@ namespace IPA.Cores.Basic
             Buf b = Buf.ReadFromFile(filename);
             init(b.ByteData);
         }
-        public Rsa(Buf b)
+        public Rsa(Buf buf)
         {
-            init(b.ByteData);
+            init(buf.ByteData);
         }
         void init(byte[] data)
         {
@@ -452,9 +452,6 @@ namespace IPA.Cores.Basic
 
         static bool crypto_aead_chacha20poly1305_ietf_decrypt(Memory<byte> m, ReadOnlyMemory<byte> c, ReadOnlyMemory<byte> ad, ReadOnlyMemory<byte> npub, ReadOnlyMemory<byte> k)
         {
-            //return crypto_aead_chacha20poly1305_ietf_decrypt_detached(m.Slice(0, c.Length - AeadChaCha20Poly1305MacSize), c.Slice(0, c.Length - AeadChaCha20Poly1305MacSize),
-            //    c.Slice(c.Length - AeadChaCha20Poly1305MacSize, AeadChaCha20Poly1305MacSize),
-            //    ad, npub, k);
             return crypto_aead_chacha20poly1305_ietf_decrypt_detached(m, c.Slice(0, c.Length - AeadChaCha20Poly1305MacSize),
                 c.Slice(c.Length - AeadChaCha20Poly1305MacSize, AeadChaCha20Poly1305MacSize),
                 ad, npub, k);

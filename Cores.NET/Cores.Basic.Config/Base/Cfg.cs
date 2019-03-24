@@ -69,30 +69,28 @@ namespace IPA.Cores.Basic
         public string DirName { get; }
         public int ReadPollingIntervalSecs { get; }
         public int UpdatePollingIntervalSecs { get; }
+        public int CurrentConfigVersion { get; private set; } = 0;
 
-        int current_version = 0;
-        public int CurrentConfigVersion => this.current_version;
+        ThreadObj PollingThreadObj = null;
+        Event HaltEvent = new Event();
+        bool HaltFlag = false;
 
-        ThreadObj polling_thread_obj = null;
-        Event halt_event = new Event();
-        bool halt = false;
-
-        public Cfg(bool read_only = true, int read_polling_interval_secs = 2, int update_polling_interval_secs = 1, T default_config = null, string filename = null, string header_str = null)
+        public Cfg(bool readOnly = true, int readPollingIntervalSecs = 2, int updatePollingIntervalSecs = 1, T defaultConfig = null, string filename = null, string headerStr = null)
         {
-            if (default_config == null) default_config = new T();
-            this.DefaultConfig = (T)default_config.CloneDeep();
-            if (filename.IsEmpty()) filename = "@" + Str.GetLastToken(default_config.GetType().ToString(), '+', '.').MakeSafeFileName() + ".cfg";
+            if (defaultConfig == null) defaultConfig = new T();
+            this.DefaultConfig = (T)defaultConfig.CloneDeep();
+            if (filename.IsEmpty()) filename = "@" + Str.GetLastToken(defaultConfig.GetType().ToString(), '+', '.').MakeSafeFileName() + ".cfg";
             this.FileName = IO.InnerFilePath(filename);
             this.DirName = this.FileName.GetDirectoryName();
             IO.MakeDirIfNotExists(this.DirName);
-            if (header_str.IsEmpty())
+            if (headerStr.IsEmpty())
             {
-                header_str = @"# Configuration file
+                headerStr = @"# Configuration file
 # YAML format";
             }
-            this.HeaderStr = header_str;
+            this.HeaderStr = headerStr;
 
-            this.ReadOnly = read_only;
+            this.ReadOnly = readOnly;
 
             if (IO.IsFileExists(this.FileName) == false)
             {
@@ -110,32 +108,32 @@ namespace IPA.Cores.Basic
             }
 
             this.Config = t;
-            this.ReadPollingIntervalSecs = read_polling_interval_secs;
-            this.UpdatePollingIntervalSecs = update_polling_interval_secs;
+            this.ReadPollingIntervalSecs = readPollingIntervalSecs;
+            this.UpdatePollingIntervalSecs = updatePollingIntervalSecs;
 
-            current_version++;
+            CurrentConfigVersion++;
 
             // スレッドの作成
-            halt_event = new Event();
-            polling_thread_obj = new ThreadObj(polling_thread);
+            HaltEvent = new Event();
+            PollingThreadObj = new ThreadObj(PollingThreadProc);
         }
 
-        void polling_thread(object param)
+        void PollingThreadProc(object param)
         {
             Thread.CurrentThread.IsBackground = true;
 
-            long read_interval = this.ReadPollingIntervalSecs * 1000;
-            long update_interval = this.UpdatePollingIntervalSecs * 1000;
+            long readInterval = this.ReadPollingIntervalSecs * 1000;
+            long updateInterval = this.UpdatePollingIntervalSecs * 1000;
 
-            long last_read = 0;
-            long last_update = 0;
+            long lastRead = 0;
+            long lastUpdate = 0;
 
-            ulong last_hash = this.ConfigHash;
+            ulong lastHash = this.ConfigHash;
 
-            while (halt == false)
+            while (HaltFlag == false)
             {
-                halt_event.Wait(200);
-                if (halt)
+                HaltEvent.Wait(200);
+                if (HaltFlag)
                 {
                     break;
                 }
@@ -144,21 +142,21 @@ namespace IPA.Cores.Basic
 
                 if (this.ReadOnly == false)
                 {
-                    if (last_update == 0 || (now >= (last_update + update_interval)))
+                    if (lastUpdate == 0 || (now >= (lastUpdate + updateInterval)))
                     {
-                        last_update = now;
+                        lastUpdate = now;
 
-                        ulong current_hash = this.ConfigHash;
+                        ulong currentHash = this.ConfigHash;
 
-                        if (last_hash != current_hash)
+                        if (lastHash != currentHash)
                         {
                             Dbg.WriteLine($"Memory configuration is updated. Saving to the file '{this.FileName.GetFileName()}'.");
 
                             try
                             {
                                 WriteConfigToFile(this.FileName, this.Config, this.HeaderStr, this.ConfigLock);
-                                current_version++;
-                                last_hash = current_hash;
+                                CurrentConfigVersion++;
+                                lastHash = currentHash;
                             }
                             catch (Exception ex)
                             {
@@ -168,9 +166,9 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                if (last_read == 0 || (now >= (last_read + read_interval)))
+                if (lastRead == 0 || (now >= (lastRead + readInterval)))
                 {
-                    last_read = now;
+                    lastRead = now;
 
                     T read_t;
 
@@ -182,11 +180,11 @@ namespace IPA.Cores.Basic
                         {
                             lock (this.ConfigLock)
                             {
-                                ulong new_hash = read_t.GetObjectHash();
-                                if (last_hash != new_hash)
+                                ulong newHash = read_t.GetObjectHash();
+                                if (lastHash != newHash)
                                 {
-                                    last_hash = new_hash;
-                                    current_version++;
+                                    lastHash = newHash;
+                                    CurrentConfigVersion++;
                                     this.Config = read_t;
 
                                     Dbg.WriteLine($"File configuration is modified. Loading from the file '{this.FileName.GetFileName()}'.");
@@ -203,15 +201,15 @@ namespace IPA.Cores.Basic
 
             if (this.ReadOnly == false)
             {
-                ulong current_hash = this.ConfigHash;
+                ulong currentHash = this.ConfigHash;
 
-                if (last_hash != current_hash)
+                if (lastHash != currentHash)
                 {
                     Dbg.WriteLine($"Memory configuration is updated. Saving to the file '{this.FileName.GetFileName()}'.");
                     try
                     {
                         WriteConfigToFile(this.FileName, this.Config, this.HeaderStr, this.ConfigLock);
-                        current_version++;
+                        CurrentConfigVersion++;
                     }
                     catch (Exception ex)
                     {
@@ -221,28 +219,28 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void WriteConfigToFile(string filename, T config, string header_str, object lock_obj = null)
+        public static void WriteConfigToFile(string filename, T config, string headerStr, object lockObj = null)
         {
-            if (lock_obj == null) lock_obj = new object();
+            if (lockObj == null) lockObj = new object();
 
             string str;
 
-            lock (lock_obj)
+            lock (lockObj)
             {
                 str = Yaml.Serialize(config);
             }
 
-            if (header_str.IsEmpty()) header_str = "\n\n";
+            if (headerStr.IsEmpty()) headerStr = "\n\n";
 
-            str = header_str + "\n\n" + str + "\n";
+            str = headerStr + "\n\n" + str + "\n";
 
             str = str.NormalizeCrlfThisPlatform();
 
-            string new_filename = filename + ".new";
+            string newFilename = filename + ".new";
 
             try
             {
-                IO.WriteAllTextWithEncoding(new_filename, str, Str.Utf8Encoding, true);
+                IO.WriteAllTextWithEncoding(newFilename, str, Str.Utf8Encoding, true);
                 try
                 {
                     IO.FileDelete(filename);
@@ -250,13 +248,13 @@ namespace IPA.Cores.Basic
                 catch
                 {
                 }
-                IO.FileRename(new_filename, filename);
+                IO.FileRename(newFilename, filename);
             }
             finally
             {
                 try
                 {
-                    IO.FileDelete(new_filename);
+                    IO.FileDelete(newFilename);
                 }
                 catch
                 {
@@ -264,7 +262,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static T ReadConfigFromFile(string filename, T default_config)
+        public static T ReadConfigFromFile(string filename, T defaultConfig)
         {
             string body;
 
@@ -284,13 +282,13 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                if (default_config == null)
+                if (defaultConfig == null)
                 {
                     throw;
                 }
                 else
                 {
-                    return (T)default_config.CloneDeep();
+                    return (T)defaultConfig.CloneDeep();
                 }
             }
 
@@ -302,13 +300,13 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                if (default_config == null)
+                if (defaultConfig == null)
                 {
                     throw;
                 }
                 else
                 {
-                    return (T)default_config.CloneDeep();
+                    return (T)defaultConfig.CloneDeep();
                 }
             }
         }
@@ -323,11 +321,11 @@ namespace IPA.Cores.Basic
 
                 if (disposing)
                 {
-                    this.halt = true;
+                    this.HaltFlag = true;
 
-                    this.halt_event.Set();
+                    this.HaltEvent.Set();
 
-                    this.polling_thread_obj.WaitForEnd();
+                    this.PollingThreadObj.WaitForEnd();
                 }
             }
         }
