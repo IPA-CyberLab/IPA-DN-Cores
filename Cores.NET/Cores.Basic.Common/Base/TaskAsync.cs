@@ -333,6 +333,12 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
+        public static Task StartSyncTaskAsync(Action action) => Task.Factory.StartNew(action);
+        public static Task<T> StartSyncTaskAsync<T>(Func<T> action) => Task.Factory.StartNew(action);
+
+        public static Task StartAsyncTaskAsync(Func<Task> action) => action();
+        public static Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action) => action();
+
         public static int GetMinTimeout(params int[] values)
         {
             long minValue = long.MaxValue;
@@ -3147,11 +3153,23 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncServerClientTester : IDisposable
+    class AsyncTester : IDisposable
     {
         List<AsyncCleanuperLady> LadyList = new List<AsyncCleanuperLady>();
 
-        public AsyncServerClientTester(params AsyncCleanuperLady[] ladyList)
+        public AsyncCleanuperLady SingleLady { get; } = null;
+
+        CancellationTokenSource CancelSource = new CancellationTokenSource();
+        public CancellationToken Cancelled => CancelSource.Token;
+
+        public AsyncTester(bool createSingleLady) : this()
+        {
+            if (createSingleLady)
+            {
+                AddLady(SingleLady = new AsyncCleanuperLady());
+            }
+        }
+        public AsyncTester(params AsyncCleanuperLady[] ladyList)
         {
             foreach (AsyncCleanuperLady lady in ladyList)
                 AddLady(lady);
@@ -3188,6 +3206,8 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            CancelSource.Cancel();
 
             AsyncCleanuperLady[] ladyListCopy;
 

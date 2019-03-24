@@ -13,25 +13,48 @@ namespace IPA.TestDev
         {
             //JsonRpcTest.TestMain();
 
-            List<long> o = new List<long>();
+            //List<long> o = new List<long>();
 
-            while (true)
+            //while (true)
+            //{
+            //    long sys64 = Time.SystemTime64;
+            //    long tick64 = Time.Tick64;
+            //    DateTime dt64 = Time.Time64ToDateTime(sys64);
+
+            //    Con.WriteLine($"Now: {tick64} = {sys64} = {dt64.ToLocalTime()}");
+
+            //    o.Add(tick64);
+
+            //    ThreadObj.Sleep(500);
+
+            //    foreach (long v in o)
+            //    {
+            //        Con.WriteLine($"Hist: {v} = {Time.Tick64ToDateTime(v).ToLocalTime()}");
+            //    }
+            //}
+
+            using (AsyncTester test = new AsyncTester(true))
             {
-                long sys64 = Time.SystemTime64;
-                long tick64 = Time.Tick64;
-                DateTime dt64 = Time.Time64ToDateTime(sys64);
+                AsyncLogger g = new AsyncLogger(test.SingleLady, @"C:\tmp\deltest\log", "test", AsyncLoggerSwitchType.Hour, autoDeleteTotalMaxSize: 0);
+                g.MaxPendingRecords = 100;
 
-                Con.WriteLine($"Now: {tick64} = {sys64} = {dt64.ToLocalTime()}");
-
-                o.Add(tick64);
-
-                ThreadObj.Sleep(500);
-
-                foreach (long v in o)
+                TaskUtil.StartAsyncTaskAsync(async () =>
                 {
-                    Con.WriteLine($"Hist: {v} = {Time.Tick64ToDateTime(v).ToLocalTime()}");
-                }
+                    string dummy = Str.MakeCharArray('x', 10000);
+                    //g.Add(new AsyncLogRecord("Hello"));
+                    while (test.Cancelled.IsCancellationRequested == false)
+                    {
+                        await g.AddAsync(new AsyncLogRecord(Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), AsyncLoggerPendingTreatment.Wait);
+                        //await Task.Delay(1);
+                        //break;
+                    }
+                }).AddToLady(test.SingleLady);
+
+                g.DiscardPendingDataOnDispose = false;
+                test.EnterKeyPrompt();
             }
+
+            Con.ReadLine("Quit?");
         }
 
         static void Main(string[] args)

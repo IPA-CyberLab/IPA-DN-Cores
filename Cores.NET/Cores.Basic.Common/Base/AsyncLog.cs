@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 
@@ -41,7 +42,7 @@ using IPA.Cores.Helper.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum AsyncLogSwitchType
+    enum AsyncLoggerSwitchType
     {
         None,
         Second,
@@ -51,13 +52,23 @@ namespace IPA.Cores.Basic
         Month,
     }
 
+    [Flags]
+    enum AsyncLoggerPendingTreatment
+    {
+        Discard,
+        Ignore,
+        Wait,
+    }
+
     class AsyncLogRecord
     {
         public long Tick { get; }
         public object Data { get; }
 
+        public AsyncLogRecord(object data) : this(0, data) { }
         public AsyncLogRecord(long tick, object data)
         {
+            if (tick == 0) tick = FastTick64.Now;
             this.Tick = tick;
             this.Data = data;
         }
@@ -73,41 +84,54 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncLog : AsyncCleanupable
+    class AsyncLogger : AsyncCleanupable
     {
-        public const long DefaultMaxLogSize = 4096;
+        public const long DefaultMaxLogSize = 1073741823;
         public const string DefaultExtension = ".log";
-        public const long BufferCacheMaxSize = 128; //10 * 1024 * 1024;
+        public const long BufferCacheMaxSize = 5 * 1024 * 1024;
+        public const int DefaultMaxPendingRecords = 1000;
 
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
         public string Prefix { get; }
-        public AsyncLogSwitchType SwitchType { get; set; }
-        public long MaxLogSize { get; } = DefaultMaxLogSize;
+        public AsyncLoggerSwitchType SwitchType { get; set; }
+        public long MaxLogSize { get; }
         readonly Queue<AsyncLogRecord> RecordQueue = new Queue<AsyncLogRecord>();
         readonly AsyncAutoResetEvent Event = new AsyncAutoResetEvent();
-        readonly AsyncManualResetEvent FlushEvent = new AsyncManualResetEvent();
+        readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
+        readonly AsyncAutoResetEvent WaitPendingEvent = new AsyncAutoResetEvent();
         public string Extension { get; }
+        public bool DiscardPendingDataOnDispose { get; set; }
 
-        bool Halt = false;
+        public int MaxPendingRecords { get; set; } = DefaultMaxPendingRecords;
+
+        readonly CancellationTokenSource Cancel = new CancellationTokenSource();
         long LastTick = 0;
-        AsyncLogSwitchType LastSwitchType = AsyncLogSwitchType.None;
+        AsyncLoggerSwitchType LastSwitchType = AsyncLoggerSwitchType.None;
         long CurrentFilePointer = 0;
         int CurrentLogNumber = 0;
         bool LogNumberIncremented = false;
         string LastCachedStr = null;
 
-        public AsyncLog(AsyncCleanuperLady lady, string dir, string prefix, AsyncLogSwitchType switchType = AsyncLogSwitchType.Day, long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension)
+        public AsyncLogger(AsyncCleanuperLady lady, string dir, string prefix, AsyncLoggerSwitchType switchType = AsyncLoggerSwitchType.Day,
+            long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
+            long autoDeleteTotalMaxSize = 0)
             : base(lady)
         {
             try
             {
                 this.DirName = dir.NonNullTrim();
                 this.Prefix = prefix.NonNullTrim();
-                this.SwitchType = this.SwitchType;
+                this.SwitchType = switchType;
                 this.Extension = extension.IsFilledOrDefault(DefaultExtension);
+                this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
                 if (this.Extension.StartsWith(".") == false)
                     this.Extension = "." + this.Extension;
+
+                if (autoDeleteTotalMaxSize != 0)
+                {
+                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMaxSize, dir.SingleArray(), extension, 1000);
+                }
 
                 this.Lady.Add(LogThreadAsync());
             }
@@ -118,14 +142,19 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void Stop(bool abandonUnwritenData)
+        {
+            this.DiscardPendingDataOnDispose = abandonUnwritenData;
+            this.Dispose();
+        }
+
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
         {
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Halt = true;
-                Event.Set();
+                Cancel.Cancel();
             }
             finally { base.Dispose(disposing); }
         }
@@ -156,11 +185,21 @@ namespace IPA.Cores.Basic
                         num = RecordQueue.Count;
                     }
 
-                    if (b.Length > this.MaxLogSize)
+                    if (MaxPendingRecords >= 1)
+                    {
+                        if (num == (this.MaxPendingRecords - 1))
+                        {
+                            this.WaitPendingEvent.Set();
+                        }
+                    }
+
+                    if (b.Length > Math.Max(this.MaxLogSize, BufferCacheMaxSize))
                     {
                         // Erase if the size of the buffer is larger than the maximum log file size
                         b.Clear();
                     }
+
+                    await Task.Yield();
 
                     if (b.Length >= BufferCacheMaxSize)
                     {
@@ -247,6 +286,7 @@ namespace IPA.Cores.Basic
 
                                 if (IO.IsFileExists(tmp) == false)
                                     break;
+
 
                                 this.CurrentLogNumber = i;
                             }
@@ -357,26 +397,32 @@ namespace IPA.Cores.Basic
 
                     if (io == null)
                         break;
+
+                    if (this.Cancel.IsCancellationRequested)
+                        break;
                 }
 
-                if (this.Halt)
+                // Break after finishing to save all records
+                // when the stop flag stood
+                int num2;
+                lock (this.RecordQueue)
                 {
-                    // Break after finishing to save all records
-                    // when the stop flag stood
-                    int num;
-                    lock (this.RecordQueue)
-                    {
-                        num = this.RecordQueue.Count;
-                    }
+                    num2 = this.RecordQueue.Count;
+                }
 
-                    if (num == 0 || io == null)
+                if (this.Cancel.IsCancellationRequested)
+                {
+                    if (num2 == 0 || io == null || DiscardPendingDataOnDispose)
                     {
                         break;
                     }
                 }
                 else
                 {
-                    await this.Event.WaitOneAsync(9821);
+                    if (num2 == 0)
+                    {
+                        await this.Event.WaitOneAsync(9821, this.Cancel.Token);
+                    }
                 }
             }
 
@@ -388,17 +434,78 @@ namespace IPA.Cores.Basic
             b.Clear();
         }
 
-        public void Add(AsyncLogRecord r)
+        public async Task<bool> AddAsync(AsyncLogRecord r, AsyncLoggerPendingTreatment pendingTreatment = AsyncLoggerPendingTreatment.Discard, CancellationToken pendingWaitCancel = default)
         {
+            if (this.Cancel.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            while (MaxPendingRecords >= 1 && this.RecordQueue.Count >= this.MaxPendingRecords)
+            {
+                if (pendingTreatment == AsyncLoggerPendingTreatment.Ignore)
+                {
+                    break;
+                }
+                else if (pendingTreatment == AsyncLoggerPendingTreatment.Wait)
+                {
+                    await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.Cancel.Token }, events: this.WaitPendingEvent.SingleArray());
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
             lock (this.RecordQueue)
             {
                 this.RecordQueue.Enqueue(r);
             }
 
             this.Event.Set();
+
+            return true;
         }
 
-        bool MakeLogFileName(out string name, string dir, string prefix, long tick, AsyncLogSwitchType switchType, int num, ref string oldDateStr)
+        public bool Add(AsyncLogRecord r)
+        {
+            if (this.Cancel.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            if (MaxPendingRecords >= 1 && this.RecordQueue.Count >= this.MaxPendingRecords)
+            {
+                return false;
+            }
+
+            lock (this.RecordQueue)
+            {
+                this.RecordQueue.Enqueue(r);
+            }
+
+            this.Event.Set();
+
+            return true;
+        }
+
+        public async Task<bool> WaitAllLogFlush()
+        {
+            while (this.Cancel.IsCancellationRequested == false)
+            {
+                int num;
+                lock (this.RecordQueue)
+                    num = this.RecordQueue.Count;
+
+                if (num == 0) return true;
+                if (this.Cancel.IsCancellationRequested) return false;
+
+                await this.FlushEvent.WaitOneAsync(100, this.Cancel.Token);
+            }
+            return false;
+        }
+
+        bool MakeLogFileName(out string name, string dir, string prefix, long tick, AsyncLoggerSwitchType switchType, int num, ref string oldDateStr)
         {
             prefix = prefix.TrimNonNull();
             string tmp = MakeLogFileNameStringFromTick(tick, switchType);
@@ -435,7 +542,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        string MakeLogFileNameStringFromTick(long tick, AsyncLogSwitchType switchType)
+        string MakeLogFileNameStringFromTick(long tick, AsyncLoggerSwitchType switchType)
         {
             if (this.LastCachedStr != null)
                 if (this.LastTick == tick && this.LastSwitchType == switchType)
@@ -446,23 +553,23 @@ namespace IPA.Cores.Basic
 
             switch (switchType)
             {
-                case AsyncLogSwitchType.Second:
+                case AsyncLoggerSwitchType.Second:
                     str = dt.ToString("_yyyyMMdd_HHmmss");
                     break;
 
-                case AsyncLogSwitchType.Minute:
+                case AsyncLoggerSwitchType.Minute:
                     str = dt.ToString("_yyyyMMdd_HHmm");
                     break;
 
-                case AsyncLogSwitchType.Hour:
+                case AsyncLoggerSwitchType.Hour:
                     str = dt.ToString("_yyyyMMdd_HH");
                     break;
 
-                case AsyncLogSwitchType.Day:
+                case AsyncLoggerSwitchType.Day:
                     str = dt.ToString("_yyyyMMdd");
                     break;
 
-                case AsyncLogSwitchType.Month:
+                case AsyncLoggerSwitchType.Month:
                     str = dt.ToString("_yyyyMM");
                     break;
             }
