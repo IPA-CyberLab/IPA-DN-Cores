@@ -41,6 +41,8 @@ namespace IPA.Cores.Basic
     // FIFO
     class Fifo
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         byte[] p;
         int pos, size;
         public int Size
@@ -409,6 +411,8 @@ namespace IPA.Cores.Basic
     // バッファ
     class Buf
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         MemoryStream buf;
 
         // コンストラクタ

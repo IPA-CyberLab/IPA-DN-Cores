@@ -461,6 +461,8 @@ namespace IPA.Cores.Basic
 
     static class BackgroundWorker
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         static volatile int num_busy_worker_threads = 0;
         static volatile int num_worker_threads = 0;
 
@@ -736,11 +738,11 @@ namespace IPA.Cores.Basic
                 list[i / 64].Add(events[i]);
             }
 
-            double start = Time.NowDouble;
+            double start = Time.NowHighResDouble;
             double giveup = start + (double)millisecs / 1000.0;
             foreach (List<Event> o in list)
             {
-                double now = Time.NowDouble;
+                double now = Time.NowHighResDouble;
                 if (now <= giveup || millisecs < 0)
                 {
                     int waitmsecs;
@@ -839,6 +841,8 @@ namespace IPA.Cores.Basic
 
     class ThreadObj
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         public readonly static RefInt NumCurrentThreads = new RefInt();
 
         static Once g_DebugReportNumCurrentThreads_flag;

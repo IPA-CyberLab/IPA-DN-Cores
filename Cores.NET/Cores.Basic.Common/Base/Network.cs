@@ -334,6 +334,8 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     static class IPUtil
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         // ユーザーが利用できるホストアドレスかどうか確認
         public static bool IsIPv4UserHostAddress(IPAddress ip, IPAddress subnet)
         {
@@ -2938,11 +2940,11 @@ namespace IPA.Cores.Basic
 
                 using (Ping p = new Ping())
                 {
-                    DateTime startDateTime = Time.NowDateTimeUtc;
+                    DateTime startDateTime = Time.NowHighResDateTimeUtc;
 
                     PingReply ret = p.Send(target, timeout, data);
 
-                    DateTime endDateTime = Time.NowDateTimeUtc;
+                    DateTime endDateTime = Time.NowHighResDateTimeUtc;
 
                     TimeSpan span = endDateTime - startDateTime;
 

@@ -113,6 +113,7 @@ namespace IPA.Cores.Helper.Basic
         public static string TrimEndsWith(this string s, string key, bool case_sensitive = false) { Str.TrimEndsWith(ref s, key, case_sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string NonNull(this string s) { if (s == null) return ""; else return s; }
         public static string NonNullTrim(this string s) { if (s == null) return ""; else return s.Trim(); }
+        public static string TrimNonNull(this string s) => s.NonNullTrim();
         public static string NormalizeSoftEther(this string s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
         public static string[] DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
         public static bool IsSuitableEncodingForString(this string s, Encoding enc) => Str.IsSuitableEncodingForString(s, enc);
@@ -562,6 +563,8 @@ namespace IPA.Cores.Helper.Basic
             obj.DbEnforceNonNull();
             return obj;
         }
+
+        public static T DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T ret) ? ret : default);
     }
 }
 

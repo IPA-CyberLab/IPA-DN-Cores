@@ -27,6 +27,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.2.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.2.3" />
     <PackageReference Include="Dapper" Version="1.60.1" />
+    <PackageReference Include="Dapper.Contrib" Version="1.60.1" />
 
     <!-- Cores.Basic.Html -->
     <PackageReference Include="HtmlAgilityPack" Version="1.9.2" />

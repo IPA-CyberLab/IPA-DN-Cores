@@ -87,6 +87,8 @@ namespace IPA.Cores.Basic
     // コンソール入出力
     static class Con
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         static ConsoleService cs = null;
 
         public static ConsoleService ConsoleService

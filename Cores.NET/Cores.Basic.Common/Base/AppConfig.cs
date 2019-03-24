@@ -48,6 +48,8 @@ namespace IPA.Cores.Basic
 
     static class AppConfig<T> where T : AppConfig, new()
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         static T CachedData = null;
         static CriticalSection Lock = new CriticalSection();
         static bool IsReadOnly = false;

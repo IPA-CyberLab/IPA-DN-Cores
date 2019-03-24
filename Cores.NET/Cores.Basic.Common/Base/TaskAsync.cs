@@ -69,12 +69,19 @@ namespace IPA.Cores.Basic
 
         public async Task<LockHolder> LockWithAwait()
         {
-            await LockAsync();
+            await _LockAsync();
 
             return new LockHolder(this);
         }
 
-        public Task LockAsync() => semaphone.WaitAsync();
+        public LockHolder LockLegacy()
+        {
+            _Lock();
+            return new LockHolder(this);
+        }
+
+        public Task _LockAsync() => semaphone.WaitAsync();
+        public void _Lock() => semaphone.Wait();
         public void Unlock() => semaphone.Release();
 
         public void Dispose()
@@ -324,6 +331,8 @@ namespace IPA.Cores.Basic
 
     static partial class TaskUtil
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         public static int GetMinTimeout(params int[] values)
         {
             long minValue = long.MaxValue;
@@ -901,6 +910,23 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public async Task<bool> WaitAsync(int timeout, CancellationToken cancel = default)
+        {
+            try
+            {
+                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
+                    manualEvents: this.SingleArray(),
+                    timeout: timeout,
+                    exceptions: ExceptionWhen.All);
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public Task WaitAsync()
         {
             lock (lockobj)
@@ -1118,6 +1144,8 @@ namespace IPA.Cores.Basic
 
     abstract class AsyncCleanupable : IAsyncCleanupable
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         public AsyncCleanuper AsyncCleanuper { get; }
         protected internal AsyncCleanuperLady Lady;
 
@@ -1505,6 +1533,8 @@ namespace IPA.Cores.Basic
 
     class CancelWatcher : AsyncCleanupable
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         CancellationTokenSource cts = new CancellationTokenSource();
         public CancellationToken CancelToken { get => cts.Token; }
         public AsyncManualResetEvent EventWaitMe { get; } = new AsyncManualResetEvent();
@@ -1752,6 +1782,8 @@ namespace IPA.Cores.Basic
 
     static class LeakChecker
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         internal static Dictionary<long, LeakCheckerHolder> _InternalList = new Dictionary<long, LeakCheckerHolder>();
         internal static long _InternalCurrentId = 0;
 

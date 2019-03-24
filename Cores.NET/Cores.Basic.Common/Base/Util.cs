@@ -322,6 +322,7 @@ namespace IPA.Cores.Basic
     // ユーティリティクラス
     static partial class Util
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
 
@@ -965,14 +966,25 @@ namespace IPA.Cores.Basic
             return (uint)ts.TotalSeconds;
         }
 
+        // Convert to a time to be used safely in the current POSIX implementation
+        public static long SafeTime64(long time64) => (long)SafeTime64((ulong)time64);
+        public static ulong SafeTime64(ulong time64)
+        {
+            time64 = Math.Max(time64, 0);
+            time64 = Math.Min(time64, 4102243323123UL);
+            return time64;
+        }
+
         // ulong を DateTime に変換
+        public static DateTime ConvertDateTime(long time64) => ConvertDateTime((ulong)time64);
         public static DateTime ConvertDateTime(ulong time64)
         {
+            time64 = SafeTime64(time64);
             if (time64 == 0)
             {
                 return new DateTime(0);
             }
-            return new DateTime(((long)time64 + 62135629200000) * 10000);
+            return new DateTime(((long)time64 + 62135629200000L) * 10000L);
         }
 
         // DateTime を ulong に変換
@@ -982,7 +994,7 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-            return (ulong)dt.Ticks / 10000 - 62135629200000;
+            return (ulong)SafeTime64(dt.Ticks / 10000L - 62135629200000L);
         }
 
         // ulong を TimeSpan に変換

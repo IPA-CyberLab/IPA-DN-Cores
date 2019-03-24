@@ -47,6 +47,8 @@ namespace IPA.Cores.Basic
 {
     static partial class Dbg
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         static bool is_debug_mode = false;
         public static bool IsDebugMode => is_debug_mode;
 

@@ -567,8 +567,10 @@ namespace IPA.Cores.Basic
     };
 
     // ファイル操作
-    class IO
+    class IO : IDisposable
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         // ディレクトリのコピー
         public delegate bool CopyDirPreCopyDelegate(FileInfo srcFileInfo);
         public static void CopyDir(string srcDirName, string destDirName, CopyDirPreCopyDelegate preCopy, bool ignoreError, bool printStatus)
@@ -707,6 +709,7 @@ namespace IPA.Cores.Basic
         Buf hamBuf;
 
         object lockObj;
+        readonly AsyncLock AsyncLockObj = new AsyncLock();
 
         // コンストラクタ
         private IO()
@@ -1487,14 +1490,8 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルに書き込む
-        public bool Write(byte[] buf)
-        {
-            return Write(buf, 0, buf.Length);
-        }
-        public bool Write(byte[] buf, int size)
-        {
-            return Write(buf, 0, size);
-        }
+        public bool Write(byte[] buf) => Write(buf, 0, buf.Length);
+        public bool Write(byte[] buf, int size) => Write(buf, 0, size);
         public bool Write(byte[] buf, int offset, int size)
         {
             if (writeMode == false)
@@ -1528,6 +1525,50 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public Task<bool> WriteAsync(byte[] buf) => WriteAsync(buf, 0, buf.Length);
+        public Task<bool> WriteAsync(byte[] buf, int size) => WriteAsync(buf, 0, size);
+        public Task<bool> WriteAsync(byte[] buf, int offset, int size) => WriteAsync(buf.AsReadOnlyMemory(offset, size));
+        public async Task<bool> WriteAsync(ReadOnlyMemory<byte> memory)
+        {
+            if (writeMode == false)
+            {
+                return false;
+            }
+            if (memory.Length == 0)
+            {
+                return true;
+            }
+
+            using (await AsyncLockObj.LockWithAwait())
+            {
+                if (p != null)
+                {
+                    try
+                    {
+                        await p.WriteAsync(memory);
+
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            Close();
+        }
+
         // 閉じて削除する
         public bool CloseAndDelete()
         {
@@ -1555,19 +1596,22 @@ namespace IPA.Cores.Basic
         {
             lock (this.lockObj)
             {
-                if (this.hamMode == false)
+                using (AsyncLockObj.LockLegacy())
                 {
-                    if (this.p != null)
+                    if (this.hamMode == false)
                     {
-                        if (this.writeMode && noFlush == false)
+                        if (this.p != null)
                         {
-                            Flush();
+                            if (this.writeMode && noFlush == false)
+                            {
+                                Flush();
+                            }
+
+                            this.p.Close();
                         }
 
-                        this.p.Close();
+                        this.p = null;
                     }
-
-                    this.p = null;
                 }
             }
         }
@@ -1582,6 +1626,23 @@ namespace IPA.Cores.Basic
                     if (this.p != null)
                     {
                         this.p.Flush();
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        public async Task FlushAsync()
+        {
+            try
+            {
+                using (await this.AsyncLockObj.LockWithAwait())
+                {
+                    if (this.p != null)
+                    {
+                        await this.p.FlushAsync();
                     }
                 }
             }
