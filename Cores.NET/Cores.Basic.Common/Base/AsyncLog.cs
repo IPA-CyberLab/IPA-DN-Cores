@@ -61,11 +61,22 @@ namespace IPA.Cores.Basic
             this.Tick = tick;
             this.Data = data;
         }
+
+        public void WriteRecordToBuffer(MemoryBuffer<byte> b)
+        {
+            // Get the time
+            DateTime dt = Time.Tick64ToDateTime(this.Tick).ToLocalTime();
+
+            // Convert a time to a string
+            string writeStr = dt.ToDtStr(true, DtstrOption.All, false) + " " + this.Data.ToString() + "\r\n";
+            b.Write(writeStr.GetBytes_Ascii());
+        }
     }
 
     class AsyncLog : AsyncCleanupable
     {
         public const long DefaultMaxLogSize = 4096;
+        public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 128; //10 * 1024 * 1024;
 
         readonly CriticalSection Lock = new CriticalSection();
@@ -76,23 +87,35 @@ namespace IPA.Cores.Basic
         readonly Queue<AsyncLogRecord> RecordQueue = new Queue<AsyncLogRecord>();
         readonly AsyncAutoResetEvent Event = new AsyncAutoResetEvent();
         readonly AsyncManualResetEvent FlushEvent = new AsyncManualResetEvent();
+        public string Extension { get; }
 
         bool Halt = false;
-        bool CacheFlag = false;
         long LastTick = 0;
         AsyncLogSwitchType LastSwitchType = AsyncLogSwitchType.None;
         long CurrentFilePointer = 0;
         int CurrentLogNumber = 0;
         bool LogNumberIncremented = false;
+        string LastCachedStr = null;
 
-        public AsyncLog(AsyncCleanuperLady lady, string dir, string prefix, AsyncLogSwitchType switchType = AsyncLogSwitchType.Day, long maxLogSize = DefaultMaxLogSize)
+        public AsyncLog(AsyncCleanuperLady lady, string dir, string prefix, AsyncLogSwitchType switchType = AsyncLogSwitchType.Day, long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension)
             : base(lady)
         {
-            this.DirName = dir.NonNullTrim();
-            this.Prefix = prefix.NonNullTrim();
-            this.SwitchType = this.SwitchType;
+            try
+            {
+                this.DirName = dir.NonNullTrim();
+                this.Prefix = prefix.NonNullTrim();
+                this.SwitchType = this.SwitchType;
+                this.Extension = extension.IsFilledOrDefault(DefaultExtension);
+                if (this.Extension.StartsWith(".") == false)
+                    this.Extension = "." + this.Extension;
 
-            this.Lady.Add(LogThread());
+                this.Lady.Add(LogThreadAsync());
+            }
+            catch
+            {
+                Lady.DisposeAllSafe();
+                throw;
+            }
         }
 
         Once DisposeFlag;
@@ -107,17 +130,18 @@ namespace IPA.Cores.Basic
             finally { base.Dispose(disposing); }
         }
 
-        async Task LogThread()
+        async Task LogThreadAsync()
         {
             IO io = null;
             MemoryBuffer<byte> b = new MemoryBuffer<byte>();
-            bool flag = false;
             string currentFileName = "";
             string currentLogFileDateName = "";
             bool logDateChanged = false;
 
             while (true)
             {
+                await Task.Yield();
+
                 AsyncLogRecord rec = null;
                 long s = FastTick64.Now;
 
@@ -208,21 +232,246 @@ namespace IPA.Cores.Basic
                     // Generate a log file name
                     lock (this.Lock)
                     {
-                        //logDateChanged = 
+                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                            rec.Tick, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
+
+                        if (logDateChanged)
+                        {
+                            this.CurrentLogNumber = 0;
+                            MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                                rec.Tick, this.SwitchType, 0, ref currentLogFileDateName);
+                            for (int i = 0; ; i++)
+                            {
+                                MakeLogFileName(out string tmp, this.DirName, this.Prefix,
+                                    rec.Tick, this.SwitchType, i, ref currentLogFileDateName);
+
+                                if (IO.IsFileExists(tmp) == false)
+                                    break;
+
+                                this.CurrentLogNumber = i;
+                            }
+                        }
+                    }
+
+                    if (io != null)
+                    {
+                        if (currentFileName != fileName)
+                        {
+                            // If a log file is currently opened and writing to another log
+                            // file is needed for this time, write the contents of the 
+                            // buffer and close the log file. Write the contents of the buffer
+                            if (io != null)
+                            {
+                                if (logDateChanged)
+                                {
+                                    if ((this.CurrentFilePointer + b.Length) <= this.MaxLogSize)
+                                    {
+                                        if (await io.WriteAsync(b.Memory) == false)
+                                        {
+                                            io.Close(true);
+                                            b.Clear();
+                                            io = null;
+                                        }
+                                        else
+                                        {
+                                            this.CurrentFilePointer += b.Length;
+                                            b.Clear();
+                                        }
+                                    }
+                                }
+                                // Close the file
+                                if (io != null)
+                                {
+                                    io.Close(true);
+                                    io = null;
+                                }
+                            }
+
+                            this.LogNumberIncremented = false;
+
+                            // Open or create a new log file
+                            currentFileName = fileName;
+                            try
+                            {
+                                io = IO.FileOpen(fileName, true);
+                                this.CurrentFilePointer = io.FileSize64;
+                                io.Seek(SeekOrigin.End, 0);
+                            }
+                            catch
+                            {
+                                // Create a log file
+                                lock (this.Lock)
+                                {
+                                    try
+                                    {
+                                        IO.MakeDirIfNotExists(this.DirName);
+                                    }
+                                    catch { }
+                                }
+                                try
+                                {
+                                    io = IO.FileCreate(fileName);
+                                }
+                                catch { }
+                                this.CurrentFilePointer = 0;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Open or create a new log file
+                        currentFileName = fileName;
+                        try
+                        {
+                            io = IO.FileOpen(fileName, true);
+                            this.CurrentFilePointer = io.FileSize64;
+                            io.Seek(SeekOrigin.End, 0);
+                        }
+                        catch
+                        {
+                            // Create a log file
+                            lock (this.Lock)
+                            {
+                                try
+                                {
+                                    IO.MakeDirIfNotExists(this.DirName);
+                                }
+                                catch { }
+                            }
+                            this.CurrentFilePointer = 0;
+                            try
+                            {
+                                io = IO.FileCreate(fileName);
+                            }
+                            catch
+                            {
+                                await Task.Delay(30);
+                            }
+                        }
+
+                        this.LogNumberIncremented = false;
+                    }
+
+                    // Write the contents of the log to the buffer
+                    rec.WriteRecordToBuffer(b);
+
+                    if (io == null)
+                        break;
+                }
+
+                if (this.Halt)
+                {
+                    // Break after finishing to save all records
+                    // when the stop flag stood
+                    int num;
+                    lock (this.RecordQueue)
+                    {
+                        num = this.RecordQueue.Count;
+                    }
+
+                    if (num == 0 || io == null)
+                    {
+                        break;
                     }
                 }
+                else
+                {
+                    await this.Event.WaitOneAsync(9821);
+                }
             }
+
+            if (io != null)
+            {
+                io.Close(true);
+            }
+
+            b.Clear();
         }
 
-        static bool MakeLogFileName(out string name, string dir, string prefix, long tick, AsyncLogSwitchType switchType, int num, string oldDateStr)
+        public void Add(AsyncLogRecord r)
+        {
+            lock (this.RecordQueue)
+            {
+                this.RecordQueue.Enqueue(r);
+            }
+
+            this.Event.Set();
+        }
+
+        bool MakeLogFileName(out string name, string dir, string prefix, long tick, AsyncLogSwitchType switchType, int num, ref string oldDateStr)
         {
             prefix = prefix.TrimNonNull();
-            throw null;
+            string tmp = MakeLogFileNameStringFromTick(tick, switchType);
+            string tmp2 = "";
+            bool ret = false;
+
+            if (num != 0)
+            {
+                long maxLogSize = this.MaxLogSize;
+                int digits = 9;
+                if (maxLogSize >= 1000000000L)
+                    digits = 3;
+                else if (maxLogSize >= 100000000L)
+                    digits = 4;
+                else if (maxLogSize >= 10000000L)
+                    digits = 5;
+                else if (maxLogSize >= 1000000L)
+                    digits = 6;
+                else if (maxLogSize >= 100000L)
+                    digits = 7;
+                else if (maxLogSize >= 10000L)
+                    digits = 8;
+                tmp2 = "~" + num.ToString($"D" + digits);
+            }
+
+            if (oldDateStr != tmp)
+            {
+                ret = true;
+                oldDateStr = tmp;
+            }
+
+            name = Path.Combine(dir, prefix + tmp + tmp2 + this.Extension);
+
+            return ret;
         }
 
-        static string MakeLogFileNameStringFromTick(long tick, AsyncLogSwitchType switchType)
+        string MakeLogFileNameStringFromTick(long tick, AsyncLogSwitchType switchType)
         {
-            throw null;
+            if (this.LastCachedStr != null)
+                if (this.LastTick == tick && this.LastSwitchType == switchType)
+                    return this.LastCachedStr;
+
+            DateTime dt = Time.Tick64ToDateTime(tick).ToLocalTime();
+            string str = "";
+
+            switch (switchType)
+            {
+                case AsyncLogSwitchType.Second:
+                    str = dt.ToString("_yyyyMMdd_HHmmss");
+                    break;
+
+                case AsyncLogSwitchType.Minute:
+                    str = dt.ToString("_yyyyMMdd_HHmm");
+                    break;
+
+                case AsyncLogSwitchType.Hour:
+                    str = dt.ToString("_yyyyMMdd_HH");
+                    break;
+
+                case AsyncLogSwitchType.Day:
+                    str = dt.ToString("_yyyyMMdd");
+                    break;
+
+                case AsyncLogSwitchType.Month:
+                    str = dt.ToString("_yyyyMM");
+                    break;
+            }
+
+            this.LastCachedStr = str;
+            this.LastTick = tick;
+            this.LastSwitchType = SwitchType;
+
+            return str;
         }
     }
 }

@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -71,7 +72,7 @@ namespace IPA.Cores.Basic
         long Time64;
         long Tick64WithTime64;
         CriticalSection Lock = new CriticalSection();
-        List<History> HistoryList = new List<History>();
+        ImmutableList<History> HistoryList = ImmutableList<History>.Empty;
         public int Interval { get; }
         AsyncManualResetEvent HaltEvent = new AsyncManualResetEvent();
         bool HaltFlag = false;
@@ -116,7 +117,7 @@ namespace IPA.Cores.Basic
                     History t = new History() { Tick = tick64, Time = Time.SystemTime64 };
                     this.Tick64WithTime64 = tick64;
                     this.Time64 = t.Time;
-                    HistoryList.Add(t);
+                    HistoryList = HistoryList.Add(t);
 
                     InitCompletedEvent.Set();
                     createFirstEntry = false;
@@ -132,24 +133,22 @@ namespace IPA.Cores.Basic
                     if (now < this.Time64 || diff >= 1000)
                     {
                         History t = new History();
-                        lock (this.HistoryList)
+                        t.Tick = tick64;
+                        t.Time = now;
+
+                        HistoryList = HistoryList.Add(t);
+
+                        if (Dbg.IsDebugMode)
+                            Console.WriteLine($"Adjust Time: Diff = {diff}, Tick = {t.Tick}, Time = {t.Time}, NUM_ADJUST TIME: {this.HistoryList.Count}");
+
+                        // To prevent consuming memory infinite on a system that clock is skewd
+                        if (this.HistoryList.Count >= MaxAdjustTime)
                         {
-                            t.Tick = tick64;
-                            t.Time = now;
-                            this.HistoryList.Add(t);
+                            // Remove the second
+                            this.HistoryList = this.HistoryList.RemoveAt(1);
 
                             if (Dbg.IsDebugMode)
-                                Console.WriteLine($"Adjust Time: Diff = {diff}, Tick = {t.Tick}, Time = {t.Time}, NUM_ADJUST TIME: {this.HistoryList.Count}");
-
-                            // To prevent consuming memory infinite on a system that clock is skewd
-                            if (this.HistoryList.Count >= MaxAdjustTime)
-                            {
-                                // Remove the second
-                                this.HistoryList.RemoveAt(1);
-
-                                if (Dbg.IsDebugMode)
-                                    Console.WriteLine($"NUM_ADJUST TIME: {this.HistoryList.Count}");
-                            }
+                                Console.WriteLine($"NUM_ADJUST TIME: {this.HistoryList.Count}");
                         }
 
                         this.Time64 = now;
@@ -170,16 +169,14 @@ namespace IPA.Cores.Basic
         {
             long ret = 0;
             if (tick == 0) return 0;
-            lock (this.HistoryList)
+            var List = this.HistoryList;
+            for (int i = List.Count - 1; i >= 0; i--)
             {
-                for (int i = this.HistoryList.Count - 1; i >= 0; i--)
+                History t = List[i];
+                if (t.Tick <= tick)
                 {
-                    History t = HistoryList[i];
-                    if (t.Tick <= tick)
-                    {
-                        ret = t.Time + (tick - t.Tick);
-                        break;
-                    }
+                    ret = t.Time + (tick - t.Tick);
+                    break;
                 }
             }
             if (ret == 0) ret = 1;

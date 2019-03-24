@@ -812,6 +812,23 @@ namespace IPA.Cores.Basic
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
 
+        public async Task<bool> WaitOneAsync(int timeout, CancellationToken cancel = default)
+        {
+            try
+            {
+                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
+                    events: this.SingleArray(),
+                    timeout: timeout,
+                    exceptions: ExceptionWhen.All);
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public Task WaitOneAsync(out Action cancel)
         {
             lock (lockobj)

@@ -31,12 +31,6 @@ namespace IPA.TestDev
                 {
                     Con.WriteLine($"Hist: {v} = {Time.Tick64ToDateTime(v).ToLocalTime()}");
                 }
-
-                if (o.Count >= 5)
-                {
-                    Con.WriteLine("exit");
-                    return;
-                }
             }
         }
 

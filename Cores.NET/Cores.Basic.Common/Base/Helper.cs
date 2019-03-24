@@ -556,6 +556,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsEmpty<T>(this T data) => Util.IsEmpty(data);
         public static bool IsFilled<T>(this T data) => Util.IsFilled(data);
 
+        public static string IsFilledOrDefault(this string s, string defaultValue) => (s.IsFilled() ? s : defaultValue);
+
         public static T DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);
         public static void DbEnforceNonNull(this object obj) => Util.DbEnforceNonNull(obj);
         public static T DbEnforceNonNullSelf<T>(this T obj)
@@ -565,6 +567,16 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static T DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T ret) ? ret : default);
+
+        public static async Task<bool> WaitUntilCancelledAsync(this CancellationToken cancel, int timeout = Timeout.Infinite)
+        {
+            if (cancel.IsCancellationRequested)
+                return true;
+            await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: timeout);
+            return cancel.IsCancellationRequested;
+        }
+        public static Task<bool> WaitUntilCancelledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
+            => WaitUntilCancelledAsync(cancel.Token, timeout);
     }
 }
 

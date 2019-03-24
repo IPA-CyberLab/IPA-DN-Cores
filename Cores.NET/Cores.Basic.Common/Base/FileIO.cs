@@ -42,60 +42,67 @@ using IPA.Cores.Helper.Basic;
 namespace IPA.Cores.Basic
 {
     // 古いファイルから順番に削除する
-    class OldFileEraser
+    class OldFileEraser : AsyncCleanupable
     {
-        string[] dir_list;
-        string extension_list;
-        long max_total_size;
+        string[] DirList;
+        string ExtensionList;
+        long MaxTotalSize;
 
-        public OldFileEraser(long max_total_size, string dir, string extensions = "*") : this(max_total_size, new string[] { dir }, extensions) { }
-        public OldFileEraser(long max_total_size, string[] dirs, string extensions = "*")
+        public const int DefaultInterval = 60 * 1000;
+        public int Interval { get; }
+        CancellationTokenSource Cancel { get; } = new CancellationTokenSource();
+
+        public OldFileEraser(AsyncCleanuperLady lady, long maxTotalSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
+            : base(lady)
         {
-            List<string> tmp = new List<string>();
-            foreach (string dir in dirs) tmp.Add(dir.InnerFilePath());
-            this.dir_list = tmp.ToArray();
+            try
+            {
+                this.Interval = interval;
+                List<string> tmp = new List<string>();
+                foreach (string dir in dirs) tmp.Add(dir.InnerFilePath());
+                this.DirList = tmp.ToArray();
 
-            this.extension_list = extensions;
-            this.max_total_size = max_total_size;
+                this.ExtensionList = extensions;
+                this.MaxTotalSize = maxTotalSize;
+
+                this.Lady.Add(IntervalThreadAsync());
+            }
+            catch
+            {
+                Lady.DisposeAllSafe();
+                throw;
+            }
         }
 
-        // 定期的に削除を実行するスレッドを開始
-        public void StartIntervalThread(int interval, CancellationToken cancel = default(CancellationToken))
+        // 停止
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
         {
-            Event halt_event = new Event();
-
-            ThreadObj thread = new ThreadObj((param) =>
+            try
             {
-                while (cancel.IsCancellationRequested == false)
-                {
-                    halt_event.Wait(interval);
-                    if (cancel.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    ProcessNow(cancel);
-                    DateTime.Now.Debug();
-                }
-            });
-
-            cancel.Register(() =>
-            {
-                halt_event.Set();
-                thread.WaitForEnd();
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                Cancel.Cancel();
             }
-            );
+            finally { base.Dispose(disposing); }
+        }
 
-            thread.Thread.IsBackground = true;
+        // 定期的に削除を実行するスレッド
+        public async Task IntervalThreadAsync()
+        {
+            while (await this.Cancel.WaitUntilCancelledAsync(this.Interval) == false)
+            {
+                DateTime.Now.Debug();
+                ProcessNow(this.DirList, this.ExtensionList, this.MaxTotalSize, this.Cancel.Token);
+            }
         }
 
         // すぐに削除実行
-        public void ProcessNow(CancellationToken cancel = default(CancellationToken))
+        public static void ProcessNow(string[] dirList, string extensionList, long maxTotalSize, CancellationToken cancel = default(CancellationToken))
         {
             try
             {
                 // 列挙
-                List<DirEntry> list = IO.EnumDirsWithCancel(this.dir_list, this.extension_list, cancel);
+                List<DirEntry> list = IO.EnumDirsWithCancel(dirList, extensionList, cancel);
 
                 // 更新日時でソート
                 list.Sort((x, y) => (x.UpdateDate.CompareTo(y.UpdateDate)));
@@ -107,7 +114,7 @@ namespace IPA.Cores.Basic
                 List<DirEntry> delete_files = new List<DirEntry>();
 
                 // 削除をしていきます
-                long delete_size = total_size - max_total_size;
+                long delete_size = total_size - maxTotalSize;
                 foreach (var v in list)
                 {
                     if (delete_size <= 0) break;
@@ -1309,17 +1316,25 @@ namespace IPA.Cores.Basic
         // ディレクトリが存在するかどうか確認する
         public static bool IsDirExists(string name)
         {
-            string tmp = InnerFilePath(name);
+            try
+            {
+                string tmp = InnerFilePath(name);
 
-            return Directory.Exists(tmp);
+                return Directory.Exists(tmp);
+            }
+            catch { return false; }
         }
 
         // ファイルが存在するかどうか確認する
         public static bool IsFileExists(string name)
         {
-            string tmp = InnerFilePath(name);
+            try
+            {
+                string tmp = InnerFilePath(name);
 
-            return File.Exists(tmp);
+                return File.Exists(tmp);
+            }
+            catch { return false; }
         }
 
         // ファイルを削除する
@@ -1337,7 +1352,7 @@ namespace IPA.Cores.Basic
         }
 
         // シークする
-        public bool Seek(SeekOrigin mode, int offset)
+        public bool Seek(SeekOrigin mode, long offset)
         {
             lock (lockObj)
             {
@@ -1598,20 +1613,24 @@ namespace IPA.Cores.Basic
             {
                 using (AsyncLockObj.LockLegacy())
                 {
-                    if (this.hamMode == false)
+                    try
                     {
-                        if (this.p != null)
+                        if (this.hamMode == false)
                         {
-                            if (this.writeMode && noFlush == false)
+                            if (this.p != null)
                             {
-                                Flush();
+                                if (this.writeMode && noFlush == false)
+                                {
+                                    Flush();
+                                }
+
+                                this.p.Close();
                             }
 
-                            this.p.Close();
+                            this.p = null;
                         }
-
-                        this.p = null;
                     }
+                    catch { }
                 }
             }
         }
