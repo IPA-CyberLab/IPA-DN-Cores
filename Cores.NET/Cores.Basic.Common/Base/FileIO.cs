@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
                 this.ExtensionList = extensions;
                 this.MaxTotalSize = maxTotalSize;
 
-                this.Lady.Add(IntervalThreadAsync());
+                this.Lady.Add(IntervalThreadAsync().LeakCheck());
             }
             catch
             {

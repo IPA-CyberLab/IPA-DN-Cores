@@ -333,11 +333,15 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public static async Task StartSyncTaskAsync(Action action) { await Task.Yield(); await Task.Factory.StartNew(action); }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action) { await Task.Yield(); return await Task.Factory.StartNew(action); }
+        public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action).LeakCheck(!leakCheck); }
+        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action).LeakCheck(!leakCheck); }
 
-        public static async Task StartAsyncTaskAsync(Func<Task> action) { await Task.Yield(); await action(); }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action) { await Task.Yield(); return await action(); }
+        public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); await action().LeakCheck(!leakCheck); }
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); return await action().LeakCheck(!leakCheck); }
 
         public static int GetMinTimeout(params int[] values)
         {

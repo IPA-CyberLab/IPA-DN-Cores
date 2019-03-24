@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic
                     OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMaxSize, dir.SingleArray(), extension, 1000);
                 }
 
-                this.Lady.Add(LogThreadAsync());
+                this.Lady.Add(LogThreadAsync().LeakCheck());
             }
             catch
             {

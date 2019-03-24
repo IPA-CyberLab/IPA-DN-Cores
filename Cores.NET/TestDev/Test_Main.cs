@@ -48,11 +48,12 @@ namespace IPA.TestDev
                     //g.Add(new AsyncLogRecord("Hello"));
                     while (test.Cancelled.IsCancellationRequested == false)
                     {
+                        Dbg.Where();
                         await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(with_nanosecs: true) + dummy), LogPendingTreatment.Wait);
-                        //await Task.Delay(1);
+                        await Task.Delay(1);
                         //break;
                     }
-                }).AddToLady(test.SingleLady);
+                }, leakCheck: true).AddToLady(test.SingleLady);
 
                 g.DiscardPendingDataOnDispose = false;
                 test.EnterKeyPrompt();
