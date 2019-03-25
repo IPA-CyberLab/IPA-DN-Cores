@@ -43,10 +43,12 @@ namespace IPA.Cores.Basic
 {
     static partial class AppConfig
     {
-        public static partial class DefaultLoggerSettings
+        public static partial class Logger
         {
-            public static readonly Copenhagen<long> AutoDeleteTotalMinSize = 4000000000L;
-            public static readonly Copenhagen<long> MaxLogSize = 1073741823L;
+            public static readonly Copenhagen<long> DefaultAutoDeleteTotalMinSize = 4000000000L;
+            public static readonly Copenhagen<long> DefaultMaxLogSize = 1073741823L;
+            public static readonly Copenhagen<int> DefaultMaxPendingRecords = 10000;
+            public static readonly Copenhagen<int> EraserIntervalMsecs = 5 * 1000;
         }
     }
 
@@ -115,7 +117,7 @@ namespace IPA.Cores.Basic
         public LogRecord(object data, LogPriority priority = LogPriority.Debug) : this(0, data, priority) { }
 
         public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug)
-            : this(tick == 0 ? DateTimeOffset.Now :  Time.Tick64ToDateTimeOffsetLocal(tick), data, priority) { }
+            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority) { }
 
         public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug)
         {
@@ -213,9 +215,8 @@ namespace IPA.Cores.Basic
     {
         public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;
-        public const int DefaultMaxPendingRecords = 10000;
 
-        public readonly byte[] NewFilePreamble = Str.BomUtf8.AsMemoryBuffer().SeekToEnd().Do(x => x.Write("\r\n".GetBytes_Ascii())).Span.ToArray();
+        public readonly byte[] NewFilePreamble = Str.BomUtf8;
 
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
@@ -230,7 +231,7 @@ namespace IPA.Cores.Basic
         public string Extension { get; }
         public bool DiscardPendingDataOnDispose { get; set; }
 
-        public int MaxPendingRecords { get; set; } = DefaultMaxPendingRecords;
+        public int MaxPendingRecords { get; set; } = AppConfig.Logger.DefaultMaxPendingRecords;
 
         LogInfoOptions InfoOptions { get; }
 
@@ -258,7 +259,7 @@ namespace IPA.Cores.Basic
                 this.SwitchType = switchType;
                 this.Extension = extension.Default(DefaultExtension);
                 if (this.MaxLogSize <= 0)
-                    this.MaxLogSize = AppConfig.DefaultLoggerSettings.MaxLogSize;
+                    this.MaxLogSize = AppConfig.Logger.DefaultMaxLogSize;
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
                 if (this.Extension.StartsWith(".") == false)
                     this.Extension = "." + this.Extension;
@@ -269,8 +270,8 @@ namespace IPA.Cores.Basic
 
                 if (autoDeleteTotalMinSize != null)
                 {
-                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.Default(AppConfig.DefaultLoggerSettings.AutoDeleteTotalMinSize.Value);
-                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, 1000);
+                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.Default(AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
+                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, AppConfig.Logger.EraserIntervalMsecs);
                 }
 
                 this.Lady.Add(LogThreadAsync().LeakCheck());
@@ -319,7 +320,7 @@ namespace IPA.Cores.Basic
                     string fileName;
                     int num;
 
-                    lock(this.RecordQueue)
+                    lock (this.RecordQueue)
                     {
                         rec = RecordQueue.DequeueOrNull();
                         num = RecordQueue.Count;

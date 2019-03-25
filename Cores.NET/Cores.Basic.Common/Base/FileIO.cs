@@ -93,7 +93,6 @@ namespace IPA.Cores.Basic
         {
             while (await this.Cancel.WaitUntilCancelledAsync(this.Interval) == false)
             {
-                DateTime.Now.Debug();
                 ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.Cancel.Token);
             }
         }
