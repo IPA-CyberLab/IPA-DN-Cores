@@ -106,6 +106,7 @@ namespace IPA.Cores.Helper.Basic
         public static void Printf(this string s) => Str.Printf(s, new object[0]);
         public static void Printf(this string s, params object[] args) => Str.Printf(s, args);
         public static string Print(this string s, bool newline = true) { Console.Write((s == null ? "null" : s) + (newline ? Env.NewLine : "")); return s; }
+        public static string PrintLine(this string s) => s.Print(true);
         public static string Debug(this string s) { Dbg.WriteLine(s); return s; }
         public static int Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static string TrimCrlf(this string s) => Str.TrimCrlf(s);
@@ -183,9 +184,9 @@ namespace IPA.Cores.Helper.Basic
         public static void SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
             => IO.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);
 
-        public static void InnerDebug(this object o, string instanceBaseName = "") => Dbg.WriteObject(o, instanceBaseName);
-        public static void InnerPrint(this object o, string instanceBaseName = "") => Dbg.PrintObjectInnerString(o, instanceBaseName);
-        public static string GetInnerStr(this object o, string instanceBaseName = "") => Dbg.GetObjectInnerString(o, instanceBaseName);
+        public static void InnerDebug(this object o, string instanceBaseName = null) => Dbg.WriteObject(o, instanceBaseName);
+        public static void InnerPrint(this object o, string instanceBaseName = null) => Dbg.PrintObjectInnerString(o, instanceBaseName);
+        public static string GetInnerStr(this object o, string instanceBaseName = null, string newLineString = "\r\n") => Dbg.GetObjectInnerString(o, instanceBaseName, newLineString);
         public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
@@ -603,6 +604,16 @@ namespace IPA.Cores.Helper.Basic
                 return await t;
             }
         }
+
+        public static T Do<T>(this T obj, Action<T> action)
+        {
+            action(obj);
+            return obj;
+        }
+
+        public static T Do<T>(this T obj, Func<T, T> func) => func(obj);
+
+        public static T2 Do<T1, T2>(this T1 obj, Func<T1, T2> func) => func(obj);
     }
 }
 

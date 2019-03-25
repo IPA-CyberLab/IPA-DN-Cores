@@ -42,6 +42,11 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
+    partial class LogKind
+    {
+        public const string Debug = "Debug";
+    }
+
     [Flags]
     enum LogSwitchType
     {
@@ -62,7 +67,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogType
+    enum LogPriority
     {
         Debug = 1,
         Information = 2,
@@ -76,18 +81,18 @@ namespace IPA.Cores.Basic
         public bool WithMachineName = false;
         public bool WithAppName = false;
         public bool WithKind = false;
-        public bool WithLogType = false;
-        public string NewLineString = "\r\n";
+        public bool WithPriority = false;
+        public string NewLineString = ", ";
 
         public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
         public string AppName = Env.ExeAssemblySimpleName;
         public string Kind = "";
 
-        public void Normalize(string prefix)
+        public void Normalize(string logKind)
         {
             this.MachineName = this.MachineName.NonNullTrim().NoSpace();
             this.AppName = this.AppName.NonNullTrim().NoSpace();
-            this.Kind = this.Kind.NonNullTrim().Default(prefix).NoSpace();
+            this.Kind = this.Kind.NonNullTrim().Default(logKind).NoSpace();
         }
     }
 
@@ -95,25 +100,25 @@ namespace IPA.Cores.Basic
     {
         public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
-        public LogType Type { get; }
+        public LogPriority Priority { get; }
 
         public LogRecord(object data) : this(0, data) { }
 
-        public LogRecord(long tick, object data, LogType level = LogType.Debug)
-            : this(Time.Tick64ToDateTimeOffsetLocal(tick), data, level) { }
+        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug)
+            : this(tick == 0 ? DateTimeOffset.Now :  Time.Tick64ToDateTimeOffsetLocal(tick), data, priority) { }
 
-        public LogRecord(DateTimeOffset dateTime, object data, LogType level = LogType.Debug)
+        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug)
         {
             this.TimeStamp = dateTime;
             this.Data = data;
-            this.Type = level;
+            this.Priority = priority;
         }
 
-        public static string GetTextFromData(object data)
+        public static string GetTextFromData(object data, LogInfoOptions opt)
         {
             if (data == null) return "null";
             if (data is string str) return str;
-            return data.ToString();
+            return data.GetInnerStr("", opt.NewLineString);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
@@ -128,9 +133,9 @@ namespace IPA.Cores.Basic
             int num = 0;
             foreach (string line in lines)
             {
-                string line2 = line.Trim();
-                if (line2.Length >= 1)
+                if (line.IsFilled())
                 {
+                    string line2 = line.TrimEnd();
                     if (num >= 1)
                     {
                         sb.Append(opt.NewLineString);
@@ -167,8 +172,8 @@ namespace IPA.Cores.Basic
             if (opt.WithKind)
                 additionalList.Add(opt.Kind);
 
-            if (opt.WithLogType)
-                additionalList.Add(this.Type.ToString());
+            if (opt.WithPriority)
+                additionalList.Add(this.Priority.ToString());
 
             string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
             if (additionalStr.IsFilled())
@@ -179,7 +184,7 @@ namespace IPA.Cores.Basic
             }
 
             // Log text
-            string logText = GetMultilineText(GetTextFromData(this.Data), opt);
+            string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
             sb.Append(logText);
             sb.Append("\r\n");
 
@@ -194,9 +199,11 @@ namespace IPA.Cores.Basic
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;
         public const int DefaultMaxPendingRecords = 10000;
 
+        public readonly byte[] NewFilePreamble = Str.BomUtf8.AsMemoryBuffer().SeekToEnd().Do(x => x.Write("\r\n".GetBytes_Ascii())).Span.ToArray();
+
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
-        public string Prefix { get; }
+        public string Kind { get; }
         public LogSwitchType SwitchType { get; set; }
         public long MaxLogSize { get; }
         readonly Queue<LogRecord> RecordQueue = new Queue<LogRecord>();
@@ -218,7 +225,9 @@ namespace IPA.Cores.Basic
         bool LogNumberIncremented = false;
         string LastCachedStr = null;
 
-        public Logger(AsyncCleanuperLady lady, string dir, string prefix, LogSwitchType switchType = LogSwitchType.Day,
+        public bool NoFlush { get; set; } = false;
+
+        public Logger(AsyncCleanuperLady lady, string dir, string kind, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
             long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
             long autoDeleteTotalMaxSize = 0)
@@ -227,7 +236,7 @@ namespace IPA.Cores.Basic
             try
             {
                 this.DirName = dir.NonNullTrim();
-                this.Prefix = prefix.NonNullTrim().Default("log");
+                this.Kind = kind.NonNullTrim().Default(LogKind.Debug);
                 this.SwitchType = switchType;
                 this.Extension = extension.Default(DefaultExtension);
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
@@ -235,7 +244,7 @@ namespace IPA.Cores.Basic
                     this.Extension = "." + this.Extension;
 
                 this.InfoOptions = infoOptions.CloneDeep();
-                this.InfoOptions.Normalize(this.Prefix);
+                this.InfoOptions.Normalize(this.Kind);
 
 
                 if (autoDeleteTotalMaxSize != 0)
@@ -326,7 +335,7 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                if (await io.WriteAsync(b.Memory) == false)
+                                if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                 {
                                     io.Close(true);
                                     io = null;
@@ -358,10 +367,8 @@ namespace IPA.Cores.Basic
                                 }
                                 else
                                 {
-                                    if (await io.WriteAsync(b.Memory) == false)
+                                    if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                     {
-                                        Dbg.Where();
-
                                         io.Close(true);
                                         io = null;
                                         b.Clear();
@@ -383,17 +390,17 @@ namespace IPA.Cores.Basic
                     // Generate a log file name
                     lock (this.Lock)
                     {
-                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Kind,
                             rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
 
                         if (logDateChanged)
                         {
                             this.CurrentLogNumber = 0;
-                            MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                            MakeLogFileName(out fileName, this.DirName, this.Kind,
                                 rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
                             for (int i = 0; ; i++)
                             {
-                                MakeLogFileName(out string tmp, this.DirName, this.Prefix,
+                                MakeLogFileName(out string tmp, this.DirName, this.Kind,
                                     rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
                                 if (IO.IsFileExists(tmp) == false)
@@ -418,9 +425,8 @@ namespace IPA.Cores.Basic
                                 {
                                     if ((this.CurrentFilePointer + b.Length) <= this.MaxLogSize)
                                     {
-                                        if (await io.WriteAsync(b.Memory) == false)
+                                        if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                         {
-                                            Dbg.Where();
                                             io.Close(true);
                                             b.Clear();
                                             io = null;
@@ -465,6 +471,7 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     io = IO.FileCreate(fileName, useAsync: true);
+                                    await io.WriteAsync(NewFilePreamble, !this.NoFlush);
                                 }
                                 catch (Exception ex)
                                 {
@@ -500,6 +507,7 @@ namespace IPA.Cores.Basic
                             try
                             {
                                 io = IO.FileCreate(fileName, useAsync: true);
+                                await io.WriteAsync(NewFilePreamble, !this.NoFlush);
                             }
                             catch (Exception ex)
                             {

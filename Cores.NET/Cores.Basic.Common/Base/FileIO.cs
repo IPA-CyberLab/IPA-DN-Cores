@@ -1600,7 +1600,7 @@ namespace IPA.Cores.Basic
         public Task<bool> WriteAsync(byte[] buf) => WriteAsync(buf, 0, buf.Length);
         public Task<bool> WriteAsync(byte[] buf, int size) => WriteAsync(buf, 0, size);
         public Task<bool> WriteAsync(byte[] buf, int offset, int size) => WriteAsync(buf.AsReadOnlyMemory(offset, size));
-        public async Task<bool> WriteAsync(ReadOnlyMemory<byte> memory)
+        public async Task<bool> WriteAsync(ReadOnlyMemory<byte> memory, bool flush = false)
         {
             if (writeMode == false)
             {
@@ -1618,6 +1618,12 @@ namespace IPA.Cores.Basic
                     try
                     {
                         await p.WriteAsync(memory);
+
+                        if (flush)
+                        {
+                            Con.WriteLine($"{DateTime.Now.ToDtStr(true)} Flush");
+                            await p.FlushAsync();
+                        }
 
                         return true;
                     }

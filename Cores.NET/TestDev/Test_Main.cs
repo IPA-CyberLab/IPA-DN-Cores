@@ -7,8 +7,19 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.TestDev
 {
+    class Test1
+    {
+        public string Str;
+        public int X;
+    }
+
     static class MainClass
     {
+        static object GetX(ref int num)
+        {
+            var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
+            return u;
+        }
         static void TestMain()
         {
             //DateTimeOffset.Now.ToDtStr().Print();
@@ -44,7 +55,7 @@ namespace IPA.TestDev
                     WithAppName = true,
                     WithKind = true,
                     WithMachineName = true,
-                    WithLogType = true,
+                    WithPriority = true,
                 };
                 Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", LogSwitchType.Hour, info, autoDeleteTotalMaxSize: 0);
                 g.MaxPendingRecords = 100;
@@ -53,10 +64,34 @@ namespace IPA.TestDev
                 {
                     string dummy = Str.MakeCharArray('x', 10) + "\nHello World\nHello World qqq\n\n";
                     //g.Add(new AsyncLogRecord("Hello"));
+                    int num = 0;
                     while (test.Cancelled.IsCancellationRequested == false)
                     {
-                        await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(withNanoSecs: true) + dummy), LogPendingTreatment.Wait);
-                        //await Task.Delay(1);
+                        //await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(withNanoSecs: true) + dummy), LogPendingTreatment.Wait);
+
+                        //await g.AddAsync(new LogRecord(
+
+                        Test1 t = new Test1()
+                        {
+                            Str = "Hello\n\"World",
+                            X = num++,
+                        };
+
+                        //new { str = "Hello\nWorld", int1 = 3, obj = new { str2 = "Neko", int2 = 4 } }.GetInnerStr("", newLineString: ", ").PrintLine();
+
+                        //List<object> o = new List<object>();
+                        //o.Add(new { str = "Hello World D", int1 = 3, obj = new { str2 = "NekoA", int2 = 6 } });
+                        //o.Add(new { str = "Hello World E", int1 = 4, obj = new { str2 = "NekoB", int2 = 7 } });
+                        //o.Add(new { str = "Hello World F", int1 = 5, obj = new { str2 = "NekoC", int2 = 8 } });
+                        //o.ToArray().GetInnerStr("", ", ").PrintLine();
+
+                        //t.InnerPrint();
+
+                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
+
+                        await g.AddAsync(new LogRecord(GetX(ref num)));
+
+                        await Task.Delay(1);
                         //break;
                     }
                 }, leakCheck: true).AddToLady(test.SingleLady);

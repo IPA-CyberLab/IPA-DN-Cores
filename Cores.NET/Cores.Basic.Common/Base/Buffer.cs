@@ -172,9 +172,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public SpanBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public SpanBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {
@@ -309,9 +317,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public ReadOnlySpanBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public ReadOnlySpanBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {
@@ -518,9 +534,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public FastMemoryBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public FastMemoryBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {
@@ -714,9 +738,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public FastReadOnlyMemoryBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public FastReadOnlyMemoryBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {
@@ -1032,9 +1064,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public MemoryBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public MemoryBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {
@@ -1226,9 +1266,17 @@ namespace IPA.Cores.Basic
             CurrentPosition = newPosition;
         }
 
-        public void SeekToBegin() => Seek(0, SeekOrigin.Begin);
+        public ReadOnlySpanBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
 
-        public void SeekToEnd() => Seek(0, SeekOrigin.End);
+        public ReadOnlySpanBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
 
         public int Read(Span<T> dest, int size)
         {

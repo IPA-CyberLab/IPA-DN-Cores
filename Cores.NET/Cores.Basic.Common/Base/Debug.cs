@@ -111,17 +111,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectInnerString(object obj, string instanceBaseName = "")
+        public static string GetObjectInnerString(object obj, string instanceBaseName = "", string newLineString = "\r\n")
         {
-            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName);
+            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName, newLineString);
         }
         public static string GetObjectInnerString(Type t)
         {
             return GetObjectInnerString(t, null, null);
         }
-        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName)
+        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName, string newLineString = "\r\n")
         {
-            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, newLineString, instanceBaseName, obj);
 
             return v.ToString();
         }
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, "\r\n", instanceBaseName, obj);
 
             string str = v.ToString();
 
@@ -158,20 +158,20 @@ namespace IPA.Cores.Basic
         }
         public static void PrintObjectInnerString(Type t, object obj, string instanceBaseName)
         {
-            DebugVars v = GetVarsFromClass(t, instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, "\r\n", instanceBaseName, obj);
 
             string str = v.ToString();
 
             Console.WriteLine(str);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string name = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type t, string newLineString, string instanceBaseName = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
         {
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
-            if (Str.IsEmptyStr(name)) name = t.Name;
+            if (instanceBaseName == null) instanceBaseName = t.Name;
 
-            DebugVars ret = new DebugVars();
+            DebugVars ret = new DebugVars(newLineString);
 
             var members_list = GetAllMembersFromType(t, obj != null, obj == null);
 
@@ -234,7 +234,7 @@ namespace IPA.Cores.Basic
                                         }
                                         else
                                         {
-                                            ret.Childlen.Add(GetVarsFromClass(data_type2, info.Name, item, duplicateCheck.Add(data)));
+                                            ret.Childlen.Add(GetVarsFromClass(data_type2, newLineString, info.Name, item, duplicateCheck.Add(data)));
                                         }
                                     }
 
@@ -245,7 +245,7 @@ namespace IPA.Cores.Basic
                             {
                                 if (duplicateCheck.Contains(data) == false)
                                 {
-                                    ret.Childlen.Add(GetVarsFromClass(data_type, info.Name, data, duplicateCheck.Add(data)));
+                                    ret.Childlen.Add(GetVarsFromClass(data_type, newLineString, info.Name, data, duplicateCheck.Add(data)));
                                 }
                             }
                         }
@@ -253,7 +253,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            ret.BaseName = name;
+            ret.BaseName = instanceBaseName;
 
             return ret;
         }
@@ -328,32 +328,39 @@ namespace IPA.Cores.Basic
     {
         public string BaseName = "";
 
+        public string NewLineString;
+
+        public DebugVars(string newLineString = "\r\n")
+        {
+            this.NewLineString = newLineString;
+        }
+
         public List<(MemberInfo memberInfo, object data)> Vars = new List<(MemberInfo, object)>();
         public List<DebugVars> Childlen = new List<DebugVars>();
 
-        public void WriteToString(StringWriter w, ImmutableList<string> parents)
+        public void WriteToString(List<string> currentList, ImmutableList<string> parents)
         {
-            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
-            this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
-
-            foreach (DebugVars var in Childlen)
-            {
-                var.WriteToString(w, parents.Add(var.BaseName));
-            }
+//            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
+//            this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
 
             foreach (var data in Vars)
             {
                 MemberInfo p = data.memberInfo;
                 object o = data.data;
                 string print_str = "null";
-                string closure = "'";
+                string closure = "\"";
                 if ((o?.GetType().IsPrimitive ?? true) || (o?.GetType().IsEnum ?? false)) closure = "";
                 if (o != null)
                 {
-                    print_str = $"{closure}{o.ToString()}{closure}";
+                    print_str = $"{closure}{o.ToString().Unescape()}{closure}";
                 }
 
-                w.WriteLine($"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = {print_str}");
+                currentList.Add($"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = {print_str}");
+            }
+
+            foreach (DebugVars var in Childlen)
+            {
+                var.WriteToString(currentList, parents.Add(var.BaseName));
             }
         }
 
@@ -367,11 +374,19 @@ namespace IPA.Cores.Basic
         public override string ToString()
         {
             ImmutableList<string> parents = ImmutableList.Create<string>(this.BaseName);
-            StringWriter w = new StringWriter();
+            List<string> strList = new List<string>();
 
-            WriteToString(w, parents);
+            WriteToString(strList, parents);
 
-            return w.ToString();
+            for (int i = 0; i < strList.Count; i++)
+            {
+                string str = strList[i];
+                if (str.StartsWith("."))
+                    str = str.Substring(1);
+                strList[i] = str;
+            }
+
+            return strList.ToArray().Combine(this.NewLineString);
         }
     }
 

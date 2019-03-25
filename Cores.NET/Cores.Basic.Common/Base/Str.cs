@@ -688,6 +688,8 @@ namespace IPA.Cores.Basic
         public static Encoding Utf8Encoding { get; }
         public static Encoding UniEncoding { get; }
 
+        public static byte[] BomUtf8 { get; }
+
         // Encoding の初期化
         static Str()
         {
@@ -701,6 +703,7 @@ namespace IPA.Cores.Basic
             GB2312Encoding = Encoding.GetEncoding("gb2312");
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
+            BomUtf8 = Str.GetBOM(Str.Utf8Encoding);
         }
 
         internal static readonly char[] standardSplitChars =
@@ -2429,6 +2432,10 @@ namespace IPA.Cores.Basic
                             s = "\\n";
                             break;
 
+                        case '\"':
+                            s = "\\\"";
+                            break;
+
                         case '\0':
                             s = "\\0";
                             break;
@@ -2521,6 +2528,10 @@ namespace IPA.Cores.Basic
                         case '0':
                             d = '\0';
                             i++;
+                            break;
+
+                        case '\"':
+                            d = '\"';
                             break;
 
                         case 'x':
