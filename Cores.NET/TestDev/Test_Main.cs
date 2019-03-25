@@ -44,13 +44,14 @@ namespace IPA.TestDev
                     WithAppName = true,
                     WithKind = true,
                     WithMachineName = true,
+                    WithLogType = true,
                 };
                 Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", LogSwitchType.Hour, info, autoDeleteTotalMaxSize: 0);
                 g.MaxPendingRecords = 100;
 
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
-                    string dummy = Str.MakeCharArray('x', 10);
+                    string dummy = Str.MakeCharArray('x', 10) + "\nHello World\nHello World qqq\n\n";
                     //g.Add(new AsyncLogRecord("Hello"));
                     while (test.Cancelled.IsCancellationRequested == false)
                     {

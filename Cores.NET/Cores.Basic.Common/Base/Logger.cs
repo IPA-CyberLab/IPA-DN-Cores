@@ -36,6 +36,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
+using System.ComponentModel;
 
 using IPA.Cores.Helper.Basic;
 
@@ -60,6 +61,14 @@ namespace IPA.Cores.Basic
         WriteForcefully,
     }
 
+    [Flags]
+    enum LogType
+    {
+        Debug = 1,
+        Information = 2,
+        Error = 4,
+    }
+
     [Serializable]
     class LogInfoOptions
     {
@@ -67,6 +76,8 @@ namespace IPA.Cores.Basic
         public bool WithMachineName = false;
         public bool WithAppName = false;
         public bool WithKind = false;
+        public bool WithLogType = false;
+        public string NewLineString = "\r\n";
 
         public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
         public string AppName = Env.ExeAssemblySimpleName;
@@ -82,43 +93,97 @@ namespace IPA.Cores.Basic
 
     class LogRecord
     {
-        static readonly byte[] NewLineBytes = "\r\n".GetBytes_Ascii();
-
         public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
+        public LogType Type { get; }
 
         public LogRecord(object data) : this(0, data) { }
-        public LogRecord(long tick, object data) : this(Time.Tick64ToDateTimeOffsetLocal(tick), data) { }
-        public LogRecord(DateTimeOffset dateTime, object data)
+
+        public LogRecord(long tick, object data, LogType level = LogType.Debug)
+            : this(Time.Tick64ToDateTimeOffsetLocal(tick), data, level) { }
+
+        public LogRecord(DateTimeOffset dateTime, object data, LogType level = LogType.Debug)
         {
             this.TimeStamp = dateTime;
             this.Data = data;
+            this.Type = level;
+        }
+
+        public static string GetTextFromData(object data)
+        {
+            if (data == null) return "null";
+            if (data is string str) return str;
+            return data.ToString();
+        }
+
+        public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
+        {
+            if (opt.NewLineString.IndexOf("\n") == -1)
+                paddingLenForNextLines = 0;
+
+            string pad = Str.MakeCharArray(' ', paddingLenForNextLines);
+            string[] lines = src.GetLines();
+            StringBuilder sb = new StringBuilder();
+
+            int num = 0;
+            foreach (string line in lines)
+            {
+                string line2 = line.Trim();
+                if (line2.Length >= 1)
+                {
+                    if (num >= 1)
+                    {
+                        sb.Append(opt.NewLineString);
+                        sb.Append(pad);
+                    }
+                    sb.Append(line2);
+                    num++;
+                }
+            }
+
+            return sb.ToString();
         }
 
         public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
         {
-            // Convert a time to a string
-            List<string> o = new List<string>();
+            StringBuilder sb = new StringBuilder();
 
+            // Timestamp
             if (opt.WithTimeStamp)
-                o.Add(TimeStamp.ToDtStr(true, DtstrOption.All, false));
+            {
+                sb.Append(this.TimeStamp.ToDtStr(true, DtstrOption.All, false));
+                sb.Append(" ");
+            }
+
+            // Additional strings
+            List<string> additionalList = new List<string>();
 
             if (opt.WithMachineName)
-                o.Add(opt.MachineName);
+                additionalList.Add(opt.MachineName);
 
             if (opt.WithAppName)
-                o.Add(opt.AppName);
+                additionalList.Add(opt.AppName);
 
             if (opt.WithKind)
-                o.Add(opt.Kind);
+                additionalList.Add(opt.Kind);
 
-            string dataStr = this.Data.ToString();
-            o.Add(dataStr);
+            if (opt.WithLogType)
+                additionalList.Add(this.Type.ToString());
 
-            string str = Str.CombineStringArray2(" ", o.ToArray());
+            string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
+            if (additionalStr.IsFilled())
+            {
+                sb.Append("[");
+                sb.Append(additionalStr);
+                sb.Append("] ");
+            }
 
-            b.Write(str.GetBytes_Ascii());
-            b.Write(NewLineBytes);
+            // Log text
+            string logText = GetMultilineText(GetTextFromData(this.Data), opt);
+            sb.Append(logText);
+            sb.Append("\r\n");
+
+            b.Write(sb.ToString().GetBytes_UTF8());
         }
     }
 
@@ -263,8 +328,6 @@ namespace IPA.Cores.Basic
                             {
                                 if (await io.WriteAsync(b.Memory) == false)
                                 {
-                                    Dbg.Where();
-
                                     io.Close(true);
                                     io = null;
                                     b.Clear();
