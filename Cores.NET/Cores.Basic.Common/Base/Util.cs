@@ -300,9 +300,9 @@ namespace IPA.Cores.Basic
 
         public override bool Equals(object obj)
         {
-            var @ref = obj as Ref<T>;
-            return @ref != null &&
-                   EqualityComparer<T>.Default.Equals(Value, @ref.Value);
+            var refObj = obj as Ref<T>;
+            return refObj != null &&
+                   EqualityComparer<T>.Default.Equals(Value, refObj.Value);
         }
 
         public override int GetHashCode()
@@ -317,6 +317,77 @@ namespace IPA.Cores.Basic
         public static bool operator !(Ref<T> r) { return !r.IsTrue(); }
         public static implicit operator T(Ref<T> r) => r.Value;
         public static implicit operator Ref<T>(T value) => new Ref<T>(value);
+    }
+
+    abstract class MemberwiseClonable : ICloneable
+    {
+        public virtual object Clone() => this.MemberwiseClone();
+    }
+
+    class Copenhagen<T>
+    {
+        T _Value;
+        CriticalSection LockObj;
+        volatile bool Determined;
+        bool IsValueType;
+
+        public Copenhagen(T initialValue)
+        {
+            this._Value = initialValue;
+            this.LockObj = new CriticalSection();
+            this.Determined = false;
+            IsValueType = !(typeof(T).IsClass);
+        }
+
+        public T Value { get => GetValue(); set => SetValue(value); }
+
+        public T Get() => GetValue();
+        public T GetValue()
+        {
+            if (Determined)
+            {
+                if (IsValueType)
+                    return this._Value;
+                return this._Value.CloneIfClonable();
+            }
+            lock (LockObj)
+            {
+                Determined = true;
+                if (IsValueType)
+                    return this._Value;
+                return this._Value.CloneIfClonable();
+            }
+        }
+
+        public void Set(T value) => SetValue(value);
+        public void SetValue(T value)
+        {
+            lock (LockObj)
+            {
+                if (Determined == false)
+                {
+                    this._Value = value.CloneIfClonable();
+                }
+                else
+                {
+                    throw new ApplicationException($"The value '{this.GetType()}' is readonly becasue it is already determined.");
+                }
+            }
+        }
+
+        public override bool Equals(object obj)
+        {
+            var refObj = obj as Ref<T>;
+            return refObj != null &&
+                   EqualityComparer<T>.Default.Equals(Value, refObj.Value);
+        }
+
+        public override int GetHashCode() => -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value);
+
+        public override string ToString() => Value?.ToString() ?? null;
+
+        public static implicit operator T(Copenhagen<T> r) => r.Value;
+        public static implicit operator Copenhagen<T>(T value) => new Copenhagen<T>(value);
     }
 
     // ユーティリティクラス
@@ -1548,6 +1619,14 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public static T CloneIfClonable<T>(T obj)
+        {
+            if (obj == default) return default;
+            if (typeof(T).IsClass == false) return obj;
+            if (obj is ICloneable clonable) return (T)clonable.Clone();
+            return obj;
+        }
     }
 
     class XmlAndXsd
@@ -1562,6 +1641,7 @@ namespace IPA.Cores.Basic
     struct Once
     {
         volatile private int flag;
+        public void Set() => IsFirstCall();
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
         public bool IsSet => (this.flag != 0);
     }

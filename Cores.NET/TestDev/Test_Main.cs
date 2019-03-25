@@ -18,10 +18,14 @@ namespace IPA.TestDev
         static object GetX(ref int num)
         {
             var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
+
             return u;
         }
         static void TestMain()
         {
+            Console.WriteLine(AppConfig.LogRoute.LogRootDir);
+
+            return;
             //DateTimeOffset.Now.ToDtStr().Print();
 
             //return;

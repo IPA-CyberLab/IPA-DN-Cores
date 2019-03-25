@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\AppConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalInitializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Log.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\LogRoute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\TaskAsync.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Buf.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Buffer.cs" />
@@ -54,7 +55,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GlobalConfig\GlobalConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastBuffer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastGlobalConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />

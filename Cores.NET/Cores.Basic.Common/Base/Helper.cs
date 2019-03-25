@@ -614,6 +614,8 @@ namespace IPA.Cores.Helper.Basic
         public static T Do<T>(this T obj, Func<T, T> func) => func(obj);
 
         public static T2 Do<T1, T2>(this T1 obj, Func<T1, T2> func) => func(obj);
+
+        public static T CloneIfClonable<T>(this T obj) => Util.CloneIfClonable(obj);
     }
 }
 

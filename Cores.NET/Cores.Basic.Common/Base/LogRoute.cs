@@ -31,20 +31,22 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text;
-using System.Collections.Generic;
 using System.IO;
 
 using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class LoggerConfig : AppConfig
+    static partial class AppConfig
     {
-        public static LoggerConfig Global { get => AppConfig<LoggerConfig>.Value; set => AppConfig<LoggerConfig>.Value = value; }
-
-        public string LogDir = Path.Combine(Env.AppRootDir, "logs");
+        public static partial class LogRoute
+        {
+            public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
+        }
     }
 }
+

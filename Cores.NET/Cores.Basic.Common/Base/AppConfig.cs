@@ -41,49 +41,7 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class AppConfig
+    static partial class AppConfig
     {
-        public virtual object CloneAppConfig() => this.MemberwiseClone();
-    }
-
-    static class AppConfig<T> where T : AppConfig, new()
-    {
-        static GlobalInitializer gInit = new GlobalInitializer();
-
-        static T CachedData = null;
-        static CriticalSection Lock = new CriticalSection();
-        static bool IsReadOnly = false;
-
-        public static T Value { get => GetData(); set => SetData(value); }
-
-        public static T GetData()
-        {
-            lock (Lock)
-            {
-                if (CachedData == null)
-                {
-                    T data = new T();
-                    SetData(data);
-                }
-
-                IsReadOnly = true;
-
-                return (T)CachedData.CloneAppConfig();
-            }
-        }
-
-        public static void SetData(T data)
-        {
-            lock (Lock)
-            {
-                if (CachedData != null)
-                {
-                    if (IsReadOnly)
-                        throw new ApplicationException($"AppConfig<{typeof(T).ToString()}> is read only.");
-                }
-
-                CachedData = (T)data.CloneAppConfig();
-            }
-        }
     }
 }
