@@ -418,23 +418,28 @@ namespace IPA.Cores.Basic
                         if (logDateChanged)
                         {
                             int existingMaxLogNumber = 0;
-                            string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
-                            string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
-
-                            if (candidateFileNameStartStr.IsFilled())
+                            try
                             {
-                                string maxFileName = existingFiles.Select(x => x.GetFileName()).OrderByDescending(x => x).Where(x => x.InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
+                                string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
-                                if (maxFileName.IsFilled())
+                                string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
+
+                                if (candidateFileNameStartStr.IsFilled())
                                 {
-                                    string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
-                                    if (existingFileNumberStr.IsFilled())
+                                    string maxFileName = existingFiles.Select(x => x.GetFileName()).OrderByDescending(x => x).Where(x => x.InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
+
+                                    if (maxFileName.IsFilled())
                                     {
-                                        existingMaxLogNumber = existingFileNumberStr.ToInt();
+                                        string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
+                                        if (existingFileNumberStr.IsFilled())
+                                        {
+                                            existingMaxLogNumber = existingFileNumberStr.ToInt();
+                                        }
                                     }
                                 }
                             }
+                            catch { }
 
                             if (existingMaxLogNumber != 0)
                             {

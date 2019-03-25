@@ -187,28 +187,35 @@ namespace IPA.Cores.Basic
         }
     }
 
+    static class GlobalLogRouter
+    {
+        public static readonly LogRouteMachine Machine = new LogRouteMachine(LeakChecker.SuperGrandLady);
+
+        static GlobalLogRouter()
+        {
+            // Debug log
+            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, 0, "debug",
+                AppConfig.GlobalLogRouteMachineSettings.LogDebugDir.Value(),
+                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForDebug,
+                new LogInfoOptions() { WithPriority = true }));
+
+            // Info log
+            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, LogPriority.Information, "info",
+                AppConfig.GlobalLogRouteMachineSettings.LogInfoDir.Value(),
+                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForInfo,
+                new LogInfoOptions() { WithPriority = true }));
+        }
+    }
+
     static partial class AppConfig
     {
-        public static partial class GlobalLogRouteMachine
+        public static partial class GlobalLogRouteMachineSettings
         {
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Minute;
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
             public static readonly Copenhagen<Func<string>> LogDebugDir = new Func<string>(() => Path.Combine(LogRootDir, "Debug"));
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
-
-            public static readonly LogRouteMachine Machine = new LogRouteMachine(LeakChecker.SuperGrandLady);
-
-            static GlobalLogRouteMachine()
-            {
-                // Debug log
-                Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, 0, "debug", LogDebugDir.Value(), SwitchTypeForDebug,
-                    new LogInfoOptions() { WithPriority = true }));
-
-                // Info log
-                Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, LogPriority.Information, "info", LogInfoDir.Value(), SwitchTypeForInfo,
-                    new LogInfoOptions() { WithPriority = true }));
-            }
         }
     }
 }

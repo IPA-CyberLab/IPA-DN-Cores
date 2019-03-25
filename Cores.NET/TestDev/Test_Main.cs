@@ -23,20 +23,21 @@ namespace IPA.TestDev
         }
         static void TestMain()
         {
-            AppConfig.Logger.DefaultMaxPendingRecords.Set(10);
+            AppConfig.GlobalLogRouteMachineSettings.LogRootDir.Set(@"c:\tmp\log1");
+            AppConfig.Logger.DefaultMaxPendingRecords.Set(1000);
             AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Set(1000000);
             AppConfig.Logger.DefaultMaxLogSize.Set( 10000000);
             //Console.WriteLine(AppConfig.GlobalLogRouteMachine.LogRootDir);
 
-            AppConfig.GlobalLogRouteMachine.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Information));
-            AppConfig.GlobalLogRouteMachine.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
-            AppConfig.GlobalLogRouteMachine.Machine.PostLog("aho", new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
+            GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Information));
+            GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
+            GlobalLogRouter.Machine.PostLog("aho", new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
 
-            string pad = Str.MakeCharArray('x', 1000000);
-            for (int i = 0; ;i++)
+            string pad = Str.MakeCharArray('x', 100);
+            for (int i = 0; i < 100;i++)
             {
                 //Console.WriteLine(i);
-                AppConfig.GlobalLogRouteMachine.Machine.PostLog(LogKind.Default, new LogRecord(new { s = pad, p = GetX(3) }, LogPriority.Debug));
+                GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { i = i, s = pad, p = GetX(3) }, LogPriority.Debug));
             }
 
             //Task.Delay(100).Wait();
