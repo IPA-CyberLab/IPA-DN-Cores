@@ -552,7 +552,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
-        public static T Default<T>(this T obj, T defaultValue) => (obj.IsFilled() ? obj : defaultValue);
+        public static T Default<T>(this T obj, T defaultValue) => (obj.IsFilled(true) ? obj : defaultValue);
 
         public static T DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);
         public static void DbEnforceNonNull(this object obj) => Util.DbEnforceNonNull(obj);

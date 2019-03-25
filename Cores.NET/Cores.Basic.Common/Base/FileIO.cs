@@ -48,13 +48,13 @@ namespace IPA.Cores.Basic
     {
         string[] DirList;
         string ExtensionList;
-        long MaxTotalSize;
+        public long TotalMinSize { get; }
 
         public const int DefaultInterval = 60 * 1000;
         public int Interval { get; }
         CancellationTokenSource Cancel { get; } = new CancellationTokenSource();
 
-        public OldFileEraser(AsyncCleanuperLady lady, long maxTotalSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
+        public OldFileEraser(AsyncCleanuperLady lady, long totalMinSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
             : base(lady)
         {
             try
@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
                 this.DirList = tmp.ToArray();
 
                 this.ExtensionList = extensions;
-                this.MaxTotalSize = maxTotalSize;
+                this.TotalMinSize = totalMinSize;
 
                 this.Lady.Add(IntervalThreadAsync().LeakCheck());
             }
@@ -94,7 +94,7 @@ namespace IPA.Cores.Basic
             while (await this.Cancel.WaitUntilCancelledAsync(this.Interval) == false)
             {
                 DateTime.Now.Debug();
-                ProcessNow(this.DirList, this.ExtensionList, this.MaxTotalSize, this.Cancel.Token);
+                ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.Cancel.Token);
             }
         }
 

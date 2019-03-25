@@ -41,9 +41,18 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class DefaultLoggerSettings
+        {
+            public static readonly Copenhagen<long> AutoDeleteTotalMinSize = 4000000000L;
+            public static readonly Copenhagen<long> MaxLogSize = 1073741823L;
+        }
+    }
+
     partial class LogKind
     {
-        public const string Debug = "Debug";
+        public const string Default = "Default";
     }
 
     [Flags]
@@ -68,6 +77,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum LogPriority
     {
+        _Minimal = 0,
         Debug = 1,
         Information = 2,
         Error = 4,
@@ -81,7 +91,8 @@ namespace IPA.Cores.Basic
         public bool WithAppName = false;
         public bool WithKind = false;
         public bool WithPriority = false;
-        public string NewLineString = ", ";
+        public string NewLineForString = "\r\n";
+        public string ObjectPrintSeparater = ", ";
 
         public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
         public string AppName = Env.ExeAssemblySimpleName;
@@ -101,7 +112,7 @@ namespace IPA.Cores.Basic
         public object Data { get; }
         public LogPriority Priority { get; }
 
-        public LogRecord(object data) : this(0, data) { }
+        public LogRecord(object data, LogPriority priority = LogPriority.Debug) : this(0, data, priority) { }
 
         public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug)
             : this(tick == 0 ? DateTimeOffset.Now :  Time.Tick64ToDateTimeOffsetLocal(tick), data, priority) { }
@@ -117,12 +128,12 @@ namespace IPA.Cores.Basic
         {
             if (data == null) return "null";
             if (data is string str) return str;
-            return data.GetInnerStr("", opt.NewLineString, true);
+            return data.GetInnerStr("", opt.ObjectPrintSeparater, true);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
         {
-            if (opt.NewLineString.IndexOf("\n") == -1)
+            if (opt.NewLineForString.IndexOf("\n") == -1)
                 paddingLenForNextLines = 0;
 
             string pad = Str.MakeCharArray(' ', paddingLenForNextLines);
@@ -137,7 +148,7 @@ namespace IPA.Cores.Basic
                     string line2 = line.TrimEnd();
                     if (num >= 1)
                     {
-                        sb.Append(opt.NewLineString);
+                        sb.Append(opt.NewLineForString);
                         sb.Append(pad);
                     }
                     sb.Append(line2);
@@ -183,17 +194,23 @@ namespace IPA.Cores.Basic
             }
 
             // Log text
-            string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
-            sb.Append(logText);
-            sb.Append("\r\n");
+            try
+            {
+                string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
+                sb.Append(logText);
+                sb.Append("\r\n");
 
-            b.Write(sb.ToString().GetBytes_UTF8());
+                b.Write(sb.ToString().GetBytes_UTF8());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
     }
 
     class Logger : AsyncCleanupable
     {
-        public const long DefaultMaxLogSize = 1073741823;
         public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;
         public const int DefaultMaxPendingRecords = 10000;
@@ -203,6 +220,7 @@ namespace IPA.Cores.Basic
         readonly CriticalSection Lock = new CriticalSection();
         public string DirName { get; }
         public string Kind { get; }
+        public string Prefix { get; }
         public LogSwitchType SwitchType { get; set; }
         public long MaxLogSize { get; }
         readonly Queue<LogRecord> RecordQueue = new Queue<LogRecord>();
@@ -226,18 +244,21 @@ namespace IPA.Cores.Basic
 
         public bool NoFlush { get; set; } = false;
 
-        public Logger(AsyncCleanuperLady lady, string dir, string kind, LogSwitchType switchType = LogSwitchType.Day,
+        public Logger(AsyncCleanuperLady lady, string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
-            long maxLogSize = DefaultMaxLogSize, string extension = DefaultExtension,
-            long autoDeleteTotalMaxSize = 0)
+            long maxLogSize = 0, string extension = DefaultExtension,
+            long? autoDeleteTotalMinSize = null)
             : base(lady)
         {
             try
             {
                 this.DirName = dir.NonNullTrim();
-                this.Kind = kind.NonNullTrim().Default(LogKind.Debug);
+                this.Kind = kind.NonNullTrim().Default(LogKind.Default);
+                this.Prefix = prefix.NonNullTrim().Default("log");
                 this.SwitchType = switchType;
                 this.Extension = extension.Default(DefaultExtension);
+                if (this.MaxLogSize <= 0)
+                    this.MaxLogSize = AppConfig.DefaultLoggerSettings.MaxLogSize;
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
                 if (this.Extension.StartsWith(".") == false)
                     this.Extension = "." + this.Extension;
@@ -246,9 +267,10 @@ namespace IPA.Cores.Basic
                 this.InfoOptions.Normalize(this.Kind);
 
 
-                if (autoDeleteTotalMaxSize != 0)
+                if (autoDeleteTotalMinSize != null)
                 {
-                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMaxSize, dir.SingleArray(), extension, 1000);
+                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.Default(AppConfig.DefaultLoggerSettings.AutoDeleteTotalMinSize.Value);
+                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, 1000);
                 }
 
                 this.Lady.Add(LogThreadAsync().LeakCheck());
@@ -389,17 +411,17 @@ namespace IPA.Cores.Basic
                     // Generate a log file name
                     lock (this.Lock)
                     {
-                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Kind,
+                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
                             rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
 
                         if (logDateChanged)
                         {
                             this.CurrentLogNumber = 0;
-                            MakeLogFileName(out fileName, this.DirName, this.Kind,
+                            MakeLogFileName(out fileName, this.DirName, this.Prefix,
                                 rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
                             for (int i = 0; ; i++)
                             {
-                                MakeLogFileName(out string tmp, this.DirName, this.Kind,
+                                MakeLogFileName(out string tmp, this.DirName, this.Prefix,
                                     rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
                                 if (IO.IsFileExists(tmp) == false)
@@ -538,7 +560,7 @@ namespace IPA.Cores.Basic
 
                 if (this.Cancel.IsCancellationRequested)
                 {
-                    if (num2 == 0 || io == null || DiscardPendingDataOnDispose)
+                    if ((num2 == 0 && b.Length == 0) || io == null || DiscardPendingDataOnDispose)
                     {
                         break;
                     }

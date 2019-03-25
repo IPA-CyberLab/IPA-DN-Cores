@@ -15,7 +15,7 @@ namespace IPA.TestDev
 
     static class MainClass
     {
-        static object GetX(ref int num)
+        static object GetX(int num)
         {
             var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
 
@@ -23,7 +23,13 @@ namespace IPA.TestDev
         }
         static void TestMain()
         {
-            Console.WriteLine(AppConfig.LogRoute.LogRootDir);
+            //Console.WriteLine(AppConfig.GlobalLogRouteMachine.LogRootDir);
+
+            AppConfig.GlobalLogRouteMachine.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Information));
+            AppConfig.GlobalLogRouteMachine.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
+            AppConfig.GlobalLogRouteMachine.Machine.PostLog("aho", new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
+
+            //Task.Delay(100).Wait();
 
             return;
             //DateTimeOffset.Now.ToDtStr().Print();
@@ -61,7 +67,7 @@ namespace IPA.TestDev
                     WithMachineName = true,
                     WithPriority = true,
                 };
-                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", LogSwitchType.Hour, info, autoDeleteTotalMaxSize: 0);
+                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", "test", LogSwitchType.Hour, info, autoDeleteTotalMinSize: 0);
                 g.MaxPendingRecords = 100;
 
                 TaskUtil.StartAsyncTaskAsync(async () =>
