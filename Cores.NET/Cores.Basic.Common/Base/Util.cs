@@ -801,41 +801,47 @@ namespace IPA.Cores.Basic
         }
 
         // 指定されたオブジェクトが Null、0 または空データであるかどうか判別する
-        public static bool IsEmpty<T>(T data)
+        public static bool IsEmpty<T>(T data, bool zeroValueIsEmpty = false)
         {
             if (data == default) return true;
-            if (data is byte[] x) return Util.IsZero(x);
+            if (zeroValueIsEmpty)
+            {
+                switch (data)
+                {
+                    case char c: return c == 0;
+                    case byte b: return b == 0;
+                    case sbyte sb: return sb == 0;
+                    case ushort us: return us == 0;
+                    case short s: return s == 0;
+                    case uint ui: return ui == 0;
+                    case int i: return i == 0;
+                    case ulong ul: return ul == 0;
+                    case long l: return l == 0;
+                    case float f: return f == 0;
+                    case double d: return d == 0;
+                    case decimal v: return v == 0;
+                    case bool b: return b == false;
+                    case BigNumber bn: return bn == 0;
+                    case BigInteger bi: return bi == 0;
+                    case Memory<byte> m: return m.IsZero();
+                    case byte[] x: return Util.IsZero(x);
+                }
+            }
             switch (data)
             {
                 case Array a: return a.Length == 0;
-                case char c: return c == 0;
-                case byte b: return b == 0;
-                case sbyte sb: return sb == 0;
-                case ushort us: return us == 0;
-                case short s: return s == 0;
-                case uint ui: return ui == 0;
-                case int i: return i == 0;
-                case ulong ul: return ul == 0;
-                case long l: return l == 0;
-                case float f: return f == 0;
-                case double d: return d == 0;
                 case IntPtr p: return p == IntPtr.Zero;
                 case UIntPtr up: return up == UIntPtr.Zero;
-                case decimal v: return v == 0;
-                case bool b: return b == false;
-                case BigNumber bn: return bn == 0;
-                case BigInteger bi: return bi == 0;
                 case DateTime dt: return Util.IsZero(dt);
                 case DateTimeOffset dt: return Util.IsZero(dt);
                 case string s:
                     if (s.Length == 0) return true;
                     if (Char.IsWhiteSpace(s[0]) == false) return false;
                     return s.Trim().Length == 0;
-                case Memory<byte> m: return m.IsZero();
             }
             return false;
         }
-        public static bool IsFilled<T>(T data) => !IsEmpty(data);
+        public static bool IsFilled<T>(T data, bool zeroValueIsEmpty = false) => !IsEmpty(data, zeroValueIsEmpty);
 
         // DateTime がゼロかどうか検査する
         public static bool IsZero(DateTime dt)

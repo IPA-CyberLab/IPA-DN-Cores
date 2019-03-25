@@ -186,7 +186,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void InnerDebug(this object o, string instanceBaseName = null) => Dbg.WriteObject(o, instanceBaseName);
         public static void InnerPrint(this object o, string instanceBaseName = null) => Dbg.PrintObjectInnerString(o, instanceBaseName);
-        public static string GetInnerStr(this object o, string instanceBaseName = null, string newLineString = "\r\n") => Dbg.GetObjectInnerString(o, instanceBaseName, newLineString);
+        public static string GetInnerStr(this object o, string instanceBaseName = null, string newLineString = "\r\n", bool hideEmpty = false) => Dbg.GetObjectInnerString(o, instanceBaseName, newLineString, hideEmpty);
         public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
@@ -549,8 +549,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsZero(this Span<byte> data) => Util.IsZero(data);
         public static bool IsZero(this Memory<byte> data) => Util.IsZero(data);
 
-        public static bool IsEmpty<T>(this T data) => Util.IsEmpty(data);
-        public static bool IsFilled<T>(this T data) => Util.IsFilled(data);
+        public static bool IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
+        public static bool IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
         public static T Default<T>(this T obj, T defaultValue) => (obj.IsFilled() ? obj : defaultValue);
 

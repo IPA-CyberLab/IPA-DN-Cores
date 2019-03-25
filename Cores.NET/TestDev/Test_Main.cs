@@ -87,9 +87,9 @@ namespace IPA.TestDev
 
                         //t.InnerPrint();
 
-                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
+                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = (string)null, Int = num++, Bytes = new byte[] { 1, 2, 3 }, LogPriority = LogPriority.Information } };
 
-                        await g.AddAsync(new LogRecord(GetX(ref num)));
+                        await g.AddAsync(new LogRecord(u));
 
                         await Task.Delay(1);
                         //break;

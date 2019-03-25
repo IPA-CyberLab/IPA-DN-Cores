@@ -1621,7 +1621,6 @@ namespace IPA.Cores.Basic
 
                         if (flush)
                         {
-                            Con.WriteLine($"{DateTime.Now.ToDtStr(true)} Flush");
                             await p.FlushAsync();
                         }
 

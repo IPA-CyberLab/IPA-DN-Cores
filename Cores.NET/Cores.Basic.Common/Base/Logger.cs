@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
         {
             if (data == null) return "null";
             if (data is string str) return str;
-            return data.GetInnerStr("", opt.NewLineString);
+            return data.GetInnerStr("", opt.NewLineString, true);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)

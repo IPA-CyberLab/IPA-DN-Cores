@@ -111,17 +111,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectInnerString(object obj, string instanceBaseName = "", string newLineString = "\r\n")
+        public static string GetObjectInnerString(object obj, string instanceBaseName = "", string newLineString = "\r\n", bool hideEmpty = false)
         {
-            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName, newLineString);
+            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName, newLineString, hideEmpty);
         }
-        public static string GetObjectInnerString(Type t)
+        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName, string newLineString = "\r\n", bool hideEmpty = false)
         {
-            return GetObjectInnerString(t, null, null);
-        }
-        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName, string newLineString = "\r\n")
-        {
-            DebugVars v = GetVarsFromClass(t, newLineString, instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, newLineString, hideEmpty, instanceBaseName, obj);
 
             return v.ToString();
         }
@@ -141,7 +137,7 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            DebugVars v = GetVarsFromClass(t, "\r\n", instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, "\r\n", false, instanceBaseName, obj);
 
             string str = v.ToString();
 
@@ -158,20 +154,20 @@ namespace IPA.Cores.Basic
         }
         public static void PrintObjectInnerString(Type t, object obj, string instanceBaseName)
         {
-            DebugVars v = GetVarsFromClass(t, "\r\n", instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(t, "\r\n", false, instanceBaseName, obj);
 
             string str = v.ToString();
 
             Console.WriteLine(str);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string newLineString, string instanceBaseName = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type t, string newLineString, bool hideEmpty, string instanceBaseName = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
         {
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
             if (instanceBaseName == null) instanceBaseName = t.Name;
 
-            DebugVars ret = new DebugVars(newLineString);
+            DebugVars ret = new DebugVars(newLineString, hideEmpty);
 
             var members_list = GetAllMembersFromType(t, obj != null, obj == null);
 
@@ -217,35 +213,42 @@ namespace IPA.Cores.Basic
                         {
                             if (data is IEnumerable)
                             {
-                                int n = 0;
-                                foreach (object item in (IEnumerable)data)
+                                if (data is byte[] byteArray)
                                 {
-                                    if (duplicateCheck.Contains(item) == false)
+                                    ret.Vars.Add((info, data));
+                                }
+                                else
+                                {
+                                    int n = 0;
+                                    foreach (object item in (IEnumerable)data)
                                     {
-                                        Type data_type2 = item?.GetType() ?? null;
+                                        if (duplicateCheck.Contains(item) == false)
+                                        {
+                                            Type data_type2 = item?.GetType() ?? null;
 
-                                        if (IsPrimitiveType(data_type2))
-                                        {
-                                            ret.Vars.Add((info, item));
+                                            if (IsPrimitiveType(data_type2))
+                                            {
+                                                ret.Vars.Add((info, item));
+                                            }
+                                            else if (item == null)
+                                            {
+                                                ret.Vars.Add((info, null));
+                                            }
+                                            else
+                                            {
+                                                ret.Childlen.Add(GetVarsFromClass(data_type2, newLineString, hideEmpty, info.Name, item, duplicateCheck.Add(data)));
+                                            }
                                         }
-                                        else if (item == null)
-                                        {
-                                            ret.Vars.Add((info, null));
-                                        }
-                                        else
-                                        {
-                                            ret.Childlen.Add(GetVarsFromClass(data_type2, newLineString, info.Name, item, duplicateCheck.Add(data)));
-                                        }
+
+                                        n++;
                                     }
-
-                                    n++;
                                 }
                             }
                             else
                             {
                                 if (duplicateCheck.Contains(data) == false)
                                 {
-                                    ret.Childlen.Add(GetVarsFromClass(data_type, newLineString, info.Name, data, duplicateCheck.Add(data)));
+                                    ret.Childlen.Add(GetVarsFromClass(data_type, newLineString, hideEmpty, info.Name, data, duplicateCheck.Add(data)));
                                 }
                             }
                         }
@@ -328,11 +331,13 @@ namespace IPA.Cores.Basic
     {
         public string BaseName = "";
 
-        public string NewLineString;
+        public string NewLineString { get; }
+        public bool Hidempty { get; }
 
-        public DebugVars(string newLineString = "\r\n")
+        public DebugVars(string newLineString = "\r\n", bool hideEmpty = false)
         {
             this.NewLineString = newLineString;
+            this.Hidempty = hideEmpty;
         }
 
         public List<(MemberInfo memberInfo, object data)> Vars = new List<(MemberInfo, object)>();
@@ -345,17 +350,30 @@ namespace IPA.Cores.Basic
 
             foreach (var data in Vars)
             {
+                bool hide = false;
+
                 MemberInfo p = data.memberInfo;
                 object o = data.data;
-                string print_str = "null";
+                string printStr = "null";
                 string closure = "\"";
                 if ((o?.GetType().IsPrimitive ?? true) || (o?.GetType().IsEnum ?? false)) closure = "";
                 if (o != null)
                 {
-                    print_str = $"{closure}{o.ToString().Unescape()}{closure}";
+                    if (o is byte[] byteArray)
+                    {
+                        printStr = byteArray.GetHexString();
+                    }
+                    else
+                    {
+                        printStr = $"{closure}{o.ToString().Unescape()}{closure}";
+                    }
                 }
 
-                currentList.Add($"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = {print_str}");
+                if (o.IsEmpty(false))
+                    hide = true;
+
+                if (Hidempty == false || hide == false)
+                    currentList.Add($"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = {printStr}");
             }
 
             foreach (DebugVars var in Childlen)
