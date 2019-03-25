@@ -11,7 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Base\AppConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalInitializer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\Logger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Log.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\TaskAsync.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Buf.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Buffer.cs" />
