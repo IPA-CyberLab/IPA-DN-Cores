@@ -46,8 +46,8 @@ namespace IPA.Cores.Basic
     {
         Logger Log;
 
-        public LoggerLogRoute(LogPriority minimalPriority, string kind, string prefix, string dir, LogSwitchType switchType = LogSwitchType.Day, LogInfoOptions infoOptions = null,
-            long? autoDeleteTotalMaxSize = null) : base(minimalPriority, kind)
+        public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType = LogSwitchType.Day, LogInfoOptions infoOptions = null,
+            long? autoDeleteTotalMaxSize = null) : base(kind, minimalPriority)
         {
             Log = new Logger(new AsyncCleanuperLady(), dir, kind, prefix,
                 switchType: switchType,
@@ -84,10 +84,10 @@ namespace IPA.Cores.Basic
 
     abstract class LogRouteBase : IDisposable
     {
-        public LogPriority MinimalPriority { get; }
         public string Kind { get; }
+        public LogPriority MinimalPriority { get; }
 
-        public LogRouteBase(LogPriority minimalPriority, string kind)
+        public LogRouteBase(string kind, LogPriority minimalPriority)
         {
             this.MinimalPriority = minimalPriority;
             this.Kind = kind;
@@ -202,11 +202,11 @@ namespace IPA.Cores.Basic
             static GlobalLogRouteMachine()
             {
                 // Debug log
-                Machine.InstallLogRoute(new LoggerLogRoute(LogPriority._Minimal, LogKind.Default, "debug", LogDebugDir.Value(), SwitchTypeForDebug,
+                Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, 0, "debug", LogDebugDir.Value(), SwitchTypeForDebug,
                     new LogInfoOptions() { WithPriority = true }));
 
                 // Info log
-                Machine.InstallLogRoute(new LoggerLogRoute(LogPriority.Information, LogKind.Default, "info", LogInfoDir.Value(), SwitchTypeForInfo,
+                Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, LogPriority.Information, "info", LogInfoDir.Value(), SwitchTypeForInfo,
                     new LogInfoOptions() { WithPriority = true }));
             }
         }
