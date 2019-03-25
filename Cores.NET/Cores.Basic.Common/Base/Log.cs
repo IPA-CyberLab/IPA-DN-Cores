@@ -36,6 +36,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
 
 using IPA.Cores.Helper.Basic;
 
@@ -416,19 +417,46 @@ namespace IPA.Cores.Basic
 
                         if (logDateChanged)
                         {
-                            this.CurrentLogNumber = 0;
-                            MakeLogFileName(out fileName, this.DirName, this.Prefix,
-                                rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
-                            for (int i = 0; ; i++)
+                            int existingMaxLogNumber = 0;
+                            string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
+
+                            string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
+
+                            if (candidateFileNameStartStr.IsFilled())
                             {
-                                MakeLogFileName(out string tmp, this.DirName, this.Prefix,
-                                    rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
+                                string maxFileName = existingFiles.Select(x => x.GetFileName()).OrderByDescending(x => x).Where(x => x.InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
 
-                                if (IO.IsFileExists(tmp) == false)
-                                    break;
+                                if (maxFileName.IsFilled())
+                                {
+                                    string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
+                                    if (existingFileNumberStr.IsFilled())
+                                    {
+                                        existingMaxLogNumber = existingFileNumberStr.ToInt();
+                                    }
+                                }
+                            }
 
+                            if (existingMaxLogNumber != 0)
+                            {
+                                this.CurrentLogNumber = existingMaxLogNumber;
+                                MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                                    rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
+                            }
+                            else
+                            {
+                                this.CurrentLogNumber = 0;
+                                MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                                    rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
+                                for (int i = 0; ; i++)
+                                {
+                                    MakeLogFileName(out string tmp, this.DirName, this.Prefix,
+                                        rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
-                                this.CurrentLogNumber = i;
+                                    if (IO.IsFileExists(tmp) == false)
+                                        break;
+
+                                    this.CurrentLogNumber = i;
+                                }
                             }
                         }
                     }
