@@ -124,13 +124,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogRouteMachine : AsyncCleanupable
+    class LogRouter : AsyncCleanupable
     {
         CriticalSection LockObj = new CriticalSection();
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 
-        public LogRouteMachine(AsyncCleanuperLady lady) : base(lady)
+        public LogRouter(AsyncCleanuperLady lady) : base(lady)
         {
         }
 
@@ -210,18 +210,18 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class GlobalLogRouter
+    static class LocalLogRouter
     {
-        public static readonly LogRouteMachine Machine = new LogRouteMachine(LeakChecker.SuperGrandLady);
+        public static readonly LogRouter Router = new LogRouter(LeakChecker.SuperGrandLady);
 
-        static GlobalLogRouter()
+        static LocalLogRouter()
         {
             // Console log
-            Machine.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
+            Router.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
                 AppConfig.DebugSettings.ConsoleMinimalLevel));
 
             // Debug log (file)
-            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
                 AppConfig.DebugSettings.LogMinimalDebugLevel, 
                 "debug",
                 AppConfig.GlobalLogRouteMachineSettings.LogDebugDir.Value(),
@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
                 AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForDebug));
 
             // Info log (file)
-            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
                 AppConfig.DebugSettings.LogMinimalInfoLevel, 
                 "info",
                 AppConfig.GlobalLogRouteMachineSettings.LogInfoDir.Value(),
@@ -237,7 +237,7 @@ namespace IPA.Cores.Basic
                 AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForInfo));
 
             // Data log (file)
-            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
                 AppConfig.DebugSettings.LogMinimalDataLevel,
                 "data",
                 AppConfig.GlobalLogRouteMachineSettings.LogDataDir.Value(),
@@ -245,10 +245,10 @@ namespace IPA.Cores.Basic
                 AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForData));
         }
 
-        public static void Post(LogRecord record, string kind = LogKind.Default) => Machine.PostLog(record, kind);
+        public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);
 
         public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
-            => Machine.PostLog(new LogRecord(obj, priority, flags, tag), kind);
+            => Router.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
         public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Information, string tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);

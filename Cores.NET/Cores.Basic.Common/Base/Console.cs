@@ -124,9 +124,9 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.Write(prompt);
-                GlobalLogRouter.PrintConsole(prompt, noConsole: true);
+                LocalLogRouter.PrintConsole(prompt, noConsole: true);
                 string ret = Console.ReadLine();
-                GlobalLogRouter.PrintConsole(ret, noConsole: true);
+                LocalLogRouter.PrintConsole(ret, noConsole: true);
                 return ret;
             }
         }
@@ -145,7 +145,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(arg.GetObjectDump());
-                GlobalLogRouter.PrintConsole(arg, noConsole: true);
+                LocalLogRouter.PrintConsole(arg, noConsole: true);
             }
         }
 
@@ -158,7 +158,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(str);
-                GlobalLogRouter.PrintConsole(str, noConsole: true);
+                LocalLogRouter.PrintConsole(str, noConsole: true);
             }
         }
 
@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(str, arg);
-                GlobalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true);
+                LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true);
             }
         }
 
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(str, args);
-                GlobalLogRouter.PrintConsole(string.Format(str, args), noConsole: true);
+                LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true);
             }
         }
     }
@@ -2232,18 +2232,18 @@ namespace IPA.Cores.Basic
                 {
                     // 擬似プロンプトを表示する
                     Console.Write(prompt);
-                    GlobalLogRouter.PrintConsole(prompt, noConsole: true);
+                    LocalLogRouter.PrintConsole(prompt, noConsole: true);
 
                     // 画面に描画する
                     Console.WriteLine(ret);
-                    GlobalLogRouter.PrintConsole(ret, noConsole: true);
+                    LocalLogRouter.PrintConsole(ret, noConsole: true);
                 }
             }
             else
             {
                 // 画面から次の行を読み込む
                 Console.Write(prompt);
-                GlobalLogRouter.PrintConsole(prompt, noConsole: true);
+                LocalLogRouter.PrintConsole(prompt, noConsole: true);
                 ret = Console.ReadLine();
 
                 if (ret != null)
@@ -2254,7 +2254,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                GlobalLogRouter.PrintConsole(ret, noConsole: true);
+                LocalLogRouter.PrintConsole(ret, noConsole: true);
             }
 
             if (ret != null)
@@ -2278,14 +2278,14 @@ namespace IPA.Cores.Basic
             }
 
             Console.Write(prompt);
-            GlobalLogRouter.PrintConsole(prompt, noConsole: true);
+            LocalLogRouter.PrintConsole(prompt, noConsole: true);
             writeOutFile(prompt, false);
 
             string tmp = Str.PasswordPrompt();
             if (tmp != null)
             {
                 writeOutFile("********", true);
-                GlobalLogRouter.PrintConsole("********", noConsole: true);
+                LocalLogRouter.PrintConsole("********", noConsole: true);
                 return tmp;
             }
 
@@ -2300,7 +2300,7 @@ namespace IPA.Cores.Basic
                 str,
                 (str.EndsWith("\n") ? "" : "\n"));
 
-            GlobalLogRouter.PrintConsole(str, noConsole: true);
+            LocalLogRouter.PrintConsole(str, noConsole: true);
 
             writeOutFile(str, true);
 

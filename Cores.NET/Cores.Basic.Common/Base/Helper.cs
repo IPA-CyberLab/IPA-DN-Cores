@@ -632,7 +632,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool IsAnonymousType<T>(this T instance) => IsAnonymousType(instance.GetType());
 
-        public static void PostData(this object obj, string tag = null, bool copyToDebug = false) => GlobalLogRouter.PostData(obj, tag, copyToDebug);
+        public static void PostData(this object obj, string tag = null, bool copyToDebug = false) => LocalLogRouter.PostData(obj, tag, copyToDebug);
     }
 }
 

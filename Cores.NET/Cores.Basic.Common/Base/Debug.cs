@@ -174,25 +174,25 @@ namespace IPA.Cores.Basic
         public static object WriteLine(object obj)
         {
             if (obj == null) obj = "null";
-            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
+            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
             return obj;
         }
         public static void WriteLine(string str, params object[] args)
         {
             if (str == null) str = "null";
-            GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
+            LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
         }
 
         public static object WriteError(object obj)
         {
             if (obj == null) obj = "null";
-            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Error);
+            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Error);
             return obj;
         }
         public static void WriteError(string str, params object[] args)
         {
             if (str == null) str = "null";
-            GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Error);
+            LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Error);
         }
 
         public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
@@ -256,12 +256,12 @@ namespace IPA.Cores.Basic
         {
             if (Dbg.IsDebugMode == false) return;
 
-            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
+            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
         public static void PrintObject(object obj)
         {
-            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
+            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
         public static DebugVars GetVarsFromClass(Type t, string separatorStr, bool hideEmpty, string instanceBaseName, object obj, ImmutableHashSet<object> duplicateCheck = null)
