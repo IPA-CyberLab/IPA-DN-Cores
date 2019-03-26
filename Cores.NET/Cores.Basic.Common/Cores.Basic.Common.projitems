@@ -54,6 +54,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastBuffer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastGlobalConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />

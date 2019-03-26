@@ -49,19 +49,6 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class LogTag
-    {
-        public const string Kestrel = "kestrel";
-    }
-
-    class MsLogData
-    {
-        public string TranscationId;
-        public int EventId;
-        public string Message;
-        public object Data;
-    }
-
     class MsLogger : ILogger, IDisposable
     {
         public MsLoggerProvider Provider { get; }

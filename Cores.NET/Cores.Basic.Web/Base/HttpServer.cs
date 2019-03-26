@@ -97,8 +97,8 @@ namespace IPA.Cores.Basic
         public string ContentsRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
-        public bool DebugToConsole { get; set; } = true;
-        public bool DebugToLog { get; set; } = true;
+        public bool DebugKestrelToConsole { get; set; } = false;
+        public bool DebugKestrelToLog { get; set; } = true;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
 
@@ -172,12 +172,12 @@ namespace IPA.Cores.Basic
                     })
                     .ConfigureLogging((hostingContext, logging) =>
                     {
-                        if (Config.DebugToConsole)
+                        if (Config.DebugKestrelToConsole)
                         {
                             logging.AddConsole();
                         }
 
-                        if (Config.DebugToLog)
+                        if (Config.DebugKestrelToLog)
                         {
                             logging.AddProvider(new MsLoggerProvider());
                         }

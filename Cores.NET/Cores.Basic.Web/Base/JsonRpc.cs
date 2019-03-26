@@ -434,10 +434,29 @@ namespace IPA.Cores.Basic
                     {
                         foreach (JsonRpcRequest req in requestList)
                         {
+                            LogDefJsonRpc log = new LogDefJsonRpc()
+                            {
+                                EndPoints = new LogDefIPEndPoints()
+                                {
+                                    LocalIP = clientInfo.LocalIP,
+                                    LocalPort = clientInfo.LocalPort,
+                                    RemoteIP = clientInfo.RemoteIP,
+                                    RemotePort = clientInfo.RemotePort,
+                                },
+                                ConnectedDateTime = clientInfo.ConnectedDateTime,
+                                RpcMethodName = req.Method,
+                            };
+
                             try
                             {
                                 JsonRpcResponse res = await CallMethod(req);
                                 if (req.Id != null) response_list.Add(res);
+
+                                log.RpcResultOk = res.IsOk;
+                                if (res.IsOk == false)
+                                {
+                                    log.RpcError = res.Error;
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -451,7 +470,12 @@ namespace IPA.Cores.Basic
                                     Result = null,
                                 };
                                 if (req.Id != null) response_list.Add(res);
+
+                                log.RpcResultOk = false;
+                                log.RpcError = res.Error;
                             }
+
+                            log.PostAccessLog(LogTag.JsonRpcRequestProcessor, copyToDebug: log.RpcResultOk == false);
                         }
                     }
                     finally
@@ -939,7 +963,7 @@ namespace IPA.Cores.Basic
         public int LocalPort { get; }
         public string RemoteIP { get; }
         public int RemotePort { get; }
-        public DateTime ConnectedDateTime { get; }
+        public DateTimeOffset ConnectedDateTime { get; }
         public SortedDictionary<string, string> Headers { get; }
         public JsonRpcServer RpcServer { get; }
         public object Param1 { get; set; }
@@ -949,7 +973,7 @@ namespace IPA.Cores.Basic
         public JsonRpcClientInfo(JsonRpcServer rpcServer, string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string> headers)
         {
             this.RpcServer = rpcServer;
-            this.ConnectedDateTime = DateTime.Now;
+            this.ConnectedDateTime = DateTimeOffset.Now;
             this.LocalIP = localIp.NonNull();
             this.LocalPort = localPort;
             this.RemoteIP = remoteIp.NonNull();

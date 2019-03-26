@@ -53,18 +53,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    partial class LogKind
-    {
-        public const string Default = "Default";
-        public const string Data = "Data";
-        public const string Access = "Access";
-    }
-
-    partial class LogTag
-    {
-        public const string NoTag = "notag";
-    }
-
     [Flags]
     enum LogSwitchType
     {
@@ -129,6 +117,11 @@ namespace IPA.Cores.Basic
         NoOutputToConsole = 1,
     }
 
+    interface ILogRecordTimeStamp
+    {
+        DateTimeOffset TimeStamp { get; }
+    }
+
     class LogRecord
     {
         public static readonly byte[] CrLfByte = "\r\n".GetBytes_Ascii();
@@ -142,7 +135,7 @@ namespace IPA.Cores.Basic
         public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null) : this(0, data, priority, flags, tag) { }
 
         public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
-            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags, tag) { }
+            : this(tick == 0 ? ((data as ILogRecordTimeStamp)?.TimeStamp ?? DateTimeOffset.Now) : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags, tag) { }
 
         public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
         {
@@ -207,6 +200,10 @@ namespace IPA.Cores.Basic
 
         public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
         {
+            if (this.Tag == LogTag.JsonRpcRequestProcessor)
+            {
+                Util.DoNothing();
+            }
             if (opt.WriteAsJsonFormat && Dbg.IsJsonSupported)
             {
                 // JSON text
