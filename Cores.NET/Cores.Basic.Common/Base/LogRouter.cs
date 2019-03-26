@@ -42,6 +42,25 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
+    class ConsoleLogRoute : LogRouteBase
+    {
+        LogInfoOptions infoOptions = new LogInfoOptions();
+
+        public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
+
+        public override void OnInstalled() { }
+
+        public override Task OnUninstallingAsync() => Task.CompletedTask;
+
+        public override void ReceiveLog(LogRecord record)
+        {
+            if (record.Flags.Bit(LogFlags.NoOutputToConsole) == false)
+            {
+                Console.WriteLine(record.ConsolePrintableString);
+            }
+        }
+    }
+
     class LoggerLogRoute : LogRouteBase
     {
         Logger Log;
@@ -167,20 +186,26 @@ namespace IPA.Cores.Basic
             await route.OnUninstallingAsync();
         }
 
-        public void PostLog(string kind, LogRecord record)
+        public void PostLog(LogRecord record, string kind)
         {
+            if (record.Priority == LogPriority.None)
+                return;
+
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
             {
-                if (route.Kind == kind || route.Kind.IsEmpty())
+                if (route.MinimalPriority != LogPriority.None)
                 {
-                    if (route.MinimalPriority <= record.Priority)
+                    if (route.Kind == kind || route.Kind.IsEmpty())
                     {
-                        try
+                        if (route.MinimalPriority <= record.Priority)
                         {
-                            route.ReceiveLog(record);
+                            try
+                            {
+                                route.ReceiveLog(record);
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
             }
@@ -193,29 +218,50 @@ namespace IPA.Cores.Basic
 
         static GlobalLogRouter()
         {
-            // Debug log
-            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, 0, "debug",
+            // Console log
+            Machine.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
+                AppConfig.DebugSettings.ConsoleMinimalLevel));
+
+            // Debug log (file)
+            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
+                AppConfig.DebugSettings.LogMinimalDebugLevel, 
+                "debug",
                 AppConfig.GlobalLogRouteMachineSettings.LogDebugDir.Value(),
                 AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForDebug,
-                new LogInfoOptions() { WithPriority = true }));
+                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForDebug));
 
-            // Info log
-            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default, LogPriority.Information, "info",
+            // Info log (file)
+            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
+                AppConfig.DebugSettings.LogMinimalInfoLevel, 
+                "info",
                 AppConfig.GlobalLogRouteMachineSettings.LogInfoDir.Value(),
                 AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForInfo,
-                new LogInfoOptions() { WithPriority = true }));
+                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForInfo));
         }
+
+        public static void Post(LogRecord record, string kind = LogKind.Default) => Machine.PostLog(record, kind);
+
+        public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None)
+            => Machine.PostLog(new LogRecord(obj, priority, flags), kind);
+
+        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Information)
+            => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None);
     }
 
     static partial class AppConfig
     {
         public static partial class GlobalLogRouteMachineSettings
         {
-            public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
-            public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Minute;
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
+
             public static readonly Copenhagen<Func<string>> LogDebugDir = new Func<string>(() => Path.Combine(LogRootDir, "Debug"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Minute;
+
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
+
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForDebug = new LogInfoOptions() { WithPriority = true };
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForInfo = new LogInfoOptions() { };
         }
     }
 }

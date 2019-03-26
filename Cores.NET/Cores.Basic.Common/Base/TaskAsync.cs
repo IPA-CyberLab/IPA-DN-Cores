@@ -1834,16 +1834,19 @@ namespace IPA.Cores.Basic
 
             lock (_InternalList)
             {
-                if (Count == 0)
+                if (AppConfig.DebugSettings.ConsoleMinimalLevel.Get() <= LogPriority.Debug)
                 {
-                    Console.WriteLine("@@@ No leaks @@@");
-                }
-                else
-                {
-                    Console.WriteLine($"*** Leaked !!! count = {Count} ***");
-                    Console.WriteLine($"--- Leaked list  count = {Count} ---");
-                    Console.Write(GetString());
-                    Console.WriteLine($"--- End of leaked list  count = {Count} --");
+                    if (Count == 0)
+                    {
+                        Console.WriteLine("@@@ No leaks @@@");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"*** Leaked !!! count = {Count} ***");
+                        Console.WriteLine($"--- Leaked list  count = {Count} ---");
+                        Console.Write(GetString());
+                        Console.WriteLine($"--- End of leaked list  count = {Count} --");
+                    }
                 }
             }
         }

@@ -17,20 +17,19 @@ namespace IPA.TestDev
     {
         static object GetX(int num = 123)
         {
-            var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
+            var u = new { Str = "Hello\n\"World\n1\r\n2\r\n3", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
 
             return u;
         }
         static void TestMain()
         {
-            int a = 123;
-            object nullObj = null;
-            a.GetObjectDump("").Print();
-            "Hello".GetBytes_Ascii().GetObjectDump("").Print();
-            new { v = new int[] { 1, 2, 3 } }.GetObjectDump("").Print();
-            nullObj.GetObjectDump("").Print();
-            GetX().GetObjectDump("").Print();
-            return;
+            //int a = 123;
+            //object nullObj = null;
+            //a.GetObjectDump("").Print();
+            //"Hello".GetBytes_Ascii().GetObjectDump("").Print();
+            //new { v = new int[] { 1, 2, 3 } }.GetObjectDump("").Print();
+            //nullObj.GetObjectDump("").Print();
+            //GetX().GetObjectDump("").Print();
 
             AppConfig.GlobalLogRouteMachineSettings.LogRootDir.Set(@"c:\tmp\log1");
             AppConfig.Logger.DefaultMaxPendingRecords.Set(1000);
@@ -38,16 +37,15 @@ namespace IPA.TestDev
             AppConfig.Logger.DefaultMaxLogSize.Set( 10000000);
             //Console.WriteLine(AppConfig.GlobalLogRouteMachine.LogRootDir);
 
-            GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Information));
-            GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
-            GlobalLogRouter.Machine.PostLog("aho", new LogRecord(new { s = "Hello\nWorld", p = GetX(3) }, LogPriority.Debug));
+            Console.WriteLine(GetX());
 
-            string pad = Str.MakeCharArray('x', 100);
-            for (int i = 0; i < 100;i++)
-            {
-                //Console.WriteLine(i);
-                GlobalLogRouter.Machine.PostLog(LogKind.Default, new LogRecord(new { i = i, s = pad, p = GetX(3) }, LogPriority.Debug));
-            }
+            var x = GetX();
+
+            Con.WriteLine(x.ToString());
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine(x.ToString());
 
             //Task.Delay(100).Wait();
 
@@ -133,13 +131,22 @@ namespace IPA.TestDev
             Con.ReadLine("Quit?");
         }
 
+        class X
+        {
+            public string XX = "xxx";
+            public int y = 1243;
+            public object Null = null;
+        }
+
         static void Main(string[] args)
         {
             Dbg.SetDebugMode();
+            //Dbg.SetDebugMode(DebugMode.ReleaseNoAllLogsOutput);
 
             try
             {
-                TestMain();
+                Con.WriteLine(new X());
+                //TestMain();
             }
             finally
             {

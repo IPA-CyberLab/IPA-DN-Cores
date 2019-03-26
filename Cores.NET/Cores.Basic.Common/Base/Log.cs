@@ -80,9 +80,11 @@ namespace IPA.Cores.Basic
     [Flags]
     enum LogPriority
     {
+        Minimal = 0,
         Debug = 1,
         Information = 2,
         Error = 4,
+        None = 0x7FFFFFFF,
     }
 
     [Serializable]
@@ -94,7 +96,7 @@ namespace IPA.Cores.Basic
         public bool WithKind = false;
         public bool WithPriority = false;
         public string NewLineForString = "\r\n";
-        public string ObjectPrintSeparater = ", ";
+        public string ObjectPrintSeparator = ", ";
 
         public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
         public string AppName = Env.ExeAssemblySimpleName;
@@ -108,29 +110,42 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum LogFlags
+    {
+        None = 0,
+        NoOutputToConsole = 1,
+    }
+
     class LogRecord
     {
         public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
         public LogPriority Priority { get; }
+        public LogFlags Flags { get; }
 
-        public LogRecord(object data, LogPriority priority = LogPriority.Debug) : this(0, data, priority) { }
+        public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None) : this(0, data, priority, flags) { }
 
-        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug)
-            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority) { }
+        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None)
+            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags) { }
 
-        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug)
+        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None)
         {
             this.TimeStamp = dateTime;
             this.Data = data;
             this.Priority = priority;
+            this.Flags = flags;
         }
+
+        LogInfoOptions ConsolePrintOptions = new LogInfoOptions() { };
+
+        public string ConsolePrintableString => GetTextFromData(this.Data, ConsolePrintOptions);
 
         public static string GetTextFromData(object data, LogInfoOptions opt)
         {
             if (data == null) return "null";
             if (data is string str) return str;
-            return data.GetObjectDump("", opt.ObjectPrintSeparater, true);
+            return data.GetObjectDump("", opt.ObjectPrintSeparator, true);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
@@ -255,7 +270,7 @@ namespace IPA.Cores.Basic
             {
                 this.DirName = dir.NonNullTrim();
                 this.Kind = kind.NonNullTrim().Default(LogKind.Default);
-                this.Prefix = prefix.NonNullTrim().Default("log");
+                this.Prefix = prefix.NonNullTrim().Default("log").ReplaceStr("\\", "_").Replace("/", "_");
                 this.SwitchType = switchType;
                 this.Extension = extension.Default(DefaultExtension);
                 if (this.MaxLogSize <= 0)
@@ -617,6 +632,11 @@ namespace IPA.Cores.Basic
 
         public async Task<bool> AddAsync(LogRecord r, LogPendingTreatment pendingTreatment = LogPendingTreatment.Discard, CancellationToken pendingWaitCancel = default)
         {
+            if (r.Priority == LogPriority.None)
+            {
+                return true;
+            }
+
             if (this.Cancel.IsCancellationRequested)
             {
                 return false;
@@ -650,6 +670,11 @@ namespace IPA.Cores.Basic
 
         public bool Add(LogRecord r)
         {
+            if (r.Priority == LogPriority.None)
+            {
+                return true;
+            }
+
             if (this.Cancel.IsCancellationRequested)
             {
                 return false;

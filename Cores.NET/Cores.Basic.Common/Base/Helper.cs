@@ -184,9 +184,9 @@ namespace IPA.Cores.Helper.Basic
         public static void SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
             => IO.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);
 
-        public static void DebugObject(this object o, string instanceBaseName = null) => Dbg.DebugObject(o, instanceBaseName);
-        public static void PrintObject(this object o, string instanceBaseName = null) => Dbg.PrintObject(o, instanceBaseName);
-        public static string GetObjectDump(this object o, string instanceBaseName = null, string newLineString = "\r\n", bool hideEmpty = false) => Dbg.GetObjectDump(o, instanceBaseName, newLineString, hideEmpty);
+        public static void DebugObject(this object o) => Dbg.DebugObject(o);
+        public static void PrintObject(this object o) => Dbg.PrintObject(o);
+        public static string GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true) => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty);
         public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
@@ -616,6 +616,25 @@ namespace IPA.Cores.Helper.Basic
         public static T2 Do<T1, T2>(this T1 obj, Func<T1, T2> func) => func(obj);
 
         public static T CloneIfClonable<T>(this T obj) => Util.CloneIfClonable(obj);
+
+        public static bool IsAnonymousType(this Type type)
+        {
+            if (type.IsGenericType)
+            {
+                var d = type.GetGenericTypeDefinition();
+                if (d.IsClass && d.IsSealed && d.Attributes.HasFlag(TypeAttributes.NotPublic))
+                {
+                    var attributes = d.GetCustomAttributes(typeof(CompilerGeneratedAttribute), false);
+                    if (attributes != null && attributes.Length > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public static bool IsAnonymousType<T>(this T instance) => IsAnonymousType(instance.GetType());
     }
 }
 

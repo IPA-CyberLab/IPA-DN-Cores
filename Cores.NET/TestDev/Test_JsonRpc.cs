@@ -137,9 +137,7 @@ namespace IPA.TestDev
 #pragma warning disable CS1998
         public async Task<rpc_t> Test1(rpc_t a)
         {
-            Dbg.WhereThread();
             //await TaskUtil.PreciseDelay(500);
-            Dbg.WhereThread();
             return new rpc_t()
             {
                 Int1 = a.Int1,
@@ -149,9 +147,7 @@ namespace IPA.TestDev
 
         public async Task Test2(rpc_t a)
         {
-            Dbg.WhereThread();
             //await TaskUtil.PreciseDelay(500);
-            Dbg.WhereThread();
             return;
         }
 

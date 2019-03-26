@@ -46,12 +46,96 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
+    [Flags]
+    enum DebugMode
+    {
+        Debug,
+        Release,
+        ReleaseNoDebugLogOutput,
+        ReleaseNoAllLogsOutput,
+    }
+
+    static partial class AppConfig
+    {
+        public static partial class DebugSettings
+        {
+            public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Minimal;
+            public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Information;
+
+            public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Minimal;
+
+            public static void SetDebugMode(DebugMode mode = DebugMode.Debug)
+            {
+                switch (mode)
+                {
+                    case DebugMode.Debug:
+                        LogMinimalDebugLevel.Set(LogPriority.Minimal);
+                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Minimal);
+                        break;
+
+                    case DebugMode.Release:
+                        LogMinimalDebugLevel.Set(LogPriority.Minimal);
+                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        break;
+
+                    case DebugMode.ReleaseNoDebugLogOutput:
+                        LogMinimalDebugLevel.Set(LogPriority.None);
+                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        break;
+
+                    case DebugMode.ReleaseNoAllLogsOutput:
+                        LogMinimalDebugLevel.Set(LogPriority.None);
+                        LogMinimalInfoLevel.Set(LogPriority.None);
+                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        break;
+
+                    default:
+                        throw new ArgumentException("mode");
+                }
+            }
+
+            public static bool IsDebugMode()
+            {
+                if (LogMinimalDebugLevel.Get() <= LogPriority.Debug ||
+                    LogMinimalInfoLevel.Get() <= LogPriority.Debug ||
+                    ConsoleMinimalLevel.Get() <= LogPriority.Debug)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+    }
+
+    class DebugWhereContainer
+    {
+        public object Message;
+        public string Src;
+        public int Line;
+        public int Thread;
+        public string Caller;
+
+        public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
+        {
+            this.Message = message;
+            this.Src = filename.NonNull();
+            this.Line = lineNumber;
+            this.Thread = threadId;
+            this.Caller = callerName;
+        }
+    }
+
     static partial class Dbg
     {
         static GlobalInitializer gInit = new GlobalInitializer();
-        public static bool IsDebugMode { get; private set; } = false;
 
-        public static void SetDebugMode(bool b = true) => IsDebugMode = b;
+        public static void SetDebugMode(DebugMode mode = DebugMode.Debug) => AppConfig.DebugSettings.SetDebugMode(mode);
+
+        public static bool IsDebugMode => AppConfig.DebugSettings.IsDebugMode();
 
         public static void Report(string name, string value)
         {
@@ -66,119 +150,68 @@ namespace IPA.Cores.Basic
         public static string WriteLine(string str)
         {
             if (str == null) str = "null";
-            if (Dbg.IsDebugMode)
-            {
-                Console.WriteLine(str);
-            }
-            Debug.WriteLine(str);
+            GlobalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
             return str;
         }
         public static void WriteLine(string str, params object[] args)
         {
-            if (Dbg.IsDebugMode)
-            {
-                Console.WriteLine(str, args);
-            }
-            Debug.WriteLine(str);
+            if (str == null) str = "null";
+            GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
         }
 
-        public static long Where(string msg = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, long last_tick = 0)
+        public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
         {
             if (Dbg.IsDebugMode)
             {
-                long now = Time.Tick64;
-                long diff = now - last_tick;
-                WriteLine($"{Path.GetFileName(filename)}:{line} in {caller}()" + (last_tick == 0 ? "" : $" (took {diff} msecs) ") + (Str.IsFilledStr(msg) ? (": " + msg) : ""));
-                return now;
-            }
-            else
-            {
-                return 0;
+                filename = filename.GetFileName();
+
+                DebugWhereContainer c = new DebugWhereContainer(message, filename, line, Environment.CurrentManagedThreadId, caller);
+                DebugObject(c);
             }
         }
 
-        public static long WhereThread(string msg = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, long last_tick = 0)
-        {
-            if (Dbg.IsDebugMode)
-            {
-                long now = Time.Tick64;
-                long diff = now - last_tick;
-                WriteLine($"Thread[{ThreadObj.CurrentThreadId}]: {Path.GetFileName(filename)}:{line} in {caller}()" + (last_tick == 0 ? "" : $" (took {diff} msecs) ") + (Str.IsFilledStr(msg) ? (": " + msg) : ""));
-                return now;
-            }
-            else
-            {
-                return 0;
-            }
-        }
+        public static string GetObjectDump(object obj, string instanceBaseName = "", string separatorStr = ", ", bool hideEmpty = true)
+            => GetObjectDump(obj?.GetType() ?? null, obj, instanceBaseName, separatorStr, hideEmpty);
 
-        public static string GetObjectDump(object obj, string instanceBaseName = "", string newLineString = "\r\n", bool hideEmpty = false)
+        public static string GetObjectDump(Type t, object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true)
         {
-            return GetObjectDump(obj?.GetType() ?? null, obj, instanceBaseName, newLineString, hideEmpty);
-        }
-        public static string GetObjectDump(Type t, object obj, string instanceBaseName, string newLineString = "\r\n", bool hideEmpty = false)
-        {
-            DebugVars v = GetVarsFromClass(t, newLineString, hideEmpty, instanceBaseName, obj);
+            if (obj != null && t.IsAnonymousType())
+                return obj.ToString();
+
+            DebugVars v = GetVarsFromClass(t, separatorStr, hideEmpty, instanceBaseName, obj);
 
             return v.ToString();
         }
 
-        public static void DebugObject(object obj, string instanceBaseName = "")
+        public static void DebugObject(object obj)
         {
-            DebugObject(obj.GetType(), obj, instanceBaseName);
-        }
-        public static void DebugObject(Type t)
-        {
-            DebugObject(t, null, null);
-        }
-        public static void DebugObject(Type t, object obj, string instanceBaseName)
-        {
-            if (Dbg.IsDebugMode == false)
-            {
-                return;
-            }
+            if (Dbg.IsDebugMode == false) return;
 
-            DebugVars v = GetVarsFromClass(t, "\r\n", false, instanceBaseName, obj);
-
-            string str = v.ToString();
-
-            Console.WriteLine(str);
+            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static void PrintObject(object obj, string instanceBaseName = "")
+        public static void PrintObject(object obj)
         {
-            PrinObject(obj.GetType(), obj, instanceBaseName);
-        }
-        public static void PrintObject(Type t)
-        {
-            PrinObject(t, null, null);
-        }
-        public static void PrinObject(Type t, object obj, string instanceBaseName)
-        {
-            DebugVars v = GetVarsFromClass(t, "\r\n", false, instanceBaseName, obj);
-
-            string str = v.ToString();
-
-            Console.WriteLine(str);
+            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string newLineString, bool hideEmpty, string instanceBaseName, object obj, ImmutableHashSet<object> duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type t, string separatorStr, bool hideEmpty, string instanceBaseName, object obj, ImmutableHashSet<object> duplicateCheck = null)
         {
             if (obj == null || IsPrimitiveType(t) || t.IsArray)
             {
                 ObjectContainerForDebugVars container = new ObjectContainerForDebugVars(obj);
-                return GetVarsFromClass(container.GetType(), newLineString, hideEmpty, instanceBaseName, container, duplicateCheck);
+                return GetVarsFromClass(container.GetType(), separatorStr, hideEmpty, instanceBaseName, container, duplicateCheck);
             }
 
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
             if (instanceBaseName == null) instanceBaseName = t?.Name ?? "null";
 
-            DebugVars ret = new DebugVars(newLineString, hideEmpty, obj is ObjectContainerForDebugVars);
+            DebugVars ret = new DebugVars(separatorStr, hideEmpty, obj is ObjectContainerForDebugVars);
 
-            var members_list = GetAllMembersFromType(t, obj != null, obj == null);
+            var membersList = GetAllMembersFromType(t, obj != null, obj == null);
 
-            foreach (MemberInfo info in members_list)
+            foreach (MemberInfo info in membersList)
             {
                 bool ok = false;
                 if (info.MemberType == MemberTypes.Field)
@@ -247,7 +280,7 @@ namespace IPA.Cores.Basic
                                             }
                                             else
                                             {
-                                                ret.Childlen.Add(GetVarsFromClass(data_type2, newLineString, hideEmpty, info.Name, item, duplicateCheck.Add(data)));
+                                                ret.Childlen.Add(GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)));
                                             }
                                         }
 
@@ -259,7 +292,7 @@ namespace IPA.Cores.Basic
                             {
                                 if (duplicateCheck.Contains(data) == false)
                                 {
-                                    ret.Childlen.Add(GetVarsFromClass(data_type, newLineString, hideEmpty, info.Name, data, duplicateCheck.Add(data)));
+                                    ret.Childlen.Add(GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)));
                                 }
                             }
                         }
@@ -278,7 +311,7 @@ namespace IPA.Cores.Basic
 
             if (hideStatic == false)
             {
-                a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public ));
+                a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public));
                 a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.NonPublic));
             }
 
@@ -351,14 +384,14 @@ namespace IPA.Cores.Basic
     {
         public string BaseName = "";
 
-        public string NewLineString { get; }
-        public bool Hidempty { get; }
+        public string SeparatorStr { get; }
+        public bool HideEmpty { get; }
         public bool IsSimplePrimitive { get; }
 
-        public DebugVars(string newLineString, bool hideEmpty, bool isSimplePrimitive)
+        public DebugVars(string separatorStr, bool hideEmpty, bool isSimplePrimitive)
         {
-            this.NewLineString = newLineString;
-            this.Hidempty = hideEmpty;
+            this.SeparatorStr = separatorStr;
+            this.HideEmpty = hideEmpty;
             this.IsSimplePrimitive = isSimplePrimitive;
         }
 
@@ -367,8 +400,8 @@ namespace IPA.Cores.Basic
 
         public void WriteToString(List<string> currentList, ImmutableList<string> parents)
         {
-//            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
-//            this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
+            //            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
+            //            this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
 
             foreach (var data in Vars)
             {
@@ -394,7 +427,7 @@ namespace IPA.Cores.Basic
                 if (o.IsEmpty(false))
                     hide = true;
 
-                if (Hidempty == false || hide == false)
+                if (HideEmpty == false || hide == false)
                 {
                     string leftStr = "";
                     if (this.IsSimplePrimitive == false)
@@ -433,7 +466,7 @@ namespace IPA.Cores.Basic
                 strList[i] = str;
             }
 
-            return strList.ToArray().Combine(this.NewLineString);
+            return strList.ToArray().Combine(this.SeparatorStr);
         }
     }
 
