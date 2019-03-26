@@ -95,6 +95,8 @@ namespace IPA.Cores.Basic
         public bool WithAppName = false;
         public bool WithKind = false;
         public bool WithPriority = false;
+        public bool WithTypeName = false;
+
         public string NewLineForString = "\r\n";
         public string ObjectPrintSeparator = ", ";
 
@@ -188,6 +190,7 @@ namespace IPA.Cores.Basic
             public string AppName;
             public string Kind;
             public string Priority;
+            public string TypeName;
             public object Data;
         }
 
@@ -212,6 +215,9 @@ namespace IPA.Cores.Basic
 
                 if (opt.WithPriority)
                     jc.Priority = this.Priority.ToString();
+
+                if (opt.WithTypeName)
+                    jc.TypeName = this.Data?.GetType().Name ?? "null";
 
                 jc.Data = this.Data;
 
@@ -246,6 +252,9 @@ namespace IPA.Cores.Basic
 
                 if (opt.WithPriority)
                     additionalList.Add(this.Priority.ToString());
+
+                if (opt.WithTypeName)
+                    additionalList.Add(this.Data?.GetType().Name ?? "null");
 
                 string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
                 if (additionalStr.IsFilled())

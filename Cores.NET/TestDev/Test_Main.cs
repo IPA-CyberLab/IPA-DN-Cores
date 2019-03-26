@@ -148,6 +148,7 @@ namespace IPA.TestDev
                 //Dbg.WriteLine("Hello");
                 //Dbg.Where("Hello");
                 Con.WriteLine(new X());
+                Con.WriteLine(null);
                 //TestMain();
             }
             finally

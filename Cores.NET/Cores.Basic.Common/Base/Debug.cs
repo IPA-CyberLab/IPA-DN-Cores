@@ -189,20 +189,41 @@ namespace IPA.Cores.Basic
 
         public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
         {
-            if (jsonIfPossible)
+            try
             {
-                string jsonStr = null;
-                InternalConvertToJsonStringIfPossible(ref jsonStr, obj, compact: true);
-                if (jsonStr != null)
-                    return jsonStr;
+                if (jsonIfPossible)
+                {
+                    string jsonStr = null;
+                    try
+                    {
+                        InternalConvertToJsonStringIfPossible(ref jsonStr, obj, compact: true);
+                        if (jsonStr != null)
+                            return jsonStr;
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (obj != null && obj.GetType().IsAnonymousType())
+                    return obj.ToString();
+
+                DebugVars v = GetVarsFromClass(obj.GetType(), separatorStr, hideEmpty, instanceBaseName, obj);
+
+                return v.ToString();
             }
-
-            if (obj != null && obj.GetType().IsAnonymousType())
-                return obj.ToString();
-
-            DebugVars v = GetVarsFromClass(obj.GetType(), separatorStr, hideEmpty, instanceBaseName, obj);
-
-            return v.ToString();
+            catch
+            {
+                if (obj == null) return "null";
+                try
+                {
+                    return obj.ToString();
+                }
+                catch
+                {
+                    return "!!! GetObjectDump() error !!!";
+                }
+            }
         }
 
         public static void DebugObject(object obj)

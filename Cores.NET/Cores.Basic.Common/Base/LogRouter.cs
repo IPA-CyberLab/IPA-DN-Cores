@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
 
-            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForDebug = new LogInfoOptions() { WithPriority = true };
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForDebug = new LogInfoOptions() { WithPriority = true, WithTypeName = true, WriteAsJsonFormat = false };
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForInfo = new LogInfoOptions() { };
         }
     }
