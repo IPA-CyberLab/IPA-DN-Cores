@@ -15,7 +15,7 @@ namespace IPA.TestDev
 
     static class MainClass
     {
-        static object GetX(int num)
+        static object GetX(int num = 123)
         {
             var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
 
@@ -23,6 +23,15 @@ namespace IPA.TestDev
         }
         static void TestMain()
         {
+            int a = 123;
+            object nullObj = null;
+            a.GetInnerStr("").Print();
+            "Hello".GetBytes_Ascii().GetInnerStr("").Print();
+            new { v = new int[] { 1, 2, 3 } }.GetInnerStr("").Print();
+            nullObj.GetInnerStr("").Print();
+            GetX().GetInnerStr("").Print();
+            return;
+
             AppConfig.GlobalLogRouteMachineSettings.LogRootDir.Set(@"c:\tmp\log1");
             AppConfig.Logger.DefaultMaxPendingRecords.Set(1000);
             AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Set(1000000);

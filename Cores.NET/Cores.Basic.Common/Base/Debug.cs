@@ -40,6 +40,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.Net;
+using System.Linq;
 
 using IPA.Cores.Helper.Basic;
 
@@ -113,7 +114,7 @@ namespace IPA.Cores.Basic
 
         public static string GetObjectInnerString(object obj, string instanceBaseName = "", string newLineString = "\r\n", bool hideEmpty = false)
         {
-            return GetObjectInnerString(obj.GetType(), obj, instanceBaseName, newLineString, hideEmpty);
+            return GetObjectInnerString(obj?.GetType() ?? null, obj, instanceBaseName, newLineString, hideEmpty);
         }
         public static string GetObjectInnerString(Type t, object obj, string instanceBaseName, string newLineString = "\r\n", bool hideEmpty = false)
         {
@@ -161,13 +162,19 @@ namespace IPA.Cores.Basic
             Console.WriteLine(str);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string newLineString, bool hideEmpty, string instanceBaseName = null, object obj = null, ImmutableHashSet<object> duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type t, string newLineString, bool hideEmpty, string instanceBaseName, object obj, ImmutableHashSet<object> duplicateCheck = null)
         {
+            if (obj == null || IsPrimitiveType(t) || t.IsArray)
+            {
+                ObjectContainerForDebugVars container = new ObjectContainerForDebugVars(obj);
+                return GetVarsFromClass(container.GetType(), newLineString, hideEmpty, instanceBaseName, container, duplicateCheck);
+            }
+
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
-            if (instanceBaseName == null) instanceBaseName = t.Name;
+            if (instanceBaseName == null) instanceBaseName = t?.Name ?? "null";
 
-            DebugVars ret = new DebugVars(newLineString, hideEmpty);
+            DebugVars ret = new DebugVars(newLineString, hideEmpty, obj is ObjectContainerForDebugVars);
 
             var members_list = GetAllMembersFromType(t, obj != null, obj == null);
 
@@ -216,6 +223,10 @@ namespace IPA.Cores.Basic
                                 if (data is byte[] byteArray)
                                 {
                                     ret.Vars.Add((info, data));
+                                }
+                                else if (data is Memory<byte> byteMemory)
+                                {
+                                    ret.Vars.Add((info, byteMemory.Span.ToArray()));
                                 }
                                 else
                                 {
@@ -267,7 +278,7 @@ namespace IPA.Cores.Basic
 
             if (hideStatic == false)
             {
-                a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public));
+                a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public ));
                 a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.NonPublic));
             }
 
@@ -277,9 +288,7 @@ namespace IPA.Cores.Basic
                 a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic));
             }
 
-            MemberInfo[] ret = new MemberInfo[a.Count];
-            a.CopyTo(ret);
-            return ret;
+            return a.Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property).ToArrayList();
         }
 
         public static object GetValueOfFieldOrProperty(MemberInfo m, object obj)
@@ -314,9 +323,11 @@ namespace IPA.Cores.Basic
             if (t == typeof(System.MulticastDelegate)) return true;
             if (t == typeof(string)) return true;
             if (t == typeof(DateTime)) return true;
+            if (t == typeof(DateTimeOffset)) return true;
             if (t == typeof(TimeSpan)) return true;
             if (t == typeof(IPAddr)) return true;
             if (t == typeof(IPAddress)) return true;
+            if (t == typeof(BigNumber)) return true;
             if (t == typeof(System.Numerics.BigInteger)) return true;
 
             return false;
@@ -327,17 +338,28 @@ namespace IPA.Cores.Basic
         public static void Break() => Debugger.Break();
     }
 
+    class ObjectContainerForDebugVars
+    {
+        public object Object;
+        public ObjectContainerForDebugVars(object obj)
+        {
+            this.Object = obj;
+        }
+    }
+
     class DebugVars
     {
         public string BaseName = "";
 
         public string NewLineString { get; }
         public bool Hidempty { get; }
+        public bool IsSimplePrimitive { get; }
 
-        public DebugVars(string newLineString = "\r\n", bool hideEmpty = false)
+        public DebugVars(string newLineString, bool hideEmpty, bool isSimplePrimitive)
         {
             this.NewLineString = newLineString;
             this.Hidempty = hideEmpty;
+            this.IsSimplePrimitive = isSimplePrimitive;
         }
 
         public List<(MemberInfo memberInfo, object data)> Vars = new List<(MemberInfo, object)>();
@@ -373,7 +395,14 @@ namespace IPA.Cores.Basic
                     hide = true;
 
                 if (Hidempty == false || hide == false)
-                    currentList.Add($"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = {printStr}");
+                {
+                    string leftStr = "";
+                    if (this.IsSimplePrimitive == false)
+                    {
+                        leftStr = $"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = ";
+                    }
+                    currentList.Add($"{leftStr}{printStr}");
+                }
             }
 
             foreach (DebugVars var in Childlen)
