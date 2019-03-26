@@ -46,10 +46,10 @@ namespace IPA.Cores.Basic
     {
         public static partial class Logger
         {
-            public static readonly Copenhagen<long> DefaultAutoDeleteTotalMinSize = 4000000000L;
-            public static readonly Copenhagen<long> DefaultMaxLogSize = 1073741823L;
+            public static readonly Copenhagen<long> DefaultAutoDeleteTotalMinSize = 4000000000L; // 4GB
+            public static readonly Copenhagen<long> DefaultMaxLogSize = 1073741823L; // 1GB
             public static readonly Copenhagen<int> DefaultMaxPendingRecords = 10000;
-            public static readonly Copenhagen<int> EraserIntervalMsecs = 5 * 1000;
+            public static readonly Copenhagen<int> EraserIntervalMsecs = 10 * 60 * 1000; // 10 mins
         }
     }
 
