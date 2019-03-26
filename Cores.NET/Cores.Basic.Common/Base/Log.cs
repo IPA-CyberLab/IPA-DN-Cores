@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
     {
         Minimal = 0,
         Debug = 1,
-        Information = 2,
+        Info = 2,
         Error = 4,
         None = 0x7FFFFFFF,
     }

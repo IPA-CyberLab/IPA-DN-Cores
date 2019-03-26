@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         public static partial class DebugSettings
         {
             public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Minimal;
-            public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Information;
+            public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
 
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Minimal;
 
@@ -72,30 +72,30 @@ namespace IPA.Cores.Basic
                 {
                     case DebugMode.Debug:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
-                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        LogMinimalInfoLevel.Set(LogPriority.Info);
 
                         ConsoleMinimalLevel.Set(LogPriority.Minimal);
                         break;
 
                     case DebugMode.ReleaseWithLogs:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
-                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        LogMinimalInfoLevel.Set(LogPriority.Info);
 
-                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
 
                     case DebugMode.ReleaseNoDebugLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
-                        LogMinimalInfoLevel.Set(LogPriority.Information);
+                        LogMinimalInfoLevel.Set(LogPriority.Info);
 
-                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
 
                     case DebugMode.ReleaseNoLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.None);
 
-                        ConsoleMinimalLevel.Set(LogPriority.Information);
+                        ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
 
                     default:

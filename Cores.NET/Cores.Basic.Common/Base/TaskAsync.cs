@@ -524,7 +524,7 @@ namespace IPA.Cores.Basic
             return AsyncPreciseDelay.PreciseDelay(msec);
         }
 
-        public static async Task WaitObjectsAsync(Task[] tasks = null, CancellationToken[] cancels = null, AsyncAutoResetEvent[] events = null,
+        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[] tasks = null, CancellationToken[] cancels = null, AsyncAutoResetEvent[] events = null,
             AsyncManualResetEvent[] manualEvents = null, int timeout = Timeout.Infinite,
             ExceptionWhen exceptions = ExceptionWhen.None)
         {
@@ -536,7 +536,8 @@ namespace IPA.Cores.Basic
             {
                 if (exceptions.Bit(ExceptionWhen.TimeoutException))
                     throw new TimeoutException();
-                return;
+
+                return ExceptionWhen.TimeoutException;
             }
 
             if (exceptions.Bit(ExceptionWhen.TaskException))
@@ -550,11 +551,28 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
+            else
+            {
+                foreach (Task t in tasks)
+                {
+                    if (t != null)
+                    {
+                        if (t.IsFaulted) return ExceptionWhen.TaskException;
+                        if (t.IsCanceled) return ExceptionWhen.TaskException;
+                    }
+                }
+            }
 
             if (exceptions.Bit(ExceptionWhen.CancelException))
             {
                 foreach (CancellationToken c in cancels)
                     c.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                foreach (CancellationToken c in cancels)
+                    if (c.IsCancellationRequested)
+                        return ExceptionWhen.CancelException;
             }
 
             List<Task> taskList = new List<Task>();
@@ -609,44 +627,68 @@ namespace IPA.Cores.Basic
                 if (r == timeoutTask) timedOut = true;
             }
             catch { }
-            finally
+
+            foreach (Action undo in undoList)
+                undo();
+
+            foreach (CancellationTokenRegistration reg in regList)
             {
-                foreach (Action undo in undoList)
-                    undo();
+                reg.Dispose();
+            }
 
-                foreach (CancellationTokenRegistration reg in regList)
+            if (delayCancel != null)
+            {
+                delayCancel.Cancel();
+                delayCancel.Dispose();
+            }
+
+            if (exceptions.Bit(ExceptionWhen.TimeoutException))
+            {
+                if (timedOut)
+                    throw new TimeoutException();
+            }
+            else
+            {
+                if (timedOut)
+                    return ExceptionWhen.TimeoutException;
+            }
+
+            if (exceptions.Bit(ExceptionWhen.TaskException))
+            {
+                foreach (Task t in tasks)
                 {
-                    reg.Dispose();
-                }
-
-                if (delayCancel != null)
-                {
-                    delayCancel.Cancel();
-                    delayCancel.Dispose();
-                }
-
-                if (exceptions.Bit(ExceptionWhen.TimeoutException))
-                    if (timedOut)
-                        throw new TimeoutException();
-
-                if (exceptions.Bit(ExceptionWhen.TaskException))
-                {
-                    foreach (Task t in tasks)
+                    if (t != null)
                     {
-                        if (t != null)
-                        {
-                            if (t.IsFaulted) t.Exception.ReThrow();
-                            if (t.IsCanceled) throw new TaskCanceledException();
-                        }
+                        if (t.IsFaulted) t.Exception.ReThrow();
+                        if (t.IsCanceled) throw new TaskCanceledException();
                     }
                 }
-
-                if (exceptions.Bit(ExceptionWhen.CancelException))
+            }
+            else
+            {
+                foreach (Task t in tasks)
                 {
-                    foreach (CancellationToken c in cancels)
-                        c.ThrowIfCancellationRequested();
+                    if (t != null)
+                    {
+                        if (t.IsFaulted) return ExceptionWhen.TaskException;
+                        if (t.IsCanceled) return ExceptionWhen.TaskException;
+                    }
                 }
             }
+
+            if (exceptions.Bit(ExceptionWhen.CancelException))
+            {
+                foreach (CancellationToken c in cancels)
+                    c.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                foreach (CancellationToken c in cancels)
+                    if (c.IsCancellationRequested)
+                        return ExceptionWhen.CancelException;
+            }
+
+            return ExceptionWhen.None;
         }
 
         public static Task WhenCanceled(CancellationToken cancel, out CancellationTokenRegistration registration)
@@ -826,17 +868,17 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
                     events: this.SingleArray(),
                     timeout: timeout,
-                    exceptions: ExceptionWhen.All);
+                    exceptions: ExceptionWhen.None);
+
+                return (reason != ExceptionWhen.None);
             }
             catch
             {
                 return false;
             }
-
-            return true;
         }
 
         public Task WaitOneAsync(out Action cancel)
@@ -941,17 +983,16 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
                     manualEvents: this.SingleArray(),
-                    timeout: timeout,
-                    exceptions: ExceptionWhen.All);
+                    timeout: timeout);
+
+                return (reason != ExceptionWhen.None);
             }
             catch
             {
                 return false;
             }
-
-            return true;
         }
 
         public Task WaitAsync()

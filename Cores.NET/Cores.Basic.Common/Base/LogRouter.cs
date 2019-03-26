@@ -250,12 +250,12 @@ namespace IPA.Cores.Basic
         public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
             => Router.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
-        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Information, string tag = null)
+        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
         public static void PostData(object obj, string tag = null, bool copyToDebug = false)
         {
-            Post(obj, priority: LogPriority.Information, kind: LogKind.Data, tag: tag);
+            Post(obj, priority: LogPriority.Info, kind: LogKind.Data, tag: tag);
             if (copyToDebug)
             {
                 Post(new PostedData() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
