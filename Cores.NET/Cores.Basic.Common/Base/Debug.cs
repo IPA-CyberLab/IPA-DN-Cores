@@ -50,9 +50,9 @@ namespace IPA.Cores.Basic
     enum DebugMode
     {
         Debug,
-        Release,
-        ReleaseNoDebugLogOutput,
-        ReleaseNoAllLogsOutput,
+        ReleaseWithLogs,
+        ReleaseNoDebugLogs,
+        ReleaseNoLogs,
     }
 
     static partial class AppConfig
@@ -74,19 +74,19 @@ namespace IPA.Cores.Basic
                         ConsoleMinimalLevel.Set(LogPriority.Minimal);
                         break;
 
-                    case DebugMode.Release:
+                    case DebugMode.ReleaseWithLogs:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
                         LogMinimalInfoLevel.Set(LogPriority.Information);
                         ConsoleMinimalLevel.Set(LogPriority.Information);
                         break;
 
-                    case DebugMode.ReleaseNoDebugLogOutput:
+                    case DebugMode.ReleaseNoDebugLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.Information);
                         ConsoleMinimalLevel.Set(LogPriority.Information);
                         break;
 
-                    case DebugMode.ReleaseNoAllLogsOutput:
+                    case DebugMode.ReleaseNoLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.None);
                         ConsoleMinimalLevel.Set(LogPriority.Information);
@@ -211,6 +211,8 @@ namespace IPA.Cores.Basic
 
             var membersList = GetAllMembersFromType(t, obj != null, obj == null);
 
+            int order = 0;
+
             foreach (MemberInfo info in membersList)
             {
                 bool ok = false;
@@ -241,13 +243,13 @@ namespace IPA.Cores.Basic
 
                     if (IsPrimitiveType(data_type))
                     {
-                        ret.Vars.Add((info, data));
+                        ret.Vars.Add((info, data, ++order));
                     }
                     else
                     {
                         if (data == null)
                         {
-                            ret.Vars.Add((info, null));
+                            ret.Vars.Add((info, null, ++order));
                         }
                         else
                         {
@@ -255,11 +257,11 @@ namespace IPA.Cores.Basic
                             {
                                 if (data is byte[] byteArray)
                                 {
-                                    ret.Vars.Add((info, data));
+                                    ret.Vars.Add((info, data, ++order));
                                 }
                                 else if (data is Memory<byte> byteMemory)
                                 {
-                                    ret.Vars.Add((info, byteMemory.Span.ToArray()));
+                                    ret.Vars.Add((info, byteMemory.Span.ToArray(), ++order));
                                 }
                                 else
                                 {
@@ -272,15 +274,15 @@ namespace IPA.Cores.Basic
 
                                             if (IsPrimitiveType(data_type2))
                                             {
-                                                ret.Vars.Add((info, item));
+                                                ret.Vars.Add((info, item, ++order));
                                             }
                                             else if (item == null)
                                             {
-                                                ret.Vars.Add((info, null));
+                                                ret.Vars.Add((info, null, ++order));
                                             }
                                             else
                                             {
-                                                ret.Childlen.Add(GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)));
+                                                ret.Childlen.Add((GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)), ++order));
                                             }
                                         }
 
@@ -292,7 +294,7 @@ namespace IPA.Cores.Basic
                             {
                                 if (duplicateCheck.Contains(data) == false)
                                 {
-                                    ret.Childlen.Add(GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)));
+                                    ret.Childlen.Add((GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)), ++order));
                                 }
                             }
                         }
@@ -395,13 +397,12 @@ namespace IPA.Cores.Basic
             this.IsSimplePrimitive = isSimplePrimitive;
         }
 
-        public List<(MemberInfo memberInfo, object data)> Vars = new List<(MemberInfo, object)>();
-        public List<DebugVars> Childlen = new List<DebugVars>();
+        public List<(MemberInfo memberInfo, object data, int order)> Vars = new List<(MemberInfo, object, int)>();
+        public List<(DebugVars child, int order)> Childlen = new List<(DebugVars, int)>();
 
         public void WriteToString(List<string> currentList, ImmutableList<string> parents)
         {
-            //            this.Vars.Sort((a, b) => string.Compare(a.memberInfo.Name, b.memberInfo.Name));
-            //            this.Childlen.Sort((a, b) => string.Compare(a.BaseName, b.BaseName));
+            SortedList<int, object> localList = new SortedList<int, object>();
 
             foreach (var data in Vars)
             {
@@ -434,13 +435,26 @@ namespace IPA.Cores.Basic
                     {
                         leftStr = $"{Str.CombineStringArray(ImmutableListToArray<string>(parents), ".")}.{p.Name} = ";
                     }
-                    currentList.Add($"{leftStr}{printStr}");
+
+                    localList.Add(data.order, $"{leftStr}{printStr}");
                 }
             }
 
-            foreach (DebugVars var in Childlen)
+            foreach (var v in Childlen)
             {
-                var.WriteToString(currentList, parents.Add(var.BaseName));
+                List<string> tmpList = new List<string>();
+                v.child.WriteToString(tmpList, parents.Add(v.child.BaseName));
+
+                localList.Add(v.order, tmpList);
+            }
+
+            foreach (var v in localList.Values)
+            {
+                if (v is string s)
+                    currentList.Add(s);
+                else if (v is List<string> list)
+                    foreach (string s2 in list)
+                        currentList.Add(s2);
             }
         }
 

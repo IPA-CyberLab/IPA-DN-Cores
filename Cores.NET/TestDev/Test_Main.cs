@@ -140,12 +140,12 @@ namespace IPA.TestDev
 
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode();
+            //Dbg.SetDebugMode();
             //Dbg.SetDebugMode(DebugMode.ReleaseNoAllLogsOutput);
 
             try
             {
-                Con.WriteLine(new X());
+                Dbg.Where(new X());
                 //TestMain();
             }
             finally
