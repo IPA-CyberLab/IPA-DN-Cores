@@ -145,7 +145,7 @@ namespace IPA.TestDev
 
             try
             {
-                Dbg.Where(new X());
+                Dbg.Where("Hello");
                 //TestMain();
             }
             finally

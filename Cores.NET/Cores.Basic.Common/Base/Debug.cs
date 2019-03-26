@@ -114,17 +114,16 @@ namespace IPA.Cores.Basic
     class DebugWhereContainer
     {
         public object Message;
-        public string Src;
-        public int Line;
-        public int Thread;
+        public string Location;
         public string Caller;
+        public int? ThreadID;
 
         public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
         {
             this.Message = message;
-            this.Src = filename.NonNull();
-            this.Line = lineNumber;
-            this.Thread = threadId;
+            if (filename.IsFilled())
+                this.Location = filename + ":" + lineNumber;
+            this.ThreadID = threadId == 0 ? (int ?)null : threadId;
             this.Caller = callerName;
         }
     }
@@ -159,13 +158,13 @@ namespace IPA.Cores.Basic
             GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
         }
 
-        public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
         {
             if (Dbg.IsDebugMode)
             {
                 filename = filename.GetFileName();
 
-                DebugWhereContainer c = new DebugWhereContainer(message, filename, line, Environment.CurrentManagedThreadId, caller);
+                DebugWhereContainer c = new DebugWhereContainer(message, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
                 DebugObject(c);
             }
         }
