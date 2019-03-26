@@ -133,7 +133,7 @@ namespace IPA.TestDev
 
         class X
         {
-            public string XX = "xxx";
+            public string XX = "xxx\nyyy";
             public int y = 1243;
             public object Null = null;
         }
@@ -145,7 +145,9 @@ namespace IPA.TestDev
 
             try
             {
-                Dbg.Where("Hello");
+                //Dbg.WriteLine("Hello");
+                //Dbg.Where("Hello");
+                Con.WriteLine(new X());
                 //TestMain();
             }
             finally

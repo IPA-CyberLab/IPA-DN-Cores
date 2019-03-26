@@ -44,8 +44,6 @@ namespace IPA.Cores.Basic
 {
     class ConsoleLogRoute : LogRouteBase
     {
-        LogInfoOptions infoOptions = new LogInfoOptions();
-
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
 
         public override void OnInstalled() { }

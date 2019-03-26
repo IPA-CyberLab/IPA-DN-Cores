@@ -71,24 +71,28 @@ namespace IPA.Cores.Basic
                     case DebugMode.Debug:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
                         LogMinimalInfoLevel.Set(LogPriority.Information);
+
                         ConsoleMinimalLevel.Set(LogPriority.Minimal);
                         break;
 
                     case DebugMode.ReleaseWithLogs:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
                         LogMinimalInfoLevel.Set(LogPriority.Information);
+
                         ConsoleMinimalLevel.Set(LogPriority.Information);
                         break;
 
                     case DebugMode.ReleaseNoDebugLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.Information);
+
                         ConsoleMinimalLevel.Set(LogPriority.Information);
                         break;
 
                     case DebugMode.ReleaseNoLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.None);
+
                         ConsoleMinimalLevel.Set(LogPriority.Information);
                         break;
 
@@ -130,6 +134,13 @@ namespace IPA.Cores.Basic
 
     static partial class Dbg
     {
+        static Dbg()
+        {
+            bool isJsonSupported = false;
+            InternalIsJsonSupported(ref isJsonSupported);
+            Dbg.IsJsonSupported = isJsonSupported;
+        }
+
         static GlobalInitializer gInit = new GlobalInitializer();
 
         public static void SetDebugMode(DebugMode mode = DebugMode.Debug) => AppConfig.DebugSettings.SetDebugMode(mode);
@@ -169,15 +180,27 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectDump(object obj, string instanceBaseName = "", string separatorStr = ", ", bool hideEmpty = true)
-            => GetObjectDump(obj?.GetType() ?? null, obj, instanceBaseName, separatorStr, hideEmpty);
+        public static bool IsJsonSupported { get; }
 
-        public static string GetObjectDump(Type t, object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true)
+        static partial void InternalIsJsonSupported(ref bool ret);
+
+        static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull = false, bool escapeHtml = false,
+            int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false);
+
+        public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
         {
-            if (obj != null && t.IsAnonymousType())
+            if (jsonIfPossible)
+            {
+                string jsonStr = null;
+                InternalConvertToJsonStringIfPossible(ref jsonStr, obj, compact: true);
+                if (jsonStr != null)
+                    return jsonStr;
+            }
+
+            if (obj != null && obj.GetType().IsAnonymousType())
                 return obj.ToString();
 
-            DebugVars v = GetVarsFromClass(t, separatorStr, hideEmpty, instanceBaseName, obj);
+            DebugVars v = GetVarsFromClass(obj.GetType(), separatorStr, hideEmpty, instanceBaseName, obj);
 
             return v.ToString();
         }

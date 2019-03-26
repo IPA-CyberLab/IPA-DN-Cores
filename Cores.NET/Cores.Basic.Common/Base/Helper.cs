@@ -186,7 +186,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static void DebugObject(this object o) => Dbg.DebugObject(o);
         public static void PrintObject(this object o) => Dbg.PrintObject(o);
-        public static string GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true) => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty);
+        public static string GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
+            => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible);
         public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);

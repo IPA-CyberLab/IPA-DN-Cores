@@ -102,6 +102,8 @@ namespace IPA.Cores.Basic
         public string AppName = Env.ExeAssemblySimpleName;
         public string Kind = "";
 
+        public bool WriteAsJsonFormat = false;
+
         public void Normalize(string logKind)
         {
             this.MachineName = this.MachineName.NonNullTrim().NoSpace();
@@ -119,6 +121,8 @@ namespace IPA.Cores.Basic
 
     class LogRecord
     {
+        public static readonly byte[] CrLfByte = "\r\n".GetBytes_Ascii();
+
         public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
         public LogPriority Priority { get; }
@@ -145,6 +149,7 @@ namespace IPA.Cores.Basic
         {
             if (data == null) return "null";
             if (data is string str) return str;
+
             return data.GetObjectDump("", opt.ObjectPrintSeparator, true);
         }
 
@@ -176,52 +181,93 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        class JsonContainer
+        {
+            public DateTimeOffset? TimeStamp;
+            public string MachineName;
+            public string AppName;
+            public string Kind;
+            public string Priority;
+            public object Data;
+        }
+
         public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
         {
-            StringBuilder sb = new StringBuilder();
-
-            // Timestamp
-            if (opt.WithTimeStamp)
+            if (opt.WriteAsJsonFormat && Dbg.IsJsonSupported)
             {
-                sb.Append(this.TimeStamp.ToDtStr(true, DtstrOption.All, false));
-                sb.Append(" ");
+                // JSON text
+                JsonContainer jc = new JsonContainer();
+
+                if (opt.WithTimeStamp)
+                    jc.TimeStamp = this.TimeStamp;
+
+                if (opt.WithMachineName)
+                    jc.MachineName = opt.MachineName;
+
+                if (opt.WithAppName)
+                    jc.AppName = opt.AppName;
+
+                if (opt.WithKind)
+                    jc.Kind = opt.Kind;
+
+                if (opt.WithPriority)
+                    jc.Priority = this.Priority.ToString();
+
+                jc.Data = this.Data;
+
+                string jsonText = jc.GetObjectDump(jsonIfPossible: true);
+
+                b.Write(jsonText.GetBytes_UTF8());
+                b.Write(CrLfByte);
             }
-
-            // Additional strings
-            List<string> additionalList = new List<string>();
-
-            if (opt.WithMachineName)
-                additionalList.Add(opt.MachineName);
-
-            if (opt.WithAppName)
-                additionalList.Add(opt.AppName);
-
-            if (opt.WithKind)
-                additionalList.Add(opt.Kind);
-
-            if (opt.WithPriority)
-                additionalList.Add(this.Priority.ToString());
-
-            string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
-            if (additionalStr.IsFilled())
+            else
             {
-                sb.Append("[");
-                sb.Append(additionalStr);
-                sb.Append("] ");
-            }
+                // Normal text
+                StringBuilder sb = new StringBuilder();
 
-            // Log text
-            try
-            {
-                string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
-                sb.Append(logText);
-                sb.Append("\r\n");
+                // Timestamp
+                if (opt.WithTimeStamp)
+                {
+                    sb.Append(this.TimeStamp.ToDtStr(true, DtstrOption.All, false));
+                    sb.Append(" ");
+                }
 
-                b.Write(sb.ToString().GetBytes_UTF8());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
+                // Additional strings
+                List<string> additionalList = new List<string>();
+
+                if (opt.WithMachineName)
+                    additionalList.Add(opt.MachineName);
+
+                if (opt.WithAppName)
+                    additionalList.Add(opt.AppName);
+
+                if (opt.WithKind)
+                    additionalList.Add(opt.Kind);
+
+                if (opt.WithPriority)
+                    additionalList.Add(this.Priority.ToString());
+
+                string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
+                if (additionalStr.IsFilled())
+                {
+                    sb.Append("[");
+                    sb.Append(additionalStr);
+                    sb.Append("] ");
+                }
+
+                // Log text
+                try
+                {
+                    string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
+                    sb.Append(logText);
+                    sb.Append("\r\n");
+
+                    b.Write(sb.ToString().GetBytes_UTF8());
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
             }
         }
     }

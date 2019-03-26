@@ -164,5 +164,18 @@ namespace IPA.Cores.Basic
             return SerializeDynamic(d);
         }
     }
+
+    static partial class Dbg
+    {
+        static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
+        {
+            ret = obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+        }
+
+        static partial void InternalIsJsonSupported(ref bool ret)
+        {
+            ret = true;
+        }
+    }
 }
 
