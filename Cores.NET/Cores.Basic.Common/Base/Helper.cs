@@ -632,7 +632,11 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool IsAnonymousType<T>(this T instance) => IsAnonymousType(instance.GetType());
 
-        public static void PostData(this object obj, string tag = null, bool copyToDebug = false) => LocalLogRouter.PostData(obj, tag, copyToDebug);
+        public static void PostData(this object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+            => LocalLogRouter.PostData(obj, tag, copyToDebug, priority);
+
+        public static void PostAccessLog(this object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+            => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
     }
 }
 

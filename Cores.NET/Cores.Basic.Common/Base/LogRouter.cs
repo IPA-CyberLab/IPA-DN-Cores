@@ -243,6 +243,14 @@ namespace IPA.Cores.Basic
                 AppConfig.LocalLogRouterSettings.LogDataDir.Value(),
                 AppConfig.LocalLogRouterSettings.SwitchTypeForData,
                 AppConfig.LocalLogRouterSettings.InfoOptionsForData));
+
+            // Access log (file)
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Access,
+                AppConfig.DebugSettings.LogMinimalAccessLevel,
+                "access",
+                AppConfig.LocalLogRouterSettings.LogAccessDir.Value(),
+                AppConfig.LocalLogRouterSettings.SwitchTypeForAccess,
+                AppConfig.LocalLogRouterSettings.InfoOptionsForAccess));
         }
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);
@@ -253,16 +261,31 @@ namespace IPA.Cores.Basic
         public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
-        public static void PostData(object obj, string tag = null, bool copyToDebug = false)
+        public static void PostData(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
-            Post(obj, priority: LogPriority.Info, kind: LogKind.Data, tag: tag);
+            Post(obj, priority, kind: LogKind.Data, tag: tag);
             if (copyToDebug)
             {
                 Post(new PostedData() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
             }
         }
 
+        public static void PostAccessLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        {
+            Post(obj, priority, kind: LogKind.Access, tag: tag);
+            if (copyToDebug)
+            {
+                Post(new PostedAccessLog() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
+            }
+        }
+
         class PostedData
+        {
+            public string Tag;
+            public object Data;
+        }
+
+        class PostedAccessLog
         {
             public string Tag;
             public object Data;
@@ -289,6 +312,11 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<Func<string>> LogDataDir = new Func<string>(() => Path.Combine(LogRootDir, "Data"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForData = LogSwitchType.Day;
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForData = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
+
+            // Access log
+            public static readonly Copenhagen<Func<string>> LogAccessDir = new Func<string>(() => Path.Combine(LogRootDir, "Access"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForAccess = LogSwitchType.Day;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForAccess = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
         }
     }
 }

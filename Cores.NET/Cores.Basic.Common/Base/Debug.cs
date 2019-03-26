@@ -63,6 +63,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
 
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Minimal;
+            public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Minimal;
 
             public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Minimal;
 
@@ -130,7 +131,7 @@ namespace IPA.Cores.Basic
     class DebugWhereContainer
     {
         public object Message;
-        public string Location;
+        public string Where;
         public string Caller;
         public int? ThreadID;
 
@@ -138,7 +139,7 @@ namespace IPA.Cores.Basic
         {
             this.Message = message;
             if (filename.IsFilled())
-                this.Location = filename + ":" + lineNumber;
+                this.Where = filename + ":" + lineNumber;
             this.ThreadID = threadId == 0 ? (int ?)null : threadId;
             this.Caller = callerName;
         }

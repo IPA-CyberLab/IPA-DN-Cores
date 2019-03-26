@@ -57,6 +57,7 @@ namespace IPA.Cores.Basic
     {
         public const string Default = "Default";
         public const string Data = "Data";
+        public const string Access = "Access";
     }
 
     partial class LogTag

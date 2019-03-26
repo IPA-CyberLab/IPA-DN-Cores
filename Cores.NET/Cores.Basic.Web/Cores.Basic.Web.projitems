@@ -15,5 +15,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\WebHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ClientApi\SlackApi.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MsLogger.cs" />
   </ItemGroup>
 </Project>

@@ -98,6 +98,7 @@ namespace IPA.Cores.Basic
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
         public bool DebugToConsole { get; set; } = true;
+        public bool DebugToLog { get; set; } = true;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
 
@@ -174,7 +175,11 @@ namespace IPA.Cores.Basic
                         if (Config.DebugToConsole)
                         {
                             logging.AddConsole();
-                            logging.AddDebug();
+                        }
+
+                        if (Config.DebugToLog)
+                        {
+                            logging.AddProvider(new MsLoggerProvider());
                         }
                     })
                     .UseConfiguration(iconf)
