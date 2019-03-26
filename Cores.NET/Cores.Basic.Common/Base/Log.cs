@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
         {
             if (data == null) return "null";
             if (data is string str) return str;
-            return data.GetInnerStr("", opt.ObjectPrintSeparater, true);
+            return data.GetObjectDump("", opt.ObjectPrintSeparater, true);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)

@@ -25,11 +25,11 @@ namespace IPA.TestDev
         {
             int a = 123;
             object nullObj = null;
-            a.GetInnerStr("").Print();
-            "Hello".GetBytes_Ascii().GetInnerStr("").Print();
-            new { v = new int[] { 1, 2, 3 } }.GetInnerStr("").Print();
-            nullObj.GetInnerStr("").Print();
-            GetX().GetInnerStr("").Print();
+            a.GetObjectDump("").Print();
+            "Hello".GetBytes_Ascii().GetObjectDump("").Print();
+            new { v = new int[] { 1, 2, 3 } }.GetObjectDump("").Print();
+            nullObj.GetObjectDump("").Print();
+            GetX().GetObjectDump("").Print();
             return;
 
             AppConfig.GlobalLogRouteMachineSettings.LogRootDir.Set(@"c:\tmp\log1");

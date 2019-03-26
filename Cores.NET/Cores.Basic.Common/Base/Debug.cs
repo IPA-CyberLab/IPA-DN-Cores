@@ -112,26 +112,26 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectInnerString(object obj, string instanceBaseName = "", string newLineString = "\r\n", bool hideEmpty = false)
+        public static string GetObjectDump(object obj, string instanceBaseName = "", string newLineString = "\r\n", bool hideEmpty = false)
         {
-            return GetObjectInnerString(obj?.GetType() ?? null, obj, instanceBaseName, newLineString, hideEmpty);
+            return GetObjectDump(obj?.GetType() ?? null, obj, instanceBaseName, newLineString, hideEmpty);
         }
-        public static string GetObjectInnerString(Type t, object obj, string instanceBaseName, string newLineString = "\r\n", bool hideEmpty = false)
+        public static string GetObjectDump(Type t, object obj, string instanceBaseName, string newLineString = "\r\n", bool hideEmpty = false)
         {
             DebugVars v = GetVarsFromClass(t, newLineString, hideEmpty, instanceBaseName, obj);
 
             return v.ToString();
         }
 
-        public static void WriteObject(object obj, string instanceBaseName = "")
+        public static void DebugObject(object obj, string instanceBaseName = "")
         {
-            WriteObject(obj.GetType(), obj, instanceBaseName);
+            DebugObject(obj.GetType(), obj, instanceBaseName);
         }
-        public static void WriteObject(Type t)
+        public static void DebugObject(Type t)
         {
-            WriteObject(t, null, null);
+            DebugObject(t, null, null);
         }
-        public static void WriteObject(Type t, object obj, string instanceBaseName)
+        public static void DebugObject(Type t, object obj, string instanceBaseName)
         {
             if (Dbg.IsDebugMode == false)
             {
@@ -145,15 +145,15 @@ namespace IPA.Cores.Basic
             Console.WriteLine(str);
         }
 
-        public static void PrintObjectInnerString(object obj, string instanceBaseName = "")
+        public static void PrintObject(object obj, string instanceBaseName = "")
         {
-            PrintObjectInnerString(obj.GetType(), obj, instanceBaseName);
+            PrinObject(obj.GetType(), obj, instanceBaseName);
         }
-        public static void PrintObjectInnerString(Type t)
+        public static void PrintObject(Type t)
         {
-            PrintObjectInnerString(t, null, null);
+            PrinObject(t, null, null);
         }
-        public static void PrintObjectInnerString(Type t, object obj, string instanceBaseName)
+        public static void PrinObject(Type t, object obj, string instanceBaseName)
         {
             DebugVars v = GetVarsFromClass(t, "\r\n", false, instanceBaseName, obj);
 
