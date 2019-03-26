@@ -2491,7 +2491,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                Console.WriteLine("AcceptedProc error: " + ex.ToString());
+                Dbg.WriteLine("AcceptedProc error: " + ex.ToString());
             }
         }
 

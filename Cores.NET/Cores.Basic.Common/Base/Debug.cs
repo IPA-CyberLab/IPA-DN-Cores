@@ -112,6 +112,16 @@ namespace IPA.Cores.Basic
 
                 return false;
             }
+
+            public static bool IsConsoleDebugMode()
+            {
+                if (ConsoleMinimalLevel.Get() <= LogPriority.Debug)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
     }
 
@@ -147,6 +157,8 @@ namespace IPA.Cores.Basic
 
         public static bool IsDebugMode => AppConfig.DebugSettings.IsDebugMode();
 
+        public static bool IsConsoleDebugMode => AppConfig.DebugSettings.IsConsoleDebugMode();
+
         public static void Report(string name, string value)
         {
             if (Dbg.IsDebugMode) GlobalIntervalReporter.Singleton.Report(name, value);
@@ -157,16 +169,28 @@ namespace IPA.Cores.Basic
             WriteLine("");
             return "";
         }
-        public static string WriteLine(string str)
+        public static object WriteLine(object obj)
         {
-            if (str == null) str = "null";
-            GlobalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
-            return str;
+            if (obj == null) obj = "null";
+            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
+            return obj;
         }
         public static void WriteLine(string str, params object[] args)
         {
             if (str == null) str = "null";
             GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
+        }
+
+        public static object WriteError(object obj)
+        {
+            if (obj == null) obj = "null";
+            GlobalLogRouter.PrintConsole(obj, priority: LogPriority.Error);
+            return obj;
+        }
+        public static void WriteError(string str, params object[] args)
+        {
+            if (str == null) str = "null";
+            GlobalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Error);
         }
 
         public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)

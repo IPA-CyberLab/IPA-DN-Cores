@@ -2203,7 +2203,7 @@ namespace IPA.Cores.Basic
         {
             double ret = Start(duration);
 
-            Console.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns");
+            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns");
 
             return ret;
         }

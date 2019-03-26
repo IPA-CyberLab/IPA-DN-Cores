@@ -500,16 +500,16 @@ namespace IPA.Cores.Basic
             var encrypted = new byte[plaintext.Length + AeadChaCha20Poly1305MacSize].AsMemory();
             var decrypted = new byte[plaintext.Length].AsMemory();
 
-            Console.WriteLine("Aead_ChaCha20Poly1305_Ietf_Test()");
+            Con.WriteLine("Aead_ChaCha20Poly1305_Ietf_Test()");
 
             Aead_ChaCha20Poly1305_Ietf_Encrypt(encrypted, plaintext, key, nonce, aad);
 
             string encrypted_hex = encrypted.Slice(0, plaintext.Length).ToArray().GetHexString(" ");
             string mac_hex = encrypted.Slice(plaintext.Length, AeadChaCha20Poly1305MacSize).ToArray().GetHexString(" ");
 
-            Console.WriteLine($"Encrypted:\n{encrypted_hex}\n");
+            Con.WriteLine($"Encrypted:\n{encrypted_hex}\n");
 
-            Console.WriteLine($"MAC:\n{mac_hex}\n");
+            Con.WriteLine($"MAC:\n{mac_hex}\n");
 
             var a = rfc_enc.GetHexBytes();
             if (encrypted.Slice(0, plaintext.Length).Span.SequenceEqual(a) == false)
@@ -517,7 +517,7 @@ namespace IPA.Cores.Basic
                 throw new ApplicationException("encrypted != rfc_enc");
             }
 
-            Console.WriteLine("Check OK.");
+            Con.WriteLine("Check OK.");
 
             if (Aead_ChaCha20Poly1305_Ietf_Decrypt(decrypted, encrypted, key, nonce, aad) == false)
             {
@@ -525,11 +525,11 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine("Decrypt OK.");
+                Con.WriteLine("Decrypt OK.");
 
                 if (plaintext.Span.SequenceEqual(decrypted.Span))
                 {
-                    Console.WriteLine("Same OK.");
+                    Con.WriteLine("Same OK.");
                 }
                 else
                 {

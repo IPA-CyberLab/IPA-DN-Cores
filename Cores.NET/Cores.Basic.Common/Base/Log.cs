@@ -265,18 +265,11 @@ namespace IPA.Cores.Basic
                 }
 
                 // Log text
-                try
-                {
-                    string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
-                    sb.Append(logText);
-                    sb.Append("\r\n");
+                string logText = GetMultilineText(GetTextFromData(this.Data, opt), opt);
+                sb.Append(logText);
+                sb.Append("\r\n");
 
-                    b.Write(sb.ToString().GetBytes_UTF8());
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
+                b.Write(sb.ToString().GetBytes_UTF8());
             }
         }
     }
@@ -313,12 +306,15 @@ namespace IPA.Cores.Basic
         bool LogNumberIncremented = false;
         string LastCachedStr = null;
 
+        public bool KeepFileHandleWhenIdle { get; set; }
+
         public bool NoFlush { get; set; } = false;
 
         public Logger(AsyncCleanuperLady lady, string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
             long maxLogSize = 0, string extension = DefaultExtension,
-            long? autoDeleteTotalMinSize = null)
+            long? autoDeleteTotalMinSize = null,
+            bool keepFileHandleWhenIdle = true)
             : base(lady)
         {
             try
@@ -328,6 +324,7 @@ namespace IPA.Cores.Basic
                 this.Prefix = prefix.NonNullTrim().Default("log").ReplaceStr("\\", "_").Replace("/", "_");
                 this.SwitchType = switchType;
                 this.Extension = extension.Default(DefaultExtension);
+                this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
                 if (this.MaxLogSize <= 0)
                     this.MaxLogSize = AppConfig.Logger.DefaultMaxLogSize;
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
@@ -429,7 +426,7 @@ namespace IPA.Cores.Basic
                             {
                                 if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                 {
-                                    io.Close(true);
+                                    io.Close(this.NoFlush);
                                     io = null;
                                     b.Clear();
                                 }
@@ -461,7 +458,7 @@ namespace IPA.Cores.Basic
                                 {
                                     if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                     {
-                                        io.Close(true);
+                                        io.Close(this.NoFlush);
                                         io = null;
                                         b.Clear();
                                     }
@@ -551,7 +548,7 @@ namespace IPA.Cores.Basic
                                     {
                                         if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
                                         {
-                                            io.Close(true);
+                                            io.Close(this.NoFlush);
                                             b.Clear();
                                             io = null;
                                         }
@@ -565,7 +562,7 @@ namespace IPA.Cores.Basic
                                 // Close the file
                                 if (io != null)
                                 {
-                                    io.Close(true);
+                                    io.Close(this.NoFlush);
                                     io = null;
                                 }
                             }
@@ -599,7 +596,8 @@ namespace IPA.Cores.Basic
                                 }
                                 catch (Exception ex)
                                 {
-                                    Dbg.Where($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                    if (Dbg.IsConsoleDebugMode)
+                                        Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
                                 }
                                 this.CurrentFilePointer = 0;
                             }
@@ -635,7 +633,8 @@ namespace IPA.Cores.Basic
                             }
                             catch (Exception ex)
                             {
-                                Dbg.Where($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                if (Dbg.IsConsoleDebugMode)
+                                    Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
                                 await Task.Delay(30);
                             }
                         }
@@ -672,7 +671,18 @@ namespace IPA.Cores.Basic
                 {
                     if (num2 == 0)
                     {
-                        await this.Event.WaitOneAsync(9821, this.Cancel.Token);
+                        int nextWaitInterval = Util.RandSInt31() % 10000;
+
+                        if (this.KeepFileHandleWhenIdle == false)
+                        {
+                            if (io != null)
+                            {
+                                io.Close(this.NoFlush);
+                                io = null;
+                            }
+                        }
+
+                        await this.Event.WaitOneAsync(nextWaitInterval, this.Cancel.Token);
                     }
                 }
             }

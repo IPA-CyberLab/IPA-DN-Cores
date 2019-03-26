@@ -105,8 +105,7 @@ namespace IPA.Cores.Helper.Basic
         public static string FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void Printf(this string s) => Str.Printf(s, new object[0]);
         public static void Printf(this string s, params object[] args) => Str.Printf(s, args);
-        public static string Print(this string s, bool newline = true) { Console.Write((s == null ? "null" : s) + (newline ? Env.NewLine : "")); return s; }
-        public static string PrintLine(this string s) => s.Print(true);
+        public static string Print(this string s) { Con.WriteLine(s); return s; }
         public static string Debug(this string s) { Dbg.WriteLine(s); return s; }
         public static int Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static string TrimCrlf(this string s) => Str.TrimCrlf(s);
@@ -205,16 +204,12 @@ namespace IPA.Cores.Helper.Basic
 
         public static object Print(this object o)
         {
-            string str = o.ToString() ?? "null";
-            if (o is string) str = (string)o;
-            Console.WriteLine(str);
+            Con.WriteLine(o);
             return o;
         }
         public static object Debug(this object o)
         {
-            string str = o.ToString() ?? "null";
-            if (o is string) str = (string)o;
-            Dbg.WriteLine(str);
+            Dbg.WriteLine(o);
             return o;
         }
 

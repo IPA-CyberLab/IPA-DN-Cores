@@ -2994,11 +2994,11 @@ namespace IPA.Cores.Basic
         {
             if (args.Length == 0)
             {
-                Console.Write(fmt);
+                Con.WriteLine(fmt);
             }
             else
             {
-                Console.Write(FormatC(fmt, args));
+                Con.WriteLine(FormatC(fmt, args));
             }
         }
 

@@ -1834,7 +1834,7 @@ namespace IPA.Cores.Basic
 
             lock (_InternalList)
             {
-                if (AppConfig.DebugSettings.ConsoleMinimalLevel.Get() <= LogPriority.Debug)
+                if (Dbg.IsConsoleDebugMode)
                 {
                     if (Count == 0)
                     {

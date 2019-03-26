@@ -160,8 +160,7 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-
-                        Console.WriteLine($"Connected {sock.Info.Tcp.RemoteIPAddress}:{sock.Info.Tcp.RemotePort} -> {sock.Info.Tcp.LocalIPAddress}:{sock.Info.Tcp.LocalPort}");
+                        Con.WriteLine($"Connected {sock.Info.Tcp.RemoteIPAddress}:{sock.Info.Tcp.RemotePort} -> {sock.Info.Tcp.LocalIPAddress}:{sock.Info.Tcp.LocalPort}");
 
                         var app = sock.GetFastAppProtocolStub();
 

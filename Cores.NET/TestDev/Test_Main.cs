@@ -149,6 +149,12 @@ namespace IPA.TestDev
                 //Dbg.Where("Hello");
                 Con.WriteLine(new X());
                 Con.WriteLine(null);
+                while (true)
+                {
+                    string s = Console.ReadLine();
+                    if (s.IsEmpty()) break;
+                    Con.WriteLine(s);
+                }
                 //TestMain();
             }
             finally

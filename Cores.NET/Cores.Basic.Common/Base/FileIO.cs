@@ -256,13 +256,13 @@ namespace IPA.Cores.Basic
 
             HamCoreBuilderFileEntry f = new HamCoreBuilderFileEntry();
 
-            Console.Write("{0}: ", name);
+            Con.WriteLine("{0}: ", name);
 
             f.Name = name;
             f.RawData = new Buf(Util.CloneByteArray(data));
-            Console.Write("{0} -> ", f.RawData.Size);
+            Con.WriteLine("{0} -> ", f.RawData.Size);
             f.CompressedData = new Buf(ZLib.Compress(f.RawData.ByteData));
-            Console.WriteLine("{0}", f.CompressedData.Size);
+            Con.WriteLine("{0}", f.CompressedData.Size);
 
             this.fileList.Add(f);
         }

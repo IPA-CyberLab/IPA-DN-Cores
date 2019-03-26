@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
         // デバッグのため停止
         public static void SuspendForDebug()
         {
-            Console.WriteLine("SuspendForDebug() called.");
+            Dbg.WriteLine("SuspendForDebug() called.");
             SleepThread(ThreadObj.Infinite);
         }
 

@@ -139,17 +139,13 @@ namespace IPA.Cores.Basic
 
                         HistoryList = HistoryList.Add(t);
 
-                        if (Dbg.IsDebugMode)
-                            Console.WriteLine($"Adjust Time: Diff = {diff}, Tick = {t.Tick}, Time = {t.Time}, NUM_ADJUST TIME: {this.HistoryList.Count}");
+                        Dbg.WriteLine(new { AdjustTime = new { Diff = diff, Tick = t.Tick, Time = t.Time, HistoryCount = HistoryList.Count } });
 
                         // To prevent consuming memory infinite on a system that clock is skewd
                         if (this.HistoryList.Count >= MaxAdjustTime)
                         {
                             // Remove the second
                             this.HistoryList = this.HistoryList.RemoveAt(1);
-
-                            if (Dbg.IsDebugMode)
-                                Console.WriteLine($"NUM_ADJUST TIME: {this.HistoryList.Count}");
                         }
 
                         this.Time64 = now;

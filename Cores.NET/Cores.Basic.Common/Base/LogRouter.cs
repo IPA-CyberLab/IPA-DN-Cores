@@ -253,7 +253,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
 
             public static readonly Copenhagen<Func<string>> LogDebugDir = new Func<string>(() => Path.Combine(LogRootDir, "Debug"));
-            public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Minute;
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Hour;
 
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
