@@ -31,7 +31,7 @@ namespace IPA.TestDev
             //nullObj.GetObjectDump("").Print();
             //GetX().GetObjectDump("").Print();
 
-            AppConfig.GlobalLogRouteMachineSettings.LogRootDir.Set(@"c:\tmp\log1");
+            AppConfig.LocalLogRouterSettings.LogRootDir.Set(@"c:\tmp\log1");
             AppConfig.Logger.DefaultMaxPendingRecords.Set(1000);
             AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Set(1000000);
             AppConfig.Logger.DefaultMaxLogSize.Set( 10000000);

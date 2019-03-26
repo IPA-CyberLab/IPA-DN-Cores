@@ -224,25 +224,25 @@ namespace IPA.Cores.Basic
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
                 AppConfig.DebugSettings.LogMinimalDebugLevel, 
                 "debug",
-                AppConfig.GlobalLogRouteMachineSettings.LogDebugDir.Value(),
-                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForDebug,
-                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForDebug));
+                AppConfig.LocalLogRouterSettings.LogDebugDir.Value(),
+                AppConfig.LocalLogRouterSettings.SwitchTypeForDebug,
+                AppConfig.LocalLogRouterSettings.InfoOptionsForDebug));
 
             // Info log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
                 AppConfig.DebugSettings.LogMinimalInfoLevel, 
                 "info",
-                AppConfig.GlobalLogRouteMachineSettings.LogInfoDir.Value(),
-                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForInfo,
-                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForInfo));
+                AppConfig.LocalLogRouterSettings.LogInfoDir.Value(),
+                AppConfig.LocalLogRouterSettings.SwitchTypeForInfo,
+                AppConfig.LocalLogRouterSettings.InfoOptionsForInfo));
 
             // Data log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
                 AppConfig.DebugSettings.LogMinimalDataLevel,
                 "data",
-                AppConfig.GlobalLogRouteMachineSettings.LogDataDir.Value(),
-                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForData,
-                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForData));
+                AppConfig.LocalLogRouterSettings.LogDataDir.Value(),
+                AppConfig.LocalLogRouterSettings.SwitchTypeForData,
+                AppConfig.LocalLogRouterSettings.InfoOptionsForData));
         }
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
 
     static partial class AppConfig
     {
-        public static partial class GlobalLogRouteMachineSettings
+        public static partial class LocalLogRouterSettings
         {
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
 
