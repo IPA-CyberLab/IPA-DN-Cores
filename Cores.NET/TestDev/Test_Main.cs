@@ -145,16 +145,10 @@ namespace IPA.TestDev
 
             try
             {
-                //Dbg.WriteLine("Hello");
-                //Dbg.Where("Hello");
-                Con.WriteLine(new X());
-                Con.WriteLine(null);
-                while (true)
-                {
-                    string s = Console.ReadLine();
-                    if (s.IsEmpty()) break;
-                    Con.WriteLine(s);
-                }
+                Con.WriteLine("Hello Release");
+                Dbg.WriteLine("Hello Debug");
+                var x = GetX();
+                x.PostData(copyToDebug: true, tag: "data1");
                 //TestMain();
             }
             finally

@@ -62,6 +62,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Minimal;
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Information;
 
+            public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Minimal;
+
             public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Minimal;
 
             public static void SetDebugMode(DebugMode mode = DebugMode.Debug)

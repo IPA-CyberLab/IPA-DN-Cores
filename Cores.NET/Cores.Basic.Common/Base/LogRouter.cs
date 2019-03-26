@@ -235,15 +235,38 @@ namespace IPA.Cores.Basic
                 AppConfig.GlobalLogRouteMachineSettings.LogInfoDir.Value(),
                 AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForInfo,
                 AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForInfo));
+
+            // Data log (file)
+            Machine.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
+                AppConfig.DebugSettings.LogMinimalDataLevel,
+                "data",
+                AppConfig.GlobalLogRouteMachineSettings.LogDataDir.Value(),
+                AppConfig.GlobalLogRouteMachineSettings.SwitchTypeForData,
+                AppConfig.GlobalLogRouteMachineSettings.InfoOptionsForData));
         }
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Machine.PostLog(record, kind);
 
-        public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None)
-            => Machine.PostLog(new LogRecord(obj, priority, flags), kind);
+        public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
+            => Machine.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
-        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Information)
-            => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None);
+        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Information, string tag = null)
+            => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
+
+        public static void PostData(object obj, string tag = null, bool copyToDebug = false)
+        {
+            Post(obj, priority: LogPriority.Information, kind: LogKind.Data, tag: tag);
+            if (copyToDebug)
+            {
+                Post(new PostedData() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
+            }
+        }
+
+        class PostedData
+        {
+            public string Tag;
+            public object Data;
+        }
     }
 
     static partial class AppConfig
@@ -252,14 +275,20 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
 
+            // Debug
             public static readonly Copenhagen<Func<string>> LogDebugDir = new Func<string>(() => Path.Combine(LogRootDir, "Debug"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForDebug = LogSwitchType.Hour;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForDebug = new LogInfoOptions() { WithPriority = true };
 
+            // Info
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
-
-            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForDebug = new LogInfoOptions() { WithPriority = true, WithTypeName = true, WriteAsJsonFormat = false };
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForInfo = new LogInfoOptions() { };
+
+            // Data
+            public static readonly Copenhagen<Func<string>> LogDataDir = new Func<string>(() => Path.Combine(LogRootDir, "Data"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForData = LogSwitchType.Day;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForData = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
         }
     }
 }

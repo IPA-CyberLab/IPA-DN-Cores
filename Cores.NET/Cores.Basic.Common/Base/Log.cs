@@ -56,6 +56,12 @@ namespace IPA.Cores.Basic
     partial class LogKind
     {
         public const string Default = "Default";
+        public const string Data = "Data";
+    }
+
+    partial class LogTag
+    {
+        public const string NoTag = "notag";
     }
 
     [Flags]
@@ -95,6 +101,7 @@ namespace IPA.Cores.Basic
         public bool WithAppName = false;
         public bool WithKind = false;
         public bool WithPriority = false;
+        public bool WithTag = false;
         public bool WithTypeName = false;
 
         public string NewLineForString = "\r\n";
@@ -129,18 +136,20 @@ namespace IPA.Cores.Basic
         public object Data { get; }
         public LogPriority Priority { get; }
         public LogFlags Flags { get; }
+        public string Tag { get; }
 
-        public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None) : this(0, data, priority, flags) { }
+        public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null) : this(0, data, priority, flags, tag) { }
 
-        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None)
-            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags) { }
+        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
+            : this(tick == 0 ? DateTimeOffset.Now : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags, tag) { }
 
-        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None)
+        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
         {
             this.TimeStamp = dateTime;
             this.Data = data;
             this.Priority = priority;
             this.Flags = flags;
+            this.Tag = tag;
         }
 
         LogInfoOptions ConsolePrintOptions = new LogInfoOptions() { };
@@ -190,6 +199,7 @@ namespace IPA.Cores.Basic
             public string AppName;
             public string Kind;
             public string Priority;
+            public string Tag;
             public string TypeName;
             public object Data;
         }
@@ -215,6 +225,9 @@ namespace IPA.Cores.Basic
 
                 if (opt.WithPriority)
                     jc.Priority = this.Priority.ToString();
+
+                if (opt.WithTag)
+                    jc.Tag = this.Tag.Default(LogTag.NoTag);
 
                 if (opt.WithTypeName)
                     jc.TypeName = this.Data?.GetType().Name ?? "null";
@@ -252,6 +265,9 @@ namespace IPA.Cores.Basic
 
                 if (opt.WithPriority)
                     additionalList.Add(this.Priority.ToString());
+
+                if (opt.WithTag)
+                    additionalList.Add(this.Tag.Default(LogTag.NoTag));
 
                 if (opt.WithTypeName)
                     additionalList.Add(this.Data?.GetType().Name ?? "null");
