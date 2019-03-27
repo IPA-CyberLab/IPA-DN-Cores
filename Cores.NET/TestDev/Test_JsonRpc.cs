@@ -28,7 +28,7 @@ namespace IPA.TestDev
                 // start server
                 HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
                 {
-                    DebugToConsole = false,
+                    DebugKestrelToConsole = false,
                 };
                 JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
                 {
