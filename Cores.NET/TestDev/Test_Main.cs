@@ -115,7 +115,7 @@ namespace IPA.TestDev
 
                         //t.InnerPrint();
 
-                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = (string)null, Int = num++, Bytes = new byte[] { 1, 2, 3 }, LogPriority = LogPriority.Information } };
+                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = (string)null, Int = num++, Bytes = new byte[] { 1, 2, 3 }, LogPriority = LogPriority.Info } };
 
                         await g.AddAsync(new LogRecord(u));
 
