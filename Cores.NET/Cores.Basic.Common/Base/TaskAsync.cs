@@ -791,6 +791,16 @@ namespace IPA.Cores.Basic
         }
 
         public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"];
+
+        public static Holder<RefInt> EnterCriticalCounter(RefInt counter)
+        {
+            counter.Increment();
+            return new Holder<RefInt>(c =>
+            {
+                counter.Decrement();
+            },
+            counter);
+        }
     }
 
     class AsyncCallbackList

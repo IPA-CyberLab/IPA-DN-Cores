@@ -1664,8 +1664,8 @@ namespace IPA.Cores.Basic
         public void Dispose() => Dispose(true);
         protected virtual void Dispose(bool disposing) { }
 
-        public FastStreamToPalNetworkStream GetPalNetworkStream()
-            => FastStreamToPalNetworkStream.CreateFromFastStream(this);
+        public FastStreamToPalNetworkStream GetPalNetworkStream(bool disposeObject = false)
+            => FastStreamToPalNetworkStream.CreateFromFastStream(this, disposeObject);
     }
 
     abstract class FastStackOptionsBase { }

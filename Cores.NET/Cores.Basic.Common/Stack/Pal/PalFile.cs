@@ -43,8 +43,97 @@ using IPA.Cores.Helper.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class PalPhysicalFile
+    class PalFileSystem : FileSystem
     {
+        public PalFileSystem(AsyncCleanuperLady lady) : base(lady)
+        {
+        }
+
+        protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
+            => PalFileHandle.CreateFileAsync(this, fileParams, cancel);
+    }
+
+    class PalFileHandle : FileObject
+    {
+        protected PalFileHandle(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+
+        FileStream fs;
+
+        public static async Task<FileObject> CreateFileAsync(FileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            PalFileHandle f = new PalFileHandle(fileSystem, fileParams);
+
+            await f.CreateAsync(cancel);
+
+            return f;
+        }
+
+        protected override async Task CreateAsync(CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            try
+            {
+                fs = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+
+                await base.CreateAsync(cancel);
+            }
+            catch
+            {
+                fs.DisposeSafe();
+                throw;
+            }
+        }
+
+        protected override async Task CloseImplAsync()
+        {
+            Dbg.Where();
+            fs.DisposeSafe();
+            fs = null;
+
+            await Task.CompletedTask;
+        }
+
+        protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+            return fs.Position;
+        }
+
+        protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+            return fs.Length;
+        }
+        protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+        {
+            fs.SetLength(size);
+            await Task.CompletedTask;
+        }
+
+        protected override async Task FlushImplAsync(CancellationToken cancel = default)
+        {
+            await fs.FlushAsync(cancel);
+        }
+
+        protected override async Task<int> ReadImplAsync(long position, bool seekRequested, Memory<byte> data, CancellationToken cancel = default)
+        {
+            if (seekRequested)
+                fs.Seek(position, SeekOrigin.Begin);
+
+            return await fs.ReadAsync(data, cancel);
+        }
+
+        protected override async Task<int> WriteImplAsync(long position, bool seekRequested, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            if (seekRequested)
+                fs.Seek(position, SeekOrigin.Begin);
+
+            await fs.WriteAsync(data, cancel);
+            return data.Length;
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -21,33 +22,36 @@ namespace IPA.TestDev
 
             return u;
         }
+
         static void TestMain()
         {
-            //int a = 123;
-            //object nullObj = null;
-            //a.GetObjectDump("").Print();
-            //"Hello".GetBytes_Ascii().GetObjectDump("").Print();
-            //new { v = new int[] { 1, 2, 3 } }.GetObjectDump("").Print();
-            //nullObj.GetObjectDump("").Print();
-            //GetX().GetObjectDump("").Print();
+            var f = FileSystem.Local.Create(@"c:\tmp\1.txt", readPartial: true);
 
-            AppConfig.LocalLogRouterSettings.LogRootDir.Set(@"c:\tmp\log1");
-            AppConfig.Logger.DefaultMaxPendingRecords.Set(1000);
-            AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Set(1000000);
-            AppConfig.Logger.DefaultMaxLogSize.Set( 10000000);
-            //Console.WriteLine(AppConfig.GlobalLogRouteMachine.LogRootDir);
+            f.Write("Hello World".GetBytes_Ascii());
 
-            Console.WriteLine(GetX());
+            f.Seek(-6, SeekOrigin.Current);
 
-            var x = GetX();
+            Con.WriteLine(f.Position);
 
-            Con.WriteLine(x.ToString());
-            Con.WriteLine();
-            Con.WriteLine();
-            Con.WriteLine();
-            Con.WriteLine(x.ToString());
+            f.Write("123".GetBytes_Ascii());
 
-            //Task.Delay(100).Wait();
+            Con.WriteLine(f.Position);
+
+            Con.WriteLine(f.Seek(0, SeekOrigin.Begin));
+
+            Memory<byte> buf = new byte[12];
+            f.Read(buf);
+
+            var st = f.GetStream();
+
+            st.Position = 0;
+            st.WriteAsync("Nekoo".GetBytes_Ascii());
+
+            Console.WriteLine($"'{buf.ToArray().GetString_Ascii()}'");
+
+            //f.Close();
+
+            //f.Close();
 
             return;
             //DateTimeOffset.Now.ToDtStr().Print();
@@ -145,11 +149,7 @@ namespace IPA.TestDev
 
             try
             {
-                Con.WriteLine("Hello Release");
-                Dbg.WriteLine("Hello Debug");
-                var x = GetX();
-                x.PostData(copyToDebug: true, tag: "data1");
-                //TestMain();
+                TestMain();
             }
             finally
             {

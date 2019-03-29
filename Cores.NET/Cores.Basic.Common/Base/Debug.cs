@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
     {
         public object Message;
         public string Where;
-        public string Caller;
+        public string Function;
         public int? ThreadID;
 
         public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
             if (filename.IsFilled())
                 this.Where = filename + ":" + lineNumber;
             this.ThreadID = threadId == 0 ? (int ?)null : threadId;
-            this.Caller = callerName;
+            this.Function = callerName;
         }
     }
 

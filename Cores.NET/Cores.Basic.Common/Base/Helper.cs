@@ -415,19 +415,22 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static void LaissezFaire(this Task task)
+        public static void LaissezFaire(this Task task, bool noDebugMessage = false)
         {
-            if (task != null)
+            if (noDebugMessage == false)
             {
-                task.ContinueWith(t =>
+                if (task != null)
                 {
-                    if (t.Exception != null)
+                    task.ContinueWith(t =>
                     {
-                        string err = t.Exception.ToString();
+                        if (t.Exception != null)
+                        {
+                            string err = t.Exception.ToString();
 
-                        ("LaissezFaire: Error: " + err).Debug();
-                    }
-                });
+                            ("LaissezFaire: Error: " + err).Debug();
+                        }
+                    });
+                }
             }
         }
 

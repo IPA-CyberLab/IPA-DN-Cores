@@ -288,22 +288,39 @@ namespace IPA.Cores.Basic
         private FastStreamToPalNetworkStream() : base(null) { }
         FastStream FastStream;
 
-        private void _InternalInit(FastStream fastStream)
+        bool DisposeObject = false;
+
+        private void _InternalInit(FastStream fastStream, bool disposeObject)
         {
             FastStream = fastStream;
+            DisposeObject = disposeObject;
 
             ReadTimeout = Timeout.Infinite;
             WriteTimeout = Timeout.Infinite;
         }
 
-        public static FastStreamToPalNetworkStream CreateFromFastStream(FastStream fastStream)
+        public static FastStreamToPalNetworkStream CreateFromFastStream(FastStream fastStream, bool disposeObject = false)
         {
             FastStreamToPalNetworkStream ret = Util.NewWithoutConstructor<FastStreamToPalNetworkStream>();
 
-            ret._InternalInit(fastStream);
+            ret._InternalInit(fastStream, disposeObject);
 
             return ret;
         }
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            if (DisposeFlag.IsFirstCall() && disposing)
+            {
+                if (this.DisposeObject)
+                {
+                    FastStream.DisposeSafe();
+                }
+            }
+            base.Dispose(disposing);
+        }
+
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -321,21 +338,21 @@ namespace IPA.Cores.Basic
 
         public override void Flush() => FastStream.FlushAsync().Wait();
 
-        public override Task FlushAsync(CancellationToken cancellationToken) => FastStream.FlushAsync(cancellationToken);
+        public override Task FlushAsync(CancellationToken cancellationToken = default) => FastStream.FlushAsync(cancellationToken);
 
-        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
             => await FastStream.WriteAsync(buffer.AsReadOnlyMemory(offset, count), cancellationToken);
 
-        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
             => await FastStream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
 
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None).Wait();
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None).Result;
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default).Wait();
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default).Result;
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => ReadAsync(buffer, offset, count, CancellationToken.None).AsApm(callback, state);
+            => ReadAsync(buffer, offset, count, default).AsApm(callback, state);
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => WriteAsync(buffer, offset, count, CancellationToken.None).AsApm(callback, state);
+            => WriteAsync(buffer, offset, count, default).AsApm(callback, state);
         public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).Result;
         public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).Wait();
 
