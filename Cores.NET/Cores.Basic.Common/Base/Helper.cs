@@ -643,6 +643,44 @@ namespace IPA.Cores.Helper.Basic
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
 
         public static void DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
+
+        public static T WaitEx<T>(this Task<T> task, bool exceptionsToSimple = true)
+        {
+            if (exceptionsToSimple == false)
+                return task.Result;
+
+            try
+            {
+                return task.Result;
+            }
+            catch (Exception ex)
+            {
+                ex = ex.GetSingleException();
+                ex.ReThrow();
+                throw ex;
+            }
+        }
+
+        public static void WaitEx(this Task task, bool exceptionsToSimple = true)
+        {
+            if (exceptionsToSimple == false)
+            {
+                task.Wait();
+                return;
+            }
+
+            try
+            {
+                task.Wait();
+                return;
+            }
+            catch (Exception ex)
+            {
+                ex = ex.GetSingleException();
+                ex.ReThrow();
+                throw ex;
+            }
+        }
     }
 }
 

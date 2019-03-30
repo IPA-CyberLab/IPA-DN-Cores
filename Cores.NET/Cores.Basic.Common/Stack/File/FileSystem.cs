@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
 
         public override SafeFileHandle SafeFileHandle => null;
 
-        public override void Flush() => Obj.FlushAsync().Wait();
+        public override void Flush() => Obj.FlushAsync().WaitEx();
         public override async Task FlushAsync(CancellationToken cancellationToken = default)
         {
             using (cancellationToken.Register(() => Obj.Close()))
@@ -153,9 +153,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None).Wait();
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None).WaitEx();
 
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None).Result;
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None).WaitEx();
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
             => ReadAsync(buffer, offset, count, default).AsApm(callback, state);
@@ -163,8 +163,8 @@ namespace IPA.Cores.Basic
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
             => WriteAsync(buffer, offset, count, default).AsApm(callback, state);
 
-        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).Result;
-        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).Wait();
+        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).WaitEx();
+        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).WaitEx();
 
         public override bool Equals(object obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
@@ -440,7 +440,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public int Read(Memory<byte> data) => ReadAsync(data).Result;
+        public int Read(Memory<byte> data) => ReadAsync(data).WaitEx();
 
         public async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
@@ -487,7 +487,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel).Wait();
+        public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel).WaitEx();
 
         public async Task<long> SeekAsync(long offset, SeekOrigin origin, CancellationToken cancel = default)
         {
@@ -538,10 +538,10 @@ namespace IPA.Cores.Basic
         public Task<long> SeekToEndAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.End, cancel);
 
         public long Seek(long offset, SeekOrigin origin, CancellationToken cancel = default)
-            => SeekAsync(offset, origin, cancel).Result;
+            => SeekAsync(offset, origin, cancel).WaitEx();
 
-        public long SeekToBegin(CancellationToken cancel = default) => SeekToBeginAsync(cancel).Result;
-        public long SeekToEnd(CancellationToken cancel = default) => SeekToEndAsync(cancel).Result;
+        public long SeekToBegin(CancellationToken cancel = default) => SeekToBeginAsync(cancel).WaitEx();
+        public long SeekToEnd(CancellationToken cancel = default) => SeekToEndAsync(cancel).WaitEx();
 
         async Task<long> GetFileSizeInternalAsync(bool refresh, CancellationToken cancel = default)
         {
@@ -602,9 +602,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).Wait();
+        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).WaitEx();
 
-        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).Result;
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).WaitEx();
 
         public async Task FlushAsync(CancellationToken cancel = default)
         {
@@ -623,7 +623,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).Wait();
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).WaitEx();
 
         public async Task CloseAsync()
         {
@@ -784,20 +784,20 @@ namespace IPA.Cores.Basic
         }
 
         public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
-            => CreateFileAsync(option, cancel).Result;
+            => CreateFileAsync(option, cancel).WaitEx();
 
         public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial), cancel);
 
         public FileObject Create(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
-            => CreateAsync(path, noShare, readPartial, cancel).Result;
+            => CreateAsync(path, noShare, readPartial, cancel).WaitEx();
 
         public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
                 (readLock ? FileShare.None : FileShare.Read), readPartial), cancel);
 
         public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
-            => OpenAsync(path, writeMode, readLock, readPartial, cancel).Result;
+            => OpenAsync(path, writeMode, readLock, readPartial, cancel).WaitEx();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {
@@ -900,9 +900,9 @@ namespace IPA.Cores.Basic
         }
 
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
-            => EnumDirectoryAsync(directoryPath, recursive, cancel).Result;
+            => EnumDirectoryAsync(directoryPath, recursive, cancel).WaitEx();
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], Task<bool>> callback, bool recursive = false, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], Task<bool>> callback, bool recursive = true, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -914,8 +914,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], bool> callback, bool recursive = false, CancellationToken cancel = default)
-            => WalkDirectoryAsync(rootDirectory, async entity => { await Task.CompletedTask; return callback(entity); } , recursive, cancel).Result;
+        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], bool> callback, bool recursive = true, CancellationToken cancel = default)
+            => WalkDirectoryAsync(rootDirectory, async entity => { await Task.CompletedTask; return callback(entity); } , recursive, cancel).WaitEx();
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {
