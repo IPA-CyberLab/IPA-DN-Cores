@@ -39,6 +39,10 @@ namespace IPA.TestDev
             //var ret = FileSystem.Local.EnumDirectory(@"c:\tmp\yagi\..\yagi\", recursive: true);
             //ret.ObjectToJson().Print();
 
+            System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
+            Console.WriteLine(ss.ObjectToJson());
+            return;
+
             FileSystem.Local.WalkDirectory(@"C:\TMP\LongTest",
                 (d) =>
                 {

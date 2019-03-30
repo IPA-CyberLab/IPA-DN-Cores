@@ -1,0 +1,11 @@
+﻿dn-lxd-rt2-test1
+
+
+■ 初回
+cd ~/
+git clone --recursive git@github.com:IPA-CyberLab/IPA-DN-Cores.git
+
+
+■ 2 回目以降
+cd ~/IPA-DN-Cores/Cores.NET/TestDev/ && (cd ../../ && git submodule update --recursive --remote && git pull) && dotnet run
+

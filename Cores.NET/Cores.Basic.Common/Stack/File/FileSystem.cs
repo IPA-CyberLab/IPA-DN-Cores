@@ -671,6 +671,13 @@ namespace IPA.Cores.Basic
         public DateTimeOffset Created { get; set; }
     }
 
+    class FileSystemMetadata
+    {
+        public FileAttributes? Attributes { get; set; }
+        public DateTimeOffset? Updated { get; set; }
+        public DateTimeOffset? Created { get; set; }
+    }
+
     [Flags]
     enum SpecialFileNameKind
     {
