@@ -485,15 +485,7 @@ namespace IPA.Cores.Basic
         }
 
         // IEnumerable から Array List を作成
-        public static T[] IEnumerableToArrayList<T>(IEnumerable<T> i)
-        {
-            List<T> ret = new List<T>();
-            foreach (var o in i)
-            {
-                ret.Add(o);
-            }
-            return ret.ToArray();
-        }
+        public static T[] IEnumerableToArrayList<T>(IEnumerable<T> i) => i.ToArray();
 
         // ストリームからすべて読み出す
         public static byte[] ReadAllFromStream(Stream st)

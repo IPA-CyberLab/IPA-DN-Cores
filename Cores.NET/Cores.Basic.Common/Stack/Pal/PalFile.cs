@@ -51,6 +51,42 @@ namespace IPA.Cores.Basic
 
         protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
             => PalFileHandle.CreateFileAsync(this, fileParams, cancel);
+
+        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
+        {
+            DirectoryInfo di = new DirectoryInfo(directoryPath);
+
+            List<FileSystemEntity> o = new List<FileSystemEntity>();
+
+            FileSystemEntity currentDirectory = ConvertFileSystemInfoToFileSystemEntity(di);
+            currentDirectory.Name = ".";
+            currentDirectory.IsCurrentDirectory = true;
+            o.Add(currentDirectory);
+
+            foreach (FileSystemInfo info in di.GetFileSystemInfos().Where(x => x.Exists))
+            {
+                o.Add(ConvertFileSystemInfoToFileSystemEntity(info));
+            }
+
+            await Task.CompletedTask;
+
+            return o.ToArray();
+        }
+
+        public static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
+        {
+            FileSystemEntity ret = new FileSystemEntity()
+            {
+                Name = info.Name,
+                FullPath = info.FullName,
+                IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
+                Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
+                Attributes = info.Attributes,
+                Updated = info.LastWriteTime.AsDateTimeOffset(true),
+                Created = info.CreationTime.AsDateTimeOffset(true),
+            };
+            return ret;
+        }
     }
 
     class PalFileHandle : FileObject

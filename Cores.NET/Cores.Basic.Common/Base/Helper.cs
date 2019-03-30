@@ -44,6 +44,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
+using System.Linq;
 
 using IPA.Cores.Basic;
 
@@ -161,7 +162,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static string LinesToStr(this string[] lines) => Str.LinesToStr(lines);
         public static string[] UniqueToken(this string[] t) => Str.UniqueToken(t);
-        public static List<string> ToList(this string[] t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
+        public static List<string> ToStrList(this string[] t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
         public static string Combine(this string[] t, string sepstr) => Str.CombineStringArray(t, sepstr);
 
         public static string MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
@@ -640,6 +641,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static void PostAccessLog(this object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
+
+        public static void DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
     }
 }
 

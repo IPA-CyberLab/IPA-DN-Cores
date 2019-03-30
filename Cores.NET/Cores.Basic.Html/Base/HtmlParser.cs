@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                HeaderList = alternativeHeaders.ToList();
+                HeaderList = alternativeHeaders.ToStrList(false);
             }
 
             // データリストの取得

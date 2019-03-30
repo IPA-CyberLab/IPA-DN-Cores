@@ -857,12 +857,15 @@ namespace IPA.Cores.Basic
 
                 foreach (CancellationToken c in cancels)
                 {
-                    var reg = c.Register(() =>
+                    if (c != default)
                     {
-                        ctx.Cts.Cancel();
-                    });
+                        var reg = c.Register(() =>
+                        {
+                            ctx.Cts.Cancel();
+                        });
 
-                    ctx.RegList.Add(reg);
+                        ctx.RegList.Add(reg);
+                    }
                 }
             }
 

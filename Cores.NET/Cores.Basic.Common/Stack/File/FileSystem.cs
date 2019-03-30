@@ -288,6 +288,16 @@ namespace IPA.Cores.Basic
         public override void Unlock(long position, long length) => throw new NotImplementedException();
     }
 
+    enum FileObjectEventType
+    {
+        Read,
+        Write,
+        Seek,
+        SetFileSize,
+        Flush,
+        Closed,
+    }
+
     abstract class FileObject : IDisposable
     {
         public FileSystem FileSystem { get; }
@@ -301,6 +311,9 @@ namespace IPA.Cores.Basic
         bool SeekRequestedFlag = false;
         CancellationTokenSource CancelSource = new CancellationTokenSource();
         CancellationToken CancelToken => CancelSource.Token;
+
+        public FastEventListenerList<FileObject, FileObjectEventType> EventListeners { get; }
+            = new FastEventListenerList<FileObject, FileObjectEventType>();
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
@@ -364,6 +377,8 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                EventListeners.Fire(this, FileObjectEventType.Read);
+
                 if (data.IsEmpty) return 0;
 
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
@@ -431,6 +446,8 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                EventListeners.Fire(this, FileObjectEventType.Write);
+
                 if (data.IsEmpty) return;
 
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
@@ -476,6 +493,8 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                EventListeners.Fire(this, FileObjectEventType.Seek);
+
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                 {
                     using (await AsyncLockObj.LockWithAwait())
@@ -564,6 +583,8 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                EventListeners.Fire(this, FileObjectEventType.SetFileSize);
+
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                 {
                     using (await AsyncLockObj.LockWithAwait())
@@ -587,6 +608,8 @@ namespace IPA.Cores.Basic
 
         public async Task FlushAsync(CancellationToken cancel = default)
         {
+            EventListeners.Fire(this, FileObjectEventType.Flush);
+
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
             {
                 using (await AsyncLockObj.LockWithAwait())
@@ -610,7 +633,14 @@ namespace IPA.Cores.Basic
             {
                 if (ClosedFlag.IsFirstCall())
                 {
-                    await CloseImplAsync();
+                    try
+                    {
+                        await CloseImplAsync();
+                    }
+                    finally
+                    {
+                        EventListeners.Fire(this, FileObjectEventType.Closed);
+                    }
                 }
             }
         }
@@ -629,6 +659,26 @@ namespace IPA.Cores.Basic
         public void Close() => Dispose();
     }
 
+    class FileSystemEntity
+    {
+        public string FullPath { get; set; }
+        public string Name { get; set; }
+        public bool IsDirectory { get; set; }
+        public bool IsCurrentDirectory { get; set; }
+        public long Size { get; set; }
+        public FileAttributes Attributes { get; set; }
+        public DateTimeOffset Updated { get; set; }
+        public DateTimeOffset Created { get; set; }
+    }
+
+    [Flags]
+    enum SpecialFileNameKind
+    {
+        Normal = 0,
+        CurrentDirectory = 1,
+        ParentDirectory = 2,
+    }
+
     abstract class FileSystem : AsyncCleanupable
     {
         public static FileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
@@ -636,6 +686,7 @@ namespace IPA.Cores.Basic
         CriticalSection LockObj = new CriticalSection();
         List<FileObject> OpenedHandleList = new List<FileObject>();
         RefInt CriticalCounter = new RefInt();
+        CancellationTokenSource CancelSource = new CancellationTokenSource();
 
         public FileSystem(AsyncCleanuperLady lady) : base(lady)
         {
@@ -662,7 +713,7 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                // Here
+                CancelSource.Cancel();
             }
             finally { base.Dispose(disposing); }
         }
@@ -693,42 +744,181 @@ namespace IPA.Cores.Basic
         }
 
         protected abstract Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
+        protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
-            CheckNotDisposed();
-
-            using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
-                FileObject f = await CreateFileImplAsync(option, cancel);
-
-                lock (LockObj)
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
                 {
-                    OpenedHandleList.Add(f);
-                }
+                    CheckNotDisposed();
 
-                return f;
+                    FileObject f = await CreateFileImplAsync(option, opCancel);
+
+                    lock (LockObj)
+                    {
+                        OpenedHandleList.Add(f);
+                    }
+
+                    f.EventListeners.RegisterCallback(FileClosedEvent);
+
+                    return f;
+                }
+            }
+        }
+
+        void FileClosedEvent(FileObject obj, FileObjectEventType eventType, object userState)
+        {
+            lock (LockObj)
+            {
+                OpenedHandleList.Remove(obj);
             }
         }
 
         public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).Result;
 
-        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false)
-            => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial));
+        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
+            => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial), cancel);
 
-        public FileObject Create(string path, bool noShare = false, bool readPartial = false)
-            => CreateAsync(path, noShare, readPartial).Result;
+        public FileObject Create(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
+            => CreateAsync(path, noShare, readPartial, cancel).Result;
 
-        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false)
+        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
-                (readLock ? FileShare.None : FileShare.Read), readPartial));
+                (readLock ? FileShare.None : FileShare.Read), readPartial), cancel);
 
-        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false)
-            => OpenAsync(path, writeMode, readLock, readPartial).Result;
+        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
+            => OpenAsync(path, writeMode, readLock, readPartial, cancel).Result;
 
+        async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
+        {
+            using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+            {
+                CheckNotDisposed();
 
+                opCancel.ThrowIfCancellationRequested();
+
+                FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, opCancel);
+
+                if (list.Select(x => x.Name).Distinct().Count() != list.Count())
+                {
+                    throw new ApplicationException("There are duplicated entities returned by EnumDirectoryImplAsync().");
+                }
+
+                if (list.First().IsCurrentDirectory == false || list.First().IsDirectory == false)
+                {
+                    throw new ApplicationException("The first entry returned by EnumDirectoryImplAsync() is not a current directory.");
+                }
+
+                return list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal).Prepend(list[0]).ToArray();
+            }
+        }
+
+        async Task<bool> EnumDirectoryRecursiveInternalAsync(List<FileSystemEntity> currentList, string directoryPath, bool recursive, CancellationToken opCancel)
+        {
+            CheckNotDisposed();
+
+            opCancel.ThrowIfCancellationRequested();
+
+            FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, opCancel);
+
+            foreach (FileSystemEntity entity in entityList)
+            {
+                currentList.Add(entity);
+
+                if (recursive)
+                {
+                    if (entity.IsDirectory && entity.IsCurrentDirectory == false)
+                    {
+                        if (await EnumDirectoryRecursiveInternalAsync(currentList, entity.FullPath, true, opCancel) == false)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                CheckNotDisposed();
+
+                opCancel.ThrowIfCancellationRequested();
+
+                List<FileSystemEntity> currentList = new List<FileSystemEntity>();
+
+                if (await EnumDirectoryRecursiveInternalAsync(currentList, directoryPath, recursive, opCancel) == false)
+                {
+                    throw new OperationCanceledException();
+                }
+
+                return currentList.ToArray();
+            }
+        }
+
+        async Task<bool> WalkDirectoryInternalAsync(string directoryPath, Func<FileSystemEntity[], Task<bool>> callback, bool recursive, CancellationToken opCancel)
+        {
+            CheckNotDisposed();
+
+            opCancel.ThrowIfCancellationRequested();
+
+            FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, opCancel);
+
+            if (await callback(entityList) == false)
+            {
+                return false;
+            }
+
+            foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
+            {
+                if (recursive)
+                {
+                    if (entity.IsDirectory)
+                    {
+                        if (await WalkDirectoryInternalAsync(entity.FullPath, callback, true, opCancel) == false)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
+            => EnumDirectoryAsync(directoryPath, recursive, cancel).Result;
+
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], Task<bool>> callback, bool recursive = false, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                CheckNotDisposed();
+
+                opCancel.ThrowIfCancellationRequested();
+
+                return await WalkDirectoryInternalAsync(rootDirectory, callback, recursive, opCancel);
+            }
+        }
+
+        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], bool> callback, bool recursive = false, CancellationToken cancel = default)
+            => WalkDirectoryAsync(rootDirectory, async entity => { await Task.CompletedTask; return callback(entity); } , recursive, cancel).Result;
+
+        public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
+        {
+            SpecialFileNameKind ret = SpecialFileNameKind.Normal;
+
+            if (fileName == ".") ret |= SpecialFileNameKind.CurrentDirectory;
+            if (fileName == "..") ret |= SpecialFileNameKind.ParentDirectory;
+
+            return ret;
+        }
     }
-    
 }
 
