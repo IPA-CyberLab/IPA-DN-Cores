@@ -363,7 +363,7 @@ namespace IPA.Cores.Basic
             Connection = dbConnection;
         }
 
-        public void EnsureOpen() => EnsureOpenAsync().Wait();
+        public void EnsureOpen() => EnsureOpenAsync().WaitEx();
 
         AsyncLock OpenCloseLock = new AsyncLock();
 
@@ -505,13 +505,13 @@ namespace IPA.Cores.Basic
             => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
 
         public IEnumerable<T> Query<T>(string commandStr, object param = null)
-            => QueryAsync<T>(commandStr, param).Result;
+            => QueryAsync<T>(commandStr, param).WaitEx();
 
         public int Execute(string commandStr, object param = null)
-            => ExecuteAsync(commandStr, param).Result;
+            => ExecuteAsync(commandStr, param).WaitEx();
 
         public T ExecuteScalar<T>(string commandStr, object param = null)
-            => ExecuteScalarAsync<T>(commandStr, param).Result;
+            => ExecuteScalarAsync<T>(commandStr, param).WaitEx();
 
 
         public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
@@ -576,16 +576,16 @@ namespace IPA.Cores.Basic
         }
 
         public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
-            => EasyGetAllAsync<T>(throwErrorIfNotFound).Result;
+            => EasyGetAllAsync<T>(throwErrorIfNotFound).WaitEx();
 
         public int EasyInsert<T>(T data) where T : class
-            => EasyInsertAsync(data).Result;
+            => EasyInsertAsync(data).WaitEx();
 
         public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyUpdateAsync(data, throwErrorIfNotFound).Result;
+            => EasyUpdateAsync(data, throwErrorIfNotFound).WaitEx();
 
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyDeleteAsync(data, throwErrorIfNotFound).Result;
+            => EasyDeleteAsync(data, throwErrorIfNotFound).WaitEx();
 
         public async Task<dynamic> EasyFindIdAsync<T>(string selectStr, object selectParam) where T: class
         {

@@ -411,7 +411,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.Result;
+                    return procTask.WaitEx();
                 }
 
                 waitTasks.Add(procTask);
@@ -427,7 +427,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.Result;
+                    return procTask.WaitEx();
                 }
 
                 throw new TimeoutException();
@@ -758,7 +758,7 @@ namespace IPA.Cores.Basic
             if (t == null) return;
             try
             {
-                t.Wait();
+                t.WaitEx();
             }
             catch (Exception ex)
             {
@@ -797,7 +797,10 @@ namespace IPA.Cores.Basic
                     int r = await microWriteOperation(target, currentPosition + totalSize, seekRequested, cancel);
                     seekRequested = false;
 
-                    if (r <= 0)
+                    if (r < 0)
+                        throw new ApplicationException($"microWriteOperation returned '{r}'.");
+
+                    if (r == 0)
                         break;
 
                     data = data.Slice(r);
@@ -2367,9 +2370,11 @@ namespace IPA.Cores.Basic
 
                         cancel.ThrowIfCancellationRequested();
 
-                        if (userTask.Result.IsOpen)
+                        var result = userTask.WaitEx();
+
+                        if (result.IsOpen)
                         {
-                            ret.Add(userTask.Result.Value);
+                            ret.Add(result.Value);
                         }
                         else
                         {
@@ -2380,9 +2385,11 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (userTask.Result.IsOpen)
+                    var result = userTask.WaitEx();
+
+                    if (result.IsOpen)
                     {
-                        ret.Add(userTask.Result.Value);
+                        ret.Add(result.Value);
                     }
                     else
                     {

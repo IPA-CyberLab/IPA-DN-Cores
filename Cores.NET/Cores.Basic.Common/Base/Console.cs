@@ -1224,7 +1224,7 @@ namespace IPA.Cores.Basic
                                     else if (retobj is Task<int>)
                                     {
                                         Task<int> task = (Task<int>)retobj;
-                                        ret = task.Result;
+                                        ret = task.WaitEx();
                                     }
                                 }
                                 catch (TargetInvocationException ex)

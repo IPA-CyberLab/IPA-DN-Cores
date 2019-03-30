@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
 
                     ret.Span = TimeSpan;
 
-                    foreach (var r in tasks.Select(x => x.Result))
+                    foreach (var r in tasks.Select(x => x.WaitEx()))
                     {
                         ret.NumBytesDownload += r.NumBytesDownload;
                         ret.NumBytesUpload += r.NumBytesUpload;

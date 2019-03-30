@@ -664,7 +664,7 @@ namespace IPA.Cores.Basic
         }
 
         public void Send(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
-            => SendAsync(buffer, cancel).Wait();
+            => SendAsync(buffer, cancel).WaitEx();
 
         Once receiveAllAsyncRaiseExceptionFlag;
 
@@ -757,16 +757,16 @@ namespace IPA.Cores.Basic
         }
 
         public void ReceiveAll(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAllAsync(buffer, cancel).Wait();
+            => ReceiveAllAsync(buffer, cancel).WaitEx();
 
         public Memory<byte> ReceiveAll(int size, CancellationToken cancel = default)
-            => ReceiveAllAsync(size, cancel).Result;
+            => ReceiveAllAsync(size, cancel).WaitEx();
 
         public int Receive(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAsync(buffer, cancel).Result;
+            => ReceiveAsync(buffer, cancel).WaitEx();
 
         public Memory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
-            => ReceiveAsync(maxSize, cancel).Result;
+            => ReceiveAsync(maxSize, cancel).WaitEx();
 
         public async Task<List<Memory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
@@ -911,7 +911,7 @@ namespace IPA.Cores.Basic
         }
 
         public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
-            => SendToAsync(buffer, remoteEndPoint, cancel).Wait();
+            => SendToAsync(buffer, remoteEndPoint, cancel).WaitEx();
 
         public async Task<List<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
         {
@@ -970,7 +970,7 @@ namespace IPA.Cores.Basic
 
         public int ReceiveFrom(Memory<byte> buffer, out EndPoint remoteEndPoint, CancellationToken cancel = default)
         {
-            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel).Result;
+            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel).WaitEx();
 
             remoteEndPoint = r.RemoteEndPoint;
 

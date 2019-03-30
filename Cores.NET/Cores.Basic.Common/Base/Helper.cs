@@ -463,7 +463,7 @@ namespace IPA.Cores.Helper.Basic
                 else if (t.IsCanceled)
                     tcs.TrySetCanceled();
                 else
-                    tcs.TrySetResult(t.Result);
+                    tcs.TrySetResult(t.WaitEx());
 
                 if (callback != null)
                     callback(tcs.Task);
@@ -644,43 +644,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static void DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
 
-        public static T WaitEx<T>(this Task<T> task, bool exceptionsToSimple = true)
-        {
-            if (exceptionsToSimple == false)
-                return task.Result;
+        public static T WaitEx<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 
-            try
-            {
-                return task.Result;
-            }
-            catch (Exception ex)
-            {
-                ex = ex.GetSingleException();
-                ex.ReThrow();
-                throw ex;
-            }
-        }
-
-        public static void WaitEx(this Task task, bool exceptionsToSimple = true)
-        {
-            if (exceptionsToSimple == false)
-            {
-                task.Wait();
-                return;
-            }
-
-            try
-            {
-                task.Wait();
-                return;
-            }
-            catch (Exception ex)
-            {
-                ex = ex.GetSingleException();
-                ex.ReThrow();
-                throw ex;
-            }
-        }
+        public static void WaitEx(this Task task) => task.GetAwaiter().GetResult();
     }
 }
 

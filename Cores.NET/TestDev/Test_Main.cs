@@ -43,7 +43,7 @@ namespace IPA.TestDev
             //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
             //Console.WriteLine(ss.ObjectToJson());
 
-            FileSystem.Local.WalkDirectory("/dev/", dirList =>
+            FileSystem.Local.WalkDirectory("/devz/", dirList =>
             {
                 Con.WriteLine("----------");
                 Con.WriteLine(dirList.ObjectToJson());
