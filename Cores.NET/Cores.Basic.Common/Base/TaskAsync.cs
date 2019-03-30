@@ -767,29 +767,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        // いずれかの CancellationToken がキャンセルされたときにキャンセルされる CancellationToken を作成する
-        public static CancellationToken CombineCancellationTokens(bool noWait, params CancellationToken[] tokens)
-        {
-            CancellationTokenSource cts = new CancellationTokenSource();
-            ChainCancellationTokensToCancellationTokenSource(cts, noWait, tokens);
-            return cts.Token;
-        }
-
-        // いずれかの CancellationToken がキャンセルされたときに CancellationTokenSource をキャンセルするように設定する
-        public static void ChainCancellationTokensToCancellationTokenSource(CancellationTokenSource cts, bool noWait, params CancellationToken[] tokens)
-        {
-            foreach (CancellationToken t in tokens)
-            {
-                t.Register(() =>
-                {
-                    if (noWait == false)
-                        cts.TryCancel();
-                    else
-                        cts.TryCancelNoBlock();
-                });
-            }
-        }
-
         public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"];
 
         public static Holder<RefInt> EnterCriticalCounter(RefInt counter)
@@ -800,6 +777,109 @@ namespace IPA.Cores.Basic
                 counter.Decrement();
             },
             counter);
+        }
+
+        public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, bool, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, bool seekRequested, CancellationToken cancel = default)
+        {
+            checked
+            {
+                if (data.Length == 0) return 0;
+                maxSingleSize = Math.Max(maxSingleSize, 1);
+                int totalSize = 0;
+
+                while (data.Length >= 1)
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    int targetSize = Math.Min(maxSingleSize, data.Length);
+                    Memory<byte> target = data.Slice(0, targetSize);
+
+                    int r = await microWriteOperation(target, currentPosition + totalSize, seekRequested, cancel);
+                    seekRequested = false;
+
+                    if (r <= 0)
+                        break;
+
+                    data = data.Slice(r);
+
+                    totalSize += r;
+                }
+
+                return totalSize;
+            }
+        }
+
+        public static async Task DoMicroWriteOperations(Func<ReadOnlyMemory<byte>, long, bool, CancellationToken, Task> microReadOperation, ReadOnlyMemory<byte> data, int maxSingleSize, long currentPosition, bool seekRequested, CancellationToken cancel = default)
+        {
+            checked
+            {
+                if (data.Length == 0) return;
+                maxSingleSize = Math.Max(maxSingleSize, 1);
+                int totalSize = 0;
+
+                while (data.Length >= 1)
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    int targetSize = Math.Min(maxSingleSize, data.Length);
+                    ReadOnlyMemory<byte> target = data.Slice(0, targetSize);
+                    data = data.Slice(targetSize);
+
+                    await microReadOperation(target, currentPosition + totalSize, seekRequested, cancel);
+
+                    totalSize += targetSize;
+
+                    seekRequested = false;
+                }
+            }
+        }
+
+        class CombinedCancelContext
+        {
+            public CancellationTokenSource Cts = new CancellationTokenSource();
+            public List<CancellationTokenRegistration> RegList = new List<CancellationTokenRegistration>();
+        }
+
+        public static Holder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+        {
+            CombinedCancelContext ctx = new CombinedCancelContext();
+
+            if (cancels != null)
+            {
+                foreach (CancellationToken c in cancels)
+                {
+                    if (c.IsCancellationRequested)
+                    {
+                        combinedToken = new CancellationToken(true);
+                        return new Holder<object>(null);
+                    }
+                }
+
+                foreach (CancellationToken c in cancels)
+                {
+                    var reg = c.Register(() =>
+                    {
+                        ctx.Cts.Cancel();
+                    });
+
+                    ctx.RegList.Add(reg);
+                }
+            }
+
+            combinedToken = ctx.Cts.Token;
+
+            return new Holder<object>(obj =>
+            {
+                CombinedCancelContext x = (CombinedCancelContext)obj;
+
+                foreach (var reg in x.RegList)
+                {
+                    reg.DisposeSafe();
+                }
+
+                x.Cts.DisposeSafe();
+            },
+            ctx);
         }
     }
 
@@ -1383,7 +1463,8 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    DisposeProc(Value);
+                    if (DisposeProc != null)
+                        DisposeProc(Value);
                 }
                 finally
                 {

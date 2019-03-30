@@ -126,13 +126,12 @@ namespace IPA.Cores.Basic
             return await fs.ReadAsync(data, cancel);
         }
 
-        protected override async Task<int> WriteImplAsync(long position, bool seekRequested, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteImplAsync(long position, bool seekRequested, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             if (seekRequested)
                 fs.Seek(position, SeekOrigin.Begin);
 
             await fs.WriteAsync(data, cancel);
-            return data.Length;
         }
     }
 }

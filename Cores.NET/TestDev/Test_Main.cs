@@ -26,6 +26,28 @@ namespace IPA.TestDev
         static void TestMain()
         {
             var f = FileSystem.Local.Create(@"c:\tmp\1.txt", readPartial: true);
+            f.MicroOperationSize = 1024 * 1024;
+
+            CancellationTokenSource cts = new CancellationTokenSource(4000);
+
+            byte[] testData = Str.MakeCharArray('x', 100000000).GetBytes_Ascii();
+            Console.WriteLine("Test start");
+            Task t2 = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                while (true)
+                await f.WriteAsync(testData, cts.Token);
+                Console.WriteLine("Write Completed.");
+            });
+
+            Console.ReadLine();
+
+            Console.WriteLine("Cancelling...");
+            //f.Close();
+            cts.Cancel();
+            Console.WriteLine("Canceled.");
+            //t2.Wait();
+
+
 
             f.Write("Hello World".GetBytes_Ascii());
 
@@ -46,6 +68,10 @@ namespace IPA.TestDev
 
             st.Position = 0;
             st.WriteAsync("Nekoo".GetBytes_Ascii());
+
+            f.SetFileSize(0);
+
+            st.Write("Nekoo".GetBytes_Ascii());
 
             Console.WriteLine($"'{buf.ToArray().GetString_Ascii()}'");
 
