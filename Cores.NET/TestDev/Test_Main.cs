@@ -65,7 +65,7 @@ namespace IPA.TestDev
             //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
             //Console.WriteLine(ss.ObjectToJson());
 
-            Lfs.WalkDirectory(@"d:\tmp\dirtest", (dirList, cancel) =>
+            Lfs.WalkDirectory(@"C:\git\IPA-DN-Cores\Cores.NET\TestDev\Log", (dirList, cancel) =>
             {
                 Con.WriteLine("----------");
                 Con.WriteLine(dirList.ObjectToJson());
@@ -79,16 +79,16 @@ namespace IPA.TestDev
             recursive: true
             );
 
-            using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true))
-            {
-                file1.GetStream().ReadToEnd().GetString_UTF8().Print();
-            }
+            //using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true))
+            //{
+            //    file1.GetStream().ReadToEnd().GetString_UTF8().Print();
+            //}
 
-            using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true, writeMode: true))
-            {
-                file1.SeekToEnd();
-                file1.GetStream().Write((DateTimeOffset.Now.ToDtStr() + "\r\n").GetBytes_UTF8());
-            }
+            //using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true, writeMode: true))
+            //{
+            //    file1.SeekToEnd();
+            //    file1.GetStream().Write((DateTimeOffset.Now.ToDtStr() + "\r\n").GetBytes_UTF8());
+            //}
 
             return;
 
