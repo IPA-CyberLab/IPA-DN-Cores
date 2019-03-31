@@ -51,9 +51,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\TaskVm.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Thread.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Time.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\UnixSyscall.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\WinSyscall.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Win32Api.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
