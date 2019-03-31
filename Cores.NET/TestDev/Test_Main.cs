@@ -43,25 +43,21 @@ namespace IPA.TestDev
             //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
             //Console.WriteLine(ss.ObjectToJson());
 
-            FileSystem.Local.WalkDirectory("/devz/", dirList =>
+            FileSystem.Local.WalkDirectory(@"c:\tmp\dirtest", (dirList, cancel) =>
             {
                 Con.WriteLine("----------");
                 Con.WriteLine(dirList.ObjectToJson());
                 return true;
-            });
+            },
+            (path, exp) =>
+            {
+                Con.WriteLine($"**** Error: {exp.Message}");
+                return true;
+            }
+            );
 
             return;
 
-            FileSystem.Local.WalkDirectory(@"C:\TMP\LongTest",
-                (d) =>
-                {
-                    Console.WriteLine("----------------");
-                    Console.WriteLine(d.ObjectToJson());
-                    return true;
-                },
-                recursive: true);
-
-            return;
 
             var f = FileSystem.Local.Create(@"c:\tmp\LongTest\11111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111\33333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333\xxx.txt", readPartial: true);
             f.Close();

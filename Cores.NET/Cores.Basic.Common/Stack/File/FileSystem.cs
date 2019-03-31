@@ -869,26 +869,47 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<bool> WalkDirectoryInternalAsync(string directoryPath, Func<FileSystemEntity[], Task<bool>> callback, bool recursive, CancellationToken opCancel)
+        public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
+            => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
+
+        async Task<bool> WalkDirectoryInternalAsync(string directoryPath, Func<FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<string, Exception, bool> exceptionHandler, bool recursive, CancellationToken opCancel)
         {
             CheckNotDisposed();
 
             opCancel.ThrowIfCancellationRequested();
 
-            FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, opCancel);
+            FileSystemEntity[] entityList;
 
-            if (await callback(entityList) == false)
+            try
+            {
+                entityList = await EnumDirectoryInternalAsync(directoryPath, opCancel);
+            }
+            catch (Exception ex)
+            {
+                if (exceptionHandler(directoryPath, ex) == false)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+
+            if (await callback(entityList, opCancel) == false)
             {
                 return false;
             }
 
-            foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
+            if (recursive)
             {
-                if (recursive)
+                foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
                 {
                     if (entity.IsDirectory)
                     {
-                        if (await WalkDirectoryInternalAsync(entity.FullPath, callback, true, opCancel) == false)
+                        opCancel.ThrowIfCancellationRequested();
+
+                        if (await WalkDirectoryInternalAsync(entity.FullPath, callback, exceptionHandler, true, opCancel) == false)
                         {
                             return false;
                         }
@@ -899,10 +920,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
-            => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
-
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], Task<bool>> callback, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<string, Exception, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -910,12 +928,12 @@ namespace IPA.Cores.Basic
 
                 opCancel.ThrowIfCancellationRequested();
 
-                return await WalkDirectoryInternalAsync(rootDirectory, callback, recursive, opCancel);
+                return await WalkDirectoryInternalAsync(rootDirectory, callback, exceptionHandler, recursive, opCancel);
             }
         }
 
-        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], bool> callback, bool recursive = true, CancellationToken cancel = default)
-            => WalkDirectoryAsync(rootDirectory, async entity => { await Task.CompletedTask; return callback(entity); } , recursive, cancel).GetResult();
+        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], CancellationToken, bool> callback, Func<string, Exception, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
+            => WalkDirectoryAsync(rootDirectory, async (entity, c) => { await Task.CompletedTask; return callback(entity, c); } , exceptionHandler, recursive, cancel).GetResult();
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {
