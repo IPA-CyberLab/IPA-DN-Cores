@@ -36,7 +36,7 @@ using IPA.Cores.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class HelperJson
+    static class JsonHelper
     {
         public static string ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling);

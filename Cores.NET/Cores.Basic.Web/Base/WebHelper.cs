@@ -39,7 +39,7 @@ using IPA.Cores.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class HelperWeb
+    static class WebHelper
     {
         public static Task SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {

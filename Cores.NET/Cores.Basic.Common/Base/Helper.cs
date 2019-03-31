@@ -50,7 +50,7 @@ using IPA.Cores.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class HelperBasic
+    static class BasicHelper
     {
         public static byte[] GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
         public static byte[] GetBytes_UTF16LE(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.UniEncoding.GetBytes(str));
