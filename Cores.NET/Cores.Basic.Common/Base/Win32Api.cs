@@ -121,6 +121,19 @@ namespace IPA.Cores.Basic
                 lpFileName = Win32PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
                 return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
             }
+
+            [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern bool DeviceIoControl
+            (
+                SafeFileHandle fileHandle,
+                uint ioControlCode,
+                IntPtr inBuffer,
+                uint cbInBuffer,
+                IntPtr outBuffer,
+                uint cbOutBuffer,
+                out uint cbBytesReturned,
+                IntPtr overlapped
+            );
         }
 
         internal partial class Advapi32
