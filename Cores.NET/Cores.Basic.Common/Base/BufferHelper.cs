@@ -8,7 +8,7 @@ using IPA.Cores.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class HelperSpanMemoryBuffer
+    static class SpanMemoryBufferHelper
     {
         public static SpanBuffer<T> AsSpanBuffer<T>(this Span<T> span) => new SpanBuffer<T>(span);
         public static SpanBuffer<T> AsSpanBuffer<T>(this Memory<T> memory) => new SpanBuffer<T>(memory.Span);
@@ -46,7 +46,7 @@ namespace IPA.Cores.Helper.Basic
         public static BufferStream AsStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferStream(buffer);
     }
 
-    static class HelperMemory
+    static class MemoryHelper
     {
         public static ReadOnlyMemory<T> AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
         public static ReadOnlySpan<T> AsReadOnlySpan<T>(this Span<T> span) => span;
@@ -1120,7 +1120,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void FastFree<T>(this T[] a)
         {
-            if (a.Length >= MemoryHelper.MemoryUsePoolThreshold)
+            if (a.Length >= Cores.Basic.MemoryHelper.MemoryUsePoolThreshold)
                 ArrayPool<T>.Shared.Return(a);
         }
 
@@ -1131,7 +1131,7 @@ namespace IPA.Cores.Helper.Basic
             unsafe
             {
                 byte* ptr = (byte*)Unsafe.AsPointer(ref memory);
-                ptr += MemoryHelper._MemoryObjectOffset;
+                ptr += Cores.Basic.MemoryHelper._MemoryObjectOffset;
                 T[] o = Unsafe.Read<T[]>(ptr);
                 return o;
             }
@@ -1140,30 +1140,30 @@ namespace IPA.Cores.Helper.Basic
 
         public static ArraySegment<T> AsSegment<T>(this Memory<T> memory)
         {
-            if (MemoryHelper._UseFast == false) return AsSegmentSlow(memory);
+            if (Cores.Basic.MemoryHelper._UseFast == false) return AsSegmentSlow(memory);
 
             unsafe
             {
                 byte* ptr = (byte*)Unsafe.AsPointer(ref memory);
                 return new ArraySegment<T>(
-                    Unsafe.Read<T[]>(ptr + MemoryHelper._MemoryObjectOffset),
-                    *((int*)(ptr + MemoryHelper._MemoryIndexOffset)),
-                    *((int*)(ptr + MemoryHelper._MemoryLengthOffset))
+                    Unsafe.Read<T[]>(ptr + Cores.Basic.MemoryHelper._MemoryObjectOffset),
+                    *((int*)(ptr + Cores.Basic.MemoryHelper._MemoryIndexOffset)),
+                    *((int*)(ptr + Cores.Basic.MemoryHelper._MemoryLengthOffset))
                     );
             }
         }
 
         public static ArraySegment<T> AsSegment<T>(this ReadOnlyMemory<T> memory)
         {
-            if (MemoryHelper._UseFast == false) return AsSegmentSlow(memory);
+            if (Cores.Basic.MemoryHelper._UseFast == false) return AsSegmentSlow(memory);
 
             unsafe
             {
                 byte* ptr = (byte*)Unsafe.AsPointer(ref memory);
                 return new ArraySegment<T>(
-                    Unsafe.Read<T[]>(ptr + MemoryHelper._MemoryObjectOffset),
-                    *((int*)(ptr + MemoryHelper._MemoryIndexOffset)),
-                    *((int*)(ptr + MemoryHelper._MemoryLengthOffset))
+                    Unsafe.Read<T[]>(ptr + Cores.Basic.MemoryHelper._MemoryObjectOffset),
+                    *((int*)(ptr + Cores.Basic.MemoryHelper._MemoryIndexOffset)),
+                    *((int*)(ptr + Cores.Basic.MemoryHelper._MemoryLengthOffset))
                     );
             }
         }
