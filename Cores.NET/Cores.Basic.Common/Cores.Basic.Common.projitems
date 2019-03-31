@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalInitializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Log.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\LogRouter.cs" />
@@ -52,6 +53,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\UnixSyscall.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\WinSyscall.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
@@ -60,8 +62,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastPrimitives.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystem.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalFile.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalNetwork.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalWin32FileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\ProtoApp\SpeedTest.cs" />
   </ItemGroup>
   <ItemGroup>

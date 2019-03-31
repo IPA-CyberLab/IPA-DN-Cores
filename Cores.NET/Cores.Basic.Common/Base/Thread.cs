@@ -247,15 +247,15 @@ namespace IPA.Cores.Basic
             {
                 IO.MakeDirIfNotExists(Env.UnixMutantDir);
 
-                UnixSysCalls.Permissions perm = UnixSysCalls.Permissions.S_IRUSR | UnixSysCalls.Permissions.S_IWUSR | UnixSysCalls.Permissions.S_IRGRP | UnixSysCalls.Permissions.S_IWGRP | UnixSysCalls.Permissions.S_IROTH | UnixSysCalls.Permissions.S_IWOTH;
+                UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
 
-                IntPtr fd = UnixSysCalls.Open(Filename, UnixSysCalls.OpenFlags.O_CREAT, (int)perm);
+                IntPtr fd = UnixApi.Open(Filename, UnixApi.OpenFlags.O_CREAT, (int)perm);
                 if (fd.ToInt64() < 0)
                 {
                     throw new IOException("Open failed.");
                 }
 
-                if (UnixSysCalls.FLock(fd, UnixSysCalls.LockOperations.LOCK_EX) == -1)
+                if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX) == -1)
                 {
                     throw new IOException("FLock failed.");
                 }
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
             if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
             if (LockedCount == 1)
             {
-                UnixSysCalls.Close(this.FileHandle);
+                UnixApi.Close(this.FileHandle);
 
                 this.FileHandle = IntPtr.Zero;
             }

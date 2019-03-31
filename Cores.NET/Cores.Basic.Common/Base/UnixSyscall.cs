@@ -31,13 +31,41 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
+using System.Text;
 
 #pragma warning disable 0618
 
+// Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
+// 
+// The MIT License (MIT)
+// 
+// Copyright (c) .NET Foundation and Contributors
+// 
+// All rights reserved.
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 namespace IPA.Cores.Basic
 {
-    static class UnixSysCalls
+    static class UnixApi
     {
         static class Libraries
         {
@@ -234,6 +262,38 @@ namespace IPA.Cores.Basic
                 //for (int i = 0; i < reads.Length; i++) Dbg.WriteLine($"reads[{i}] = {reads[i]}");
                 //for (int i = 0; i < writes.Length; i++) Dbg.WriteLine($"writes[{i}] = {writes[i]}");
             }
+        }
+
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ReadLink", SetLastError = true)]
+        private static extern unsafe int ReadLink(string path, byte[] buffer, int bufferSize);
+        public static string ReadLink(string path)
+        {
+            int bufferSize = 256;
+            do
+            {
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+                try
+                {
+                    int resultLength = ReadLink(path, buffer, buffer.Length);
+                    if (resultLength < 0)
+                    {
+                        // error
+                        return null;
+                    }
+                    else if (resultLength < buffer.Length)
+                    {
+                        // success
+                        return Encoding.UTF8.GetString(buffer, 0, resultLength);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+
+                // buffer was too small, loop around again and try with a larger buffer.
+                bufferSize *= 2;
+            } while (true);
         }
     }
 }

@@ -2273,4 +2273,8 @@ namespace IPA.Cores.Basic
         }
     }
 
+    struct EmptyDisposable : IDisposable
+    {
+        public void Dispose() { }
+    }
 }

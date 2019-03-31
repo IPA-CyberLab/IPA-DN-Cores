@@ -130,14 +130,14 @@ namespace IPA.Cores.Basic
 
     class DebugWhereContainer
     {
-        public object Message;
+        public object Msg;
         public string Where;
         public string Function;
         public int? ThreadID;
 
         public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
         {
-            this.Message = message;
+            this.Msg = message;
             if (filename.IsFilled())
                 this.Where = filename + ":" + lineNumber;
             this.ThreadID = threadId == 0 ? (int ?)null : threadId;
@@ -239,8 +239,9 @@ namespace IPA.Cores.Basic
 
                 return v.ToString();
             }
-            catch
+            catch// (Exception ex)
             {
+                //Console.WriteLine($"GetObjectDump: {ex.ToString()}");
                 if (obj == null) return "null";
                 try
                 {
@@ -279,7 +280,7 @@ namespace IPA.Cores.Basic
 
             DebugVars ret = new DebugVars(separatorStr, hideEmpty, obj is ObjectContainerForDebugVars);
 
-            var membersList = GetAllMembersFromType(t, obj != null, obj == null);
+            var membersList = GetAllMembersFromType(t, obj != null, obj == null, true);
 
             int order = 0;
 
@@ -311,60 +312,63 @@ namespace IPA.Cores.Basic
                     object data = GetValueOfFieldOrProperty(info, obj);
                     Type data_type = data?.GetType() ?? null;
 
-                    if (IsPrimitiveType(data_type))
+                    if (!(data is MethodBase) && (data_type == null || data_type.MemberType.Bit(MemberTypes.TypeInfo) || data_type.MemberType.Bit(MemberTypes.NestedType)))
                     {
-                        ret.Vars.Add((info, data, ++order));
-                    }
-                    else
-                    {
-                        if (data == null)
+                        if (IsPrimitiveType(data_type))
                         {
-                            ret.Vars.Add((info, null, ++order));
+                            ret.Vars.Add((info, data, ++order));
                         }
                         else
                         {
-                            if (data is IEnumerable)
+                            if (data == null)
                             {
-                                if (data is byte[] byteArray)
-                                {
-                                    ret.Vars.Add((info, data, ++order));
-                                }
-                                else if (data is Memory<byte> byteMemory)
-                                {
-                                    ret.Vars.Add((info, byteMemory.Span.ToArray(), ++order));
-                                }
-                                else
-                                {
-                                    int n = 0;
-                                    foreach (object item in (IEnumerable)data)
-                                    {
-                                        if (duplicateCheck.Contains(item) == false)
-                                        {
-                                            Type data_type2 = item?.GetType() ?? null;
-
-                                            if (IsPrimitiveType(data_type2))
-                                            {
-                                                ret.Vars.Add((info, item, ++order));
-                                            }
-                                            else if (item == null)
-                                            {
-                                                ret.Vars.Add((info, null, ++order));
-                                            }
-                                            else
-                                            {
-                                                ret.Childlen.Add((GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)), ++order));
-                                            }
-                                        }
-
-                                        n++;
-                                    }
-                                }
+                                ret.Vars.Add((info, null, ++order));
                             }
                             else
                             {
-                                if (duplicateCheck.Contains(data) == false)
+                                if (data is IEnumerable)
                                 {
-                                    ret.Childlen.Add((GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)), ++order));
+                                    if (data is byte[] byteArray)
+                                    {
+                                        ret.Vars.Add((info, data, ++order));
+                                    }
+                                    else if (data is Memory<byte> byteMemory)
+                                    {
+                                        ret.Vars.Add((info, byteMemory.Span.ToArray(), ++order));
+                                    }
+                                    else
+                                    {
+                                        int n = 0;
+                                        foreach (object item in (IEnumerable)data)
+                                        {
+                                            if (duplicateCheck.Contains(item) == false)
+                                            {
+                                                Type data_type2 = item?.GetType() ?? null;
+
+                                                if (IsPrimitiveType(data_type2))
+                                                {
+                                                    ret.Vars.Add((info, item, ++order));
+                                                }
+                                                else if (item == null)
+                                                {
+                                                    ret.Vars.Add((info, null, ++order));
+                                                }
+                                                else
+                                                {
+                                                    ret.Childlen.Add((GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)), ++order));
+                                                }
+                                            }
+
+                                            n++;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (duplicateCheck.Contains(data) == false)
+                                    {
+                                        ret.Childlen.Add((GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)), ++order));
+                                    }
                                 }
                             }
                         }
@@ -377,20 +381,22 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static MemberInfo[] GetAllMembersFromType(Type t, bool hideStatic, bool hideInstance)
+        public static MemberInfo[] GetAllMembersFromType(Type t, bool hideStatic, bool hideInstance, bool hideNonPublic)
         {
             HashSet<MemberInfo> a = new HashSet<MemberInfo>();
 
             if (hideStatic == false)
             {
                 a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.Public));
-                a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.NonPublic));
+                if (hideNonPublic == false)
+                    a.UnionWith(t.GetMembers(BindingFlags.Static | BindingFlags.NonPublic));
             }
 
             if (hideInstance == false)
             {
                 a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.Public));
-                a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic));
+                if (hideNonPublic == false)
+                    a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic));
             }
 
             return a.Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property).ToArrayList();

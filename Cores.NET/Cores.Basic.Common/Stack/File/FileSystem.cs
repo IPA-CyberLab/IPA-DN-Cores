@@ -62,15 +62,17 @@ namespace IPA.Cores.Basic
         public FileShare Share { get; }
         public FileAccess Access { get; }
         public bool ReadPartial { get; }
+        public bool BackupMode { get; }
 
         public FileParameters(string path, FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read,
-            bool readPartial = false)
+            bool readPartial = false, bool backupMode = false)
         {
             this.Path = path;
             this.Mode = mode;
             this.Share = share;
             this.Access = access;
             this.ReadPartial = readPartial;
+            this.BackupMode = backupMode;
         }
     }
 
@@ -652,7 +654,6 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
             CancelSource.TryCancelNoBlock();
-
             CloseAsync().LaissezFaire();
         }
 
@@ -663,9 +664,11 @@ namespace IPA.Cores.Basic
     {
         public string FullPath { get; set; }
         public string Name { get; set; }
-        public bool IsDirectory { get; set; }
-        public bool IsCurrentDirectory { get; set; }
+        public bool IsDirectory => Attributes.Bit(FileAttributes.Directory);
+        public bool IsSymbolicLink => Attributes.Bit(FileAttributes.ReparsePoint);
+        public bool IsCurrentDirectory => (Name == ".");
         public long Size { get; set; }
+        public string SymbolicLinkTarget { get; set; }
         public FileAttributes Attributes { get; set; }
         public DateTimeOffset Updated { get; set; }
         public DateTimeOffset Created { get; set; }
@@ -688,7 +691,7 @@ namespace IPA.Cores.Basic
 
     abstract class FileSystem : AsyncCleanupable
     {
-        public static FileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
+        public static PalFileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
 
         CriticalSection LockObj = new CriticalSection();
         List<FileObject> OpenedHandleList = new List<FileObject>();
@@ -750,8 +753,24 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
+        protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
+
+        public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    return await NormalizePathImplAsync(path, cancel);
+                }
+            }
+        }
+        public string NormalizePath(string path, CancellationToken cancel = default)
+            => NormalizePathAsync(path, cancel).GetResult();
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
@@ -786,18 +805,18 @@ namespace IPA.Cores.Basic
         public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).GetResult();
 
-        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
-            => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial), cancel);
+        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+            => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial, backupMode), cancel);
 
-        public FileObject Create(string path, bool noShare = false, bool readPartial = false, CancellationToken cancel = default)
-            => CreateAsync(path, noShare, readPartial, cancel).GetResult();
+        public FileObject Create(string path, bool noShare = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+            => CreateAsync(path, noShare, readPartial, backupMode, cancel).GetResult();
 
-        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
+        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
-                (readLock ? FileShare.None : FileShare.Read), readPartial), cancel);
+                (readLock ? FileShare.None : FileShare.Read), readPartial, backupMode), cancel);
 
-        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, CancellationToken cancel = default)
-            => OpenAsync(path, writeMode, readLock, readPartial, cancel).GetResult();
+        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+            => OpenAsync(path, writeMode, readLock, readPartial, backupMode, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {
