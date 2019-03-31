@@ -411,7 +411,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.WaitEx();
+                    return procTask.GetResult();
                 }
 
                 waitTasks.Add(procTask);
@@ -427,7 +427,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.WaitEx();
+                    return procTask.GetResult();
                 }
 
                 throw new TimeoutException();
@@ -758,7 +758,7 @@ namespace IPA.Cores.Basic
             if (t == null) return;
             try
             {
-                t.WaitEx();
+                t.GetResult();
             }
             catch (Exception ex)
             {
@@ -2370,7 +2370,7 @@ namespace IPA.Cores.Basic
 
                         cancel.ThrowIfCancellationRequested();
 
-                        var result = userTask.WaitEx();
+                        var result = userTask.GetResult();
 
                         if (result.IsOpen)
                         {
@@ -2385,7 +2385,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    var result = userTask.WaitEx();
+                    var result = userTask.GetResult();
 
                     if (result.IsOpen)
                     {

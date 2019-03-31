@@ -363,7 +363,7 @@ namespace IPA.Cores.Basic
             Connection = dbConnection;
         }
 
-        public void EnsureOpen() => EnsureOpenAsync().WaitEx();
+        public void EnsureOpen() => EnsureOpenAsync().GetResult();
 
         AsyncLock OpenCloseLock = new AsyncLock();
 
@@ -505,13 +505,13 @@ namespace IPA.Cores.Basic
             => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
 
         public IEnumerable<T> Query<T>(string commandStr, object param = null)
-            => QueryAsync<T>(commandStr, param).WaitEx();
+            => QueryAsync<T>(commandStr, param).GetResult();
 
         public int Execute(string commandStr, object param = null)
-            => ExecuteAsync(commandStr, param).WaitEx();
+            => ExecuteAsync(commandStr, param).GetResult();
 
         public T ExecuteScalar<T>(string commandStr, object param = null)
-            => ExecuteScalarAsync<T>(commandStr, param).WaitEx();
+            => ExecuteScalarAsync<T>(commandStr, param).GetResult();
 
 
         public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
@@ -576,16 +576,16 @@ namespace IPA.Cores.Basic
         }
 
         public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
-            => EasyGetAllAsync<T>(throwErrorIfNotFound).WaitEx();
+            => EasyGetAllAsync<T>(throwErrorIfNotFound).GetResult();
 
         public int EasyInsert<T>(T data) where T : class
-            => EasyInsertAsync(data).WaitEx();
+            => EasyInsertAsync(data).GetResult();
 
         public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyUpdateAsync(data, throwErrorIfNotFound).WaitEx();
+            => EasyUpdateAsync(data, throwErrorIfNotFound).GetResult();
 
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyDeleteAsync(data, throwErrorIfNotFound).WaitEx();
+            => EasyDeleteAsync(data, throwErrorIfNotFound).GetResult();
 
         public async Task<dynamic> EasyFindIdAsync<T>(string selectStr, object selectParam) where T: class
         {

@@ -814,7 +814,7 @@ namespace IPA.Cores.Basic
                     item.Response = ST_CallAdd(item.Method, item.Param, item.ResultType);
                 }
 
-                ST_CallAll(false).WaitEx();
+                ST_CallAll(false).GetResult();
             }
             catch (Exception ex)
             {
@@ -901,7 +901,7 @@ namespace IPA.Cores.Basic
             {
                 //Dbg.WhereThread();
                 await o;
-                var result = o.WaitEx();
+                var result = o.GetResult();
                 result.ThrowIfError();
                 //Dbg.WhereThread();
                 return result.ResultData;

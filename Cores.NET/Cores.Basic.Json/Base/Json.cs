@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
         public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
         {
             StringWriter w = new StringWriter();
-            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth).WaitEx();
+            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth).GetResult();
             return w.ToString();
         }
 

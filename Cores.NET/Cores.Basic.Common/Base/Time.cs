@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             HaltFlag = true;
             HaltEvent.Set();
-            MainTask.WaitEx();
+            MainTask.GetResult();
         }
 
         protected abstract void Init();

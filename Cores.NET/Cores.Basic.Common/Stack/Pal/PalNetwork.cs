@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
                 Task<int> t = _Socket.SendToAsync(buffer.AsSegment(), SocketFlags.None, remoteEP);
                 if (t.IsCompleted == false)
                     await t;
-                int ret = t.WaitEx();
+                int ret = t.GetResult();
                 if (ret <= 0) throw new SocketDisconnectedException();
                 return ret;
             }
@@ -226,7 +226,7 @@ namespace IPA.Cores.Basic
                     numRetry = 0;
                     await t;
                 }
-                SocketReceiveFromResult ret = t.WaitEx();
+                SocketReceiveFromResult ret = t.GetResult();
                 if (ret.ReceivedBytes <= 0) throw new SocketDisconnectedException();
                 return new PalSocketReceiveFromResult()
                 {
@@ -336,7 +336,7 @@ namespace IPA.Cores.Basic
 
         public override bool DataAvailable => FastStream.DataAvailable;
 
-        public override void Flush() => FastStream.FlushAsync().WaitEx();
+        public override void Flush() => FastStream.FlushAsync().GetResult();
 
         public override Task FlushAsync(CancellationToken cancellationToken = default) => FastStream.FlushAsync(cancellationToken);
 
@@ -346,15 +346,15 @@ namespace IPA.Cores.Basic
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
             => await FastStream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
 
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default).WaitEx();
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default).WaitEx();
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default).GetResult();
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default).GetResult();
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
             => ReadAsync(buffer, offset, count, default).AsApm(callback, state);
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
             => WriteAsync(buffer, offset, count, default).AsApm(callback, state);
-        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).WaitEx();
-        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).WaitEx();
+        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).GetResult();
+        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).GetResult();
 
         public override bool Equals(object obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
@@ -577,7 +577,7 @@ namespace IPA.Cores.Basic
 
         public static bool IsUnix { get; } = (Environment.OSVersion.Platform != PlatformID.Win32NT);
 
-        static IPAddress[] GetLocalIPAddressBySocketApi() => PalDns.GetHostAddressesAsync(Dns.GetHostName()).WaitEx();
+        static IPAddress[] GetLocalIPAddressBySocketApi() => PalDns.GetHostAddressesAsync(Dns.GetHostName()).GetResult();
 
         class ByteComparer : IComparer<byte[]>
         {

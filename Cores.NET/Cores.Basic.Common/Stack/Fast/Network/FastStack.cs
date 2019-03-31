@@ -664,7 +664,7 @@ namespace IPA.Cores.Basic
         }
 
         public void Send(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
-            => SendAsync(buffer, cancel).WaitEx();
+            => SendAsync(buffer, cancel).GetResult();
 
         Once receiveAllAsyncRaiseExceptionFlag;
 
@@ -757,16 +757,16 @@ namespace IPA.Cores.Basic
         }
 
         public void ReceiveAll(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAllAsync(buffer, cancel).WaitEx();
+            => ReceiveAllAsync(buffer, cancel).GetResult();
 
         public Memory<byte> ReceiveAll(int size, CancellationToken cancel = default)
-            => ReceiveAllAsync(size, cancel).WaitEx();
+            => ReceiveAllAsync(size, cancel).GetResult();
 
         public int Receive(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAsync(buffer, cancel).WaitEx();
+            => ReceiveAsync(buffer, cancel).GetResult();
 
         public Memory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
-            => ReceiveAsync(maxSize, cancel).WaitEx();
+            => ReceiveAsync(maxSize, cancel).GetResult();
 
         public async Task<List<Memory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
@@ -911,7 +911,7 @@ namespace IPA.Cores.Basic
         }
 
         public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
-            => SendToAsync(buffer, remoteEndPoint, cancel).WaitEx();
+            => SendToAsync(buffer, remoteEndPoint, cancel).GetResult();
 
         public async Task<List<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
         {
@@ -970,7 +970,7 @@ namespace IPA.Cores.Basic
 
         public int ReceiveFrom(Memory<byte> buffer, out EndPoint remoteEndPoint, CancellationToken cancel = default)
         {
-            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel).WaitEx();
+            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel).GetResult();
 
             remoteEndPoint = r.RemoteEndPoint;
 
