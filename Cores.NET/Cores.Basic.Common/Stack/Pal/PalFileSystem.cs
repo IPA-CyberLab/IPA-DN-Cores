@@ -54,7 +54,7 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
-            => PalFileHandle.CreateFileAsync(this, fileParams, cancel);
+            => PalFileObject.CreateFileAsync(this, fileParams, cancel);
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
         {
@@ -136,9 +136,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalFileHandle : FileObject
+    class PalFileObject : FileObject
     {
-        protected PalFileHandle(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+        protected PalFileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         FileStream fs;
 
@@ -146,7 +146,7 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            PalFileHandle f = new PalFileHandle(fileSystem, fileParams);
+            PalFileObject f = new PalFileObject(fileSystem, fileParams);
 
             await f.CreateAsync(cancel);
 
