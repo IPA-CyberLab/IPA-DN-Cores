@@ -647,6 +647,10 @@ namespace IPA.Cores.Helper.Basic
         public static T GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 
         public static void GetResult(this Task task) => task.GetAwaiter().GetResult();
+
+        public static T GetResult<T>(this ValueTask<T> task) => task.GetAwaiter().GetResult();
+
+        public static void GetResult(this ValueTask task) => task.GetAwaiter().GetResult();
     }
 }
 
