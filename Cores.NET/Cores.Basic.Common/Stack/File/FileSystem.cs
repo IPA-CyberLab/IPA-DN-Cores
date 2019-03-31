@@ -805,17 +805,17 @@ namespace IPA.Cores.Basic
         public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).GetResult();
 
-        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+        public Task<FileObject> CreateAsync(string path, bool noShare = false, bool readPartial = true, bool backupMode = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, readPartial, backupMode), cancel);
 
-        public FileObject Create(string path, bool noShare = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+        public FileObject Create(string path, bool noShare = false, bool readPartial = true, bool backupMode = false, CancellationToken cancel = default)
             => CreateAsync(path, noShare, readPartial, backupMode, cancel).GetResult();
 
-        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, bool readPartial = true, bool backupMode = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
                 (readLock ? FileShare.None : FileShare.Read), readPartial, backupMode), cancel);
 
-        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = false, bool backupMode = false, CancellationToken cancel = default)
+        public FileObject Open(string path, bool writeMode = false, bool readLock = false, bool readPartial = true, bool backupMode = false, CancellationToken cancel = default)
             => OpenAsync(path, writeMode, readLock, readPartial, backupMode, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
