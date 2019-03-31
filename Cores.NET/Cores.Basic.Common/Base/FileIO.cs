@@ -2255,7 +2255,7 @@ namespace IPA.Cores.Basic
     // Win32 フォルダ圧縮操ユーティリティ
     static class Win32FolderCompression
     {
-        public static bool SetFolderCompress(string path, bool compressed)
+        public static bool SetFolderCompression(string path, bool compressed)
         {
             if (Env.IsWindows == false)
                 return false;

@@ -599,7 +599,7 @@ namespace IPA.Cores.Basic
                                     try
                                     {
                                         IO.MakeDirIfNotExists(this.DirName);
-                                        Win32FolderCompression.SetFolderCompress(this.DirName, true);
+                                        Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                     }
                                     catch { }
                                 }
@@ -635,7 +635,7 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     IO.MakeDirIfNotExists(this.DirName);
-                                    Win32FolderCompression.SetFolderCompress(this.DirName, true);
+                                    Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                 }
                                 catch { }
                             }
