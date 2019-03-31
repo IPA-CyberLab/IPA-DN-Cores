@@ -2255,31 +2255,6 @@ namespace IPA.Cores.Basic
     // Win32 フォルダ圧縮操ユーティリティ
     static class Win32FolderCompression
     {
-        private const int FSCTL_SET_COMPRESSION = 0x9C040;
-        private const short COMPRESSION_FORMAT_NONE = 0;
-        private const short COMPRESSION_FORMAT_DEFAULT = 1;
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern int DeviceIoControl(
-            SafeFileHandle hDevice,
-            int dwIoControlCode,
-            ref short lpInBuffer,
-            int nInBufferSize,
-            IntPtr lpOutBuffer,
-            int nOutBufferSize,
-            ref int lpBytesReturned,
-            IntPtr lpOverlapped);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern SafeFileHandle CreateFileW(
-             [MarshalAs(UnmanagedType.LPWStr)] string filename,
-             [MarshalAs(UnmanagedType.U4)] FileAccess access,
-             [MarshalAs(UnmanagedType.U4)] FileShare share,
-             IntPtr securityAttributes,
-             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-             IntPtr templateFile);
-
         public static bool SetFolderCompress(string path, bool compressed)
         {
             if (Env.IsWindows == false)
@@ -2288,19 +2263,20 @@ namespace IPA.Cores.Basic
             try
             {
                 path = path.InnerFilePath();
+                Win32Api.Kernel32.SECURITY_ATTRIBUTES secAttrs = default;
 
-                using (SafeFileHandle h = CreateFileW(path, FileAccess.Read | FileAccess.Write, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open,
-                    (FileAttributes)0x02000000, IntPtr.Zero))
+                using (SafeFileHandle h = Win32Api.Kernel32.CreateFile(path, (int)(FileAccess.Read | FileAccess.Write), FileShare.ReadWrite, ref secAttrs, FileMode.Open,
+                    Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero))
                 {
                     if (h.IsInvalid)
                     {
                         return false;
                     }
 
-                    short lpInBuffer = compressed ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
-                    int lpBytesReturned = 0;
+                    ushort lpInBuffer = (ushort)(compressed ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
+                    uint lpBytesReturned = 0;
 
-                    if (DeviceIoControl(h, FSCTL_SET_COMPRESSION, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, ref lpBytesReturned, IntPtr.Zero) == 0)
+                    if (Win32Api.Kernel32.DeviceIoControl(h, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, out lpBytesReturned, IntPtr.Zero) == false)
                     {
                         return false;
                     }

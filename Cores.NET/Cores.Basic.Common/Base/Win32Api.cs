@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
             (
                 SafeFileHandle fileHandle,
                 uint ioControlCode,
-                IntPtr inBuffer,
+                ref ushort inBuffer,
                 uint cbInBuffer,
                 IntPtr outBuffer,
                 uint cbOutBuffer,
@@ -202,6 +202,10 @@ namespace IPA.Cores.Basic
         internal partial class Kernel32
         {
             internal const uint SEM_FAILCRITICALERRORS = 1;
+
+            internal const int FSCTL_SET_COMPRESSION = 0x9C040;
+            internal const short COMPRESSION_FORMAT_NONE = 0;
+            internal const short COMPRESSION_FORMAT_DEFAULT = 1;
 
             internal partial class HandleOptions
             {
