@@ -34,6 +34,10 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 namespace IPA.Cores.Basic
 {
     // Ini ファイルの読み込み

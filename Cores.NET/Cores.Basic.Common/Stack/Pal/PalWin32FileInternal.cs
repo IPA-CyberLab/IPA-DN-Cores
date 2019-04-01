@@ -36,10 +36,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
-using IPA.Cores.Helper.Basic;
 using System.Runtime.CompilerServices;
 using System.Text;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 #pragma warning disable CS0162
 

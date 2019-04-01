@@ -36,6 +36,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 namespace IPA.Cores.Basic
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

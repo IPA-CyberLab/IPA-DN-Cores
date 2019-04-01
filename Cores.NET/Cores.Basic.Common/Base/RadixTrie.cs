@@ -33,6 +33,10 @@
 using System.Collections;
 using System.Collections.Generic;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 // By Paraschiv Andrei Technical Blog
 // http://paratechnical.blogspot.com/2011/03/radix-tree-implementation-in-c.html
 // https://gist.githubusercontent.com/paratechnical/2869170/raw/79a8a56c04f5a3183b8ffe1f50dd200c4d6b68ef/C%23%20radix%20tree

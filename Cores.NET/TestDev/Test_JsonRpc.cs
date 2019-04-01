@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 

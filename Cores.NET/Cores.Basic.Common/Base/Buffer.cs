@@ -37,10 +37,12 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Buffers;
-
-using IPA.Cores.Helper.Basic;
 using System.Threading;
 using System.Threading.Tasks;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {

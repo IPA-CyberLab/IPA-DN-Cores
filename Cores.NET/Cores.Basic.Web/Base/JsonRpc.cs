@@ -38,15 +38,15 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Castle.DynamicProxy;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Microsoft.AspNetCore.Routing;
-
+using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {

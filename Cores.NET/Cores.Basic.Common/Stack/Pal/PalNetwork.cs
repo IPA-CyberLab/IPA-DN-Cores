@@ -43,7 +43,9 @@ using System.Threading.Tasks;
 using System.Buffers;
 using System.Net.NetworkInformation;
 
+using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 #pragma warning disable CS0162
 

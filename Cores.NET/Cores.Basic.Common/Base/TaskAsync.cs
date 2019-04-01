@@ -37,10 +37,12 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
-
-using IPA.Cores.Helper.Basic;
 using System.Runtime.CompilerServices;
 using System.IO;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {

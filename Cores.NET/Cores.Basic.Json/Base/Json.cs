@@ -34,11 +34,12 @@ using System;
 using System.Threading.Tasks;
 using System.Collections;
 using System.IO;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {

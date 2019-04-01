@@ -31,6 +31,11 @@
 // LAW OR COURT RULE.
 
 using System;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 using IPA.Cores.Basic.Internal;
 
 namespace IPA.Cores.Basic

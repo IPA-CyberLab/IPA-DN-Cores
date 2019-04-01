@@ -38,6 +38,10 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 #pragma warning disable 162
 
 namespace IPA.Cores.Basic

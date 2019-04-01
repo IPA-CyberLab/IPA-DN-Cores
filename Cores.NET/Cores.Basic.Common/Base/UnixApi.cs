@@ -35,6 +35,10 @@ using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 #pragma warning disable 0618
 
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr

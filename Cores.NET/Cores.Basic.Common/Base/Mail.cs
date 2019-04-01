@@ -36,6 +36,10 @@ using System.IO;
 using System.Net.Mail;
 using System.Net.Mime;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 #pragma warning disable 0618
 
 namespace IPA.Cores.Basic

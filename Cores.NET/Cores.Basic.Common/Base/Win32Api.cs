@@ -39,6 +39,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 #pragma warning disable 0618
 
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
@@ -508,7 +512,7 @@ namespace IPA.Cores.Basic
             // (note that this is the effective default on CreateFile2)
             flagsAndAttributes |= (Win32Api.Kernel32.SecurityOptions.SECURITY_SQOS_PRESENT | Win32Api.Kernel32.SecurityOptions.SECURITY_ANONYMOUS);
 
-            using (PalFileSystem.EnterDisableMediaInsertionPrompt())
+            using (FileSystem.Local.EnterDisableMediaInsertionPrompt())
             {
                 return ValidateFileHandle(
                     Win32Api.Kernel32.CreateFile(_path, fAccess, share, ref secAttrs, mode, flagsAndAttributes, IntPtr.Zero), _path);

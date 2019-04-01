@@ -39,9 +39,12 @@ using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
-using IPA.Cores.Helper.Basic;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 #pragma warning disable CS0162
 
@@ -114,7 +117,7 @@ namespace IPA.Cores.Basic
             return Task.FromResult(Path.GetFullPath(path));
         }
 
-        public static void EnableBackupPrivilege()
+        public void EnableBackupPrivilege()
         {
             if (Env.IsWindows)
             {
@@ -123,7 +126,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static Holder<IDisposable> EnterDisableMediaInsertionPrompt()
+        public Holder<IDisposable> EnterDisableMediaInsertionPrompt()
         {
             IDisposable token = new EmptyDisposable();
 

@@ -34,7 +34,9 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {

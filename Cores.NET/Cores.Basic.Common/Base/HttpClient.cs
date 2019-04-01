@@ -36,6 +36,10 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Net;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 namespace IPA.Cores.Basic
 {
     class DnHttpPostData

@@ -36,6 +36,10 @@ using System.Text;
 using System.Web;
 using System.IO;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.GlobalFunctions.Basic;
+
 namespace IPA.Cores.Basic
 {
 
