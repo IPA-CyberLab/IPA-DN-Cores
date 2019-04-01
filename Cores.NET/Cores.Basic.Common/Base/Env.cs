@@ -41,6 +41,42 @@ using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {
+    [Serializable]
+    class EnvInfoSnapshot
+    {
+        public EnvInfoSnapshot(string headerText)
+        {
+            HeaderText = headerText;
+        }
+
+        public string HeaderText;
+        public DateTimeOffset TimeStamp = DateTime.Now;
+        public string MachineName = Env.MachineName;
+        public string FrameworkVersion = Env.FrameworkVersion.ToString();
+        public string ExeFileName = Env.ExeFileName;
+        public string AppRootDir = Env.AppRootDir;
+        public string UserName = Env.UserName;
+        public string UserNameEx = Env.UserNameEx;
+        public string CommandLine = Env.CommandLine;
+        public bool IsAdmin = Env.IsAdmin;
+        public long ProcessId = Env.ProcessId;
+        public bool IsDotNetCore = Env.IsDotNetCore;
+        public string ExeAssemblySimpleName = Env.ExeAssemblySimpleName;
+        public string ExeAssemblyFullName = Env.ExeAssemblyFullName;
+        public bool IsWindows = Env.IsWindows;
+        public bool IsUnix = Env.IsUnix;
+        public bool IsMac = Env.IsMac;
+        public bool IsLittenEndian = Env.IsLittleEndian;
+        public bool IsBigEndian = Env.IsBigEndian;
+        public bool Is64BitProcess => Env.Is64BitProcess;
+        public bool Is64BitWindows => Env.Is64BitWindows;
+        public bool IsWow64 => Env.IsWow64;
+        public Architecture CpuInfo = Env.CpuInfo;
+        public string FrameworkInfoString = Env.FrameworkInfoString;
+        public string OsInfoString = Env.OsInfoString;
+    }
+
+
     static class Env
     {
         static GlobalInitializer gInit = new GlobalInitializer();
@@ -81,7 +117,7 @@ namespace IPA.Cores.Basic
         public static bool IsLittleEndian { get; }
         public static bool IsBigEndian => !IsLittleEndian;
         public static bool IsAdmin { get; }
-        public static int ProcessId { get; }
+        public static long ProcessId { get; }
         public static string MyTempDir { get; }
         public static string PathSeparator { get; }
         public static string StartupCurrentDir { get; }

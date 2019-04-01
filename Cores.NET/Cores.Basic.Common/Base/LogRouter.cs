@@ -41,6 +41,7 @@ using System.IO;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.GlobalFunctions.Basic;
+using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
@@ -164,7 +165,7 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
-        public void InstallLogRoute(LogRouteBase route)
+        public LogRouteBase InstallLogRoute(LogRouteBase route)
         {
             if (DisposeFlag.IsSet) throw new ObjectDisposedException("LogRouteMachine");
 
@@ -174,6 +175,8 @@ namespace IPA.Cores.Basic
             {
                 this.RouteList = this.RouteList.Add(route);
             }
+
+            return route;
         }
 
         public async Task UninstallLogRouteAsync(LogRouteBase route)
@@ -253,6 +256,10 @@ namespace IPA.Cores.Basic
                 AppConfig.LocalLogRouterSettings.LogAccessDir.Value(),
                 AppConfig.LocalLogRouterSettings.SwitchTypeForAccess,
                 AppConfig.LocalLogRouterSettings.InfoOptionsForAccess));
+
+            var snapshot = new EnvInfoSnapshot("--- Process boottime log ---");
+
+            Router.PostLog(new LogRecord(snapshot, LogPriority.Info, LogFlags.NoOutputToConsole, "boottime"), LogKind.Default);
         }
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);

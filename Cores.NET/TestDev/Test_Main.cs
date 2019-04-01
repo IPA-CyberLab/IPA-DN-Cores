@@ -63,7 +63,7 @@ namespace IPA.TestDev
         }
 
         [ConsoleCommandMethod(
-            "IPA.Cores Library for .NET Core Test Program",
+            "IPA.Cores for .NET Core Development Test Program",
             "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
             "This is the TestDev Test Program.",
             "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
