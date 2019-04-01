@@ -65,7 +65,7 @@ namespace IPA.TestDev
             //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
             //Console.WriteLine(ss.ObjectToJson());
 
-            Lfs.WalkDirectory(@"C:\git\IPA-DN-Cores\Cores.NET\TestDev\Log", (dirList, cancel) =>
+            Lfs.DirectoryWalker.WalkDirectory(@"C:\git\IPA-DN-Cores\Cores.NET\TestDev\Log", (dirList, cancel) =>
             {
                 Con.WriteLine("----------");
                 Con.WriteLine(dirList.ObjectToJson());
