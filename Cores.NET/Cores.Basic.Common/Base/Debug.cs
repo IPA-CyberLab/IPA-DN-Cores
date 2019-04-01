@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum DebugMode
     {
-        Debug,
+        Debug, // Default
         ReleaseWithLogs,
         ReleaseNoDebugLogs,
         ReleaseNoLogs,

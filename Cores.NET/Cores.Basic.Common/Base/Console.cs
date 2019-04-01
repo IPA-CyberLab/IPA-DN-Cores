@@ -142,12 +142,12 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(arg.GetObjectDump());
+                cs.WriteLine(arg.GetObjectDump(), LogPriority.Info);
             }
             else
             {
                 Console.WriteLine(arg.GetObjectDump());
-                LocalLogRouter.PrintConsole(arg, noConsole: true);
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
             }
         }
 
@@ -155,12 +155,12 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(str);
+                cs.WriteLine(str, LogPriority.Info);
             }
             else
             {
                 Console.WriteLine(str);
-                LocalLogRouter.PrintConsole(str, noConsole: true);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info);
             }
         }
 
@@ -168,12 +168,12 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(str, arg);
+                cs.WriteLine(str, arg, LogPriority.Info);
             }
             else
             {
                 Console.WriteLine(str, arg);
-                LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true);
+                LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true, priority: LogPriority.Info);
             }
         }
 
@@ -181,14 +181,81 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(str, args);
+                cs.WriteLine(str, args, LogPriority.Info);
             }
             else
             {
                 Console.WriteLine(str, args);
-                LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true);
+                LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true, priority: LogPriority.Info);
             }
         }
+
+
+
+
+
+        public static void WriteError()
+        {
+            WriteLine("");
+        }
+
+        public static void WriteError(object arg)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(arg.GetObjectDump(), LogPriority.Error);
+            }
+            else
+            {
+                Console.WriteLine(arg.GetObjectDump());
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Error);
+            }
+        }
+
+        public static void WriteError(string str)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(str, LogPriority.Error);
+            }
+            else
+            {
+                Console.WriteLine(str);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Error);
+            }
+        }
+
+        public static void WriteError(string str, object arg)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(str, arg, LogPriority.Error);
+            }
+            else
+            {
+                Console.WriteLine(str, arg);
+                LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true, priority: LogPriority.Error);
+            }
+        }
+
+        public static void WriteError(string str, params object[] args)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(str, args, LogPriority.Error);
+            }
+            else
+            {
+                Console.WriteLine(str, args);
+                LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true, priority: LogPriority.Error);
+            }
+        }
+
+
+        public static string WriteDebug() => Dbg.WriteLine();
+        public static object WriteDebug(object obj) => Dbg.WriteLine(obj);
+        public static void WriteDebug(string str, params object[] args) => Dbg.WriteLine(str, args);
+
     }
 
     // ユーザーによるキャンセル例外
@@ -262,7 +329,7 @@ namespace IPA.Cores.Basic
     delegate void ConsoleFreeDelegate();
     delegate string ConsoleReadLineDelegate(string prompt, bool nofile);
     delegate string ConsoleReadPasswordDelegate(string prompt);
-    delegate bool ConsoleWriteDelegate(string str);
+    delegate bool ConsoleWriteDelegate(string str, LogPriority priority);
     delegate int ConsoleGetWidthDelegate();
 
     // パラメータ値リスト
@@ -589,21 +656,21 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の表示
-        public bool WriteLine(object value)
+        public bool WriteLine(object value, LogPriority priority = LogPriority.Info)
         {
-            return WriteLine(value.ToString());
+            return WriteLine(value.ToString(), priority);
         }
-        public bool WriteLine(string str)
+        public bool WriteLine(string str, LogPriority priority = LogPriority.Info)
         {
-            return localWrite(str);
+            return localWrite(str, priority);
         }
-        public bool WriteLine(string format, object arg0)
+        public bool WriteLine(string format, object arg0, LogPriority priority = LogPriority.Info)
         {
-            return WriteLine(string.Format(format, arg0));
+            return WriteLine(string.Format(format, arg0), priority);
         }
-        public bool WriteLine(string format, params object[] arg)
+        public bool WriteLine(string format, LogPriority priority = LogPriority.Info, params object[] arg)
         {
-            return WriteLine(string.Format(format, arg));
+            return WriteLine(string.Format(format, arg), priority);
         }
 
         // 文字列の取得
@@ -652,13 +719,13 @@ namespace IPA.Cores.Basic
 
             if (Str.IsEmptyStr(tmp))
             {
-                c.write((CoreStr.CMD_FILE_NAME_EMPTY));
+                c.write((CoreStr.CMD_FILE_NAME_EMPTY), LogPriority.Error);
                 return false;
             }
 
             if (IO.IsFileExists(tmp) == false)
             {
-                c.write(Str.FormatC((CoreStr.CMD_FILE_NOT_FOUND), tmp));
+                c.write(Str.FormatC((CoreStr.CMD_FILE_NOT_FOUND), tmp), LogPriority.Error);
 
                 return false;
             }
@@ -677,7 +744,7 @@ namespace IPA.Cores.Basic
 
             if (Str.StrToInt(str) == 0)
             {
-                c.write(p);
+                c.write(p, LogPriority.Error);
 
                 return false;
             }
@@ -699,7 +766,7 @@ namespace IPA.Cores.Basic
                 return true;
             }
 
-            c.write(p);
+            c.write(p, LogPriority.Error);
 
             return false;
         }
@@ -738,7 +805,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                c.write(Str.FormatC(tag, e.MinValue, e.MaxValue));
+                c.write(Str.FormatC(tag, e.MinValue, e.MaxValue), LogPriority.Error);
 
                 return false;
             }
@@ -770,43 +837,43 @@ namespace IPA.Cores.Basic
 
             // タイトル
             tmp = Str.FormatC((CoreStr.CMD_HELP_TITLE), cmdName);
-            this.write(tmp);
-            this.write("");
+            this.write(tmp, LogPriority.Info);
+            this.write("", LogPriority.Info);
 
             // 目的
-            this.write((CoreStr.CMD_HELP_DESCRIPTION));
+            this.write((CoreStr.CMD_HELP_DESCRIPTION), LogPriority.Info);
             t = Str.StrArrayToList(SeparateStringByWidth(description, width - 2));
             for (i = 0; i < t.Count; i++)
             {
                 buf = Str.FormatC("%S%s", space, t[i]);
-                this.write(buf);
+                this.write(buf, LogPriority.Info);
             }
-            this.write("");
+            this.write("", LogPriority.Info);
 
             // 説明
-            this.write((CoreStr.CMD_HELP_HELP));
+            this.write((CoreStr.CMD_HELP_HELP), LogPriority.Info);
             t = Str.StrArrayToList(SeparateStringByWidth(help, width - 2));
             for (i = 0; i < t.Count; i++)
             {
                 buf = Str.FormatC("%S%s", space, t[i]);
-                this.write(buf);
+                this.write(buf, LogPriority.Info);
             }
-            this.write("");
+            this.write("", LogPriority.Info);
 
             // 使用方法
-            this.write((CoreStr.CMD_HELP_USAGE));
+            this.write((CoreStr.CMD_HELP_USAGE), LogPriority.Info);
             t = Str.StrArrayToList(SeparateStringByWidth(args, width - 2));
             for (i = 0; i < t.Count; i++)
             {
                 buf = Str.FormatC("%S%s", space, t[i]);
-                this.write(buf);
+                this.write(buf, LogPriority.Info);
             }
 
             // 引数
             if (paramList.Count >= 1)
             {
-                this.write("");
-                this.write((CoreStr.CMD_HELP_ARGS));
+                this.write("", LogPriority.Info);
+                this.write(CoreStr.CMD_HELP_ARGS, LogPriority.Info);
                 PrintCandidateHelp(cmdName, paramList.ToArray(), 2, this.currentCmdList);
             }
         }
@@ -950,7 +1017,7 @@ namespace IPA.Cores.Basic
                             left_space_array, max_space_array, t[j]);
                     }
 
-                    this.write(tmpbuf);
+                    this.write(tmpbuf, LogPriority.Info);
                 }
             }
         }
@@ -1124,14 +1191,14 @@ namespace IPA.Cores.Basic
                     if (Str.IsEmptyStr(cmd_param))
                     {
                         // 使用できるコマンド一覧を表示する
-                        this.write(Str.FormatC((CoreStr.CMD_HELP_1), t.Count));
+                        this.write(Str.FormatC((CoreStr.CMD_HELP_1), t.Count), LogPriority.Info);
 
                         string[] candidateList = t.ToArray();
 
                         PrintCandidateHelp(null, candidateList, 1, cmdList);
 
-                        this.write("");
-                        this.write((CoreStr.CMD_HELP_2));
+                        this.write("", LogPriority.Info);
+                        this.write((CoreStr.CMD_HELP_2), LogPriority.Info);
                     }
                     else
                     {
@@ -1166,19 +1233,19 @@ namespace IPA.Cores.Basic
                     if (candidate == null || candidate.Count == 0)
                     {
                         // 候補無し
-                        this.write(Str.FormatC((CoreStr.CON_UNKNOWN_CMD), cmd_name));
+                        this.write(Str.FormatC((CoreStr.CON_UNKNOWN_CMD), cmd_name), LogPriority.Error);
 
                         this.retCode = ConsoleErrorCode.ERR_BAD_COMMAND_OR_PARAM;
                     }
                     else if (candidate.Count >= 2)
                     {
                         // 候補が複数ある
-                        this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_CMD), cmd_name));
-                        this.write((CoreStr.CON_AMBIGIOUS_CMD_1));
+                        this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_CMD), cmd_name), LogPriority.Error);
+                        this.write((CoreStr.CON_AMBIGIOUS_CMD_1), LogPriority.Error);
                         string[] candidateArray = candidate.ToArray();
 
                         PrintCandidateHelp(null, candidateArray, 1, cmdList);
-                        this.write((CoreStr.CON_AMBIGIOUS_CMD_2));
+                        this.write((CoreStr.CON_AMBIGIOUS_CMD_2), LogPriority.Error);
 
                         this.retCode = ConsoleErrorCode.ERR_BAD_COMMAND_OR_PARAM;
                     }
@@ -1199,7 +1266,7 @@ namespace IPA.Cores.Basic
                                 {
                                     this.write(Str.FormatC((CoreStr.CMD_EXEC_MSG_NAME),
                                         cmdList.Values[j].name,
-                                        cmdList.Values[j].Description));
+                                        cmdList.Values[j].Description), LogPriority.Info);
                                 }
 
                                 // コマンドのプロシージャを呼び出す
@@ -1236,14 +1303,14 @@ namespace IPA.Cores.Basic
                                     if (ex2 is ConsoleUserCancelException)
                                     {
                                         // ユーザーによるパラメータ指定キャンセル
-                                        this.write((CoreStr.CON_USER_CANCELED));
-                                        this.write("");
+                                        this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
+                                        this.write("", LogPriority.Error);
                                         this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
                                     }
                                     else
                                     {
-                                        this.write(ex2.ToString());
-                                        this.write("");
+                                        this.write(ex2.ToString(), LogPriority.Error);
+                                        this.write("", LogPriority.Error);
 
                                         this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                         this.retErrorMessage = ex2.Message;
@@ -1642,13 +1709,13 @@ namespace IPA.Cores.Basic
                     if (candidate.Length >= 2)
                     {
                         this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM),
-                            param_list[i]));
+                            param_list[i]), LogPriority.Error);
 
                         this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM_1),
-                            cmdName));
+                            cmdName), LogPriority.Error);
 
                         PrintCandidateHelp(cmdName, candidate, 1, this.currentCmdList);
-                        this.write((CoreStr.CON_AMBIGIOUS_PARAM_2));
+                        this.write((CoreStr.CON_AMBIGIOUS_PARAM_2), LogPriority.Error);
 
                         ok = false;
                     }
@@ -1672,7 +1739,7 @@ namespace IPA.Cores.Basic
                     this.write(Str.FormatC((CoreStr.CON_INVALID_PARAM),
                         param_list[i],
                         cmdName,
-                        cmdName));
+                        cmdName), LogPriority.Error);
 
                     ok = false;
                 }
@@ -1757,7 +1824,7 @@ namespace IPA.Cores.Basic
                                 else
                                 {
                                     // ユーザーが入力した
-                                    this.write("");
+                                    this.write("", LogPriority.Info);
                                     str = tmp3;
                                     goto EVAL_VALUE;
                                 }
@@ -1785,7 +1852,7 @@ namespace IPA.Cores.Basic
                             else
                             {
                                 // ユーザーが入力した
-                                this.write("");
+                                this.write("", LogPriority.Info);
                                 str = tmp4;
                                 if (true)
                                 {
@@ -1830,7 +1897,7 @@ namespace IPA.Cores.Basic
                                             else
                                             {
                                                 // ユーザーが入力した
-                                                this.write("");
+                                                this.write("", LogPriority.Info);
                                                 str = tmp4;
                                                 goto EVAL_VALUE;
                                             }
@@ -2143,10 +2210,10 @@ namespace IPA.Cores.Basic
                 }
                 catch
                 {
-                    c.write(Str.FormatC((CoreStr.CON_INFILE_ERROR), inFileName));
+                    c.write(Str.FormatC((CoreStr.CON_INFILE_ERROR), inFileName), LogPriority.Error);
                     return null;
                 }
-                c.write(Str.FormatC((CoreStr.CON_INFILE_START), inFileName));
+                c.write(Str.FormatC((CoreStr.CON_INFILE_START), inFileName), LogPriority.Info);
             }
 
             if (Str.IsEmptyStr(outFileName) == false)
@@ -2158,7 +2225,7 @@ namespace IPA.Cores.Basic
                 }
                 catch
                 {
-                    c.write(Str.FormatC((CoreStr.CON_OUTFILE_ERROR), outFileName));
+                    c.write(Str.FormatC((CoreStr.CON_OUTFILE_ERROR), outFileName), LogPriority.Error);
                     if (in_io != null)
                     {
                         in_io.Close();
@@ -2166,7 +2233,7 @@ namespace IPA.Cores.Basic
 
                     return null;
                 }
-                c.write(Str.FormatC((CoreStr.CON_OUTFILE_START), outFileName));
+                c.write(Str.FormatC((CoreStr.CON_OUTFILE_START), outFileName), LogPriority.Info);
             }
 
             c.inFile = in_io;
@@ -2295,14 +2362,14 @@ namespace IPA.Cores.Basic
         }
 
         // コンソールに文字列を表示する
-        bool localWrite(string str)
+        bool localWrite(string str, LogPriority priority = LogPriority.Info)
         {
             // 引数チェック
             Console.Write("{0}{1}",
                 str,
                 (str.EndsWith("\n") ? "" : "\n"));
 
-            LocalLogRouter.PrintConsole(str, noConsole: true);
+            LocalLogRouter.PrintConsole(str, noConsole: true, priority: priority);
 
             writeOutFile(str, true);
 

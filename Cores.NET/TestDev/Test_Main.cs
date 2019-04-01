@@ -48,8 +48,6 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode();
-
             try
             {
                 ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
