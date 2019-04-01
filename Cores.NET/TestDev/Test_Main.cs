@@ -1,4 +1,36 @@
-﻿using System;
+﻿// IPA Cores.NET
+// 
+// Copyright (c) 2018-2019 IPA CyberLab.
+// Copyright (c) 2003-2018 Daiyuu Nobori.
+// Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
+// All Rights Reserved.
+// 
+// License: The Apache License, Version 2.0
+// https://www.apache.org/licenses/LICENSE-2.0
+// 
+// THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// 
+// THIS SOFTWARE IS DEVELOPED IN JAPAN, AND DISTRIBUTED FROM JAPAN, UNDER
+// JAPANESE LAWS. YOU MUST AGREE IN ADVANCE TO USE, COPY, MODIFY, MERGE, PUBLISH,
+// DISTRIBUTE, SUBLICENSE, AND/OR SELL COPIES OF THIS SOFTWARE, THAT ANY
+// JURIDICAL DISPUTES WHICH ARE CONCERNED TO THIS SOFTWARE OR ITS CONTENTS,
+// AGAINST US (IPA CYBERLAB, DAIYUU NOBORI, SOFTETHER VPN PROJECT OR OTHER
+// SUPPLIERS), OR ANY JURIDICAL DISPUTES AGAINST US WHICH ARE CAUSED BY ANY KIND
+// OF USING, COPYING, MODIFYING, MERGING, PUBLISHING, DISTRIBUTING, SUBLICENSING,
+// AND/OR SELLING COPIES OF THIS SOFTWARE SHALL BE REGARDED AS BE CONSTRUED AND
+// CONTROLLED BY JAPANESE LAWS, AND YOU MUST FURTHER CONSENT TO EXCLUSIVE
+// JURISDICTION AND VENUE IN THE COURTS SITTING IN TOKYO, JAPAN. YOU MUST WAIVE
+// ALL DEFENSES OF LACK OF PERSONAL JURISDICTION AND FORUM NON CONVENIENS.
+// PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
+// LAW OR COURT RULE.
+
+using System;
 using System.IO;
 using System.IO.Enumeration;
 using System.Threading;
@@ -12,244 +44,61 @@ using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.TestDev
 {
-    class Test1
+    class TestDevAppMain
     {
-        public string Str = "Hello";
-        public int X = 123;
-
-        public byte[] ByteData = "Hello".GetBytes_Ascii();
-
-        public List<string> a = new List<string>(new string[] { "a", "b", "c" });
-    }
-
-    static class MainClass
-    {
-        static object GetX(int num = 123)
-        {
-            var u = new { Str = "Hello\n\"World\n1\r\n2\r\n3", Int = num++, obj = new { Str2 = "猫", Int = num++ } };
-
-            return u;
-        }
-
-        static void TestMain()
-        {
-            TryRetBool(() => Lfs.EnableBackupPrivilege(), noDebugMessage: true);
-
-            //string longFileName = @"c:\tmp\LongTest\11111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111\33333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333\55555555556666666666555555555566666666665555555555666666666655555555556666666666555555555566666666665555555555666666666655555555556666666666555555555566666666665555555555666666666655555555556666666666555555555566666666665555555555.txt";
-
-            //while (true)
-            //{
-            //    using (var logFile = Lfs.Open(longFileName, readPartial: true, writeMode: false))
-            //    {
-            //        //Con.WriteLine($"size: {logFile.GetFileSize(true)}");
-            //        //logFile.GetStream().ReadToEnd().GetString_UTF8().Print();
-            //        logFile.SeekToEnd();
-            //        //logFile.Write("Hello2".GetBytes_Ascii());
-            //    }
-            //}
-
-            //return;
-
-
-            //string dirname = @"c:\tmp\LongTest\11111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111\33333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333\";
-
-            //Directory.GetFiles(dirname).ToList().ForEach(x => Console.WriteLine(x));
-
-            //File.Copy(@"C:\pack\Bz153\Bz.exe", Path.Combine(dirname, "test.exe"));
-
-            //return;
-
-            //var ret = FileSystem.Local.EnumDirectory(@"c:\tmp\yagi\..\yagi\", recursive: true);
-            //ret.ObjectToJson().Print();
-
-            //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
-            //Console.WriteLine(ss.ObjectToJson());
-
-            //Lfs.DirectoryWalker.WalkDirectory(@"\\pc34\d$\tmp\dirtest\", (dirList, cancel) =>
-            //{
-            //    Con.WriteLine("----------");
-            //    Con.WriteLine(dirList.ObjectToJson());
-            //    return true;
-            //},
-            //(path, exp) =>
-            //{
-            //    Con.WriteLine($"**** Error: {exp.Message}");
-            //    return true;
-            //},
-            //recursive: true
-            //);
-
-            using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true))
-            {
-                file1.GetStream().ReadToEnd().GetString_UTF8().Print();
-            }
-
-            //using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true, writeMode: true))
-            //{
-            //    file1.SeekToEnd();
-            //    file1.GetStream().Write((DateTimeOffset.Now.ToDtStr() + "\r\n").GetBytes_UTF8());
-            //}
-
-            return;
-
-
-            var f = FileSystem.Local.Create(@"c:\tmp\LongTest\11111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111222222222211111111112222222222111111111122222222221111111111\33333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333444444444433333333334444444444333333333344444444443333333333\xxx.txt");
-            f.Close();
-            return;
-            f.MicroOperationSize = 1024 * 1024;
-            CancellationTokenSource cts = new CancellationTokenSource(4000);
-
-            byte[] testData = Str.MakeCharArray('x', 100000000).GetBytes_Ascii();
-            Console.WriteLine("Test start");
-            Task t2 = TaskUtil.StartAsyncTaskAsync(async () =>
-            {
-                while (true)
-                await f.WriteAsync(testData, cts.Token);
-                Console.WriteLine("Write Completed.");
-            });
-
-            Console.ReadLine();
-
-            Console.WriteLine("Cancelling...");
-            //f.Close();
-            cts.Cancel();
-            Console.WriteLine("Canceled.");
-            //t2.Wait();
-
-
-
-            f.Write("Hello World".GetBytes_Ascii());
-
-            f.Seek(-6, SeekOrigin.Current);
-
-            Con.WriteLine(f.Position);
-
-            f.Write("123".GetBytes_Ascii());
-
-            Con.WriteLine(f.Position);
-
-            Con.WriteLine(f.Seek(0, SeekOrigin.Begin));
-
-            Memory<byte> buf = new byte[12];
-            f.Read(buf);
-
-            var st = f.GetStream();
-
-            st.Position = 0;
-            st.WriteAsync("Nekoo".GetBytes_Ascii());
-
-            f.SetFileSize(0);
-
-            st.Write("Nekoo".GetBytes_Ascii());
-
-            Console.WriteLine($"'{buf.ToArray().GetString_Ascii()}'");
-
-            //f.Close();
-
-            //f.Close();
-
-            return;
-            //DateTimeOffset.Now.ToDtStr().Print();
-
-            //return;
-
-            //JsonRpcTest.TestMain();
-
-            //List<long> o = new List<long>();
-
-            //while (true)
-            //{
-            //    long sys64 = Time.SystemTime64;
-            //    long tick64 = Time.Tick64;
-            //    DateTime dt64 = Time.Time64ToDateTime(sys64);
-
-            //    Con.WriteLine($"Now: {tick64} = {sys64} = {dt64.ToLocalTime()}");
-
-            //    o.Add(tick64);
-
-            //    ThreadObj.Sleep(500);
-
-            //    foreach (long v in o)
-            //    {
-            //        Con.WriteLine($"Hist: {v} = {Time.Tick64ToDateTime(v).ToLocalTime()}");
-            //    }
-            //}
-
-            using (AsyncTester test = new AsyncTester(true))
-            {
-                LogInfoOptions info = new LogInfoOptions()
-                {
-                    WithAppName = true,
-                    WithKind = true,
-                    WithMachineName = true,
-                    WithPriority = true,
-                };
-                Logger g = new Logger(test.SingleLady, @"C:\tmp\deltest\log", "test", "test", LogSwitchType.Hour, info, autoDeleteTotalMinSize: 0);
-                g.MaxPendingRecords = 100;
-
-                TaskUtil.StartAsyncTaskAsync(async () =>
-                {
-                    string dummy = Str.MakeCharArray('x', 10) + "\nHello World\nHello World qqq\n\n";
-                    //g.Add(new AsyncLogRecord("Hello"));
-                    int num = 0;
-                    while (test.Cancelled.IsCancellationRequested == false)
-                    {
-                        //await g.AddAsync(new LogRecord(DateTimeOffset.Now.AddHours(-1), Time.NowHighResDateTimeLocal.ToDtStr(withNanoSecs: true) + dummy), LogPendingTreatment.Wait);
-
-                        //await g.AddAsync(new LogRecord(
-
-                        Test1 t = new Test1()
-                        {
-                            Str = "Hello\n\"World",
-                            X = num++,
-                        };
-
-                        //new { str = "Hello\nWorld", int1 = 3, obj = new { str2 = "Neko", int2 = 4 } }.GetInnerStr("", newLineString: ", ").PrintLine();
-
-                        //List<object> o = new List<object>();
-                        //o.Add(new { str = "Hello World D", int1 = 3, obj = new { str2 = "NekoA", int2 = 6 } });
-                        //o.Add(new { str = "Hello World E", int1 = 4, obj = new { str2 = "NekoB", int2 = 7 } });
-                        //o.Add(new { str = "Hello World F", int1 = 5, obj = new { str2 = "NekoC", int2 = 8 } });
-                        //o.ToArray().GetInnerStr("", ", ").PrintLine();
-
-                        //t.InnerPrint();
-
-                        var u = new { Str = "Hello\n\"World", Int = num++, obj = new { Str2 = (string)null, Int = num++, Bytes = new byte[] { 1, 2, 3 }, LogPriority = LogPriority.Info } };
-
-                        await g.AddAsync(new LogRecord(u));
-
-                        await Task.Delay(1);
-                        //break;
-                    }
-                }, leakCheck: true).AddToLady(test.SingleLady);
-
-                g.DiscardPendingDataOnDispose = false;
-                test.EnterKeyPrompt();
-            }
-
-            Con.ReadLine("Quit?");
-        }
-
-        class X
-        {
-            public string XX = "xxx\nyyy";
-            public int y = 1243;
-            public object Null = null;
-        }
-
         static void Main(string[] args)
         {
-            //Dbg.SetDebugMode();
-            //Dbg.SetDebugMode(DebugMode.ReleaseNoAllLogsOutput);
+            Dbg.SetDebugMode();
 
             try
             {
-                TestMain();
+                ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
             }
             finally
             {
+                Console.WriteLine();
                 LeakChecker.Print();
+                Console.WriteLine();
             }
+        }
+
+        [ConsoleCommandMethod(
+            "IPA.Cores Library for .NET Core Test Program",
+            "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
+            "This is the TestDev Test Program.",
+            "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
+            "OUT:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+            "CMD:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+            "CSV:You can specify this option to enable CSV outputs. Results of each command will be printed in the CSV format. It is useful for processing the results by other programs."
+            )]
+        static int TestDev(ConsoleService c, string cmdName, string str)
+        {
+            c.WriteLine($"Copyright (c) 2018-{DateTimeOffset.Now.Year} IPA CyberLab. All Rights Reserved.");
+            c.WriteLine("");
+
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("IN", null, null, null, null),
+                new ConsoleParam("OUT", null, null, null, null),
+                new ConsoleParam("CMD", null, null, null, null),
+                new ConsoleParam("CSV", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string cmdline = vl["CMD"].StrValue;
+
+            ConsoleService cs = c;
+
+            while (cs.DispatchCommand(cmdline, "TestDev>", typeof(TestDevCommands), null))
+            {
+                if (Str.IsEmptyStr(cmdline) == false)
+                {
+                    break;
+                }
+            }
+
+            return cs.RetCode;
         }
     }
 }
