@@ -65,24 +65,24 @@ namespace IPA.TestDev
             //System.Security.AccessControl.FileSecurity ss = new System.Security.AccessControl.FileSecurity(Env.AppRootDir, System.Security.AccessControl.AccessControlSections.Access);
             //Console.WriteLine(ss.ObjectToJson());
 
-            Lfs.DirectoryWalker.WalkDirectory(@"\\pc34\d$\tmp\dirtest\", (dirList, cancel) =>
-            {
-                Con.WriteLine("----------");
-                Con.WriteLine(dirList.ObjectToJson());
-                return true;
-            },
-            (path, exp) =>
-            {
-                Con.WriteLine($"**** Error: {exp.Message}");
-                return true;
-            },
-            recursive: true
-            );
-
-            //using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true))
+            //Lfs.DirectoryWalker.WalkDirectory(@"\\pc34\d$\tmp\dirtest\", (dirList, cancel) =>
             //{
-            //    file1.GetStream().ReadToEnd().GetString_UTF8().Print();
-            //}
+            //    Con.WriteLine("----------");
+            //    Con.WriteLine(dirList.ObjectToJson());
+            //    return true;
+            //},
+            //(path, exp) =>
+            //{
+            //    Con.WriteLine($"**** Error: {exp.Message}");
+            //    return true;
+            //},
+            //recursive: true
+            //);
+
+            using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true))
+            {
+                file1.GetStream().ReadToEnd().GetString_UTF8().Print();
+            }
 
             //using (var file1 = Lfs.Open("d:\\tmp\\dirtest\\1\\1.txt", backupMode: true, writeMode: true))
             //{
