@@ -50,8 +50,25 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            LargeFileSystemParams p = new LargeFileSystemParams(1000000000000);
-            Con.WriteLine(p.NumDigits);
+            //LargeFileSystemParams p = new LargeFileSystemParams(1000000000000);
+            //Con.WriteLine(p.NumDigits);
+
+            using (var pool = Lfs.GetObjectPool(3000))
+            {
+                while (true)
+                {
+                    using (var fo = pool.OpenOrGet(@"c:\tmp\1.txt"))
+                    {
+                        var f = fo.Object;
+
+                        f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
+                    }
+
+                    if (Con.ReadLine("?>") == "q")
+                        break;
+                }
+            }
+
         }
     }
 }

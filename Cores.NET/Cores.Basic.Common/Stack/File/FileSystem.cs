@@ -593,7 +593,10 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
+                    if (position < 0)
+                    {
+                        position = this.InternalFileSize;
+                    }
 
                     EventListeners.Fire(this, FileObjectEventType.WriteRandom);
 
@@ -906,7 +909,7 @@ namespace IPA.Cores.Basic
         {
             name = await FileSystem.NormalizePathAsync(name, cancel);
 
-            return await FileSystem.CreateAsync(name, cancel: cancel);
+            return await FileSystem.OpenOrCreateAsync(name, cancel: cancel);
         }
 
         protected override Task<string> NormalizeNameAsync(string name, CancellationToken cancel)
@@ -1047,6 +1050,12 @@ namespace IPA.Cores.Basic
 
         public FileObjectBase Open(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenAsync(path, writeMode, readLock, operationFlags, cancel).GetResult();
+
+        public Task<FileObjectBase> OpenOrCreateAsync(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+            => CreateFileAsync(new FileParameters(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, operationFlags), cancel);
+
+        public FileObjectBase OpenOrCreate(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+            => OpenOrCreateAsync(path, noShare, operationFlags, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {

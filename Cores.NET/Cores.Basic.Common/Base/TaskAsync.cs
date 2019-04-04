@@ -3482,7 +3482,7 @@ namespace IPA.Cores.Basic
         public LazyCloser(T target, int delayTimeout)
         {
             this.Target = target;
-            this.DelayTimeout = Math.Min(delayTimeout, 0);
+            this.DelayTimeout = Math.Max(delayTimeout, 0);
         }
 
         Once ClosedFlag;

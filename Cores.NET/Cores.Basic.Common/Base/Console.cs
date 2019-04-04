@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
     // ユーザーによるキャンセル例外
     class ConsoleUserCancelException : Exception
     {
-        public ConsoleUserCancelException(string msg = null)
+        public ConsoleUserCancelException(string msg)
             : base(msg)
         {
         }
@@ -1285,12 +1285,7 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     //object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
-
-                                    Func<ConsoleService, string, string, int> proc =
-                                        (Func<ConsoleService, string, string, int>)
-                                        cmdList.Values[j].methodInfo.CreateDelegate(typeof(Func<ConsoleService, string, string, int>), srcObject);
-
-                                    object retobj = (object)proc(this, real_cmd_name, cmd_param);
+                                    object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
 
                                     if (retobj is int)
                                     {
@@ -1302,29 +1297,21 @@ namespace IPA.Cores.Basic
                                         ret = task.GetResult();
                                     }
                                 }
-                                catch (Exception ex2)
+                                catch (ConsoleUserCancelException ex)
                                 {
-                                    ex2 = ex2.InnerException;
-//                                    Exception ex2 = ex.GetBaseException();
+                                    // ユーザーによるパラメータ指定キャンセル
+                                    this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
+                                    this.write("", LogPriority.Error);
+                                    this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
+                                    return true;
+                                }
+                                catch (Exception ex2) when (execCommandOrNull.IsEmpty())
+                                {
+                                    this.write(ex2.ToString(), LogPriority.Error);
+                                    this.write("", LogPriority.Error);
 
-                                    if (ex2 is ConsoleUserCancelException)
-                                    {
-                                        // ユーザーによるパラメータ指定キャンセル
-                                        this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
-                                        this.write("", LogPriority.Error);
-                                        this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
-                                    }
-                                    else
-                                    {
-                                        this.write(ex2.ToString(), LogPriority.Error);
-                                        this.write("", LogPriority.Error);
-
-                                        this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
-                                        this.retErrorMessage = ex2.Message;
-
-                                        ex2.ReThrow();
-                                    }
-
+                                    this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
+                                    this.retErrorMessage = ex2.Message;
                                     return true;
                                 }
 

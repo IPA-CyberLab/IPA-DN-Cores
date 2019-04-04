@@ -3,9 +3,9 @@
     "TestDev": {
       "commandName": "Project"
     },
-    "Test command": {
+    "TestDev /test": {
       "commandName": "Project",
-      "commandLineArgs": "/cmd:test"
+      "commandLineArgs": "/cmd:Test"
     }
   }
 }

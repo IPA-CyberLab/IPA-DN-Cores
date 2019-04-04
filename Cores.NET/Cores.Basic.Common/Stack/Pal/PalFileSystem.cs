@@ -165,6 +165,8 @@ namespace IPA.Cores.Basic
 
             try
             {
+                Con.WriteDebug($"CreateAsync '{FileParams.Path}'");
+
                 FileOptions options = FileOptions.Asynchronous;
 
                 if (Env.IsWindows)
@@ -199,6 +201,8 @@ namespace IPA.Cores.Basic
         {
             fs.DisposeSafe();
             fs = null;
+
+            Con.WriteDebug($"CloseImplAsync '{FileParams.Path}'");
 
             await Task.CompletedTask;
         }
