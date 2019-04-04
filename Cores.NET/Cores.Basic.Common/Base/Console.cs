@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
     // ユーザーによるキャンセル例外
     class ConsoleUserCancelException : Exception
     {
-        public ConsoleUserCancelException(string msg)
+        public ConsoleUserCancelException(string msg = null)
             : base(msg)
         {
         }
@@ -1284,7 +1284,13 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
+                                    //object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
+
+                                    Func<ConsoleService, string, string, int> proc =
+                                        (Func<ConsoleService, string, string, int>)
+                                        cmdList.Values[j].methodInfo.CreateDelegate(typeof(Func<ConsoleService, string, string, int>), srcObject);
+
+                                    object retobj = (object)proc(this, real_cmd_name, cmd_param);
 
                                     if (retobj is int)
                                     {
@@ -1296,9 +1302,10 @@ namespace IPA.Cores.Basic
                                         ret = task.GetResult();
                                     }
                                 }
-                                catch (TargetInvocationException ex)
+                                catch (Exception ex2)
                                 {
-                                    Exception ex2 = ex.GetBaseException();
+                                    ex2 = ex2.InnerException;
+//                                    Exception ex2 = ex.GetBaseException();
 
                                     if (ex2 is ConsoleUserCancelException)
                                     {
@@ -1314,6 +1321,8 @@ namespace IPA.Cores.Basic
 
                                         this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                         this.retErrorMessage = ex2.Message;
+
+                                        ex2.ReThrow();
                                     }
 
                                     return true;
