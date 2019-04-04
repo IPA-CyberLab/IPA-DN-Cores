@@ -49,6 +49,9 @@ namespace IPA.TestDev
         public static void Test()
         {
             Con.WriteLine("This is a test.");
+
+            LargeFileSystemParams p = new LargeFileSystemParams(1000000000000);
+            Con.WriteLine(p.NumDigits);
         }
     }
 }

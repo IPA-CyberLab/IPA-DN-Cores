@@ -85,18 +85,18 @@ namespace IPA.Cores.Basic
 
     class FileObjectStream : FileStream
     {
-        FileObject Obj;
+        FileObjectBase Obj;
         bool DisposeObject = false;
 
         private FileObjectStream() : base((SafeFileHandle)null, FileAccess.Read) { }
 
-        private void _InternalInit(FileObject obj, bool disposeObject)
+        private void _InternalInit(FileObjectBase obj, bool disposeObject)
         {
             Obj = obj;
             DisposeObject = disposeObject;
         }
 
-        public static FileObjectStream CreateFromFileObject(FileObject obj, bool disposeObject = false)
+        public static FileObjectStream CreateFromFileObject(FileObjectBase obj, bool disposeObject = false)
         {
             FileObjectStream ret = Util.NewWithoutConstructor<FileObjectStream>();
 
@@ -301,32 +301,34 @@ namespace IPA.Cores.Basic
     {
         Read,
         Write,
+        ReadRandom,
+        WriteRandom,
         Seek,
         SetFileSize,
         Flush,
         Closed,
     }
 
-    abstract class FileObject : IDisposable
+    abstract class FileObjectBase : IDisposable, IAsyncClosable
     {
-        public FileSystem FileSystem { get; }
+        public FileSystemBase FileSystem { get; }
         public FileParameters FileParams { get; }
         public bool IsOpened => !this.ClosedFlag.IsSet;
+        public Exception LastError { get; private set; } = null;
 
         public int MicroOperationSize { get; set; } = 4096;
 
         long InternalPosition = 0;
         long InternalFileSize = 0;
-        bool SeekRequestedFlag = false;
         CancellationTokenSource CancelSource = new CancellationTokenSource();
         CancellationToken CancelToken => CancelSource.Token;
 
-        public FastEventListenerList<FileObject, FileObjectEventType> EventListeners { get; }
-            = new FastEventListenerList<FileObject, FileObjectEventType>();
+        public FastEventListenerList<FileObjectBase, FileObjectEventType> EventListeners { get; }
+            = new FastEventListenerList<FileObjectBase, FileObjectEventType>();
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
-        protected FileObject(FileSystem fileSystem, FileParameters fileParams)
+        protected FileObjectBase(FileSystemBase fileSystem, FileParameters fileParams)
         {
             this.FileSystem = fileSystem;
             this.FileParams = fileParams;
@@ -349,11 +351,13 @@ namespace IPA.Cores.Basic
 
                 if (this.InternalFileSize < 0)
                     throw new FileException(this.FileParams.Path, $"Current filesize is invalid. Current filesize: {this.InternalFileSize}.");
+
+                this.LastError = null;
             }
         }
 
-        protected abstract Task<int> ReadImplAsync(long position, bool seekRequested, Memory<byte> data, CancellationToken cancel = default);
-        protected abstract Task WriteImplAsync(long position, bool seekRequested, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        protected abstract Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default);
+        protected abstract Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
         protected abstract Task<long> GetFileSizeImplAsync(CancellationToken cancel = default);
         protected abstract Task SetFileSizeImplAsync(long size, CancellationToken cancel = default);
         protected abstract Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default);
@@ -386,159 +390,318 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                EventListeners.Fire(this, FileObjectEventType.Read);
-
-                if (data.IsEmpty) return 0;
-
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                try
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    EventListeners.Fire(this, FileObjectEventType.Read);
+
+                    if (data.IsEmpty) return 0;
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        CheckIsOpened();
-
-                        CheckAccessBit(FileAccess.Read);
-
-                        if (this.InternalFileSize < this.InternalPosition)
+                        using (await AsyncLockObj.LockWithAwait())
                         {
-                            await GetFileSizeInternalAsync(true);
+                            CheckIsOpened();
+
+                            CheckAccessBit(FileAccess.Read);
+
                             if (this.InternalFileSize < this.InternalPosition)
-                                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
-                        }
-
-                        long newPosition = this.InternalPosition + data.Length;
-                        if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
-                        {
-                            if (this.InternalFileSize < newPosition)
                             {
-                                await GetFileSizeInternalAsync(true);
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < this.InternalPosition)
+                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                            }
+
+                            long newPosition = this.InternalPosition + data.Length;
+                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                            {
                                 if (this.InternalFileSize < newPosition)
-                                    throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                {
+                                    await GetFileSizeInternalAsync(true, operationCancel);
+                                    if (this.InternalFileSize < newPosition)
+                                        throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                }
+                            }
+
+                            long originalPosition = this.InternalPosition;
+
+                            operationCancel.ThrowIfCancellationRequested();
+
+                            try
+                            {
+                                int r = await TaskUtil.DoMicroReadOperations(async (target, pos, c) =>
+                                {
+                                    return await ReadImplAsync(pos, target, c);
+                                },
+                                data, MicroOperationSize, this.InternalPosition, operationCancel);
+
+                                if (r < 0) throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r}.");
+
+                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                                    if (r != data.Length)
+                                        throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r} while {data.Length} requested.");
+
+                                this.InternalPosition += r;
+
+                                return r;
+                            }
+                            catch
+                            {
+                                this.InternalPosition = originalPosition;
+                                throw;
                             }
                         }
-
-                        long originalPosition = this.InternalPosition;
-
-                        operationCancel.ThrowIfCancellationRequested();
-
-                        try
-                        {
-                            int r = await TaskUtil.DoMicroReadOperations(async (target, pos, reqSeek, c) =>
-                            {
-                                return await ReadImplAsync(pos, reqSeek, target, c);
-                            },
-                            data, MicroOperationSize, this.InternalPosition, SeekRequestedFlag, operationCancel);
-
-                            if (r < 0) throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r}.");
-
-                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
-                                if (r != data.Length)
-                                    throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r} while {data.Length} requested.");
-
-                            this.InternalPosition += r;
-                            SeekRequestedFlag = false;
-
-                            return r;
-                        }
-                        catch
-                        {
-                            this.InternalPosition = originalPosition;
-                            throw;
-                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
                 }
             }
         }
 
         public int Read(Memory<byte> data) => ReadAsync(data).GetResult();
 
+
+        public async Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        {
+            checked
+            {
+                try
+                {
+                    if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
+                    EventListeners.Fire(this, FileObjectEventType.ReadRandom);
+
+                    if (data.IsEmpty) return 0;
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    {
+                        using (await AsyncLockObj.LockWithAwait())
+                        {
+                            CheckIsOpened();
+
+                            CheckAccessBit(FileAccess.Read);
+
+                            if (this.InternalFileSize < position)
+                            {
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < position)
+                                    throw new FileException(this.FileParams.Path, $"The random position is out of range. Position: {position}, File size: {this.InternalFileSize}.");
+                            }
+
+                            long newPosition = position + data.Length;
+                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                            {
+                                if (this.InternalFileSize < newPosition)
+                                {
+                                    await GetFileSizeInternalAsync(true, operationCancel);
+                                    if (this.InternalFileSize < newPosition)
+                                        throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                }
+                            }
+
+                            operationCancel.ThrowIfCancellationRequested();
+
+                            try
+                            {
+                                int r = await TaskUtil.DoMicroReadOperations(async (target, pos, c) =>
+                                {
+                                    return await ReadImplAsync(pos, target, c);
+                                },
+                                data, MicroOperationSize, position, operationCancel);
+
+                                if (r < 0) throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r}.");
+
+                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                                    if (r != data.Length)
+                                        throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r} while {data.Length} requested.");
+
+                                return r;
+                            }
+                            catch
+                            {
+                                throw;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
+                }
+            }
+        }
+
         public async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             checked
             {
-                EventListeners.Fire(this, FileObjectEventType.Write);
-
-                if (data.IsEmpty) return;
-
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                try
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    EventListeners.Fire(this, FileObjectEventType.Write);
+
+                    if (data.IsEmpty) return;
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        CheckIsOpened();
-
-                        CheckAccessBit(FileAccess.Write);
-
-                        if (this.InternalFileSize < this.InternalPosition)
+                        using (await AsyncLockObj.LockWithAwait())
                         {
-                            await GetFileSizeInternalAsync(true);
+                            CheckIsOpened();
+
+                            CheckAccessBit(FileAccess.Write);
+
                             if (this.InternalFileSize < this.InternalPosition)
-                                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                            {
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < this.InternalPosition)
+                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                            }
+
+                            operationCancel.ThrowIfCancellationRequested();
+
+                            await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
+                            {
+                                await WriteImplAsync(pos, target, c);
+                            },
+                            data, MicroOperationSize, this.InternalPosition, operationCancel);
+
+                            this.InternalPosition += data.Length;
+
+                            if (this.InternalFileSize < this.InternalPosition)
+                            {
+                                this.InternalFileSize = this.InternalPosition;
+                            }
+
+                            return;
                         }
-
-                        operationCancel.ThrowIfCancellationRequested();
-
-                        await TaskUtil.DoMicroWriteOperations(async (target, pos, reqSeek, c) =>
-                        {
-                            await WriteImplAsync(pos, reqSeek, target, c);
-                        },
-                        data, MicroOperationSize, this.InternalPosition, SeekRequestedFlag, operationCancel);
-
-                        this.InternalPosition += data.Length;
-                        SeekRequestedFlag = false;
-
-                        if (this.InternalFileSize < this.InternalPosition)
-                        {
-                            this.InternalFileSize = this.InternalPosition;
-                        }
-
-                        return;
                     }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
                 }
             }
         }
 
         public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel).GetResult();
 
+        public async Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            checked
+            {
+                try
+                {
+                    if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
+
+                    EventListeners.Fire(this, FileObjectEventType.WriteRandom);
+
+                    if (data.IsEmpty) return;
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    {
+                        using (await AsyncLockObj.LockWithAwait())
+                        {
+                            CheckIsOpened();
+
+                            CheckAccessBit(FileAccess.Write);
+
+                            if (position < 0)
+                                position = this.InternalFileSize;
+
+                            if (this.InternalFileSize < position)
+                            {
+                                await GetFileSizeInternalAsync(true, operationCancel);
+
+                                if (this.InternalFileSize < position)
+                                {
+                                    await SetFileSizeImplAsync(position, operationCancel);
+                                }
+                            }
+
+                            operationCancel.ThrowIfCancellationRequested();
+
+                            await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
+                            {
+                                await WriteImplAsync(pos, target, c);
+                            },
+                            data, MicroOperationSize, position, operationCancel);
+
+                            if (this.InternalFileSize < (position + data.Length))
+                            {
+                                this.InternalFileSize = (position + data.Length);
+                            }
+
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
+                }
+            }
+        }
+
+        public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => WriteRandomAsync(position, data, cancel).GetResult();
+
+        public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => this.WriteRandomAsync(-1, data, cancel);
+
+        public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => this.AppendAsync(data, cancel).GetResult();
+
         public async Task<long> SeekAsync(long offset, SeekOrigin origin, CancellationToken cancel = default)
         {
             checked
             {
-                EventListeners.Fire(this, FileObjectEventType.Seek);
-
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                try
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    EventListeners.Fire(this, FileObjectEventType.Seek);
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        CheckIsOpened();
-
-                        long newPosition = 0;
-
-                        if (origin == SeekOrigin.Begin)
-                            newPosition = offset;
-                        else if (origin == SeekOrigin.Current)
-                            newPosition = this.InternalPosition + offset;
-                        else if (origin == SeekOrigin.End)
-                            newPosition = (await GetFileSizeInternalAsync(true)) + offset;
-                        else
-                            throw new FileException(this.FileParams.Path, $"Invalid origin value: {(int)origin}");
-
-                        if (newPosition < 0)
-                            throw new FileException(this.FileParams.Path, $"newPosition < 0");
-
-                        if (this.InternalFileSize < newPosition)
+                        using (await AsyncLockObj.LockWithAwait())
                         {
-                            await GetFileSizeInternalAsync(true);
+                            CheckIsOpened();
+
+                            long newPosition = 0;
+
+                            if (origin == SeekOrigin.Begin)
+                                newPosition = offset;
+                            else if (origin == SeekOrigin.Current)
+                                newPosition = this.InternalPosition + offset;
+                            else if (origin == SeekOrigin.End)
+                                newPosition = (await GetFileSizeInternalAsync(true, operationCancel)) + offset;
+                            else
+                                throw new FileException(this.FileParams.Path, $"Invalid origin value: {(int)origin}");
+
+                            if (newPosition < 0)
+                                throw new FileException(this.FileParams.Path, $"newPosition < 0");
+
                             if (this.InternalFileSize < newPosition)
-                                throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
-                        }
+                            {
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < newPosition)
+                                    throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                            }
 
-                        if (this.InternalPosition != newPosition)
-                        {
-                            this.InternalPosition = newPosition;
-                            SeekRequestedFlag = true;
-                        }
+                            if (this.InternalPosition != newPosition)
+                            {
+                                this.InternalPosition = newPosition;
+                            }
 
-                        return this.InternalPosition;
+                            return this.InternalPosition;
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
                 }
             }
         }
@@ -556,19 +719,27 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                if (refresh == false)
-                    return this.InternalFileSize;
+                try
+                {
+                    if (refresh == false)
+                        return this.InternalFileSize;
 
-                cancel.ThrowIfCancellationRequested();
+                    cancel.ThrowIfCancellationRequested();
 
-                long r = await GetFileSizeImplAsync(cancel);
+                    long r = await GetFileSizeImplAsync(cancel);
 
-                if (r < 0)
-                    throw new FileException(this.FileParams.Path, $"GetFileSizeImplAsync returned {r}.");
+                    if (r < 0)
+                        throw new FileException(this.FileParams.Path, $"GetFileSizeImplAsync returned {r}.");
 
-                this.InternalFileSize = r;
+                    this.InternalFileSize = r;
 
-                return r;
+                    return r;
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
+                }
             }
         }
 
@@ -576,14 +747,22 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                try
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        CheckIsOpened();
+                        using (await AsyncLockObj.LockWithAwait())
+                        {
+                            CheckIsOpened();
 
-                        return await GetFileSizeInternalAsync(refresh, cancel);
+                            return await GetFileSizeInternalAsync(refresh, cancel);
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
                 }
             }
         }
@@ -592,21 +771,29 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                EventListeners.Fire(this, FileObjectEventType.SetFileSize);
-
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                try
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    EventListeners.Fire(this, FileObjectEventType.SetFileSize);
+
+                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        CheckIsOpened();
-                        CheckAccessBit(FileAccess.Write);
+                        using (await AsyncLockObj.LockWithAwait())
+                        {
+                            CheckIsOpened();
+                            CheckAccessBit(FileAccess.Write);
 
-                        operationCancel.ThrowIfCancellationRequested();
+                            operationCancel.ThrowIfCancellationRequested();
 
-                        await SetFileSizeImplAsync(size, operationCancel);
+                            await SetFileSizeImplAsync(size, operationCancel);
 
-                        this.InternalFileSize = size;
+                            this.InternalFileSize = size;
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw;
                 }
             }
         }
@@ -617,18 +804,26 @@ namespace IPA.Cores.Basic
 
         public async Task FlushAsync(CancellationToken cancel = default)
         {
-            EventListeners.Fire(this, FileObjectEventType.Flush);
-
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+            try
             {
-                using (await AsyncLockObj.LockWithAwait())
+                EventListeners.Fire(this, FileObjectEventType.Flush);
+
+                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                 {
-                    CheckIsOpened();
+                    using (await AsyncLockObj.LockWithAwait())
+                    {
+                        CheckIsOpened();
 
-                    operationCancel.ThrowIfCancellationRequested();
+                        operationCancel.ThrowIfCancellationRequested();
 
-                    await FlushImplAsync(operationCancel);
+                        await FlushImplAsync(operationCancel);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                this.LastError = ex;
+                throw;
             }
         }
 
@@ -642,6 +837,8 @@ namespace IPA.Cores.Basic
             {
                 if (ClosedFlag.IsFirstCall())
                 {
+                    this.LastError = new ApplicationException($"File '{this.FileParams.Path}' is closed.");
+
                     try
                     {
                         await CloseImplAsync();
@@ -696,18 +893,38 @@ namespace IPA.Cores.Basic
         ParentDirectory = 2,
     }
 
-    abstract class FileSystem : AsyncCleanupable
+    class FileSystemObjectPool : ObjectPoolBase<FileObjectBase>
+    {
+        public FileSystemBase FileSystem { get; }
+
+        public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, Env.FilePathStringComparer)
+        {
+            this.FileSystem = FileSystem;
+        }
+
+        protected override async Task<FileObjectBase> OpenImplAsync(string name, CancellationToken cancel)
+        {
+            name = await FileSystem.NormalizePathAsync(name, cancel);
+
+            return await FileSystem.CreateAsync(name, cancel: cancel);
+        }
+
+        protected override Task<string> NormalizeNameAsync(string name, CancellationToken cancel)
+            => FileSystem.NormalizePathAsync(name, cancel);
+    }
+
+    abstract class FileSystemBase : AsyncCleanupable
     {
         public static PalFileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
 
         public DirectoryWalker DirectoryWalker { get; }
 
         CriticalSection LockObj = new CriticalSection();
-        List<FileObject> OpenedHandleList = new List<FileObject>();
+        List<FileObjectBase> OpenedHandleList = new List<FileObjectBase>();
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public FileSystem(AsyncCleanuperLady lady) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady) : base(lady)
         {
             try
             {
@@ -725,6 +942,8 @@ namespace IPA.Cores.Basic
             if (DisposeFlag.IsSet)
                 throw new FileSystemException("The file system is already disposed.");
         }
+
+        public FileSystemObjectPool GetObjectPool(int delayTimeout) => new FileSystemObjectPool(this, delayTimeout);
 
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
@@ -746,7 +965,7 @@ namespace IPA.Cores.Basic
                     await Task.Delay(10);
                 }
 
-                FileObject[] fileHandles;
+                FileObjectBase[] fileHandles;
 
                 lock (LockObj)
                 {
@@ -763,11 +982,13 @@ namespace IPA.Cores.Basic
         }
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
-        protected abstract Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
+        protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
+            path = path.NonNullTrim();
+
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
                 using (TaskUtil.EnterCriticalCounter(CriticalCounter))
@@ -781,7 +1002,7 @@ namespace IPA.Cores.Basic
         public string NormalizePath(string path, CancellationToken cancel = default)
             => NormalizePathAsync(path, cancel).GetResult();
 
-        public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
+        public async Task<FileObjectBase> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -789,7 +1010,7 @@ namespace IPA.Cores.Basic
                 {
                     CheckNotDisposed();
 
-                    FileObject f = await CreateFileImplAsync(option, opCancel);
+                    FileObjectBase f = await CreateFileImplAsync(option, opCancel);
 
                     lock (LockObj)
                     {
@@ -803,7 +1024,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void FileClosedEvent(FileObject obj, FileObjectEventType eventType, object userState)
+        void FileClosedEvent(FileObjectBase obj, FileObjectEventType eventType, object userState)
         {
             lock (LockObj)
             {
@@ -811,20 +1032,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
+        public FileObjectBase CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).GetResult();
 
-        public Task<FileObject> CreateAsync(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObjectBase> CreateAsync(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, operationFlags), cancel);
 
-        public FileObject Create(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        public FileObjectBase Create(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateAsync(path, noShare, operationFlags, cancel).GetResult();
 
-        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObjectBase> OpenAsync(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
                 (readLock ? FileShare.None : FileShare.Read), operationFlags), cancel);
 
-        public FileObject Open(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        public FileObjectBase Open(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenAsync(path, writeMode, readLock, operationFlags, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
@@ -913,9 +1134,9 @@ namespace IPA.Cores.Basic
 
     class DirectoryWalker
     {
-        public FileSystem FileSystem { get; }
+        public FileSystemBase FileSystem { get; }
 
-        public DirectoryWalker(FileSystem fileSystem)
+        public DirectoryWalker(FileSystemBase fileSystem)
         {
             this.FileSystem = fileSystem;
         }

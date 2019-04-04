@@ -31,48 +31,67 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using System.Linq;
+using Microsoft.Win32.SafeHandles;
+using System.Buffers;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.GlobalFunctions.Basic;
 
-namespace IPA.Cores
-{
-    static class GlobalFunctions
-    {
-        public static class Basic
-        {
-            public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
-            {
-                try
-                {
-                    action();
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    if (noDebugMessage == false)
-                    {
-                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                        Dbg.WriteLine(c);
-                    }
-                    return false;
-                }
-            }
+#pragma warning disable CS0162
 
-            public static PalFileSystem Lfs => FileSystemBase.Local;
+namespace IPA.Cores.Basic
+{
+    class LargeFileSystemParams
+    {
+        public const long DefaultMaxSingleFileSize = 1000000;
+        public const long LogicalMaxSizeBase = 100000000000000; // 100TB
+
+        public long MaxSingleFileSize { get; }
+        public int NumDigits { get; }
+
+        public LargeFileSystemParams(long maxSingleFileSize = LargeFileSystemParams.DefaultMaxSingleFileSize)
+        {
+            checked
+            {
+                this.MaxSingleFileSize = Math.Max(maxSingleFileSize, 1);
+                long i = (int)(LogicalMaxSizeBase / this.MaxSingleFileSize);
+                i = Math.Max(i, 1);
+                i = (int)Math.Log10(i);
+                i++;
+                i = Math.Max(Math.Min(i, 9), 1);
+                NumDigits = (int)i;
+            }
+        }
+    }
+
+    class LargeFileSystem : FileSystemBase
+    {
+        FileSystemBase BaseFileSystem { get; }
+
+        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase baseFileSystem) : base(lady)
+        {
+            this.BaseFileSystem = baseFileSystem;
+        }
+
+        protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }
-

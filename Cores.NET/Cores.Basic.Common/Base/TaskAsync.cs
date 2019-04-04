@@ -345,6 +345,19 @@ namespace IPA.Cores.Basic
         public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = false)
         { if (yieldOnStart) await Task.Yield(); return await action().LeakCheck(!leakCheck); }
 
+
+
+        public static async Task StartSyncTaskAsync(Action<object> action, object param, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); }
+        public static async Task<T> StartSyncTaskAsync<T>(Func<object, T> action, object param, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); }
+
+        public static async Task StartAsyncTaskAsync(Func<object, Task> action, object param, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); await action(param).LeakCheck(!leakCheck); }
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = false)
+        { if (yieldOnStart) await Task.Yield(); return await action(param).LeakCheck(!leakCheck); }
+
+
         public static int GetMinTimeout(params int[] values)
         {
             long minValue = long.MaxValue;
@@ -781,7 +794,7 @@ namespace IPA.Cores.Basic
             counter);
         }
 
-        public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, bool, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, bool seekRequested, CancellationToken cancel = default)
+        public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
         {
             checked
             {
@@ -796,8 +809,7 @@ namespace IPA.Cores.Basic
                     int targetSize = Math.Min(maxSingleSize, data.Length);
                     Memory<byte> target = data.Slice(0, targetSize);
 
-                    int r = await microWriteOperation(target, currentPosition + totalSize, seekRequested, cancel);
-                    seekRequested = false;
+                    int r = await microWriteOperation(target, currentPosition + totalSize, cancel);
 
                     if (r < 0)
                         throw new ApplicationException($"microWriteOperation returned '{r}'.");
@@ -814,7 +826,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task DoMicroWriteOperations(Func<ReadOnlyMemory<byte>, long, bool, CancellationToken, Task> microReadOperation, ReadOnlyMemory<byte> data, int maxSingleSize, long currentPosition, bool seekRequested, CancellationToken cancel = default)
+        public static async Task DoMicroWriteOperations(Func<ReadOnlyMemory<byte>, long, CancellationToken, Task> microReadOperation, ReadOnlyMemory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
         {
             checked
             {
@@ -830,11 +842,9 @@ namespace IPA.Cores.Basic
                     ReadOnlyMemory<byte> target = data.Slice(0, targetSize);
                     data = data.Slice(targetSize);
 
-                    await microReadOperation(target, currentPosition + totalSize, seekRequested, cancel);
+                    await microReadOperation(target, currentPosition + totalSize, cancel);
 
                     totalSize += targetSize;
-
-                    seekRequested = false;
                 }
             }
         }
@@ -2966,6 +2976,64 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class AsyncLocalTimer
+    {
+        LocalTimer Timer = new LocalTimer(true);
+        CriticalSection LockObj = new CriticalSection();
+        public long Now => Timer.Now;
+
+        AsyncAutoResetEvent TimerChangedEvent = new AsyncAutoResetEvent();
+
+        public long AddTick(long tick)
+        {
+            long ret;
+
+            lock (LockObj)
+                ret = Timer.AddTick(tick);
+
+            TimerChangedEvent.Set();
+
+            return ret;
+        }
+
+        public long AddTimeout(int interval)
+        {
+            long ret;
+
+            lock (LockObj)
+                ret = Timer.AddTimeout(interval);
+
+            TimerChangedEvent.Set();
+
+            return ret;
+        }
+
+        public int GetNextInterval()
+        {
+            lock (LockObj)
+                return Timer.GetNextInterval();
+        }
+
+        public async Task<bool> WaitUntilNextTickAsync(CancellationToken cancel = default)
+        {
+            while (true)
+            {
+                int nextInterval = GetNextInterval();
+
+                if (nextInterval == 0)
+                    return true;
+
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), events: this.TimerChangedEvent.SingleArray(), timeout: nextInterval);
+
+                if (reason == ExceptionWhen.CancelException)
+                    return false;
+
+                if (reason == ExceptionWhen.TimeoutException)
+                    return true;
+            }
+        }
+    }
+
     public readonly struct BackgroundStateDataUpdatePolicy
     {
         public readonly int InitialPollingInterval;
@@ -3370,6 +3438,346 @@ namespace IPA.Cores.Basic
             foreach (var lady in ladyListCopy)
             {
                 lady.CleanupAsync().TryWait();
+            }
+        }
+    }
+
+    class RefCounterHolder : IDisposable
+    {
+        RefCounter Counter;
+        public RefCounterHolder(RefCounter counter)
+        {
+            Counter = counter;
+
+            Counter.InternalIncrement();
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            Counter.InternalDecrement();
+        }
+    }
+
+    interface IAsyncClosable : IDisposable
+    {
+        Task CloseAsync();
+        Exception LastError { get; }
+    }
+
+    class LazyCloser<T> : IDisposable where T: IAsyncClosable
+    {
+        public int DelayTimeout { get; }
+        public T Target { get; }
+
+        AsyncLock LockObj = new AsyncLock();
+        Task CurrentTask = null;
+        long CurrentTimeoutTick = 0;
+        AsyncLocalTimer Timer = new AsyncLocalTimer();
+        CancellationTokenSource CancelSource = new CancellationTokenSource();
+
+        public LazyCloser(T target, int delayTimeout)
+        {
+            this.Target = target;
+            this.DelayTimeout = Math.Min(delayTimeout, 0);
+        }
+
+        Once ClosedFlag;
+
+        public bool IsClosed => ClosedFlag.IsSet;
+
+        public async Task DoStartAsync()
+        {
+            using (await LockObj.LockWithAwait())
+            {
+                CurrentTimeoutTick = Timer.AddTimeout(this.DelayTimeout);
+
+                if (CurrentTask == null)
+                {
+                    CurrentTask = TaskUtil.StartAsyncTaskAsync(TaskProc, true, true);
+                }
+            }
+        }
+
+        public void DoStart() => DoStartAsync().GetResult();
+
+        public async Task<bool> TryProlongAndCheckAliveAsync()
+        {
+            if (CancelSource.Token.IsCancellationRequested)
+                return false;
+
+            using (await LockObj.LockWithAwait())
+            {
+                CurrentTimeoutTick = 0;
+            }
+
+            if (CancelSource.Token.IsCancellationRequested)
+                return false;
+
+            if (this.Target.LastError != null)
+            {
+                await this.Target.CloseAsync();
+                return false;
+            }
+
+            return !ClosedFlag.IsSet;
+        }
+
+        async Task TaskProc()
+        {
+            L_START:
+            bool r = await Timer.WaitUntilNextTickAsync(CancelSource.Token);
+            if (r == false)
+            {
+                // cancel
+                goto L_DISPOSE;
+            }
+
+            using (await LockObj.LockWithAwait())
+            {
+                if (CurrentTimeoutTick == 0)
+                {
+                    this.CurrentTask = null;
+                    return;
+                }
+
+                long now = Timer.Now;
+                if (now < CurrentTimeoutTick)
+                {
+                    Timer.AddTick(CurrentTimeoutTick);
+                    goto L_START;
+                }
+            }
+
+            L_DISPOSE:
+
+            using (await LockObj.LockWithAwait())
+            {
+                if (r && CurrentTimeoutTick == 0)
+                {
+                    this.CurrentTask = null;
+                    return;
+                }
+
+                if (ClosedFlag.IsFirstCall())
+                {
+                    try
+                    {
+                        await this.Target.CloseAsync();
+                    }
+                    finally
+                    {
+                        this.Target.DisposeSafe();
+                    }
+                }
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            CancelSource.Cancel();
+            this.Target.DisposeSafe();
+        }
+    }
+
+    class SharedLazyCloseableObject<T> : IDisposable where T : IAsyncClosable
+    {
+        public RefCounter Counter { get; } = new RefCounter();
+        public string Name { get; }
+
+        LazyCloser<T> Closer;
+
+        public SharedLazyCloseableObject(string name, T target, int delayTimeout)
+        {
+            this.Name = name;
+
+            this.Closer = new LazyCloser<T>(target, delayTimeout);
+
+            this.Counter.EventListener.RegisterCallback((caller, eventType, state) =>
+            {
+                switch (eventType)
+                {
+                    case RefCounterEventType.Zero:
+                        this.Closer.DoStart();
+                        break;
+                }
+            });
+        }
+
+        public async Task<RefObjectHandle<T>> TryGetIfAlive()
+        {
+            RefObjectHandle<T> ret = new RefObjectHandle<T>(this.Counter, this.Closer.Target);
+            try
+            {
+                if (await this.Closer.TryProlongAndCheckAliveAsync())
+                {
+                    return ret;
+                }
+
+                throw new ApplicationException();
+            }
+            catch
+            {
+                ret.Dispose();
+                return null;
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.Closer.DisposeSafe();
+        }
+    }
+
+    enum RefCounterEventType
+    {
+        Increment,
+        Decrement,
+        Zero,
+    }
+
+    class RefCounter
+    {
+        int counter = 0;
+
+        public int Counter => counter;
+        public bool IsZero => (counter == 0);
+
+        CriticalSection LockObj = new CriticalSection();
+
+        public FastEventListenerList<RefCounter, RefCounterEventType> EventListener = new FastEventListenerList<RefCounter, RefCounterEventType>();
+
+        internal void InternalIncrement()
+        {
+            lock (LockObj)
+            {
+                Interlocked.Increment(ref counter);
+                EventListener.Fire(this, RefCounterEventType.Increment);
+            }
+        }
+
+        internal void InternalDecrement()
+        {
+            lock (LockObj)
+            {
+                int r = Interlocked.Decrement(ref counter);
+                Debug.Assert(r >= 0);
+                EventListener.Fire(this, RefCounterEventType.Decrement);
+
+                if (r == 0)
+                    EventListener.Fire(this, RefCounterEventType.Zero);
+            }
+        }
+
+        public RefCounterHolder AddRef() => new RefCounterHolder(this);
+    }
+
+    class RefObjectHandle<T> : IDisposable
+    {
+        public T Object { get; }
+        readonly RefCounterHolder CounterHolder;
+
+        public RefObjectHandle(RefCounter counter, T obj)
+        {
+            this.Object = obj;
+            this.CounterHolder = counter.AddRef();
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.CounterHolder.Dispose();
+        }
+    }
+
+    abstract class ObjectPoolBase<T> : IDisposable
+        where T: IAsyncClosable
+    {
+        readonly Dictionary<string, SharedLazyCloseableObject<T>> ObjectList;
+        readonly AsyncLock LockAsyncObj = new AsyncLock();
+        readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
+
+        public int DelayTimeout { get; }
+
+        public ObjectPoolBase(int delayTimeout, IEqualityComparer<string> comparer)
+        {
+            this.DelayTimeout = Math.Max(delayTimeout, 0);
+            ObjectList = new Dictionary<string, SharedLazyCloseableObject<T>>(comparer);
+        }
+
+        protected abstract Task<T> OpenImplAsync(string name, CancellationToken cancel);
+        protected abstract Task<string> NormalizeNameAsync(string name, CancellationToken cancel);
+
+        public async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
+            {
+                name = await NormalizeNameAsync(name, cancelOp);
+
+                int numRetry = 0;
+                if (this.DisposeFlag.IsSet)
+                    throw new ObjectDisposedException($"ObjectPoolBase<T>");
+
+                using (await LockAsyncObj.LockWithAwait())
+                {
+                    L_RETRY:
+
+                    cancelOp.ThrowIfCancellationRequested();
+
+                    if (this.DisposeFlag.IsSet)
+                        throw new ObjectDisposedException($"ObjectPoolBase<T>");
+
+                    if (ObjectList.TryGetValue(name, out SharedLazyCloseableObject<T> obj) == false)
+                    {
+                        T t = await OpenImplAsync(name, cancelOp);
+                        obj = new SharedLazyCloseableObject<T>(name, t, this.DelayTimeout);
+                        ObjectList.Add(name, obj);
+                    }
+
+                    RefObjectHandle<T> ret = await obj.TryGetIfAlive();
+                    if (ret == null)
+                    {
+                        ObjectList.Remove(name);
+                        numRetry++;
+                        if (numRetry >= 100)
+                            throw new ApplicationException("numRetry >= 100");
+                        goto L_RETRY;
+                    }
+
+                    return ret;
+                }
+            }
+        }
+
+        public RefObjectHandle<T> OpenOrGet(string name)
+            => OpenOrGetAsync(name).GetResult();
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.CancelSource.Cancel();
+
+            using (LockAsyncObj.LockLegacy())
+            {
+                foreach (SharedLazyCloseableObject<T> obj in this.ObjectList.Values)
+                {
+                    obj.DisposeSafe();
+                }
+                this.ObjectList.Clear();
             }
         }
     }

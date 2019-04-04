@@ -41,6 +41,7 @@ using System.Text;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -50,13 +51,13 @@ using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class PalFileSystem : FileSystem
+    class PalFileSystem : FileSystemBase
     {
         public PalFileSystem(AsyncCleanuperLady lady) : base(lady)
         {
         }
 
-        protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
+        protected override Task<FileObjectBase> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
             => PalFileObject.CreateFileAsync(this, fileParams, cancel);
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
@@ -139,13 +140,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalFileObject : FileObject
+    class PalFileObject : FileObjectBase
     {
-        protected PalFileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+        protected PalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         FileStream fs;
 
-        public static async Task<FileObject> CreateFileAsync(FileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        long CurrentPosition;
+
+        public static async Task<FileObjectBase> CreateFileAsync(FileSystemBase fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -180,11 +183,14 @@ namespace IPA.Cores.Basic
                     fs = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
                 }
 
+                this.CurrentPosition = fs.Position;
+
                 await base.CreateAsync(cancel);
             }
             catch
             {
                 fs.DisposeSafe();
+                fs = null;
                 throw;
             }
         }
@@ -200,7 +206,9 @@ namespace IPA.Cores.Basic
         protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
-            return fs.Position;
+            long ret = fs.Position;
+            Debug.Assert(this.CurrentPosition == ret);
+            return ret;
         }
 
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
@@ -219,20 +227,41 @@ namespace IPA.Cores.Basic
             await fs.FlushAsync(cancel);
         }
 
-        protected override async Task<int> ReadImplAsync(long position, bool seekRequested, Memory<byte> data, CancellationToken cancel = default)
+        protected override async Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
         {
-            if (seekRequested)
-                fs.Seek(position, SeekOrigin.Begin);
+            checked
+            {
+                if (this.CurrentPosition != position)
+                {
+                    fs.Seek(position, SeekOrigin.Begin);
+                    this.CurrentPosition = position;
+                }
 
-            return await fs.ReadAsync(data, cancel);
+                int ret = await fs.ReadAsync(data, cancel);
+
+                if (ret >= 1)
+                {
+                    this.CurrentPosition += ret;
+                }
+
+                return ret;
+            }
         }
 
-        protected override async Task WriteImplAsync(long position, bool seekRequested, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
-            if (seekRequested)
-                fs.Seek(position, SeekOrigin.Begin);
+            checked
+            {
+                if (this.CurrentPosition != position)
+                {
+                    fs.Seek(position, SeekOrigin.Begin);
+                    this.CurrentPosition = position;
+                }
 
-            await fs.WriteAsync(data, cancel);
+                await fs.WriteAsync(data, cancel);
+
+                this.CurrentPosition += data.Length;
+            }
         }
     }
 

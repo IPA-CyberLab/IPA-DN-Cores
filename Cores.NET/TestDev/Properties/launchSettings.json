@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "TestDev": {
+      "commandName": "Project"
+    },
+    "Test command": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:test"
+    }
+  }
+}

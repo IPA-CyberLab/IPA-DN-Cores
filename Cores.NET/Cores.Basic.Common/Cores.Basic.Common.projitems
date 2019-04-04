@@ -62,6 +62,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastPrimitives.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\LargeFile.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalNetwork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalWin32FileInternal.cs" />

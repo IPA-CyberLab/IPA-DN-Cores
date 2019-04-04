@@ -639,16 +639,21 @@ namespace IPA.Cores.Basic
 
     class StrEqualityComparer : IEqualityComparer<string>
     {
-        public bool CaseSensitive { get; }
+        public StringComparison Comparison;
 
         public StrEqualityComparer(bool caseSensitive = false)
         {
-            this.CaseSensitive = caseSensitive;
+            this.Comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        }
+
+        public StrEqualityComparer(StringComparison comparison)
+        {
+            this.Comparison = comparison;
         }
 
         public bool Equals(string x, string y)
         {
-            return x.Equals(y, CaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
+            return x.Equals(y, this.Comparison);
         }
 
         public int GetHashCode(string obj)

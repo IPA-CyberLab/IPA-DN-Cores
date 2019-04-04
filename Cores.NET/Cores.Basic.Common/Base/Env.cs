@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -125,6 +126,8 @@ namespace IPA.Cores.Basic
         public static Assembly ExeAssembly { get; }
         public static string ExeAssemblySimpleName { get; }
         public static string ExeAssemblyFullName { get; }
+        public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
+        public static IEqualityComparer<string> FilePathStringComparer { get; }
 
         static IO lockFile;
 
@@ -254,6 +257,7 @@ namespace IPA.Cores.Basic
                 }
                 WinTempDir = TempDir;
             }
+            FilePathStringComparer = new StrEqualityComparer(!Env.IgnoreCaseInFileSystem);
             ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
