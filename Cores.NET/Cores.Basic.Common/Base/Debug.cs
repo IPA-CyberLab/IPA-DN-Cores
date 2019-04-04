@@ -216,8 +216,25 @@ namespace IPA.Cores.Basic
         static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull = false, bool escapeHtml = false,
             int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false);
 
+        class ExceptionWrapper
+        {
+            public string ExceptionName { get; }
+            public Exception Exception { get; }
+
+            public ExceptionWrapper(Exception ex)
+            {
+                this.ExceptionName = ex.GetType().Name;
+                this.Exception = ex;
+            }
+        }
+
         public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
         {
+            if (obj is Exception ex)
+            {
+                obj = new ExceptionWrapper(ex);
+            }
+
             try
             {
                 if (jsonIfPossible)

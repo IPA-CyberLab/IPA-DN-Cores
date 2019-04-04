@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
 
     class FileParameters
     {
-        public string Path { get; }
+        public string Path { get; private set; }
         public FileMode Mode { get; }
         public FileShare Share { get; }
         public FileAccess Access { get; }
@@ -73,6 +73,15 @@ namespace IPA.Cores.Basic
             this.Access = access;
             this.OperationFlags = operationFlags;
         }
+
+        public async Task NormalizePathAsync(FileSystemBase fileSystem, CancellationToken cancel = default)
+        {
+            string ret = await fileSystem.NormalizePathAsync(this.Path, cancel);
+            this.Path = ret;
+        }
+
+        public void NormalizePath(FileSystemBase fileSystem, CancellationToken cancel = default)
+            => NormalizePathAsync(fileSystem, cancel).GetResult();
     }
 
     [Flags]
@@ -81,6 +90,8 @@ namespace IPA.Cores.Basic
         None = 0,
         PartialReadError = 1,
         BackupMode = 2,
+        AutoCreateDirectoryOnFileCreation = 4,
+        SetCompressionFlagOnDirectory = 8,
     }
 
     class FileObjectStream : FileStream
@@ -900,7 +911,7 @@ namespace IPA.Cores.Basic
     {
         public FileSystemBase FileSystem { get; }
 
-        public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, Env.FilePathStringComparer)
+        public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, new StrComparer(FileSystem.Metrics.PathStringComparison))
         {
             this.FileSystem = FileSystem;
         }
@@ -916,21 +927,223 @@ namespace IPA.Cores.Basic
             => FileSystem.NormalizePathAsync(name, cancel);
     }
 
+    enum FileSystemStyle
+    {
+        Windows,
+        Linux,
+        Mac,
+    }
+
+    class FileSystemMetrics
+    {
+        public FileSystemStyle Style { get; }
+        public string DirectorySeparator { get; }
+        public string[] AltDirectorySeparators { get; }
+        public StringComparison PathStringComparison { get; }
+
+        public FileSystemMetrics() : this(Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux)) { }
+
+        public FileSystemMetrics(FileSystemStyle style)
+        {
+            this.Style = style;
+
+            switch (this.Style)
+            {
+                case FileSystemStyle.Windows:
+                    this.DirectorySeparator = @"\";
+                    this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
+                    break;
+
+                case FileSystemStyle.Mac:
+                    this.DirectorySeparator = "/";
+                    this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
+                    break;
+
+                default:
+                    this.DirectorySeparator = "/";
+                    this.PathStringComparison = StringComparison.Ordinal;
+                    break;
+            }
+
+            this.AltDirectorySeparators = new string[] { @"\", "/" };
+        }
+
+        public string RemoveLastSeparatorChar(string path)
+        {
+            path = path.NonNull();
+
+            if (path.All(c => AltDirectorySeparators.Where(x => x[0] == c).Any()))
+            {
+                return path;
+            }
+
+            if (path.Length == 3 &&
+                ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
+                path[1] == ':' &&
+                AltDirectorySeparators.Where(x => x[0] == path[2]).Any())
+            {
+                return path;
+            }
+
+            while (path.Length >= 1)
+            {
+                char c = path[path.Length - 1];
+                if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                {
+                    path = path.Substring(0, path.Length - 1);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return path;
+        }
+
+        public string GetDirectoryName(string path)
+        {
+            SepareteDirectoryAndFileName(path, out string dirPath, out _);
+            if (dirPath.IsEmpty())
+            {
+                throw new ArgumentException($"The path '{path}' contains no directory.");
+            }
+            return dirPath;
+        }
+
+        public string GetFileName(string path)
+        {
+            SepareteDirectoryAndFileName(path, out _, out string fileName);
+            if (fileName.IsEmpty())
+            {
+                throw new ArgumentException($"The path '{path}' contains no directory.");
+            }
+            return fileName;
+        }
+
+        public string CombinePath(string path1, string path2)
+        {
+            path1 = path1.NonNull();
+            path2 = path2.NonNull();
+
+            if (path1.IsEmpty())
+                return path2;
+
+            if (path2.IsEmpty())
+                return path1;
+
+            if (path2.Length >= 1)
+            {
+                if (AltDirectorySeparators.Where(x => x[0] == path2[0]).Any())
+                    return path2;
+            }
+
+            path1 = RemoveLastSeparatorChar(path1);
+
+            string sepStr = this.DirectorySeparator;
+            if (path1.Length >= 1 && AltDirectorySeparators.Where(x => x[0] == path1[path1.Length - 1]).Any())
+            {
+                sepStr = "";
+            }
+
+            return path1 + sepStr + path2;
+        }
+
+        public void SepareteDirectoryAndFileName(string path, out string dirPath, out string fileName)
+        {
+            if (path.IsEmpty())
+                throw new ArgumentNullException("path");
+
+            path = path.NonNull();
+
+            int i = 0;
+
+            // Skip head separators (e.g. /usr/local/ or \\server\share\)
+            for (int j = 0; j < path.Length; j++)
+            {
+                char c = path[j];
+
+                if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                {
+                    i = j;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (path.StartsWith(@"\\") || path.StartsWith(@"//"))
+            {
+                // Windows UNC Path
+                for (int j = 2; j < path.Length; j++)
+                {
+                    char c = path[j];
+
+                    if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        i = j;
+                    }
+                }
+            }
+
+            int lastMatch = -1;
+            while (true)
+            {
+                i = path.FindStringsMulti(i, this.PathStringComparison, out int foundKeyIndex, this.AltDirectorySeparators);
+                if (i == -1)
+                {
+                    break;
+                }
+                else
+                {
+                    lastMatch = i;
+                    i++;
+                }
+            }
+
+            if (lastMatch == -1)
+            {
+                if (path.Any(c => AltDirectorySeparators.Where(x => x[0] == c).Any()))
+                {
+                    dirPath = RemoveLastSeparatorChar(path);
+                    fileName = "";
+                }
+                else
+                {
+                    dirPath = "";
+                    fileName = path;
+                }
+            }
+            else
+            {
+                dirPath = RemoveLastSeparatorChar(path.Substring(0, lastMatch + 1));
+                fileName = path.Substring(lastMatch + 1);
+            }
+        }
+    }
+
     abstract class FileSystemBase : AsyncCleanupable
     {
         public static PalFileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
 
         public DirectoryWalker DirectoryWalker { get; }
+        public FileSystemMetrics Metrics { get; }
 
         CriticalSection LockObj = new CriticalSection();
         List<FileObjectBase> OpenedHandleList = new List<FileObjectBase>();
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public FileSystemBase(AsyncCleanuperLady lady) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady, FileSystemMetrics fileSystemMetrics) : base(lady)
         {
             try
             {
+                this.Metrics = fileSystemMetrics;
                 DirectoryWalker = new DirectoryWalker(this);
             }
             catch
@@ -987,10 +1200,11 @@ namespace IPA.Cores.Basic
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
+        protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
-            path = path.NonNullTrim();
+            path = path.NonNull();
 
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1012,6 +1226,8 @@ namespace IPA.Cores.Basic
                 using (TaskUtil.EnterCriticalCounter(CriticalCounter))
                 {
                     CheckNotDisposed();
+
+                    await option.NormalizePathAsync(this, opCancel);
 
                     FileObjectBase f = await CreateFileImplAsync(option, opCancel);
 
@@ -1056,6 +1272,24 @@ namespace IPA.Cores.Basic
 
         public FileObjectBase OpenOrCreate(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, operationFlags, cancel).GetResult();
+
+        public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    path = await NormalizePathAsync(path, opCancel);
+
+                    await CreateDirectoryImplAsync(path, flags, opCancel);
+                }
+            }
+        }
+
+        public void CreateDirectory(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => CreateDirectoryAsync(path, flags, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {
@@ -1115,6 +1349,8 @@ namespace IPA.Cores.Basic
                 CheckNotDisposed();
 
                 opCancel.ThrowIfCancellationRequested();
+
+                directoryPath = await NormalizePathAsync(directoryPath, opCancel);
 
                 List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 

@@ -50,25 +50,33 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            //LargeFileSystemParams p = new LargeFileSystemParams(1000000000000);
-            //Con.WriteLine(p.NumDigits);
-
-            using (var pool = Lfs.GetObjectPool(3000))
+            while (true)
             {
-                while (true)
+                string s = Con.ReadLine("Path>");
+                try
                 {
-                    using (var fo = pool.OpenOrGet(@"c:\tmp\1.txt"))
-                    {
-                        var f = fo.Object;
-
-                        f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
-                    }
-
-                    if (Con.ReadLine("?>") == "q")
-                        break;
+                    Env.FileSystemMetrics.SepareteDirectoryAndFileName(s, out string s1, out string s2);
+                    Con.WriteLine(new { s1 = s1, s2 = s2, combined = Env.FileSystemMetrics.CombinePath(s1, s2) });
+                    Con.WriteLine();
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError(ex);
                 }
             }
 
+            AsyncCleanuperLady lady = new AsyncCleanuperLady();
+            try
+            {
+                LargeFileSystemParams p = new LargeFileSystemParams(1000, 10000000);
+                LargeFileSystem lfs = new LargeFileSystem(lady, Lfs, p);
+                LargeFileSystem.ParsedPath parse = new LargeFileSystem.ParsedPath(lfs, @"c:\tmp\large\1~99999.tar.gz");
+                Con.WriteLine(parse.ObjectToJson());
+            }
+            finally
+            {
+                lady.CleanupAsync().GetResult();
+            }
         }
     }
 }

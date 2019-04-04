@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
 {
     class PalFileSystem : FileSystemBase
     {
-        public PalFileSystem(AsyncCleanuperLady lady) : base(lady)
+        public PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.FileSystemMetrics)
         {
         }
 
@@ -85,6 +85,19 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
 
             return o.ToArray();
+        }
+
+        protected override async Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            if (Directory.Exists(directoryPath) == false)
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            if (flags.Bit(FileOperationFlags.SetCompressionFlagOnDirectory))
+                Win32FolderCompression.SetFolderCompression(directoryPath, true);
+
+            await Task.CompletedTask;
         }
 
         public static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
@@ -144,11 +157,11 @@ namespace IPA.Cores.Basic
     {
         protected PalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
-        FileStream fs;
+        FileStream fileStream;
 
         long CurrentPosition;
 
-        public static async Task<FileObjectBase> CreateFileAsync(FileSystemBase fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        public static async Task<FileObjectBase> CreateFileAsync(PalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -177,30 +190,30 @@ namespace IPA.Cores.Basic
                 if ((options & (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS) != 0)
                 {
                     // Use our private FileStream implementation
-                    fs = PalWin32FileStream.Create(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
+                    fileStream = PalWin32FileStream.Create(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
                 }
                 else
                 {
                     // Use normal FileStream
-                    fs = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+                    fileStream = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
                 }
 
-                this.CurrentPosition = fs.Position;
+                this.CurrentPosition = fileStream.Position;
 
                 await base.CreateAsync(cancel);
             }
             catch
             {
-                fs.DisposeSafe();
-                fs = null;
+                fileStream.DisposeSafe();
+                fileStream = null;
                 throw;
             }
         }
 
         protected override async Task CloseImplAsync()
         {
-            fs.DisposeSafe();
-            fs = null;
+            fileStream.DisposeSafe();
+            fileStream = null;
 
             Con.WriteDebug($"CloseImplAsync '{FileParams.Path}'");
 
@@ -210,7 +223,7 @@ namespace IPA.Cores.Basic
         protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
-            long ret = fs.Position;
+            long ret = fileStream.Position;
             Debug.Assert(this.CurrentPosition == ret);
             return ret;
         }
@@ -218,17 +231,17 @@ namespace IPA.Cores.Basic
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
-            return fs.Length;
+            return fileStream.Length;
         }
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            fs.SetLength(size);
+            fileStream.SetLength(size);
             await Task.CompletedTask;
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            await fs.FlushAsync(cancel);
+            await fileStream.FlushAsync(cancel);
         }
 
         protected override async Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
@@ -237,11 +250,11 @@ namespace IPA.Cores.Basic
             {
                 if (this.CurrentPosition != position)
                 {
-                    fs.Seek(position, SeekOrigin.Begin);
+                    fileStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
 
-                int ret = await fs.ReadAsync(data, cancel);
+                int ret = await fileStream.ReadAsync(data, cancel);
 
                 if (ret >= 1)
                 {
@@ -258,11 +271,11 @@ namespace IPA.Cores.Basic
             {
                 if (this.CurrentPosition != position)
                 {
-                    fs.Seek(position, SeekOrigin.Begin);
+                    fileStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
 
-                await fs.WriteAsync(data, cancel);
+                await fileStream.WriteAsync(data, cancel);
 
                 this.CurrentPosition += data.Length;
             }

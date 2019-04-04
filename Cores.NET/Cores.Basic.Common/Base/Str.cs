@@ -637,46 +637,31 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class StrEqualityComparer : IEqualityComparer<string>
+    class StrComparer : IEqualityComparer<string>, IComparer<string>
     {
-        public StringComparison Comparison;
+        public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(true);
+        public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(false);
 
-        public StrEqualityComparer(bool caseSensitive = false)
+        public StringComparison Comparison { get; }
+
+        public StrComparer(bool caseSensitive = false)
         {
             this.Comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         }
 
-        public StrEqualityComparer(StringComparison comparison)
+        public StrComparer(StringComparison comparison)
         {
             this.Comparison = comparison;
         }
 
+        public int Compare(string x, string y)
+            => string.Compare(x, y, this.Comparison);
+
         public bool Equals(string x, string y)
-        {
-            return x.Equals(y, this.Comparison);
-        }
+            => x.Equals(y, this.Comparison);
 
         public int GetHashCode(string obj)
-        {
-            return obj.GetHashCode();
-        }
-    }
-
-
-    // 文字列比較インターフェイス
-    class StrComparer : IComparer<string>
-    {
-        public bool CaseSensitive { get; }
-
-        public StrComparer(bool caseSensitive = false)
-        {
-            this.CaseSensitive = caseSensitive;
-        }
-
-        public int Compare(string x, string y)
-        {
-            return string.Compare(x, y, !CaseSensitive);
-        }
+            => obj.GetHashCode();
     }
 
     delegate bool RemoveStringFunction(string str);

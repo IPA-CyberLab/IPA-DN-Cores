@@ -487,7 +487,7 @@ namespace IPA.Cores.Basic
             this.Description = description;
             this.ArgsHelp = argsHelp;
             this.BodyHelp = bodyHelp;
-            this.ParamHelp = new SortedList<string, string>(new StrComparer(false));
+            this.ParamHelp = new SortedList<string, string>(StrComparer.IgnoreCaseComparer);
 
             foreach (string s in paramHelp)
             {
@@ -1297,7 +1297,7 @@ namespace IPA.Cores.Basic
                                         ret = task.GetResult();
                                     }
                                 }
-                                catch (ConsoleUserCancelException ex)
+                                catch (ConsoleUserCancelException)
                                 {
                                     // ユーザーによるパラメータ指定キャンセル
                                     this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
@@ -1345,7 +1345,7 @@ namespace IPA.Cores.Basic
         // コマンド名の一覧の取得
         public static SortedList<string, ConsoleCommandMethod> GetCommandList(Type commandClass)
         {
-            SortedList<string, ConsoleCommandMethod> cmdList = new SortedList<string, ConsoleCommandMethod>(new StrComparer(false));
+            SortedList<string, ConsoleCommandMethod> cmdList = new SortedList<string, ConsoleCommandMethod>(StrComparer.IgnoreCaseComparer);
 
             // コマンド名の一覧の取得
             BindingFlags[] searchFlags =
@@ -1956,7 +1956,7 @@ namespace IPA.Cores.Basic
                 name = null;
             }
 
-            o = new SortedList<string, int>(new StrComparer(false));
+            o = new SortedList<string, int>(StrComparer.IgnoreCaseComparer);
 
             tmp = str.Trim();
 

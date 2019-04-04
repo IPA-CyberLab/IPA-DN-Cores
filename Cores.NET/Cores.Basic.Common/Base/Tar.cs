@@ -256,7 +256,7 @@ namespace IPA.Cores.Basic
         public TarPacker(Encoding encoding)
         {
             fifo = new Fifo();
-            dirList = new Dictionary<string, int>(new StrEqualityComparer(true));
+            dirList = new Dictionary<string, int>(StrComparer.SensitiveCaseComparer);
             this.encoding = encoding;
         }
 

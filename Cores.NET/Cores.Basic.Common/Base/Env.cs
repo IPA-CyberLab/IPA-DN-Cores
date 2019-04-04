@@ -127,7 +127,8 @@ namespace IPA.Cores.Basic
         public static string ExeAssemblySimpleName { get; }
         public static string ExeAssemblyFullName { get; }
         public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
-        public static IEqualityComparer<string> FilePathStringComparer { get; }
+        public static StrComparer FilePathStringComparer { get; }
+        public static FileSystemMetrics FileSystemMetrics { get; }
 
         static IO lockFile;
 
@@ -257,7 +258,8 @@ namespace IPA.Cores.Basic
                 }
                 WinTempDir = TempDir;
             }
-            FilePathStringComparer = new StrEqualityComparer(!Env.IgnoreCaseInFileSystem);
+            FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
+            FileSystemMetrics = new FileSystemMetrics();
             ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
