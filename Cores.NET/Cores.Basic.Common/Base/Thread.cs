@@ -609,6 +609,7 @@ namespace IPA.Cores.Basic
     static class Tick64
     {
         public static long Value => FastTick64.Now;
+        public static long Now => FastTick64.Now;
 
         public static uint ValueUInt32
         {

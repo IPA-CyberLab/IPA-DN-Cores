@@ -55,15 +55,20 @@ namespace IPA.Cores.Basic
             public long LogicalPosition { get; }
             public int PhysicalFileNumber { get; }
             public long PhysicalPosition { get; }
+            public long PhysicalLength { get; }
+
+            readonly LargeFileObject Lfo;
 
             public Cursor(LargeFileObject o, long logicalPosision)
             {
                 checked
                 {
+                    Lfo = o;
+
                     if (logicalPosision < 0)
                         throw new ArgumentOutOfRangeException("logicalPosision < 0");
 
-                    var p = o.LargeFileSystem.Params;
+                    var p = Lfo.LargeFileSystem.Params;
                     if (logicalPosision > p.MaxLogicalFileSize)
                         throw new ArgumentOutOfRangeException("logicalPosision > MaxLogicalFileSize");
 
@@ -74,20 +79,27 @@ namespace IPA.Cores.Basic
                         throw new ArgumentOutOfRangeException($"this.PhysicalFileNumber ({this.PhysicalFileNumber})> p.MaxFileNumber ({p.MaxFileNumber})");
 
                     this.PhysicalPosition = this.LogicalPosition % p.MaxSinglePhysicalFileSize;
+                    this.PhysicalLength = p.MaxSinglePhysicalFileSize - this.PhysicalPosition;
                 }
+            }
+
+            public LargeFileSystem.ParsedPath GetParsedPath()
+            {
+                return new LargeFileSystem.ParsedPath(Lfo.LargeFileSystem, Lfo.FileParams.Path, this.PhysicalFileNumber);
             }
         }
 
         readonly LargeFileSystem LargeFileSystem;
-        readonly FileSystemBase BaseFileSystem;
+        readonly FileSystemBase UnderlayFileSystem;
         readonly LargeFileSystem.ParsedPath[] InitialRelatedFiles;
 
         long CurrentFileSize;
+        long CurrentPosition;
 
         protected LargeFileObject(FileSystemBase fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles) : base(fileSystem, fileParams)
         {
             this.LargeFileSystem = (LargeFileSystem)fileSystem;
-            this.BaseFileSystem = this.LargeFileSystem.BaseFileSystem;
+            this.UnderlayFileSystem = this.LargeFileSystem.UnderlayFileSystem;
             this.InitialRelatedFiles = relatedFiles;
         }
 
@@ -108,27 +120,55 @@ namespace IPA.Cores.Basic
 
             try
             {
-                var maxParsedFile = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
+                var lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
-                if (maxParsedFile == null)
+                if (lastFileParsed == null)
                 {
                     // New file
                     CurrentFileSize = 0;
+
+                    if (FileParams.Mode == FileMode.Open || FileParams.Mode == FileMode.Truncate)
+                    {
+                        throw new IOException($"The file '{FileParams.Path}' not found.");
+                    }
                 }
                 else
                 {
                     // File exists
+                    if (FileParams.Mode == FileMode.CreateNew)
+                    {
+                        throw new IOException($"The file '{FileParams.Path}' already exists.");
+                    }
+
                     checked
                     {
-                        long sizeOfMaxFile = (await BaseFileSystem.GetFileMetadataAsync(maxParsedFile.PhysicalFilePath, cancel)).Size;
+                        long sizeOfMaxFile = (await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel)).Size;
                         sizeOfMaxFile = Math.Max(sizeOfMaxFile, LargeFileSystem.Params.MaxSinglePhysicalFileSize);
-                        CurrentFileSize = maxParsedFile.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfMaxFile;
+                        CurrentFileSize = lastFileParsed.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfMaxFile;
                     }
                 }
 
-                // Try to open or create the physical file of the last position
+                if (FileParams.Mode == FileMode.Create || FileParams.Mode == FileMode.CreateNew || FileParams.Mode == FileMode.Truncate)
+                {
+                    if (lastFileParsed != null)
+                    {
+                        // Delete the files first
+                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, cancel);
+
+                        lastFileParsed = null;
+                        CurrentFileSize = 0;
+                    }
+                }
+
+                // Try to open or create the physical file which contains the tail
                 using (await TryOpenPhysicalFile(this.CurrentFileSize, cancel))
                 {
+                }
+
+                this.CurrentPosition = 0;
+                if (FileParams.Mode == FileMode.Append)
+                {
+                    this.CurrentPosition = this.CurrentFileSize;
                 }
 
                 await base.CreateAsync(cancel);
@@ -145,40 +185,125 @@ namespace IPA.Cores.Basic
 
             var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber);
 
-            return await LargeFileSystem.BaseFileSystemPool.OpenOrGetAsync(parsed.PhysicalFilePath, cancel);
+            if (FileParams.Access.Bit(FileAccess.Write))
+            {
+                return await LargeFileSystem.UnderlayFileSystemPool.OpenOrGetWithWriteModeAsync(parsed.PhysicalFilePath, cancel);
+            }
+            else
+            {
+                return await LargeFileSystem.UnderlayFileSystemPool.OpenOrGetWithReadModeAsync(parsed.PhysicalFilePath, cancel);
+            }
         }
 
-        protected override Task CloseImplAsync()
+        protected override async Task CloseImplAsync()
         {
-            throw new NotImplementedException();
+            await FlushImplAsync();
         }
 
-        protected override Task FlushImplAsync(CancellationToken cancel = default)
+        protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            using (var refHandle = await TryOpenPhysicalFile(this.CurrentFileSize, cancel))
+            {
+                var file = refHandle.Object;
+
+                await file.FlushAsync(cancel);
+            }
         }
 
-        protected override Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
+        protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            await Task.CompletedTask;
+
+            return this.CurrentPosition;
         }
 
-        protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+        protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            await Task.CompletedTask;
+
+            return this.CurrentFileSize;
         }
 
-        protected override Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        List<Cursor> GenerateCursorList(long position, long length)
         {
-            throw new NotImplementedException();
+            checked
+            {
+                if (position < 0) throw new ArgumentOutOfRangeException("position");
+                if (length < 0) throw new ArgumentOutOfRangeException("length");
+                if (length == 0)
+                {
+                    return new List<Cursor>();
+                }
+
+                List<Cursor> ret = new List<Cursor>();
+
+                long eof = position + length;
+
+                while (position < eof)
+                {
+                    Cursor cursor = new Cursor(this, position);
+                    ret.Add(cursor);
+
+                    position += cursor.PhysicalLength;
+                }
+
+                return ret;
+            }
         }
 
-        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+        protected override async Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            checked
+            {
+                if (data.Length == 0) return 0;
+
+                int totalLength = 0;
+
+                List<Cursor> cursorList = GenerateCursorList(position, data.Length);
+
+                foreach (Cursor cursor in cursorList)
+                {
+                    bool isLast = (cursor == cursorList.Last());
+
+                    using (var refFile = await TryOpenPhysicalFile(cursor.LogicalPosition, cancel))
+                    {
+                        var file = refFile.Object;
+                        int r = await file.ReadRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalLength), cancel);
+                        if (r != (int)cursor.PhysicalLength)
+                        {
+                            if (isLast == false)
+                            {
+                                throw new ApplicationException($"Unable to read {cursor.PhysicalLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
+                            }
+                        }
+
+                        totalLength += r;
+                    }
+                }
+
+                return totalLength;
+            }
         }
 
-        protected override Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            if (data.Length == 0) return;
+
+            List<Cursor> cursorList = GenerateCursorList(position, data.Length);
+
+            foreach (Cursor cursor in cursorList)
+            {
+                bool isLast = (cursor == cursorList.Last());
+
+                using (var refFile = await TryOpenPhysicalFile(cursor.LogicalPosition, cancel))
+                {
+                    var file = refFile.Object;
+                    await file.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalLength), cancel);
+                }
+            }
+        }
+
+        protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
             throw new NotImplementedException();
         }
@@ -234,7 +359,7 @@ namespace IPA.Cores.Basic
 
             public ParsedPath(LargeFileSystem fs, string logicalFilePath, int fileNumber)
             {
-                logicalFilePath = fs.BaseFileSystem.NormalizePath(logicalFilePath);
+                logicalFilePath = fs.UnderlayFileSystem.NormalizePath(logicalFilePath);
                 this.LogicalFilePath = logicalFilePath;
 
                 string fileName = fs.PathInterpreter.GetFileName(logicalFilePath);
@@ -327,23 +452,23 @@ namespace IPA.Cores.Basic
         CancellationTokenSource CancelSource = new CancellationTokenSource();
         CancellationToken CancelToken => CancelSource.Token;
 
-        public FileSystemBase BaseFileSystem { get; }
+        public FileSystemBase UnderlayFileSystem { get; }
         public LargeFileSystemParams Params { get; }
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
-        public FileSystemObjectPool BaseFileSystemPool { get; }
+        public FileSystemObjectPool UnderlayFileSystemPool { get; }
 
-        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase baseFileSystem, LargeFileSystemParams param) : base(lady, baseFileSystem.PathInterpreter)
+        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase underlayFileSystem, LargeFileSystemParams param) : base(lady, underlayFileSystem.PathInterpreter)
         {
-            this.BaseFileSystem = baseFileSystem;
+            this.UnderlayFileSystem = underlayFileSystem;
             this.Params = param;
 
-            this.BaseFileSystemPool = new FileSystemObjectPool(this.BaseFileSystem, this.Params.PooledFileCloseDelay);
+            this.UnderlayFileSystemPool = new FileSystemObjectPool(this.UnderlayFileSystem, this.Params.PooledFileCloseDelay);
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
-            => this.BaseFileSystem.NormalizePathAsync(path, cancel);
+            => this.UnderlayFileSystem.NormalizePathAsync(path, cancel);
 
         protected override async Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
@@ -364,13 +489,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<ParsedPath[]> GetPhysicalFileStateInternal(string logicalFilePath, CancellationToken cancel)
+        public async Task<ParsedPath[]> GetPhysicalFileStateInternal(string logicalFilePath, CancellationToken cancel)
         {
             List<ParsedPath> ret = new List<ParsedPath>();
 
             ParsedPath parsed = new ParsedPath(this, logicalFilePath, 0);
 
-            FileSystemEntity[] dirEntities = await BaseFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, cancel);
+            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, cancel);
 
             var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
             foreach (var f in relatedFiles)
@@ -396,7 +521,7 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => BaseFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
+            => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
 
 
         public bool TryParseOriginalPath(string physicalPath, out ParsedPath parsed)
@@ -420,7 +545,7 @@ namespace IPA.Cores.Basic
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
                 CancelSource.TryCancelNoBlock();
-                this.BaseFileSystemPool.DisposeSafe();
+                this.UnderlayFileSystemPool.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -435,6 +560,11 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task DeleteFileImplAsync(string path, CancellationToken cancel = default)
         {
             throw new NotImplementedException();
         }

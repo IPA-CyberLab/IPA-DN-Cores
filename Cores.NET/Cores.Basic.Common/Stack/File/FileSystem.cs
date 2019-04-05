@@ -71,6 +71,8 @@ namespace IPA.Cores.Basic
             this.Mode = mode;
             this.Share = share;
             this.Access = access;
+            if (this.Access.Bit(FileAccess.Write))
+                this.Access |= FileAccess.Read;
             this.OperationFlags = operationFlags;
         }
 
@@ -85,10 +87,10 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileOperationFlags
+    enum FileOperationFlags : ulong
     {
         None = 0,
-        PartialReadError = 1,
+        NoPartialRead = 1,
         BackupMode = 2,
         AutoCreateDirectoryOnFileCreation = 4,
         SetCompressionFlagOnDirectory = 8,
@@ -423,7 +425,7 @@ namespace IPA.Cores.Basic
                             }
 
                             long newPosition = this.InternalPosition + data.Length;
-                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.NoPartialRead))
                             {
                                 if (this.InternalFileSize < newPosition)
                                 {
@@ -447,7 +449,7 @@ namespace IPA.Cores.Basic
 
                                 if (r < 0) throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r}.");
 
-                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.NoPartialRead))
                                     if (r != data.Length)
                                         throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r} while {data.Length} requested.");
 
@@ -501,7 +503,7 @@ namespace IPA.Cores.Basic
                             }
 
                             long newPosition = position + data.Length;
-                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                            if (this.FileParams.OperationFlags.Bit(FileOperationFlags.NoPartialRead))
                             {
                                 if (this.InternalFileSize < newPosition)
                                 {
@@ -523,7 +525,7 @@ namespace IPA.Cores.Basic
 
                                 if (r < 0) throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r}.");
 
-                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.PartialReadError))
+                                if (this.FileParams.OperationFlags.Bit(FileOperationFlags.NoPartialRead))
                                     if (r != data.Length)
                                         throw new FileException(this.FileParams.Path, $"ReadImplAsync returned {r} while {data.Length} requested.");
 
@@ -783,6 +785,9 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                if (size < 0)
+                    throw new ArgumentOutOfRangeException("size < 0");
+
                 try
                 {
                     EventListeners.Fire(this, FileObjectEventType.SetFileSize);
@@ -910,21 +915,45 @@ namespace IPA.Cores.Basic
     class FileSystemObjectPool : ObjectPoolBase<FileObjectBase>
     {
         public FileSystemBase FileSystem { get; }
+        public const string ReadModePrefix = "r_";
+        public const string WriteModePrefix = "w_";
 
         public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, new StrComparer(FileSystem.PathInterpreter.PathStringComparison))
         {
             this.FileSystem = FileSystem;
         }
 
-        protected override async Task<FileObjectBase> OpenImplAsync(string name, CancellationToken cancel)
+        public async Task<RefObjectHandle<FileObjectBase>> OpenOrGetWithWriteModeAsync(string filePath, CancellationToken cancel = default)
         {
-            name = await FileSystem.NormalizePathAsync(name, cancel);
-
-            return await FileSystem.OpenOrCreateAsync(name, cancel: cancel);
+            return await OpenOrGetAsync(WriteModePrefix + filePath, cancel);
         }
 
-        protected override Task<string> NormalizeNameAsync(string name, CancellationToken cancel)
-            => FileSystem.NormalizePathAsync(name, cancel);
+        public async Task<RefObjectHandle<FileObjectBase>> OpenOrGetWithReadModeAsync(string filePath, CancellationToken cancel = default)
+        {
+            return await OpenOrGetAsync(ReadModePrefix + filePath, cancel);
+        }
+
+        protected override async Task<FileObjectBase> OpenImplAsync(string name, CancellationToken cancel)
+        {
+            if (name.StartsWith(ReadModePrefix))
+            {
+                string path = name.Substring(2);
+                path = await FileSystem.NormalizePathAsync(path, cancel);
+
+                return await FileSystem.OpenOrCreateAsync(path, cancel: cancel);
+            }
+            else if (name.StartsWith(WriteModePrefix))
+            {
+                string path = name.Substring(2);
+                path = await FileSystem.NormalizePathAsync(path, cancel);
+
+                return await FileSystem.OpenAsync(path, cancel: cancel);
+            }
+            else
+            {
+                throw new ArgumentException($"Invalid prefix: name '{name}'");
+            }
+        }
     }
 
     enum FileSystemStyle
@@ -1238,6 +1267,7 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
+        protected abstract Task DeleteFileImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
         protected abstract Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
@@ -1271,6 +1301,29 @@ namespace IPA.Cores.Basic
 
                     await option.NormalizePathAsync(this, opCancel);
 
+                    if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew ||
+                        option.Mode == FileMode.OpenOrCreate || option.Mode == FileMode.Truncate)
+                    {
+                        if (option.Access.Bit(FileAccess.Write) == false)
+                        {
+                            throw new ArgumentException("The Access member must contain the FileAccess.Write bit when opening a file with create mode.");
+                        }
+                    }
+
+                    if (option.Access.Bit(FileAccess.Read) == false)
+                    {
+                        throw new ArgumentException("The Access member must contain the FileAccess.Read bit.");
+                    }
+
+                    if (option.OperationFlags.Bit(FileOperationFlags.AutoCreateDirectoryOnFileCreation))
+                    {
+                        string dirName = this.PathInterpreter.GetDirectoryName(option.Path);
+                        if (dirName.IsFilled())
+                        {
+                            await CreateDirectoryImplAsync(dirName, option.OperationFlags, opCancel);
+                        }
+                    }
+
                     FileObjectBase f = await CreateFileImplAsync(option, opCancel);
 
                     lock (LockObj)
@@ -1302,12 +1355,12 @@ namespace IPA.Cores.Basic
         public FileObjectBase Create(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateAsync(path, noShare, operationFlags, cancel).GetResult();
 
-        public Task<FileObjectBase> OpenAsync(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObjectBase> OpenAsync(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
-                (readLock ? FileShare.None : FileShare.Read), operationFlags), cancel);
+                (noShare ? FileShare.None : ((writeMode || readLock) ? FileShare.Read : (FileShare.ReadWrite | FileShare.Delete))), operationFlags), cancel);
 
-        public FileObjectBase Open(string path, bool writeMode = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => OpenAsync(path, writeMode, readLock, operationFlags, cancel).GetResult();
+        public FileObjectBase Open(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+            => OpenAsync(path, writeMode, noShare, readLock, operationFlags, cancel).GetResult();
 
         public Task<FileObjectBase> OpenOrCreateAsync(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, operationFlags), cancel);
@@ -1424,6 +1477,26 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public async Task DeleteFileAsync(string path, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    path = await NormalizePathImplAsync(path, opCancel);
+
+                    await DeleteFileImplAsync(path, opCancel);
+                }
+            }
+        }
+
+        public void DeleteFile(string path, CancellationToken cancel = default)
+            => DeleteFileAsync(path, cancel).GetResult();
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {

@@ -648,6 +648,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
 
+
         public static T GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 
         public static void GetResult(this Task task) => task.GetAwaiter().GetResult();
@@ -655,6 +656,76 @@ namespace IPA.Cores.Helper.Basic
         public static T GetResult<T>(this ValueTask<T> task) => task.GetAwaiter().GetResult();
 
         public static void GetResult(this ValueTask task) => task.GetAwaiter().GetResult();
+
+
+        public static T TryGetResult<T>(this Task<T> task, bool noDebugMessage = false)
+        {
+            try
+            {
+                return TryGetResult(task);
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    Con.WriteDebug("TryGetResult error");
+                    Con.WriteDebug(ex);
+                }
+
+                return default;
+            }
+        }
+
+        public static void TryGetResult(this Task task, bool noDebugMessage = false)
+        {
+            try
+            {
+                TryGetResult(task);
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    Con.WriteDebug("TryGetResult error");
+                    Con.WriteDebug(ex);
+                }
+            }
+        }
+
+        public static T TryGetResult<T>(this ValueTask<T> task, bool noDebugMessage = false)
+        {
+            try
+            {
+                return TryGetResult(task);
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    Con.WriteDebug("TryGetResult error");
+                    Con.WriteDebug(ex);
+                }
+
+                return default;
+            }
+        }
+
+        public static void TryGetResult(this ValueTask task, bool noDebugMessage = false)
+        {
+            try
+            {
+                TryGetResult(task);
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    Con.WriteDebug("TryGetResult error");
+                    Con.WriteDebug(ex);
+                }
+            }
+        }
+
     }
 }
 

@@ -179,6 +179,13 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        protected override async Task DeleteFileImplAsync(string path, CancellationToken cancel = default)
+        {
+            File.Delete(path);
+
+            await Task.CompletedTask;
+        }
+
         public void EnableBackupPrivilege()
         {
             if (Env.IsWindows)

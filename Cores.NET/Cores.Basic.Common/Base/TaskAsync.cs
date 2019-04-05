@@ -3603,7 +3603,7 @@ namespace IPA.Cores.Basic
             {
                 switch (eventType)
                 {
-                    case RefCounterEventType.Zero:
+                    case RefCounterEventType.AllReleased:
                         this.Closer.DoStart();
                         break;
                 }
@@ -3642,7 +3642,7 @@ namespace IPA.Cores.Basic
     {
         Increment,
         Decrement,
-        Zero,
+        AllReleased,
     }
 
     class RefCounter
@@ -3674,7 +3674,7 @@ namespace IPA.Cores.Basic
                 EventListener.Fire(this, RefCounterEventType.Decrement);
 
                 if (r == 0)
-                    EventListener.Fire(this, RefCounterEventType.Zero);
+                    EventListener.Fire(this, RefCounterEventType.AllReleased);
             }
         }
 
@@ -3701,7 +3701,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class ObjectPoolBase<T> : IDisposable
+    abstract class ObjectPoolBase__old<T> : IDisposable
         where T: IAsyncClosable
     {
         readonly Dictionary<string, SharedLazyCloseableObject<T>> ObjectList;
@@ -3710,21 +3710,18 @@ namespace IPA.Cores.Basic
 
         public int DelayTimeout { get; }
 
-        public ObjectPoolBase(int delayTimeout, IEqualityComparer<string> comparer)
+        public ObjectPoolBase__old(int delayTimeout, IEqualityComparer<string> comparer)
         {
             this.DelayTimeout = Math.Max(delayTimeout, 0);
             ObjectList = new Dictionary<string, SharedLazyCloseableObject<T>>(comparer);
         }
 
         protected abstract Task<T> OpenImplAsync(string name, CancellationToken cancel);
-        protected abstract Task<string> NormalizeNameAsync(string name, CancellationToken cancel);
 
-        public async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
+        protected async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
-                name = await NormalizeNameAsync(name, cancelOp);
-
                 int numRetry = 0;
                 if (this.DisposeFlag.IsSet)
                     throw new ObjectDisposedException($"ObjectPoolBase<T>");
@@ -3776,6 +3773,196 @@ namespace IPA.Cores.Basic
                 foreach (SharedLazyCloseableObject<T> obj in this.ObjectList.Values)
                 {
                     obj.DisposeSafe();
+                }
+                this.ObjectList.Clear();
+            }
+        }
+    }
+
+    abstract class ObjectPoolBase<T> : IDisposable
+        where T : IAsyncClosable
+    {
+        class ObjectEntry : IDisposable
+        {
+            public RefCounter Counter { get; } = new RefCounter();
+            public T Object { get; }
+            public string Name { get; }
+            public long LastReleasedTick { get; private set; } = 0;
+
+            readonly CriticalSection LockObj = new CriticalSection();
+
+            readonly ObjectPoolBase<T> PoolBase;
+
+            public ObjectEntry(ObjectPoolBase<T> poolBase, T targetObject, string name)
+            {
+                this.Object = targetObject;
+                this.PoolBase = poolBase;
+                this.Name = name;
+
+                this.Counter.EventListener.RegisterCallback((caller, eventType, state) =>
+                {
+                    lock (LockObj)
+                    {
+                        switch (eventType)
+                        {
+                            case RefCounterEventType.AllReleased:
+                                this.LastReleasedTick = Tick64.Now;
+                                break;
+                        }
+                    }
+                });
+            }
+
+            public RefObjectHandle<T> TryGetIfAlive()
+            {
+                long now = Tick64.Now;
+
+                lock (LockObj)
+                {
+                    if (this.Object.LastError != null)
+                    {
+                        this.LastReleasedTick = 0;
+
+                        return new RefObjectHandle<T>(this.Counter, this.Object);
+                    }
+                }
+
+                return null;
+            }
+
+            public Task CloseAsync() => this.Object.CloseAsync();
+
+            public void Dispose() => Dispose(true);
+            Once DisposeFlag;
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                this.Object.DisposeSafe();
+            }
+        }
+
+        readonly Dictionary<string, ObjectEntry> ObjectList;
+        readonly AsyncLock LockAsyncObj = new AsyncLock();
+        readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
+
+        public int DelayTimeout { get; }
+
+        Task GcTask;
+
+        public ObjectPoolBase(int delayTimeout, IEqualityComparer<string> comparer)
+        {
+            this.DelayTimeout = Math.Max(delayTimeout, 0);
+            ObjectList = new Dictionary<string, ObjectEntry>(comparer);
+            GcTask = GcTaskProc();
+        }
+
+        protected abstract Task<T> OpenImplAsync(string name, CancellationToken cancel);
+
+        protected async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
+            {
+                int numRetry = 0;
+                if (this.DisposeFlag.IsSet)
+                    throw new ObjectDisposedException($"ObjectPoolBase<T>");
+
+                L_RETRY:
+
+                if (numRetry >= 1)
+                    await Task.Yield();
+
+                using (await LockAsyncObj.LockWithAwait(cancelOp))
+                {
+                    cancelOp.ThrowIfCancellationRequested();
+
+                    if (this.DisposeFlag.IsSet)
+                        throw new ObjectDisposedException($"ObjectPoolBase<T>");
+
+                    if (ObjectList.TryGetValue(name, out ObjectEntry entry) == false)
+                    {
+                        T t = await OpenImplAsync(name, cancelOp);
+                        entry = new ObjectEntry(this, t, name);
+                        ObjectList.Add(name, entry);
+                    }
+
+                    RefObjectHandle<T> ret = entry.TryGetIfAlive();
+                    if (ret == null)
+                    {
+                        ObjectList.Remove(name);
+                        numRetry++;
+                        if (numRetry >= 100)
+                            throw new ApplicationException("numRetry >= 100");
+                        goto L_RETRY;
+                    }
+
+                    return ret;
+                }
+            }
+        }
+
+        async Task GcTaskProc()
+        {
+            CancellationToken cancel = this.CancelSource.Token;
+
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: 100);
+
+                cancel.ThrowIfCancellationRequested();
+
+                long now = Tick64.Now;
+
+                using (await LockAsyncObj.LockWithAwait(cancel))
+                {
+                    List<ObjectEntry> gcTargetList = new List<ObjectEntry>();
+
+                    foreach (ObjectEntry entry in this.ObjectList.Values)
+                    {
+                        if (entry.LastReleasedTick != 0)
+                        {
+                            if ((entry.LastReleasedTick + DelayTimeout) < now)
+                            {
+                                gcTargetList.Add(entry);
+                            }
+                            else if (entry.Object.LastError != null)
+                            {
+                                gcTargetList.Add(entry);
+                            }
+                        }
+                    }
+
+                    foreach (ObjectEntry deleteTargetEntry in gcTargetList)
+                    {
+                        cancel.ThrowIfCancellationRequested();
+
+                        this.ObjectList.Remove(deleteTargetEntry.Name);
+
+                        await deleteTargetEntry.CloseAsync();
+                    }
+                }
+            }
+        }
+
+        public RefObjectHandle<T> OpenOrGet(string name)
+            => OpenOrGetAsync(name).GetResult();
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.CancelSource.Cancel();
+
+            GcTask.TryGetResult(false);
+
+            using (LockAsyncObj.LockLegacy())
+            {
+                foreach (ObjectEntry entry in this.ObjectList.Values)
+                {
+                    entry.DisposeSafe();
                 }
                 this.ObjectList.Clear();
             }
