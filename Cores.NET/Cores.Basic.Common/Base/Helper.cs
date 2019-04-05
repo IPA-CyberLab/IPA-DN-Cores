@@ -86,9 +86,11 @@ namespace IPA.Cores.Helper.Basic
         public static double ToDouble(this string s) => Str.StrToDouble(s);
         public static decimal ToDecimal(this string s) => Str.StrToDecimal(s);
         public static bool IsSame(this string s, string t, bool ignoreCase = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignoreCase ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
+        public static bool IsSame(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : string.Equals(s, t, comparison)));
         public static bool IsSamei(this string s, string t) => IsSame(s, t, true);
         public static bool IsSameiIgnoreUnderscores(this string s, string t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "").IsSamei(t.Replace("_", "")))));
         public static int Cmp(this string s, string t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
+        public static int Cmp(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
         public static int Cmpi(this string s, string t, bool ignoreCase = false) => Cmp(s, t, true);
         public static string[] GetLines(this string s) => Str.GetLines(s);
         public static bool GetKeyAndValue(this string s, out string key, out string value, string splitStr = "") => Str.GetKeyAndValue(s, out key, out value, splitStr);

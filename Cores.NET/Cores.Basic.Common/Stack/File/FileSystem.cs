@@ -409,7 +409,7 @@ namespace IPA.Cores.Basic
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
@@ -487,7 +487,7 @@ namespace IPA.Cores.Basic
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
@@ -556,7 +556,7 @@ namespace IPA.Cores.Basic
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
@@ -604,25 +604,23 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    if (position < 0)
-                    {
-                        position = this.InternalFileSize;
-                    }
-
                     EventListeners.Fire(this, FileObjectEventType.WriteRandom);
 
                     if (data.IsEmpty) return;
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
                             CheckAccessBit(FileAccess.Write);
 
                             if (position < 0)
+                            {
+                                // Append mode
                                 position = this.InternalFileSize;
+                            }
 
                             if (this.InternalFileSize < position)
                             {
@@ -678,7 +676,7 @@ namespace IPA.Cores.Basic
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
@@ -765,7 +763,7 @@ namespace IPA.Cores.Basic
                 {
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
 
@@ -791,7 +789,7 @@ namespace IPA.Cores.Basic
 
                     using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
-                        using (await AsyncLockObj.LockWithAwait())
+                        using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
                             CheckIsOpened();
                             CheckAccessBit(FileAccess.Write);
@@ -824,7 +822,7 @@ namespace IPA.Cores.Basic
 
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                 {
-                    using (await AsyncLockObj.LockWithAwait())
+                    using (await AsyncLockObj.LockWithAwait(operationCancel))
                     {
                         CheckIsOpened();
 
@@ -894,6 +892,8 @@ namespace IPA.Cores.Basic
 
     class FileSystemMetadata
     {
+        public bool IsDirectory { get; set; }
+        public long Size { get; set; }
         public FileAttributes? Attributes { get; set; }
         public DateTimeOffset? Updated { get; set; }
         public DateTimeOffset? Created { get; set; }
@@ -911,7 +911,7 @@ namespace IPA.Cores.Basic
     {
         public FileSystemBase FileSystem { get; }
 
-        public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, new StrComparer(FileSystem.Metrics.PathStringComparison))
+        public FileSystemObjectPool(FileSystemBase FileSystem, int delayTimeout) : base(delayTimeout, new StrComparer(FileSystem.PathInterpreter.PathStringComparison))
         {
             this.FileSystem = FileSystem;
         }
@@ -934,16 +934,16 @@ namespace IPA.Cores.Basic
         Mac,
     }
 
-    class FileSystemMetrics
+    class FileSystemPathInterpreter
     {
         public FileSystemStyle Style { get; }
         public string DirectorySeparator { get; }
         public string[] AltDirectorySeparators { get; }
         public StringComparison PathStringComparison { get; }
 
-        public FileSystemMetrics() : this(Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux)) { }
+        public FileSystemPathInterpreter() : this(Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux)) { }
 
-        public FileSystemMetrics(FileSystemStyle style)
+        public FileSystemPathInterpreter(FileSystemStyle style)
         {
             this.Style = style;
 
@@ -1003,26 +1003,22 @@ namespace IPA.Cores.Basic
 
         public string GetDirectoryName(string path)
         {
+            if (path == null) return null;
             SepareteDirectoryAndFileName(path, out string dirPath, out _);
-            if (dirPath.IsEmpty())
-            {
-                throw new ArgumentException($"The path '{path}' contains no directory.");
-            }
             return dirPath;
         }
 
         public string GetFileName(string path)
         {
+            if (path == null) return null;
             SepareteDirectoryAndFileName(path, out _, out string fileName);
-            if (fileName.IsEmpty())
-            {
-                throw new ArgumentException($"The path '{path}' contains no directory.");
-            }
             return fileName;
         }
 
-        public string CombinePath(string path1, string path2)
+        public string Combine(string path1, string path2)
         {
+            if (path1 == null && path2 == null) return null;
+
             path1 = path1.NonNull();
             path2 = path2.NonNull();
 
@@ -1047,6 +1043,49 @@ namespace IPA.Cores.Basic
             }
 
             return path1 + sepStr + path2;
+        }
+
+        public string Combine(params string[] pathList)
+        {
+            if (pathList == null || pathList.Length == 0) return null;
+            if (pathList.Length == 1) return pathList[0];
+
+            string path1 = pathList[0];
+
+            for (int i = 0; i < pathList.Length - 1; i++)
+            {
+                string path2 = pathList[i + 1];
+
+                path1 = Combine(path1, path2);
+            }
+
+            return path1;
+        }
+
+        public string GetFileNameWithoutExtension(string path, bool longExtension = false)
+        {
+            if (path == null) return null;
+            if (path.IsEmpty()) return "";
+            path = GetFileName(path);
+            int[] dots = path.FindStringIndexes(".", true);
+            if (dots.Length == 0)
+                return path;
+
+            int i = longExtension ? dots.First() : dots.Last();
+            return path.Substring(0, i);
+        }
+
+        public string GetExtension(string path, bool longExtension = false)
+        {
+            if (path == null) return null;
+            if (path.IsEmpty()) return "";
+            path = GetFileName(path);
+            int[] dots = path.FindStringIndexes(".", true);
+            if (dots.Length == 0)
+                return path;
+
+            int i = longExtension ? dots.First() : dots.Last();
+            return path.Substring(i);
         }
 
         public void SepareteDirectoryAndFileName(string path, out string dirPath, out string fileName)
@@ -1132,18 +1171,18 @@ namespace IPA.Cores.Basic
         public static PalFileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
 
         public DirectoryWalker DirectoryWalker { get; }
-        public FileSystemMetrics Metrics { get; }
+        public FileSystemPathInterpreter PathInterpreter { get; }
 
         CriticalSection LockObj = new CriticalSection();
         List<FileObjectBase> OpenedHandleList = new List<FileObjectBase>();
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public FileSystemBase(AsyncCleanuperLady lady, FileSystemMetrics fileSystemMetrics) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemMetrics) : base(lady)
         {
             try
             {
-                this.Metrics = fileSystemMetrics;
+                this.PathInterpreter = fileSystemMetrics;
                 DirectoryWalker = new DirectoryWalker(this);
             }
             catch
@@ -1201,6 +1240,7 @@ namespace IPA.Cores.Basic
         protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
+        protected abstract Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1211,6 +1251,8 @@ namespace IPA.Cores.Basic
                 using (TaskUtil.EnterCriticalCounter(CriticalCounter))
                 {
                     CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
 
                     return await NormalizePathImplAsync(path, cancel);
                 }
@@ -1365,6 +1407,23 @@ namespace IPA.Cores.Basic
 
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
             => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
+
+        public async Task<FileSystemMetadata> GetFileMetadataAsync(string path, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    path = await NormalizePathImplAsync(path, opCancel);
+
+                    return await GetFileMetadataImplAsync(path, cancel);
+                }
+            }
+        }
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {

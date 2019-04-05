@@ -50,18 +50,52 @@ namespace IPA.Cores.Basic
 {
     class LargeFileObject : FileObjectBase
     {
-        readonly LargeFileSystem LargeFileSystem;
-
-        protected LargeFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public class Cursor
         {
-            this.LargeFileSystem = (LargeFileSystem)fileSystem;
+            public long LogicalPosition { get; }
+            public int PhysicalFileNumber { get; }
+            public long PhysicalPosition { get; }
+
+            public Cursor(LargeFileObject o, long logicalPosision)
+            {
+                checked
+                {
+                    if (logicalPosision < 0)
+                        throw new ArgumentOutOfRangeException("logicalPosision < 0");
+
+                    var p = o.LargeFileSystem.Params;
+                    if (logicalPosision > p.MaxLogicalFileSize)
+                        throw new ArgumentOutOfRangeException("logicalPosision > MaxLogicalFileSize");
+
+                    this.LogicalPosition = logicalPosision;
+                    this.PhysicalFileNumber = (int)(this.LogicalPosition / p.MaxSinglePhysicalFileSize);
+
+                    if (this.PhysicalFileNumber > p.MaxFileNumber)
+                        throw new ArgumentOutOfRangeException($"this.PhysicalFileNumber ({this.PhysicalFileNumber})> p.MaxFileNumber ({p.MaxFileNumber})");
+
+                    this.PhysicalPosition = this.LogicalPosition % p.MaxSinglePhysicalFileSize;
+                }
+            }
         }
 
-        public static async Task<FileObjectBase> CreateFileAsync(LargeFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        readonly LargeFileSystem LargeFileSystem;
+        readonly FileSystemBase BaseFileSystem;
+        readonly LargeFileSystem.ParsedPath[] InitialRelatedFiles;
+
+        long CurrentFileSize;
+
+        protected LargeFileObject(FileSystemBase fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles) : base(fileSystem, fileParams)
+        {
+            this.LargeFileSystem = (LargeFileSystem)fileSystem;
+            this.BaseFileSystem = this.LargeFileSystem.BaseFileSystem;
+            this.InitialRelatedFiles = relatedFiles;
+        }
+
+        public static async Task<FileObjectBase> CreateFileAsync(LargeFileSystem fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
-            LargeFileObject f = new LargeFileObject(fileSystem, fileParams);
+            LargeFileObject f = new LargeFileObject(fileSystem, fileParams, relatedFiles);
 
             await f.CreateAsync(cancel);
 
@@ -74,12 +108,44 @@ namespace IPA.Cores.Basic
 
             try
             {
+                var maxParsedFile = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
+
+                if (maxParsedFile == null)
+                {
+                    // New file
+                    CurrentFileSize = 0;
+                }
+                else
+                {
+                    // File exists
+                    checked
+                    {
+                        long sizeOfMaxFile = (await BaseFileSystem.GetFileMetadataAsync(maxParsedFile.PhysicalFilePath, cancel)).Size;
+                        sizeOfMaxFile = Math.Max(sizeOfMaxFile, LargeFileSystem.Params.MaxSinglePhysicalFileSize);
+                        CurrentFileSize = maxParsedFile.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfMaxFile;
+                    }
+                }
+
+                // Try to open or create the physical file of the last position
+                using (await TryOpenPhysicalFile(this.CurrentFileSize, cancel))
+                {
+                }
+
                 await base.CreateAsync(cancel);
             }
             catch
             {
                 throw;
             }
+        }
+
+        async Task<RefObjectHandle<FileObjectBase>> TryOpenPhysicalFile(long logicalPosition, CancellationToken cancel)
+        {
+            var cursor = new Cursor(this, logicalPosition);
+
+            var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber);
+
+            return await LargeFileSystem.BaseFileSystemPool.OpenOrGetAsync(parsed.PhysicalFilePath, cancel);
         }
 
         protected override Task CloseImplAsync()
@@ -120,27 +186,27 @@ namespace IPA.Cores.Basic
 
     class LargeFileSystemParams
     {
-        public const long DefaultMaxSingleFileSize = 1000000;
-        public const long DefaultLogicalMaxSize = 100000000000000; // 100TB
+        public const long DefaultMaxSinglePhysicalFileSize = 1000000;
+        public const long DefaultMaxLogicalFileSize = 100000000000000; // 100TB
         public const int DefaultPooledFileCloseDelay = 1000;
 
-        public long MaxSingleFileSize { get; }
-        public long LogicalMaxSize { get; }
+        public long MaxSinglePhysicalFileSize { get; }
+        public long MaxLogicalFileSize { get; }
         public int NumDigits { get; }
         public string SplitStr { get; }
         public int PooledFileCloseDelay { get; }
         public int MaxFileNumber { get; }
 
-        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSingleFileSize, long logicalMaxSize = DefaultLogicalMaxSize, string splitStr = "~",
+        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~",
             int pooledFileCloseDelay = DefaultPooledFileCloseDelay)
         {
             checked
             {
                 this.SplitStr = splitStr.NonNullTrim().Default("~");
-                this.MaxSingleFileSize = Math.Max(maxSingleFileSize, 1);
+                this.MaxSinglePhysicalFileSize = Math.Max(maxSingleFileSize, 1);
                 this.PooledFileCloseDelay = Math.Max(pooledFileCloseDelay, 1000);
 
-                long i = (int)(LogicalMaxSize / this.MaxSingleFileSize);
+                long i = (int)(MaxLogicalFileSize / this.MaxSinglePhysicalFileSize);
                 i = Math.Max(i, 1);
                 i = (int)Math.Log10(i);
                 i++;
@@ -148,7 +214,7 @@ namespace IPA.Cores.Basic
                 NumDigits = (int)i;
 
                 this.MaxFileNumber = Str.MakeCharArray('9', NumDigits).ToInt();
-                this.LogicalMaxSize = MaxSingleFileSize * this.MaxFileNumber;
+                this.MaxLogicalFileSize = MaxSinglePhysicalFileSize * this.MaxFileNumber;
             }
         }
     }
@@ -157,24 +223,56 @@ namespace IPA.Cores.Basic
     {
         public class ParsedPath
         {
-            public string DirectoryPath { get; private set; }
-            public string OriginalFileNameWithoutExtension { get; private set; }
-            public int FileNumber { get; private set; }
-            public string Extension { get; private set; }
+            public string DirectoryPath { get; }
+            public string OriginalFileNameWithoutExtension { get; }
+            public int FileNumber { get; }
+            public string Extension { get; }
+            public string PhysicalFilePath { get; }
+            public string LogicalFilePath { get; }
+
             readonly LargeFileSystem fs;
 
-            public ParsedPath(LargeFileSystem fs)
+            public ParsedPath(LargeFileSystem fs, string logicalFilePath, int fileNumber)
             {
-                this.fs = fs;
+                logicalFilePath = fs.BaseFileSystem.NormalizePath(logicalFilePath);
+                this.LogicalFilePath = logicalFilePath;
+
+                string fileName = fs.PathInterpreter.GetFileName(logicalFilePath);
+                if (fileName.IndexOf(fs.Params.SplitStr) != -1)
+                    throw new ApplicationException($"The original filename '{fileName}' contains '{fs.Params.SplitStr}'.");
+
+                string dir = fs.PathInterpreter.GetDirectoryName(logicalFilePath);
+                string filename = fs.PathInterpreter.GetFileName(logicalFilePath);
+                string extension;
+                int dotIndex = fileName.IndexOf('.');
+                string filenameWithoutExtension;
+                if (dotIndex != -1)
+                {
+                    extension = fileName.Substring(dotIndex);
+                    filenameWithoutExtension = fileName.Substring(0, dotIndex);
+                }
+                else
+                {
+                    extension = "";
+                    filenameWithoutExtension = fileName;
+                }
+
+                this.DirectoryPath = dir;
+                this.OriginalFileNameWithoutExtension = filenameWithoutExtension;
+                this.FileNumber = fileNumber;
+                this.Extension = extension;
+                this.PhysicalFilePath = GeneratePhysicalPath();
             }
 
-            public ParsedPath(LargeFileSystem fs, string physicalPath)
+            public ParsedPath(LargeFileSystem fs, string physicalFilePath)
             {
                 this.fs = fs;
-                physicalPath = fs.NormalizePath(physicalPath);
+                physicalFilePath = fs.NormalizePath(physicalFilePath);
 
-                string dir = fs.Metrics.GetDirectoryName(physicalPath);
-                string fn = fs.Metrics.GetFileName(physicalPath);
+                this.PhysicalFilePath = physicalFilePath;
+
+                string dir = fs.PathInterpreter.GetDirectoryName(physicalFilePath);
+                string fn = fs.PathInterpreter.GetFileName(physicalFilePath);
 
                 int[] indexes = fn.FindStringIndexes(fs.Params.SplitStr);
                 if (indexes.Length != 1)
@@ -209,9 +307,12 @@ namespace IPA.Cores.Basic
                 this.OriginalFileNameWithoutExtension = originalFileName;
                 this.FileNumber = digitsStr.ToInt();
                 this.Extension = extension;
+
+                string filename = $"{OriginalFileNameWithoutExtension}{Extension}";
+                this.LogicalFilePath = fs.PathInterpreter.Combine(this.DirectoryPath, filename);
             }
 
-            public string GenerateFullPath(int? fileNumberOverwrite = null)
+            public string GeneratePhysicalPath(int? fileNumberOverwrite = null)
             {
                 int fileNumber = fileNumberOverwrite ?? FileNumber;
                 string fileNumberStr = fileNumber.ToString($"D{fs.Params.NumDigits}");
@@ -219,55 +320,26 @@ namespace IPA.Cores.Basic
 
                 string filename = $"{OriginalFileNameWithoutExtension}{fs.Params.SplitStr}{fileNumberStr}{Extension}";
 
-                return fs.Metrics.CombinePath(DirectoryPath, filename);
-            }
-
-            public static ParsedPath MakeFromOriginalPath(LargeFileSystem fs, string originalPath, int fileNumber)
-            {
-                originalPath = fs.BaseFileSystem.NormalizePath(originalPath);
-
-                string fileName = fs.Metrics.GetFileName(originalPath);
-                if (fileName.IndexOf(fs.Params.SplitStr) != -1)
-                    throw new ApplicationException($"The original filename '{fileName}' contains '{fs.Params.SplitStr}'.");
-
-                string dir = fs.Metrics.GetDirectoryName(originalPath);
-                string filename = fs.Metrics.GetFileName(originalPath);
-                string extension;
-                int dotIndex = fileName.IndexOf('.');
-                string filenameWithoutExtension;
-                if (dotIndex != -1)
-                {
-                    extension = fileName.Substring(dotIndex);
-                    filenameWithoutExtension = fileName.Substring(0, dotIndex);
-                }
-                else
-                {
-                    extension = "";
-                    filenameWithoutExtension = fileName;
-                }
-
-                ParsedPath ret = new ParsedPath(fs);
-
-                ret.DirectoryPath = dir;
-                ret.OriginalFileNameWithoutExtension = filenameWithoutExtension;
-                ret.FileNumber = fileNumber;
-                ret.Extension = extension;
-
-                return ret;
+                return fs.PathInterpreter.Combine(DirectoryPath, filename);
             }
         }
+
+        CancellationTokenSource CancelSource = new CancellationTokenSource();
+        CancellationToken CancelToken => CancelSource.Token;
 
         public FileSystemBase BaseFileSystem { get; }
         public LargeFileSystemParams Params { get; }
 
-        FileSystemObjectPool FsPool { get; }
+        AsyncLock AsyncLockObj = new AsyncLock();
 
-        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase baseFileSystem, LargeFileSystemParams param) : base(lady, baseFileSystem.Metrics)
+        public FileSystemObjectPool BaseFileSystemPool { get; }
+
+        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase baseFileSystem, LargeFileSystemParams param) : base(lady, baseFileSystem.PathInterpreter)
         {
             this.BaseFileSystem = baseFileSystem;
             this.Params = param;
 
-            this.FsPool = new FileSystemObjectPool(this.BaseFileSystem, this.Params.PooledFileCloseDelay);
+            this.BaseFileSystemPool = new FileSystemObjectPool(this.BaseFileSystem, this.Params.PooledFileCloseDelay);
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
@@ -275,14 +347,47 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            string fileName = this.Metrics.GetFileName(option.Path);
+            string fileName = this.PathInterpreter.GetFileName(option.Path);
             if (fileName.IndexOf(Params.SplitStr) != -1)
                 throw new ApplicationException($"The original filename '{fileName}' contains '{Params.SplitStr}'.");
 
-            // Get state of the base filesystem
-            //BaseFileSystem.EnumDirectoryAsync(
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+            {
+                using (await AsyncLockObj.LockWithAwait(operationCancel))
+                {
+                    cancel.ThrowIfCancellationRequested();
 
-            return null;
+                    ParsedPath[] relatedFiles = await GetPhysicalFileStateInternal(option.Path, operationCancel);
+
+                    return await LargeFileObject.CreateFileAsync(this, option, relatedFiles, operationCancel);
+                }
+            }
+        }
+
+        async Task<ParsedPath[]> GetPhysicalFileStateInternal(string logicalFilePath, CancellationToken cancel)
+        {
+            List<ParsedPath> ret = new List<ParsedPath>();
+
+            ParsedPath parsed = new ParsedPath(this, logicalFilePath, 0);
+
+            FileSystemEntity[] dirEntities = await BaseFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, cancel);
+
+            var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
+            foreach (var f in relatedFiles)
+            {
+                if (f.Name.StartsWith(parsed.OriginalFileNameWithoutExtension, PathInterpreter.PathStringComparison))
+                {
+                    ParsedPath parsedForFile = new ParsedPath(this, f.FullPath);
+                    if (parsed.LogicalFilePath.IsSame(parsedForFile.LogicalFilePath, PathInterpreter.PathStringComparison))
+                    {
+                        ret.Add(parsedForFile);
+                    }
+                }
+            }
+
+            ret.Sort((x, y) => x.FileNumber.CompareTo(y.FileNumber));
+
+            return ret.ToArray();
         }
 
         protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
@@ -314,7 +419,8 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.FsPool.DisposeSafe();
+                CancelSource.TryCancelNoBlock();
+                this.BaseFileSystemPool.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -326,6 +432,11 @@ namespace IPA.Cores.Basic
                 // Here
             }
             finally { await base._CleanupAsyncInternal(); }
+        }
+
+        protected override Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }

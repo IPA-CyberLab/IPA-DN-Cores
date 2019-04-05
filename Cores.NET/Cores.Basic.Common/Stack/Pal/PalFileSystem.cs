@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
 {
     class PalFileSystem : FileSystemBase
     {
-        public PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.FileSystemMetrics)
+        public PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
         {
         }
 
@@ -114,6 +114,19 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static FileSystemMetadata ConvertFileSystemInfoToFileSystemMetadata(FileSystemInfo info)
+        {
+            FileSystemMetadata ret = new FileSystemMetadata()
+            {
+                Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
+                Attributes = info.Attributes,
+                Updated = info.LastWriteTime.AsDateTimeOffset(true),
+                Created = info.CreationTime.AsDateTimeOffset(true),
+                IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
+            };
+            return ret;
+        }
+
         public static string ReadSymbolicLinkTarget(string linkPath)
         {
             if (Env.IsUnix)
@@ -129,6 +142,41 @@ namespace IPA.Cores.Basic
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
         {
             return Task.FromResult(Path.GetFullPath(path));
+        }
+
+        protected override async Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        {
+            FileInfo fileInfo = new FileInfo(path);
+            FileSystemMetadata ret = ConvertFileSystemInfoToFileSystemMetadata(fileInfo);
+
+            // Try to open the actual physical file
+            FileObjectBase f = null;
+            try
+            {
+                f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, FileOperationFlags.None), cancel);
+            }
+            catch
+            {
+                try
+                {
+                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, FileOperationFlags.BackupMode), cancel);
+                }
+                catch { }
+            }
+
+            if (f != null)
+            {
+                try
+                {
+                    ret.Size = await f.GetFileSizeAsync();
+                }
+                finally
+                {
+                    f.DisposeSafe();
+                }
+            }
+
+            return ret;
         }
 
         public void EnableBackupPrivilege()

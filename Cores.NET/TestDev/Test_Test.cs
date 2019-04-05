@@ -55,8 +55,9 @@ namespace IPA.TestDev
                 string s = Con.ReadLine("Path>");
                 try
                 {
-                    Env.FileSystemMetrics.SepareteDirectoryAndFileName(s, out string s1, out string s2);
-                    Con.WriteLine(new { s1 = s1, s2 = s2, combined = Env.FileSystemMetrics.CombinePath(s1, s2) });
+                    Env.LocalFileSystemPathInterpreter.SepareteDirectoryAndFileName(s, out string s1, out string s2);
+                    Con.WriteLine(new { s1 = s1, s2 = s2, combined = Env.LocalFileSystemPathInterpreter.Combine(s1, s2),
+                        fnw = Env.LocalFileSystemPathInterpreter.GetFileNameWithoutExtension(s, true), ext = Env.LocalFileSystemPathInterpreter.GetExtension(s, true) });
                     Con.WriteLine();
                 }
                 catch (Exception ex)

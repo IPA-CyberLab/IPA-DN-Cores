@@ -69,21 +69,21 @@ namespace IPA.Cores.Basic
         SemaphoreSlim Semaphone = new SemaphoreSlim(1, 1);
         Once DisposeFlag;
 
-        public async Task<LockHolder> LockWithAwait()
+        public async Task<LockHolder> LockWithAwait(CancellationToken cancel = default)
         {
-            await _LockAsync();
+            await _LockAsync(cancel);
 
             return new LockHolder(this);
         }
 
-        public LockHolder LockLegacy()
+        public LockHolder LockLegacy(CancellationToken cancel = default)
         {
-            _Lock();
+            _Lock(cancel);
             return new LockHolder(this);
         }
 
-        public Task _LockAsync() => Semaphone.WaitAsync();
-        public void _Lock() => Semaphone.Wait();
+        public Task _LockAsync(CancellationToken cancel = default) => Semaphone.WaitAsync(cancel);
+        public void _Lock(CancellationToken cancel = default) => Semaphone.Wait(cancel);
         public void Unlock() => Semaphone.Release();
 
         public void Dispose()
