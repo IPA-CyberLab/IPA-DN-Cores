@@ -3468,176 +3468,6 @@ namespace IPA.Cores.Basic
         Exception LastError { get; }
     }
 
-    class LazyCloser<T> : IDisposable where T: IAsyncClosable
-    {
-        public int DelayTimeout { get; }
-        public T Target { get; }
-
-        AsyncLock LockObj = new AsyncLock();
-        Task CurrentTask = null;
-        long CurrentTimeoutTick = 0;
-        AsyncLocalTimer Timer = new AsyncLocalTimer();
-        CancellationTokenSource CancelSource = new CancellationTokenSource();
-
-        public LazyCloser(T target, int delayTimeout)
-        {
-            this.Target = target;
-            this.DelayTimeout = Math.Max(delayTimeout, 0);
-        }
-
-        Once ClosedFlag;
-
-        public bool IsClosed => ClosedFlag.IsSet;
-
-        public async Task DoStartAsync()
-        {
-            using (await LockObj.LockWithAwait())
-            {
-                CurrentTimeoutTick = Timer.AddTimeout(this.DelayTimeout);
-
-                if (CurrentTask == null)
-                {
-                    CurrentTask = TaskUtil.StartAsyncTaskAsync(TaskProc, true, true);
-                }
-            }
-        }
-
-        public void DoStart() => DoStartAsync().GetResult();
-
-        public async Task<bool> TryProlongAndCheckAliveAsync()
-        {
-            if (CancelSource.Token.IsCancellationRequested)
-                return false;
-
-            using (await LockObj.LockWithAwait())
-            {
-                CurrentTimeoutTick = 0;
-            }
-
-            if (CancelSource.Token.IsCancellationRequested)
-                return false;
-
-            if (this.Target.LastError != null)
-            {
-                await this.Target.CloseAsync();
-                return false;
-            }
-
-            return !ClosedFlag.IsSet;
-        }
-
-        async Task TaskProc()
-        {
-            L_START:
-            bool r = await Timer.WaitUntilNextTickAsync(CancelSource.Token);
-            if (r == false)
-            {
-                // cancel
-                goto L_DISPOSE;
-            }
-
-            using (await LockObj.LockWithAwait())
-            {
-                if (CurrentTimeoutTick == 0)
-                {
-                    this.CurrentTask = null;
-                    return;
-                }
-
-                long now = Timer.Now;
-                if (now < CurrentTimeoutTick)
-                {
-                    Timer.AddTick(CurrentTimeoutTick);
-                    goto L_START;
-                }
-            }
-
-            L_DISPOSE:
-
-            using (await LockObj.LockWithAwait())
-            {
-                if (r && CurrentTimeoutTick == 0)
-                {
-                    this.CurrentTask = null;
-                    return;
-                }
-
-                if (ClosedFlag.IsFirstCall())
-                {
-                    try
-                    {
-                        await this.Target.CloseAsync();
-                    }
-                    finally
-                    {
-                        this.Target.DisposeSafe();
-                    }
-                }
-            }
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            CancelSource.Cancel();
-            this.Target.DisposeSafe();
-        }
-    }
-
-    class SharedLazyCloseableObject<T> : IDisposable where T : IAsyncClosable
-    {
-        public RefCounter Counter { get; } = new RefCounter();
-        public string Name { get; }
-
-        LazyCloser<T> Closer;
-
-        public SharedLazyCloseableObject(string name, T target, int delayTimeout)
-        {
-            this.Name = name;
-
-            this.Closer = new LazyCloser<T>(target, delayTimeout);
-
-            this.Counter.EventListener.RegisterCallback((caller, eventType, state) =>
-            {
-                switch (eventType)
-                {
-                    case RefCounterEventType.AllReleased:
-                        this.Closer.DoStart();
-                        break;
-                }
-            });
-        }
-
-        public async Task<RefObjectHandle<T>> TryGetIfAlive()
-        {
-            RefObjectHandle<T> ret = new RefObjectHandle<T>(this.Counter, this.Closer.Target);
-            try
-            {
-                if (await this.Closer.TryProlongAndCheckAliveAsync())
-                {
-                    return ret;
-                }
-
-                throw new ApplicationException();
-            }
-            catch
-            {
-                ret.Dispose();
-                return null;
-            }
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.Closer.DisposeSafe();
-        }
-    }
-
     enum RefCounterEventType
     {
         Increment,
@@ -3701,84 +3531,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class ObjectPoolBase__old<T> : IDisposable
-        where T: IAsyncClosable
-    {
-        readonly Dictionary<string, SharedLazyCloseableObject<T>> ObjectList;
-        readonly AsyncLock LockAsyncObj = new AsyncLock();
-        readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
-
-        public int DelayTimeout { get; }
-
-        public ObjectPoolBase__old(int delayTimeout, IEqualityComparer<string> comparer)
-        {
-            this.DelayTimeout = Math.Max(delayTimeout, 0);
-            ObjectList = new Dictionary<string, SharedLazyCloseableObject<T>>(comparer);
-        }
-
-        protected abstract Task<T> OpenImplAsync(string name, CancellationToken cancel);
-
-        protected async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
-        {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
-            {
-                int numRetry = 0;
-                if (this.DisposeFlag.IsSet)
-                    throw new ObjectDisposedException($"ObjectPoolBase<T>");
-
-                using (await LockAsyncObj.LockWithAwait())
-                {
-                    L_RETRY:
-
-                    cancelOp.ThrowIfCancellationRequested();
-
-                    if (this.DisposeFlag.IsSet)
-                        throw new ObjectDisposedException($"ObjectPoolBase<T>");
-
-                    if (ObjectList.TryGetValue(name, out SharedLazyCloseableObject<T> obj) == false)
-                    {
-                        T t = await OpenImplAsync(name, cancelOp);
-                        obj = new SharedLazyCloseableObject<T>(name, t, this.DelayTimeout);
-                        ObjectList.Add(name, obj);
-                    }
-
-                    RefObjectHandle<T> ret = await obj.TryGetIfAlive();
-                    if (ret == null)
-                    {
-                        ObjectList.Remove(name);
-                        numRetry++;
-                        if (numRetry >= 100)
-                            throw new ApplicationException("numRetry >= 100");
-                        goto L_RETRY;
-                    }
-
-                    return ret;
-                }
-            }
-        }
-
-        public RefObjectHandle<T> OpenOrGet(string name)
-            => OpenOrGetAsync(name).GetResult();
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            this.CancelSource.Cancel();
-
-            using (LockAsyncObj.LockLegacy())
-            {
-                foreach (SharedLazyCloseableObject<T> obj in this.ObjectList.Values)
-                {
-                    obj.DisposeSafe();
-                }
-                this.ObjectList.Clear();
-            }
-        }
-    }
-
     abstract class ObjectPoolBase<T> : IDisposable
         where T : IAsyncClosable
     {
@@ -3815,17 +3567,21 @@ namespace IPA.Cores.Basic
 
             public RefObjectHandle<T> TryGetIfAlive()
             {
-                long now = Tick64.Now;
-
-                lock (LockObj)
+                try
                 {
-                    if (this.Object.LastError != null)
-                    {
-                        this.LastReleasedTick = 0;
+                    long now = Tick64.Now;
 
-                        return new RefObjectHandle<T>(this.Counter, this.Object);
+                    lock (LockObj)
+                    {
+                        if (this.Object.LastError == null)
+                        {
+                            this.LastReleasedTick = 0;
+
+                            return new RefObjectHandle<T>(this.Counter, this.Object);
+                        }
                     }
                 }
+                catch { }
 
                 return null;
             }
@@ -3889,6 +3645,7 @@ namespace IPA.Cores.Basic
                     if (ret == null)
                     {
                         ObjectList.Remove(name);
+                        await entry.CloseAsync().TryWaitAsync();
                         numRetry++;
                         if (numRetry >= 100)
                             throw new ApplicationException("numRetry >= 100");
@@ -3944,9 +3701,6 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-
-        public RefObjectHandle<T> OpenOrGet(string name)
-            => OpenOrGetAsync(name).GetResult();
 
         public void Dispose() => Dispose(true);
         Once DisposeFlag;

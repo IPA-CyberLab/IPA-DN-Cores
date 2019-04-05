@@ -927,11 +927,15 @@ namespace IPA.Cores.Basic
         {
             return await OpenOrGetAsync(WriteModePrefix + filePath, cancel);
         }
+        public RefObjectHandle<FileObjectBase> OpenOrGetWithWriteMode(string filePath, CancellationToken cancel = default)
+            => OpenOrGetWithWriteModeAsync(filePath, cancel).GetResult();
 
         public async Task<RefObjectHandle<FileObjectBase>> OpenOrGetWithReadModeAsync(string filePath, CancellationToken cancel = default)
         {
             return await OpenOrGetAsync(ReadModePrefix + filePath, cancel);
         }
+        public RefObjectHandle<FileObjectBase> OpenOrGetWithReadMode(string filePath, CancellationToken cancel = default)
+            => OpenOrGetWithReadModeAsync(filePath, cancel).GetResult();
 
         protected override async Task<FileObjectBase> OpenImplAsync(string name, CancellationToken cancel)
         {
@@ -940,14 +944,14 @@ namespace IPA.Cores.Basic
                 string path = name.Substring(2);
                 path = await FileSystem.NormalizePathAsync(path, cancel);
 
-                return await FileSystem.OpenOrCreateAsync(path, cancel: cancel);
+                return await FileSystem.OpenAsync(path, cancel: cancel);
             }
             else if (name.StartsWith(WriteModePrefix))
             {
                 string path = name.Substring(2);
                 path = await FileSystem.NormalizePathAsync(path, cancel);
 
-                return await FileSystem.OpenAsync(path, cancel: cancel);
+                return await FileSystem.OpenOrCreateAsync(path, cancel: cancel);
             }
             else
             {

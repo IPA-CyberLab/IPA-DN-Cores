@@ -660,9 +660,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static T TryGetResult<T>(this Task<T> task, bool noDebugMessage = false)
         {
+            if (task == null) return default;
             try
             {
-                return TryGetResult(task);
+                return GetResult(task);
             }
             catch (Exception ex)
             {
@@ -678,9 +679,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static void TryGetResult(this Task task, bool noDebugMessage = false)
         {
+            if (task == null) return;
             try
             {
-                TryGetResult(task);
+                GetResult(task);
             }
             catch (Exception ex)
             {
@@ -694,9 +696,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static T TryGetResult<T>(this ValueTask<T> task, bool noDebugMessage = false)
         {
+            if (task == default) return default;
             try
             {
-                return TryGetResult(task);
+                return GetResult(task);
             }
             catch (Exception ex)
             {
@@ -712,9 +715,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static void TryGetResult(this ValueTask task, bool noDebugMessage = false)
         {
+            if (task == default) return;
             try
             {
-                TryGetResult(task);
+                GetResult(task);
             }
             catch (Exception ex)
             {

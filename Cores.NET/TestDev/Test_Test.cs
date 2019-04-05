@@ -50,6 +50,23 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            using (var pool = Lfs.GetObjectPool(3000))
+            {
+                while (true)
+                {
+                    using (var fo = pool.OpenOrGetWithWriteMode(@"c:\tmp\1.txt"))
+                    {
+                        var f = fo.Object;
+
+                        f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
+                        f.Flush();
+                    }
+
+                    if (Con.ReadLine("?>") == "q")
+                        break;
+                }
+            }
+
             while (true)
             {
                 string s = Con.ReadLine("Path>");
