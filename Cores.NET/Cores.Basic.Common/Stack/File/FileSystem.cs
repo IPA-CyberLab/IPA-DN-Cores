@@ -47,6 +47,14 @@ using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class FileSystemSettings
+        {
+            public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
+        }
+    }
+
     class FileException : Exception
     {
         public FileException(string path, string message) : base($"File \"{path}\": {message}") { }
@@ -95,6 +103,7 @@ namespace IPA.Cores.Basic
         AutoCreateDirectoryOnFileCreation = 4,
         SetCompressionFlagOnDirectory = 8,
         RandomAccessOnly = 16,
+        LargeFileDoNotDivideOneBlock = 32,
     }
 
     class FileObjectStream : FileStream
@@ -985,37 +994,37 @@ namespace IPA.Cores.Basic
         ParentDirectory = 2,
     }
 
-    class FileSystemObjectPool : ObjectPoolBase<FileObjectBase>
+    class FileSystemObjectPool : ObjectPoolBase<FileObjectBase, FileOperationFlags>
     {
         public FileSystemBase FileSystem { get; }
-        public FileOperationFlags FileOperationFlags { get; }
+        public FileOperationFlags DefaultFileOperationFlags { get; }
         public bool IsWriteMode { get; }
 
-        public FileSystemObjectPool(FileSystemBase FileSystem, bool writeMode, int delayTimeout, FileOperationFlags fileOperationFlags = FileOperationFlags.None)
+        public FileSystemObjectPool(FileSystemBase FileSystem, bool writeMode, int delayTimeout, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
             : base(delayTimeout, new StrComparer(FileSystem.PathInterpreter.PathStringComparison))
         {
             this.FileSystem = FileSystem;
             this.IsWriteMode = writeMode;
 
-            this.FileOperationFlags = fileOperationFlags;
-            this.FileOperationFlags |= FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.RandomAccessOnly;
+            this.DefaultFileOperationFlags = defaultFileOperationFlags;
+            this.DefaultFileOperationFlags |= FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.RandomAccessOnly;
         }
 
-        protected override async Task<FileObjectBase> OpenImplAsync(string name, CancellationToken cancel)
+        protected override async Task<FileObjectBase> OpenImplAsync(string name, FileOperationFlags param, CancellationToken cancel)
         {
             if (this.IsWriteMode == false)
             {
                 string path = name.Substring(2);
                 path = await FileSystem.NormalizePathAsync(path, cancel);
 
-                return await FileSystem.OpenAsync(path, cancel: cancel, operationFlags: this.FileOperationFlags);
+                return await FileSystem.OpenAsync(path, cancel: cancel, operationFlags: this.DefaultFileOperationFlags | param);
             }
             else
             {
                 string path = name.Substring(2);
                 path = await FileSystem.NormalizePathAsync(path, cancel);
 
-                return await FileSystem.OpenOrCreateAsync(path, cancel: cancel, operationFlags: this.FileOperationFlags);
+                return await FileSystem.OpenOrCreateAsync(path, cancel: cancel, operationFlags: this.DefaultFileOperationFlags | param);
             }
         }
     }
@@ -1033,6 +1042,7 @@ namespace IPA.Cores.Basic
         public string DirectorySeparator { get; }
         public string[] AltDirectorySeparators { get; }
         public StringComparison PathStringComparison { get; }
+        public StrComparer PathStringComparer { get; }
 
         public FileSystemPathInterpreter() : this(Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux)) { }
 
@@ -1059,6 +1069,8 @@ namespace IPA.Cores.Basic
             }
 
             this.AltDirectorySeparators = new string[] { @"\", "/" };
+
+            this.PathStringComparer = new StrComparer(this.PathStringComparison);
         }
 
         public string RemoveLastSeparatorChar(string path)
@@ -1271,18 +1283,33 @@ namespace IPA.Cores.Basic
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
+        public FileSystemObjectPool ObjectPoolForRead { get; }
+        public FileSystemObjectPool ObjectPoolForWrite { get; }
+
         public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemMetrics) : base(lady)
         {
             try
             {
                 this.PathInterpreter = fileSystemMetrics;
                 DirectoryWalker = new DirectoryWalker(this);
+
+                ObjectPoolForRead = new FileSystemObjectPool(this, false, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
+                ObjectPoolForWrite = new FileSystemObjectPool(this, true, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
             }
             catch
             {
                 Lady.DisposeAllSafe();
                 throw;
             }
+        }
+
+        public async Task<RandomAccessHandle> GetRandomAccessHandleAsync(string fileName, bool writeMode, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            FileSystemObjectPool pool = writeMode ? ObjectPoolForWrite : ObjectPoolForRead;
+
+            RefObjectHandle<FileObjectBase> refObject = await pool.OpenOrGetAsync(fileName, operationFlags, cancel);
+
+            return new RandomAccessHandle(refObject);
         }
 
         void CheckNotDisposed()
@@ -1477,7 +1504,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<bool> EnumDirectoryRecursiveInternalAsync(List<FileSystemEntity> currentList, string directoryPath, bool recursive, CancellationToken opCancel)
+        async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, bool recursive, CancellationToken opCancel)
         {
             CheckNotDisposed();
 
@@ -1487,13 +1514,16 @@ namespace IPA.Cores.Basic
 
             foreach (FileSystemEntity entity in entityList)
             {
-                currentList.Add(entity);
+                if (depth == 0 || entity.IsCurrentDirectory == false)
+                {
+                    currentList.Add(entity);
+                }
 
                 if (recursive)
                 {
                     if (entity.IsDirectory && entity.IsCurrentDirectory == false)
                     {
-                        if (await EnumDirectoryRecursiveInternalAsync(currentList, entity.FullPath, true, opCancel) == false)
+                        if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, true, opCancel) == false)
                         {
                             return false;
                         }
@@ -1516,7 +1546,7 @@ namespace IPA.Cores.Basic
 
                 List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
-                if (await EnumDirectoryRecursiveInternalAsync(currentList, directoryPath, recursive, opCancel) == false)
+                if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, recursive, opCancel) == false)
                 {
                     throw new OperationCanceledException();
                 }
@@ -1544,6 +1574,8 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+        public FileSystemMetadata GetFileMetadata(string path, CancellationToken cancel = default)
+            => GetFileMetadataAsync(path, cancel).GetResult();
 
         public async Task DeleteFileAsync(string path, CancellationToken cancel = default)
         {

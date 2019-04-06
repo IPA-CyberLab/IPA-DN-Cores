@@ -3535,21 +3535,21 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class ObjectPoolBase<T> : IDisposable
-        where T : IAsyncClosable
+    abstract class ObjectPoolBase<TObject, TParam> : IDisposable
+        where TObject : IAsyncClosable
     {
         public class ObjectEntry : IDisposable
         {
             public RefCounter Counter { get; } = new RefCounter();
-            public T Object { get; }
+            public TObject Object { get; }
             public string Key { get; }
             public long LastReleasedTick { get; private set; } = 0;
 
             readonly CriticalSection LockObj = new CriticalSection();
 
-            readonly ObjectPoolBase<T> PoolBase;
+            readonly ObjectPoolBase<TObject, TParam> PoolBase;
 
-            public ObjectEntry(ObjectPoolBase<T> poolBase, T targetObject, string key)
+            public ObjectEntry(ObjectPoolBase<TObject, TParam> poolBase, TObject targetObject, string key)
             {
                 this.Object = targetObject;
                 this.PoolBase = poolBase;
@@ -3569,7 +3569,7 @@ namespace IPA.Cores.Basic
                 });
             }
 
-            public RefObjectHandle<T> TryGetIfAlive()
+            public RefObjectHandle<TObject> TryGetIfAlive()
             {
                 try
                 {
@@ -3581,7 +3581,7 @@ namespace IPA.Cores.Basic
                         {
                             this.LastReleasedTick = 0;
 
-                            return new RefObjectHandle<T>(this.Counter, this.Object);
+                            return new RefObjectHandle<TObject>(this.Counter, this.Object);
                         }
                     }
                 }
@@ -3616,9 +3616,9 @@ namespace IPA.Cores.Basic
             GcTask = GcTaskProc();
         }
 
-        protected abstract Task<T> OpenImplAsync(string key, CancellationToken cancel);
+        protected abstract Task<TObject> OpenImplAsync(string key, TParam param, CancellationToken cancel);
 
-        public async Task<RefObjectHandle<T>> OpenOrGetAsync(string key, CancellationToken cancel = default)
+        public async Task<RefObjectHandle<TObject>> OpenOrGetAsync(string key, TParam param, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
@@ -3640,12 +3640,12 @@ namespace IPA.Cores.Basic
 
                     if (ObjectList.TryGetValue(key, out ObjectEntry entry) == false)
                     {
-                        T t = await OpenImplAsync(key, cancelOp);
+                        TObject t = await OpenImplAsync(key, param, cancelOp);
                         entry = new ObjectEntry(this, t, key);
                         ObjectList.Add(key, entry);
                     }
 
-                    RefObjectHandle<T> ret = entry.TryGetIfAlive();
+                    RefObjectHandle<TObject> ret = entry.TryGetIfAlive();
                     if (ret == null)
                     {
                         ObjectList.Remove(key);
@@ -3661,7 +3661,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task EnumAndCloseHandlesAsync(Func<string, T, bool> enumProc, Action<string, T> afterClosedProc = null, CancellationToken cancel = default)
+        public async Task EnumAndCloseHandlesAsync(Func<string, TObject, bool> enumProc, Action afterClosedProc = null, Comparison<TObject> sortProc = null, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
@@ -3686,6 +3686,9 @@ namespace IPA.Cores.Basic
                         catch { }
                     }
 
+                    if (sortProc != null)
+                        closeList.Sort((x, y) => sortProc(x.Object, y.Object));
+
                     foreach (ObjectEntry entry in closeList)
                     {
                         cancelOp.ThrowIfCancellationRequested();
@@ -3696,16 +3699,12 @@ namespace IPA.Cores.Basic
                         }
                         catch { }
 
-                        if (afterClosedProc != null)
-                        {
-                            try
-                            {
-                                afterClosedProc(entry.Key, entry.Object);
-                            }
-                            catch { }
-                        }
-
                         ObjectList.Remove(entry.Key);
+                    }
+
+                    if (afterClosedProc != null)
+                    {
+                        afterClosedProc();
                     }
                 }
             }

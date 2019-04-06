@@ -87,7 +87,7 @@ namespace IPA.TestDev
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {
-                LargeFileSystemParams p = new LargeFileSystemParams(4, 10000000);
+                LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
                 //LargeFileSystemParams p = new LargeFileSystemParams(1000000000);
                 LargeFileSystem lfs = new LargeFileSystem(lady, Lfs, p);
 
@@ -95,11 +95,20 @@ namespace IPA.TestDev
 
                 FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
 
+                var meta = lfs.GetFileMetadata(@"C:\tmp\large\1.dat");
+                Con.WriteLine(meta.ObjectToJson());
+
+                var dirs = lfs.EnumDirectory(@"C:\tmp\large", true);
+                Con.WriteLine(dirs.ObjectToJson());
+                return;
+
                 using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", operationFlags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
                 {
                     f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
 
-                    f.SetFileSize(4001);
+                    f.WriteRandom(4000, "A".GetBytes_Ascii());
+                    f.WriteRandom(4001, "B".GetBytes_Ascii());
+                    f.SetFileSize(4002);
 
                     //f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
                     //f.Append($"0123456789".GetBytes_Ascii());
@@ -120,6 +129,8 @@ namespace IPA.TestDev
 
                     //    bench.StartAndPrint();
                     //}
+
+                    f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
                 }
             }
             finally
