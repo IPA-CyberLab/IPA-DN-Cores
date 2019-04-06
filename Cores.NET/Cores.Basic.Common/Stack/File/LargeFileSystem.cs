@@ -55,11 +55,12 @@ namespace IPA.Cores.Basic
             public long LogicalPosition { get; }
             public int PhysicalFileNumber { get; }
             public long PhysicalPosition { get; }
-            public long PhysicalLength { get; }
+            public long PhysicalRemainingLength { get; }
+            public long PhysicalDataLength { get; }
 
             readonly LargeFileObject Lfo;
 
-            public Cursor(LargeFileObject o, long logicalPosision)
+            public Cursor(LargeFileObject o, long logicalPosision, long dataLength = 0)
             {
                 checked
                 {
@@ -67,6 +68,9 @@ namespace IPA.Cores.Basic
 
                     if (logicalPosision < 0)
                         throw new ArgumentOutOfRangeException("logicalPosision < 0");
+
+                    if (dataLength < 0)
+                        throw new ArgumentOutOfRangeException("dataLength < 0");
 
                     var p = Lfo.LargeFileSystem.Params;
                     if (logicalPosision > p.MaxLogicalFileSize)
@@ -79,7 +83,8 @@ namespace IPA.Cores.Basic
                         throw new ArgumentOutOfRangeException($"this.PhysicalFileNumber ({this.PhysicalFileNumber})> p.MaxFileNumber ({p.MaxFileNumber})");
 
                     this.PhysicalPosition = this.LogicalPosition % p.MaxSinglePhysicalFileSize;
-                    this.PhysicalLength = p.MaxSinglePhysicalFileSize - this.PhysicalPosition;
+                    this.PhysicalRemainingLength = p.MaxSinglePhysicalFileSize - this.PhysicalPosition;
+                    this.PhysicalDataLength = Math.Min(this.PhysicalRemainingLength, dataLength);
                 }
             }
 
@@ -142,9 +147,9 @@ namespace IPA.Cores.Basic
 
                     checked
                     {
-                        long sizeOfMaxFile = (await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel)).Size;
-                        sizeOfMaxFile = Math.Max(sizeOfMaxFile, LargeFileSystem.Params.MaxSinglePhysicalFileSize);
-                        CurrentFileSize = lastFileParsed.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfMaxFile;
+                        long sizeOfLastFile = (await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel)).Size;
+                        sizeOfLastFile = Math.Min(sizeOfLastFile, LargeFileSystem.Params.MaxSinglePhysicalFileSize);
+                        CurrentFileSize = lastFileParsed.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfLastFile;
                     }
                 }
 
@@ -179,25 +184,41 @@ namespace IPA.Cores.Basic
             }
         }
 
+        readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(1000), CacheType.UpdateExpiresWhenAccess);
+
         async Task<RefObjectHandle<FileObjectBase>> TryOpenPhysicalFile(long logicalPosition, CancellationToken cancel)
         {
             var cursor = new Cursor(this, logicalPosition);
 
-            var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber);
+            string cacheKey = $"{this.FileParams.Path}:{cursor.PhysicalFileNumber}";
+
+            var parsed = ParsedPathCache.GetOrCreate(cacheKey, x => new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber));
 
             if (FileParams.Access.Bit(FileAccess.Write))
             {
-                return await LargeFileSystem.UnderlayFileSystemPool.OpenOrGetWithWriteModeAsync(parsed.PhysicalFilePath, cancel);
+                return await LargeFileSystem.UnderlayFileSystemPoolForWrite.OpenOrGetAsync(parsed.PhysicalFilePath, cancel);
             }
             else
             {
-                return await LargeFileSystem.UnderlayFileSystemPool.OpenOrGetWithReadModeAsync(parsed.PhysicalFilePath, cancel);
+                return await LargeFileSystem.UnderlayFileSystemPoolForRead.OpenOrGetAsync(parsed.PhysicalFilePath, cancel);
             }
         }
 
         protected override async Task CloseImplAsync()
         {
-            await FlushImplAsync();
+            if (FileParams.Access.Bit(FileAccess.Write))
+            {
+                await LargeFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
+                {
+                    var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, key);
+                    if (parsed.LogicalFilePath.IsSame(this.FileParams.Path, LargeFileSystem.PathInterpreter.PathStringComparison))
+                    {
+                        Con.WriteDebug($"Closing '{key}' ...");
+                        return true;
+                    }
+                    return false;
+                });
+            }
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
@@ -241,10 +262,10 @@ namespace IPA.Cores.Basic
 
                 while (position < eof)
                 {
-                    Cursor cursor = new Cursor(this, position);
+                    Cursor cursor = new Cursor(this, position, eof - position);
                     ret.Add(cursor);
 
-                    position += cursor.PhysicalLength;
+                    position += cursor.PhysicalDataLength;
                 }
 
                 return ret;
@@ -268,12 +289,12 @@ namespace IPA.Cores.Basic
                     using (var refFile = await TryOpenPhysicalFile(cursor.LogicalPosition, cancel))
                     {
                         var file = refFile.Object;
-                        int r = await file.ReadRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalLength), cancel);
-                        if (r != (int)cursor.PhysicalLength)
+                        int r = await file.ReadRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
+                        if (r != (int)cursor.PhysicalDataLength)
                         {
                             if (isLast == false)
                             {
-                                throw new ApplicationException($"Unable to read {cursor.PhysicalLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
+                                throw new ApplicationException($"Unable to read {cursor.PhysicalDataLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
                             }
                         }
 
@@ -298,14 +319,25 @@ namespace IPA.Cores.Basic
                 using (var refFile = await TryOpenPhysicalFile(cursor.LogicalPosition, cancel))
                 {
                     var file = refFile.Object;
-                    await file.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalLength), cancel);
+                    await file.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
                 }
             }
         }
 
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            List<Cursor> cursorList = GenerateCursorList(size, 1);
+
+            foreach (Cursor cursor in cursorList)
+            {
+                bool isLast = (cursor == cursorList.Last());
+
+                using (var refFile = await TryOpenPhysicalFile(cursor.LogicalPosition, cancel))
+                {
+                    var file = refFile.Object;
+                    await file.SetFileSizeAsync(cursor.PhysicalPosition, cancel);
+                }
+            }
         }
     }
 
@@ -329,6 +361,7 @@ namespace IPA.Cores.Basic
             {
                 this.SplitStr = splitStr.NonNullTrim().Default("~");
                 this.MaxSinglePhysicalFileSize = Math.Max(maxSingleFileSize, 1);
+                this.MaxLogicalFileSize = logicalMaxSize;
                 this.PooledFileCloseDelay = Math.Max(pooledFileCloseDelay, 1000);
 
                 long i = (int)(MaxLogicalFileSize / this.MaxSinglePhysicalFileSize);
@@ -355,11 +388,12 @@ namespace IPA.Cores.Basic
             public string PhysicalFilePath { get; }
             public string LogicalFilePath { get; }
 
-            readonly LargeFileSystem fs;
+            readonly LargeFileSystem LargeFileSystem;
 
             public ParsedPath(LargeFileSystem fs, string logicalFilePath, int fileNumber)
             {
-                logicalFilePath = fs.UnderlayFileSystem.NormalizePath(logicalFilePath);
+                this.LargeFileSystem = fs;
+
                 this.LogicalFilePath = logicalFilePath;
 
                 string fileName = fs.PathInterpreter.GetFileName(logicalFilePath);
@@ -391,8 +425,7 @@ namespace IPA.Cores.Basic
 
             public ParsedPath(LargeFileSystem fs, string physicalFilePath)
             {
-                this.fs = fs;
-                physicalFilePath = fs.NormalizePath(physicalFilePath);
+                this.LargeFileSystem = fs;
 
                 this.PhysicalFilePath = physicalFilePath;
 
@@ -440,12 +473,12 @@ namespace IPA.Cores.Basic
             public string GeneratePhysicalPath(int? fileNumberOverwrite = null)
             {
                 int fileNumber = fileNumberOverwrite ?? FileNumber;
-                string fileNumberStr = fileNumber.ToString($"D{fs.Params.NumDigits}");
-                Debug.Assert(fileNumberStr.Length == fs.Params.NumDigits);
+                string fileNumberStr = fileNumber.ToString($"D{LargeFileSystem.Params.NumDigits}");
+                Debug.Assert(fileNumberStr.Length == LargeFileSystem.Params.NumDigits);
 
-                string filename = $"{OriginalFileNameWithoutExtension}{fs.Params.SplitStr}{fileNumberStr}{Extension}";
+                string filename = $"{OriginalFileNameWithoutExtension}{LargeFileSystem.Params.SplitStr}{fileNumberStr}{Extension}";
 
-                return fs.PathInterpreter.Combine(DirectoryPath, filename);
+                return LargeFileSystem.PathInterpreter.Combine(DirectoryPath, filename);
             }
         }
 
@@ -457,14 +490,16 @@ namespace IPA.Cores.Basic
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
-        public FileSystemObjectPool UnderlayFileSystemPool { get; }
+        public FileSystemObjectPool UnderlayFileSystemPoolForRead { get; }
+        public FileSystemObjectPool UnderlayFileSystemPoolForWrite { get; }
 
         public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase underlayFileSystem, LargeFileSystemParams param) : base(lady, underlayFileSystem.PathInterpreter)
         {
             this.UnderlayFileSystem = underlayFileSystem;
             this.Params = param;
 
-            this.UnderlayFileSystemPool = new FileSystemObjectPool(this.UnderlayFileSystem, this.Params.PooledFileCloseDelay);
+            this.UnderlayFileSystemPoolForRead = new FileSystemObjectPool(this.UnderlayFileSystem, false, this.Params.PooledFileCloseDelay);
+            this.UnderlayFileSystemPoolForWrite = new FileSystemObjectPool(this.UnderlayFileSystem, true, this.Params.PooledFileCloseDelay);
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
@@ -502,11 +537,15 @@ namespace IPA.Cores.Basic
             {
                 if (f.Name.StartsWith(parsed.OriginalFileNameWithoutExtension, PathInterpreter.PathStringComparison))
                 {
-                    ParsedPath parsedForFile = new ParsedPath(this, f.FullPath);
-                    if (parsed.LogicalFilePath.IsSame(parsedForFile.LogicalFilePath, PathInterpreter.PathStringComparison))
+                    try
                     {
-                        ret.Add(parsedForFile);
+                        ParsedPath parsedForFile = new ParsedPath(this, f.FullPath);
+                        if (parsed.LogicalFilePath.IsSame(parsedForFile.LogicalFilePath, PathInterpreter.PathStringComparison))
+                        {
+                            ret.Add(parsedForFile);
+                        }
                     }
+                    catch { }
                 }
             }
 
@@ -545,7 +584,7 @@ namespace IPA.Cores.Basic
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
                 CancelSource.TryCancelNoBlock();
-                this.UnderlayFileSystemPool.DisposeSafe();
+                this.UnderlayFileSystemPoolForRead.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }

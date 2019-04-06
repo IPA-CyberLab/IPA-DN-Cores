@@ -2197,7 +2197,9 @@ namespace IPA.Cores.Basic
         {
             double ret = Start(duration);
 
-            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns");
+            double perSecond = 1000000000.0 / ret;
+
+            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToStr3()} / sec");
 
             return ret;
         }

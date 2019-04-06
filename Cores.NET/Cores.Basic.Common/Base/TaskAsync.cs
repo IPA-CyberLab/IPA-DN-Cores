@@ -791,7 +791,7 @@ namespace IPA.Cores.Basic
             {
                 counter.Decrement();
             },
-            counter);
+            counter, true);
         }
 
         public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
@@ -897,7 +897,7 @@ namespace IPA.Cores.Basic
 
                 x.Cts.DisposeSafe();
             },
-            ctx);
+            ctx, true);
         }
     }
 
@@ -1463,14 +1463,15 @@ namespace IPA.Cores.Basic
     {
         public T Value { get; }
         Action<T> DisposeProc;
-        LeakCheckerHolder Leak;
+        LeakCheckerHolder Leak = null;
 
-        public Holder(Action<T> disposeProc, T value = default(T))
+        public Holder(Action<T> disposeProc, T value = default(T), bool noLeakCheck = false)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
 
-            Leak = LeakChecker.Enter();
+            if (noLeakCheck == false)
+                Leak = LeakChecker.Enter();
         }
 
         Once DisposeFlag;
@@ -1486,7 +1487,8 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    Leak.DisposeSafe();
+                    if (Leak != null)
+                        Leak.DisposeSafe();
                 }
             }
         }
@@ -1495,13 +1497,14 @@ namespace IPA.Cores.Basic
     class Holder : IDisposable
     {
         Action DisposeProc;
-        LeakCheckerHolder Leak;
+        LeakCheckerHolder Leak = null;
 
-        public Holder(Action disposeProc)
+        public Holder(Action disposeProc, bool noLeakCheck = false)
         {
             this.DisposeProc = disposeProc;
 
-            Leak = LeakChecker.Enter();
+            if (noLeakCheck == false)
+                Leak = LeakChecker.Enter();
         }
 
         Once DisposeFlag;
@@ -1516,7 +1519,8 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    Leak.DisposeSafe();
+                    if (Leak != null)
+                        Leak.DisposeSafe();
                 }
             }
         }
@@ -3534,22 +3538,22 @@ namespace IPA.Cores.Basic
     abstract class ObjectPoolBase<T> : IDisposable
         where T : IAsyncClosable
     {
-        class ObjectEntry : IDisposable
+        public class ObjectEntry : IDisposable
         {
             public RefCounter Counter { get; } = new RefCounter();
             public T Object { get; }
-            public string Name { get; }
+            public string Key { get; }
             public long LastReleasedTick { get; private set; } = 0;
 
             readonly CriticalSection LockObj = new CriticalSection();
 
             readonly ObjectPoolBase<T> PoolBase;
 
-            public ObjectEntry(ObjectPoolBase<T> poolBase, T targetObject, string name)
+            public ObjectEntry(ObjectPoolBase<T> poolBase, T targetObject, string key)
             {
                 this.Object = targetObject;
                 this.PoolBase = poolBase;
-                this.Name = name;
+                this.Key = key;
 
                 this.Counter.EventListener.RegisterCallback((caller, eventType, state) =>
                 {
@@ -3612,9 +3616,9 @@ namespace IPA.Cores.Basic
             GcTask = GcTaskProc();
         }
 
-        protected abstract Task<T> OpenImplAsync(string name, CancellationToken cancel);
+        protected abstract Task<T> OpenImplAsync(string key, CancellationToken cancel);
 
-        protected async Task<RefObjectHandle<T>> OpenOrGetAsync(string name, CancellationToken cancel = default)
+        public async Task<RefObjectHandle<T>> OpenOrGetAsync(string key, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
@@ -3634,17 +3638,17 @@ namespace IPA.Cores.Basic
                     if (this.DisposeFlag.IsSet)
                         throw new ObjectDisposedException($"ObjectPoolBase<T>");
 
-                    if (ObjectList.TryGetValue(name, out ObjectEntry entry) == false)
+                    if (ObjectList.TryGetValue(key, out ObjectEntry entry) == false)
                     {
-                        T t = await OpenImplAsync(name, cancelOp);
-                        entry = new ObjectEntry(this, t, name);
-                        ObjectList.Add(name, entry);
+                        T t = await OpenImplAsync(key, cancelOp);
+                        entry = new ObjectEntry(this, t, key);
+                        ObjectList.Add(key, entry);
                     }
 
                     RefObjectHandle<T> ret = entry.TryGetIfAlive();
                     if (ret == null)
                     {
-                        ObjectList.Remove(name);
+                        ObjectList.Remove(key);
                         await entry.CloseAsync().TryWaitAsync();
                         numRetry++;
                         if (numRetry >= 100)
@@ -3653,6 +3657,56 @@ namespace IPA.Cores.Basic
                     }
 
                     return ret;
+                }
+            }
+        }
+
+        public async Task EnumAndCloseHandlesAsync(Func<string, T, bool> enumProc, Action<string, T> afterClosedProc = null, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
+            {
+                using (await LockAsyncObj.LockWithAwait(cancelOp))
+                {
+                    cancelOp.ThrowIfCancellationRequested();
+
+                    if (this.DisposeFlag.IsSet)
+                        throw new ObjectDisposedException($"ObjectPoolBase<T>");
+
+                    List<ObjectEntry> closeList = new List<ObjectEntry>();
+
+                    foreach (ObjectEntry entry in this.ObjectList.Values)
+                    {
+                        cancelOp.ThrowIfCancellationRequested();
+
+                        try
+                        {
+                            if (enumProc(entry.Key, entry.Object) == true)
+                                closeList.Add(entry);
+                        }
+                        catch { }
+                    }
+
+                    foreach (ObjectEntry entry in closeList)
+                    {
+                        cancelOp.ThrowIfCancellationRequested();
+
+                        try
+                        {
+                            await entry.CloseAsync();
+                        }
+                        catch { }
+
+                        if (afterClosedProc != null)
+                        {
+                            try
+                            {
+                                afterClosedProc(entry.Key, entry.Object);
+                            }
+                            catch { }
+                        }
+
+                        ObjectList.Remove(entry.Key);
+                    }
                 }
             }
         }
@@ -3694,7 +3748,7 @@ namespace IPA.Cores.Basic
                     {
                         cancel.ThrowIfCancellationRequested();
 
-                        this.ObjectList.Remove(deleteTargetEntry.Name);
+                        this.ObjectList.Remove(deleteTargetEntry.Key);
 
                         await deleteTargetEntry.CloseAsync();
                     }
@@ -3710,7 +3764,7 @@ namespace IPA.Cores.Basic
 
             this.CancelSource.Cancel();
 
-            GcTask.TryGetResult(false);
+            GcTask.TryGetResult(true);
 
             using (LockAsyncObj.LockLegacy())
             {

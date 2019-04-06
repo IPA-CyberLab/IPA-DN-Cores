@@ -167,6 +167,25 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public TValue GetOrCreate(TKey key, Func<TKey, TValue> createProc)
+        {
+            lock (LockObj)
+            {
+                DeleteExpired();
+
+                if (list.ContainsKey(key) == false)
+                {
+                    TValue newValue = createProc(key);
+
+                    Add(key, newValue);
+
+                    return newValue;
+                }
+
+                return list[key].Value;
+            }
+        }
+
         long LastDeleted = 0;
 
         void DeleteExpired()

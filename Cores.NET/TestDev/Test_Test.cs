@@ -50,46 +50,77 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            using (var pool = Lfs.GetObjectPool(3000))
-            {
-                while (true)
-                {
-                    using (var fo = pool.OpenOrGetWithWriteMode(@"c:\tmp\1.txt"))
-                    {
-                        var f = fo.Object;
+            //using (var pool = Lfs.GetObjectPool(3000))
+            //{
+            //    while (true)
+            //    {
+            //        using (var fo = pool.OpenOrGetWithWriteMode(@"c:\tmp\1.txt"))
+            //        {
+            //            var f = fo.Object;
 
-                        f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
-                        f.Flush();
-                    }
+            //            f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
+            //            f.Flush();
+            //        }
 
-                    if (Con.ReadLine("?>") == "q")
-                        break;
-                }
-            }
+            //        if (Con.ReadLine("?>") == "q")
+            //            break;
+            //    }
+            //}
+            //return;
 
-            while (true)
-            {
-                string s = Con.ReadLine("Path>");
-                try
-                {
-                    Env.LocalFileSystemPathInterpreter.SepareteDirectoryAndFileName(s, out string s1, out string s2);
-                    Con.WriteLine(new { s1 = s1, s2 = s2, combined = Env.LocalFileSystemPathInterpreter.Combine(s1, s2),
-                        fnw = Env.LocalFileSystemPathInterpreter.GetFileNameWithoutExtension(s, true), ext = Env.LocalFileSystemPathInterpreter.GetExtension(s, true) });
-                    Con.WriteLine();
-                }
-                catch (Exception ex)
-                {
-                    Con.WriteError(ex);
-                }
-            }
+            //while (true)
+            //{
+            //    string s = Con.ReadLine("Path>");
+            //    try
+            //    {
+            //        Env.LocalFileSystemPathInterpreter.SepareteDirectoryAndFileName(s, out string s1, out string s2);
+            //        Con.WriteLine(new { s1 = s1, s2 = s2, combined = Env.LocalFileSystemPathInterpreter.Combine(s1, s2),
+            //            fnw = Env.LocalFileSystemPathInterpreter.GetFileNameWithoutExtension(s, true), ext = Env.LocalFileSystemPathInterpreter.GetExtension(s, true) });
+            //        Con.WriteLine();
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        Con.WriteError(ex);
+            //    }
+            //}
 
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {
-                LargeFileSystemParams p = new LargeFileSystemParams(1000, 10000000);
+                LargeFileSystemParams p = new LargeFileSystemParams(4, 10000000);
+                //LargeFileSystemParams p = new LargeFileSystemParams(1000000000);
                 LargeFileSystem lfs = new LargeFileSystem(lady, Lfs, p);
-                LargeFileSystem.ParsedPath parse = new LargeFileSystem.ParsedPath(lfs, @"c:\tmp\large\1~99999.tar.gz");
-                Con.WriteLine(parse.ObjectToJson());
+
+                byte[] data = Str.MakeCharArray('x', 1).GetBytes_Ascii();
+
+                FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
+
+                using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", operationFlags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
+                {
+                    f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
+
+                    f.SetFileSize(4001);
+
+                    //f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
+                    //f.Append($"0123456789".GetBytes_Ascii());
+                    //f.Seek(1, SeekOrigin.Begin);
+                    //f.Write($"_".GetBytes_Ascii());
+
+                    //while (true)
+                    //{
+                    //    var bench = new MicroBenchmark<object>("Append Test", 1000,
+                    //        (obj, iterations) =>
+                    //        {
+                    //            for (int j = 0; j < iterations; j++)
+                    //            {
+                    //                f.Append(data);
+                    //                //fs.WriteAsync(data).GetResult();
+                    //            }
+                    //        });
+
+                    //    bench.StartAndPrint();
+                    //}
+                }
             }
             finally
             {
