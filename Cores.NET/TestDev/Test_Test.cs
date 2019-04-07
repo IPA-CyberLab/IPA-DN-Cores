@@ -58,7 +58,7 @@ namespace IPA.TestDev
                     for (long j = 0; j < total; j++)
                     {
                         r.ReportProgress(new ProgressData(j, total));
-                        Sleep(10);
+                        Sleep((int)j / 20);
                     }
                     r.ReportProgress(new ProgressData(0, total, true));
                 }

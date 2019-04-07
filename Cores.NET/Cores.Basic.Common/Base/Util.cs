@@ -2282,6 +2282,115 @@ namespace IPA.Cores.Basic
         public void Dispose() { }
     }
 
+    class EtaCalculator
+    {
+        class Data
+        {
+            public long Tick { get; }
+            public double Percentage { get; }
+
+            public Data(long tick, double percentage)
+            {
+                this.Tick = tick;
+                this.Percentage = Math.Min(Math.Max(percentage, 0.0), 100.0);
+            }
+        }
+
+        readonly long ShorterSample, LongerSample;
+
+        public EtaCalculator(long shorterSample = 500, long longerSample = 5000)
+        {
+            shorterSample = Math.Max(shorterSample, 1);
+            longerSample = Math.Max(longerSample, 1);
+
+            longerSample = Math.Max(longerSample, shorterSample * 2);
+
+            ShorterSample = shorterSample;
+            LongerSample = longerSample;
+        }
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        Data ShorterData1 = null;
+        Data ShorterData2 = null;
+
+        Data LongerData1 = null;
+        Data LongerData2 = null;
+
+        public long? Calculate(long tick, double? percentage)
+        {
+            if (percentage == null)
+                return null;
+
+            if (percentage >= 100.0)
+                return 0;
+
+            lock (LockObj)
+            {
+                long? etaFromShorterSample = null;
+                long? etaFromLongerSample = null;
+                double remainPercentage = 100 - percentage ?? 0.0;
+
+                Data d = new Data(tick, percentage ?? 0.0);
+                long tickDelta;
+                double percentageDelta;
+
+                if (ShorterData1 == null)
+                {
+                    ShorterData1 = d;
+                    ShorterData2 = d;
+                }
+                else
+                {
+                    if ((ShorterData1.Tick + ShorterSample) <= d.Tick)
+                    {
+                        ShorterData2 = ShorterData1;
+                        ShorterData1 = d;
+                    }
+                }
+
+                tickDelta = ShorterData1.Tick - ShorterData2.Tick;
+                if (tickDelta > 0)
+                {
+                    percentageDelta = ShorterData1.Percentage - ShorterData2.Percentage;
+                    if (percentageDelta > 0)
+                    {
+                        etaFromShorterSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                    }
+                }
+
+                if (LongerData1 == null)
+                {
+                    LongerData1 = d;
+                    LongerData2 = d;
+                }
+                else
+                {
+                    if ((LongerData1.Tick + LongerSample) <= d.Tick)
+                    {
+                        LongerData2 = LongerData1;
+                        LongerData1 = d;
+                    }
+                }
+
+                tickDelta = LongerData1.Tick - LongerData2.Tick;
+                if (tickDelta > 0)
+                {
+                    percentageDelta = LongerData1.Percentage - LongerData2.Percentage;
+                    if (percentageDelta > 0)
+                    {
+                        etaFromLongerSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                    }
+                }
+
+                if (etaFromLongerSample != null) return (long)etaFromLongerSample;
+                if (etaFromShorterSample != null) return (long)etaFromShorterSample;
+            }
+
+            return null;
+        }
+    }
+
     [Flags]
     enum ProgressReportType
     {
@@ -2337,25 +2446,37 @@ namespace IPA.Cores.Basic
             if (report.Type == ProgressReportType.Start) statusStr = " Started:";
             if (report.Type == ProgressReportType.Finish) statusStr = " Finished:";
             if (report.Type == ProgressReportType.Abort) statusStr = " Aborted:";
+            string etaStr = "";
+
+            if (report.Type == ProgressReportType.InProgress && report.Eta != null)
+            {
+                TimeSpan timeSpan = Util.ConvertTimeSpan((ulong)(report.Eta ?? 0));
+
+                etaStr = $" ETA {timeSpan.ToTsStr()}";
+            }
 
             return $"{setting.Title}{statusStr} {GetPercentageStr(setting, report.Percentage)} " +
-                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit)}).";
+                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit)}).{etaStr}";
         }
     }
 
     sealed class ProgressReport
     {
-        public ProgressData Data { get; }
-        public double? Percentage { get; }
-        public long Tick { get; }
         public ProgressReportType Type { get; }
 
-        public ProgressReport(ProgressReportType type, ProgressData data, double? percentage)
+        public ProgressData Data { get; }
+        public double? Percentage { get; }
+        public long? Eta { get; }
+
+        public long Tick { get; }
+
+        public ProgressReport(ProgressReportType type, ProgressData data, double? percentage, long? eta)
         {
             this.Data = data;
             this.Percentage = percentage;
             this.Tick = Tick64.Now;
             this.Type = type;
+            this.Eta = eta;
         }
     }
 
@@ -2375,12 +2496,14 @@ namespace IPA.Cores.Basic
 
     abstract class ProgressReporterSettingBase
     {
-        public string Title { get; }
+        public string Title { get; set; }
         public string Unit { get; }
         public bool ToStr3 { get; }
-        public ProgressReportTimingSetting ReportTimingSetting { get; }
+        public bool ShowEta { get; set; }
 
-        public ProgressReporterSettingBase(string title = "Progress", string unit = "", bool toStr3 = false, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressReportTimingSetting ReportTimingSetting { get; set; }
+
+        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, ProgressReportTimingSetting reportTimingSetting = null)
         {
             if (reportTimingSetting == null)
             {
@@ -2389,6 +2512,7 @@ namespace IPA.Cores.Basic
             this.Title = title.NonNullTrim();
             this.Unit = unit.NonNullTrim();
             this.ToStr3 = toStr3;
+            this.ShowEta = showEta;
 
             this.ReportTimingSetting = reportTimingSetting;
         }
@@ -2397,6 +2521,8 @@ namespace IPA.Cores.Basic
     abstract class ProgressReporterBase : IDisposable
     {
         readonly CriticalSection LockObj = new CriticalSection();
+
+        readonly EtaCalculator EtaCalc = new EtaCalculator();
 
         ProgressReport ReportOnStart = null;
         ProgressReport LastReport = null;
@@ -2423,7 +2549,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        return new ProgressReport(ProgressReportType.Start, ProgressData.Empty, null);
+                        return new ProgressReport(ProgressReportType.Start, ProgressData.Empty, null, null);
                     }
                 }
             }
@@ -2493,7 +2619,9 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            ProgressReport report = new ProgressReport(type, data, percentage);
+            long? eta = EtaCalc.Calculate(Time.Tick64, percentage);
+
+            ProgressReport report = new ProgressReport(type, data, percentage, eta);
 
             if (type == ProgressReportType.Start)
             {
@@ -2596,8 +2724,8 @@ namespace IPA.Cores.Basic
         public ProgressReportListener Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
 
-        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Progress", string unit = "", bool toStr3 = false, ProgressReportTimingSetting reportTimingSetting = null)
-            : base(title, unit, toStr3, reportTimingSetting)
+        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, ProgressReportTimingSetting reportTimingSetting = null)
+            : base(title, unit, toStr3, showEta, reportTimingSetting)
         {
             this.AdditionalOutputs = outputs;
         }
@@ -2625,8 +2753,7 @@ namespace IPA.Cores.Basic
                 if (outputs.Bit(ProgressReporterOutputs.Debug))
                     Con.WriteDebug(str);
 
-                if (MySetting.Listener != null)
-                    MySetting.Listener(report, str);
+                MySetting.Listener?.Invoke(report, str);
             }
         }
     }
@@ -2635,7 +2762,7 @@ namespace IPA.Cores.Basic
     {
         public ProgressFileProcessingReporter(ProgressReporterOutputs outputs, ProgressReportListener listener = null,
             string title = "Processing a file", ProgressReportTimingSetting reportTimingSetting = null)
-            : base(new ProgressReporterSetting(outputs, listener, title, "bytes", true, reportTimingSetting)) { }
+            : base(new ProgressReporterSetting(outputs, listener, title, "bytes", true, true, reportTimingSetting)) { }
     }
 }
 

@@ -228,6 +228,8 @@ namespace IPA.Cores.Helper.Basic
         public static string ToDtStr(this DateTime dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSecs, option, withNanoSecs);
         public static string ToDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSsecs, option, withNanoSecs);
 
+        public static string ToTsStr(this TimeSpan timeSpan, bool withMSecs = false, bool withNanoSecs = false) => Str.TimeSpanToTsStr(timeSpan, withMSecs, withNanoSecs);
+
         public static bool IsZeroDateTime(this DateTime dt) => Util.IsZero(dt);
         public static bool IsZeroDateTime(this DateTimeOffset dt) => Util.IsZero(dt);
 

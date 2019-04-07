@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
         public static partial class FileUtilSettings
         {
-            public static readonly Copenhagen<int> FileCopyBufferSize = 8 * 1024 * 1024; // 8MB
+            public static readonly Copenhagen<int> FileCopyBufferSize = 1 * 1024 * 1024; // 1MB
         }
     }
 

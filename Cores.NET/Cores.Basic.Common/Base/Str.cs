@@ -4293,6 +4293,21 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static string TimeSpanToTsStr(TimeSpan ts, bool withMSecs = false, bool withNanoSecs = false)
+        {
+            string tag = "";
+
+            if (withNanoSecs)
+                tag = @"\.fffffff";
+            else if (withMSecs)
+                tag = @"\.fff";
+
+            if (ts.TotalDays >= 1)
+                return ts.ToString(@"d\.hh\:mm\:ss" + tag);
+            else
+                return ts.ToString(@"hh\:mm\:ss" + tag);
+        }
+
         // 日時を文字列に変換する
         public static string DateTimeToStr(DateTime dt)
         {
@@ -4374,7 +4389,7 @@ namespace IPA.Cores.Basic
             }
             else if (withMSecs)
             {
-                msecStr = dt.ToString("ffff").Substring(0, 3);
+                msecStr = dt.ToString("fff");
             }
 
             string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((withMSecs || withNanoSecs) ? "." + msecStr : "");
