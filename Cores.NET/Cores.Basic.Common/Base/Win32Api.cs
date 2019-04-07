@@ -548,13 +548,58 @@ namespace IPA.Cores.Basic
                 if (errorCode == Win32Api.Errors.ERROR_PATH_NOT_FOUND && _path.Length == Win32PathInternal.GetRootLength(_path))
                     errorCode = Win32Api.Errors.ERROR_ACCESS_DENIED;
 
-                throw new Win32Exception(errorCode);
-                //throw Win32Marshal.GetExceptionForWin32Error(errorCode, _path);
+                //throw new Win32Exception(errorCode);
+                throw GetExceptionForWin32Error(errorCode, _path);
             }
 
             //fileHandle.IsAsync = _useAsyncIO;
             return fileHandle;
         }
+
+        private static Exception GetExceptionForWin32Error(int errorCode, string path = "")
+        {
+            path = path.NonNull();
+
+            string msg = $"Error code = {errorCode} (0x{MakeHRFromErrorCode(errorCode):X}), Path = '{path}'.";
+
+            switch (errorCode)
+            {
+                case Win32Api.Errors.ERROR_FILE_NOT_FOUND:
+                    return new FileNotFoundException(msg);
+                case Win32Api.Errors.ERROR_PATH_NOT_FOUND:
+                    return new DirectoryNotFoundException(msg);
+                case Win32Api.Errors.ERROR_ACCESS_DENIED:
+                    return new UnauthorizedAccessException(msg);
+                case Win32Api.Errors.ERROR_ALREADY_EXISTS:
+                    if (string.IsNullOrEmpty(msg))
+                        goto default;
+                    return new IOException(msg, MakeHRFromErrorCode(errorCode));
+                case Win32Api.Errors.ERROR_FILENAME_EXCED_RANGE:
+                    return new PathTooLongException(msg);
+                case Win32Api.Errors.ERROR_SHARING_VIOLATION:
+                    return new IOException(msg, MakeHRFromErrorCode(errorCode));
+                case Win32Api.Errors.ERROR_FILE_EXISTS:
+                    if (string.IsNullOrEmpty(msg))
+                        goto default;
+                    return new IOException(msg, MakeHRFromErrorCode(errorCode));
+                case Win32Api.Errors.ERROR_OPERATION_ABORTED:
+                    return new OperationCanceledException();
+                case Win32Api.Errors.ERROR_INVALID_PARAMETER:
+                default:
+                    return new Win32Exception(errorCode);
+            }
+        }
+
+        private static int MakeHRFromErrorCode(int errorCode)
+        {
+            // Don't convert it if it is already an HRESULT
+            if ((0xFFFF0000 & errorCode) != 0)
+                return errorCode;
+
+            return unchecked(((int)0x80070000) | errorCode);
+        }
+
+
     }
 }
 

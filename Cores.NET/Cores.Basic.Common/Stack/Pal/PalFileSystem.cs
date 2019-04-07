@@ -222,12 +222,12 @@ namespace IPA.Cores.Basic
 
             PalFileObject f = new PalFileObject(fileSystem, fileParams);
 
-            await f.CreateAsync(cancel);
+            await f.InternalInitAsync(cancel);
 
             return f;
         }
 
-        protected override async Task CreateAsync(CancellationToken cancel = default)
+        protected override async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -255,7 +255,7 @@ namespace IPA.Cores.Basic
 
                 this.CurrentPosition = fileStream.Position;
 
-                await base.CreateAsync(cancel);
+                await base.InternalInitAsync(cancel);
             }
             catch
             {

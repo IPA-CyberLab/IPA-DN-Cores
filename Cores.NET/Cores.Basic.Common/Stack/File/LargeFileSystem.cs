@@ -114,12 +114,12 @@ namespace IPA.Cores.Basic
 
             LargeFileObject f = new LargeFileObject(fileSystem, fileParams, relatedFiles);
 
-            await f.CreateAsync(cancel);
+            await f.InternalInitAsync(cancel);
 
             return f;
         }
 
-        protected override async Task CreateAsync(CancellationToken cancel = default)
+        protected override async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -165,18 +165,13 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                // Try to open or create the physical file which contains the tail
-                using (await GetUnderleyRandomAccessHandle(this.CurrentFileSize, cancel))
-                {
-                }
-
                 this.CurrentPosition = 0;
                 if (FileParams.Mode == FileMode.Append)
                 {
                     this.CurrentPosition = this.CurrentFileSize;
                 }
 
-                await base.CreateAsync(cancel);
+                await base.InternalInitAsync(cancel);
             }
             catch
             {
@@ -288,7 +283,13 @@ namespace IPA.Cores.Basic
                 {
                     bool isLast = (cursor == cursorList.Last());
 
-                    RandomAccessHandle handle = await TryIfErrorRetDefaultAsync(async () => await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel), noDebugMessage: true);
+                    RandomAccessHandle handle = null;
+
+                    try
+                    {
+                        handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel);
+                    }
+                    catch (FileNotFoundException) { }
 
                     var subMemory = data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength);
 
