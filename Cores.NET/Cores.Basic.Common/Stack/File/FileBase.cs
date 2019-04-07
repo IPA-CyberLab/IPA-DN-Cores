@@ -394,6 +394,23 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
+        public abstract Task<int> ReadAsync(Memory<byte> data, CancellationToken cancel = default);
+        public abstract Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);
+
+        public abstract Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        public abstract Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+
+        public abstract Task<long> SeekAsync(long offset, SeekOrigin origin, CancellationToken cancel = default);
+        public abstract Task<long> GetCurrentPositionAsync(CancellationToken cancel = default);
+
+        public abstract Task SetFileSizeAsync(long size, CancellationToken cancel = default);
+        public abstract Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
+
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
+        public abstract Task CloseAsync();
+
+
+
         public FileStream GetStream(bool disposeObject = false) => FileBaseStream.CreateFromFileObject(this, disposeObject);
 
         public long Position
@@ -402,61 +419,46 @@ namespace IPA.Cores.Basic
             get => GetCurrentPosition();
         }
 
-        public abstract Task<int> ReadAsync(Memory<byte> data, CancellationToken cancel = default);
-
         public int Read(Memory<byte> data) => ReadAsync(data).GetResult();
-
-        public abstract Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);
-
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
             => ReadRandomAsync(position, data, cancel).GetResult();
 
-        public abstract Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
-
         public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel).GetResult();
-
-        public abstract Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
-
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => WriteRandomAsync(position, data, cancel).GetResult();
 
         public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.WriteRandomAsync(-1, data, cancel);
-
         public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.AppendAsync(data, cancel).GetResult();
 
-        public abstract Task<long> SeekAsync(long offset, SeekOrigin origin, CancellationToken cancel = default);
-
-        public Task<long> SeekToBeginAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.Begin, cancel);
-        public Task<long> SeekToEndAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.End, cancel);
-
+        public long GetCurrentPosition(CancellationToken cancel = default) => GetCurrentPositionAsync().GetResult();
         public long Seek(long offset, SeekOrigin origin, CancellationToken cancel = default)
             => SeekAsync(offset, origin, cancel).GetResult();
 
+        public Task<long> SeekToBeginAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.Begin, cancel);
+        public Task<long> SeekToEndAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.End, cancel);
         public long SeekToBegin(CancellationToken cancel = default) => SeekToBeginAsync(cancel).GetResult();
         public long SeekToEnd(CancellationToken cancel = default) => SeekToEndAsync(cancel).GetResult();
 
-        public abstract Task<long> GetCurrentPositionAsync(CancellationToken cancel = default);
-
-        public long GetCurrentPosition(CancellationToken cancel = default) => GetCurrentPositionAsync().GetResult();
-
-        public abstract Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
-
         public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
-
-        public abstract Task SetFileSizeAsync(long size, CancellationToken cancel = default);
-
         public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
 
         public abstract Task FlushAsync(CancellationToken cancel = default);
-
-        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
-
-        public abstract Task CloseAsync();
-
         public void Close() => Dispose();
 
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            try
+            {
+                CloseAsync().GetResult();
+            }
+            catch { }
+        }
 
         protected void CheckIsOpened()
         {
@@ -474,16 +476,6 @@ namespace IPA.Cores.Basic
         {
             if (FileParams.OperationFlags.Bit(FileOperationFlags.RandomAccessOnly))
                 throw new FileException(this.FileParams.Path, "The file object is in RandomAccessOnly mode.");
-        }
-
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            CloseAsync().LaissezFaire();
         }
     }
 }
