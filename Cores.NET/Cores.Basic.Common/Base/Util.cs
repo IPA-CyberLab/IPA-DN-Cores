@@ -2319,75 +2319,82 @@ namespace IPA.Cores.Basic
 
         public long? Calculate(long tick, double? percentage)
         {
-            if (percentage == null)
-                return null;
-
-            if (percentage >= 100.0)
-                return 0;
-
-            lock (LockObj)
+            try
             {
-                long? etaFromShorterSample = null;
-                long? etaFromLongerSample = null;
-                double remainPercentage = 100 - percentage ?? 0.0;
+                if (percentage == null)
+                    return null;
 
-                Data d = new Data(tick, percentage ?? 0.0);
-                long tickDelta;
-                double percentageDelta;
+                if (percentage >= 100.0)
+                    return 0;
 
-                if (ShorterData1 == null)
+                lock (LockObj)
                 {
-                    ShorterData1 = d;
-                    ShorterData2 = d;
-                }
-                else
-                {
-                    if ((ShorterData1.Tick + ShorterSample) <= d.Tick)
+                    long? etaFromShorterSample = null;
+                    long? etaFromLongerSample = null;
+                    double remainPercentage = 100 - percentage ?? 0.0;
+
+                    Data d = new Data(tick, percentage ?? 0.0);
+                    long tickDelta;
+                    double percentageDelta;
+
+                    if (ShorterData1 == null)
                     {
-                        ShorterData2 = ShorterData1;
                         ShorterData1 = d;
+                        ShorterData2 = d;
                     }
-                }
-
-                tickDelta = ShorterData1.Tick - ShorterData2.Tick;
-                if (tickDelta > 0)
-                {
-                    percentageDelta = ShorterData1.Percentage - ShorterData2.Percentage;
-                    if (percentageDelta > 0)
+                    else
                     {
-                        etaFromShorterSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                        if ((ShorterData1.Tick + ShorterSample) <= d.Tick)
+                        {
+                            //                        ShorterData2 = ShorterData1;
+                            ShorterData1 = d;
+                        }
                     }
-                }
 
-                if (LongerData1 == null)
-                {
-                    LongerData1 = d;
-                    LongerData2 = d;
-                }
-                else
-                {
-                    if ((LongerData1.Tick + LongerSample) <= d.Tick)
+                    tickDelta = ShorterData1.Tick - ShorterData2.Tick;
+                    if (tickDelta > 0)
                     {
-                        LongerData2 = LongerData1;
+                        percentageDelta = ShorterData1.Percentage - ShorterData2.Percentage;
+                        if (percentageDelta > 0)
+                        {
+                            etaFromShorterSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                        }
+                    }
+
+                    if (LongerData1 == null)
+                    {
                         LongerData1 = d;
+                        LongerData2 = d;
                     }
-                }
-
-                tickDelta = LongerData1.Tick - LongerData2.Tick;
-                if (tickDelta > 0)
-                {
-                    percentageDelta = LongerData1.Percentage - LongerData2.Percentage;
-                    if (percentageDelta > 0)
+                    else
                     {
-                        etaFromLongerSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                        if ((LongerData1.Tick + LongerSample) <= d.Tick)
+                        {
+                            LongerData2 = LongerData1;
+                            LongerData1 = d;
+                        }
                     }
+
+                    tickDelta = LongerData1.Tick - LongerData2.Tick;
+                    if (tickDelta > 0)
+                    {
+                        percentageDelta = LongerData1.Percentage - LongerData2.Percentage;
+                        if (percentageDelta > 0)
+                        {
+                            etaFromLongerSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
+                        }
+                    }
+
+                    if (etaFromLongerSample != null) return (long)etaFromLongerSample;
+                    if (etaFromShorterSample != null) return (long)etaFromShorterSample;
                 }
 
-                if (etaFromLongerSample != null) return (long)etaFromLongerSample;
-                if (etaFromShorterSample != null) return (long)etaFromShorterSample;
+                return null;
             }
-
-            return null;
+            catch
+            {
+                return null;
+            }
         }
     }
 
@@ -2583,18 +2590,24 @@ namespace IPA.Cores.Basic
 
         public virtual void ReportProgress(ProgressData data)
         {
-            if (data == null) return;
-
-            lock (LockObj)
+            try
             {
-                if (ReportOnStart == null)
+                if (data == null) return;
+
+                lock (LockObj)
                 {
-                    ReceiveProgressInternal(data, ProgressReportType.Start);
+                    if (ReportOnStart == null)
+                    {
+                        ReceiveProgressInternal(data, ProgressReportType.Start);
+                    }
+                    else
+                    {
+                        ReceiveProgressInternal(data, data.IsFinish ? ProgressReportType.Finish : ProgressReportType.InProgress);
+                    }
                 }
-                else
-                {
-                    ReceiveProgressInternal(data, data.IsFinish ? ProgressReportType.Finish : ProgressReportType.InProgress);
-                }
+            }
+            catch
+            {
             }
         }
 
@@ -2721,16 +2734,22 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
-            lock (LockObj)
+            try
             {
-                if (this.LastReport != null)
+                lock (LockObj)
                 {
-                    ReceiveProgressInternal(this.LastReport.Data, ProgressReportType.Abort);
+                    if (this.LastReport != null)
+                    {
+                        ReceiveProgressInternal(this.LastReport.Data, ProgressReportType.Abort);
+                    }
+                    else
+                    {
+                        ReceiveProgressInternal(ProgressData.Empty, ProgressReportType.Abort);
+                    }
                 }
-                else
-                {
-                    ReceiveProgressInternal(ProgressData.Empty, ProgressReportType.Abort);
-                }
+            }
+            catch
+            {
             }
         }
     }
@@ -2774,13 +2793,25 @@ namespace IPA.Cores.Basic
             {
                 var outputs = MySetting.AdditionalOutputs;
 
-                if (outputs.Bit(ProgressReporterOutputs.Console))
-                    Con.WriteLine(str);
+                try
+                {
+                    if (outputs.Bit(ProgressReporterOutputs.Console))
+                        Con.WriteLine(str);
+                }
+                catch { }
 
-                if (outputs.Bit(ProgressReporterOutputs.Debug))
-                    Con.WriteDebug(str);
+                try
+                {
+                    if (outputs.Bit(ProgressReporterOutputs.Debug))
+                        Con.WriteDebug(str);
+                }
+                catch { }
 
-                MySetting.Listener?.Invoke(report, str);
+                try
+                {
+                    MySetting.Listener?.Invoke(report, str);
+                }
+                catch { }
             }
         }
     }

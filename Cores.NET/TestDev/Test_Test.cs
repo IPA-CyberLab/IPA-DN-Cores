@@ -85,31 +85,40 @@ namespace IPA.TestDev
             //}
 
             //Lfs.CopyFile(@"C:\tmp\1.c", @"C:\tmp\2.c", new CopyFileParams(overwrite: true, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All | FileMetadataCopyMode.ReplicateArchiveBit)));
-            Lfs.CopyFile(@"C:\vm\vhd\win2019test.vhdx", @"d:\tmp\190407\test.vhdx",
-                new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation, progressReporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console) ));
-            return;
+            //Lfs.CopyFile(@"C:\vm\vhd\win2019test.vhdx", @"d:\tmp\190407\test.vhdx",
+            //    new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation, progressReporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console) ));
+            //return;
 
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {
-                Lfs.AppendToFile(@"c:\tmp\append.txt", $"Hello {DateTimeOffset.Now.ToDtStr()}\r\n".GetBytes_UTF8());
+                //Lfs.AppendToFile(@"c:\tmp\append.txt", $"Hello {DateTimeOffset.Now.ToDtStr()}\r\n".GetBytes_UTF8());
+                //return;
+                //LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
+                LargeFileSystemParams p = new LargeFileSystemParams();
+                LargeFileSystem largeFs = new LargeFileSystem(lady, Lfs, p);
+
+                //byte[] data = Str.MakeCharArray('x', 1).GetBytes_Ascii();
+
+                //FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
+
+                //byte[] data1 = largeFs.Open(@"C:\tmp\large\1.dat").GetStream().ReadToEnd();
+                ////Con.WriteLine(data1.Length);
+                //Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
+
+                Lfs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\xpaoe.vhdx",
+                    new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation,
+                    reporterFactory: CopyFileParams.ConsoleReporterFactory),
+                    destFileSystem: largeFs);
+
+                //largeFs.CopyFile(@"d:\tmp\190407\test.vhdx", @"d:\tmp\190407\test2.vhdx",
+                //    new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation,
+                //    reporterFactory: CopyFileParams.ConsoleReporterFactory),
+                //    destFileSystem: Lfs);
+
                 return;
-                LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
-                //LargeFileSystemParams p = new LargeFileSystemParams(1000000000);
-                LargeFileSystem lfs = new LargeFileSystem(lady, Lfs, p);
 
-                byte[] data = Str.MakeCharArray('x', 1).GetBytes_Ascii();
-
-                FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
-
-                byte[] data1 = lfs.Open(@"C:\tmp\large\1.dat").GetStream().ReadToEnd();
-                //Con.WriteLine(data1.Length);
-                Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
-
-
-                return;
-
-                using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
+                using (var f = largeFs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
                 {
                     f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
 

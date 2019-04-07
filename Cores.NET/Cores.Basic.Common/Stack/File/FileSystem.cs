@@ -975,12 +975,20 @@ namespace IPA.Cores.Basic
         }
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
+
         protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task DeleteFileImplAsync(string path, CancellationToken cancel = default);
-        protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
+
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
+        protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
+        protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
+
         protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
+
+        protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
+
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1162,6 +1170,8 @@ namespace IPA.Cores.Basic
 
                     path = await NormalizePathAsync(path, opCancel);
 
+                    opCancel.ThrowIfCancellationRequested();
+
                     await CreateDirectoryImplAsync(path, flags, opCancel);
                 }
             }
@@ -1169,6 +1179,23 @@ namespace IPA.Cores.Basic
 
         public void CreateDirectory(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateDirectoryAsync(path, flags, cancel).GetResult();
+
+        public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    path = await NormalizePathAsync(path, opCancel);
+
+                    opCancel.ThrowIfCancellationRequested();
+
+                    await DeleteDirectoryImplAsync(path, recursive, opCancel);
+                }
+            }
+        }
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {
@@ -1267,6 +1294,25 @@ namespace IPA.Cores.Basic
         public FileMetadata GetFileMetadata(string path, CancellationToken cancel = default)
             => GetFileMetadataAsync(path, cancel).GetResult();
 
+        public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    path = await NormalizePathImplAsync(path, opCancel);
+
+                    return await GetDirectoryMetadataImplAsync(path, cancel);
+                }
+            }
+        }
+        public FileMetadata GetDirectoryMetadata(string path, CancellationToken cancel = default)
+            => GetDirectoryMetadataAsync(path, cancel).GetResult();
+
         public virtual async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
         {
             try
@@ -1304,6 +1350,25 @@ namespace IPA.Cores.Basic
         }
         public void SetFileMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
             => SetFileMetadataAsync(path, metadata, cancel).GetResult();
+
+        public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    path = await NormalizePathImplAsync(path, opCancel);
+
+                    await SetDirectoryMetadataImplAsync(path, metadata, opCancel);
+                }
+            }
+        }
+        public void SetDirectoryMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
+            => SetDirectoryMetadataAsync(path, metadata, cancel).GetResult();
 
         public async Task DeleteFileAsync(string path, CancellationToken cancel = default)
         {
@@ -1423,19 +1488,23 @@ namespace IPA.Cores.Basic
 
         public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
+        public static ProgressReporterFactoryBase NullReporterFactory { get; } = new NullReporterFactory();
+        public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console);
+        public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
+
         public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
-            ProgressReporterFactoryBase progressReporterFactory = null)
+            ProgressReporterFactoryBase reporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultMetadataCopier;
             if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
-            if (progressReporterFactory == null) progressReporterFactory = new NullReporterFactory();
+            if (reporterFactory == null) reporterFactory = NullReporterFactory;
 
             this.Overwrite = overwrite;
             this.Flags = flags;
             this.MetadataCopier = metadataCopier;
             this.BufferSize = bufferSize;
             this.AsyncCopy = asyncCopy;
-            this.ProgressReporterFactory = progressReporterFactory;
+            this.ProgressReporterFactory = reporterFactory;
         }
     }
 
@@ -1480,7 +1549,10 @@ namespace IPA.Cores.Basic
                                 {
                                     await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    Con.WriteDebug(ex);
+                                }
                             }
                             catch
                             {

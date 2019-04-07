@@ -402,7 +402,7 @@ namespace IPA.Cores.Basic
 
     class LargeFileSystemParams
     {
-        public const long DefaultMaxSinglePhysicalFileSize = 1000000;
+        public const long DefaultMaxSinglePhysicalFileSize = 1000000000; // 1GB
         public const long DefaultMaxLogicalFileSize = 100000000000000; // 100TB
         public const int DefaultPooledFileCloseDelay = 1000;
 
@@ -670,6 +670,9 @@ namespace IPA.Cores.Basic
         protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
 
+        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
+            => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive);
+
 
         public bool TryParseOriginalPath(string physicalPath, out ParsedPath parsed)
         {
@@ -764,9 +767,36 @@ namespace IPA.Cores.Basic
             cancel);
         }
 
-        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        protected override async Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
+            List<LargeFileSystem.ParsedPath> filesToModify = physicalFiles.ToList();
+
+            Exception exception = null;
+
+            foreach (var file in filesToModify.OrderBy(x => x.PhysicalFilePath, PathInterpreter.PathStringComparer))
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                try
+                {
+                    await UnderlayFileSystem.SetFileMetadataAsync(file.PhysicalFilePath, metadata, cancel);
+                }
+                catch (Exception ex)
+                {
+                    if (exception == null)
+                        exception = ex;
+                }
+            }
+
+            if (exception != null)
+                throw exception;
         }
+
+        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+            => UnderlayFileSystem.SetDirectoryMetadataAsync(path, metadata, cancel);
+
+        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
+            => UnderlayFileSystem.GetDirectoryMetadataAsync(path, cancel);
     }
 }

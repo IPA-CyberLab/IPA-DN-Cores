@@ -100,6 +100,14 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
+
+        protected override async Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
+        {
+            Directory.Delete(directoryPath, recursive);
+
+            await Task.CompletedTask;
+        }
+
         public static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
         {
             FileSystemEntity ret = new FileSystemEntity()
@@ -196,6 +204,25 @@ namespace IPA.Cores.Basic
             FileInfo fileInfo = new FileInfo(path);
 
             SetFileMetadataToFileSystemInfo(fileInfo, metadata);
+
+            await Task.CompletedTask;
+        }
+
+        protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
+        {
+            DirectoryInfo dirInfo = new DirectoryInfo(path);
+            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo);
+
+            await Task.CompletedTask;
+
+            return ret;
+        }
+
+        protected async override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            DirectoryInfo dirInfo = new DirectoryInfo(path);
+
+            SetFileMetadataToFileSystemInfo(dirInfo, metadata);
 
             await Task.CompletedTask;
         }

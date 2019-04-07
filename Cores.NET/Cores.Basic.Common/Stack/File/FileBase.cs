@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
         AutoCreateDirectoryOnFileCreation = 4,
         SetCompressionFlagOnDirectory = 8,
         RandomAccessOnly = 16,
-        LargeFileDoNotDivideOneBlock = 32,
+        LargeFileSystemDoNotAppendBeyondBorder = 32,
     }
 
     class FileBaseStream : FileStream
