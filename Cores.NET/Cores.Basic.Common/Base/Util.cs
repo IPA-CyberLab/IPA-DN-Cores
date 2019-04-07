@@ -2281,4 +2281,361 @@ namespace IPA.Cores.Basic
     {
         public void Dispose() { }
     }
+
+    [Flags]
+    enum ProgressReportType
+    {
+        Start,
+        InProgress,
+        Abort,
+        Finish,
+    }
+
+    class ProgressData
+    {
+        public long CurrentCount { get; }
+        public long? TotalCount { get; }
+        public bool IsFinish { get; }
+
+        public ProgressData(long currentCount, long? totalCount, bool isFinish = false)
+        {
+            this.CurrentCount = currentCount;
+            this.TotalCount = totalCount;
+            this.IsFinish = isFinish;
+            if (this.IsFinish && this.TotalCount != null)
+            {
+                this.CurrentCount = Math.Max((long)this.TotalCount, this.CurrentCount);
+            }
+            if (this.TotalCount != null)
+            {
+                if (this.CurrentCount >= this.TotalCount)
+                {
+                    this.IsFinish = true;
+                }
+            }
+        }
+
+        public static ProgressData Empty { get; } = new ProgressData(0, null, false);
+
+        string LongValueToString(long? value, bool tostr3, string unitString = "")
+        {
+            string s = value == null ? "??" : (tostr3 ? ((long)value).ToStr3() : value.ToString());
+            if (unitString.IsFilled()) s += " " + unitString;
+            return s;
+        }
+
+        public virtual string GetPercentageStr(ProgressReporterSettingBase setting, double? value)
+        {
+            if (value == null) return "?? %";
+
+            return $"{value:F1}%";
+        }
+
+        public virtual string GenerateStatusStr(ProgressReporterSettingBase setting, ProgressReport report)
+        {
+            string statusStr = "...";
+            if (report.Type == ProgressReportType.Start) statusStr = " Started:";
+            if (report.Type == ProgressReportType.Finish) statusStr = " Finished:";
+            if (report.Type == ProgressReportType.Abort) statusStr = " Aborted:";
+
+            return $"{setting.Title}{statusStr} {GetPercentageStr(setting, report.Percentage)} " +
+                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit)}).";
+        }
+    }
+
+    sealed class ProgressReport
+    {
+        public ProgressData Data { get; }
+        public double? Percentage { get; }
+        public long Tick { get; }
+        public ProgressReportType Type { get; }
+
+        public ProgressReport(ProgressReportType type, ProgressData data, double? percentage)
+        {
+            this.Data = data;
+            this.Percentage = percentage;
+            this.Tick = Tick64.Now;
+            this.Type = type;
+        }
+    }
+
+    class ProgressReportTimingSetting
+    {
+        public bool ReportEveryTiming { get; }
+        public int ReportTimingIntervalMsecs { get; }
+        public double ReportTimingPercentageSpace { get; }
+
+        public ProgressReportTimingSetting(bool reportEveryTiming = false, int reportTimingMsecs = 1000, double reportTimingPercentageSpace = 10.0)
+        {
+            this.ReportEveryTiming = reportEveryTiming;
+            this.ReportTimingIntervalMsecs = Math.Max(reportTimingMsecs, 0);
+            this.ReportTimingPercentageSpace = Math.Max(0.0, reportTimingPercentageSpace);
+        }
+    }
+
+    abstract class ProgressReporterSettingBase
+    {
+        public string Title { get; }
+        public string Unit { get; }
+        public bool ToStr3 { get; }
+        public ProgressReportTimingSetting ReportTimingSetting { get; }
+
+        public ProgressReporterSettingBase(string title = "Progress", string unit = "", bool toStr3 = false, ProgressReportTimingSetting reportTimingSetting = null)
+        {
+            if (reportTimingSetting == null)
+            {
+                reportTimingSetting = new ProgressReportTimingSetting();
+            }
+            this.Title = title.NonNullTrim();
+            this.Unit = unit.NonNullTrim();
+            this.ToStr3 = toStr3;
+
+            this.ReportTimingSetting = reportTimingSetting;
+        }
+    }
+
+    abstract class ProgressReporterBase : IDisposable
+    {
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        ProgressReport ReportOnStart = null;
+        ProgressReport LastReport = null;
+        ProgressReport ReportOnFinishOrAbort = null;
+
+        protected abstract void ReportedImpl(ProgressReport report);
+
+        public ProgressReporterSettingBase Setting { get; }
+
+        public ProgressReporterBase(ProgressReporterSettingBase setting)
+        {
+            this.Setting = setting;
+        }
+
+        public ProgressReport LastStatus
+        {
+            get
+            {
+                lock (LockObj)
+                {
+                    if (LastReport != null)
+                    {
+                        return LastReport;
+                    }
+                    else
+                    {
+                        return new ProgressReport(ProgressReportType.Start, ProgressData.Empty, null);
+                    }
+                }
+            }
+        }
+
+        public void ReportProgress(ProgressData data)
+        {
+            if (data == null) return;
+
+            lock (LockObj)
+            {
+                if (ReportOnStart == null)
+                {
+                    ReceiveProgressInternal(data, ProgressReportType.Start);
+                }
+                else
+                {
+                    ReceiveProgressInternal(data, data.IsFinish ? ProgressReportType.Finish : ProgressReportType.InProgress);
+                }
+            }
+        }
+
+        void ReceiveProgressInternal(ProgressData data, ProgressReportType type)
+        {
+            double? percentage = null;
+
+            long initialPosition = this.ReportOnStart?.Data.CurrentCount ?? 0;
+
+            if (data.TotalCount != null)
+            {
+                long totalCount = Math.Max(data.TotalCount ?? 0, 1);
+                long currentCount = Math.Min(Math.Max(data.CurrentCount, 0), totalCount);
+
+                if (type == ProgressReportType.Finish)
+                {
+                    percentage = 100.0;
+                }
+                else
+                {
+                    percentage = (double)currentCount * 100.0 / (double)totalCount;
+                    if (currentCount >= totalCount)
+                    {
+                        percentage = 100.0;
+                    }
+                }
+            }
+            else
+            {
+                if (type == ProgressReportType.Finish)
+                {
+                    percentage = 100.0;
+                }
+                else if (type == ProgressReportType.Start)
+                {
+                    percentage = 0.0;
+                }
+                else if (type == ProgressReportType.Abort)
+                {
+                }
+                else
+                {
+                }
+            }
+
+            if (ReportOnFinishOrAbort != null)
+            {
+                return;
+            }
+
+            ProgressReport report = new ProgressReport(type, data, percentage);
+
+            if (type == ProgressReportType.Start)
+            {
+                ReportOnStart = report;
+            }
+            else if (type == ProgressReportType.Finish || type == ProgressReportType.Abort)
+            {
+                ReportOnFinishOrAbort = report;
+            }
+
+            LastReport = report;
+
+            if (DetermineToReportOrNot(report))
+            {
+                ReportedImpl(report);
+            }
+        }
+
+        ProgressReport LastReportedReport = null;
+
+        protected virtual bool DetermineToReportOrNot(ProgressReport report)
+        {
+            bool ret = false;
+            if (LastReportedReport == null)
+            {
+                ret = true;
+            }
+            else
+            {
+                if (report.Type == ProgressReportType.Abort || report.Type == ProgressReportType.Finish || report.Type == ProgressReportType.Start)
+                {
+                    ret = true;
+                }
+                else
+                {
+                    if (Setting.ReportTimingSetting.ReportEveryTiming)
+                        ret = true;
+
+                    if (Setting.ReportTimingSetting.ReportTimingIntervalMsecs > 0)
+                    {   
+                        if ((LastReportedReport.Tick + Setting.ReportTimingSetting.ReportTimingIntervalMsecs) <= report.Tick)
+                            ret = true;
+                    }
+
+                    if (LastReportedReport.Percentage == null && report.Percentage != null)
+                        ret = true;
+
+                    if (LastReportedReport.Percentage != null && report.Percentage == null)
+                        ret = true;
+
+                    if (Setting.ReportTimingSetting.ReportTimingPercentageSpace != 0.0)
+                        if (LastReportedReport.Percentage != null && report.Percentage != null)
+                            if ((LastReportedReport.Percentage + Setting.ReportTimingSetting.ReportTimingPercentageSpace) <= report.Percentage)
+                                ret = true;
+                }
+            }
+
+            if (ret)
+            {
+                LastReportedReport = report;
+            }
+
+            return ret;
+        }
+
+        public void Abort() => Dispose();
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            lock (LockObj)
+            {
+                if (this.LastReport != null)
+                {
+                    ReceiveProgressInternal(this.LastReport.Data, ProgressReportType.Abort);
+                }
+                else
+                {
+                    ReceiveProgressInternal(ProgressData.Empty, ProgressReportType.Abort);
+                }
+            }
+        }
+    }
+
+    [Flags]
+    enum ProgressReporterOutputs
+    {
+        None = 0,
+        Console = 1,
+        Debug = 2,
+    }
+
+    delegate void ProgressReportListener(ProgressReport report, string str);
+
+    class ProgressReporterSetting : ProgressReporterSettingBase
+    {
+        public ProgressReportListener Listener { get; set; }
+        public ProgressReporterOutputs AdditionalOutputs { get; }
+
+        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Progress", string unit = "", bool toStr3 = false, ProgressReportTimingSetting reportTimingSetting = null)
+            : base(title, unit, toStr3, reportTimingSetting)
+        {
+            this.AdditionalOutputs = outputs;
+        }
+    }
+
+    class ProgressReporter : ProgressReporterBase
+    {
+        public ProgressReporterSetting MySetting => (ProgressReporterSetting)this.Setting;
+
+        public ProgressReporter(ProgressReporterSetting setting) : base(setting)
+        {
+        }
+
+        protected override void ReportedImpl(ProgressReport report)
+        {
+            string str = report.Data.GenerateStatusStr(MySetting, report);
+
+            if (str.IsFilled())
+            {
+                var outputs = MySetting.AdditionalOutputs;
+
+                if (outputs.Bit(ProgressReporterOutputs.Console))
+                    Con.WriteLine(str);
+
+                if (outputs.Bit(ProgressReporterOutputs.Debug))
+                    Con.WriteDebug(str);
+
+                if (MySetting.Listener != null)
+                    MySetting.Listener(report, str);
+            }
+        }
+    }
+
+    class ProgressFileProcessingReporter : ProgressReporter
+    {
+        public ProgressFileProcessingReporter(ProgressReporterOutputs outputs, ProgressReportListener listener = null,
+            string title = "Processing a file", ProgressReportTimingSetting reportTimingSetting = null)
+            : base(new ProgressReporterSetting(outputs, listener, title, "bytes", true, reportTimingSetting)) { }
+    }
 }
+

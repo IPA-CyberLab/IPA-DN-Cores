@@ -50,6 +50,21 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            if (true)
+            {
+                long total = 1000;
+                using (ProgressFileProcessingReporter r = new ProgressFileProcessingReporter(ProgressReporterOutputs.Console))
+                {
+                    for (long j = 0; j < total; j++)
+                    {
+                        r.ReportProgress(new ProgressData(j, total));
+                        Sleep(10);
+                    }
+                    r.ReportProgress(new ProgressData(0, total, true));
+                }
+                return;
+            }
+
             //using (var pool = Lfs.GetObjectPool(3000))
             //{
             //    while (true)

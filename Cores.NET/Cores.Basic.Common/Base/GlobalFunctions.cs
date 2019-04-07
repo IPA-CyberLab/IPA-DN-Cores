@@ -53,6 +53,8 @@ namespace IPA.Cores
     {
         public static class Basic
         {
+            public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
+
             public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
             {
                 try

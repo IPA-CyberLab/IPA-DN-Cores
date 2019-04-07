@@ -1503,15 +1503,6 @@ namespace IPA.Cores.Basic
 
         static async Task CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, CancellationToken cancel = default)
         {
-            bool ReportProgress(long totalSize, long currentPosition)
-            {
-                checked
-                {
-                    double percentage = 0.0;
-                    if (totalSize == 0) percentage = 100.0;
-                }
-            }
-
             checked
             {
                 if (param.AsyncCopy == false)
