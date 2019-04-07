@@ -1462,6 +1462,10 @@ namespace IPA.Cores.Basic
         public FileObjectBase OpenOrCreate(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, operationFlags, cancel).GetResult();
 
+        public async Task WriteToFile(string path, bool noShare = false, FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+        }
+
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))

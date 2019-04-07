@@ -95,11 +95,10 @@ namespace IPA.TestDev
 
                 FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
 
-                var meta = lfs.GetFileMetadata(@"C:\tmp\large\1.dat");
-                Con.WriteLine(meta.ObjectToJson());
+                byte[] data1 = lfs.Open(@"C:\tmp\large\1.dat").GetStream().ReadToEnd();
+                Con.WriteLine(data1.Length);
 
-                var dirs = lfs.EnumDirectory(@"C:\tmp\large", true);
-                Con.WriteLine(dirs.ObjectToJson());
+
                 return;
 
                 using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", operationFlags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))

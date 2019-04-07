@@ -235,12 +235,24 @@ namespace IPA.Cores.Basic
             return this.CurrentFileSize;
         }
 
-        List<Cursor> GenerateCursorList(long position, long length)
+        List<Cursor> GenerateCursorList(long position, long length, bool writeMode)
         {
             checked
             {
                 if (position < 0) throw new ArgumentOutOfRangeException("position");
                 if (length < 0) throw new ArgumentOutOfRangeException("length");
+
+                if (writeMode == false)
+                {
+                    if (position > this.CurrentFileSize)
+                        throw new ApplicationException("position > this.CurrentFileSize");
+
+                    if (position + length > this.CurrentFileSize)
+                    {
+                        length = this.CurrentFileSize - position;
+                    }
+                }
+
                 if (length == 0)
                 {
                     return new List<Cursor>();
@@ -270,31 +282,48 @@ namespace IPA.Cores.Basic
 
                 int totalLength = 0;
 
-                List<Cursor> cursorList = GenerateCursorList(position, data.Length);
+                List<Cursor> cursorList = GenerateCursorList(position, data.Length, false);
 
                 foreach (Cursor cursor in cursorList)
                 {
                     bool isLast = (cursor == cursorList.Last());
 
-                    using (var handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel))
+                    RandomAccessHandle handle = await TryIfErrorRetDefaultAsync(async () => await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel), noDebugMessage: true);
+
+                    var subMemory = data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength);
+
+                    if (handle != null)
                     {
-                        var subMemory = data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength);
-                        int r = await handle.ReadRandomAsync(cursor.PhysicalPosition, subMemory, cancel);
+                        using (handle)
+                        {
+                            int r = await handle.ReadRandomAsync(cursor.PhysicalPosition, subMemory, cancel);
 
-                        Debug.Assert(r <= (int)cursor.PhysicalDataLength);
+                            Debug.Assert(r <= (int)cursor.PhysicalDataLength);
 
-                        if (isLast && r == 0)
+                            if (isLast && r == 0)
+                            {
+                                throw new ApplicationException($"Unable to read {cursor.PhysicalDataLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
+                            }
+
+                            if (r < (int)cursor.PhysicalDataLength)
+                            {
+                                var zeroClearMemory = subMemory.Slice(r);
+                                zeroClearMemory.Span.Fill(0);
+                            }
+
+                            totalLength += (int)cursor.PhysicalDataLength;
+                        }
+                    }
+                    else
+                    {
+                        if (isLast)
                         {
                             throw new ApplicationException($"Unable to read {cursor.PhysicalDataLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
                         }
 
-                        if (r < (int)cursor.PhysicalDataLength)
-                        {
-                            var zeroClearMemory = subMemory.Slice(r);
-                            zeroClearMemory.Span.Fill(0);
-                        }
+                        subMemory.Span.Fill(0);
 
-                        totalLength += r;
+                        totalLength += (int)cursor.PhysicalDataLength;
                     }
                 }
 
@@ -308,7 +337,7 @@ namespace IPA.Cores.Basic
             {
                 if (data.Length == 0) return;
 
-                List<Cursor> cursorList = GenerateCursorList(position, data.Length);
+                List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
 
                 foreach (Cursor cursor in cursorList)
                 {
@@ -324,7 +353,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            List<Cursor> cursorList = GenerateCursorList(size, 1);
+            List<Cursor> cursorList = GenerateCursorList(size, 1, true);
 
             Cursor cursor = cursorList.Single();
 

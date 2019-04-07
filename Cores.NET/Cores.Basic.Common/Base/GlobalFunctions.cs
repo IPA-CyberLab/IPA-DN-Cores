@@ -71,6 +71,40 @@ namespace IPA.Cores
                 }
             }
 
+            public static T TryIfErrorRetDefault<T>(Func<T> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+            {
+                try
+                {
+                    return func();
+                }
+                catch (Exception ex)
+                {
+                    if (noDebugMessage == false)
+                    {
+                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                        Dbg.WriteLine(c);
+                    }
+                    return defaultValue;
+                }
+            }
+
+            public static async Task<T> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+            {
+                try
+                {
+                    return await func();
+                }
+                catch (Exception ex)
+                {
+                    if (noDebugMessage == false)
+                    {
+                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                        Dbg.WriteLine(c);
+                    }
+                    return defaultValue;
+                }
+            }
+
             public static PalFileSystem Lfs => FileSystemBase.Local;
         }
     }
