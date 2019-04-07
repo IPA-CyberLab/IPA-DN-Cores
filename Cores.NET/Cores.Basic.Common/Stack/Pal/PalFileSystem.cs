@@ -238,7 +238,7 @@ namespace IPA.Cores.Basic
                 FileOptions options = FileOptions.Asynchronous;
 
                 if (Env.IsWindows)
-                    if (FileParams.OperationFlags.Bit(FileOperationFlags.BackupMode))
+                    if (FileParams.Flags.Bit(FileOperationFlags.BackupMode))
                         options |= (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS;
     
 

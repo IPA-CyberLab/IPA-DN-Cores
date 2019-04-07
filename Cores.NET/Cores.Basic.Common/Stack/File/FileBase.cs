@@ -58,9 +58,9 @@ namespace IPA.Cores.Basic
         public FileMode Mode { get; }
         public FileShare Share { get; }
         public FileAccess Access { get; }
-        public FileOperationFlags OperationFlags { get; }
+        public FileOperationFlags Flags { get; }
 
-        public FileParameters(string path, FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileOperationFlags operationFlags = FileOperationFlags.None)
+        public FileParameters(string path, FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileOperationFlags flags = FileOperationFlags.None)
         {
             this.Path = path;
             this.Mode = mode;
@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
             this.Access = access;
             if (this.Access.Bit(FileAccess.Write))
                 this.Access |= FileAccess.Read;
-            this.OperationFlags = operationFlags;
+            this.Flags = flags;
         }
 
         public async Task NormalizePathAsync(FileSystemBase fileSystem, CancellationToken cancel = default)
@@ -168,7 +168,7 @@ namespace IPA.Cores.Basic
         {
             using (cancellationToken.Register(() => FileObject.Close()))
             {
-                if (FileObject.FileParams.OperationFlags.Bit(FileOperationFlags.RandomAccessOnly))
+                if (FileObject.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
                     await FileObject.AppendAsync(buffer.AsReadOnlyMemory(offset, count));
                 else
                     await FileObject.WriteAsync(buffer.AsReadOnlyMemory(offset, count));
@@ -474,7 +474,7 @@ namespace IPA.Cores.Basic
 
         protected void CheckSequentialAccessProhibited()
         {
-            if (FileParams.OperationFlags.Bit(FileOperationFlags.RandomAccessOnly))
+            if (FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
                 throw new FileException(this.FileParams.Path, "The file object is in RandomAccessOnly mode.");
         }
     }

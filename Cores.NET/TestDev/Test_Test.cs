@@ -101,7 +101,7 @@ namespace IPA.TestDev
 
                 return;
 
-                using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", operationFlags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
+                using (var f = lfs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
                 {
                     f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
 
