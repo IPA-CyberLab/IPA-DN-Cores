@@ -55,10 +55,11 @@ namespace IPA.Cores.Basic
     enum FileMetadataCopyMode
     {
         None = 0,
-        Attributes = 1,
-        ReplicateArchiveBit = 2,
-        UpdatedDate = 4,
-        CreatedDate = 8,
+        All = 1,
+        Attributes = 2,
+        ReplicateArchiveBit = 4,
+        UpdatedDate = 8,
+        CreatedDate = 16,
         AllDates = UpdatedDate | CreatedDate,
         Default = Attributes | UpdatedDate,
     }
@@ -71,10 +72,27 @@ namespace IPA.Cores.Basic
         public DateTimeOffset? Updated;
         public DateTimeOffset? Created;
 
+        public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory | FileAttributes.NotContentIndexed;
+
         public object Clone() => this.MemberwiseClone();
         public FileMetadata Clone(FileMetadataCopyMode mode)
         {
-            FileMetadata dest = (FileMetadata)this.Clone();
+            if (mode.Bit(FileMetadataCopyMode.All))
+            {
+                var ret = (FileMetadata)this.Clone();
+                if (ret.Attributes != null)
+                {
+                    ret.Attributes &= CopyableAttributes;
+                    if (((FileAttributes)ret.Attributes).Bit(FileAttributes.Directory) == false)
+                    {
+                        if (ret.Attributes == 0)
+                            ret.Attributes = FileAttributes.Normal;
+                    }
+                }
+                return ret;
+            }
+
+            FileMetadata dest = new FileMetadata();
 
             this.CopyTo(dest, mode);
 
@@ -89,7 +107,7 @@ namespace IPA.Cores.Basic
             {
                 if (mode.Bit(FileMetadataCopyMode.Attributes))
                 {
-                    FileAttributes destAttributes = srcAttributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory);
+                    FileAttributes destAttributes = srcAttributes & CopyableAttributes;
 
                     if (mode.Bit(FileMetadataCopyMode.ReplicateArchiveBit) == false)
                     {
@@ -99,8 +117,11 @@ namespace IPA.Cores.Basic
                             destAttributes |= FileAttributes.Archive;
                     }
 
-                    if (destAttributes == 0)
-                        destAttributes = FileAttributes.Normal;
+                    if (srcAttributes.Bit(FileAttributes.Directory) == false)
+                    {
+                        if (destAttributes == 0)
+                            destAttributes = FileAttributes.Normal;
+                    }
 
                     dest.Attributes = destAttributes;
                 }

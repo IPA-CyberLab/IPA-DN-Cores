@@ -254,7 +254,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                Con.WriteDebug($"CreateAsync '{FileParams.Path}'");
+                Con.WriteDebug($"InternalInitAsync '{FileParams.Path}'");
 
                 FileOptions options = FileOptions.Asynchronous;
 

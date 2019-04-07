@@ -84,6 +84,10 @@ namespace IPA.TestDev
             //    }
             //}
 
+            //Lfs.CopyFile(@"C:\tmp\1.c", @"C:\tmp\2.c", new CopyFileParams(overwrite: true, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All | FileMetadataCopyMode.ReplicateArchiveBit)));
+            Lfs.CopyFile(@"C:\vm\vhd\win2019test.vhdx", @"d:\tmp\190407\test.vhdx", new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation));
+            return;
+
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {

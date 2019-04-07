@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Buffers;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -1412,14 +1413,19 @@ namespace IPA.Cores.Basic
 
     class CopyFileParams
     {
+        public delegate bool ProgressCallback(string srcPath, string destPath, long fileSize, long completedSize, double percentage);
+
         public static FileMetadataCopier DefaultMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
         public bool Overwrite { get; }
         public FileOperationFlags Flags { get; }
         public FileMetadataCopier MetadataCopier { get; }
         public int BufferSize { get; }
+        public bool AsyncCopy { get; }
+        public ProgressCallback Progress { get; }
 
-        public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0)
+        public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
+            ProgressCallback progressCallback = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultMetadataCopier;
             if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
@@ -1428,6 +1434,8 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
             this.MetadataCopier = metadataCopier;
             this.BufferSize = bufferSize;
+            this.AsyncCopy = asyncCopy;
+            this.Progress = progressCallback;
         }
     }
 
@@ -1437,6 +1445,13 @@ namespace IPA.Cores.Basic
         {
             if (param == null)
                 param = new CopyFileParams();
+
+            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel);
+            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel);
+
+            if (srcFileSystem == destFileSystem)
+                if (srcFileSystem.PathInterpreter.PathStringComparer.Equals(srcPath, destPath))
+                    throw new FileException(destPath, "Both source and destination is the same file.");
 
             using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
             {
@@ -1456,7 +1471,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                await destFileSystem.SetFileMetadataAsync(destPath, srcFileMetadata, cancel);
+                                await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
                             }
                             catch { }
                         }
@@ -1470,6 +1485,8 @@ namespace IPA.Cores.Basic
                                 }
                                 catch { }
                             }
+
+                            throw;
                         }
                         finally
                         {
@@ -1486,15 +1503,63 @@ namespace IPA.Cores.Basic
 
         static async Task CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, CancellationToken cancel = default)
         {
-            using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+            bool ReportProgress(long totalSize, long currentPosition)
             {
-                while (true)
+                checked
                 {
-                    int readSize = await src.ReadAsync(buffer, cancel);
+                    double percentage = 0.0;
+                    if (totalSize == 0) percentage = 100.0;
+                }
+            }
 
-                    if (readSize <= 0) break;
+            checked
+            {
+                if (param.AsyncCopy == false)
+                {
+                    // Normal copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                    {
+                        while (true)
+                        {
+                            int readSize = await src.ReadAsync(buffer, cancel);
 
-                    await src.WriteAsync(buffer, cancel);
+                            Debug.Assert(readSize <= buffer.Length);
+
+                            if (readSize <= 0) break;
+
+                            await dest.WriteAsync(buffer.Slice(0, readSize), cancel);
+                        }
+                    }
+                }
+                else
+                {
+                    // Async copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
+                    {
+                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
+                        {
+                            Task lastWriteTask = null;
+                            int number = 0;
+
+                            Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
+
+                            while (true)
+                            {
+                                Memory<byte> buffer = buffers[(number++) % 2];
+
+                                int readSize = await src.ReadAsync(buffer, cancel);
+
+                                Debug.Assert(readSize <= buffer.Length);
+
+                                if (lastWriteTask != null)
+                                    await lastWriteTask;
+
+                                if (readSize <= 0) break;
+
+                                lastWriteTask = dest.WriteAsync(buffer.Slice(0, readSize), cancel);
+                            }
+                        }
+                    }
                 }
             }
         }
