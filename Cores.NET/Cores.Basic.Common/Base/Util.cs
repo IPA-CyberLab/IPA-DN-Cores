@@ -2426,8 +2426,13 @@ namespace IPA.Cores.Basic
 
         public static ProgressData Empty { get; } = new ProgressData(0, null, false);
 
-        string LongValueToString(long? value, bool tostr3, string unitString = "")
+        string LongValueToString(long? value, bool tostr3, string unitString = "", bool fileStr = false)
         {
+            if (fileStr)
+            {
+                return value == null ? "??" : Str.GetFileSizeStr((long)value);
+            }
+
             string s = value == null ? "??" : (tostr3 ? ((long)value).ToStr3() : value.ToString());
             if (unitString.IsFilled()) s += " " + unitString;
             return s;
@@ -2448,15 +2453,18 @@ namespace IPA.Cores.Basic
             if (report.Type == ProgressReportType.Abort) statusStr = " Aborted:";
             string etaStr = "";
 
-            if (report.Type == ProgressReportType.InProgress && report.Eta != null)
+            if (setting.ShowEta)
             {
-                TimeSpan timeSpan = Util.ConvertTimeSpan((ulong)(report.Eta ?? 0));
+                if (report.Type == ProgressReportType.InProgress && report.Eta != null)
+                {
+                    TimeSpan timeSpan = Util.ConvertTimeSpan((ulong)(report.Eta ?? 0));
 
-                etaStr = $" ETA {timeSpan.ToTsStr()}";
+                    etaStr = $" ETA {timeSpan.ToTsStr()}";
+                }
             }
 
             return $"{setting.Title}{statusStr} {GetPercentageStr(setting, report.Percentage)} " +
-                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit)}).{etaStr}";
+                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3, "", setting.FileSizeStr)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit, setting.FileSizeStr)}).{etaStr}";
         }
     }
 
@@ -2494,16 +2502,19 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class ProgressReporterSettingBase
+    class ProgressReporterSettingBase
     {
         public string Title { get; set; }
-        public string Unit { get; }
-        public bool ToStr3 { get; }
+
+        public bool FileSizeStr { get; set; }
+        public string Unit { get; set; }
+        public bool ToStr3 { get; set; }
+
         public bool ShowEta { get; set; }
 
         public ProgressReportTimingSetting ReportTimingSetting { get; set; }
 
-        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, bool fileSizeStr = false, ProgressReportTimingSetting reportTimingSetting = null)
         {
             if (reportTimingSetting == null)
             {
@@ -2513,9 +2524,21 @@ namespace IPA.Cores.Basic
             this.Unit = unit.NonNullTrim();
             this.ToStr3 = toStr3;
             this.ShowEta = showEta;
+            this.FileSizeStr = fileSizeStr;
 
             this.ReportTimingSetting = reportTimingSetting;
         }
+    }
+
+    class NullProgressReporter : ProgressReporterBase
+    {
+        public NullProgressReporter(object state) : base(new ProgressReporterSettingBase(), state) { }
+
+        public override void ReportProgress(ProgressData data) { }
+
+        protected override void ReceiveProgressInternal(ProgressData data, ProgressReportType type) { }
+
+        protected override void ReportedImpl(ProgressReport report) { }
     }
 
     abstract class ProgressReporterBase : IDisposable
@@ -2532,9 +2555,12 @@ namespace IPA.Cores.Basic
 
         public ProgressReporterSettingBase Setting { get; }
 
-        public ProgressReporterBase(ProgressReporterSettingBase setting)
+        public object State { get; }
+
+        public ProgressReporterBase(ProgressReporterSettingBase setting, object state)
         {
             this.Setting = setting;
+            this.State = state;
         }
 
         public ProgressReport LastStatus
@@ -2555,7 +2581,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void ReportProgress(ProgressData data)
+        public virtual void ReportProgress(ProgressData data)
         {
             if (data == null) return;
 
@@ -2572,7 +2598,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void ReceiveProgressInternal(ProgressData data, ProgressReportType type)
+        protected virtual void ReceiveProgressInternal(ProgressData data, ProgressReportType type)
         {
             double? percentage = null;
 
@@ -2724,8 +2750,9 @@ namespace IPA.Cores.Basic
         public ProgressReportListener Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
 
-        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, ProgressReportTimingSetting reportTimingSetting = null)
-            : base(title, unit, toStr3, showEta, reportTimingSetting)
+        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true,
+            bool fileSizeStr = false, ProgressReportTimingSetting reportTimingSetting = null)
+            : base(title, unit, toStr3, showEta, fileSizeStr, reportTimingSetting)
         {
             this.AdditionalOutputs = outputs;
         }
@@ -2735,7 +2762,7 @@ namespace IPA.Cores.Basic
     {
         public ProgressReporterSetting MySetting => (ProgressReporterSetting)this.Setting;
 
-        public ProgressReporter(ProgressReporterSetting setting) : base(setting)
+        public ProgressReporter(ProgressReporterSetting setting, object state) : base(setting, state)
         {
         }
 
@@ -2760,9 +2787,47 @@ namespace IPA.Cores.Basic
 
     class ProgressFileProcessingReporter : ProgressReporter
     {
-        public ProgressFileProcessingReporter(ProgressReporterOutputs outputs, ProgressReportListener listener = null,
+        public ProgressFileProcessingReporter(object state, ProgressReporterOutputs outputs, ProgressReportListener listener = null,
             string title = "Processing a file", ProgressReportTimingSetting reportTimingSetting = null)
-            : base(new ProgressReporterSetting(outputs, listener, title, "bytes", true, true, reportTimingSetting)) { }
+            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
+    }
+
+    abstract class ProgressReporterFactoryBase
+    {
+        public ProgressReporterOutputs Outputs { get; set; }
+        public ProgressReportListener Listener { get; set; }
+        public ProgressReportTimingSetting ReportTimingSetting { get; set; }
+
+        public ProgressReporterFactoryBase(ProgressReporterOutputs outputs, ProgressReportListener listener = null, ProgressReportTimingSetting reportTimingSetting = null)
+        {
+            this.Outputs = outputs;
+            this.Listener = listener;
+            this.ReportTimingSetting = reportTimingSetting;
+        }
+
+        public abstract ProgressReporterBase CreateNewReporter(string title, object state);
+    }
+
+    class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
+    {
+        public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener listener = null, ProgressReportTimingSetting reportTimingSetting = null)
+            : base(outputs, listener, reportTimingSetting) { }
+
+        public override ProgressReporterBase CreateNewReporter(string title, object state)
+        {
+            return new ProgressFileProcessingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
+        }
+    }
+
+    class NullReporterFactory : ProgressReporterFactoryBase
+    {
+        public NullReporterFactory()
+            : base(ProgressReporterOutputs.None, null, null) { }
+
+        public override ProgressReporterBase CreateNewReporter(string title, object state)
+        {
+            return new NullProgressReporter(state);
+        }
     }
 }
 

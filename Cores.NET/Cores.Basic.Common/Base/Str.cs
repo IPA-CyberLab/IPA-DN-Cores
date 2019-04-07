@@ -3584,10 +3584,6 @@ namespace IPA.Cores.Basic
         }
 
         // 通信速度文字列
-        public static string GetBpsStr(int size)
-        {
-            return GetBpsStr(size);
-        }
         public static string GetBpsStr(long size)
         {
             if (size >= 1000000000000L)
@@ -3610,10 +3606,6 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルサイズ文字列
-        public static string GetFileSizeStr(int size)
-        {
-            return GetFileSizeStr(size);
-        }
         public static string GetFileSizeStr(long size)
         {
             if (size >= 1099511627776L)

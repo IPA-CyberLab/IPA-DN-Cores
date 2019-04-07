@@ -1413,8 +1413,6 @@ namespace IPA.Cores.Basic
 
     class CopyFileParams
     {
-        public delegate bool ProgressCallback(string srcPath, string destPath, long fileSize, long completedSize, double percentage);
-
         public static FileMetadataCopier DefaultMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
         public bool Overwrite { get; }
@@ -1422,26 +1420,29 @@ namespace IPA.Cores.Basic
         public FileMetadataCopier MetadataCopier { get; }
         public int BufferSize { get; }
         public bool AsyncCopy { get; }
-        public ProgressCallback Progress { get; }
+
+        public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
         public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
-            ProgressCallback progressCallback = null)
+            ProgressReporterFactoryBase progressReporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultMetadataCopier;
             if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
+            if (progressReporterFactory == null) progressReporterFactory = new NullReporterFactory();
 
             this.Overwrite = overwrite;
             this.Flags = flags;
             this.MetadataCopier = metadataCopier;
             this.BufferSize = bufferSize;
             this.AsyncCopy = asyncCopy;
-            this.Progress = progressCallback;
+            this.ProgressReporterFactory = progressReporterFactory;
         }
     }
 
     static class FileUtil
     {
-        public static async Task CopyFileAsync(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath, CopyFileParams param = null, CancellationToken cancel = default)
+        public static async Task CopyFileAsync(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath,
+            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
         {
             if (param == null)
                 param = new CopyFileParams();
@@ -1453,58 +1454,67 @@ namespace IPA.Cores.Basic
                 if (srcFileSystem.PathInterpreter.PathStringComparer.Equals(srcPath, destPath))
                     throw new FileException(destPath, "Both source and destination is the same file.");
 
-            using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
+            using (ProgressReporterBase reporter = param.ProgressReporterFactory.CreateNewReporter($"Copying '{srcFileSystem.PathInterpreter.GetFileName(srcPath)}'", state))
             {
-                try
+                using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
                 {
-                    FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, cancel);
-
-                    bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
-
-                    using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
+                    try
                     {
-                        try
+                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, cancel);
+
+                        bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
+
+                        using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
                         {
-                            await CopyBetweenHandleAsync(srcFile, destFile, param);
-
-                            await destFile.CloseAsync();
-
                             try
                             {
-                                await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
-                            }
-                            catch { }
-                        }
-                        catch
-                        {
-                            if (destFileExists == false)
-                            {
+                                reporter.ReportProgress(new ProgressData(0, srcFileMetadata.Size));
+
+                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel);
+
+                                reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
+
+                                await destFile.CloseAsync();
+
                                 try
                                 {
-                                    await destFileSystem.DeleteFileAsync(destPath);
+                                    await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
                                 }
                                 catch { }
                             }
+                            catch
+                            {
+                                if (destFileExists == false)
+                                {
+                                    try
+                                    {
+                                        await destFileSystem.DeleteFileAsync(destPath);
+                                    }
+                                    catch { }
+                                }
 
-                            throw;
-                        }
-                        finally
-                        {
-                            await destFile.CloseAsync();
+                                throw;
+                            }
+                            finally
+                            {
+                                await destFile.CloseAsync();
+                            }
                         }
                     }
-                }
-                finally
-                {
-                    await srcFile.CloseAsync();
+                    finally
+                    {
+                        await srcFile.CloseAsync();
+                    }
                 }
             }
         }
 
-        static async Task CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, CancellationToken cancel = default)
+        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel)
         {
             checked
             {
+                long currentPosition = 0;
+
                 if (param.AsyncCopy == false)
                 {
                     // Normal copy
@@ -1519,6 +1529,9 @@ namespace IPA.Cores.Basic
                             if (readSize <= 0) break;
 
                             await dest.WriteAsync(buffer.Slice(0, readSize), cancel);
+
+                            currentPosition += readSize;
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
                         }
                     }
                 }
@@ -1531,6 +1544,7 @@ namespace IPA.Cores.Basic
                         {
                             Task lastWriteTask = null;
                             int number = 0;
+                            int writeSize = 0;
 
                             Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
 
@@ -1543,15 +1557,24 @@ namespace IPA.Cores.Basic
                                 Debug.Assert(readSize <= buffer.Length);
 
                                 if (lastWriteTask != null)
+                                {
                                     await lastWriteTask;
+                                    currentPosition += writeSize;
+                                    reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                                }
 
                                 if (readSize <= 0) break;
 
-                                lastWriteTask = dest.WriteAsync(buffer.Slice(0, readSize), cancel);
+                                writeSize = readSize;
+                                lastWriteTask = dest.WriteAsync(buffer.Slice(0, writeSize), cancel);
                             }
+
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
                         }
                     }
                 }
+
+                return currentPosition;
             }
         }
     }

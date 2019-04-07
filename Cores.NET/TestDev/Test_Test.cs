@@ -50,21 +50,6 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            if (true)
-            {
-                long total = 1000;
-                using (ProgressFileProcessingReporter r = new ProgressFileProcessingReporter(ProgressReporterOutputs.Console))
-                {
-                    for (long j = 0; j < total; j++)
-                    {
-                        r.ReportProgress(new ProgressData(j, total));
-                        Sleep((int)j / 20);
-                    }
-                    r.ReportProgress(new ProgressData(0, total, true));
-                }
-                return;
-            }
-
             //using (var pool = Lfs.GetObjectPool(3000))
             //{
             //    while (true)
@@ -100,7 +85,8 @@ namespace IPA.TestDev
             //}
 
             //Lfs.CopyFile(@"C:\tmp\1.c", @"C:\tmp\2.c", new CopyFileParams(overwrite: true, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All | FileMetadataCopyMode.ReplicateArchiveBit)));
-            Lfs.CopyFile(@"C:\vm\vhd\win2019test.vhdx", @"d:\tmp\190407\test.vhdx", new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation));
+            Lfs.CopyFile(@"C:\vm\vhd\win2019test.vhdx", @"d:\tmp\190407\test.vhdx",
+                new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation, progressReporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console) ));
             return;
 
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
