@@ -1567,12 +1567,12 @@ namespace IPA.Cores.Basic
 
         public const int MemoryUsePoolThreshold = 1024;
 
-        public static T[] FastAlloc<T>(int minimumSize)
+        public static T[] FastAlloc<T>(int size)
         {
-            if (minimumSize < MemoryUsePoolThreshold)
-                return new T[minimumSize];
+            if (size < MemoryUsePoolThreshold)
+                return new T[size];
             else
-                return ArrayPool<T>.Shared.Rent(minimumSize);
+                return ArrayPool<T>.Shared.Rent(size);
         }
 
         public static Memory<T> FastAllocMemory<T>(int size)
@@ -1581,6 +1581,27 @@ namespace IPA.Cores.Basic
                 return new T[size];
             else
                 return new Memory<T>(FastAlloc<T>(size)).Slice(0, size);
+        }
+
+        public static void FastFree<T>(T[] array)
+        {
+            if (array.Length >= MemoryUsePoolThreshold)
+                ArrayPool<T>.Shared.Return(array);
+        }
+
+        public static void FastFree<T>(Memory<T> memory) => memory.GetInternalArray().FastFree();
+
+        public static Holder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
+        {
+            var ret = FastAllocMemory<T>(size);
+
+            memory = ret;
+
+            return new Holder(() =>
+            {
+                FastFree(ret);
+            },
+            noLeakCheck: true);
         }
 
         unsafe struct DummyValueType
@@ -1739,13 +1760,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastMemoryAllocator<T>
+    class FastMemoryPool<T>
     {
         Memory<T> Pool;
         int CurrentPos;
         int MinReserveSize;
 
-        public FastMemoryAllocator(int initialSize = 0)
+        public FastMemoryPool(int initialSize = 0)
         {
             initialSize = Math.Min(initialSize, 1);
             Pool = new T[initialSize];

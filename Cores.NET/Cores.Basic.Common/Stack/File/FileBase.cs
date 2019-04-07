@@ -52,6 +52,84 @@ namespace IPA.Cores.Basic
         public FileException(string path, string message) : base($"File \"{path}\": {message}") { }
     }
 
+    enum FileMetadataCopyMode
+    {
+        None = 0,
+        Attributes = 1,
+        ReplicateArchiveBit = 2,
+        UpdatedDate = 4,
+        CreatedDate = 8,
+        AllDates = UpdatedDate | CreatedDate,
+        Default = Attributes | UpdatedDate,
+    }
+
+    class FileMetadata : ICloneable
+    {
+        public bool IsDirectory;
+        public long Size;
+        public FileAttributes? Attributes;
+        public DateTimeOffset? Updated;
+        public DateTimeOffset? Created;
+
+        public object Clone() => this.MemberwiseClone();
+        public FileMetadata Clone(FileMetadataCopyMode mode)
+        {
+            FileMetadata dest = (FileMetadata)this.Clone();
+
+            this.CopyTo(dest, mode);
+
+            return dest;
+        }
+
+        public void CopyTo(FileMetadata dest, FileMetadataCopyMode mode)
+        {
+            dest.IsDirectory = this.IsDirectory;
+
+            if (this.Attributes is FileAttributes srcAttributes)
+            {
+                if (mode.Bit(FileMetadataCopyMode.Attributes))
+                {
+                    FileAttributes destAttributes = srcAttributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory);
+
+                    if (mode.Bit(FileMetadataCopyMode.ReplicateArchiveBit) == false)
+                    {
+                        if (srcAttributes.Bit(FileAttributes.Directory))
+                            destAttributes &= ~FileAttributes.Archive;
+                        else
+                            destAttributes |= FileAttributes.Archive;
+                    }
+
+                    if (destAttributes == 0)
+                        destAttributes = FileAttributes.Normal;
+
+                    dest.Attributes = destAttributes;
+                }
+            }
+
+            if (mode.Bit(FileMetadataCopyMode.UpdatedDate))
+                if (this.Updated != null)
+                    dest.Updated = this.Updated;
+
+            if (mode.Bit(FileMetadataCopyMode.CreatedDate))
+                if (this.Created != null)
+                    dest.Created = this.Created;
+        }
+    }
+
+    class FileMetadataCopier
+    {
+        public FileMetadataCopyMode Mode { get; }
+        public FileMetadataCopier(FileMetadataCopyMode mode = FileMetadataCopyMode.Default)
+        {
+            this.Mode = mode;
+        }
+        public virtual FileMetadata Copy(FileMetadata src)
+        {
+            if (src == null) return null;
+            return src.Clone(this.Mode);
+        }
+    }
+
     class FileParameters
     {
         public string Path { get; private set; }
@@ -66,8 +144,6 @@ namespace IPA.Cores.Basic
             this.Mode = mode;
             this.Share = share;
             this.Access = access;
-            if (this.Access.Bit(FileAccess.Write))
-                this.Access |= FileAccess.Read;
             this.Flags = flags;
         }
 

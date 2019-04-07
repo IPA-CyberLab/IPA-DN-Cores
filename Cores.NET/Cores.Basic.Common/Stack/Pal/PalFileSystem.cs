@@ -114,9 +114,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static FileSystemMetadata ConvertFileSystemInfoToFileSystemMetadata(FileSystemInfo info)
+        public static FileMetadata ConvertFileSystemInfoToFileMetadata(FileSystemInfo info)
         {
-            FileSystemMetadata ret = new FileSystemMetadata()
+            FileMetadata ret = new FileMetadata()
             {
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
                 Attributes = info.Attributes,
@@ -125,6 +125,18 @@ namespace IPA.Cores.Basic
                 IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
             };
             return ret;
+        }
+
+        public static void SetFileMetadataToFileSystemInfo(FileSystemInfo info, FileMetadata metadata)
+        {
+            if (metadata.Updated is DateTimeOffset dt1)
+                info.LastWriteTimeUtc = dt1.UtcDateTime;
+
+            if (metadata.Created is DateTimeOffset dt2)
+                info.CreationTimeUtc = dt2.UtcDateTime;
+
+            if (metadata.Attributes is FileAttributes attr)
+                info.Attributes = attr;
         }
 
         public static string ReadSymbolicLinkTarget(string linkPath)
@@ -144,10 +156,10 @@ namespace IPA.Cores.Basic
             return Task.FromResult(Path.GetFullPath(path));
         }
 
-        protected override async Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
         {
             FileInfo fileInfo = new FileInfo(path);
-            FileSystemMetadata ret = ConvertFileSystemInfoToFileSystemMetadata(fileInfo);
+            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(fileInfo);
 
             // Try to open the actual physical file
             FileObjectBase f = null;
@@ -177,6 +189,15 @@ namespace IPA.Cores.Basic
             }
 
             return ret;
+        }
+
+        protected async override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            FileInfo fileInfo = new FileInfo(path);
+
+            SetFileMetadataToFileSystemInfo(fileInfo, metadata);
+
+            await Task.CompletedTask;
         }
 
         protected override async Task DeleteFileImplAsync(string path, CancellationToken cancel = default)

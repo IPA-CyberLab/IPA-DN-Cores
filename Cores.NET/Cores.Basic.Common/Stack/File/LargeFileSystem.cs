@@ -706,7 +706,7 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
-        protected override async Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
         {
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
             var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
@@ -721,7 +721,7 @@ namespace IPA.Cores.Basic
                 // File exists
                 checked
                 {
-                    FileSystemMetadata ret = await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel);
+                    FileMetadata ret = await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel);
                     long sizeOfLastFile = ret.Size;
                     sizeOfLastFile = Math.Min(sizeOfLastFile, Params.MaxSinglePhysicalFileSize);
 
@@ -762,6 +762,11 @@ namespace IPA.Cores.Basic
                 return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
             },
             cancel);
+        }
+
+        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -52,6 +52,12 @@ namespace IPA.Cores.Basic
         public static partial class FileSystemSettings
         {
             public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
+            public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
+        }
+
+        public static partial class FileUtilSettings
+        {
+            public static readonly Copenhagen<int> FileCopyBufferSize = 8 * 1024 * 1024; // 8MB
         }
     }
 
@@ -62,13 +68,11 @@ namespace IPA.Cores.Basic
 
     abstract class FileObjectBase : FileBase
     {
-        public const int DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
-
         public FileSystemBase FileSystem { get; }
         public override bool IsOpened => !this.ClosedFlag.IsSet;
         public override Exception LastError { get; protected set; } = null;
 
-        public int MicroOperationSize { get; set; } = DefaultMicroOperationSize;
+        public int MicroOperationSize { get; set; } = AppConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
 
         long InternalPosition = 0;
         long InternalFileSize = 0;
@@ -551,6 +555,8 @@ namespace IPA.Cores.Basic
         {
             CancelSource.TryCancelNoBlock();
 
+            if (ClosedFlag.IsSet) return;
+
             using (await AsyncLockObj.LockWithAwait())
             {
                 if (ClosedFlag.IsFirstCall())
@@ -593,15 +599,6 @@ namespace IPA.Cores.Basic
         public FileAttributes Attributes { get; set; }
         public DateTimeOffset Updated { get; set; }
         public DateTimeOffset Created { get; set; }
-    }
-
-    class FileSystemMetadata
-    {
-        public bool IsDirectory { get; set; }
-        public long Size { get; set; }
-        public FileAttributes? Attributes { get; set; }
-        public DateTimeOffset? Updated { get; set; }
-        public DateTimeOffset? Created { get; set; }
     }
 
     [Flags]
@@ -904,6 +901,8 @@ namespace IPA.Cores.Basic
         public FileSystemObjectPool ObjectPoolForRead { get; }
         public FileSystemObjectPool ObjectPoolForWrite { get; }
 
+        public LargeFileSystem LargeFileSystem { get; }
+
         public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemMetrics) : base(lady)
         {
             try
@@ -913,6 +912,8 @@ namespace IPA.Cores.Basic
 
                 ObjectPoolForRead = new FileSystemObjectPool(this, false, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
                 ObjectPoolForWrite = new FileSystemObjectPool(this, true, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
+
+                //LargeFileSystem = new LargeFileSystem(lady, this, new LargeFileSystemParams(
             }
             catch
             {
@@ -977,7 +978,8 @@ namespace IPA.Cores.Basic
         protected abstract Task DeleteFileImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
-        protected abstract Task<FileSystemMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1007,11 +1009,6 @@ namespace IPA.Cores.Basic
                     CheckNotDisposed();
 
                     await option.NormalizePathAsync(this, opCancel);
-
-                    if (option.Access.Bit(FileAccess.Read) == false)
-                    {
-                        throw new ArgumentException("The Access member must contain the FileAccess.Read bit.");
-                    }
 
                     if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew ||
                         option.Mode == FileMode.OpenOrCreate || option.Mode == FileMode.Truncate)
@@ -1061,11 +1058,11 @@ namespace IPA.Cores.Basic
         public FileObjectBase CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).GetResult();
 
-        public Task<FileObjectBase> CreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => CreateFileAsync(new FileParameters(path, FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
+        public Task<FileObjectBase> CreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => CreateFileAsync(new FileParameters(path, doNotOverwrite ? FileMode.CreateNew : FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
-        public FileObjectBase Create(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => CreateAsync(path, noShare, flags, cancel).GetResult();
+        public FileObjectBase Create(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => CreateAsync(path, noShare, flags, doNotOverwrite, cancel).GetResult();
 
         public Task<FileObjectBase> OpenAsync(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
@@ -1080,9 +1077,79 @@ namespace IPA.Cores.Basic
         public FileObjectBase OpenOrCreate(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
 
-        //public async Task WriteToFile(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        //{
-        //}
+        public Task<FileObjectBase> OpenOrCreateAppendAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => CreateFileAsync(new FileParameters(path, FileMode.Append, FileAccess.Write, noShare ? FileShare.None : FileShare.Read, flags), cancel);
+
+        public FileObjectBase OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
+
+        public async Task WriteToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        {
+            using (var file = await CreateAsync(path, false, flags, doNotOverwrite, cancel))
+            {
+                try
+                {
+                    await file.WriteAsync(srcMemory, cancel);
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+        public void WriteToFile(string path, Memory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => WriteToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
+
+        public async Task AppendToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
+            {
+                try
+                {
+                    await file.WriteAsync(srcMemory, cancel);
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+        public void AppendToFile(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => AppendToFileAsync(path, srcMemory, flags, cancel).GetResult();
+
+        public async Task<int> ReadFromFileAsync(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            {
+                try
+                {
+                    return await file.ReadAsync(destMemory, cancel);
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+        public int ReadFromFile(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => ReadFromFileAsync(path, destMemory, flags, cancel).GetResult();
+
+        public async Task<Memory<byte>> ReadFromFileAsync(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            {
+                try
+                {
+                    return await file.GetStream().ReadToEndAsync(maxSize, cancel);
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+        public Memory<byte> ReadFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => ReadFromFileAsync(path, maxSize, flags, cancel).GetResult();
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -1180,7 +1247,7 @@ namespace IPA.Cores.Basic
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
             => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
 
-        public async Task<FileSystemMetadata> GetFileMetadataAsync(string path, CancellationToken cancel = default)
+        public async Task<FileMetadata> GetFileMetadataAsync(string path, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1196,8 +1263,46 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public FileSystemMetadata GetFileMetadata(string path, CancellationToken cancel = default)
+        public FileMetadata GetFileMetadata(string path, CancellationToken cancel = default)
             => GetFileMetadataAsync(path, cancel).GetResult();
+
+        public virtual async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
+        {
+            try
+            {
+                var metaData = await GetFileMetadataAsync(path);
+
+                if ((metaData.Attributes ?? FileAttributes.Normal).Bit(FileAttributes.Directory) == false)
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        public bool IsFileExists(string path, CancellationToken cancel = default)
+            => IsFileExistsAsync(path, cancel).GetResult();
+
+        public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    path = await NormalizePathImplAsync(path, opCancel);
+
+                    await SetFileMetadataImplAsync(path, metadata, opCancel);
+                }
+            }
+        }
+        public void SetFileMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
+            => SetFileMetadataAsync(path, metadata, cancel).GetResult();
 
         public async Task DeleteFileAsync(string path, CancellationToken cancel = default)
         {
@@ -1218,6 +1323,15 @@ namespace IPA.Cores.Basic
 
         public void DeleteFile(string path, CancellationToken cancel = default)
             => DeleteFileAsync(path, cancel).GetResult();
+
+        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
+        {
+            if (destFileSystem == null) destFileSystem = this;
+
+            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, cancel);
+        }
+        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
+            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {
@@ -1294,6 +1408,96 @@ namespace IPA.Cores.Basic
 
         public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], CancellationToken, bool> callback, Func<string, Exception, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory, async (entity, c) => { await Task.CompletedTask; return callback(entity, c); }, exceptionHandler, recursive, cancel).GetResult();
+    }
+
+    class CopyFileParams
+    {
+        public static FileMetadataCopier DefaultMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
+
+        public bool Overwrite { get; }
+        public FileOperationFlags Flags { get; }
+        public FileMetadataCopier MetadataCopier { get; }
+        public int BufferSize { get; }
+
+        public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0)
+        {
+            if (metadataCopier == null) metadataCopier = DefaultMetadataCopier;
+            if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
+
+            this.Overwrite = overwrite;
+            this.Flags = flags;
+            this.MetadataCopier = metadataCopier;
+            this.BufferSize = bufferSize;
+        }
+    }
+
+    static class FileUtil
+    {
+        public static async Task CopyFileAsync(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath, CopyFileParams param = null, CancellationToken cancel = default)
+        {
+            if (param == null)
+                param = new CopyFileParams();
+
+            using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
+            {
+                try
+                {
+                    FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, cancel);
+
+                    bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
+
+                    using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
+                    {
+                        try
+                        {
+                            await CopyBetweenHandleAsync(srcFile, destFile, param);
+
+                            await destFile.CloseAsync();
+
+                            try
+                            {
+                                await destFileSystem.SetFileMetadataAsync(destPath, srcFileMetadata, cancel);
+                            }
+                            catch { }
+                        }
+                        catch
+                        {
+                            if (destFileExists == false)
+                            {
+                                try
+                                {
+                                    await destFileSystem.DeleteFileAsync(destPath);
+                                }
+                                catch { }
+                            }
+                        }
+                        finally
+                        {
+                            await destFile.CloseAsync();
+                        }
+                    }
+                }
+                finally
+                {
+                    await srcFile.CloseAsync();
+                }
+            }
+        }
+
+        static async Task CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, CancellationToken cancel = default)
+        {
+            using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+            {
+                while (true)
+                {
+                    int readSize = await src.ReadAsync(buffer, cancel);
+
+                    if (readSize <= 0) break;
+
+                    await src.WriteAsync(buffer, cancel);
+                }
+            }
+        }
     }
 }
 

@@ -1450,7 +1450,7 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        FastMemoryAllocator<byte> FastMemoryAllocatorForStream = new FastMemoryAllocator<byte>();
+        FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
         AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper>(async me =>
         {
@@ -1509,7 +1509,7 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        FastMemoryAllocator<byte> FastMemoryAllocatorForDatagram = new FastMemoryAllocator<byte>();
+        FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
 
         AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper>(async me =>
         {
@@ -1589,7 +1589,7 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        FastMemoryAllocator<byte> FastMemoryAllocatorForStream = new FastMemoryAllocator<byte>();
+        FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
         AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper>(async me =>
         {

@@ -87,6 +87,8 @@ namespace IPA.TestDev
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {
+                Lfs.AppendToFile(@"c:\tmp\append.txt", $"Hello {DateTimeOffset.Now.ToDtStr()}\r\n".GetBytes_UTF8());
+                return;
                 LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
                 //LargeFileSystemParams p = new LargeFileSystemParams(1000000000);
                 LargeFileSystem lfs = new LargeFileSystem(lady, Lfs, p);
@@ -96,7 +98,8 @@ namespace IPA.TestDev
                 FileStream fs = File.Create(@"c:\tmp\1.dat", 4096, FileOptions.Asynchronous);
 
                 byte[] data1 = lfs.Open(@"C:\tmp\large\1.dat").GetStream().ReadToEnd();
-                Con.WriteLine(data1.Length);
+                //Con.WriteLine(data1.Length);
+                Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
 
 
                 return;
