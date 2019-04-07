@@ -3520,6 +3520,22 @@ namespace IPA.Cores.Basic
         public T Object { get; }
         readonly RefCounterHolder CounterHolder;
 
+        public RefObjectHandle(T obj, Action onDispose)
+        {
+            this.Object = obj;
+            RefCounter counter = new RefCounter();
+            counter.EventListener.RegisterCallback((caller, eventType, state) =>
+            {
+                switch (eventType)
+                {
+                    case RefCounterEventType.AllReleased:
+                        onDispose();
+                        break;
+                }
+            });
+            this.CounterHolder = counter.AddRef();
+        }
+
         public RefObjectHandle(RefCounter counter, T obj)
         {
             this.Object = obj;

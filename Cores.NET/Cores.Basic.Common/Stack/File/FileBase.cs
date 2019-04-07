@@ -95,22 +95,22 @@ namespace IPA.Cores.Basic
 
     class FileBaseStream : FileStream
     {
-        FileBase FileObject;
+        FileBase File;
         bool DisposeObject = false;
 
         private FileBaseStream() : base((SafeFileHandle)null, FileAccess.Read) { }
 
         private void _InternalInit(FileBase obj, bool disposeObject)
         {
-            FileObject = obj;
+            File = obj;
             DisposeObject = disposeObject;
         }
 
-        public static FileBaseStream CreateFromFileObject(FileBase obj, bool disposeObject = false)
+        public static FileBaseStream CreateFromFileObject(FileBase file, bool disposeObject = false)
         {
             FileBaseStream ret = Util.NewWithoutConstructor<FileBaseStream>();
 
-            ret._InternalInit(obj, disposeObject);
+            ret._InternalInit(file, disposeObject);
 
             return ret;
         }
@@ -121,18 +121,18 @@ namespace IPA.Cores.Basic
             if (DisposeFlag.IsFirstCall() && disposing)
             {
                 if (this.DisposeObject)
-                    FileObject.DisposeSafe();
+                    File.DisposeSafe();
             }
             base.Dispose(disposing);
         }
 
-        public override bool CanRead => this.FileObject.FileParams.Access.Bit(FileAccess.Read);
-        public override bool CanWrite => this.FileObject.FileParams.Access.Bit(FileAccess.Write);
+        public override bool CanRead => this.File.FileParams.Access.Bit(FileAccess.Read);
+        public override bool CanWrite => this.File.FileParams.Access.Bit(FileAccess.Write);
         public override bool CanSeek => true;
-        public override long Length => FileObject.GetFileSize();
-        public override long Position { get => FileObject.Position; set => FileObject.Position = value; }
-        public override long Seek(long offset, SeekOrigin origin) => FileObject.Seek(offset, origin);
-        public override void SetLength(long value) => FileObject.SetFileSize(value);
+        public override long Length => File.GetFileSize();
+        public override long Position { get => File.Position; set => File.Position = value; }
+        public override long Seek(long offset, SeekOrigin origin) => File.Seek(offset, origin);
+        public override void SetLength(long value) => File.SetFileSize(value);
 
         public override bool CanTimeout => false;
         public override int ReadTimeout => throw new NotImplementedException();
@@ -143,35 +143,35 @@ namespace IPA.Cores.Basic
 
         public override bool IsAsync => true;
 
-        public override string Name => FileObject.FileParams.Path;
+        public override string Name => File.FileParams.Path;
 
         public override SafeFileHandle SafeFileHandle => null;
 
-        public override void Flush() => FileObject.FlushAsync().GetResult();
+        public override void Flush() => File.FlushAsync().GetResult();
         public override async Task FlushAsync(CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => FileObject.Close()))
+            using (cancellationToken.Register(() => File.Close()))
             {
-                await FileObject.FlushAsync();
+                await File.FlushAsync();
             }
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => FileObject.Close()))
+            using (cancellationToken.Register(() => File.Close()))
             {
-                return await FileObject.ReadAsync(buffer.AsMemory(offset, count));
+                return await File.ReadAsync(buffer.AsMemory(offset, count));
             }
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => FileObject.Close()))
+            using (cancellationToken.Register(() => File.Close()))
             {
-                if (FileObject.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
-                    await FileObject.AppendAsync(buffer.AsReadOnlyMemory(offset, count));
+                if (File.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
+                    await File.AppendAsync(buffer.AsReadOnlyMemory(offset, count));
                 else
-                    await FileObject.WriteAsync(buffer.AsReadOnlyMemory(offset, count));
+                    await File.WriteAsync(buffer.AsReadOnlyMemory(offset, count));
             }
         }
 
@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
 
         public override bool Equals(object obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
-        public override string ToString() => this.FileObject.ToString();
+        public override string ToString() => this.File.ToString();
         public override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public override void Close() => Dispose(true);
 
@@ -262,9 +262,9 @@ namespace IPA.Cores.Basic
 
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => FileObject.Close()))
+            using (cancellationToken.Register(() => File.Close()))
             {
-                return await FileObject.ReadAsync(buffer);
+                return await File.ReadAsync(buffer);
             }
         }
 
@@ -294,9 +294,9 @@ namespace IPA.Cores.Basic
 
         public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => FileObject.Close()))
+            using (cancellationToken.Register(() => File.Close()))
             {
-                await FileObject.WriteAsync(buffer);
+                await File.WriteAsync(buffer);
             }
         }
 
@@ -322,15 +322,46 @@ namespace IPA.Cores.Basic
         Closed,
     }
 
-    class RandomAccessHandle : IDisposable
+    interface IRandomAccess : IDisposable
     {
-        readonly RefObjectHandle<FileBase> Handle;
-        readonly FileBase FileObject;
+        FileStream GetStream();
+
+        Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);
+        int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default);
+
+        Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+
+        Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+
+        Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
+        long GetFileSize(bool refresh = false, CancellationToken cancel = default);
+
+        Task SetFileSizeAsync(long size, CancellationToken cancel = default);
+        void SetFileSize(long size, CancellationToken cancel = default);
+
+        Task FlushAsync(CancellationToken cancel = default);
+        void Flush(CancellationToken cancel = default);
+    }
+
+    class RandomAccessHandle : IRandomAccess, IDisposable
+    {
+        readonly RefObjectHandle<FileBase> Ref;
+        readonly FileBase File;
+        bool DisposeFile = false;
+
+        public RandomAccessHandle(FileBase fileHandle, bool disposeObject = false)
+        {
+            this.Ref = null;
+            this.File = fileHandle;
+            this.DisposeFile = disposeObject;
+        }
 
         public RandomAccessHandle(RefObjectHandle<FileBase> objHandle)
         {
-            this.Handle = objHandle;
-            this.FileObject = this.Handle.Object;
+            this.Ref = objHandle;
+            this.File = this.Ref.Object;
         }
 
         public void Dispose() => Dispose(true);
@@ -339,40 +370,44 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
-            this.Handle.DisposeSafe();
+            if (Ref != null)
+                this.Ref.DisposeSafe();
+
+            if (DisposeFile)
+                this.File.DisposeSafe();
         }
 
-        public FileStream GetStream() => this.FileObject.GetStream();
+        public FileStream GetStream() => this.File.GetStream();
 
         public Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
-            => this.FileObject.ReadRandomAsync(position, data, cancel);
+            => this.File.ReadRandomAsync(position, data, cancel);
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
             => ReadRandomAsync(position, data, cancel).GetResult();
 
         public Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.FileObject.WriteRandomAsync(position, data, cancel);
+            => this.File.WriteRandomAsync(position, data, cancel);
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => WriteRandomAsync(position, data, cancel).GetResult();
 
         public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.FileObject.AppendAsync(data, cancel);
+            => this.File.AppendAsync(data, cancel);
         public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.AppendAsync(data, cancel).GetResult();
 
         public Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
-            => this.FileObject.GetFileSizeAsync(refresh, cancel);
+            => this.File.GetFileSizeAsync(refresh, cancel);
         public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
 
         public Task SetFileSizeAsync(long size, CancellationToken cancel = default)
-            => this.FileObject.SetFileSizeAsync(size, cancel);
+            => this.File.SetFileSizeAsync(size, cancel);
         public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
 
         public Task FlushAsync(CancellationToken cancel = default)
-            => this.FileObject.FlushAsync(cancel);
+            => this.File.FlushAsync(cancel);
         public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
     }
 
-    abstract class FileBase : IDisposable, IAsyncClosable
+    abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess
     {
         public FileParameters FileParams { get; }
         public abstract bool IsOpened { get; }
@@ -410,8 +445,9 @@ namespace IPA.Cores.Basic
         public abstract Task CloseAsync();
 
 
-
-        public FileStream GetStream(bool disposeObject = false) => FileBaseStream.CreateFromFileObject(this, disposeObject);
+        public FileStream GetStream(bool disposeObject) => FileBaseStream.CreateFromFileObject(this, disposeObject);
+        public FileStream GetStream() => GetStream(false);
+        public RandomAccessHandle GetRandomAccessHandle(bool disposeObject = false) => new RandomAccessHandle(this, disposeObject);
 
         public long Position
         {
