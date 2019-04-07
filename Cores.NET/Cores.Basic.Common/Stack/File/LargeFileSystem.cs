@@ -717,7 +717,7 @@ namespace IPA.Cores.Basic
             if (lastFileParsed == null)
             {
                 // File not found
-                throw new IOException($"The file 'path' not found.");
+                throw new IOException($"The file '{path}' not found.");
             }
             else
             {
@@ -798,5 +798,11 @@ namespace IPA.Cores.Basic
 
         protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
             => UnderlayFileSystem.GetDirectoryMetadataAsync(path, cancel);
+
+        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+            => throw new NotImplementedException();
+
+        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+            => throw new NotImplementedException();
     }
 }

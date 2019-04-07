@@ -106,7 +106,7 @@ namespace IPA.TestDev
                 ////Con.WriteLine(data1.Length);
                 //Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
 
-                Lfs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\xpaoe.vhdx",
+                Lfs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
                     new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation,
                     reporterFactory: CopyFileParams.ConsoleReporterFactory),
                     destFileSystem: largeFs);

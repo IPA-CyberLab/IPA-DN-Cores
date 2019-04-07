@@ -989,6 +989,8 @@ namespace IPA.Cores.Basic
         protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
+        protected abstract Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
+        protected abstract Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1386,6 +1388,46 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    srcPath = await NormalizePathImplAsync(srcPath, opCancel);
+                    destPath = await NormalizePathImplAsync(destPath, opCancel);
+
+                    await MoveFileImplAsync(srcPath, destPath, cancel);
+                }
+            }
+        }
+        public void MoveFile(string srcPath, string destPath, CancellationToken cancel = default)
+            => MoveFileAsync(srcPath, destPath, cancel).GetResult();
+
+        public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            {
+                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                {
+                    CheckNotDisposed();
+
+                    cancel.ThrowIfCancellationRequested();
+
+                    srcPath = await NormalizePathImplAsync(srcPath, opCancel);
+                    destPath = await NormalizePathImplAsync(destPath, opCancel);
+
+                    await MoveDirectoryImplAsync(srcPath, destPath, cancel);
+                }
+            }
+        }
+        public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default)
+            => MoveDirectoryAsync(srcPath, destPath, cancel).GetResult();
 
         public void DeleteFile(string path, CancellationToken cancel = default)
             => DeleteFileAsync(path, cancel).GetResult();

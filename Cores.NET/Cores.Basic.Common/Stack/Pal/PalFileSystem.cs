@@ -234,6 +234,20 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
+        protected override async Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            File.Move(srcPath, destPath);
+
+            await Task.CompletedTask;
+        }
+
+        protected override async Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            Directory.Move(srcPath, destPath);
+
+            await Task.CompletedTask;
+        }
+
         public void EnableBackupPrivilege()
         {
             if (Env.IsWindows)
