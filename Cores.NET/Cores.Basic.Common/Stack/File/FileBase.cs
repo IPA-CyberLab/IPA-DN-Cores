@@ -53,6 +53,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    enum FileSpecialOperationFlagsMetadata : long
+    {
+        None = 0,
+        SetCompressionFlag = 1,
+        RemoveCompressionFlag = 2,
+    }
+
+    [Flags]
     enum FileMetadataGetFlags
     {
         None = 0,
@@ -188,9 +196,12 @@ namespace IPA.Cores.Basic
 
         public FileAlternateStreamMetadata AlternateStream;
 
+        public FileSpecialOperationFlagsMetadata SpecialOperationFlags;
+
         public FileMetadata() { }
 
-        public FileMetadata(bool isDirectory, FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
+        public FileMetadata(bool isDirectory, FileSpecialOperationFlagsMetadata specialOperation = FileSpecialOperationFlagsMetadata.None,
+            FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
             FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null)
         {
             this.IsDirectory = isDirectory;
@@ -200,6 +211,7 @@ namespace IPA.Cores.Basic
             this.LastAccessTime = lastAccessTime;
             this.Security = securityData.CloneDeep();
             this.AlternateStream = alternateStream.CloneDeep();
+            this.SpecialOperationFlags = specialOperation;
         }
 
         public FileMetadata Clone(FileMetadataCopyMode mode)
@@ -216,6 +228,7 @@ namespace IPA.Cores.Basic
                             ret.Attributes = FileAttributes.Normal;
                     }
                 }
+                ret.SpecialOperationFlags = FileSpecialOperationFlagsMetadata.None;
                 return ret;
             }
 
