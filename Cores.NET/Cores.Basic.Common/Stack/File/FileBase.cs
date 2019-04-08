@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
 
         AlternateStream = 1024,
 
-        Default = Attributes | AllDates,
+        Default = Attributes | AllDates | AlternateStream,
     }
 
     [Serializable]

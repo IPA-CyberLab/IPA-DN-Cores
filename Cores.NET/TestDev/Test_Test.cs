@@ -53,14 +53,16 @@ namespace IPA.TestDev
 
             //string alt1 = @"D:\Downloads\softether-vpnclient-v4.29-9680-rtm-2019.02.28-windows-x86_x64-intel.exe";
             string alt1 = @"C:\tmp\acl_test2\1.exe";
-            string alt2 = @"C:\TMP\ziptest\Bz.exe";
+            string alt2 = @"C:\tmp\acl_test2\2.exe";
 
             Lfs.EnableBackupPrivilege();
 
-            var meta1 = Lfs.GetFileMetadata(alt1);
-            Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
-            Con.WriteJsonLine(meta1);
+            //var meta1 = Lfs.GetFileMetadata(alt1);
+            //Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
+            //Con.WriteJsonLine(meta1);
 
+            Lfs.CopyFile(@"C:\tmp\acl_test2\1.exe", @"C:\tmp\acl_test2\3.exe", new CopyFileParams(overwrite: true));
+            Lfs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.AlternateStream)));
 
             return;
 

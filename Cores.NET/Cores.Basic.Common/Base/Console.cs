@@ -254,6 +254,7 @@ namespace IPA.Cores.Basic
 
         public static string WriteDebug() => Dbg.WriteLine();
         public static object WriteDebug(object obj) => Dbg.WriteLine(obj);
+        public static void WriteDebug(string str) => Dbg.WriteLine(str);
         public static void WriteDebug(string str, params object[] args) => Dbg.WriteLine(str, args);
 
     }

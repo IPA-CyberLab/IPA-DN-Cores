@@ -61,6 +61,20 @@ namespace IPA.Cores.Helper.Basic
         public static ulong GetObjectHash(this object o)
             => Util.GetObjectHash(o);
     }
+
+    static class JsonConsoleHelper
+    {
+        public static object PrintAsJson(this object o)
+        {
+            Con.WriteJsonLine(o);
+            return o;
+        }
+        public static object DebugAsJson(this object o)
+        {
+            Con.WriteJsonDebug(o);
+            return o;
+        }
+    }
 }
 
 

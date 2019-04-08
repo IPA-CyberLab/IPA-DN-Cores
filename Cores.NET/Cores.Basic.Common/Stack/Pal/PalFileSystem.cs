@@ -272,46 +272,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        List<Tuple<string, long>> Win32EnumAlternateStreamsInternal(string path, long maxSize = Win32MaxAlternateStreamSize, int maxNum = Win32MaxAlternateStreamNum)
-        {
-            if (Env.IsWindows == false) return null;
-
-            Win32Api.Kernel32.WIN32_FIND_STREAM_DATA data;
-
-            var findHandle = Win32Api.Kernel32.FindFirstStreamW(path, out data);
-
-            if (findHandle.IsInvalid)
-            {
-                Con.WriteError("err " + Marshal.GetLastWin32Error());
-                return null;
-            }
-
-            List<Tuple<string, long>> ret = new List<Tuple<string, long>>();
-
-            using (findHandle)
-            {
-                while (true)
-                {
-                    if (data.cStreamName.IsSamei("::$DATA") == false && data.cStreamName.StartsWith(":") && data.cStreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
-                        && data.StreamSize.QuadPart <= maxSize)
-                    {
-                        ret.Add(new Tuple<string, long>(data.cStreamName, data.StreamSize.QuadPart));
-                        if (ret.Count >= maxNum)
-                        {
-                            break;
-                        }
-                    }
-
-                    if (Win32Api.Kernel32.FindNextStreamW(findHandle, out data) == false)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return ret;
-        }
-
         public async Task SetFileAlternateStreamMetadataAsync(string path, FileAlternateStreamMetadata data, CancellationToken cancel = default)
         {
             if (data.IsEmpty())
@@ -319,11 +279,12 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var currentStreams = Win32EnumAlternateStreamsInternal(path);
+                var currentStreams = Win32FileInternal.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (currentStreams == null)
                     throw new FileException(path, "Win32EnumAlternateStreamsInternal() failed.");
 
+                // Copy streams
                 foreach (var d in data.Items)
                 {
                     if (d.IsFilled())
@@ -334,7 +295,39 @@ namespace IPA.Cores.Basic
                             {
                                 string fullpath = path + d.Name;
 
-                                await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
+                                try
+                                {
+                                    await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
+                                }
+                                catch
+                                {
+                                    await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.BackupMode, cancel: cancel);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Remove any streams on the destination which is not existing on the source
+                foreach (var existingStream in currentStreams)
+                {
+                    if (existingStream.Item1.IsEmpty() == false)
+                    {
+                        if (existingStream.Item2 <= Win32MaxAlternateStreamSize)
+                        {
+                            if (data.Items.Select(x => x.Name).Where(x => x.IsSamei(existingStream.Item1)).Any() == false)
+                            {
+                                string fullpath = path + existingStream.Item1;
+
+                                try
+                                {
+                                    Con.WriteDebug($"Deleting {fullpath}");
+                                    await this.DeleteFileImplAsync(fullpath);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.Debug();
+                                }
                             }
                         }
                     }
@@ -350,7 +343,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var list = Win32EnumAlternateStreamsInternal(path);
+                var list = Win32FileInternal.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (list == null)
                 {

@@ -186,6 +186,12 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
             return obj;
         }
+        public static string WriteLine(string str)
+        {
+            if (str == null) str = "null";
+            LocalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
+            return str;
+        }
         public static void WriteLine(string str, params object[] args)
         {
             if (str == null) str = "null";
@@ -197,6 +203,11 @@ namespace IPA.Cores.Basic
             if (obj == null) obj = "null";
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Error);
             return obj;
+        }
+        public static void WriteError(string str)
+        {
+            if (str == null) str = "null";
+            LocalLogRouter.PrintConsole(str, priority: LogPriority.Error);
         }
         public static void WriteError(string str, params object[] args)
         {

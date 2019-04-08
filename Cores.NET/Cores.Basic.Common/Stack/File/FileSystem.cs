@@ -1657,7 +1657,7 @@ namespace IPA.Cores.Basic
                                 }
                                 catch (Exception ex)
                                 {
-                                    Con.WriteDebug(ex);
+                                    Con.WriteDebug($"CopyFileAsync: '{destPath}': SetFileMetadataAsync failed. Error: {ex.Message}");
                                 }
                             }
                             catch
