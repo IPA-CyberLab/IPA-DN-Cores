@@ -157,7 +157,7 @@ namespace IPA.Cores.Basic
     {
         public FileAlternateStreamItemMetadata[] Items;
 
-        public bool IsThisEmpty() => Items.IsEmpty() || (!(Items.Where(x => x.IsFilled()).Any()));
+        public bool IsThisEmpty() => (Items == null);
     }
 
     class FileMetadata
@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
                 var cloned = this.Security.Clone(mode);
                 if (cloned.IsFilled())
                 {
-                    this.Security = cloned;
+                    dest.Security = cloned;
                 }
             }
 
@@ -268,11 +268,7 @@ namespace IPA.Cores.Basic
             {
                 if (this.AlternateStream.IsFilled())
                 {
-                    var cloned = this.AlternateStream.CloneDeep();
-                    if (cloned.IsFilled())
-                    {
-                        this.AlternateStream = cloned;
-                    }
+                    dest.AlternateStream = this.AlternateStream.CloneDeep();
                 }
             }
         }

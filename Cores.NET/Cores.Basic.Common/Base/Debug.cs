@@ -63,6 +63,7 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Minimal;
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
+            public static readonly Copenhagen<LogPriority> LogMinimalErrorLevel = LogPriority.Error;
 
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Minimal;
             public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Minimal;
@@ -76,6 +77,7 @@ namespace IPA.Cores.Basic
                     case DebugMode.Debug:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
+                        LogMinimalErrorLevel.Set(LogPriority.Error);
 
                         ConsoleMinimalLevel.Set(LogPriority.Minimal);
                         break;
@@ -83,6 +85,7 @@ namespace IPA.Cores.Basic
                     case DebugMode.ReleaseWithLogs:
                         LogMinimalDebugLevel.Set(LogPriority.Minimal);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
+                        LogMinimalErrorLevel.Set(LogPriority.Error);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
@@ -90,6 +93,7 @@ namespace IPA.Cores.Basic
                     case DebugMode.ReleaseNoDebugLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
+                        LogMinimalErrorLevel.Set(LogPriority.Error);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
@@ -97,6 +101,7 @@ namespace IPA.Cores.Basic
                     case DebugMode.ReleaseNoLogs:
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.None);
+                        LogMinimalErrorLevel.Set(LogPriority.None);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
@@ -110,6 +115,7 @@ namespace IPA.Cores.Basic
             {
                 if (LogMinimalDebugLevel.Get() <= LogPriority.Debug ||
                     LogMinimalInfoLevel.Get() <= LogPriority.Debug ||
+                    LogMinimalErrorLevel.Get() <= LogPriority.Debug ||
                     ConsoleMinimalLevel.Get() <= LogPriority.Debug)
                 {
                     return true;

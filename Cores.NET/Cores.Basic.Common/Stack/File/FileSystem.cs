@@ -663,8 +663,8 @@ namespace IPA.Cores.Basic
         readonly static FileSystemPathInterpreter[] Cached = new FileSystemPathInterpreter[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
 
         public FileSystemStyle Style { get; }
-        public string DirectorySeparator { get; }
-        public string[] PossibleDirectorySeparators { get; }
+        public char DirectorySeparator { get; }
+        public char[] PossibleDirectorySeparators { get; }
         public StringComparison PathStringComparison { get; }
         public StrComparer PathStringComparer { get; }
 
@@ -692,21 +692,21 @@ namespace IPA.Cores.Basic
             switch (this.Style)
             {
                 case FileSystemStyle.Windows:
-                    this.DirectorySeparator = @"\";
+                    this.DirectorySeparator = '\\';
                     this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
-                    this.PossibleDirectorySeparators = new string[] { @"\", "/" };
+                    this.PossibleDirectorySeparators = new char[] { '\\', '/'};
                     break;
 
                 case FileSystemStyle.Mac:
-                    this.DirectorySeparator = "/";
+                    this.DirectorySeparator = '/';
                     this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
-                    this.PossibleDirectorySeparators = new string[] { "/" };
+                    this.PossibleDirectorySeparators = new char[] { '/' };
                     break;
 
                 default:
-                    this.DirectorySeparator = "/";
+                    this.DirectorySeparator = '/';
                     this.PathStringComparison = StringComparison.Ordinal;
-                    this.PossibleDirectorySeparators = new string[] { "/" };
+                    this.PossibleDirectorySeparators = new char[] { '/' };
                     break;
             }
 
@@ -725,7 +725,7 @@ namespace IPA.Cores.Basic
         {
             path = path.NonNull();
 
-            if (path.All(c => PossibleDirectorySeparators.Where(x => x[0] == c).Any()))
+            if (path.All(c => PossibleDirectorySeparators.Where(x => x == c).Any()))
             {
                 return path;
             }
@@ -733,7 +733,7 @@ namespace IPA.Cores.Basic
             if (path.Length == 3 &&
                 ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
                 path[1] == ':' &&
-                PossibleDirectorySeparators.Where(x => x[0] == path[2]).Any())
+                PossibleDirectorySeparators.Where(x => x == path[2]).Any())
             {
                 return path;
             }
@@ -741,7 +741,7 @@ namespace IPA.Cores.Basic
             while (path.Length >= 1)
             {
                 char c = path[path.Length - 1];
-                if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
+                if (PossibleDirectorySeparators.Where(x => x == c).Any())
                 {
                     path = path.Substring(0, path.Length - 1);
                 }
@@ -783,14 +783,14 @@ namespace IPA.Cores.Basic
 
             if (path2.Length >= 1)
             {
-                if (PossibleDirectorySeparators.Where(x => x[0] == path2[0]).Any())
+                if (PossibleDirectorySeparators.Where(x => x == path2[0]).Any())
                     return path2;
             }
 
             path1 = RemoveLastSeparatorChar(path1);
 
-            string sepStr = this.DirectorySeparator;
-            if (path1.Length >= 1 && PossibleDirectorySeparators.Where(x => x[0] == path1[path1.Length - 1]).Any())
+            string sepStr = "" + this.DirectorySeparator;
+            if (path1.Length >= 1 && PossibleDirectorySeparators.Where(x => x == path1[path1.Length - 1]).Any())
             {
                 sepStr = "";
             }
@@ -855,7 +855,7 @@ namespace IPA.Cores.Basic
             {
                 char c = path[j];
 
-                if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
+                if (PossibleDirectorySeparators.Where(x => x == c).Any())
                 {
                     i = j;
                 }
@@ -872,7 +872,7 @@ namespace IPA.Cores.Basic
                 {
                     char c = path[j];
 
-                    if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
+                    if (PossibleDirectorySeparators.Where(x => x == c).Any())
                     {
                         break;
                     }
@@ -886,7 +886,7 @@ namespace IPA.Cores.Basic
             int lastMatch = -1;
             while (true)
             {
-                i = path.FindStringsMulti(i, this.PathStringComparison, out int foundKeyIndex, this.PossibleDirectorySeparators);
+                i = path.IndexOfAny(this.PossibleDirectorySeparators, i);
                 if (i == -1)
                 {
                     break;
@@ -900,7 +900,7 @@ namespace IPA.Cores.Basic
 
             if (lastMatch == -1)
             {
-                if (path.Any(c => PossibleDirectorySeparators.Where(x => x[0] == c).Any()))
+                if (path.Any(c => PossibleDirectorySeparators.Where(x => x == c).Any()))
                 {
                     dirPath = RemoveLastSeparatorChar(path);
                     fileName = "";

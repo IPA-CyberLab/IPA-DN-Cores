@@ -51,11 +51,16 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            string altfn = @"d:\Downloads\000007326.doc";
+            //string alt1 = @"D:\Downloads\softether-vpnclient-v4.29-9680-rtm-2019.02.28-windows-x86_x64-intel.exe";
+            string alt1 = @"C:\tmp\acl_test2\1.exe";
+            string alt2 = @"C:\TMP\ziptest\Bz.exe";
 
-            var sub = Lfs.GetFileMetadata(altfn);
+            Lfs.EnableBackupPrivilege();
 
-            Con.WriteJsonLine(sub);
+            var meta1 = Lfs.GetFileMetadata(alt1);
+            Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
+            Con.WriteJsonLine(meta1);
+
 
             return;
 

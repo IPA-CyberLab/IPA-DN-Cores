@@ -1641,7 +1641,7 @@ namespace IPA.Cores.Basic
             return obj;
         }
 
-        public static bool DoMultipleActions(bool throwFirstError, params Action[] actions)
+        public static bool DoMultipleActions(bool throwFirstErrorAfterAll, params Action[] actions)
         {
             bool ok = true;
             Exception exception = null;
@@ -1666,7 +1666,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            if (throwFirstError)
+            if (throwFirstErrorAfterAll)
                 if (ok == false)
                     throw exception;
 

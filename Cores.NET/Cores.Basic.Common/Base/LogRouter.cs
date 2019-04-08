@@ -241,6 +241,14 @@ namespace IPA.Cores.Basic
                 AppConfig.LocalLogRouterSettings.SwitchTypeForInfo,
                 AppConfig.LocalLogRouterSettings.InfoOptionsForInfo));
 
+            // Error log (file)
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
+                AppConfig.DebugSettings.LogMinimalErrorLevel,
+                "error",
+                AppConfig.LocalLogRouterSettings.LogErrorDir.Value(),
+                AppConfig.LocalLogRouterSettings.SwitchTypeForError,
+                AppConfig.LocalLogRouterSettings.InfoOptionsForError));
+
             // Data log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
                 AppConfig.DebugSettings.LogMinimalDataLevel,
@@ -316,6 +324,11 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<Func<string>> LogInfoDir = new Func<string>(() => Path.Combine(LogRootDir, "Info"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForInfo = LogSwitchType.Day;
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForInfo = new LogInfoOptions() { };
+
+            // Error
+            public static readonly Copenhagen<Func<string>> LogErrorDir = new Func<string>(() => Path.Combine(LogRootDir, "Error"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForError = LogSwitchType.Day;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForError = new LogInfoOptions() { };
 
             // Data
             public static readonly Copenhagen<Func<string>> LogDataDir = new Func<string>(() => Path.Combine(LogRootDir, "Data"));

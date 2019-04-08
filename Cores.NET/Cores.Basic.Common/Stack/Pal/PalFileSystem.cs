@@ -282,6 +282,7 @@ namespace IPA.Cores.Basic
 
             if (findHandle.IsInvalid)
             {
+                Con.WriteError("err " + Marshal.GetLastWin32Error());
                 return null;
             }
 
@@ -311,6 +312,36 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public async Task SetFileAlternateStreamMetadataAsync(string path, FileAlternateStreamMetadata data, CancellationToken cancel = default)
+        {
+            if (data.IsEmpty())
+                return;
+
+            if (Env.IsWindows)
+            {
+                var currentStreams = Win32EnumAlternateStreamsInternal(path);
+
+                if (currentStreams == null)
+                    throw new FileException(path, "Win32EnumAlternateStreamsInternal() failed.");
+
+                foreach (var d in data.Items)
+                {
+                    if (d.IsFilled())
+                    {
+                        if (d.Name.IsEmpty() == false)
+                        {
+                            if (d.Name.IndexOfAny(PathInterpreter.PossibleDirectorySeparators) == -1)
+                            {
+                                string fullpath = path + d.Name;
+
+                                await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         public async Task<FileAlternateStreamMetadata> GetFileAlternateStreamMetadataAsync(string path, CancellationToken cancel = default)
         {
             FileAlternateStreamMetadata ret = new FileAlternateStreamMetadata();
@@ -320,33 +351,44 @@ namespace IPA.Cores.Basic
             if (Env.IsWindows)
             {
                 var list = Win32EnumAlternateStreamsInternal(path);
-                if (list != null)
+
+                if (list == null)
                 {
-                    foreach (var item in list)
+                    return null;
+                }
+
+                foreach (var item in list)
+                {
+                    if (item.Item1.IsFilled() && item.Item2 >= 1)
                     {
-                        if (item.Item1.IsFilled() && item.Item2 >= 1)
+                        int readSize = (int)Math.Min(item.Item2, Win32MaxAlternateStreamSize);
+                        string fileName = path + item.Item1;
+
+                        Memory<byte> memory;
+
+                        try
                         {
-                            int readSize = (int)Math.Min(item.Item2, Win32MaxAlternateStreamSize);
-                            string fileName = path + item.Item1;
-
-                            var memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
-
-                            FileAlternateStreamItemMetadata newItem = new FileAlternateStreamItemMetadata()
-                            {
-                                Name = item.Item1,
-                                Data = memory.ToArray(),
-                            };
-
-                            itemList.Add(newItem);
+                            memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
                         }
+                        catch
+                        {
+                            memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.BackupMode, cancel);
+                        }
+
+                        FileAlternateStreamItemMetadata newItem = new FileAlternateStreamItemMetadata()
+                        {
+                            Name = item.Item1,
+                            Data = memory.ToArray(),
+                        };
+
+                        itemList.Add(newItem);
                     }
                 }
             }
 
-            if (itemList.IsFilled())
-                ret.Items = itemList.ToArray();
+            ret.Items = itemList.ToArray();
 
-            return ret.FilledOrDefault();
+            return ret;
         }
 
         public FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
@@ -442,20 +484,38 @@ namespace IPA.Cores.Basic
 
         protected async override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            if (metadata.CreationTime != null)
-                SetFileCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
-
-            if (metadata.LastWriteTime != null)
-                SetFileLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
-
-            if (metadata.LastAccessTime != null)
-                SetFileLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
-
-            if (metadata.Attributes != null)
-                SetFileAttributes(path, (FileAttributes)metadata.Attributes);
-
-            if (metadata.Security != null)
-                SetFileOrDirectorySecurityMetadata(path, false, metadata.Security);
+            Util.DoMultipleActions(true,
+                () =>
+                {
+                    if (metadata.AlternateStream != null)
+                        SetFileAlternateStreamMetadataAsync(path, metadata.AlternateStream, cancel).GetResult();
+                },
+                () =>
+                {
+                    if (metadata.CreationTime != null)
+                        SetFileCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.LastWriteTime != null)
+                        SetFileLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.LastAccessTime != null)
+                        SetFileLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.Attributes != null)
+                        SetFileAttributes(path, (FileAttributes)metadata.Attributes);
+                },
+                () =>
+                {
+                    if (metadata.Security != null)
+                        SetFileOrDirectorySecurityMetadata(path, false, metadata.Security);
+                }
+                );
 
             await Task.CompletedTask;
         }
@@ -479,20 +539,33 @@ namespace IPA.Cores.Basic
 
         protected async override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            if (metadata.CreationTime != null)
-                SetDirectoryCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
-
-            if (metadata.LastWriteTime != null)
-                SetDirectoryLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
-
-            if (metadata.LastAccessTime != null)
-                SetDirectoryLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
-
-            if (metadata.Attributes != null)
-                SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
-
-            if (metadata.Security != null)
-                SetFileOrDirectorySecurityMetadata(path, true, metadata.Security);
+            Util.DoMultipleActions(true,
+                () =>
+                {
+                    if (metadata.CreationTime != null)
+                        SetDirectoryCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.LastWriteTime != null)
+                        SetDirectoryLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.LastAccessTime != null)
+                        SetDirectoryLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
+                },
+                () =>
+                {
+                    if (metadata.Attributes != null)
+                        SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
+                },
+                () =>
+                {
+                    if (metadata.Security != null)
+                        SetFileOrDirectorySecurityMetadata(path, true, metadata.Security);
+                }
+                );
 
             await Task.CompletedTask;
         }
