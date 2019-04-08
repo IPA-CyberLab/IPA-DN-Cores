@@ -588,7 +588,7 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows)
             {
-                Util.DoMultipleActions(false,
+                Util.DoMultipleActions(true,
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeBackupPrivilege, true),
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeRestorePrivilege, true),
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeTakeOwnershipPrivilege, true)
