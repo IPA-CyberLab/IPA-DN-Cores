@@ -236,6 +236,20 @@ namespace IPA.Cores.Basic
                 // use FindExInfoBasic since we don't care about short name and it has better perf
                 return FindFirstFileExPrivate(fileName, FINDEX_INFO_LEVELS.FindExInfoBasic, ref data, FINDEX_SEARCH_OPS.FindExSearchNameMatch, IntPtr.Zero, 0);
             }
+
+            [DllImport(Libraries.Kernel32, EntryPoint = "FindFirstStreamW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false)]
+            private static extern SafeFindHandle FindFirstStreamWPrivate(string lpFileName, STREAM_INFO_LEVELS InfoLevel, out WIN32_FIND_STREAM_DATA lpFindStreamData, int dwFlags);
+
+            internal static SafeFindHandle FindFirstStreamW(string lpFileName, out WIN32_FIND_STREAM_DATA lpFindStreamData)
+            {
+                lpFileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
+
+                return FindFirstStreamWPrivate(lpFileName, STREAM_INFO_LEVELS.FindStreamInfoStandard, out lpFindStreamData, 0);
+            }
+
+            [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
+            public static extern bool FindNextStreamW(SafeFindHandle hFindStream, out WIN32_FIND_STREAM_DATA lpFindStreamData);
+
         }
 
         internal partial class Advapi32
@@ -483,6 +497,33 @@ namespace IPA.Cores.Basic
                 internal string cFileName;
                 [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
                 internal string cAlternateFileName;
+            }
+
+            public enum STREAM_INFO_LEVELS
+            {
+                FindStreamInfoStandard,
+                FindStreamInfoMaxInfoLevel
+            }
+
+            [StructLayout(LayoutKind.Explicit)]
+            internal unsafe struct LARGE_INTEGER
+            {
+                [FieldOffset(0)]
+                internal int LowPart;
+
+                [FieldOffset(4)]
+                internal int HighPart;
+
+                [FieldOffset(0)]
+                internal long QuadPart;
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct WIN32_FIND_STREAM_DATA
+            {
+                public LARGE_INTEGER StreamSize;
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260 + 36)]
+                public string cStreamName;
             }
 
             internal struct FILE_TIME

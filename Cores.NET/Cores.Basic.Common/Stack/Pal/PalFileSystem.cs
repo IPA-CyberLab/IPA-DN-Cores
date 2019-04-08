@@ -54,6 +54,9 @@ namespace IPA.Cores.Basic
 {
     class PalFileSystem : FileSystemBase
     {
+        public const long Win32MaxAlternateStreamSize = 65536;
+        public const int Win32MaxAlternateStreamNum = 16;
+
         public PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
         {
         }
@@ -138,17 +141,17 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static void SetDirectoryCreationTimeUtc(string path, DateTime dt) => Directory.SetCreationTimeUtc(path, dt);
-        public static void SetDirectoryLastWriteTimeUtc(string path, DateTime dt) => Directory.SetLastWriteTimeUtc(path, dt);
-        public static void SetDirectoryLastAccessTimeUtc(string path, DateTime dt) => Directory.SetLastAccessTimeUtc(path, dt);
+        public void SetDirectoryCreationTimeUtc(string path, DateTime dt) => Directory.SetCreationTimeUtc(path, dt);
+        public void SetDirectoryLastWriteTimeUtc(string path, DateTime dt) => Directory.SetLastWriteTimeUtc(path, dt);
+        public void SetDirectoryLastAccessTimeUtc(string path, DateTime dt) => Directory.SetLastAccessTimeUtc(path, dt);
 
-        public static void SetDirectoryAttributes(string path, FileAttributes fileAttributes)
+        public void SetDirectoryAttributes(string path, FileAttributes fileAttributes)
         {
             DirectoryInfo di = new DirectoryInfo(path);
             di.Attributes = fileAttributes;
         }
 
-        public static void SetFileCreationTimeUtc(string path, DateTime dt)
+        public void SetFileCreationTimeUtc(string path, DateTime dt)
         {
             try
             {
@@ -166,7 +169,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void SetFileLastWriteTimeUtc(string path, DateTime dt)
+        public void SetFileLastWriteTimeUtc(string path, DateTime dt)
         {
             try
             {
@@ -184,7 +187,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void SetFileLastAccessTimeUtc(string path, DateTime dt)
+        public void SetFileLastAccessTimeUtc(string path, DateTime dt)
         {
             try
             {
@@ -202,13 +205,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void SetFileAttributes(string path, FileAttributes fileAttributes)
+        public void SetFileAttributes(string path, FileAttributes fileAttributes)
         {
             File.SetAttributes(path, fileAttributes);
             //PalWin32FileSystem.SetAttributes(path, fileAttributes);
         }
 
-        public static void SetFileMetadataToFileSystemInfo(FileSystemInfo info, FileMetadata metadata)
+        public void SetFileMetadataToFileSystemInfo(FileSystemInfo info, FileMetadata metadata)
         {
             if (metadata.CreationTime is DateTimeOffset creationTime)
                 info.CreationTimeUtc = creationTime.UtcDateTime;
@@ -223,7 +226,7 @@ namespace IPA.Cores.Basic
                 info.Attributes = attr;
         }
 
-        public static string ReadSymbolicLinkTarget(string linkPath)
+        public string ReadSymbolicLinkTarget(string linkPath)
         {
             if (Env.IsUnix)
             {
@@ -235,8 +238,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static string Win32GetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, AccessControlSections section)
+        string Win32GetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, AccessControlSections section)
         {
+            if (Env.IsWindows == false) return null;
             try
             {
                 FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
@@ -248,8 +252,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static void Win32SetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, string ssdl, AccessControlSections section)
+        void Win32SetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, string ssdl, AccessControlSections section)
         {
+            if (Env.IsWindows == false) return;
             if (ssdl.IsEmpty()) return;
 
             FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity()) : (FileSystemSecurity)(new FileSecurity());
@@ -267,7 +272,84 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
+        List<Tuple<string, long>> Win32EnumAlternateStreamsInternal(string path, long maxSize = Win32MaxAlternateStreamSize, int maxNum = Win32MaxAlternateStreamNum)
+        {
+            if (Env.IsWindows == false) return null;
+
+            Win32Api.Kernel32.WIN32_FIND_STREAM_DATA data;
+
+            var findHandle = Win32Api.Kernel32.FindFirstStreamW(path, out data);
+
+            if (findHandle.IsInvalid)
+            {
+                return null;
+            }
+
+            List<Tuple<string, long>> ret = new List<Tuple<string, long>>();
+
+            using (findHandle)
+            {
+                while (true)
+                {
+                    if (data.cStreamName.IsSamei("::$DATA") == false && data.cStreamName.StartsWith(":") && data.cStreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
+                        && data.StreamSize.QuadPart <= maxSize)
+                    {
+                        ret.Add(new Tuple<string, long>(data.cStreamName, data.StreamSize.QuadPart));
+                        if (ret.Count >= maxNum)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (Win32Api.Kernel32.FindNextStreamW(findHandle, out data) == false)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+        public async Task<FileAlternateStreamMetadata> GetFileAlternateStreamMetadataAsync(string path, CancellationToken cancel = default)
+        {
+            FileAlternateStreamMetadata ret = new FileAlternateStreamMetadata();
+
+            List<FileAlternateStreamItemMetadata> itemList = new List<FileAlternateStreamItemMetadata>();
+
+            if (Env.IsWindows)
+            {
+                var list = Win32EnumAlternateStreamsInternal(path);
+                if (list != null)
+                {
+                    foreach (var item in list)
+                    {
+                        if (item.Item1.IsFilled() && item.Item2 >= 1)
+                        {
+                            int readSize = (int)Math.Min(item.Item2, Win32MaxAlternateStreamSize);
+                            string fileName = path + item.Item1;
+
+                            var memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
+
+                            FileAlternateStreamItemMetadata newItem = new FileAlternateStreamItemMetadata()
+                            {
+                                Name = item.Item1,
+                                Data = memory.ToArray(),
+                            };
+
+                            itemList.Add(newItem);
+                        }
+                    }
+                }
+            }
+
+            if (itemList.IsFilled())
+                ret.Items = itemList.ToArray();
+
+            return ret.FilledOrDefault();
+        }
+
+        public FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
         {
             FileSecurityMetadata ret = new FileSecurityMetadata();
             string ssdl;
@@ -291,10 +373,10 @@ namespace IPA.Cores.Basic
                     ret.Audit = new FileSecurityAudit() { Win32AuditSsdl = ssdl };
             }
 
-            return ret;
+            return ret.FilledOrDefault();
         }
 
-        public static void SetFileOrDirectorySecurityMetadata(string path, bool isDirectory, FileSecurityMetadata data)
+        public void SetFileOrDirectorySecurityMetadata(string path, bool isDirectory, FileSecurityMetadata data)
         {
             if (Env.IsWindows)
             {
@@ -324,17 +406,19 @@ namespace IPA.Cores.Basic
 
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(fileInfo);
 
-            // Try to open the actual physical file
+            ret.Security = GetFileOrDirectorySecurityMetadata(path, false);
+
+            // Try to open to retrieve the actual physical file
             FileObjectBase f = null;
             try
             {
-                f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, FileOperationFlags.None), cancel);
+                f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
             }
             catch
             {
                 try
                 {
-                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, FileOperationFlags.BackupMode), cancel);
+                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
                 }
                 catch { }
             }
@@ -351,7 +435,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            ret.SecurityData = GetFileOrDirectorySecurityMetadata(path, false);
+            ret.AlternateStream = await GetFileAlternateStreamMetadataAsync(path, cancel);
 
             return ret;
         }
@@ -370,8 +454,8 @@ namespace IPA.Cores.Basic
             if (metadata.Attributes != null)
                 SetFileAttributes(path, (FileAttributes)metadata.Attributes);
 
-            if (metadata.SecurityData != null)
-                SetFileOrDirectorySecurityMetadata(path, false, metadata.SecurityData);
+            if (metadata.Security != null)
+                SetFileOrDirectorySecurityMetadata(path, false, metadata.Security);
 
             await Task.CompletedTask;
         }
@@ -385,7 +469,7 @@ namespace IPA.Cores.Basic
 
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo);
 
-            ret.SecurityData = GetFileOrDirectorySecurityMetadata(path, true);
+            ret.Security = GetFileOrDirectorySecurityMetadata(path, true);
 
             await Task.CompletedTask;
 
@@ -407,8 +491,8 @@ namespace IPA.Cores.Basic
             if (metadata.Attributes != null)
                 SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
 
-            if (metadata.SecurityData != null)
-                SetFileOrDirectorySecurityMetadata(path, true, metadata.SecurityData);
+            if (metadata.Security != null)
+                SetFileOrDirectorySecurityMetadata(path, true, metadata.Security);
 
             await Task.CompletedTask;
         }

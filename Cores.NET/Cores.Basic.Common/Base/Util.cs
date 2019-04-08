@@ -46,6 +46,7 @@ using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
+using System.Collections;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -909,6 +910,7 @@ namespace IPA.Cores.Basic
                     case UIntPtr up: return up == UIntPtr.Zero;
                     case DateTime dt: return Util.IsZero(dt);
                     case DateTimeOffset dt: return Util.IsZero(dt);
+                    case ICollection c: return c.Count == 0;
                     case string s:
                         if (s.Length == 0) return true;
                         if (Char.IsWhiteSpace(s[0]) == false) return false;

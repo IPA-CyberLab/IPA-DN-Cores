@@ -71,6 +71,8 @@ namespace IPA.Cores.Basic
         SecurityAudit = 512,
         SecurityAll = SecurityOwner | SecurityGroup | SecurityAcl | SecurityAudit,
 
+        AlternateStream = 1024,
+
         Default = Attributes | AllDates,
     }
 
@@ -141,9 +143,27 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Serializable]
+    class FileAlternateStreamItemMetadata : IEmptyChecker
+    {
+        public string Name;
+        public byte[] Data;
+
+        public bool IsThisEmpty() => Name.IsEmpty() || Data.IsEmpty();
+    }
+
+    [Serializable]
+    class FileAlternateStreamMetadata : IEmptyChecker
+    {
+        public FileAlternateStreamItemMetadata[] Items;
+
+        public bool IsThisEmpty() => Items.IsEmpty() || (!(Items.Where(x => x.IsFilled()).Any()));
+    }
+
     class FileMetadata
     {
-        public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory | FileAttributes.NotContentIndexed;
+        public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive
+            | FileAttributes.Directory | FileAttributes.NotContentIndexed | FileAttributes.Offline | FileAttributes.NoScrubData | FileAttributes.IntegrityStream;
 
         public bool IsDirectory;
         public long Size;
@@ -153,19 +173,22 @@ namespace IPA.Cores.Basic
         public DateTimeOffset? LastWriteTime;
         public DateTimeOffset? LastAccessTime;
 
-        public FileSecurityMetadata SecurityData;
+        public FileSecurityMetadata Security;
+
+        public FileAlternateStreamMetadata AlternateStream;
 
         public FileMetadata() { }
 
         public FileMetadata(bool isDirectory, FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
-            FileSecurityMetadata securityData = null)
+            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null)
         {
             this.IsDirectory = isDirectory;
             this.Attributes = attributes;
             this.CreationTime = creationTime;
             this.LastWriteTime = lastWriteTime;
             this.LastAccessTime = lastAccessTime;
-            this.SecurityData = securityData.CloneDeep();
+            this.Security = securityData.CloneDeep();
+            this.AlternateStream = alternateStream.CloneDeep();
         }
 
         public FileMetadata Clone(FileMetadataCopyMode mode)
@@ -232,12 +255,24 @@ namespace IPA.Cores.Basic
                 if (this.LastAccessTime != null)
                     dest.LastAccessTime = this.LastAccessTime;
 
-            if (this.SecurityData.IsFilled())
+            if (this.Security.IsFilled())
             {
-                var cloned = this.SecurityData.Clone(mode);
+                var cloned = this.Security.Clone(mode);
                 if (cloned.IsFilled())
                 {
-                    this.SecurityData = cloned;
+                    this.Security = cloned;
+                }
+            }
+
+            if (mode.Bit(FileMetadataCopyMode.AlternateStream))
+            {
+                if (this.AlternateStream.IsFilled())
+                {
+                    var cloned = this.AlternateStream.CloneDeep();
+                    if (cloned.IsFilled())
+                    {
+                        this.AlternateStream = cloned;
+                    }
                 }
             }
         }

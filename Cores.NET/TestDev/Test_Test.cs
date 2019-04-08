@@ -51,6 +51,14 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            string altfn = @"d:\Downloads\000007326.doc";
+
+            var sub = Lfs.GetFileMetadata(altfn);
+
+            Con.WriteJsonLine(sub);
+
+            return;
+
             //int n = 0;
 
             //for (int k = 0; k < 10; k++)
@@ -93,7 +101,7 @@ namespace IPA.TestDev
             //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false));
             //Con.WriteJsonLine(PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", false));
 
-            PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
+            Lfs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, Lfs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
 
             return;
 
