@@ -1383,7 +1383,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var metaData = await GetFileMetadataAsync(path);
+                var metaData = await GetFileMetadataAsync(path,
+                    flags: FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoPreciseFileSize | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes);
 
                 if ((metaData.Attributes ?? FileAttributes.Normal).Bit(FileAttributes.Directory) == false)
                 {
@@ -1635,7 +1636,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, FileMetadataGetFlags.None, cancel);
+                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, param.MetadataCopier.OptimizedMetadataGetFlags, cancel);
 
                         bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
 

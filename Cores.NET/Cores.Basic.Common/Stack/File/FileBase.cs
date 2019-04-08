@@ -288,14 +288,35 @@ namespace IPA.Cores.Basic
     class FileMetadataCopier
     {
         public FileMetadataCopyMode Mode { get; }
+        public FileMetadataGetFlags OptimizedMetadataGetFlags { get; }
+
         public FileMetadataCopier(FileMetadataCopyMode mode = FileMetadataCopyMode.Default)
         {
             this.Mode = mode;
+            this.OptimizedMetadataGetFlags = CalcOptimizedMetadataGetFlags(this.Mode);
         }
         public virtual FileMetadata Copy(FileMetadata src)
         {
             if (src == null) return null;
             return src.Clone(this.Mode);
+        }
+
+        public static FileMetadataGetFlags CalcOptimizedMetadataGetFlags(FileMetadataCopyMode mode)
+        {
+            FileMetadataGetFlags ret = FileMetadataGetFlags.None;
+
+            if (mode.Bit(FileMetadataCopyMode.All) == false)
+            {
+                if (mode.Bit(FileMetadataCopyMode.Attributes) == false) ret |= FileMetadataGetFlags.NoAttributes;
+
+                if ((mode & FileMetadataCopyMode.All) == 0) ret |= FileMetadataGetFlags.NoTimes;
+
+                if ((mode & FileMetadataCopyMode.SecurityAll) == 0) ret |= FileMetadataGetFlags.NoSecurity;
+
+                if (mode.Bit(FileMetadataCopyMode.AlternateStream) == false) ret |= FileMetadataGetFlags.NoAlternateStream;
+            }
+
+            return ret;
         }
     }
 

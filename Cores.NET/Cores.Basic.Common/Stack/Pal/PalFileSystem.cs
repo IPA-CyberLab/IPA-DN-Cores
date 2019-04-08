@@ -672,7 +672,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
+                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
                 var currentAttributes = existingFileMetadata.Attributes ?? 0;
                 if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
                 {

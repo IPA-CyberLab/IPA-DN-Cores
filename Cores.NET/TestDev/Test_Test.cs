@@ -61,8 +61,8 @@ namespace IPA.TestDev
             //Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
             //Con.WriteJsonLine(meta1);
 
-            Lfs.CopyFile(@"C:\tmp\acl_test2\1.exe", @"C:\tmp\acl_test2\3.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode));
-            Lfs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)));
+            //Lfs.CopyFile(@"C:\tmp\acl_test2\1.exe", @"C:\tmp\acl_test2\3.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode));
+            Lfs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
 
             return;
 
