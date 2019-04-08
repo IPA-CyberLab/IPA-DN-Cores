@@ -392,6 +392,11 @@ namespace IPA.Cores.Basic
         public static implicit operator Copenhagen<T>(T value) => new Copenhagen<T>(value);
     }
 
+    interface IEmptyChecker
+    {
+        bool IsEmpty { get; }
+    }
+
     // ユーティリティクラス
     static partial class Util
     {
@@ -869,41 +874,52 @@ namespace IPA.Cores.Basic
         public static bool IsEmpty<T>(T data, bool zeroValueIsEmpty = false)
         {
             if (data == default) return true;
-            if (zeroValueIsEmpty)
+
+            try
             {
+                if (data is IEmptyChecker emptyChecker) return emptyChecker.IsEmpty;
+
+                if (zeroValueIsEmpty)
+                {
+                    switch (data)
+                    {
+                        case char c: return c == 0;
+                        case byte b: return b == 0;
+                        case sbyte sb: return sb == 0;
+                        case ushort us: return us == 0;
+                        case short s: return s == 0;
+                        case uint ui: return ui == 0;
+                        case int i: return i == 0;
+                        case ulong ul: return ul == 0;
+                        case long l: return l == 0;
+                        case float f: return f == 0;
+                        case double d: return d == 0;
+                        case decimal v: return v == 0;
+                        case bool b: return b == false;
+                        case BigNumber bn: return bn == 0;
+                        case BigInteger bi: return bi == 0;
+                        case Memory<byte> m: return m.IsZero();
+                        case byte[] x: return Util.IsZero(x);
+                    }
+                }
                 switch (data)
                 {
-                    case char c: return c == 0;
-                    case byte b: return b == 0;
-                    case sbyte sb: return sb == 0;
-                    case ushort us: return us == 0;
-                    case short s: return s == 0;
-                    case uint ui: return ui == 0;
-                    case int i: return i == 0;
-                    case ulong ul: return ul == 0;
-                    case long l: return l == 0;
-                    case float f: return f == 0;
-                    case double d: return d == 0;
-                    case decimal v: return v == 0;
-                    case bool b: return b == false;
-                    case BigNumber bn: return bn == 0;
-                    case BigInteger bi: return bi == 0;
-                    case Memory<byte> m: return m.IsZero();
-                    case byte[] x: return Util.IsZero(x);
+                    case Array a: return a.Length == 0;
+                    case IntPtr p: return p == IntPtr.Zero;
+                    case UIntPtr up: return up == UIntPtr.Zero;
+                    case DateTime dt: return Util.IsZero(dt);
+                    case DateTimeOffset dt: return Util.IsZero(dt);
+                    case string s:
+                        if (s.Length == 0) return true;
+                        if (Char.IsWhiteSpace(s[0]) == false) return false;
+                        return s.Trim().Length == 0;
                 }
             }
-            switch (data)
+            catch
             {
-                case Array a: return a.Length == 0;
-                case IntPtr p: return p == IntPtr.Zero;
-                case UIntPtr up: return up == UIntPtr.Zero;
-                case DateTime dt: return Util.IsZero(dt);
-                case DateTimeOffset dt: return Util.IsZero(dt);
-                case string s:
-                    if (s.Length == 0) return true;
-                    if (Char.IsWhiteSpace(s[0]) == false) return false;
-                    return s.Trim().Length == 0;
+                return false;
             }
+
             return false;
         }
         public static bool IsFilled<T>(T data, bool zeroValueIsEmpty = false) => !IsEmpty(data, zeroValueIsEmpty);
@@ -1394,12 +1410,13 @@ namespace IPA.Cores.Basic
         {
             List<T> ret = new List<T>();
             return (T[])Enum.GetValues(typeof(T));
-/*            foreach (T v in Enum.GetValues(typeof(T)))
-            {
-                ret.Add(v);
-            }
-            return ret.ToArray();*/
         }
+
+        public static T GetMaxEnumValue<T>() where T : Enum
+        {
+            return GetEnumValuesList<T>().OrderBy(x => x).LastOrDefault();
+        }
+
 
         public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
 
@@ -1620,6 +1637,38 @@ namespace IPA.Cores.Basic
             if (typeof(T).IsClass == false) return obj;
             if (obj is ICloneable clonable) return (T)clonable.Clone();
             return obj;
+        }
+
+        public static bool DoMultipleActions(bool throwFirstError, params Action[] actions)
+        {
+            bool ok = true;
+            Exception exception = null;
+
+            if (actions != null)
+            {
+                foreach (Action action in actions)
+                {
+                    if (action != null)
+                    {
+                        try
+                        {
+                            action();
+                        }
+                        catch (Exception ex)
+                        {
+                            ok = false;
+                            if (exception == null)
+                                exception = ex;
+                        }
+                    }
+                }
+            }
+
+            if (throwFirstError)
+                if (ok == false)
+                    throw exception;
+
+            return ok;
         }
     }
 

@@ -46,6 +46,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.GlobalFunctions.Basic;
+using System.Security.AccessControl;
 
 #pragma warning disable CS0162
 
@@ -232,6 +233,52 @@ namespace IPA.Cores.Basic
             {
                 return "*Error*";
             }
+        }
+
+        static string Win32GetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, AccessControlSections section)
+        {
+            try
+            {
+                FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
+                return sec.GetSecurityDescriptorSddlForm(section);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        static void Win32SetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, string ssdl, AccessControlSections section)
+        {
+            FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
+            sec.SetSecurityDescriptorSddlForm(ssdl, section);
+        }
+
+        public static FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
+        {
+            FileSecurityMetadata ret = new FileSecurityMetadata();
+            string ssdl;
+
+            if (Env.IsWindows)
+            {
+                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Owner);
+                if (ssdl.IsFilled())
+                    ret.Owner = new FileSecurityOwner() { Win32OwnerSsdl = ssdl };
+
+                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Group);
+                if (ssdl.IsFilled())
+                    ret.Group = new FileSecurityGroup() { Win32GroupSsdl = ssdl };
+
+                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Access);
+                if (ssdl.IsFilled())
+                    ret.Acl = new FileSecurityAcl() { Win32AclSsdl = ssdl };
+
+                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Audit);
+                if (ssdl.IsFilled())
+                    ret.Audit = new FileSecurityAudit() { Win32AuditSsdl = ssdl };
+            }
+
+            return ret;
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)

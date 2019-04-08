@@ -646,24 +646,46 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
     enum FileSystemStyle
     {
-        Windows,
-        Linux,
-        Mac,
+        Windows = 0,
+        Linux = 1,
+        Mac = 2,
+        // append above
+
+        LocalSystem = 31,
     }
 
     class FileSystemPathInterpreter
     {
+        public static FileSystemStyle LocalSystemStyle { get; } = Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux);
+        readonly static FileSystemPathInterpreter[] Cached = new FileSystemPathInterpreter[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
+
         public FileSystemStyle Style { get; }
         public string DirectorySeparator { get; }
-        public string[] AltDirectorySeparators { get; }
+        public string[] PossibleDirectorySeparators { get; }
         public StringComparison PathStringComparison { get; }
         public StrComparer PathStringComparer { get; }
 
-        public FileSystemPathInterpreter() : this(Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux)) { }
+        public static FileSystemPathInterpreter Get(FileSystemStyle style = FileSystemStyle.LocalSystem)
+        {
+            if (style == FileSystemStyle.LocalSystem)
+                style = LocalSystemStyle;
 
-        public FileSystemPathInterpreter(FileSystemStyle style)
+            if (Cached[(int)style] == null)
+            {
+                FileSystemPathInterpreter newObj = new FileSystemPathInterpreter(style);
+                Cached[(int)style] = newObj;
+                return newObj;
+            }
+            else
+            {
+                return Cached[(int)style];
+            }
+        }
+
+        private FileSystemPathInterpreter(FileSystemStyle style)
         {
             this.Style = style;
 
@@ -672,29 +694,38 @@ namespace IPA.Cores.Basic
                 case FileSystemStyle.Windows:
                     this.DirectorySeparator = @"\";
                     this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
+                    this.PossibleDirectorySeparators = new string[] { @"\", "/" };
                     break;
 
                 case FileSystemStyle.Mac:
                     this.DirectorySeparator = "/";
                     this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
+                    this.PossibleDirectorySeparators = new string[] { "/" };
                     break;
 
                 default:
                     this.DirectorySeparator = "/";
                     this.PathStringComparison = StringComparison.Ordinal;
+                    this.PossibleDirectorySeparators = new string[] { "/" };
                     break;
             }
 
-            this.AltDirectorySeparators = new string[] { @"\", "/" };
 
             this.PathStringComparer = new StrComparer(this.PathStringComparison);
+        }
+
+        public bool IsValidFileOrDirectoryName(string name)
+        {
+            if (name == null || name == "") return false;
+
+            return true;
         }
 
         public string RemoveLastSeparatorChar(string path)
         {
             path = path.NonNull();
 
-            if (path.All(c => AltDirectorySeparators.Where(x => x[0] == c).Any()))
+            if (path.All(c => PossibleDirectorySeparators.Where(x => x[0] == c).Any()))
             {
                 return path;
             }
@@ -702,7 +733,7 @@ namespace IPA.Cores.Basic
             if (path.Length == 3 &&
                 ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
                 path[1] == ':' &&
-                AltDirectorySeparators.Where(x => x[0] == path[2]).Any())
+                PossibleDirectorySeparators.Where(x => x[0] == path[2]).Any())
             {
                 return path;
             }
@@ -710,7 +741,7 @@ namespace IPA.Cores.Basic
             while (path.Length >= 1)
             {
                 char c = path[path.Length - 1];
-                if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
                 {
                     path = path.Substring(0, path.Length - 1);
                 }
@@ -752,14 +783,14 @@ namespace IPA.Cores.Basic
 
             if (path2.Length >= 1)
             {
-                if (AltDirectorySeparators.Where(x => x[0] == path2[0]).Any())
+                if (PossibleDirectorySeparators.Where(x => x[0] == path2[0]).Any())
                     return path2;
             }
 
             path1 = RemoveLastSeparatorChar(path1);
 
             string sepStr = this.DirectorySeparator;
-            if (path1.Length >= 1 && AltDirectorySeparators.Where(x => x[0] == path1[path1.Length - 1]).Any())
+            if (path1.Length >= 1 && PossibleDirectorySeparators.Where(x => x[0] == path1[path1.Length - 1]).Any())
             {
                 sepStr = "";
             }
@@ -824,7 +855,7 @@ namespace IPA.Cores.Basic
             {
                 char c = path[j];
 
-                if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
                 {
                     i = j;
                 }
@@ -841,7 +872,7 @@ namespace IPA.Cores.Basic
                 {
                     char c = path[j];
 
-                    if (AltDirectorySeparators.Where(x => x[0] == c).Any())
+                    if (PossibleDirectorySeparators.Where(x => x[0] == c).Any())
                     {
                         break;
                     }
@@ -855,7 +886,7 @@ namespace IPA.Cores.Basic
             int lastMatch = -1;
             while (true)
             {
-                i = path.FindStringsMulti(i, this.PathStringComparison, out int foundKeyIndex, this.AltDirectorySeparators);
+                i = path.FindStringsMulti(i, this.PathStringComparison, out int foundKeyIndex, this.PossibleDirectorySeparators);
                 if (i == -1)
                 {
                     break;
@@ -869,7 +900,7 @@ namespace IPA.Cores.Basic
 
             if (lastMatch == -1)
             {
-                if (path.Any(c => AltDirectorySeparators.Where(x => x[0] == c).Any()))
+                if (path.Any(c => PossibleDirectorySeparators.Where(x => x[0] == c).Any()))
                 {
                     dirPath = RemoveLastSeparatorChar(path);
                     fileName = "";
@@ -885,6 +916,38 @@ namespace IPA.Cores.Basic
                 dirPath = RemoveLastSeparatorChar(path.Substring(0, lastMatch + 1));
                 fileName = path.Substring(lastMatch + 1);
             }
+        }
+
+        public bool IsValidPathChars(string path)
+        {
+            if (this.Style == FileSystemStyle.Windows)
+                return Win32PathInternal.IsValidPathChars(path);
+            else
+                return UnixPathInternal.IsValidPathChars(path);
+        }
+
+        public bool IsValidFileNameChars(string fileName)
+        {
+            if (this.Style == FileSystemStyle.Windows)
+                return Win32PathInternal.IsValidFileNameChars(fileName);
+            else
+                return UnixPathInternal.IsValidFileNameChars(fileName);
+        }
+
+        public char[] GetInvalidFileNameChars()
+        {
+            if (this.Style == FileSystemStyle.Windows)
+                return Win32PathInternal.GetInvalidFileNameChars();
+            else
+                return UnixPathInternal.GetInvalidFileNameChars();
+        }
+
+        public char[] GetInvalidPathChars()
+        {
+            if (this.Style == FileSystemStyle.Windows)
+                return Win32PathInternal.GetInvalidPathChars();
+            else
+                return UnixPathInternal.GetInvalidPathChars();
         }
     }
 

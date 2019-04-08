@@ -507,6 +507,115 @@ namespace IPA.Cores.Basic
             => path.Length > 0 && IsDirectorySeparator(path[path.Length - 1]);
 
 
+        public static bool IsValidPathChars(string path)
+        {
+            if (path == null || path == "") return false;
+
+            if (path.IndexOfAny(InvalidPathChars) != -1)
+                return false;
+
+            return true;
+        }
+
+        public static bool IsValidFileNameChars(string fileName)
+        {
+            if (fileName == null || fileName == "") return false;
+
+            if (fileName.IndexOfAny(InvalidFileNameChars) != -1)
+                return false;
+
+            return true;
+        }
+
+        public static char[] GetInvalidFileNameChars() => (char[])InvalidFileNameChars.Clone();
+        public static char[] GetInvalidPathChars() => (char[])InvalidPathChars.Clone();
+
+        static readonly char[] InvalidFileNameChars = new char[]
+        {
+            '"',
+            '<',
+            '>',
+            '|',
+            '\0',
+            '\u0001',
+            '\u0002',
+            '\u0003',
+            '\u0004',
+            '\u0005',
+            '\u0006',
+            '\a',
+            '\b',
+            '\t',
+            '\n',
+            '\v',
+            '\f',
+            '\r',
+            '\u000e',
+            '\u000f',
+            '\u0010',
+            '\u0011',
+            '\u0012',
+            '\u0013',
+            '\u0014',
+            '\u0015',
+            '\u0016',
+            '\u0017',
+            '\u0018',
+            '\u0019',
+            '\u001a',
+            '\u001b',
+            '\u001c',
+            '\u001d',
+            '\u001e',
+            '\u001f',
+            ':',
+            '*',
+            '?',
+            '\\',
+            '/'
+        };
+
+        static readonly char[] InvalidPathChars = new char[]
+        {
+            '"',
+            '<',
+            '>',
+            '|',
+            '\0',
+            '\u0001',
+            '\u0002',
+            '\u0003',
+            '\u0004',
+            '\u0005',
+            '\u0006',
+            '\a',
+            '\b',
+            '\t',
+            '\n',
+            '\v',
+            '\f',
+            '\r',
+            '\u000e',
+            '\u000f',
+            '\u0010',
+            '\u0011',
+            '\u0012',
+            '\u0013',
+            '\u0014',
+            '\u0015',
+            '\u0016',
+            '\u0017',
+            '\u0018',
+            '\u0019',
+            '\u001a',
+            '\u001b',
+            '\u001c',
+            '\u001d',
+            '\u001e',
+            '\u001f',
+            '*',
+            '?',
+        };
     }
 }
 

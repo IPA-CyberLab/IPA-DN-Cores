@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
         {
             this.MachineName = this.MachineName.NonNullTrim().NoSpace();
             this.AppName = this.AppName.NonNullTrim().NoSpace();
-            this.Kind = this.Kind.NonNullTrim().Default(logKind).NoSpace();
+            this.Kind = this.Kind.NonNullTrim().FilledOrDefault(logKind).NoSpace();
         }
     }
 
@@ -227,7 +227,7 @@ namespace IPA.Cores.Basic
                     jc.Priority = this.Priority.ToString();
 
                 if (opt.WithTag)
-                    jc.Tag = this.Tag.Default(LogTag.NoTag);
+                    jc.Tag = this.Tag.FilledOrDefault(LogTag.NoTag);
 
                 if (opt.WithTypeName)
                     jc.TypeName = this.Data?.GetType().Name ?? "null";
@@ -267,7 +267,7 @@ namespace IPA.Cores.Basic
                     additionalList.Add(this.Priority.ToString());
 
                 if (opt.WithTag)
-                    additionalList.Add(this.Tag.Default(LogTag.NoTag));
+                    additionalList.Add(this.Tag.FilledOrDefault(LogTag.NoTag));
 
                 if (opt.WithTypeName)
                     additionalList.Add(this.Data?.GetType().Name ?? "null");
@@ -336,10 +336,10 @@ namespace IPA.Cores.Basic
             try
             {
                 this.DirName = dir.NonNullTrim();
-                this.Kind = kind.NonNullTrim().Default(LogKind.Default);
-                this.Prefix = prefix.NonNullTrim().Default("log").ReplaceStr("\\", "_").Replace("/", "_");
+                this.Kind = kind.NonNullTrim().FilledOrDefault(LogKind.Default);
+                this.Prefix = prefix.NonNullTrim().FilledOrDefault("log").ReplaceStr("\\", "_").Replace("/", "_");
                 this.SwitchType = switchType;
-                this.Extension = extension.Default(DefaultExtension);
+                this.Extension = extension.FilledOrDefault(DefaultExtension);
                 this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
                 if (this.MaxLogSize <= 0)
                     this.MaxLogSize = AppConfig.Logger.DefaultMaxLogSize;
@@ -353,7 +353,7 @@ namespace IPA.Cores.Basic
 
                 if (autoDeleteTotalMinSize != null)
                 {
-                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.Default(AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
+                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
                     OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, AppConfig.Logger.EraserIntervalMsecs);
                 }
 

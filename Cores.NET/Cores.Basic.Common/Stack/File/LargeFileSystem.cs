@@ -418,7 +418,7 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                this.SplitStr = splitStr.NonNullTrim().Default("~");
+                this.SplitStr = splitStr.NonNullTrim().FilledOrDefault("~");
                 this.MaxSinglePhysicalFileSize = Math.Max(maxSingleFileSize, 1);
                 this.MaxLogicalFileSize = logicalMaxSize;
                 this.PooledFileCloseDelay = Math.Max(pooledFileCloseDelay, 1000);

@@ -52,47 +52,127 @@ namespace IPA.Cores.Basic
         public FileException(string path, string message) : base($"File \"{path}\": {message}") { }
     }
 
-    enum FileMetadataCopyMode
+    [Flags]
+    enum FileMetadataCopyMode : long
     {
         None = 0,
         All = 1,
         Attributes = 2,
         ReplicateArchiveBit = 4,
+
         CreationTime = 8,
         LastWriteTime = 16,
         LastAccessTime = 32,
         AllDates = CreationTime | LastWriteTime | LastAccessTime,
-        Default = Attributes | LastWriteTime | LastAccessTime,
+
+        SecurityOwner = 64,
+        SecurityGroup = 128,
+        SecurityAcl = 256,
+        SecurityAudit = 512,
+        SecurityAll = SecurityOwner | SecurityGroup | SecurityAcl | SecurityAudit,
+
+        Default = Attributes | AllDates,
     }
 
-    class FileMetadata : ICloneable
+    [Serializable]
+    class FileSecurityOwner : IEmptyChecker
     {
+        public string Win32OwnerSsdl;
+
+        public bool IsEmpty => Win32OwnerSsdl.IsEmpty();
+    }
+
+    [Serializable]
+    class FileSecurityGroup : IEmptyChecker
+    {
+        public string Win32GroupSsdl;
+
+        public bool IsEmpty => Win32GroupSsdl.IsEmpty();
+    }
+
+    [Serializable]
+    class FileSecurityAcl : IEmptyChecker
+    {
+        public string Win32AclSsdl;
+
+        public bool IsEmpty => Win32AclSsdl.IsEmpty();
+    }
+
+    [Serializable]
+    class FileSecurityAudit : IEmptyChecker
+    {
+        public string Win32AuditSsdl;
+
+        public bool IsEmpty => Win32AuditSsdl.IsEmpty();
+    }
+
+    [Serializable]
+    class FileSecurityMetadata : IEmptyChecker
+    {
+        public FileSecurityOwner Owner;
+        public FileSecurityGroup Group;
+        public FileSecurityAcl Acl;
+        public FileSecurityAudit Audit;
+
+        public bool IsEmpty => Owner.IsEmpty() && Group.IsEmpty() && Acl.IsEmpty() && Audit.IsEmpty();
+
+        public FileSecurityMetadata Clone(FileMetadataCopyMode mode = FileMetadataCopyMode.All)
+        {
+            FileSecurityMetadata dst = new FileSecurityMetadata();
+            Copy(this, dst, mode);
+            return dst;
+        }
+
+        public static void Copy(FileSecurityMetadata src, FileSecurityMetadata dest, FileMetadataCopyMode mode = FileMetadataCopyMode.All)
+        {
+            if (mode.Bit(FileMetadataCopyMode.All)) mode |= FileMetadataCopyMode.SecurityAll;
+
+            if (mode.Bit(FileMetadataCopyMode.SecurityOwner))
+                dest.Owner = src.Owner.FilledOrDefault().CloneDeep();
+
+            if (mode.Bit(FileMetadataCopyMode.SecurityGroup))
+                dest.Group = src.Group.FilledOrDefault().CloneDeep();
+
+            if (mode.Bit(FileMetadataCopyMode.SecurityAcl))
+                dest.Acl = src.Acl.FilledOrDefault().CloneDeep();
+
+            if (mode.Bit(FileMetadataCopyMode.SecurityAudit))
+                dest.Audit = src.Audit.FilledOrDefault().CloneDeep();
+        }
+    }
+
+    class FileMetadata
+    {
+        public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory | FileAttributes.NotContentIndexed;
+
         public bool IsDirectory;
         public long Size;
+
         public FileAttributes? Attributes;
         public DateTimeOffset? CreationTime;
         public DateTimeOffset? LastWriteTime;
         public DateTimeOffset? LastAccessTime;
 
-        public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory | FileAttributes.NotContentIndexed;
+        public FileSecurityMetadata SecurityData;
 
         public FileMetadata() { }
 
-        public FileMetadata(bool isDirectory, FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null)
+        public FileMetadata(bool isDirectory, FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
+            FileSecurityMetadata securityData = null)
         {
             this.IsDirectory = isDirectory;
             this.Attributes = attributes;
             this.CreationTime = creationTime;
             this.LastWriteTime = lastWriteTime;
             this.LastAccessTime = lastAccessTime;
+            this.SecurityData = securityData.CloneDeep();
         }
 
-        public object Clone() => this.MemberwiseClone();
         public FileMetadata Clone(FileMetadataCopyMode mode)
         {
             if (mode.Bit(FileMetadataCopyMode.All))
             {
-                var ret = (FileMetadata)this.Clone();
+                var ret = (FileMetadata)this.MemberwiseClone();
                 if (ret.Attributes != null)
                 {
                     ret.Attributes &= CopyableAttributes;
@@ -107,12 +187,12 @@ namespace IPA.Cores.Basic
 
             FileMetadata dest = new FileMetadata();
 
-            this.CopyTo(dest, mode);
+            this.CopyToInternal(dest, mode);
 
             return dest;
         }
 
-        public void CopyTo(FileMetadata dest, FileMetadataCopyMode mode)
+        void CopyToInternal(FileMetadata dest, FileMetadataCopyMode mode)
         {
             dest.IsDirectory = this.IsDirectory;
 
@@ -151,6 +231,15 @@ namespace IPA.Cores.Basic
             if (mode.Bit(FileMetadataCopyMode.LastAccessTime))
                 if (this.LastAccessTime != null)
                     dest.LastAccessTime = this.LastAccessTime;
+
+            if (this.SecurityData.IsFilled())
+            {
+                var cloned = this.SecurityData.Clone(mode);
+                if (cloned.IsFilled())
+                {
+                    this.SecurityData = cloned;
+                }
+            }
         }
     }
 

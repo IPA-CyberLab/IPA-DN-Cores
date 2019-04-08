@@ -66,6 +66,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\LargeFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalNetwork.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalUnixFileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalWin32FileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\ProtoApp\SpeedTest.cs" />
   </ItemGroup>

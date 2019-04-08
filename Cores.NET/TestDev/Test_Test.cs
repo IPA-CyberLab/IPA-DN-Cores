@@ -41,6 +41,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.GlobalFunctions.Basic;
+using System.Security.AccessControl;
 
 namespace IPA.TestDev
 {
@@ -50,12 +51,17 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.LocalSystem).ObjectToJson());
+            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.Linux).ObjectToJson());
+            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.Mac).ObjectToJson());
+            return;
+
             Lfs.EnableBackupPrivilege();
 
             //            Lfs.DeleteFile(@"C:\tmp\acl_test\test3.txt");
             //            return;
 
-            string fn = @"C:\tmp\acl_test\test3.txt";
+            string fn = @"c:\tmp\test.htm";
 
             Lfs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
 

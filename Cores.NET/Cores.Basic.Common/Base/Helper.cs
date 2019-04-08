@@ -558,7 +558,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
-        public static T Default<T>(this T obj, T defaultValue, bool zeroValueIsEmpty = true) => (obj.IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
+        public static T FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj.IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
         public static T DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);
         public static void DbEnforceNonNull(this object obj) => Util.DbEnforceNonNull(obj);
@@ -611,15 +611,21 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static T Do<T>(this T obj, Action<T> action)
+        public static T DoAction<T>(this T obj, Action action)
+        {
+            action();
+            return obj;
+        }
+
+        public static T DoAction<T>(this T obj, Action<T> action)
         {
             action(obj);
             return obj;
         }
 
-        public static T Do<T>(this T obj, Func<T, T> func) => func(obj);
+        public static T DoFunc<T>(this T obj, Func<T, T> func) => func(obj);
 
-        public static T2 Do<T1, T2>(this T1 obj, Func<T1, T2> func) => func(obj);
+        public static T2 DoFunc<T1, T2>(this T1 obj, Func<T1, T2> func) => func(obj);
 
         public static T CloneIfClonable<T>(this T obj) => Util.CloneIfClonable(obj);
 
