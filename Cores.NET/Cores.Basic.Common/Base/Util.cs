@@ -394,7 +394,7 @@ namespace IPA.Cores.Basic
 
     interface IEmptyChecker
     {
-        bool IsEmpty { get; }
+        bool IsThisEmpty();
     }
 
     // ユーティリティクラス
@@ -877,7 +877,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                if (data is IEmptyChecker emptyChecker) return emptyChecker.IsEmpty;
+                if (data is IEmptyChecker emptyChecker) return emptyChecker.IsThisEmpty();
 
                 if (zeroValueIsEmpty)
                 {

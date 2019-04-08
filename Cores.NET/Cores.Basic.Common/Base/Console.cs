@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソール入出力
-    static class Con
+    static partial class Con
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 

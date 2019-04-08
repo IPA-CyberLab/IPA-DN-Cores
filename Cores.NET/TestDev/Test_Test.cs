@@ -51,9 +51,50 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.LocalSystem).ObjectToJson());
-            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.Linux).ObjectToJson());
-            Con.WriteLine(FileSystemPathInterpreter.Get(FileSystemStyle.Mac).ObjectToJson());
+            //int n = 0;
+
+            //for (int k = 0; k < 10; k++)
+            //{
+            //    for (int m = 0; m < 10; m++)
+            //    {
+            //        for (int p = 0; p < 10; p++)
+            //        {
+            //            for (int q = 0; q < 10; q++)
+            //            {
+            //                for (int r = 0; r < 10; r++)
+            //                {
+            //                    string dir = Path.Combine(@"C:\TMP\acl01", k.ToString(), m.ToString(), p.ToString(), q.ToString(), r.ToString());
+            //                    string file = Path.Combine(dir, "test.txt");
+            //                    Directory.CreateDirectory(dir);
+            //                    File.WriteAllBytes(file, "Hello".GetBytes_Ascii());
+
+            //                    Con.WriteLine(n++);
+            //                }
+            //            }
+            //        }
+            //    }
+            //}
+
+            //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\2.c", false, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\2.c", false));
+
+            //return;
+
+            Lfs.EnableBackupPrivilege();
+
+            //string aclFileName = @"c:\tmp\test.htm";
+            //Lfs.AppendToFile(@"C:\tmp\a.dat", "Hello".GetBytes_Ascii());
+            //var meta = PalFileSystem.GetFileOrDirectorySecurityMetadata(aclFileName, false);
+            //Con.WriteLine(meta.ObjectToJson());
+
+            //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\tmp\a.dat", false, meta);
+            //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\test2.txt", false, meta);
+            //var aa = PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false);
+            //Con.WriteJsonLine(aa);
+            //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false));
+            //Con.WriteJsonLine(PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", false));
+
+            PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
+
             return;
 
             Lfs.EnableBackupPrivilege();

@@ -62,3 +62,19 @@ namespace IPA.Cores.Helper.Basic
             => Util.GetObjectHash(o);
     }
 }
+
+
+namespace IPA.Cores.Basic
+{
+    static partial class Con
+    {
+        public static void WriteJsonLine(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => Con.WriteLine(obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+
+        public static void WriteJsonError(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => Con.WriteError(obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+
+        public static void WriteJsonDebug(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => Con.WriteDebug(obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+    }
+}

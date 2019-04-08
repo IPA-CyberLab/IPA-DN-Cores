@@ -525,6 +525,7 @@ namespace IPA.Cores.Basic
             internal const string SeRestorePrivilege = "SeRestorePrivilege";
             internal const string SeShutdownPrivilege = "SeShutdownPrivilege";
             internal const string SeRemoteShutdownPrivilege = "SeRemoteShutdownPrivilege";
+            internal const string SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege";
 
             internal partial class SEPrivileges
             {

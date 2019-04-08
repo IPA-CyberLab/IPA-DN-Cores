@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32OwnerSsdl;
 
-        public bool IsEmpty => Win32OwnerSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32OwnerSsdl.IsEmpty();
     }
 
     [Serializable]
@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32GroupSsdl;
 
-        public bool IsEmpty => Win32GroupSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32GroupSsdl.IsEmpty();
     }
 
     [Serializable]
@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32AclSsdl;
 
-        public bool IsEmpty => Win32AclSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32AclSsdl.IsEmpty();
     }
 
     [Serializable]
@@ -103,7 +103,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32AuditSsdl;
 
-        public bool IsEmpty => Win32AuditSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32AuditSsdl.IsEmpty();
     }
 
     [Serializable]
@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
         public FileSecurityAcl Acl;
         public FileSecurityAudit Audit;
 
-        public bool IsEmpty => Owner.IsEmpty() && Group.IsEmpty() && Acl.IsEmpty() && Audit.IsEmpty();
+        public bool IsThisEmpty() => Owner.IsEmpty() && Group.IsEmpty() && Acl.IsEmpty() && Audit.IsEmpty();
 
         public FileSecurityMetadata Clone(FileMetadataCopyMode mode = FileMetadataCopyMode.All)
         {

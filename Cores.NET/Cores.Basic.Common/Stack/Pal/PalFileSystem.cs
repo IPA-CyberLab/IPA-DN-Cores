@@ -250,8 +250,21 @@ namespace IPA.Cores.Basic
 
         static void Win32SetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, string ssdl, AccessControlSections section)
         {
-            FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
+            if (ssdl.IsEmpty()) return;
+
+            FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity()) : (FileSystemSecurity)(new FileSecurity());
             sec.SetSecurityDescriptorSddlForm(ssdl, section);
+
+            if (isDirectory == false)
+            {
+                FileInfo fi = new FileInfo(path);
+                fi.SetAccessControl((FileSecurity)sec);
+            }
+            else
+            {
+                DirectoryInfo di = new DirectoryInfo(path);
+                di.SetAccessControl((DirectorySecurity)sec);
+            }
         }
 
         public static FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
@@ -279,6 +292,22 @@ namespace IPA.Cores.Basic
             }
 
             return ret;
+        }
+
+        public static void SetFileOrDirectorySecurityMetadata(string path, bool isDirectory, FileSecurityMetadata data)
+        {
+            if (Env.IsWindows)
+            {
+                if (data.IsFilled())
+                {
+                    Util.DoMultipleActions(true,
+                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Owner?.Win32OwnerSsdl, AccessControlSections.Owner),
+                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Group?.Win32GroupSsdl, AccessControlSections.Group),
+                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Acl?.Win32AclSsdl, AccessControlSections.Access),
+                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Audit?.Win32AuditSsdl, AccessControlSections.Audit)
+                        );
+                }
+            }
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
@@ -322,6 +351,8 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            ret.SecurityData = GetFileOrDirectorySecurityMetadata(path, false);
+
             return ret;
         }
 
@@ -339,6 +370,9 @@ namespace IPA.Cores.Basic
             if (metadata.Attributes != null)
                 SetFileAttributes(path, (FileAttributes)metadata.Attributes);
 
+            if (metadata.SecurityData != null)
+                SetFileOrDirectorySecurityMetadata(path, false, metadata.SecurityData);
+
             await Task.CompletedTask;
         }
 
@@ -350,6 +384,8 @@ namespace IPA.Cores.Basic
                 throw new FileNotFoundException($"The directory '{path}' not found.");
 
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo);
+
+            ret.SecurityData = GetFileOrDirectorySecurityMetadata(path, true);
 
             await Task.CompletedTask;
 
@@ -370,6 +406,9 @@ namespace IPA.Cores.Basic
 
             if (metadata.Attributes != null)
                 SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
+
+            if (metadata.SecurityData != null)
+                SetFileOrDirectorySecurityMetadata(path, true, metadata.SecurityData);
 
             await Task.CompletedTask;
         }
@@ -399,8 +438,11 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows)
             {
-                Win32Api.EnablePrivilege(Win32Api.Advapi32.SeBackupPrivilege, true);
-                Win32Api.EnablePrivilege(Win32Api.Advapi32.SeRestorePrivilege, true);
+                Util.DoMultipleActions(false,
+                    () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeBackupPrivilege, true),
+                    () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeRestorePrivilege, true),
+                    () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeTakeOwnershipPrivilege, true)
+                    );
             }
         }
 
