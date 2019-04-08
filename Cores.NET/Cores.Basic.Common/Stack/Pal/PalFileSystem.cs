@@ -585,8 +585,13 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
-        protected override async Task DeleteFileImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
+            if (flags.Bit(FileOperationFlags.BackupMode) || flags.Bit(FileOperationFlags.IgnoreReadOnlyOrHiddenBits))
+            {
+                await this.TryAddOrRemoveAttributeFromExistingFile(path, 0, FileAttributes.ReadOnly, cancel);
+            }
+
             File.Delete(path);
 
             await Task.CompletedTask;
@@ -668,38 +673,6 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        async Task<bool> TryRemoveAttributeFromExistingFile(string path, FileAttributes attrToRemove, CancellationToken cancel = default)
-        {
-            try
-            {
-                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
-                var currentAttributes = existingFileMetadata.Attributes ?? 0;
-                if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
-                {
-                    var newAttributes = currentAttributes & ~(attrToRemove);
-                    if (currentAttributes != newAttributes)
-                    {
-                        try
-                        {
-                            await FileSystem.SetFileMetadataAsync(FileParams.Path, new FileMetadata(false, attributes: newAttributes), cancel);
-
-                            return true;
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
-
         protected override async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
@@ -728,7 +701,7 @@ namespace IPA.Cores.Basic
                                 attributesToRemove |= FileAttributes.ReadOnly;
 
                             if (attributesToRemove != 0)
-                                await TryRemoveAttributeFromExistingFile(FileParams.Path, attributesToRemove, cancel);
+                                await FileSystem.TryAddOrRemoveAttributeFromExistingFile(FileParams.Path, 0, attributesToRemove, cancel);
                         }
                     }
 

@@ -158,7 +158,7 @@ namespace IPA.Cores.Basic
                     if (lastFileParsed != null)
                     {
                         // Delete the files first
-                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, cancel);
+                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
 
                         lastFileParsed = null;
                         CurrentFileSize = 0;
@@ -380,7 +380,7 @@ namespace IPA.Cores.Basic
                 {
                     foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                     {
-                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, cancel);
+                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
                     }
                 },
                 (x, y) =>
@@ -741,7 +741,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task DeleteFileImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
             List<LargeFileSystem.ParsedPath> filesToDelete = physicalFiles.ToList();
@@ -759,7 +759,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, cancel);
+                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
                 }
             },
             (x, y) =>

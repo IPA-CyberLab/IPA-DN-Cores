@@ -51,6 +51,9 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            Lfs.DeleteFile(@"C:\tmp\ro.txt", flags: FileOperationFlags.IgnoreReadOnlyOrHiddenBits);
+            return;
+
             //string alt1 = @"D:\Downloads\softether-vpnclient-v4.29-9680-rtm-2019.02.28-windows-x86_x64-intel.exe";
             string alt1 = @"C:\tmp\acl_test2\1.exe";
             string alt2 = @"C:\tmp\acl_test2\2.exe";

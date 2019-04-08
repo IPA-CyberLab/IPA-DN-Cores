@@ -1041,7 +1041,7 @@ namespace IPA.Cores.Basic
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
 
         protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
-        protected abstract Task DeleteFileImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
 
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
         protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
@@ -1262,6 +1262,8 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+        public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default)
+            => DeleteDirectoryAsync(path, recursive, cancel).GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
         {
@@ -1437,7 +1439,7 @@ namespace IPA.Cores.Basic
         public void SetDirectoryMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
             => SetDirectoryMetadataAsync(path, metadata, cancel).GetResult();
 
-        public async Task DeleteFileAsync(string path, CancellationToken cancel = default)
+        public async Task DeleteFileAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1449,10 +1451,13 @@ namespace IPA.Cores.Basic
 
                     path = await NormalizePathImplAsync(path, opCancel);
 
-                    await DeleteFileImplAsync(path, opCancel);
+                    await DeleteFileImplAsync(path, flags, opCancel);
                 }
             }
         }
+
+        public void DeleteFile(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => DeleteFileAsync(path, flags, cancel).GetResult();
 
         public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
@@ -1494,9 +1499,6 @@ namespace IPA.Cores.Basic
         public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default)
             => MoveDirectoryAsync(srcPath, destPath, cancel).GetResult();
 
-        public void DeleteFile(string path, CancellationToken cancel = default)
-            => DeleteFileAsync(path, cancel).GetResult();
-
         public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
         {
             if (destFileSystem == null) destFileSystem = this;
@@ -1505,6 +1507,39 @@ namespace IPA.Cores.Basic
         }
         public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
             => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
+
+
+        public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
+        {
+            try
+            {
+                var existingFileMetadata = await this.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
+                var currentAttributes = existingFileMetadata.Attributes ?? 0;
+                if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
+                {
+                    var newAttributes = (currentAttributes & ~(attributesToRemove)) | attributesToAdd;
+                    if (currentAttributes != newAttributes)
+                    {
+                        try
+                        {
+                            await this.SetFileMetadataAsync(path, new FileMetadata(false, attributes: newAttributes), cancel);
+
+                            return true;
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {
