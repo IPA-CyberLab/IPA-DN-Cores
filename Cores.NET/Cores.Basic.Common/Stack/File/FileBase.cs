@@ -53,6 +53,17 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    enum FileMetadataGetFlags
+    {
+        None = 0,
+        NoAttributes = 1,
+        NoTimes = 2,
+        NoPreciseFileSize = 4,
+        NoSecurity = 8,
+        NoAlternateStream = 16,
+    }
+
+    [Flags]
     enum FileMetadataCopyMode : long
     {
         None = 0,

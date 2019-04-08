@@ -1047,10 +1047,10 @@ namespace IPA.Cores.Basic
         protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
 
-        protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default);
         protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
-        protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default);
         protected abstract Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
         protected abstract Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
@@ -1341,7 +1341,7 @@ namespace IPA.Cores.Basic
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
             => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
 
-        public async Task<FileMetadata> GetFileMetadataAsync(string path, CancellationToken cancel = default)
+        public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1353,14 +1353,14 @@ namespace IPA.Cores.Basic
 
                     path = await NormalizePathImplAsync(path, opCancel);
 
-                    return await GetFileMetadataImplAsync(path, cancel);
+                    return await GetFileMetadataImplAsync(path, flags, cancel);
                 }
             }
         }
-        public FileMetadata GetFileMetadata(string path, CancellationToken cancel = default)
-            => GetFileMetadataAsync(path, cancel).GetResult();
+        public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+            => GetFileMetadataAsync(path, flags, cancel).GetResult();
 
-        public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, CancellationToken cancel = default)
+        public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1372,12 +1372,12 @@ namespace IPA.Cores.Basic
 
                     path = await NormalizePathImplAsync(path, opCancel);
 
-                    return await GetDirectoryMetadataImplAsync(path, cancel);
+                    return await GetDirectoryMetadataImplAsync(path, flags, cancel);
                 }
             }
         }
-        public FileMetadata GetDirectoryMetadata(string path, CancellationToken cancel = default)
-            => GetDirectoryMetadataAsync(path, cancel).GetResult();
+        public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+            => GetDirectoryMetadataAsync(path, flags, cancel).GetResult();
 
         public virtual async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
         {
@@ -1635,7 +1635,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, cancel);
+                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, FileMetadataGetFlags.None, cancel);
 
                         bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
 

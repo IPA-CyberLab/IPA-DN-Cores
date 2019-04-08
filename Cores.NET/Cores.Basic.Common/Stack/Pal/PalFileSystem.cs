@@ -137,15 +137,15 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static FileMetadata ConvertFileSystemInfoToFileMetadata(FileSystemInfo info)
+        public static FileMetadata ConvertFileSystemInfoToFileMetadata(FileSystemInfo info, FileMetadataGetFlags flags)
         {
             FileMetadata ret = new FileMetadata()
             {
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
-                Attributes = info.Attributes,
-                CreationTime = info.CreationTime.AsDateTimeOffset(true),
-                LastWriteTime = info.LastWriteTime.AsDateTimeOffset(true),
-                LastAccessTime = info.LastAccessTime.AsDateTimeOffset(true),
+                Attributes = flags.Bit(FileMetadataGetFlags.NoAttributes) == false ? info.Attributes : (FileAttributes ?)null,
+                CreationTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.CreationTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
+                LastWriteTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastWriteTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
+                LastAccessTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastAccessTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
                 IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
             };
             return ret;
@@ -442,45 +442,54 @@ namespace IPA.Cores.Basic
             return Task.FromResult(Path.GetFullPath(path));
         }
 
-        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
             FileInfo fileInfo = new FileInfo(path);
 
             if (fileInfo.Exists == false)
                 throw new FileNotFoundException($"The file '{path}' not found.");
 
-            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(fileInfo);
+            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(fileInfo, flags);
 
-            ret.Security = GetFileOrDirectorySecurityMetadata(path, false);
+            if (flags.Bit(FileMetadataGetFlags.NoSecurity) == false)
+            {
+                ret.Security = GetFileOrDirectorySecurityMetadata(path, false);
+            }
 
             // Try to open to retrieve the actual physical file
-            FileObjectBase f = null;
-            try
+            if (flags.Bit(FileMetadataGetFlags.NoPreciseFileSize) == false)
             {
-                f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
-            }
-            catch
-            {
+                FileObjectBase f = null;
                 try
                 {
-                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
+                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
                 }
-                catch { }
+                catch
+                {
+                    try
+                    {
+                        f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
+                    }
+                    catch { }
+                }
+
+                if (f != null)
+                {
+                    try
+                    {
+                        ret.Size = await f.GetFileSizeAsync();
+                    }
+                    finally
+                    {
+                        f.DisposeSafe();
+                    }
+                }
             }
 
-            if (f != null)
+            if (flags.Bit(FileMetadataGetFlags.NoAlternateStream) == false)
             {
-                try
-                {
-                    ret.Size = await f.GetFileSizeAsync();
-                }
-                finally
-                {
-                    f.DisposeSafe();
-                }
+                ret.AlternateStream = await GetFileAlternateStreamMetadataAsync(path, cancel);
             }
-
-            ret.AlternateStream = await GetFileAlternateStreamMetadataAsync(path, cancel);
 
             return ret;
         }
@@ -523,16 +532,19 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
-        protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
             DirectoryInfo dirInfo = new DirectoryInfo(path);
 
             if (dirInfo.Exists == false)
                 throw new FileNotFoundException($"The directory '{path}' not found.");
 
-            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo);
+            FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo, flags);
 
-            ret.Security = GetFileOrDirectorySecurityMetadata(path, true);
+            if (flags.Bit(FileMetadataGetFlags.NoSecurity) == false)
+            {
+                ret.Security = GetFileOrDirectorySecurityMetadata(path, true);
+            }
 
             await Task.CompletedTask;
 
@@ -660,7 +672,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, cancel);
+                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
                 var currentAttributes = existingFileMetadata.Attributes ?? 0;
                 if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
                 {

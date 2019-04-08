@@ -147,7 +147,7 @@ namespace IPA.Cores.Basic
 
                     checked
                     {
-                        long sizeOfLastFile = (await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel)).Size;
+                        long sizeOfLastFile = (await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity, cancel)).Size;
                         sizeOfLastFile = Math.Min(sizeOfLastFile, LargeFileSystem.Params.MaxSinglePhysicalFileSize);
                         CurrentFileSize = lastFileParsed.FileNumber * LargeFileSystem.Params.MaxSinglePhysicalFileSize + sizeOfLastFile;
                     }
@@ -710,7 +710,7 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
-        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
             var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
@@ -725,7 +725,7 @@ namespace IPA.Cores.Basic
                 // File exists
                 checked
                 {
-                    FileMetadata ret = await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, cancel);
+                    FileMetadata ret = await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, flags | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoAlternateStream, cancel);
                     long sizeOfLastFile = ret.Size;
                     sizeOfLastFile = Math.Min(sizeOfLastFile, Params.MaxSinglePhysicalFileSize);
 
@@ -798,8 +798,8 @@ namespace IPA.Cores.Basic
         protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
             => UnderlayFileSystem.SetDirectoryMetadataAsync(path, metadata, cancel);
 
-        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
-            => UnderlayFileSystem.GetDirectoryMetadataAsync(path, cancel);
+        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+            => UnderlayFileSystem.GetDirectoryMetadataAsync(path, flags | FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity, cancel);
 
         protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
             => throw new NotImplementedException();
