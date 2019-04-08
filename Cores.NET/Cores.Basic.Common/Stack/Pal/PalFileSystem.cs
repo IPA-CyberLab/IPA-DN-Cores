@@ -57,7 +57,17 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        public PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
+        static PalFileSystem SingletonInstance;
+
+        public static PalFileSystem GetInstance(AsyncCleanuperLady lady)
+        {
+            if (SingletonInstance == null)
+                SingletonInstance = new PalFileSystem(lady);
+
+            return SingletonInstance;
+        }
+
+        private PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
         {
         }
 

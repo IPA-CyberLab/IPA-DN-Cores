@@ -668,7 +668,7 @@ namespace IPA.Cores.Basic
         public StringComparison PathStringComparison { get; }
         public StrComparer PathStringComparer { get; }
 
-        public static FileSystemPathInterpreter Get(FileSystemStyle style = FileSystemStyle.LocalSystem)
+        public static FileSystemPathInterpreter GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
         {
             if (style == FileSystemStyle.LocalSystem)
                 style = LocalSystemStyle;
@@ -953,7 +953,7 @@ namespace IPA.Cores.Basic
 
     abstract class FileSystemBase : AsyncCleanupable
     {
-        public static PalFileSystem Local { get; } = new PalFileSystem(LeakChecker.SuperGrandLady);
+        public static PalFileSystem Local { get; } = PalFileSystem.GetInstance(LeakChecker.SuperGrandLady);
 
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathInterpreter PathInterpreter { get; }

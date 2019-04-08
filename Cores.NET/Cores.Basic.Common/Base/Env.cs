@@ -259,7 +259,7 @@ namespace IPA.Cores.Basic
                 WinTempDir = TempDir;
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
-            LocalFileSystemPathInterpreter = FileSystemPathInterpreter.Get(FileSystemStyle.LocalSystem);
+            LocalFileSystemPathInterpreter = FileSystemPathInterpreter.GetInstance(FileSystemStyle.LocalSystem);
             ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
