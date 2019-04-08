@@ -58,10 +58,11 @@ namespace IPA.Cores.Basic
         All = 1,
         Attributes = 2,
         ReplicateArchiveBit = 4,
-        UpdatedDate = 8,
-        CreatedDate = 16,
-        AllDates = UpdatedDate | CreatedDate,
-        Default = Attributes | UpdatedDate,
+        CreationTime = 8,
+        LastWriteTime = 16,
+        LastAccessTime = 32,
+        AllDates = CreationTime | LastWriteTime | LastAccessTime,
+        Default = Attributes | LastWriteTime | LastAccessTime,
     }
 
     class FileMetadata : ICloneable
@@ -69,10 +70,22 @@ namespace IPA.Cores.Basic
         public bool IsDirectory;
         public long Size;
         public FileAttributes? Attributes;
-        public DateTimeOffset? Updated;
-        public DateTimeOffset? Created;
+        public DateTimeOffset? CreationTime;
+        public DateTimeOffset? LastWriteTime;
+        public DateTimeOffset? LastAccessTime;
 
         public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive | FileAttributes.Directory | FileAttributes.NotContentIndexed;
+
+        public FileMetadata() { }
+
+        public FileMetadata(bool isDirectory, FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null)
+        {
+            this.IsDirectory = isDirectory;
+            this.Attributes = attributes;
+            this.CreationTime = creationTime;
+            this.LastWriteTime = lastWriteTime;
+            this.LastAccessTime = lastAccessTime;
+        }
 
         public object Clone() => this.MemberwiseClone();
         public FileMetadata Clone(FileMetadataCopyMode mode)
@@ -127,13 +140,17 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            if (mode.Bit(FileMetadataCopyMode.UpdatedDate))
-                if (this.Updated != null)
-                    dest.Updated = this.Updated;
+            if (mode.Bit(FileMetadataCopyMode.CreationTime))
+                if (this.CreationTime != null)
+                    dest.CreationTime = this.CreationTime;
 
-            if (mode.Bit(FileMetadataCopyMode.CreatedDate))
-                if (this.Created != null)
-                    dest.Created = this.Created;
+            if (mode.Bit(FileMetadataCopyMode.LastWriteTime))
+                if (this.LastWriteTime != null)
+                    dest.LastWriteTime = this.LastWriteTime;
+
+            if (mode.Bit(FileMetadataCopyMode.LastAccessTime))
+                if (this.LastAccessTime != null)
+                    dest.LastAccessTime = this.LastAccessTime;
         }
     }
 
@@ -188,6 +205,7 @@ namespace IPA.Cores.Basic
         SetCompressionFlagOnDirectory = 8,
         RandomAccessOnly = 16,
         LargeFileSystemDoNotAppendBeyondBorder = 32,
+        IgnoreReadOnlyOrHiddenBits = 64,
     }
 
     class FileBaseStream : FileStream

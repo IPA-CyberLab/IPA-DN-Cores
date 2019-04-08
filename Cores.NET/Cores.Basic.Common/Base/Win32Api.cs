@@ -42,6 +42,7 @@ using Microsoft.Win32.SafeHandles;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.GlobalFunctions.Basic;
+using System.Diagnostics;
 
 #pragma warning disable 0618
 
@@ -100,31 +101,72 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
 
             internal static extern bool SetThreadErrorMode(uint dwNewMode, out uint lpOldMode);
-            /// <summary>
-            /// WARNING: This method does not implicitly handle long paths. Use CreateFile.
-            /// </summary>
-            [DllImport(Libraries.Kernel32, EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false)]
-            private static extern SafeFileHandle CreateFilePrivate(
+
+            [DllImport(Libraries.Kernel32, EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false, ExactSpelling = true)]
+            private unsafe static extern IntPtr CreateFilePrivate(
                 string lpFileName,
                 int dwDesiredAccess,
-                System.IO.FileShare dwShareMode,
-                ref SECURITY_ATTRIBUTES securityAttrs,
-                System.IO.FileMode dwCreationDisposition,
+                FileShare dwShareMode,
+                SECURITY_ATTRIBUTES* securityAttrs,
+                FileMode dwCreationDisposition,
                 int dwFlagsAndAttributes,
                 IntPtr hTemplateFile);
 
-            internal static SafeFileHandle CreateFile(
+            internal unsafe static SafeFileHandle CreateFile(
                 string lpFileName,
                 int dwDesiredAccess,
-                System.IO.FileShare dwShareMode,
+                FileShare dwShareMode,
                 ref SECURITY_ATTRIBUTES securityAttrs,
-                System.IO.FileMode dwCreationDisposition,
+                FileMode dwCreationDisposition,
                 int dwFlagsAndAttributes,
                 IntPtr hTemplateFile)
             {
-                lpFileName = Win32PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
-                return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+                lpFileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
+                fixed (SECURITY_ATTRIBUTES* sa = &securityAttrs)
+                {
+                    IntPtr handle = CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, sa, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+                    try
+                    {
+                        return new SafeFileHandle(handle, ownsHandle: true);
+                    }
+                    catch
+                    {
+                        CloseHandle(handle);
+                        throw;
+                    }
+                }
             }
+
+            internal unsafe static SafeFileHandle CreateFile(
+                string lpFileName,
+                int dwDesiredAccess,
+                FileShare dwShareMode,
+                FileMode dwCreationDisposition,
+                int dwFlagsAndAttributes)
+            {
+                IntPtr handle = CreateFile_IntPtr(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+                try
+                {
+                    return new SafeFileHandle(handle, ownsHandle: true);
+                }
+                catch
+                {
+                    CloseHandle(handle);
+                    throw;
+                }
+            }
+
+            internal unsafe static IntPtr CreateFile_IntPtr(
+                string lpFileName,
+                int dwDesiredAccess,
+                FileShare dwShareMode,
+                FileMode dwCreationDisposition,
+                int dwFlagsAndAttributes)
+            {
+                lpFileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
+                return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, null, dwCreationDisposition, dwFlagsAndAttributes, IntPtr.Zero);
+            }
+
 
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern bool DeviceIoControl
@@ -138,6 +180,62 @@ namespace IPA.Cores.Basic
                 out uint cbBytesReturned,
                 IntPtr overlapped
             );
+
+            [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
+            internal static extern bool SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS FileInformationClass, ref FILE_BASIC_INFO lpFileInformation, uint dwBufferSize);
+
+            // Default values indicate "no change".  Use defaults so that we don't force callsites to be aware of the default values
+            internal static unsafe bool SetFileTime(
+                SafeFileHandle hFile,
+                long creationTime = -1,
+                long lastAccessTime = -1,
+                long lastWriteTime = -1,
+                long changeTime = -1,
+                uint fileAttributes = 0)
+            {
+                FILE_BASIC_INFO basicInfo = new FILE_BASIC_INFO()
+                {
+                    CreationTime = creationTime,
+                    LastAccessTime = lastAccessTime,
+                    LastWriteTime = lastWriteTime,
+                    ChangeTime = changeTime,
+                    FileAttributes = fileAttributes
+                };
+
+                return SetFileInformationByHandle(hFile, FILE_INFO_BY_HANDLE_CLASS.FileBasicInfo, ref basicInfo, (uint)sizeof(FILE_BASIC_INFO));
+            }
+
+            [DllImport(Libraries.Kernel32, EntryPoint = "SetFileAttributesW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false)]
+            private static extern bool SetFileAttributesPrivate(string name, int attr);
+
+            internal static bool SetFileAttributes(string name, int attr)
+            {
+                name = Win32PathInternal.EnsureExtendedPrefixIfNeeded(name);
+                return SetFileAttributesPrivate(name, attr);
+            }
+
+            [DllImport(Libraries.Kernel32, EntryPoint = "GetFileAttributesExW", SetLastError = true, CharSet = CharSet.Unicode)]
+            private static extern bool GetFileAttributesExPrivate(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
+
+            internal static bool GetFileAttributesEx(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation)
+            {
+                name = Win32PathInternal.EnsureExtendedPrefixOverMaxPath(name);
+                return GetFileAttributesExPrivate(name, fileInfoLevel, ref lpFileInformation);
+            }
+
+            [DllImport(Libraries.Kernel32, SetLastError = true)]
+            internal static extern bool FindClose(IntPtr hFindFile);
+
+            [DllImport(Libraries.Kernel32, EntryPoint = "FindFirstFileExW", SetLastError = true, CharSet = CharSet.Unicode)]
+            private static extern SafeFindHandle FindFirstFileExPrivate(string lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, ref WIN32_FIND_DATA lpFindFileData, FINDEX_SEARCH_OPS fSearchOp, IntPtr lpSearchFilter, int dwAdditionalFlags);
+
+            internal static SafeFindHandle FindFirstFile(string fileName, ref WIN32_FIND_DATA data)
+            {
+                fileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(fileName);
+
+                // use FindExInfoBasic since we don't care about short name and it has better perf
+                return FindFirstFileExPrivate(fileName, FINDEX_INFO_LEVELS.FindExInfoBasic, ref data, FINDEX_SEARCH_OPS.FindExSearchNameMatch, IntPtr.Zero, 0);
+            }
         }
 
         internal partial class Advapi32
@@ -168,39 +266,82 @@ namespace IPA.Cores.Basic
         internal partial class Errors
         {
             internal const int ERROR_SUCCESS = 0x0;
+            internal const int ERROR_INVALID_FUNCTION = 0x1;
             internal const int ERROR_FILE_NOT_FOUND = 0x2;
             internal const int ERROR_PATH_NOT_FOUND = 0x3;
             internal const int ERROR_ACCESS_DENIED = 0x5;
             internal const int ERROR_INVALID_HANDLE = 0x6;
             internal const int ERROR_NOT_ENOUGH_MEMORY = 0x8;
+            internal const int ERROR_INVALID_DATA = 0xD;
             internal const int ERROR_INVALID_DRIVE = 0xF;
             internal const int ERROR_NO_MORE_FILES = 0x12;
             internal const int ERROR_NOT_READY = 0x15;
+            internal const int ERROR_BAD_COMMAND = 0x16;
+            internal const int ERROR_BAD_LENGTH = 0x18;
             internal const int ERROR_SHARING_VIOLATION = 0x20;
+            internal const int ERROR_LOCK_VIOLATION = 0x21;
             internal const int ERROR_HANDLE_EOF = 0x26;
+            internal const int ERROR_BAD_NETPATH = 0x35;
+            internal const int ERROR_NETWORK_ACCESS_DENIED = 0x41;
+            internal const int ERROR_BAD_NET_NAME = 0x43;
             internal const int ERROR_FILE_EXISTS = 0x50;
             internal const int ERROR_INVALID_PARAMETER = 0x57;
             internal const int ERROR_BROKEN_PIPE = 0x6D;
+            internal const int ERROR_SEM_TIMEOUT = 0x79;
+            internal const int ERROR_CALL_NOT_IMPLEMENTED = 0x78;
             internal const int ERROR_INSUFFICIENT_BUFFER = 0x7A;
             internal const int ERROR_INVALID_NAME = 0x7B;
+            internal const int ERROR_NEGATIVE_SEEK = 0x83;
+            internal const int ERROR_DIR_NOT_EMPTY = 0x91;
             internal const int ERROR_BAD_PATHNAME = 0xA1;
+            internal const int ERROR_LOCK_FAILED = 0xA7;
+            internal const int ERROR_BUSY = 0xAA;
             internal const int ERROR_ALREADY_EXISTS = 0xB7;
+            internal const int ERROR_BAD_EXE_FORMAT = 0xC1;
             internal const int ERROR_ENVVAR_NOT_FOUND = 0xCB;
             internal const int ERROR_FILENAME_EXCED_RANGE = 0xCE;
+            internal const int ERROR_EXE_MACHINE_TYPE_MISMATCH = 0xD8;
+            internal const int ERROR_PIPE_BUSY = 0xE7;
             internal const int ERROR_NO_DATA = 0xE8;
+            internal const int ERROR_PIPE_NOT_CONNECTED = 0xE9;
             internal const int ERROR_MORE_DATA = 0xEA;
             internal const int ERROR_NO_MORE_ITEMS = 0x103;
-            internal const int ERROR_NOT_OWNER = 0x120;
-            internal const int ERROR_TOO_MANY_POSTS = 0x12A;
+            internal const int ERROR_DIRECTORY = 0x10B;
+            internal const int ERROR_PARTIAL_COPY = 0x12B;
             internal const int ERROR_ARITHMETIC_OVERFLOW = 0x216;
-            internal const int ERROR_MUTANT_LIMIT_EXCEEDED = 0x24B;
+            internal const int ERROR_PIPE_CONNECTED = 0x217;
+            internal const int ERROR_PIPE_LISTENING = 0x218;
             internal const int ERROR_OPERATION_ABORTED = 0x3E3;
+            internal const int ERROR_IO_INCOMPLETE = 0x3E4;
             internal const int ERROR_IO_PENDING = 0x3E5;
-            internal const int ERROR_NO_UNICODE_TRANSLATION = 0x459;
+            internal const int ERROR_NO_TOKEN = 0x3f0;
+            internal const int ERROR_SERVICE_DOES_NOT_EXIST = 0x424;
+            internal const int ERROR_DLL_INIT_FAILED = 0x45A;
+            internal const int ERROR_COUNTER_TIMEOUT = 0x461;
+            internal const int ERROR_NO_ASSOCIATION = 0x483;
+            internal const int ERROR_DDE_FAIL = 0x484;
+            internal const int ERROR_DLL_NOT_FOUND = 0x485;
             internal const int ERROR_NOT_FOUND = 0x490;
+            internal const int ERROR_NETWORK_UNREACHABLE = 0x4CF;
+            internal const int ERROR_NON_ACCOUNT_SID = 0x4E9;
+            internal const int ERROR_NOT_ALL_ASSIGNED = 0x514;
+            internal const int ERROR_UNKNOWN_REVISION = 0x519;
+            internal const int ERROR_INVALID_OWNER = 0x51B;
+            internal const int ERROR_INVALID_PRIMARY_GROUP = 0x51C;
+            internal const int ERROR_NO_SUCH_PRIVILEGE = 0x521;
+            internal const int ERROR_PRIVILEGE_NOT_HELD = 0x522;
+            internal const int ERROR_INVALID_ACL = 0x538;
+            internal const int ERROR_INVALID_SECURITY_DESCR = 0x53A;
+            internal const int ERROR_INVALID_SID = 0x539;
             internal const int ERROR_BAD_IMPERSONATION_LEVEL = 0x542;
-            internal const int ERROR_NO_SYSTEM_RESOURCES = 0x5AA;
-            internal const int ERROR_TIMEOUT = 0x000005B4;
+            internal const int ERROR_CANT_OPEN_ANONYMOUS = 0x543;
+            internal const int ERROR_NO_SECURITY_ON_OBJECT = 0x546;
+            internal const int ERROR_CLASS_ALREADY_EXISTS = 0x582;
+            internal const int ERROR_EVENTLOG_FILE_CHANGED = 0x5DF;
+            internal const int ERROR_TRUSTED_RELATIONSHIP_FAILURE = 0x6FD;
+            internal const int ERROR_RESOURCE_LANG_NOT_FOUND = 0x717;
+            internal const int EFail = unchecked((int)0x80004005);
+            internal const int E_FILENOTFOUND = unchecked((int)0x80070002);
         }
 
         internal partial class Kernel32
@@ -210,6 +351,12 @@ namespace IPA.Cores.Basic
             internal const int FSCTL_SET_COMPRESSION = 0x9C040;
             internal const short COMPRESSION_FORMAT_NONE = 0;
             internal const short COMPRESSION_FORMAT_DEFAULT = 1;
+            
+            internal partial class GenericOperations
+            {
+                internal const int GENERIC_READ = unchecked((int)0x80000000);
+                internal const int GENERIC_WRITE = 0x40000000;
+            }
 
             internal partial class HandleOptions
             {
@@ -251,6 +398,123 @@ namespace IPA.Cores.Basic
                 internal const int SECURITY_IDENTIFICATION = 1 << 16;
                 internal const int SECURITY_IMPERSONATION = 2 << 16;
                 internal const int SECURITY_DELEGATION = 3 << 16;
+            }
+
+            internal struct FILE_BASIC_INFO
+            {
+                internal long CreationTime;
+                internal long LastAccessTime;
+                internal long LastWriteTime;
+                internal long ChangeTime;
+                internal uint FileAttributes;
+            }
+
+            internal enum FILE_INFO_BY_HANDLE_CLASS : uint
+            {
+                FileBasicInfo = 0x0u,
+                FileStandardInfo = 0x1u,
+                FileNameInfo = 0x2u,
+                FileRenameInfo = 0x3u,
+                FileDispositionInfo = 0x4u,
+                FileAllocationInfo = 0x5u,
+                FileEndOfFileInfo = 0x6u,
+                FileStreamInfo = 0x7u,
+                FileCompressionInfo = 0x8u,
+                FileAttributeTagInfo = 0x9u,
+                FileIdBothDirectoryInfo = 0xAu,
+                FileIdBothDirectoryRestartInfo = 0xBu,
+                FileIoPriorityHintInfo = 0xCu,
+                FileRemoteProtocolInfo = 0xDu,
+                FileFullDirectoryInfo = 0xEu,
+                FileFullDirectoryRestartInfo = 0xFu,
+                FileStorageInfo = 0x10u,
+                FileAlignmentInfo = 0x11u,
+                FileIdInfo = 0x12u,
+                FileIdExtdDirectoryInfo = 0x13u,
+                FileIdExtdDirectoryRestartInfo = 0x14u,
+                MaximumFileInfoByHandleClass = 0x15u,
+            }
+            internal enum GET_FILEEX_INFO_LEVELS : uint
+            {
+                GetFileExInfoStandard = 0x0u,
+                GetFileExMaxInfoLevel = 0x1u,
+            }
+
+            internal struct WIN32_FILE_ATTRIBUTE_DATA
+            {
+                internal int dwFileAttributes;
+                internal uint ftCreationTimeLow;
+                internal uint ftCreationTimeHigh;
+                internal uint ftLastAccessTimeLow;
+                internal uint ftLastAccessTimeHigh;
+                internal uint ftLastWriteTimeLow;
+                internal uint ftLastWriteTimeHigh;
+                internal uint fileSizeHigh;
+                internal uint fileSizeLow;
+
+                internal void PopulateFrom(ref WIN32_FIND_DATA findData)
+                {
+                    // Copy the information to data
+                    dwFileAttributes = (int)findData.dwFileAttributes;
+                    ftCreationTimeLow = findData.ftCreationTime.dwLowDateTime;
+                    ftCreationTimeHigh = findData.ftCreationTime.dwHighDateTime;
+                    ftLastAccessTimeLow = findData.ftLastAccessTime.dwLowDateTime;
+                    ftLastAccessTimeHigh = findData.ftLastAccessTime.dwHighDateTime;
+                    ftLastWriteTimeLow = findData.ftLastWriteTime.dwLowDateTime;
+                    ftLastWriteTimeHigh = findData.ftLastWriteTime.dwHighDateTime;
+                    fileSizeHigh = findData.nFileSizeHigh;
+                    fileSizeLow = findData.nFileSizeLow;
+                }
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            [BestFitMapping(false)]
+            internal unsafe struct WIN32_FIND_DATA
+            {
+                internal uint dwFileAttributes;
+                internal FILE_TIME ftCreationTime;
+                internal FILE_TIME ftLastAccessTime;
+                internal FILE_TIME ftLastWriteTime;
+                internal uint nFileSizeHigh;
+                internal uint nFileSizeLow;
+                internal uint dwReserved0;
+                internal uint dwReserved1;
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+                internal string cFileName;
+                [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
+                internal string cAlternateFileName;
+            }
+
+            internal struct FILE_TIME
+            {
+                internal uint dwLowDateTime;
+                internal uint dwHighDateTime;
+
+                internal FILE_TIME(long fileTime)
+                {
+                    dwLowDateTime = (uint)fileTime;
+                    dwHighDateTime = (uint)(fileTime >> 32);
+                }
+
+                internal long ToTicks()
+                {
+                    return ((long)dwHighDateTime << 32) + dwLowDateTime;
+                }
+            }
+
+            internal enum FINDEX_INFO_LEVELS : uint
+            {
+                FindExInfoStandard = 0x0u,
+                FindExInfoBasic = 0x1u,
+                FindExInfoMaxInfoLevel = 0x2u,
+            }
+
+            internal enum FINDEX_SEARCH_OPS : uint
+            {
+                FindExSearchNameMatch = 0x0u,
+                FindExSearchLimitToDirectories = 0x1u,
+                FindExSearchLimitToDevices = 0x2u,
+                FindExSearchMaxSearchOp = 0x3u,
             }
         }
 
@@ -320,6 +584,16 @@ namespace IPA.Cores.Basic
             {
                 public uint PrivilegeCount;
                 public LUID_AND_ATTRIBUTES Privileges /*[ANYSIZE_ARRAY]*/;
+            }
+        }
+
+        internal sealed class SafeFindHandle : SafeHandleZeroOrMinusOneIsInvalid
+        {
+            internal SafeFindHandle() : base(true) { }
+
+            override protected bool ReleaseHandle()
+            {
+                return Win32Api.Kernel32.FindClose(handle);
             }
         }
 
@@ -418,12 +692,9 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
     static class PalWin32FileStream
     {
-        // Licensed to the .NET Foundation under one or more agreements.
-        // The .NET Foundation licenses this file to you under the MIT license.
-        // See the LICENSE file in the project root for more information.
-
         private const int FILE_ATTRIBUTE_NORMAL = 0x00000080;
         private const int FILE_ATTRIBUTE_ENCRYPTED = 0x00004000;
         private const int FILE_FLAG_OVERLAPPED = 0x40000000;
@@ -485,10 +756,17 @@ namespace IPA.Cores.Basic
 
             SafeFileHandle _fileHandle = CreateFileOpenHandle(mode, share, options, _access, _path);
 
-            return new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
+            FileStream ret = new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
+
+            if (mode == FileMode.Append)
+            {
+                ret.Seek(0, SeekOrigin.End);
+            }
+
+            return ret;
         }
 
-        static unsafe SafeFileHandle CreateFileOpenHandle(FileMode mode, FileShare share, FileOptions options, FileAccess _access, string _path)
+        public static unsafe SafeFileHandle CreateFileOpenHandle(FileMode mode, FileShare share, FileOptions options, FileAccess _access, string _path)
         {
             Win32Api.Kernel32.SECURITY_ATTRIBUTES secAttrs = GetSecAttrs(share);
 
@@ -515,11 +793,11 @@ namespace IPA.Cores.Basic
             using (FileSystemBase.Local.EnterDisableMediaInsertionPrompt())
             {
                 return ValidateFileHandle(
-                    Win32Api.Kernel32.CreateFile(_path, fAccess, share, ref secAttrs, mode, flagsAndAttributes, IntPtr.Zero), _path);
+                    Win32Api.Kernel32.CreateFile(_path, fAccess, share, mode, flagsAndAttributes), _path);
             }
         }
 
-        private static unsafe Win32Api.Kernel32.SECURITY_ATTRIBUTES GetSecAttrs(FileShare share)
+        public static unsafe Win32Api.Kernel32.SECURITY_ATTRIBUTES GetSecAttrs(FileShare share)
         {
             Win32Api.Kernel32.SECURITY_ATTRIBUTES secAttrs = default;
             if ((share & FileShare.Inheritable) != 0)
@@ -534,7 +812,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        private static SafeFileHandle ValidateFileHandle(SafeFileHandle fileHandle, string _path)
+        public static SafeFileHandle ValidateFileHandle(SafeFileHandle fileHandle, string _path)
         {
             if (fileHandle.IsInvalid)
             {
@@ -556,7 +834,10 @@ namespace IPA.Cores.Basic
             return fileHandle;
         }
 
-        private static Exception GetExceptionForWin32Error(int errorCode, string path = "")
+        internal static Exception GetExceptionForLastWin32Error(string path = "")
+            => GetExceptionForWin32Error(Marshal.GetLastWin32Error(), path);
+
+        public static Exception GetExceptionForWin32Error(int errorCode, string path = "")
         {
             path = path.NonNull();
 
@@ -600,6 +881,178 @@ namespace IPA.Cores.Basic
         }
 
 
+    }
+
+    static class PalWin32FileSystem
+    {
+        public static int FillAttributeInfo(string path, ref Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA data, bool returnErrorOnNotFound)
+        {
+            int errorCode = Win32Api.Errors.ERROR_SUCCESS;
+
+            // Neither GetFileAttributes or FindFirstFile like trailing separators
+            path = Win32PathInternal.TrimEndingDirectorySeparator(path);
+
+            using (Win32Api.Win32DisableMediaInsertionPrompt.Create())
+            {
+                if (!Win32Api.Kernel32.GetFileAttributesEx(path, Win32Api.Kernel32.GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, ref data))
+                {
+                    errorCode = Marshal.GetLastWin32Error();
+                    if (errorCode != Win32Api.Errors.ERROR_FILE_NOT_FOUND
+                        && errorCode != Win32Api.Errors.ERROR_PATH_NOT_FOUND
+                        && errorCode != Win32Api.Errors.ERROR_NOT_READY
+                        && errorCode != Win32Api.Errors.ERROR_INVALID_NAME
+                        && errorCode != Win32Api.Errors.ERROR_BAD_PATHNAME
+                        && errorCode != Win32Api.Errors.ERROR_BAD_NETPATH
+                        && errorCode != Win32Api.Errors.ERROR_BAD_NET_NAME
+                        && errorCode != Win32Api.Errors.ERROR_INVALID_PARAMETER
+                        && errorCode != Win32Api.Errors.ERROR_NETWORK_UNREACHABLE
+                        && errorCode != Win32Api.Errors.ERROR_NETWORK_ACCESS_DENIED
+                        && errorCode != Win32Api.Errors.ERROR_INVALID_HANDLE  // eg from \\.\CON
+                        )
+                    {
+                        // Assert so we can track down other cases (if any) to add to our test suite
+                        Debug.Assert(errorCode == Win32Api.Errors.ERROR_ACCESS_DENIED || errorCode == Win32Api.Errors.ERROR_SHARING_VIOLATION,
+                            $"Unexpected error code getting attributes {errorCode}");
+
+                        // Files that are marked for deletion will not let you GetFileAttributes,
+                        // ERROR_ACCESS_DENIED is given back without filling out the data struct.
+                        // FindFirstFile, however, will. Historically we always gave back attributes
+                        // for marked-for-deletion files.
+                        //
+                        // Another case where enumeration works is with special system files such as
+                        // pagefile.sys that give back ERROR_SHARING_VIOLATION on GetAttributes.
+                        //
+                        // Ideally we'd only try again for known cases due to the potential performance
+                        // hit. The last attempt to do so baked for nearly a year before we found the
+                        // pagefile.sys case. As such we're probably stuck filtering out specific
+                        // cases that we know we don't want to retry on.
+
+                        var findData = new Win32Api.Kernel32.WIN32_FIND_DATA();
+                        using (Win32Api.SafeFindHandle handle = Win32Api.Kernel32.FindFirstFile(path, ref findData))
+                        {
+                            if (handle.IsInvalid)
+                            {
+                                errorCode = Marshal.GetLastWin32Error();
+                            }
+                            else
+                            {
+                                errorCode = Win32Api.Errors.ERROR_SUCCESS;
+                                data.PopulateFrom(ref findData);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (errorCode != Win32Api.Errors.ERROR_SUCCESS && !returnErrorOnNotFound)
+            {
+                switch (errorCode)
+                {
+                    case Win32Api.Errors.ERROR_FILE_NOT_FOUND:
+                    case Win32Api.Errors.ERROR_PATH_NOT_FOUND:
+                    case Win32Api.Errors.ERROR_NOT_READY: // Removable media not ready
+                        // Return default value for backward compatibility
+                        data.dwFileAttributes = -1;
+                        return Win32Api.Errors.ERROR_SUCCESS;
+                }
+            }
+
+            return errorCode;
+        }
+
+        public static FileAttributes GetAttributes(string fullPath, bool backupMode = false)
+        {
+            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
+
+            Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA data = new Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA();
+            int errorCode = FillAttributeInfo(fullPath, ref data, returnErrorOnNotFound: true);
+            if (errorCode != 0)
+                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
+
+            return (FileAttributes)data.dwFileAttributes;
+        }
+
+        public static void SetAttributes(string fullPath, FileAttributes attributes)
+        {
+            if (!Win32Api.Kernel32.SetFileAttributes(fullPath, (int)attributes))
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                if (errorCode == Win32Api.Errors.ERROR_INVALID_PARAMETER)
+                    throw new ArgumentException(nameof(attributes));
+                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
+            }
+        }
+
+        public static void SetLastWriteTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
+        {
+            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
+
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
+            {
+                if (!Win32Api.Kernel32.SetFileTime(handle, lastWriteTime: time.ToFileTime()))
+                {
+                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
+                }
+            }
+        }
+
+        public static void SetCreationTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
+        {
+            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
+
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
+            {
+                if (!Win32Api.Kernel32.SetFileTime(handle, creationTime: time.ToFileTime()))
+                {
+                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
+                }
+            }
+        }
+
+        public static void SetLastAccessTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
+        {
+            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
+
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
+            {
+                if (!Win32Api.Kernel32.SetFileTime(handle, lastAccessTime: time.ToFileTime()))
+                {
+                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
+                }
+            }
+        }
+
+        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, int additionalFlags = 0)
+        {
+            string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
+            if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
+            {
+                // intentionally not fullpath, most upstack public APIs expose this as path.
+                throw new ArgumentException("path");
+            }
+
+            SafeFileHandle handle = Win32Api.Kernel32.CreateFile(
+                fullPath,
+                Win32Api.Kernel32.GenericOperations.GENERIC_WRITE,
+                FileShare.ReadWrite | FileShare.Delete,
+                FileMode.Open,
+                (asDirectory ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0) | additionalFlags);
+
+            if (handle.IsInvalid)
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+
+                // NT5 oddity - when trying to open "C:\" as a File,
+                // we usually get ERROR_PATH_NOT_FOUND from the OS.  We should
+                // probably be consistent w/ every other directory.
+                if (!asDirectory && errorCode == Win32Api.Errors.ERROR_PATH_NOT_FOUND && fullPath.Equals(Directory.GetDirectoryRoot(fullPath)))
+                    errorCode = Win32Api.Errors.ERROR_ACCESS_DENIED;
+
+                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
+            }
+
+            return handle;
+        }
     }
 }
 

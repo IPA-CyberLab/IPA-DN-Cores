@@ -598,8 +598,9 @@ namespace IPA.Cores.Basic
         public long Size { get; set; }
         public string SymbolicLinkTarget { get; set; }
         public FileAttributes Attributes { get; set; }
-        public DateTimeOffset Updated { get; set; }
-        public DateTimeOffset Created { get; set; }
+        public DateTimeOffset CreationTime { get; set; }
+        public DateTimeOffset LastWriteTime { get; set; }
+        public DateTimeOffset LastAccessTime { get; set; }
     }
 
     [Flags]

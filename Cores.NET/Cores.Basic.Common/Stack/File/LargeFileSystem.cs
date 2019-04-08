@@ -643,8 +643,9 @@ namespace IPA.Cores.Basic
                                 Name = PathInterpreter.GetFileName(parsed.LogicalFilePath),
                                 Size = f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
                                 Attributes = f.Attributes,
-                                Updated = f.Updated,
-                                Created = f.Created,
+                                CreationTime = f.CreationTime,
+                                LastWriteTime = f.LastWriteTime,
+                                LastAccessTime = f.LastAccessTime,
                             };
                             parsedFileDictionaly.Add(parsed.LogicalFilePath, newFileEntity);
                         }
@@ -652,9 +653,9 @@ namespace IPA.Cores.Basic
                         {
                             var fileEntity = parsedFileDictionaly[parsed.LogicalFilePath];
 
-                            if (fileEntity.Updated < f.Updated) fileEntity.Updated = f.Updated;
-
-                            if (fileEntity.Created > f.Created) fileEntity.Created = f.Created;
+                            if (fileEntity.CreationTime > f.CreationTime) fileEntity.CreationTime = f.CreationTime;
+                            if (fileEntity.LastWriteTime < f.LastWriteTime) fileEntity.LastWriteTime = f.LastWriteTime;
+                            if (fileEntity.LastAccessTime < f.LastAccessTime) fileEntity.LastAccessTime = f.LastAccessTime;
                         }
                     }
                     catch { }
@@ -731,8 +732,9 @@ namespace IPA.Cores.Basic
                     long currentFileSize = lastFileParsed.FileNumber * Params.MaxSinglePhysicalFileSize + sizeOfLastFile;
 
                     ret.Size = currentFileSize;
-                    ret.Updated = physicalFiles.Max(x => x.PhysicalEntity.Updated);
-                    ret.Created = physicalFiles.Min(x => x.PhysicalEntity.Created);
+                    ret.CreationTime = physicalFiles.Min(x => x.PhysicalEntity.CreationTime);
+                    ret.LastWriteTime = physicalFiles.Max(x => x.PhysicalEntity.LastWriteTime);
+                    ret.LastAccessTime = physicalFiles.Max(x => x.PhysicalEntity.LastAccessTime);
 
                     return ret;
                 }

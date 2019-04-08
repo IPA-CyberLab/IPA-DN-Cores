@@ -50,6 +50,56 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            Lfs.EnableBackupPrivilege();
+
+            //            Lfs.DeleteFile(@"C:\tmp\acl_test\test3.txt");
+            //            return;
+
+            string fn = @"C:\tmp\acl_test\test3.txt";
+
+            Lfs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
+
+            var m1 = Lfs.GetFileMetadata(fn);
+
+            Con.WriteLine(m1.ObjectToJson());
+
+            m1.Attributes = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReadOnly;
+            m1.CreationTime = DateTimeOffset.Now.AddYears(-1);
+            m1.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
+            m1.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
+
+            Lfs.SetFileMetadata(fn, m1);
+
+            var m2 = Lfs.GetDirectoryMetadata(@"C:\TMP\acl_test\dir1");
+            Con.WriteLine(m2.ObjectToJson());
+            m2.Attributes = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReadOnly;
+            m2.CreationTime = DateTimeOffset.Now.AddYears(-1);
+            m2.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
+            m2.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
+            Lfs.SetDirectoryMetadata(@"C:\TMP\acl_test\dir1", m2);
+
+            //byte[] xxx = Lfs.ReadFromFile(fn, flags: FileOperationFlags.BackupMode).ToArray();
+            //Con.WriteLine(xxx.Length);
+            //return;
+
+            //Lfs.WriteToFile(fn, "Hellozz".GetBytes_Ascii(), FileOperationFlags.BackupMode);
+            //Lfs.WriteToFile(fn, "Hellozz".GetBytes_Ascii(), flags: FileOperationFlags.IgnoreReadOnlyOrHiddenBits);
+            //Lfs.AppendToFile(fn, "ZZZ".GetBytes_Ascii());
+            return;
+
+            //var m1 = Lfs.GetFileMetadata(fn);
+
+            //Con.WriteLine(m1.ObjectToJson());
+
+            //m1.Attributes = FileAttributes.Hidden;
+            //m1.Created = DateTimeOffset.Now.AddYears(-1);
+            //m1.Updated = DateTimeOffset.Now.AddYears(-2);
+
+            //Lfs.SetFileMetadata(fn, m1);
+
+
+            return;
+
             //using (var pool = Lfs.GetObjectPool(3000))
             //{
             //    while (true)

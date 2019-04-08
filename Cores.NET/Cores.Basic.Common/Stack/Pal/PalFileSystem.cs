@@ -116,8 +116,9 @@ namespace IPA.Cores.Basic
                 FullPath = info.FullName,
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
                 Attributes = info.Attributes,
-                Updated = info.LastWriteTime.AsDateTimeOffset(true),
-                Created = info.CreationTime.AsDateTimeOffset(true),
+                CreationTime = info.CreationTime.AsDateTimeOffset(true),
+                LastWriteTime = info.LastWriteTime.AsDateTimeOffset(true),
+                LastAccessTime = info.LastAccessTime.AsDateTimeOffset(true),
             };
             return ret;
         }
@@ -128,20 +129,94 @@ namespace IPA.Cores.Basic
             {
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
                 Attributes = info.Attributes,
-                Updated = info.LastWriteTime.AsDateTimeOffset(true),
-                Created = info.CreationTime.AsDateTimeOffset(true),
+                CreationTime = info.CreationTime.AsDateTimeOffset(true),
+                LastWriteTime = info.LastWriteTime.AsDateTimeOffset(true),
+                LastAccessTime = info.LastAccessTime.AsDateTimeOffset(true),
                 IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
             };
             return ret;
         }
 
+        public static void SetDirectoryCreationTimeUtc(string path, DateTime dt) => Directory.SetCreationTimeUtc(path, dt);
+        public static void SetDirectoryLastWriteTimeUtc(string path, DateTime dt) => Directory.SetLastWriteTimeUtc(path, dt);
+        public static void SetDirectoryLastAccessTimeUtc(string path, DateTime dt) => Directory.SetLastAccessTimeUtc(path, dt);
+
+        public static void SetDirectoryAttributes(string path, FileAttributes fileAttributes)
+        {
+            DirectoryInfo di = new DirectoryInfo(path);
+            di.Attributes = fileAttributes;
+        }
+
+        public static void SetFileCreationTimeUtc(string path, DateTime dt)
+        {
+            try
+            {
+                File.SetLastWriteTimeUtc(path, dt);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                if (Env.IsWindows)
+                {
+                    PalWin32FileSystem.SetCreationTime(path, dt.AsDateTimeOffset(false), false, true);
+                    return;
+                }
+
+                throw;
+            }
+        }
+
+        public static void SetFileLastWriteTimeUtc(string path, DateTime dt)
+        {
+            try
+            {
+                File.SetLastWriteTimeUtc(path, dt);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                if (Env.IsWindows)
+                {
+                    PalWin32FileSystem.SetLastWriteTime(path, dt.AsDateTimeOffset(false), false, true);
+                    return;
+                }
+
+                throw;
+            }
+        }
+
+        public static void SetFileLastAccessTimeUtc(string path, DateTime dt)
+        {
+            try
+            {
+                File.SetLastAccessTimeUtc(path, dt);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                if (Env.IsWindows)
+                {
+                    PalWin32FileSystem.SetLastAccessTime(path, dt.AsDateTimeOffset(false), false, true);
+                    return;
+                }
+
+                throw;
+            }
+        }
+
+        public static void SetFileAttributes(string path, FileAttributes fileAttributes)
+        {
+            File.SetAttributes(path, fileAttributes);
+            //PalWin32FileSystem.SetAttributes(path, fileAttributes);
+        }
+
         public static void SetFileMetadataToFileSystemInfo(FileSystemInfo info, FileMetadata metadata)
         {
-            if (metadata.Updated is DateTimeOffset dt1)
-                info.LastWriteTimeUtc = dt1.UtcDateTime;
+            if (metadata.CreationTime is DateTimeOffset creationTime)
+                info.CreationTimeUtc = creationTime.UtcDateTime;
 
-            if (metadata.Created is DateTimeOffset dt2)
-                info.CreationTimeUtc = dt2.UtcDateTime;
+            if (metadata.LastWriteTime is DateTimeOffset lastWriteTime)
+                info.LastWriteTimeUtc = lastWriteTime.UtcDateTime;
+
+            if (metadata.LastAccessTime is DateTimeOffset lastAccessTime)
+                info.LastAccessTimeUtc = lastAccessTime.UtcDateTime;
 
             if (metadata.Attributes is FileAttributes attr)
                 info.Attributes = attr;
@@ -167,6 +242,10 @@ namespace IPA.Cores.Basic
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, CancellationToken cancel = default)
         {
             FileInfo fileInfo = new FileInfo(path);
+
+            if (fileInfo.Exists == false)
+                throw new FileNotFoundException($"The file '{path}' not found.");
+
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(fileInfo);
 
             // Try to open the actual physical file
@@ -201,9 +280,17 @@ namespace IPA.Cores.Basic
 
         protected async override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            FileInfo fileInfo = new FileInfo(path);
+            if (metadata.CreationTime != null)
+                SetFileCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
 
-            SetFileMetadataToFileSystemInfo(fileInfo, metadata);
+            if (metadata.LastWriteTime != null)
+                SetFileLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
+
+            if (metadata.LastAccessTime != null)
+                SetFileLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
+
+            if (metadata.Attributes != null)
+                SetFileAttributes(path, (FileAttributes)metadata.Attributes);
 
             await Task.CompletedTask;
         }
@@ -211,6 +298,10 @@ namespace IPA.Cores.Basic
         protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, CancellationToken cancel = default)
         {
             DirectoryInfo dirInfo = new DirectoryInfo(path);
+
+            if (dirInfo.Exists == false)
+                throw new FileNotFoundException($"The directory '{path}' not found.");
+
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo);
 
             await Task.CompletedTask;
@@ -218,11 +309,20 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+
         protected async override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            DirectoryInfo dirInfo = new DirectoryInfo(path);
+            if (metadata.CreationTime != null)
+                SetDirectoryCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
 
-            SetFileMetadataToFileSystemInfo(dirInfo, metadata);
+            if (metadata.LastWriteTime != null)
+                SetDirectoryLastWriteTimeUtc(path, ((DateTimeOffset)metadata.LastWriteTime).UtcDateTime);
+
+            if (metadata.LastAccessTime != null)
+                SetDirectoryLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
+
+            if (metadata.Attributes != null)
+                SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
 
             await Task.CompletedTask;
         }
@@ -289,6 +389,56 @@ namespace IPA.Cores.Basic
             return f;
         }
 
+        FileStream Win32CreateFileStreamInternal(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)
+        {
+            FileStream ret;
+
+            if ((options & (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS) != 0)
+            {
+                // Use our private FileStream implementation
+                ret = PalWin32FileStream.Create(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
+            }
+            else
+            {
+                // Use normal FileStream
+                ret = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+            }
+
+            return ret;
+        }
+
+        async Task<bool> TryRemoveAttributeFromExistingFile(string path, FileAttributes attrToRemove, CancellationToken cancel = default)
+        {
+            try
+            {
+                var existingFileMetadata = await FileSystem.GetFileMetadataAsync(path, cancel);
+                var currentAttributes = existingFileMetadata.Attributes ?? 0;
+                if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
+                {
+                    var newAttributes = currentAttributes & ~(attrToRemove);
+                    if (currentAttributes != newAttributes)
+                    {
+                        try
+                        {
+                            await FileSystem.SetFileMetadataAsync(FileParams.Path, new FileMetadata(false, attributes: newAttributes), cancel);
+
+                            return true;
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
         protected override async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
@@ -300,18 +450,31 @@ namespace IPA.Cores.Basic
                 FileOptions options = FileOptions.Asynchronous;
 
                 if (Env.IsWindows)
+                {
                     if (FileParams.Flags.Bit(FileOperationFlags.BackupMode))
                         options |= (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS;
-    
 
-                if ((options & (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS) != 0)
-                {
-                    // Use our private FileStream implementation
-                    fileStream = PalWin32FileStream.Create(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
+                    if (FileParams.Access.Bit(FileAccess.Write))
+                    {
+                        if (FileParams.Flags.Bit(FileOperationFlags.BackupMode) || FileParams.Flags.Bit(FileOperationFlags.IgnoreReadOnlyOrHiddenBits))
+                        {
+                            FileAttributes attributesToRemove = 0;
+
+                            if (FileParams.Mode == FileMode.Create)
+                                attributesToRemove |= FileAttributes.Hidden | FileAttributes.ReadOnly;
+
+                            if (FileParams.Mode == FileMode.Append || FileParams.Mode == FileMode.Open || FileParams.Mode == FileMode.OpenOrCreate || FileParams.Mode == FileMode.Truncate)
+                                attributesToRemove |= FileAttributes.ReadOnly;
+
+                            if (attributesToRemove != 0)
+                                await TryRemoveAttributeFromExistingFile(FileParams.Path, attributesToRemove, cancel);
+                        }
+                    }
+
+                    fileStream = Win32CreateFileStreamInternal(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
                 }
                 else
                 {
-                    // Use normal FileStream
                     fileStream = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
                 }
 
