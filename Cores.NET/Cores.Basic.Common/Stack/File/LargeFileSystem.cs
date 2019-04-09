@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
                 = new LargeFileSystemParams(
                     maxSingleFileSize:      1_000_000_000,     // 1 TB
                     logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
-                    splitStr: "~"
+                    splitStr: "~~~"
                     );
         }
     }
@@ -424,11 +424,11 @@ namespace IPA.Cores.Basic
         public string SplitStr { get; }
         public long MaxFileNumber { get; }
 
-        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~")
+        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~~~")
         {
             checked
             {
-                this.SplitStr = splitStr.NonNullTrim().FilledOrDefault("~");
+                this.SplitStr = splitStr.NonNullTrim().FilledOrDefault("~~~");
                 this.MaxSinglePhysicalFileSize = Math.Min(Math.Max(maxSingleFileSize, 1), int.MaxValue);
                 this.MaxLogicalFileSize = logicalMaxSize;
 
@@ -506,7 +506,7 @@ namespace IPA.Cores.Basic
                     throw new ArgumentException($"Filename '{fn}' is not a large file. indexes.Length != 1.");
 
                 string originalFileName = fn.Substring(0, indexes[0]);
-                string afterOriginalFileName = fn.Substring(indexes[0] + 1);
+                string afterOriginalFileName = fn.Substring(indexes[0] + fs.Params.SplitStr.Length);
                 if (originalFileName.IsEmpty() || afterOriginalFileName.IsEmpty())
                     throw new ArgumentException($"Filename '{fn}' is not a large file.");
 
