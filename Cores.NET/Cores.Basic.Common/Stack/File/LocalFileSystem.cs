@@ -57,14 +57,16 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        static LocalFileSystem SingletonInstance;
+        public static LocalFileSystem Local { get; } = LocalFileSystem.GetInstance(LeakChecker.SuperGrandLady);
+
+        static LocalFileSystem _SingletonInstance;
 
         public static LocalFileSystem GetInstance(AsyncCleanuperLady lady)
         {
-            if (SingletonInstance == null)
-                SingletonInstance = new LocalFileSystem(lady);
+            if (_SingletonInstance == null)
+                _SingletonInstance = new LocalFileSystem(lady);
 
-            return SingletonInstance;
+            return _SingletonInstance;
         }
 
         private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
