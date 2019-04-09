@@ -597,6 +597,7 @@ namespace IPA.Cores.Basic
         public bool IsSymbolicLink => Attributes.Bit(FileAttributes.ReparsePoint);
         public bool IsCurrentDirectory => (Name == ".");
         public long Size { get; set; }
+        public long PhysicalSize { get; set; }
         public string SymbolicLinkTarget { get; set; }
         public FileAttributes Attributes { get; set; }
         public DateTimeOffset CreationTime { get; set; }

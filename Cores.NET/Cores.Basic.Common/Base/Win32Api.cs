@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
         }
 
         // DLL import functions
-        internal partial class Kernel32
+        internal static partial class Kernel32
         {
             [DllImport(Libraries.Kernel32, SetLastError = true)]
             internal static extern bool CloseHandle(IntPtr handle);
@@ -253,9 +253,24 @@ namespace IPA.Cores.Basic
 
             [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto)]
             public static extern int GetFinalPathNameByHandle(SafeFileHandle hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, int cchFilePath, FinalPathFlags dwFlags);
+
+            [DllImport(Libraries.Kernel32, SetLastError = true)]
+            static extern uint GetCompressedFileSize(string lpFileName, out uint lpFileSizeHigh);
+
+            public static ulong GetCompressedFileSize(string filename)
+            {
+                uint high;
+                uint low;
+                low = GetCompressedFileSize(filename, out high);
+                int error = Marshal.GetLastWin32Error();
+                if (low == 0xFFFFFFFF && error != 0)
+                    throw Win32ApiUtil.ThrowWin32Error(error, filename);
+                else
+                    return ((ulong)high << 32) + low;
+            }
         }
 
-        internal partial class NtDll
+        internal static partial class NtDll
         {
             [DllImport(Libraries.NtDll, ExactSpelling = true)]
             unsafe internal static extern int NtQueryInformationFile(
@@ -351,7 +366,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal partial class Advapi32
+        internal static partial class Advapi32
         {
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern bool OpenProcessToken(SafeProcessHandle ProcessHandle, int DesiredAccess, out SafeTokenHandle TokenHandle);
@@ -376,7 +391,7 @@ namespace IPA.Cores.Basic
             TRUE = 1,
         }
 
-        internal partial class Errors
+        internal static partial class Errors
         {
             internal const int ERROR_SUCCESS = 0x0;
             internal const int ERROR_INVALID_FUNCTION = 0x1;
@@ -457,7 +472,7 @@ namespace IPA.Cores.Basic
             internal const int E_FILENOTFOUND = unchecked((int)0x80070002);
         }
 
-        internal partial class Kernel32
+        internal static partial class Kernel32
         {
             [Flags]
             public enum FinalPathFlags : uint
@@ -476,26 +491,26 @@ namespace IPA.Cores.Basic
             internal const short COMPRESSION_FORMAT_NONE = 0;
             internal const short COMPRESSION_FORMAT_DEFAULT = 1;
             
-            internal partial class GenericOperations
+            internal static partial class GenericOperations
             {
                 internal const int GENERIC_READ = unchecked((int)0x80000000);
                 internal const int GENERIC_WRITE = 0x40000000;
             }
 
-            internal partial class HandleOptions
+            internal static partial class HandleOptions
             {
                 internal const int DUPLICATE_SAME_ACCESS = 2;
                 internal const int STILL_ACTIVE = 0x00000103;
                 internal const int TOKEN_ADJUST_PRIVILEGES = 0x20;
             }
 
-            internal partial class IOReparseOptions
+            internal static partial class IOReparseOptions
             {
                 internal const uint IO_REPARSE_TAG_FILE_PLACEHOLDER = 0x80000015;
                 internal const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
             }
 
-            internal partial class FileOperations
+            internal static partial class FileOperations
             {
                 internal const int OPEN_EXISTING = 3;
                 internal const int COPY_FILE_FAIL_IF_EXISTS = 0x00000001;
@@ -515,7 +530,7 @@ namespace IPA.Cores.Basic
                 internal BOOL bInheritHandle;
             }
 
-            internal partial class SecurityOptions
+            internal static partial class SecurityOptions
             {
                 internal const int SECURITY_SQOS_PRESENT = 0x00100000;
                 internal const int SECURITY_ANONYMOUS = 0 << 16;
@@ -669,7 +684,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal partial class NtDll
+        internal static partial class NtDll
         {
             [StructLayout(LayoutKind.Sequential)]
             internal struct IO_STATUS_BLOCK
@@ -779,7 +794,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal partial class Advapi32
+        internal static partial class Advapi32
         {
             internal const string SeDebugPrivilege = "SeDebugPrivilege";
             internal const string SeBackupPrivilege = "SeBackupPrivilege";
@@ -788,18 +803,18 @@ namespace IPA.Cores.Basic
             internal const string SeRemoteShutdownPrivilege = "SeRemoteShutdownPrivilege";
             internal const string SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege";
 
-            internal partial class SEPrivileges
+            internal static partial class SEPrivileges
             {
                 internal const uint SE_PRIVILEGE_DISABLED = 0;
                 internal const int SE_PRIVILEGE_ENABLED = 2;
             }
 
-            internal partial class PerfCounterOptions
+            internal static partial class PerfCounterOptions
             {
                 internal const int NtPerfCounterSizeLarge = 0x00000100;
             }
 
-            internal partial class ProcessOptions
+            internal static partial class ProcessOptions
             {
                 internal const int PROCESS_TERMINATE = 0x0001;
                 internal const int PROCESS_VM_READ = 0x0010;
@@ -814,13 +829,13 @@ namespace IPA.Cores.Basic
                 internal const int SYNCHRONIZE = 0x00100000;
             }
 
-            internal partial class RPCStatus
+            internal static partial class RPCStatus
             {
                 internal const int RPC_S_SERVER_UNAVAILABLE = 1722;
                 internal const int RPC_S_CALL_FAILED = 1726;
             }
 
-            internal partial class StartupInfoOptions
+            internal static partial class StartupInfoOptions
             {
                 internal const int STARTF_USESTDHANDLES = 0x00000100;
                 internal const int CREATE_UNICODE_ENVIRONMENT = 0x00000400;

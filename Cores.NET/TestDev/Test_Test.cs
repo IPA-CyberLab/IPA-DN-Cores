@@ -55,7 +55,14 @@ namespace IPA.TestDev
 
             //LocalFs.SetFileMetadata(@"C:\TMP\k32\kernel32.dll", new FileMetadata(true, specialOperation: FileSpecialOperationFlags.RemoveCompressionFlag));
 
-            LocalFs.AppendToFile(@"C:\TMP\190409\test.txt", "Hello".GetBytes_Ascii());//, flags: FileOperationFlags.RemoveCompressionFlagOnCreate);
+            //LocalFs.AppendToFile(@"C:\TMP\190409\test.txt", "Hello".GetBytes_Ascii());//, flags: FileOperationFlags.RemoveCompressionFlagOnCreate);
+            //LocalFs.SetDirectoryMetadata(@"C:\tmp\20190209_020212.pcap987937.pcap", new FileMetadata(false, specialOperation: FileSpecialOperationFlags.SetCompressionFlag));
+
+            LocalFs.EnumDirectory(@"c:\tmp", false).Where(x => x.Name.EndsWith(".dat")).PrintAsJson();
+
+            //Win32Api.Kernel32.GetCompressedFileSize(@"C:\tmp\20190209_020212.pcap987937.pcap").Print();
+
+            //LocalFs.GetFileMetadata(@"C:\tmp\20190209_020212.pcap987937.pcap", FileMetadataGetFlags.NoPhysicalFileSize).PrintAsJson();
 
             return;
 
@@ -238,7 +245,7 @@ namespace IPA.TestDev
 
                 return;
 
-                using (var f = largeFs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SetCompressionFlagOnCreate))
+                using (var f = largeFs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.OnCreateSetCompressionFlag))
                 {
                     f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
 

@@ -90,6 +90,11 @@ namespace IPA.Cores.Basic
             {
                 FileSystemEntity entity = ConvertFileSystemInfoToFileSystemEntity(info);
 
+                // Actual file size
+                if (entity.IsDirectory == false)
+                    if (entity.Attributes.Bit(FileAttributes.Compressed) || entity.Attributes.Bit(FileAttributes.SparseFile))
+                        entity.PhysicalSize = GetPhysicalFileSizeInternal(info.FullName, entity.Size);
+
                 if (entity.IsSymbolicLink)
                 {
                     entity.SymbolicLinkTarget = ReadSymbolicLinkTarget(entity.FullPath);
@@ -103,16 +108,32 @@ namespace IPA.Cores.Basic
             return o.ToArray();
         }
 
+        static long GetPhysicalFileSizeInternal(string path, long defaultSizeOnError)
+        {
+            try
+            {
+                if (Env.IsWindows)
+                {
+                    return Win32ApiUtil.GetCompressedFileSize(path);
+                }
+            }
+            catch { }
+            return defaultSizeOnError;
+        }
+
         protected override async Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             if (Directory.Exists(directoryPath) == false)
             {
                 Directory.CreateDirectory(directoryPath);
 
-                if (flags.Bit(FileOperationFlags.SetCompressionFlagOnCreate))
-                    Win32ApiUtil.SetCompressionFlag(directoryPath, true, true);
-                else if (flags.Bit(FileOperationFlags.RemoveCompressionFlagOnCreate))
-                    Win32ApiUtil.SetCompressionFlag(directoryPath, true, false);
+                if (Env.IsWindows)
+                {
+                    if (flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
+                        Win32ApiUtil.SetCompressionFlag(directoryPath, true, true);
+                    else if (flags.Bit(FileOperationFlags.OnCreateRemoveCompressionFlag))
+                        Win32ApiUtil.SetCompressionFlag(directoryPath, true, false);
+                }
             }
 
             await Task.CompletedTask;
@@ -138,6 +159,9 @@ namespace IPA.Cores.Basic
                 LastWriteTime = info.LastWriteTime.AsDateTimeOffset(true),
                 LastAccessTime = info.LastAccessTime.AsDateTimeOffset(true),
             };
+
+            ret.PhysicalSize = ret.Size;
+
             return ret;
         }
 
@@ -152,6 +176,9 @@ namespace IPA.Cores.Basic
                 LastAccessTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastAccessTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
                 IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
             };
+
+            ret.PhysicalSize = ret.Size;
+
             return ret;
         }
 
@@ -478,6 +505,12 @@ namespace IPA.Cores.Basic
                 ret.Security = GetFileOrDirectorySecurityMetadata(path, false);
             }
 
+            var obtainedAttributes = ret.Attributes ?? 0;
+
+            if (flags.Bit(FileMetadataGetFlags.NoPhysicalFileSize) == false)
+                if (obtainedAttributes.Bit(FileAttributes.Compressed) || obtainedAttributes.Bit(FileAttributes.SparseFile))
+                    ret.PhysicalSize = GetPhysicalFileSizeInternal(path, ret.Size);
+
             // Try to open to retrieve the actual physical file
             if (flags.Bit(FileMetadataGetFlags.NoPreciseFileSize) == false)
             {
@@ -617,7 +650,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
-            if (flags.Bit(FileOperationFlags.BackupMode) || flags.Bit(FileOperationFlags.IgnoreReadOnlyOrHiddenBits))
+            if (flags.Bit(FileOperationFlags.BackupMode) || flags.Bit(FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
             {
                 await this.TryAddOrRemoveAttributeFromExistingFile(path, 0, FileAttributes.ReadOnly, cancel);
             }
@@ -723,7 +756,7 @@ namespace IPA.Cores.Basic
 
                     if (FileParams.Access.Bit(FileAccess.Write))
                     {
-                        if (FileParams.Flags.Bit(FileOperationFlags.BackupMode) || FileParams.Flags.Bit(FileOperationFlags.IgnoreReadOnlyOrHiddenBits))
+                        if (FileParams.Flags.Bit(FileOperationFlags.BackupMode) || FileParams.Flags.Bit(FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
                         {
                             FileAttributes attributesToRemove = 0;
 
@@ -762,12 +795,12 @@ namespace IPA.Cores.Basic
                             Util.DoMultipleActions(MultipleActionsFlag.AllOk,
                                 () =>
                                 {
-                                    if (FileParams.Flags.Bit(FileOperationFlags.SetCompressionFlagOnCreate))
+                                    if (FileParams.Flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
                                         Win32ApiUtil.SetCompressionFlag(fileStream.SafeFileHandle, true, FileParams.Path);
                                 },
                                 () =>
                                 {
-                                    if (FileParams.Flags.Bit(FileOperationFlags.RemoveCompressionFlagOnCreate))
+                                    if (FileParams.Flags.Bit(FileOperationFlags.OnCreateRemoveCompressionFlag))
                                         Win32ApiUtil.SetCompressionFlag(fileStream.SafeFileHandle, false, FileParams.Path);
                                 }
                                 );

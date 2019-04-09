@@ -243,8 +243,14 @@ namespace IPA.Cores.Basic
         public static void ThrowLastWin32Error(string argument = null)
             => ThrowWin32Error(null, argument);
 
-        public static void ThrowWin32Error(int? errorCode = null, string argument = null)
-            => throw GetWin32ErrorException(errorCode, argument);
+        public static Exception ThrowWin32Error(int? errorCode = null, string argument = null)
+        {
+            var exception = GetWin32ErrorException(errorCode, argument);
+            throw exception;
+#pragma warning disable CS0162
+            return exception;
+#pragma warning restore CS0162
+        }
 
         public static Exception GetWin32ErrorException(int? errorCode = null, string argument = null)
             => PalWin32FileStream.GetExceptionForWin32Error(errorCode ?? Marshal.GetLastWin32Error(), argument);
@@ -269,6 +275,9 @@ namespace IPA.Cores.Basic
 
             return str.ToString();
         }
+
+        public static long GetCompressedFileSize(string filename)
+            => (long)Win32Api.Kernel32.GetCompressedFileSize(filename);
 
         public static void SetCompressionFlag(string path, bool isDirectory, bool compressionEnabled)
             => Util.DoMultipleActions(MultipleActionsFlag.AnyOk,

@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic
                     if (lastFileParsed != null)
                     {
                         // Delete the files first
-                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
+                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
 
                         lastFileParsed = null;
                         CurrentFileSize = 0;
@@ -393,7 +393,7 @@ namespace IPA.Cores.Basic
                 {
                     foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                     {
-                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
+                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                     }
                 },
                 (x, y) =>
@@ -666,6 +666,7 @@ namespace IPA.Cores.Basic
                                 FullPath = parsed.LogicalFilePath,
                                 Name = PathInterpreter.GetFileName(parsed.LogicalFilePath),
                                 Size = f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
+                                PhysicalSize = f.PhysicalSize,
                                 Attributes = f.Attributes,
                                 CreationTime = f.CreationTime,
                                 LastWriteTime = f.LastWriteTime,
@@ -676,6 +677,8 @@ namespace IPA.Cores.Basic
                         else
                         {
                             var fileEntity = parsedFileDictionaly[parsed.LogicalFilePath];
+
+                            fileEntity.PhysicalSize += f.PhysicalSize;
 
                             if (fileEntity.CreationTime > f.CreationTime) fileEntity.CreationTime = f.CreationTime;
                             if (fileEntity.LastWriteTime < f.LastWriteTime) fileEntity.LastWriteTime = f.LastWriteTime;
@@ -783,7 +786,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.IgnoreReadOnlyOrHiddenBits, cancel);
+                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             },
             (x, y) =>

@@ -69,6 +69,7 @@ namespace IPA.Cores.Basic
         NoPreciseFileSize = 4,
         NoSecurity = 8,
         NoAlternateStream = 16,
+        NoPhysicalFileSize = 32,
     }
 
     [Flags]
@@ -186,6 +187,7 @@ namespace IPA.Cores.Basic
 
         public bool IsDirectory;
         public long Size;
+        public long PhysicalSize;
 
         public FileAttributes? Attributes;
         public DateTimeOffset? CreationTime;
@@ -200,7 +202,7 @@ namespace IPA.Cores.Basic
 
         public FileMetadata() { }
 
-        public FileMetadata(bool isDirectory, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
+        public FileMetadata(bool isDirectory = false, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
             FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null)
         {
@@ -369,9 +371,9 @@ namespace IPA.Cores.Basic
         AutoCreateDirectory = 4,
         RandomAccessOnly = 8,
         LargeFileSystemDoNotAppendBeyondBorder = 16,
-        IgnoreReadOnlyOrHiddenBits = 32,
-        SetCompressionFlagOnCreate = 64,
-        RemoveCompressionFlagOnCreate = 128,
+        ForceClearReadOnlyOrHiddenBitsOnNeed = 32,
+        OnCreateSetCompressionFlag = 64,
+        OnCreateRemoveCompressionFlag = 128,
     }
 
     class FileBaseStream : FileStream
