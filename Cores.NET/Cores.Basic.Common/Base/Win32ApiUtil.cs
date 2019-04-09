@@ -177,9 +177,7 @@ namespace IPA.Cores.Basic
 
         public static void SetLastWriteTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
         {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags, true))
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, true, backupMode))
             {
                 if (!Win32Api.Kernel32.SetFileTime(handle, lastWriteTime: time.ToFileTime()))
                 {
@@ -190,9 +188,7 @@ namespace IPA.Cores.Basic
 
         public static void SetCreationTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
         {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags, true))
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, true, backupMode))
             {
                 if (!Win32Api.Kernel32.SetFileTime(handle, creationTime: time.ToFileTime()))
                 {
@@ -203,9 +199,7 @@ namespace IPA.Cores.Basic
 
         public static void SetLastAccessTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
         {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags, true))
+            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, true, backupMode))
             {
                 if (!Win32Api.Kernel32.SetFileTime(handle, lastAccessTime: time.ToFileTime()))
                 {
@@ -214,7 +208,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, int additionalFlags = 0, bool writeMode = false)
+        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, bool writeMode = false, bool backupMode = false, int additionalFlags = 0)
         {
             string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
             if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
@@ -225,10 +219,10 @@ namespace IPA.Cores.Basic
 
             SafeFileHandle handle = Win32Api.Kernel32.CreateFile(
                 fullPath,
-                writeMode ? Win32Api.Kernel32.GenericOperations.GENERIC_WRITE : Win32Api.Kernel32.GenericOperations.GENERIC_READ,
+                writeMode ? Win32Api.Kernel32.GenericOperations.GENERIC_WRITE | Win32Api.Kernel32.GenericOperations.GENERIC_READ : Win32Api.Kernel32.GenericOperations.GENERIC_READ,
                 FileShare.ReadWrite | FileShare.Delete,
                 FileMode.Open,
-                (asDirectory ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0) | additionalFlags);
+                ((asDirectory || backupMode) ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0) | additionalFlags);
 
             if (handle.IsInvalid)
             {
@@ -259,14 +253,14 @@ namespace IPA.Cores.Basic
         public static string GetFinalPath(SafeFileHandle handle,
             Win32Api.Kernel32.FinalPathFlags flags = Win32Api.Kernel32.FinalPathFlags.FILE_NAME_NORMALIZED | Win32Api.Kernel32.FinalPathFlags.VOLUME_NAME_DOS)
         {
-            StringBuilder str = new StringBuilder(512);
+            StringBuilder str = new StringBuilder(260 + 10);
             int r;
 
             r = Win32Api.Kernel32.GetFinalPathNameByHandle(handle, str, 260, flags);
 
             if (r >= 260)
             {
-                str = new StringBuilder(65536);
+                str = new StringBuilder(65536 + 10);
                 r = Win32Api.Kernel32.GetFinalPathNameByHandle(handle, str, 65536, flags);
             }
 
@@ -276,12 +270,23 @@ namespace IPA.Cores.Basic
             return str.ToString();
         }
 
+        public static void SetCompressionFlag(string path, bool isDirectory, bool compressionEnabled)
+            => Util.DoMultipleActions(MultipleActionsFlag.AnyOk,
+                () => SetCompressionFlag(path, isDirectory, compressionEnabled, false),
+                () => SetCompressionFlag(path, isDirectory, compressionEnabled, true)
+                );
 
-        public static void Win32SetCompressionFlag(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
+        public static void SetCompressionFlag(string path, bool isDirectory, bool compressionEnabled, bool isBackupMode)
+        {
+            using (var handle = OpenHandle(path, isDirectory, true, isBackupMode))
+            {
+                SetCompressionFlag(handle, compressionEnabled, path);
+            }
+        }
+
+        public static void SetCompressionFlag(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
         {
             if (Env.IsWindows == false) return;
-
-            Win32Api.Kernel32.SECURITY_ATTRIBUTES secAttrs = default;
 
             ushort lpInBuffer = (ushort)(compressionEnabled ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
             uint lpBytesReturned = 0;
@@ -292,34 +297,21 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<Tuple<string, long>> Win32EnumAlternateStreamsInternal(string path, long maxSize, int maxNum)
+        public static List<Tuple<string, long>> EnumAlternateStreams(string path, long maxSize, int maxNum)
         {
             if (Env.IsWindows == false) return null;
 
-            try
-            {
-                return Win32EnumAlternateStreamsInternal_UseFindFirstApi(path, maxSize, maxNum);
-            }
-            catch
-            {
-                try
-                {
-                    return Win32EnumAlternateStreamsInternal_UseNtDllApi(path, maxSize, maxNum, true);
-                }
-                catch
-                {
-                    return null;
-                }
-            }
+            return Util.DoMultipleFuncs(MultipleActionsFlag.AnyOk,
+                () => EnumAlternateStreamsInternal_UseFindFirstApi(path, maxSize, maxNum),
+                () => EnumAlternateStreamsInternal_UseNtDllApi(path, maxSize, maxNum, true)
+                );
         }
 
-        public static List<Tuple<string, long>> Win32EnumAlternateStreamsInternal_UseNtDllApi(string path, long maxSize, int maxNum, bool backupMode = false)
+        public static List<Tuple<string, long>> EnumAlternateStreamsInternal_UseNtDllApi(string path, long maxSize, int maxNum, bool backupMode = false)
         {
             if (Env.IsWindows == false) return null;
 
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (var fileHandle = Win32ApiUtil.OpenHandle(path, false, flags, false))
+            using (var fileHandle = Win32ApiUtil.OpenHandle(path, false, false, backupMode))
             {
                 var list = Win32Api.NtDll.EnumAlternateStreamInformation(fileHandle);
 
@@ -342,7 +334,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<Tuple<string, long>> Win32EnumAlternateStreamsInternal_UseFindFirstApi(string path, long maxSize, int maxNum)
+        public static List<Tuple<string, long>> EnumAlternateStreamsInternal_UseFindFirstApi(string path, long maxSize, int maxNum)
         {
             if (Env.IsWindows == false) return null;
 

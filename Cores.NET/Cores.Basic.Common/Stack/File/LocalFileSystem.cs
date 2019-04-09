@@ -57,8 +57,6 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        public static LargeFileSystem LocalLarge { get; } = LargeFileSystem.Local;
-
         public static LocalFileSystem Local { get; } = LocalFileSystem.CreateFirstLocalInstance();
 
         static LocalFileSystem _SingletonInstance;
@@ -112,9 +110,9 @@ namespace IPA.Cores.Basic
                 Directory.CreateDirectory(directoryPath);
 
                 if (flags.Bit(FileOperationFlags.SetCompressionFlagOnCreate))
-                    Win32FolderCompression.SetFolderCompression(directoryPath, true);
+                    Win32ApiUtil.SetCompressionFlag(directoryPath, true, true);
                 else if (flags.Bit(FileOperationFlags.RemoveCompressionFlagOnCreate))
-                    Win32FolderCompression.SetFolderCompression(directoryPath, false);
+                    Win32ApiUtil.SetCompressionFlag(directoryPath, true, false);
             }
 
             await Task.CompletedTask;
@@ -295,7 +293,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var currentStreams = Win32ApiUtil.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
+                var currentStreams = Win32ApiUtil.EnumAlternateStreams(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (currentStreams == null)
                     throw new FileException(path, "Win32EnumAlternateStreamsInternal() failed.");
@@ -359,7 +357,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var list = Win32ApiUtil.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
+                var list = Win32ApiUtil.EnumAlternateStreams(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (list == null)
                 {
@@ -427,13 +425,31 @@ namespace IPA.Cores.Basic
             return ret.FilledOrDefault();
         }
 
+        public void ApplyFileOrDirectorySpecialOperationFlagsMedatata(string path, bool isDirectory, FileSpecialOperationFlags operationFlags)
+        {
+            Util.DoMultipleActions(MultipleActionsFlag.AllOk,
+                () =>
+                {
+                    if (operationFlags.Bit(FileSpecialOperationFlags.SetCompressionFlag))
+                        if (Env.IsWindows)
+                            Win32ApiUtil.SetCompressionFlag(path, isDirectory, true);
+                },
+                () =>
+                {
+                    if (operationFlags.Bit(FileSpecialOperationFlags.RemoveCompressionFlag))
+                        if (Env.IsWindows)
+                            Win32ApiUtil.SetCompressionFlag(path, isDirectory, false);
+                }
+                );
+        }
+
         public void SetFileOrDirectorySecurityMetadata(string path, bool isDirectory, FileSecurityMetadata data)
         {
             if (Env.IsWindows)
             {
                 if (data.IsFilled())
                 {
-                    Util.DoMultipleActions(true,
+                    Util.DoMultipleActions(MultipleActionsFlag.AllOk,
                         () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Owner?.Win32OwnerSsdl, AccessControlSections.Owner),
                         () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Group?.Win32GroupSsdl, AccessControlSections.Group),
                         () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Acl?.Win32AclSsdl, AccessControlSections.Access),
@@ -502,11 +518,20 @@ namespace IPA.Cores.Basic
 
         protected async override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            Util.DoMultipleActions(true,
+            Util.DoMultipleActions(MultipleActionsFlag.AllOk,
                 () =>
                 {
                     if (metadata.AlternateStream != null)
                         SetFileAlternateStreamMetadataAsync(path, metadata.AlternateStream, cancel).GetResult();
+                },
+                () =>
+                {
+                    if (metadata.Attributes != null)
+                        SetFileAttributes(path, (FileAttributes)metadata.Attributes);
+                },
+                () =>
+                {
+                    ApplyFileOrDirectorySpecialOperationFlagsMedatata(path, false, metadata.SpecialOperationFlags);
                 },
                 () =>
                 {
@@ -522,11 +547,6 @@ namespace IPA.Cores.Basic
                 {
                     if (metadata.LastAccessTime != null)
                         SetFileLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
-                },
-                () =>
-                {
-                    if (metadata.Attributes != null)
-                        SetFileAttributes(path, (FileAttributes)metadata.Attributes);
                 },
                 () =>
                 {
@@ -560,7 +580,16 @@ namespace IPA.Cores.Basic
 
         protected async override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            Util.DoMultipleActions(true,
+            Util.DoMultipleActions(MultipleActionsFlag.AllOk,
+                () =>
+                {
+                    if (metadata.Attributes != null)
+                        SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
+                },
+                () =>
+                {
+                    ApplyFileOrDirectorySpecialOperationFlagsMedatata(path, true, metadata.SpecialOperationFlags);
+                },
                 () =>
                 {
                     if (metadata.CreationTime != null)
@@ -575,11 +604,6 @@ namespace IPA.Cores.Basic
                 {
                     if (metadata.LastAccessTime != null)
                         SetDirectoryLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
-                },
-                () =>
-                {
-                    if (metadata.Attributes != null)
-                        SetDirectoryAttributes(path, (FileAttributes)metadata.Attributes);
                 },
                 () =>
                 {
@@ -621,7 +645,7 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows)
             {
-                Util.DoMultipleActions(true,
+                Util.DoMultipleActions(MultipleActionsFlag.AllOk,
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeBackupPrivilege, true),
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeRestorePrivilege, true),
                     () => Win32Api.EnablePrivilege(Win32Api.Advapi32.SeTakeOwnershipPrivilege, true)
@@ -664,19 +688,19 @@ namespace IPA.Cores.Basic
             return f;
         }
 
-        FileStream Win32CreateFileStreamInternal(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)
+        static FileStream Win32CreateFileStreamInternal(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)
         {
             FileStream ret;
 
             if ((options & (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS) != 0)
             {
                 // Use our private FileStream implementation
-                ret = PalWin32FileStream.Create(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
+                ret = PalWin32FileStream.Create(path, mode, access, share, bufferSize, options);
             }
             else
             {
                 // Use normal FileStream
-                ret = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+                ret = new FileStream(path, mode, access, share, bufferSize, FileOptions.Asynchronous);
             }
 
             return ret;
@@ -714,11 +738,41 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    fileStream = Win32CreateFileStreamInternal(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, options);
+                    FileMode fileMode = (FileParams.Mode != FileMode.Append) ? FileParams.Mode : FileMode.OpenOrCreate;
+
+                    fileStream = Win32CreateFileStreamInternal(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, options);
                 }
                 else
                 {
-                    fileStream = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+                    FileMode fileMode = (FileParams.Mode != FileMode.Append) ? FileParams.Mode : FileMode.OpenOrCreate;
+
+                    fileStream = new FileStream(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+                }
+
+                if (FileParams.Mode == FileMode.Append)
+                    fileStream.Seek(0, SeekOrigin.End);
+
+                if (Env.IsWindows)
+                {
+                    if (FileParams.Mode == FileMode.Create || FileParams.Mode == FileMode.CreateNew || FileParams.Mode == FileMode.OpenOrCreate || FileParams.Mode == FileMode.Append)
+                    {
+                        if (fileStream.Length == 0)
+                        {
+                            // Special operations on file creation
+                            Util.DoMultipleActions(MultipleActionsFlag.AllOk,
+                                () =>
+                                {
+                                    if (FileParams.Flags.Bit(FileOperationFlags.SetCompressionFlagOnCreate))
+                                        Win32ApiUtil.SetCompressionFlag(fileStream.SafeFileHandle, true, FileParams.Path);
+                                },
+                                () =>
+                                {
+                                    if (FileParams.Flags.Bit(FileOperationFlags.RemoveCompressionFlagOnCreate))
+                                        Win32ApiUtil.SetCompressionFlag(fileStream.SafeFileHandle, false, FileParams.Path);
+                                }
+                                );
+                        }
+                    }
                 }
 
                 string physicalFinalPathTmp = "";

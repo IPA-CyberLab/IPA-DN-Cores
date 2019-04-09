@@ -53,18 +53,9 @@ namespace IPA.TestDev
 
             //LocalLargeFs.AppendToFile(@"c:\tmp\largetest1\test.txt", "Hello\n".GetBytes_Ascii(), flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SetCompressionFlagOnCreate);
 
-            using (var handle = LocalLargeFs.GetRandomAccessHandle(@"c:\tmp\largetest1\test.txt", true))
-            {
-                handle.SetFileSize(LocalLargeFs.Params.MaxLogicalFileSize);
-                //                handle.SetFileSize(LocalLargeFs.Params.MaxLogicalFileSize - 30);
-                //handle.Append((DateTimeOffset.Now.ToDtStr() + "\r\n").GetBytes_Ascii());
-                while (true)
-                {
-                    long r = Util.RandSInt63() % (LocalLargeFs.Params.MaxLogicalFileSize - 30);
+            //LocalFs.SetFileMetadata(@"C:\TMP\k32\kernel32.dll", new FileMetadata(true, specialOperation: FileSpecialOperationFlags.RemoveCompressionFlag));
 
-                    handle.WriteRandom(r, Util.RandUInt63().ToStr3().GetBytes_Ascii());
-                }
-            }
+            LocalFs.AppendToFile(@"C:\TMP\190409\test.txt", "Hello".GetBytes_Ascii());//, flags: FileOperationFlags.RemoveCompressionFlagOnCreate);
 
             return;
 

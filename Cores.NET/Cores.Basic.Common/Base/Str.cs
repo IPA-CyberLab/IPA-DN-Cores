@@ -3419,7 +3419,6 @@ namespace IPA.Cores.Basic
 
         public static string CombineStringArray(IEnumerable<string> strList, string sepstr = "", bool removeEmpty = false)
         {
-            int i;
             StringBuilder b = new StringBuilder();
 
             int num = 0;

@@ -398,6 +398,16 @@ namespace IPA.Cores.Basic
         bool IsThisEmpty();
     }
 
+    [Flags]
+    enum MultipleActionsFlag
+    {
+        IgnoreError,
+        AllOk,
+        AnyOk,
+        AnyOkContinueAll,
+        AnyOkContinueAllRetLast,
+    }
+
     // ユーティリティクラス
     static partial class Util
     {
@@ -1641,10 +1651,87 @@ namespace IPA.Cores.Basic
             return obj;
         }
 
-        public static bool DoMultipleActions(bool throwFirstErrorAfterAll, params Action[] actions)
+        public static TResult DoMultipleFuncs<TResult>(MultipleActionsFlag flag, params Func<TResult>[] funcs)
         {
-            bool ok = true;
-            Exception exception = null;
+            bool allOk = true;
+            bool anyOk = false;
+            Exception firstException = null;
+
+            TResult firstRet = default;
+            bool isFirstRetSet = false;
+            TResult lastRet = default;
+
+            if (funcs != null)
+            {
+                foreach (Func<TResult> func in funcs)
+                {
+                    if (func != null)
+                    {
+                        try
+                        {
+                            lastRet = func();
+
+                            if (isFirstRetSet == false)
+                            {
+                                firstRet = lastRet;
+                                isFirstRetSet = true;
+                            }
+
+                            anyOk = true;
+
+                            if (flag == MultipleActionsFlag.AnyOk)
+                                break;
+                        }
+                        catch (Exception ex)
+                        {
+                            allOk = false;
+                            if (firstException == null)
+                                firstException = ex;
+                        }
+                    }
+                }
+            }
+
+            if (allOk)
+                anyOk = true;
+
+            switch (flag)
+            {
+                case MultipleActionsFlag.IgnoreError:
+                    return firstRet;
+
+                case MultipleActionsFlag.AllOk:
+                    if (allOk == false)
+                    {
+                        throw firstException;
+                    }
+                    return firstRet;
+
+                case MultipleActionsFlag.AnyOk:
+                case MultipleActionsFlag.AnyOkContinueAll:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return firstRet;
+
+                case MultipleActionsFlag.AnyOkContinueAllRetLast:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return lastRet;
+
+                default:
+                    throw new ArgumentOutOfRangeException("mode");
+            }
+        }
+
+        public static bool DoMultipleActions(MultipleActionsFlag flag, params Action[] actions)
+        {
+            bool allOk = true;
+            bool anyOk = false;
+            Exception firstException = null;
 
             if (actions != null)
             {
@@ -1655,22 +1742,48 @@ namespace IPA.Cores.Basic
                         try
                         {
                             action();
+                            anyOk = true;
+
+                            if (flag == MultipleActionsFlag.AnyOk)
+                                break;
                         }
                         catch (Exception ex)
                         {
-                            ok = false;
-                            if (exception == null)
-                                exception = ex;
+                            allOk = false;
+                            if (firstException == null)
+                                firstException = ex;
                         }
                     }
                 }
             }
 
-            if (throwFirstErrorAfterAll)
-                if (ok == false)
-                    throw exception;
+            if (allOk)
+                anyOk = true;
 
-            return ok;
+            switch (flag)
+            {
+                case MultipleActionsFlag.IgnoreError:
+                    return anyOk;
+
+                case MultipleActionsFlag.AllOk:
+                    if (allOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return true;
+
+                case MultipleActionsFlag.AnyOk:
+                case MultipleActionsFlag.AnyOkContinueAll:
+                case MultipleActionsFlag.AnyOkContinueAllRetLast:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return allOk;
+
+                default:
+                    throw new ArgumentOutOfRangeException("mode");
+            }
         }
     }
 

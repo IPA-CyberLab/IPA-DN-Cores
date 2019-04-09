@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileSpecialOperationFlagsMetadata : long
+    enum FileSpecialOperationFlags : long
     {
         None = 0,
         SetCompressionFlag = 1,
@@ -196,11 +196,11 @@ namespace IPA.Cores.Basic
 
         public FileAlternateStreamMetadata AlternateStream;
 
-        public FileSpecialOperationFlagsMetadata SpecialOperationFlags;
+        public FileSpecialOperationFlags SpecialOperationFlags;
 
         public FileMetadata() { }
 
-        public FileMetadata(bool isDirectory, FileSpecialOperationFlagsMetadata specialOperation = FileSpecialOperationFlagsMetadata.None,
+        public FileMetadata(bool isDirectory, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
             FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null)
         {
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
                             ret.Attributes = FileAttributes.Normal;
                     }
                 }
-                ret.SpecialOperationFlags = FileSpecialOperationFlagsMetadata.None;
+                ret.SpecialOperationFlags = FileSpecialOperationFlags.None;
                 return ret;
             }
 
@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
             this.Path = path;
             this.Mode = mode;
             this.Share = share;
-            this.Access = access;
+            this.Access = access | FileAccess.Read;
             this.Flags = flags;
         }
 
