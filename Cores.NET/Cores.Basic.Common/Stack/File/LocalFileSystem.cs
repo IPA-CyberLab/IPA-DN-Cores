@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task<FileObjectBase> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
-            => PalFileObject.CreateFileAsync(this, fileParams, cancel);
+            => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
         {
@@ -462,13 +462,13 @@ namespace IPA.Cores.Basic
                 FileObjectBase f = null;
                 try
                 {
-                    f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
+                    f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
                 }
                 catch
                 {
                     try
                     {
-                        f = await PalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
+                        f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
                     }
                     catch { }
                 }
@@ -636,12 +636,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalFileObject : FileObjectBase
+    class LocalFileObject : FileObjectBase
     {
         string _PhysicalFinalPath = null;
         public override string FinalPhysicalPath => _PhysicalFinalPath.FilledOrException();
 
-        protected PalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+        protected LocalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         FileStream fileStream;
 
@@ -651,7 +651,7 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            PalFileObject f = new PalFileObject(fileSystem, fileParams);
+            LocalFileObject f = new LocalFileObject(fileSystem, fileParams);
 
             await f.InternalInitAsync(cancel);
 
