@@ -390,6 +390,7 @@ namespace IPA.Cores.Basic
             string currentFileName = "";
             string currentLogFileDateName = "";
             bool logDateChanged = false;
+            long lastIdleFlushTick = 0;
 
             while (true)
             {
@@ -440,7 +441,7 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
+                                if (await io.WriteAsync(b.Memory) == false)
                                 {
                                     io.Close(this.NoFlush);
                                     io = null;
@@ -472,7 +473,7 @@ namespace IPA.Cores.Basic
                                 }
                                 else
                                 {
-                                    if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
+                                    if (await io.WriteAsync(b.Memory) == false)
                                     {
                                         io.Close(this.NoFlush);
                                         io = null;
@@ -562,7 +563,7 @@ namespace IPA.Cores.Basic
                                 {
                                     if ((this.CurrentFilePointer + b.Length) <= this.MaxLogSize)
                                     {
-                                        if (await io.WriteAsync(b.Memory, !this.NoFlush) == false)
+                                        if (await io.WriteAsync(b.Memory) == false)
                                         {
                                             io.Close(this.NoFlush);
                                             b.Clear();
@@ -608,7 +609,7 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     io = IO.FileCreate(fileName, useAsync: true);
-                                    await io.WriteAsync(NewFilePreamble, !this.NoFlush);
+                                    await io.WriteAsync(NewFilePreamble);
                                 }
                                 catch (Exception ex)
                                 {
@@ -645,7 +646,7 @@ namespace IPA.Cores.Basic
                             try
                             {
                                 io = IO.FileCreate(fileName, useAsync: true);
-                                await io.WriteAsync(NewFilePreamble, !this.NoFlush);
+                                await io.WriteAsync(NewFilePreamble);
                             }
                             catch (Exception ex)
                             {
@@ -695,6 +696,20 @@ namespace IPA.Cores.Basic
                             {
                                 io.Close(this.NoFlush);
                                 io = null;
+                            }
+                        }
+                        else
+                        {
+                            long now = Tick64.Now;
+
+                            if (lastIdleFlushTick == 0 || (lastIdleFlushTick + 1000) <= now)
+                            {
+                                lastIdleFlushTick = now;
+
+                                if (io != null)
+                                {
+                                    io.Flush();
+                                }
                             }
                         }
 

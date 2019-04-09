@@ -51,6 +51,26 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            LocalFs.EnumDirectory(@"D:\tmp\190409").PrintAsJson();
+
+            using (var f = LocalFs.Open(@"D:\tmp\190409\a.dat", writeMode: true))
+            {
+                var r = f.GetRandomAccessHandle();
+
+                int count = 0;
+                for (long offset = 0; ; offset += 1_000_000)
+                {
+                    r.WriteRandom(offset, "Hello".GetBytes_Ascii());
+                    Con.WriteLine(count++);
+                }
+                r.WriteRandom(500000000, "Hello".GetBytes_Ascii());
+                r.WriteRandom(1000000000, "Hello".GetBytes_Ascii());
+                r.WriteRandom(17_000_000_000_000, "Hello".GetBytes_Ascii());
+                r.WriteRandom(10000000000, new byte[100_000_000]);
+            }
+
+            return;
+
             //LocalLargeFs.AppendToFile(@"c:\tmp\largetest1\test.txt", "Hello\n".GetBytes_Ascii(), flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SetCompressionFlagOnCreate);
 
             //LocalFs.SetFileMetadata(@"C:\TMP\k32\kernel32.dll", new FileMetadata(true, specialOperation: FileSpecialOperationFlags.RemoveCompressionFlag));
