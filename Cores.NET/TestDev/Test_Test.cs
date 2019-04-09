@@ -58,7 +58,7 @@ namespace IPA.TestDev
                 var r = f.GetRandomAccessHandle();
 
                 int count = 0;
-                for (long offset = 0; ; offset += 1_000_000)
+                for (long offset = 1_000_000_000_000_0; ; offset += 1_000_000)
                 {
                     r.WriteRandom(offset, "Hello".GetBytes_Ascii());
                     Con.WriteLine(count++);
