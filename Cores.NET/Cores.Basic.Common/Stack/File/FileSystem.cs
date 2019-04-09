@@ -52,7 +52,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class FileSystemSettings
         {
-            public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
+            //public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
+            public static readonly Copenhagen<int> PooledHandleLifetime = 300;
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
@@ -624,7 +625,7 @@ namespace IPA.Cores.Basic
             this.IsWriteMode = writeMode;
 
             this.DefaultFileOperationFlags = defaultFileOperationFlags;
-            this.DefaultFileOperationFlags |= FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.RandomAccessOnly;
+            this.DefaultFileOperationFlags |= FileOperationFlags.AutoCreateDirectory | FileOperationFlags.RandomAccessOnly;
         }
 
         protected override async Task<FileBase> OpenImplAsync(string name, FileOperationFlags flags, CancellationToken cancel)
@@ -993,6 +994,8 @@ namespace IPA.Cores.Basic
 
             return new RandomAccessHandle(refFileBase);
         }
+        public RandomAccessHandle GetRandomAccessHandle(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel).GetResult();
 
         void CheckNotDisposed()
         {
@@ -1091,7 +1094,7 @@ namespace IPA.Cores.Basic
                             throw new ArgumentException("The Access member must contain the FileAccess.Write bit when opening a file with create mode.");
                         }
 
-                        if (option.Flags.Bit(FileOperationFlags.AutoCreateDirectoryOnFileCreation))
+                        if (option.Flags.Bit(FileOperationFlags.AutoCreateDirectory))
                         {
                             string dirName = this.PathInterpreter.GetDirectoryName(option.Path);
                             if (dirName.IsFilled())

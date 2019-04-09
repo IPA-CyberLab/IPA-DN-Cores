@@ -51,12 +51,22 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            using (var f = LocalFs.Open(@"C:\tmp\1.txt"))
+            //LocalLargeFs.AppendToFile(@"c:\tmp\largetest1\test.txt", "Hello\n".GetBytes_Ascii(), flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SetCompressionFlagOnCreate);
+
+            using (var handle = LocalLargeFs.GetRandomAccessHandle(@"c:\tmp\largetest1\test.txt", true))
             {
-                f.FinalPhysicalPath.Print();
+                handle.SetFileSize(LocalLargeFs.Params.MaxLogicalFileSize);
+                //                handle.SetFileSize(LocalLargeFs.Params.MaxLogicalFileSize - 30);
+                //handle.Append((DateTimeOffset.Now.ToDtStr() + "\r\n").GetBytes_Ascii());
+                while (true)
+                {
+                    long r = Util.RandSInt63() % (LocalLargeFs.Params.MaxLogicalFileSize - 30);
+
+                    handle.WriteRandom(r, Util.RandUInt63().ToStr3().GetBytes_Ascii());
+                }
             }
 
-                return;
+            return;
 
             //string alt1 = @"D:\Downloads\softether-vpnclient-v4.29-9680-rtm-2019.02.28-windows-x86_x64-intel.exe";
             string alt1 = @"C:\tmp\acl_test2\1.exe";
@@ -226,7 +236,7 @@ namespace IPA.TestDev
                 //Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
 
                 LocalFs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
-                    new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation,
+                    new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectory,
                     reporterFactory: CopyFileParams.ConsoleReporterFactory),
                     destFileSystem: largeFs);
 
@@ -237,7 +247,7 @@ namespace IPA.TestDev
 
                 return;
 
-                using (var f = largeFs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation | FileOperationFlags.SetCompressionFlagOnDirectory))
+                using (var f = largeFs.OpenOrCreate(@"C:\tmp\large\1.dat", flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SetCompressionFlagOnCreate))
                 {
                     f.Append($"Hello {DateTime.Now.ToDtStr()}\r\n".GetBytes_Ascii());
 

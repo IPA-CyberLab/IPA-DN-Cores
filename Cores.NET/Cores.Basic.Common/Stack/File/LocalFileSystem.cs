@@ -57,14 +57,16 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        public static LocalFileSystem Local { get; } = LocalFileSystem.GetInstance(LeakChecker.SuperGrandLady);
+        public static LargeFileSystem LocalLarge { get; } = LargeFileSystem.Local;
+
+        public static LocalFileSystem Local { get; } = LocalFileSystem.CreateFirstLocalInstance();
 
         static LocalFileSystem _SingletonInstance;
 
-        public static LocalFileSystem GetInstance(AsyncCleanuperLady lady)
+        static LocalFileSystem CreateFirstLocalInstance()
         {
             if (_SingletonInstance == null)
-                _SingletonInstance = new LocalFileSystem(lady);
+                _SingletonInstance = new LocalFileSystem(LeakChecker.SuperGrandLady);
 
             return _SingletonInstance;
         }
@@ -108,10 +110,12 @@ namespace IPA.Cores.Basic
             if (Directory.Exists(directoryPath) == false)
             {
                 Directory.CreateDirectory(directoryPath);
-            }
 
-            if (flags.Bit(FileOperationFlags.SetCompressionFlagOnDirectory))
-                Win32FolderCompression.SetFolderCompression(directoryPath, true);
+                if (flags.Bit(FileOperationFlags.SetCompressionFlagOnCreate))
+                    Win32FolderCompression.SetFolderCompression(directoryPath, true);
+                else if (flags.Bit(FileOperationFlags.RemoveCompressionFlagOnCreate))
+                    Win32FolderCompression.SetFolderCompression(directoryPath, false);
+            }
 
             await Task.CompletedTask;
         }

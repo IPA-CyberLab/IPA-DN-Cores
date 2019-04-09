@@ -3734,7 +3734,7 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: 100);
+                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: Math.Max(DelayTimeout, 100));
 
                 cancel.ThrowIfCancellationRequested();
 

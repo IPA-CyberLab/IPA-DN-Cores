@@ -366,11 +366,12 @@ namespace IPA.Cores.Basic
         None = 0,
         NoPartialRead = 1,
         BackupMode = 2,
-        AutoCreateDirectoryOnFileCreation = 4,
-        SetCompressionFlagOnDirectory = 8,
-        RandomAccessOnly = 16,
-        LargeFileSystemDoNotAppendBeyondBorder = 32,
-        IgnoreReadOnlyOrHiddenBits = 64,
+        AutoCreateDirectory = 4,
+        RandomAccessOnly = 8,
+        LargeFileSystemDoNotAppendBeyondBorder = 16,
+        IgnoreReadOnlyOrHiddenBits = 32,
+        SetCompressionFlagOnCreate = 64,
+        RemoveCompressionFlagOnCreate = 128,
     }
 
     class FileBaseStream : FileStream

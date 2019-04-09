@@ -48,12 +48,25 @@ using static IPA.Cores.GlobalFunctions.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class LargeFileSystemSettings
+        {
+            public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
+                = new LargeFileSystemParams(
+                    maxSingleFileSize:      1_000_000_000,     // 1 TB
+                    logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
+                    splitStr: "~"
+                    );
+        }
+    }
+
     class LargeFileObject : FileObjectBase
     {
         public class Cursor
         {
             public long LogicalPosition { get; }
-            public int PhysicalFileNumber { get; }
+            public long PhysicalFileNumber { get; }
             public long PhysicalPosition { get; }
             public long PhysicalRemainingLength { get; }
             public long PhysicalDataLength { get; }
@@ -77,10 +90,10 @@ namespace IPA.Cores.Basic
                         throw new ArgumentOutOfRangeException("logicalPosision > MaxLogicalFileSize");
 
                     this.LogicalPosition = logicalPosision;
-                    this.PhysicalFileNumber = (int)(this.LogicalPosition / p.MaxSinglePhysicalFileSize);
+                    this.PhysicalFileNumber = this.LogicalPosition / p.MaxSinglePhysicalFileSize;
 
                     if (this.PhysicalFileNumber > p.MaxFileNumber)
-                        throw new ArgumentOutOfRangeException($"this.PhysicalFileNumber ({this.PhysicalFileNumber})> p.MaxFileNumber ({p.MaxFileNumber})");
+                        throw new ArgumentOutOfRangeException($"this.PhysicalFileNumber ({this.PhysicalFileNumber}) > p.MaxFileNumber ({p.MaxFileNumber})");
 
                     this.PhysicalPosition = this.LogicalPosition % p.MaxSinglePhysicalFileSize;
                     this.PhysicalRemainingLength = p.MaxSinglePhysicalFileSize - this.PhysicalPosition;
@@ -402,36 +415,31 @@ namespace IPA.Cores.Basic
 
     class LargeFileSystemParams
     {
-        public const long DefaultMaxSinglePhysicalFileSize = 1000000000; // 1GB
-        public const long DefaultMaxLogicalFileSize = 100000000000000; // 100TB
-        public const int DefaultPooledFileCloseDelay = 1000;
+        public const long DefaultMaxSinglePhysicalFileSize = 1_000_000_000; // 1GB
+        public const long DefaultMaxLogicalFileSize = 1_000_000_000_000_000_000; // 1EB
 
         public long MaxSinglePhysicalFileSize { get; }
         public long MaxLogicalFileSize { get; }
         public int NumDigits { get; }
         public string SplitStr { get; }
-        public int PooledFileCloseDelay { get; }
-        public int MaxFileNumber { get; }
+        public long MaxFileNumber { get; }
 
-        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~",
-            int pooledFileCloseDelay = DefaultPooledFileCloseDelay)
+        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~")
         {
             checked
             {
                 this.SplitStr = splitStr.NonNullTrim().FilledOrDefault("~");
-                this.MaxSinglePhysicalFileSize = Math.Max(maxSingleFileSize, 1);
+                this.MaxSinglePhysicalFileSize = Math.Min(Math.Max(maxSingleFileSize, 1), int.MaxValue);
                 this.MaxLogicalFileSize = logicalMaxSize;
-                this.PooledFileCloseDelay = Math.Max(pooledFileCloseDelay, 1000);
 
-                long i = (int)(MaxLogicalFileSize / this.MaxSinglePhysicalFileSize);
+                long i = (this.MaxLogicalFileSize / this.MaxSinglePhysicalFileSize);
+
                 i = Math.Max(i, 1);
                 i = (int)Math.Log10(i);
-                i++;
-                i = Math.Max(Math.Min(i, 9), 1);
                 NumDigits = (int)i;
 
-                this.MaxFileNumber = Str.MakeCharArray('9', NumDigits).ToInt();
-                this.MaxLogicalFileSize = MaxSinglePhysicalFileSize * this.MaxFileNumber;
+                this.MaxFileNumber = Str.MakeCharArray('9', NumDigits).ToLong();
+                this.MaxLogicalFileSize = (MaxSinglePhysicalFileSize * (this.MaxFileNumber + 1)) - 1;
             }
         }
     }
@@ -442,7 +450,7 @@ namespace IPA.Cores.Basic
         {
             public string DirectoryPath { get; }
             public string OriginalFileNameWithoutExtension { get; }
-            public int FileNumber { get; }
+            public long FileNumber { get; }
             public string Extension { get; }
             public string PhysicalFilePath { get; }
             public string LogicalFilePath { get; }
@@ -450,7 +458,7 @@ namespace IPA.Cores.Basic
 
             readonly LargeFileSystem LargeFileSystem;
 
-            public ParsedPath(LargeFileSystem fs, string logicalFilePath, int fileNumber)
+            public ParsedPath(LargeFileSystem fs, string logicalFilePath, long fileNumber)
             {
                 this.LargeFileSystem = fs;
 
@@ -531,9 +539,9 @@ namespace IPA.Cores.Basic
                 this.LogicalFilePath = fs.PathInterpreter.Combine(this.DirectoryPath, filename);
             }
 
-            public string GeneratePhysicalPath(int? fileNumberOverwrite = null)
+            public string GeneratePhysicalPath(long? fileNumberOverwrite = null)
             {
-                int fileNumber = fileNumberOverwrite ?? FileNumber;
+                long fileNumber = fileNumberOverwrite ?? FileNumber;
                 string fileNumberStr = fileNumber.ToString($"D{LargeFileSystem.Params.NumDigits}");
                 Debug.Assert(fileNumberStr.Length == LargeFileSystem.Params.NumDigits);
 
@@ -541,6 +549,22 @@ namespace IPA.Cores.Basic
 
                 return LargeFileSystem.PathInterpreter.Combine(DirectoryPath, filename);
             }
+        }
+
+        public static LargeFileSystem Local { get; } = LargeFileSystem.CreateFirstLocalInstance();
+
+        static LargeFileSystem _SingletonInstance;
+
+        static LargeFileSystem CreateFirstLocalInstance()
+        {
+            if (_SingletonInstance == null)
+            {
+                var LocalFs = LocalFileSystem.Local;
+
+                _SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFs, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+            }
+
+            return _SingletonInstance;
         }
 
         CancellationTokenSource CancelSource = new CancellationTokenSource();

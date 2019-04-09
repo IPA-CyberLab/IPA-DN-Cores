@@ -108,6 +108,7 @@ namespace IPA.Cores
             }
 
             public static LocalFileSystem LocalFs => LocalFileSystem.Local;
+            public static LargeFileSystem LocalLargeFs => LargeFileSystem.Local;
         }
     }
 }
