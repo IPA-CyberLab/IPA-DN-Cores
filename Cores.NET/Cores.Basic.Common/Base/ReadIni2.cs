@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
             }
             foreach (string key in tmp.Keys)
             {
-                w.WriteLine("{0}={1}", key, Str.CombineStringArray2(",", tmp[key].ToArray()));
+                w.WriteLine("{0}={1}", key, Str.CombineStringArray(",", tmp[key].ToArray()));
             }
 
             this.hash_value = Str.HashStrToLong(w.ToString());

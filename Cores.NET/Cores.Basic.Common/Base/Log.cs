@@ -272,7 +272,7 @@ namespace IPA.Cores.Basic
                 if (opt.WithTypeName)
                     additionalList.Add(this.Data?.GetType().Name ?? "null");
 
-                string additionalStr = Str.CombineStringArray2(" ", additionalList.ToArray());
+                string additionalStr = Str.CombineStringArray(" ", additionalList.ToArray());
                 if (additionalStr.IsFilled())
                 {
                     sb.Append("[");

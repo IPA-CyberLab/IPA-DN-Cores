@@ -251,6 +251,8 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
             public static extern bool FindNextStreamW(SafeFindHandle hFindStream, out WIN32_FIND_STREAM_DATA lpFindStreamData);
 
+            [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto)]
+            public static extern int GetFinalPathNameByHandle(SafeFileHandle hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, int cchFilePath, FinalPathFlags dwFlags);
         }
 
         internal partial class NtDll
@@ -457,6 +459,17 @@ namespace IPA.Cores.Basic
 
         internal partial class Kernel32
         {
+            [Flags]
+            public enum FinalPathFlags : uint
+            {
+                VOLUME_NAME_DOS = 0x0,
+                FILE_NAME_NORMALIZED = 0x0,
+                VOLUME_NAME_GUID = 0x1,
+                VOLUME_NAME_NT = 0x2,
+                VOLUME_NAME_NONE = 0x4,
+                FILE_NAME_OPENED = 0x8
+            }
+
             internal const uint SEM_FAILCRITICALERRORS = 1;
 
             internal const int FSCTL_SET_COMPRESSION = 0x9C040;
@@ -1086,11 +1099,28 @@ namespace IPA.Cores.Basic
         internal static Exception GetExceptionForLastWin32Error(string path = "")
             => GetExceptionForWin32Error(Marshal.GetLastWin32Error(), path);
 
-        public static Exception GetExceptionForWin32Error(int errorCode, string path = "")
+        public static Exception GetExceptionForWin32Error(int errorCode, string argument = "")
         {
-            path = path.NonNull();
+            List<string> o = new List<string>();
 
-            string msg = $"Error code = {errorCode} (0x{MakeHRFromErrorCode(errorCode):X}), Path = '{path}'.";
+            string win32msg = "";
+            try
+            {
+                win32msg = $"{new Win32Exception(errorCode).Message}";
+            }
+            catch { }
+
+            if (win32msg.IsFilled())
+                o.Add($"Message = '{win32msg}'");
+
+            o.Add($"Code = {errorCode} (0x{MakeHRFromErrorCode(errorCode):X})");
+
+            if (argument.IsFilled())
+                o.Add($"Argument = '{argument}'");
+
+            string argumentStr = (argument.IsFilled() ? $", Argument = '{argument}'" : "");
+
+            string msg = "Win32 Error " + Str.CombineStringArray(o, ", ");
 
             switch (errorCode)
             {
@@ -1113,10 +1143,10 @@ namespace IPA.Cores.Basic
                         goto default;
                     return new IOException(msg, MakeHRFromErrorCode(errorCode));
                 case Win32Api.Errors.ERROR_OPERATION_ABORTED:
-                    return new OperationCanceledException();
+                    return new OperationCanceledException(msg);
                 case Win32Api.Errors.ERROR_INVALID_PARAMETER:
                 default:
-                    return new Win32Exception(errorCode);
+                    return new Win32Exception(errorCode, msg);
             }
         }
 
@@ -1130,179 +1160,6 @@ namespace IPA.Cores.Basic
         }
 
 
-    }
-
-    static class PalWin32FileSystem
-    {
-
-        public static int FillAttributeInfo(string path, ref Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA data, bool returnErrorOnNotFound)
-        {
-            int errorCode = Win32Api.Errors.ERROR_SUCCESS;
-
-            // Neither GetFileAttributes or FindFirstFile like trailing separators
-            path = Win32PathInternal.TrimEndingDirectorySeparator(path);
-
-            using (Win32Api.Win32DisableMediaInsertionPrompt.Create())
-            {
-                if (!Win32Api.Kernel32.GetFileAttributesEx(path, Win32Api.Kernel32.GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, ref data))
-                {
-                    errorCode = Marshal.GetLastWin32Error();
-                    if (errorCode != Win32Api.Errors.ERROR_FILE_NOT_FOUND
-                        && errorCode != Win32Api.Errors.ERROR_PATH_NOT_FOUND
-                        && errorCode != Win32Api.Errors.ERROR_NOT_READY
-                        && errorCode != Win32Api.Errors.ERROR_INVALID_NAME
-                        && errorCode != Win32Api.Errors.ERROR_BAD_PATHNAME
-                        && errorCode != Win32Api.Errors.ERROR_BAD_NETPATH
-                        && errorCode != Win32Api.Errors.ERROR_BAD_NET_NAME
-                        && errorCode != Win32Api.Errors.ERROR_INVALID_PARAMETER
-                        && errorCode != Win32Api.Errors.ERROR_NETWORK_UNREACHABLE
-                        && errorCode != Win32Api.Errors.ERROR_NETWORK_ACCESS_DENIED
-                        && errorCode != Win32Api.Errors.ERROR_INVALID_HANDLE  // eg from \\.\CON
-                        )
-                    {
-                        // Assert so we can track down other cases (if any) to add to our test suite
-                        Debug.Assert(errorCode == Win32Api.Errors.ERROR_ACCESS_DENIED || errorCode == Win32Api.Errors.ERROR_SHARING_VIOLATION,
-                            $"Unexpected error code getting attributes {errorCode}");
-
-                        // Files that are marked for deletion will not let you GetFileAttributes,
-                        // ERROR_ACCESS_DENIED is given back without filling out the data struct.
-                        // FindFirstFile, however, will. Historically we always gave back attributes
-                        // for marked-for-deletion files.
-                        //
-                        // Another case where enumeration works is with special system files such as
-                        // pagefile.sys that give back ERROR_SHARING_VIOLATION on GetAttributes.
-                        //
-                        // Ideally we'd only try again for known cases due to the potential performance
-                        // hit. The last attempt to do so baked for nearly a year before we found the
-                        // pagefile.sys case. As such we're probably stuck filtering out specific
-                        // cases that we know we don't want to retry on.
-
-                        var findData = new Win32Api.Kernel32.WIN32_FIND_DATA();
-                        using (Win32Api.SafeFindHandle handle = Win32Api.Kernel32.FindFirstFile(path, ref findData))
-                        {
-                            if (handle.IsInvalid)
-                            {
-                                errorCode = Marshal.GetLastWin32Error();
-                            }
-                            else
-                            {
-                                errorCode = Win32Api.Errors.ERROR_SUCCESS;
-                                data.PopulateFrom(ref findData);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (errorCode != Win32Api.Errors.ERROR_SUCCESS && !returnErrorOnNotFound)
-            {
-                switch (errorCode)
-                {
-                    case Win32Api.Errors.ERROR_FILE_NOT_FOUND:
-                    case Win32Api.Errors.ERROR_PATH_NOT_FOUND:
-                    case Win32Api.Errors.ERROR_NOT_READY: // Removable media not ready
-                        // Return default value for backward compatibility
-                        data.dwFileAttributes = -1;
-                        return Win32Api.Errors.ERROR_SUCCESS;
-                }
-            }
-
-            return errorCode;
-        }
-
-        public static FileAttributes GetAttributes(string fullPath, bool backupMode = false)
-        {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA data = new Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA();
-            int errorCode = FillAttributeInfo(fullPath, ref data, returnErrorOnNotFound: true);
-            if (errorCode != 0)
-                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
-
-            return (FileAttributes)data.dwFileAttributes;
-        }
-
-        public static void SetAttributes(string fullPath, FileAttributes attributes)
-        {
-            if (!Win32Api.Kernel32.SetFileAttributes(fullPath, (int)attributes))
-            {
-                int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode == Win32Api.Errors.ERROR_INVALID_PARAMETER)
-                    throw new ArgumentException(nameof(attributes));
-                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
-            }
-        }
-
-        public static void SetLastWriteTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
-        {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
-            {
-                if (!Win32Api.Kernel32.SetFileTime(handle, lastWriteTime: time.ToFileTime()))
-                {
-                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
-                }
-            }
-        }
-
-        public static void SetCreationTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
-        {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
-            {
-                if (!Win32Api.Kernel32.SetFileTime(handle, creationTime: time.ToFileTime()))
-                {
-                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
-                }
-            }
-        }
-
-        public static void SetLastAccessTime(string fullPath, DateTimeOffset time, bool asDirectory, bool backupMode = false)
-        {
-            int flags = backupMode ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0;
-
-            using (SafeFileHandle handle = OpenHandle(fullPath, asDirectory, flags))
-            {
-                if (!Win32Api.Kernel32.SetFileTime(handle, lastAccessTime: time.ToFileTime()))
-                {
-                    throw PalWin32FileStream.GetExceptionForLastWin32Error(fullPath);
-                }
-            }
-        }
-
-        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, int additionalFlags = 0, bool readOnly = false)
-        {
-            string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
-            if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
-            {
-                // intentionally not fullpath, most upstack public APIs expose this as path.
-                throw new ArgumentException("path");
-            }
-
-            SafeFileHandle handle = Win32Api.Kernel32.CreateFile(
-                fullPath,
-                readOnly == false ? Win32Api.Kernel32.GenericOperations.GENERIC_WRITE : Win32Api.Kernel32.GenericOperations.GENERIC_READ,
-                FileShare.ReadWrite | FileShare.Delete,
-                FileMode.Open,
-                (asDirectory ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0) | additionalFlags);
-
-            if (handle.IsInvalid)
-            {
-                int errorCode = Marshal.GetLastWin32Error();
-
-                // NT5 oddity - when trying to open "C:\" as a File,
-                // we usually get ERROR_PATH_NOT_FOUND from the OS.  We should
-                // probably be consistent w/ every other directory.
-                if (!asDirectory && errorCode == Win32Api.Errors.ERROR_PATH_NOT_FOUND && fullPath.Equals(Directory.GetDirectoryRoot(fullPath)))
-                    errorCode = Win32Api.Errors.ERROR_ACCESS_DENIED;
-
-                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
-            }
-
-            return handle;
-        }
     }
 }
 

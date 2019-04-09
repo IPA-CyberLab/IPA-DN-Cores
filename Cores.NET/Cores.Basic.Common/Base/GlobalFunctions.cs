@@ -107,7 +107,7 @@ namespace IPA.Cores
                 }
             }
 
-            public static PalFileSystem Lfs => FileSystemBase.Local;
+            public static PalFileSystem LocalFs => FileSystemBase.Local;
         }
     }
 }

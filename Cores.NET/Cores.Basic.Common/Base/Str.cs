@@ -38,6 +38,7 @@ using System.Web;
 using System.IO;
 using System.Xml.Serialization;
 using System.Reflection;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -3385,7 +3386,7 @@ namespace IPA.Cores.Basic
         }
 
         // 複数の文字列を結合する
-        public static string CombineStringArray2(string sepstr, params string[] strs)
+        public static string CombineStringArray(string sepstr, params string[] strs)
         {
             List<string> tmp = new List<string>();
 
@@ -3399,7 +3400,8 @@ namespace IPA.Cores.Basic
 
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
-        public static string CombineStringArray2(string sepstr, params object[] objs)
+
+        public static string CombineStringArray(string sepstr, params object[] objs)
         {
             List<string> tmp = new List<string>();
 
@@ -3414,24 +3416,25 @@ namespace IPA.Cores.Basic
 
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
-        public static string CombineStringArray(string[] str)
-        {
-            return CombineStringArray(str, "");
-        }
-        public static string CombineStringArray(string[] str, string sepstr)
+
+        public static string CombineStringArray(IEnumerable<string> strList, string sepstr = "", bool removeEmpty = false)
         {
             int i;
             StringBuilder b = new StringBuilder();
 
-            for (i = 0; i < str.Length; i++)
+            int num = 0;
+
+            foreach (string s in strList)
             {
-                string s = str[i];
-
-                b.Append(s);
-
-                if ((str.Length - 1) != i)
+                if (removeEmpty == false || s.IsFilled())
                 {
-                    b.Append(sepstr);
+                    if (num >= 1)
+                    {
+                        b.Append(sepstr);
+                    }
+
+                    b.Append(s);
+                    num++;
                 }
             }
 

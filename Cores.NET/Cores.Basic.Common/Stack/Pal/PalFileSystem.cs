@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    PalWin32FileSystem.SetCreationTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetCreationTime(path, dt.AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -189,7 +189,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    PalWin32FileSystem.SetLastWriteTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetLastWriteTime(path, dt.AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -207,7 +207,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    PalWin32FileSystem.SetLastAccessTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetLastAccessTime(path, dt.AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -289,7 +289,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var currentStreams = Win32FileInternal.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
+                var currentStreams = Win32ApiUtil.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (currentStreams == null)
                     throw new FileException(path, "Win32EnumAlternateStreamsInternal() failed.");
@@ -353,7 +353,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsWindows)
             {
-                var list = Win32FileInternal.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
+                var list = Win32ApiUtil.Win32EnumAlternateStreamsInternal(path, Win32MaxAlternateStreamSize, Win32MaxAlternateStreamNum);
 
                 if (list == null)
                 {
@@ -638,6 +638,9 @@ namespace IPA.Cores.Basic
 
     class PalFileObject : FileObjectBase
     {
+        string _PhysicalFinalPath = null;
+        public override string FinalPhysicalPath => _PhysicalFinalPath.FilledOrException();
+
         protected PalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         FileStream fileStream;
@@ -711,6 +714,21 @@ namespace IPA.Cores.Basic
                 {
                     fileStream = new FileStream(FileParams.Path, FileParams.Mode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
                 }
+
+                string physicalFinalPathTmp = "";
+                if (Env.IsWindows)
+                {
+                    try
+                    {
+                        physicalFinalPathTmp = Win32ApiUtil.GetFinalPath(fileStream.SafeFileHandle);
+                    }
+                    catch { }
+                }
+
+                if (physicalFinalPathTmp.IsEmpty())
+                    physicalFinalPathTmp = FileParams.Path;
+
+                _PhysicalFinalPath = physicalFinalPathTmp;
 
                 this.CurrentPosition = fileStream.Position;
 

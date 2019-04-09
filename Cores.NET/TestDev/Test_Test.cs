@@ -51,21 +51,25 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            Lfs.DeleteFile(@"C:\tmp\ro.txt", flags: FileOperationFlags.IgnoreReadOnlyOrHiddenBits);
-            return;
+            using (var f = LocalFs.Open(@"C:\tmp\1.txt"))
+            {
+                f.FinalPhysicalPath.Print();
+            }
+
+                return;
 
             //string alt1 = @"D:\Downloads\softether-vpnclient-v4.29-9680-rtm-2019.02.28-windows-x86_x64-intel.exe";
             string alt1 = @"C:\tmp\acl_test2\1.exe";
             string alt2 = @"C:\tmp\acl_test2\2.exe";
 
-            Lfs.EnableBackupPrivilege();
+            LocalFs.EnableBackupPrivilege();
 
             //var meta1 = Lfs.GetFileMetadata(alt1);
             //Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
             //Con.WriteJsonLine(meta1);
 
             //Lfs.CopyFile(@"C:\tmp\acl_test2\1.exe", @"C:\tmp\acl_test2\3.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode));
-            Lfs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
+            LocalFs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
 
             return;
 
@@ -97,7 +101,7 @@ namespace IPA.TestDev
 
             //return;
 
-            Lfs.EnableBackupPrivilege();
+            LocalFs.EnableBackupPrivilege();
 
             //string aclFileName = @"c:\tmp\test.htm";
             //Lfs.AppendToFile(@"C:\tmp\a.dat", "Hello".GetBytes_Ascii());
@@ -111,20 +115,20 @@ namespace IPA.TestDev
             //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false));
             //Con.WriteJsonLine(PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", false));
 
-            Lfs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, Lfs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
+            LocalFs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, LocalFs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
 
             return;
 
-            Lfs.EnableBackupPrivilege();
+            LocalFs.EnableBackupPrivilege();
 
             //            Lfs.DeleteFile(@"C:\tmp\acl_test\test3.txt");
             //            return;
 
             string fn = @"c:\tmp\test.htm";
 
-            Lfs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
+            LocalFs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
 
-            var m1 = Lfs.GetFileMetadata(fn);
+            var m1 = LocalFs.GetFileMetadata(fn);
 
             Con.WriteLine(m1.ObjectToJson());
 
@@ -133,15 +137,15 @@ namespace IPA.TestDev
             m1.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
             m1.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
 
-            Lfs.SetFileMetadata(fn, m1);
+            LocalFs.SetFileMetadata(fn, m1);
 
-            var m2 = Lfs.GetDirectoryMetadata(@"C:\TMP\acl_test\dir1");
+            var m2 = LocalFs.GetDirectoryMetadata(@"C:\TMP\acl_test\dir1");
             Con.WriteLine(m2.ObjectToJson());
             m2.Attributes = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReadOnly;
             m2.CreationTime = DateTimeOffset.Now.AddYears(-1);
             m2.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
             m2.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
-            Lfs.SetDirectoryMetadata(@"C:\TMP\acl_test\dir1", m2);
+            LocalFs.SetDirectoryMetadata(@"C:\TMP\acl_test\dir1", m2);
 
             //byte[] xxx = Lfs.ReadFromFile(fn, flags: FileOperationFlags.BackupMode).ToArray();
             //Con.WriteLine(xxx.Length);
@@ -211,7 +215,7 @@ namespace IPA.TestDev
                 //return;
                 //LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
                 LargeFileSystemParams p = new LargeFileSystemParams();
-                LargeFileSystem largeFs = new LargeFileSystem(lady, Lfs, p);
+                LargeFileSystem largeFs = new LargeFileSystem(lady, LocalFs, p);
 
                 //byte[] data = Str.MakeCharArray('x', 1).GetBytes_Ascii();
 
@@ -221,7 +225,7 @@ namespace IPA.TestDev
                 ////Con.WriteLine(data1.Length);
                 //Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
 
-                Lfs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
+                LocalFs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
                     new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectoryOnFileCreation,
                     reporterFactory: CopyFileParams.ConsoleReporterFactory),
                     destFileSystem: largeFs);

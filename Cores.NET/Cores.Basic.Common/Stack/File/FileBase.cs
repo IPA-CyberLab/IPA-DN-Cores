@@ -690,6 +690,7 @@ namespace IPA.Cores.Basic
     abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess
     {
         public FileParameters FileParams { get; }
+        public virtual string FinalPhysicalPath => throw new NotImplementedException();
         public abstract bool IsOpened { get; }
         public abstract Exception LastError { get; protected set; }
         public FastEventListenerList<FileBase, FileObjectEventType> EventListeners { get; }

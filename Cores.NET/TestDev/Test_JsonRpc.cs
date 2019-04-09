@@ -156,7 +156,7 @@ namespace IPA.TestDev
         public async Task<string> Test3(int a, int b, int c)
         {
             //await TaskUtil.PreciseDelay(500);
-            return Str.CombineStringArray2(",", a, b, c);
+            return Str.CombineStringArray(",", a, b, c);
         }
 
         //static Benchmark bm = new Benchmark();

@@ -785,7 +785,7 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
-            string s = Str.CombineStringArray2(", ", o.ToArray());
+            string s = Str.CombineStringArray(", ", o.ToArray());
 
             Dbg.WriteLine(s);
         }
