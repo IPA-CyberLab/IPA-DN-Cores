@@ -52,22 +52,22 @@ using System.Security.AccessControl;
 
 namespace IPA.Cores.Basic
 {
-    class PalFileSystem : FileSystemBase
+    class LocalFileSystem : FileSystemBase
     {
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        static PalFileSystem SingletonInstance;
+        static LocalFileSystem SingletonInstance;
 
-        public static PalFileSystem GetInstance(AsyncCleanuperLady lady)
+        public static LocalFileSystem GetInstance(AsyncCleanuperLady lady)
         {
             if (SingletonInstance == null)
-                SingletonInstance = new PalFileSystem(lady);
+                SingletonInstance = new LocalFileSystem(lady);
 
             return SingletonInstance;
         }
 
-        private PalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
+        private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
         {
         }
 
@@ -647,7 +647,7 @@ namespace IPA.Cores.Basic
 
         long CurrentPosition;
 
-        public static async Task<FileObjectBase> CreateFileAsync(PalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        public static async Task<FileObjectBase> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 

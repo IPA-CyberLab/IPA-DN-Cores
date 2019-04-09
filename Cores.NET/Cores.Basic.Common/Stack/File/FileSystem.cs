@@ -953,7 +953,7 @@ namespace IPA.Cores.Basic
 
     abstract class FileSystemBase : AsyncCleanupable
     {
-        public static PalFileSystem Local { get; } = PalFileSystem.GetInstance(LeakChecker.SuperGrandLady);
+        public static LocalFileSystem Local { get; } = LocalFileSystem.GetInstance(LeakChecker.SuperGrandLady);
 
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathInterpreter PathInterpreter { get; }
