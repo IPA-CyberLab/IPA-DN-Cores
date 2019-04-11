@@ -67,7 +67,16 @@ namespace IPA.TestDev
 
             LLfs.EnumDirectory(dirName).PrintAsJson();
 
-            LLfs.ReadFromFile(@"D:\tmp\LargeTest\file0", 4096).ToArray().GetString_UTF8().Print();
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "01234567".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "8".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "abcdefgh".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "i".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "01234567".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "8".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "abcdefgh".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+            LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "i".GetBytes_Ascii(), FileOperationFlags.LargeFileSystemAppendWithCrossBorder);
+
+            //LLfs.ReadFromFile(@"D:\tmp\LargeTest\file0", 4096).ToArray().GetString_UTF8().Print();
 
             return;
 

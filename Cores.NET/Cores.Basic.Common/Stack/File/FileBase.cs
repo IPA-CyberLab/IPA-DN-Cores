@@ -373,7 +373,7 @@ namespace IPA.Cores.Basic
         BackupMode = 2,
         AutoCreateDirectory = 4,
         RandomAccessOnly = 8,
-        LargeFileSystemDoNotAppendBeyondBorder = 16,
+        LargeFileSystemAppendWithCrossBorder = 16,
         ForceClearReadOnlyOrHiddenBitsOnNeed = 32,
         OnCreateSetCompressionFlag = 64,
         OnCreateRemoveCompressionFlag = 128,

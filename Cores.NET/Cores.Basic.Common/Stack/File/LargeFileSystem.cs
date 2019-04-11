@@ -52,9 +52,16 @@ namespace IPA.Cores.Basic
     {
         public static partial class LargeFileSystemSettings
         {
+            //public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
+            //    = new LargeFileSystemParams(
+            //        maxSingleFileSize:      1_000_000_000,     // 1 TB
+            //        logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
+            //        splitStr: "~~~"
+            //        );
+
             public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
                 = new LargeFileSystemParams(
-                    maxSingleFileSize:      1_000_000_000,     // 1 TB
+                    maxSingleFileSize: 10,     // 1 TB
                     logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
                     splitStr: "~~~"
                     );
@@ -353,15 +360,52 @@ namespace IPA.Cores.Basic
 
                 List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
 
-                foreach (Cursor cursor in cursorList)
+                if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFileSystemAppendWithCrossBorder) && position == this.CurrentFileSize && cursorList.Count >= 2)
                 {
-                    using (var handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel))
+                    // Crossing the border when the LargeFileSystemAppendWithCrossBorder flag is set
+                    if (cursorList.Count >= 3)
                     {
-                        await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
+                        // Write fails because it beyonds two borders
+                        throw new FileException(this.FileParams.Path, $"LargeFileSystemDoNotAppendBeyondBorder error: pos = {position}, data = {data.Length}");
+                    }
+                    else
+                    {
+                        Debug.Assert(data.Length <= this.LargeFileSystem.Params.MaxSinglePhysicalFileSize);
+
+                        var firstCursor = cursorList[0];
+                        var secondCursor = cursorList[1];
+
+                        Debug.Assert(firstCursor.LogicalPosition == position);
+                        Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
+
+                        using (var handle = await GetUnderleyRandomAccessHandle(position, cancel))
+                        {
+                            // Write the zero-cleared block toward the end of the first physical file
+                            await handle.WriteRandomAsync(firstCursor.PhysicalPosition, new byte[firstCursor.PhysicalRemainingLength], cancel);
+                            this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
+                        }
+
+                        using (var handle = await GetUnderleyRandomAccessHandle(secondCursor.LogicalPosition, cancel))
+                        {
+                            // Write the data from the beginning of the second physical file
+                            await handle.WriteRandomAsync(0, data, cancel);
+                            this.CurrentFileSize += data.Length;
+                        }
                     }
                 }
+                else
+                {
+                    // Normal write
+                    foreach (Cursor cursor in cursorList)
+                    {
+                        using (var handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel))
+                        {
+                            await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
+                        }
+                    }
 
-                this.CurrentFileSize = Math.Max(this.CurrentFileSize, position + data.Length);
+                    this.CurrentFileSize = Math.Max(this.CurrentFileSize, position + data.Length);
+                }
             }
         }
 
