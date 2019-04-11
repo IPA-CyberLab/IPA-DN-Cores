@@ -45,6 +45,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class JsonRpcServerSettings
+        {
+            public static readonly Copenhagen<int> DefaultMaxRequestBodyLen = 100 * 1024 * 1024; // 100 MB
+        }
+    }
+
     class JsonRpcException : Exception
     {
         public JsonRpcError RpcError { get; }
@@ -501,9 +509,8 @@ namespace IPA.Cores.Basic
 
     class JsonRpcServerConfig
     {
-        public int MaxRequestBodyLen { get; set; } = 100 * 1024 * 1024;
+        public int MaxRequestBodyLen { get; set; } = AppConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     }
-
 
     abstract class JsonRpcClient
     {
