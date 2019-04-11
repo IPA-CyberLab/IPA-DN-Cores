@@ -373,8 +373,8 @@ namespace IPA.Cores.Basic
         BackupMode = 2,
         AutoCreateDirectory = 4,
         RandomAccessOnly = 8,
-        LargeFsAppendWithoutCrossBorder = 16,
-        LargeFsAppendNewLineForCrossBorder = 32,
+        LargeFs_AppendWithoutCrossBorder = 16,
+        LargeFs_AppendNewLineForCrossBorder = 32,
         ForceClearReadOnlyOrHiddenBitsOnNeed = 64,
         OnCreateSetCompressionFlag = 128,
         OnCreateRemoveCompressionFlag = 256,
@@ -709,13 +709,6 @@ namespace IPA.Cores.Basic
         }
 
         public override string ToString() => $"FileObject('{FileParams.Path}')";
-
-        protected virtual async Task InternalInitAsync(CancellationToken cancel = default)
-        {
-            this.LastError = null;
-
-            await Task.CompletedTask;
-        }
 
         public abstract Task<int> ReadAsync(Memory<byte> data, CancellationToken cancel = default);
         public abstract Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);

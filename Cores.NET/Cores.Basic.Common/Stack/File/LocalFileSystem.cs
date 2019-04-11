@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override Task<FileObjectBase> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
+        protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
             => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
@@ -514,7 +514,7 @@ namespace IPA.Cores.Basic
             // Try to open to retrieve the actual physical file
             if (flags.Bit(FileMetadataGetFlags.NoPreciseFileSize) == false)
             {
-                FileObjectBase f = null;
+                FileObject f = null;
                 try
                 {
                     f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
@@ -699,7 +699,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LocalFileObject : FileObjectBase
+    class LocalFileObject : FileObject
     {
         string _PhysicalFinalPath = null;
         public override string FinalPhysicalPath => _PhysicalFinalPath.FilledOrException();
@@ -710,7 +710,7 @@ namespace IPA.Cores.Basic
 
         long CurrentPosition;
 
-        public static async Task<FileObjectBase> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -739,7 +739,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task InternalInitAsync(CancellationToken cancel = default)
+        protected async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -825,7 +825,7 @@ namespace IPA.Cores.Basic
 
                 this.CurrentPosition = fileStream.Position;
 
-                await base.InternalInitAsync(cancel);
+                await InitAndCheckFileSizeAndPositionAsync(this.CurrentPosition, cancel);
             }
             catch
             {
@@ -845,14 +845,6 @@ namespace IPA.Cores.Basic
             await Task.CompletedTask;
         }
 
-        protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
-        {
-            await Task.CompletedTask;
-            long ret = fileStream.Position;
-            Debug.Assert(this.CurrentPosition == ret);
-            return ret;
-        }
-
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
@@ -869,7 +861,7 @@ namespace IPA.Cores.Basic
             await fileStream.FlushAsync(cancel);
         }
 
-        protected override async Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
         {
             checked
             {
@@ -890,7 +882,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             checked
             {

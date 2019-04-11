@@ -53,6 +53,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\Utf8BomViewFs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ViewFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32Api.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32ApiUtil.cs" />

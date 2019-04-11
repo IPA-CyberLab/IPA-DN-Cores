@@ -67,7 +67,7 @@ namespace IPA.TestDev
 
             LLfs.EnumDirectory(dirName).PrintAsJson();
 
-            var flag = FileOperationFlags.LargeFsAppendNewLineForCrossBorder;
+            var flag = FileOperationFlags.LargeFs_AppendNewLineForCrossBorder;
             LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "01234567".GetBytes_Ascii(), flag);
             LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "8".GetBytes_Ascii(), flag);
             LLfs.AppendToFile(@"D:\tmp\LargeTest\a.txt", "abcdefg".GetBytes_Ascii(), flag);

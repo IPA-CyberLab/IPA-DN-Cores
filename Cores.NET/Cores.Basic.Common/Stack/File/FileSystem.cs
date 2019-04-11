@@ -68,11 +68,11 @@ namespace IPA.Cores.Basic
         public FileSystemException(string message) : base(message) { }
     }
 
-    abstract class FileObjectBase : FileBase
+    abstract class FileObject : FileBase
     {
         public FileSystemBase FileSystem { get; }
-        public override bool IsOpened => !this.ClosedFlag.IsSet;
-        public override Exception LastError { get; protected set; } = null;
+        public sealed override bool IsOpened => !this.ClosedFlag.IsSet;
+        public sealed override Exception LastError { get; protected set; } = null;
 
         public int MicroOperationSize { get; set; } = AppConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
 
@@ -83,18 +83,18 @@ namespace IPA.Cores.Basic
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
-        protected FileObjectBase(FileSystemBase fileSystem, FileParameters fileParams) : base(fileParams)
+        protected FileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileParams)
         {
             this.FileSystem = fileSystem;
         }
 
         public override string ToString() => $"FileObject('{FileParams.Path}')";
 
-        protected override async Task InternalInitAsync(CancellationToken cancel = default)
+        protected async Task InitAndCheckFileSizeAndPositionAsync(long initialPosition, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
             {
-                this.InternalPosition = await GetCurrentPositionImplAsync(operationCancel);
+                this.InternalPosition = initialPosition;
                 this.InternalFileSize = await GetFileSizeImplAsync(operationCancel);
 
                 if (this.InternalPosition > this.InternalFileSize)
@@ -105,16 +105,13 @@ namespace IPA.Cores.Basic
 
                 if (this.InternalFileSize < 0)
                     throw new FileException(this.FileParams.Path, $"Current filesize is invalid. Current filesize: {this.InternalFileSize}.");
-
-                await base.InternalInitAsync(operationCancel);
             }
         }
 
-        protected abstract Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default);
-        protected abstract Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        protected abstract Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default);
+        protected abstract Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
         protected abstract Task<long> GetFileSizeImplAsync(CancellationToken cancel = default);
         protected abstract Task SetFileSizeImplAsync(long size, CancellationToken cancel = default);
-        protected abstract Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default);
         protected abstract Task FlushImplAsync(CancellationToken cancel = default);
         protected abstract Task CloseImplAsync();
 
@@ -166,7 +163,7 @@ namespace IPA.Cores.Basic
                             {
                                 int r = await TaskUtil.DoMicroReadOperations(async (target, pos, c) =>
                                 {
-                                    return await ReadImplAsync(pos, target, c);
+                                    return await ReadRandomImplAsync(pos, target, c);
                                 },
                                 data, MicroOperationSize, this.InternalPosition, operationCancel);
 
@@ -239,7 +236,7 @@ namespace IPA.Cores.Basic
                             {
                                 int r = await TaskUtil.DoMicroReadOperations(async (target, pos, c) =>
                                 {
-                                    return await ReadImplAsync(pos, target, c);
+                                    return await ReadRandomImplAsync(pos, target, c);
                                 },
                                 data, MicroOperationSize, position, operationCancel);
 
@@ -297,7 +294,7 @@ namespace IPA.Cores.Basic
 
                             await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
                             {
-                                await WriteImplAsync(pos, target, c);
+                                await WriteRandomImplAsync(pos, target, c);
                             },
                             data, MicroOperationSize, this.InternalPosition, operationCancel);
 
@@ -358,7 +355,7 @@ namespace IPA.Cores.Basic
 
                             await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
                             {
-                                await WriteImplAsync(pos, target, c);
+                                await WriteRandomImplAsync(pos, target, c);
                             },
                             data, MicroOperationSize, position, operationCancel);
 
@@ -968,11 +965,11 @@ namespace IPA.Cores.Basic
 
         public LargeFileSystem LargeFileSystem { get; }
 
-        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemMetrics) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemPathInterpreter) : base(lady)
         {
             try
             {
-                this.PathInterpreter = fileSystemMetrics;
+                this.PathInterpreter = fileSystemPathInterpreter;
                 DirectoryWalker = new DirectoryWalker(this);
 
                 ObjectPoolForRead = new FileSystemObjectPool(this, false, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
@@ -1042,7 +1039,7 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
 
-        protected abstract Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
+        protected abstract Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default);
         protected abstract Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
 
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
@@ -1077,7 +1074,7 @@ namespace IPA.Cores.Basic
         public string NormalizePath(string path, CancellationToken cancel = default)
             => NormalizePathAsync(path, cancel).GetResult();
 
-        public async Task<FileObjectBase> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
+        public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1105,7 +1102,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    FileObjectBase f = await CreateFileImplAsync(option, opCancel);
+                    FileObject f = await CreateFileImplAsync(option, opCancel);
 
                     lock (LockObj)
                     {
@@ -1126,38 +1123,38 @@ namespace IPA.Cores.Basic
                 case FileObjectEventType.Closed:
                     lock (LockObj)
                     {
-                        OpenedHandleList.Remove(obj as FileObjectBase);
+                        OpenedHandleList.Remove(obj as FileObject);
                     }
                     break;
             }
         }
 
-        public FileObjectBase CreateFile(FileParameters option, CancellationToken cancel = default)
+        public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
             => CreateFileAsync(option, cancel).GetResult();
 
-        public Task<FileObjectBase> CreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public Task<FileObject> CreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, doNotOverwrite ? FileMode.CreateNew : FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
-        public FileObjectBase Create(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public FileObject Create(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => CreateAsync(path, noShare, flags, doNotOverwrite, cancel).GetResult();
 
-        public Task<FileObjectBase> OpenAsync(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
                 (noShare ? FileShare.None : ((writeMode || readLock) ? FileShare.Read : (FileShare.ReadWrite | FileShare.Delete))), flags), cancel);
 
-        public FileObjectBase Open(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public FileObject Open(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenAsync(path, writeMode, noShare, readLock, flags, cancel).GetResult();
 
-        public Task<FileObjectBase> OpenOrCreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObject> OpenOrCreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
-        public FileObjectBase OpenOrCreate(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public FileObject OpenOrCreate(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
 
-        public Task<FileObjectBase> OpenOrCreateAppendAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public Task<FileObject> OpenOrCreateAppendAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Append, FileAccess.Write, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
-        public FileObjectBase OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public FileObject OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
 
         public async Task WriteToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)

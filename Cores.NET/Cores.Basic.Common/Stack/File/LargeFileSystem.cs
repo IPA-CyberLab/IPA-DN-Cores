@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileObject : FileObjectBase
+    class LargeFileObject : FileObject
     {
         public class Cursor
         {
@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
             this.InitialRelatedFiles = relatedFiles;
         }
 
-        public static async Task<FileObjectBase> CreateFileAsync(LargeFileSystem fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles, CancellationToken cancel = default)
+        public static async Task<FileObject> CreateFileAsync(LargeFileSystem fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
             return f;
         }
 
-        protected override async Task InternalInitAsync(CancellationToken cancel = default)
+        protected async Task InternalInitAsync(CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
                     this.CurrentPosition = this.CurrentFileSize;
                 }
 
-                await base.InternalInitAsync(cancel);
+                await InitAndCheckFileSizeAndPositionAsync(this.CurrentPosition, cancel);
             }
             catch
             {
@@ -234,13 +234,6 @@ namespace IPA.Cores.Basic
             {
                 await handle.FlushAsync(cancel);
             }
-        }
-
-        protected override async Task<long> GetCurrentPositionImplAsync(CancellationToken cancel = default)
-        {
-            await Task.CompletedTask;
-
-            return this.CurrentPosition;
         }
 
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
@@ -289,7 +282,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task<int> ReadImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
         {
             checked
             {
@@ -352,7 +345,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task WriteImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             checked
             {
@@ -360,7 +353,7 @@ namespace IPA.Cores.Basic
 
                 List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
 
-                if (this.FileParams.Flags.BitAny(FileOperationFlags.LargeFsAppendWithoutCrossBorder | FileOperationFlags.LargeFsAppendNewLineForCrossBorder)
+                if (this.FileParams.Flags.BitAny(FileOperationFlags.LargeFs_AppendWithoutCrossBorder | FileOperationFlags.LargeFs_AppendNewLineForCrossBorder)
                     && position == this.CurrentFileSize && cursorList.Count >= 2)
                 {
                     // Crossing the border when the LargeFileSystemAppendWithCrossBorder flag is set
@@ -383,7 +376,7 @@ namespace IPA.Cores.Basic
                         {
                             // Write the zero-cleared block toward the end of the first physical file
                             byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
-                            if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFsAppendNewLineForCrossBorder))
+                            if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFs_AppendNewLineForCrossBorder))
                             {
                                 if (appendBytes.Length >= 2)
                                 {
@@ -655,7 +648,7 @@ namespace IPA.Cores.Basic
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
             => this.UnderlayFileSystem.NormalizePathAsync(path, cancel);
 
-        protected override async Task<FileObjectBase> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             string fileName = this.PathInterpreter.GetFileName(option.Path);
             if (fileName.IndexOf(Params.SplitStr) != -1)
