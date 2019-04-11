@@ -14,9 +14,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\JsonHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\TaskVmWithJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\UtilWithJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApiWithJson.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)WebApi\" />
   </ItemGroup>
 </Project>
