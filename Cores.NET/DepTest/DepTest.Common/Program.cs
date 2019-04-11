@@ -8,11 +8,14 @@ namespace DepTest.Common
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
-
-            Con.WriteLine("Hello Neko!");
-
-            LeakChecker.Print();
+            try
+            {
+                Con.WriteLine("Hello Neko!");
+            }
+            finally
+            {
+                LeakChecker.Print();
+            }
         }
     }
 }
