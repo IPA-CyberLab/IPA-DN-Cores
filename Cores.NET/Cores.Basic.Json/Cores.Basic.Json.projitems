@@ -14,8 +14,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\JsonHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\TaskVmJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\UtilJson.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JsonRpcClient\JsonRpc.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JsonRpcClient\LogDef\LogDef.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JsonRpc\JsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JsonRpc\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApiJson.cs" />
   </ItemGroup>
