@@ -1258,12 +1258,12 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したデータに BOM が付いているかどうか判別する
-        public static Encoding CheckBOM(byte[] data)
+        public static Encoding CheckBOM(ReadOnlySpan<byte> data)
         {
             int i;
             return CheckBOM(data, out i);
         }
-        public static Encoding CheckBOM(byte[] data, out int bomNumBytes)
+        public static Encoding CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
             try
@@ -1305,7 +1305,13 @@ namespace IPA.Cores.Basic
         }
 
         // Encoding の種類に応じた適切な BOM を取得する
-        public static byte[] GetBOM(Encoding encoding)
+        public static readonly ReadOnlyMemory<byte> BOM_UTF_32BE = new byte[] { 0x00, 0x00, 0xfe, 0xff };
+        public static readonly ReadOnlyMemory<byte> BOM_UTF_32 = new byte[] { 0xff, 0xfe, 0x00, 0x00 };
+        public static readonly ReadOnlyMemory<byte> BOM_UTF_16BE = new byte[] { 0xfe, 0xff };
+        public static readonly ReadOnlyMemory<byte> BOM_UTF_16 = new byte[] { 0xff, 0xfe };
+        public static readonly ReadOnlyMemory<byte> BOM_UTF_8 = new byte[] { 0xef, 0xbb, 0xbf };
+
+        public static ReadOnlySpan<byte> GetBOMSpan(Encoding encoding)
         {
             string name = "";
             try
@@ -1316,31 +1322,29 @@ namespace IPA.Cores.Basic
             {
                 name = encoding.WebName;
             }
-            
+
             if (Str.StrCmpi(name, "utf-32BE"))
-            {
-                return new byte[] { 0x00, 0x00, 0xfe, 0xff };
-            }
+                return BOM_UTF_32BE.Span;
             else if (Str.StrCmpi(name, "utf-32"))
-            {
-                return new byte[] { 0xff, 0xfe, 0x00, 0x00 };
-            }
+                return BOM_UTF_32.Span;
             else if (Str.StrCmpi(name, "utf-16"))
-            {
-                return new byte[] { 0xff, 0xfe };
-            }
+                return BOM_UTF_16.Span;
             else if (Str.StrCmpi(name, "utf-16BE") || Str.StrCmpi(name, "unicodeFFFE"))
-            {
-                return new byte[] { 0xfe, 0xff };
-            }
+                return BOM_UTF_16BE.Span;
             else if (Str.StrCmpi(name, "utf-8"))
-            {
-                return new byte[] { 0xef, 0xbb, 0xbf };
-            }
-            else
-            {
+                return BOM_UTF_8.Span;
+
+            return null;
+        }
+
+        public static byte[] GetBOM(Encoding encoding)
+        {
+            var span = GetBOMSpan(encoding);
+
+            if (span.IsEmpty)
                 return null;
-            }
+
+            return span.ToArray();
         }
 
         // テキストファイルを強制的に指定したエンコーディングにエンコードする
@@ -1419,42 +1423,38 @@ namespace IPA.Cores.Basic
         }
 
         // 受信した byte[] 配列を自動的にエンコーディング検出して string に変換する
-        public static string DecodeStringAutoDetect(byte[] data, out Encoding detectedEncoding)
+        public static string DecodeStringAutoDetect(ReadOnlySpan<byte> data, out Encoding detectedEncoding)
         {
             int bomSize;
             detectedEncoding = Str.GetEncoding(data, out bomSize);
             if (detectedEncoding == null)
-            {
                 detectedEncoding = Encoding.UTF8;
-            }
 
-            data = Util.RemoveStartByteArray(data, bomSize);
+            data = data.Slice(bomSize);
 
             return detectedEncoding.GetString(data);
         }
 
         // 文字列をデコードする (BOM があれば BOM に従う)
-        public static string DecodeString(byte[] data, Encoding defaultEncoding, out Encoding detectedEncoding)
+        public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding)
         {
             int bomSize;
             detectedEncoding = CheckBOM(data, out bomSize);
             if (detectedEncoding == null)
-            {
                 detectedEncoding = defaultEncoding;
-            }
 
-            data = Util.RemoveStartByteArray(data, bomSize);
+            data = data.Slice(bomSize);
 
             return detectedEncoding.GetString(data);
         }
 
         // テキストファイルのエンコーディングを取得する
-        public static Encoding GetEncoding(byte[] data)
+        public static Encoding GetEncoding(ReadOnlySpan<byte> data)
         {
             int i;
             return GetEncoding(data, out i);
         }
-        public static Encoding GetEncoding(byte[] data, out int bomSize)
+        public static Encoding GetEncoding(ReadOnlySpan<byte> data, out int bomSize)
         {
             const byte bESC = 0x1B;
             const byte bAT = 0x40;
@@ -4560,11 +4560,11 @@ namespace IPA.Cores.Basic
             }
         }
         // バイト列を 16 進数文字列に変換
-        public static string ByteToHex(byte[] data)
+        public static string ByteToHex(ReadOnlySpan<byte> data)
         {
             return ByteToHex(data, "");
         }
-        public static string ByteToHex(byte[] data, string paddingStr)
+        public static string ByteToHex(ReadOnlySpan<byte> data, string paddingStr)
         {
             StringBuilder ret = new StringBuilder();
 
@@ -4946,15 +4946,15 @@ namespace IPA.Cores.Basic
                 return NormalizeCrlfUnix(str);
             }
         }
-        public static byte[] NormalizeCrlfWindows(byte[] str)
+        public static byte[] NormalizeCrlfWindows(ReadOnlySpan<byte> str)
         {
             return NormalizeCrlf(str, new byte[] { 13, 10 });
         }
-        public static byte[] NormalizeCrlfUnix(byte[] str)
+        public static byte[] NormalizeCrlfUnix(ReadOnlySpan<byte> str)
         {
             return NormalizeCrlf(str, new byte[] { 10 });
         }
-        public static byte[] NormalizeCrlfThisPlatform(byte[] str)
+        public static byte[] NormalizeCrlfThisPlatform(ReadOnlySpan<byte> str)
         {
             if (Env.IsWindows)
             {
@@ -4975,11 +4975,11 @@ namespace IPA.Cores.Basic
             byte[] destData = NormalizeCrlf(srcData, crlfData);
             return Str.Utf8Encoding.GetString(destData);
         }
-        public static byte[] NormalizeCrlf(byte[] srcData)
+        public static byte[] NormalizeCrlf(ReadOnlySpan<byte> srcData)
         {
             return NormalizeCrlf(srcData, new byte[] { 13, 10 });
         }
-        public static byte[] NormalizeCrlf(byte[] srcData, byte[] crlfData)
+        public static byte[] NormalizeCrlf(ReadOnlySpan<byte> srcData, byte[] crlfData)
         {
             Buf ret = new Buf();
 

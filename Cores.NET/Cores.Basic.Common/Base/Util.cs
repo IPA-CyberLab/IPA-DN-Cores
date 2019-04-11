@@ -973,7 +973,7 @@ namespace IPA.Cores.Basic
             }
             return true;
         }
-        public static bool IsZero(Span<byte> data)
+        public static bool IsZero(ReadOnlySpan<byte> data)
         {
             int i;
             for (i = 0; i <data.Length; i++)
@@ -985,7 +985,7 @@ namespace IPA.Cores.Basic
             }
             return true;
         }
-        public static bool IsZero(Memory<byte> data) => IsZero(data.Span);
+        public static bool IsZero(ReadOnlyMemory<byte> data) => IsZero(data.Span);
 
         // byte[] 配列同士を比較する
         public static bool CompareByte(byte[] b1, byte[] b2)
@@ -1255,11 +1255,11 @@ namespace IPA.Cores.Basic
         }
 
         // バイナリをオブジェクトに変換する
-        public static object BinaryToObject(byte[] data)
+        public static object BinaryToObject(ReadOnlySpan<byte> data)
         {
             BinaryFormatter f = new BinaryFormatter();
             MemoryStream ms = new MemoryStream();
-            ms.Write(data, 0, data.Length);
+            ms.Write(data);
             ms.Position = 0;
 
             return f.Deserialize(ms);

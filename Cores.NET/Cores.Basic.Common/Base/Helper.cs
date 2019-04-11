@@ -70,7 +70,25 @@ namespace IPA.Cores.Helper.Basic
         public static string GetString(this byte[] byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
         public static string GetString(this byte[] byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
 
+        public static string GetString_UTF8(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
+        public static string GetString_UTF16LE(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.UniEncoding, out _);
+        public static string GetString_ShiftJis(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
+        public static string GetString_Ascii(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
+        public static string GetString_Euc(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
+        public static string GetString(this ReadOnlySpan<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
+        public static string GetString(this ReadOnlySpan<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
+
+        public static string GetString_UTF8(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
+        public static string GetString_UTF16LE(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.UniEncoding, out _);
+        public static string GetString_ShiftJis(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
+        public static string GetString_Ascii(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
+        public static string GetString_Euc(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
+        public static string GetString(this Span<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
+        public static string GetString(this Span<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
+
         public static string GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
+        public static string GetHexString(this Span<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
+        public static string GetHexString(this ReadOnlySpan<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static byte[] GetHexBytes(this string str) => Str.HexToByte(str);
 
         public static bool ToBool(this string str) => Str.StrToBool(str);
@@ -174,9 +192,17 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
         public static bool IsPrintableAndSafe(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsPrintableAndSafe(c, crlIsOk, html_tag_ng);
 
-        public static byte[] NormalizeCrlfWindows(this byte[] s) => Str.NormalizeCrlfWindows(s);
-        public static byte[] NormalizeCrlfUnix(this byte[] s) => Str.NormalizeCrlfUnix(s);
-        public static byte[] NormalizeCrlfThisPlatform(this byte[] s) => Str.NormalizeCrlfThisPlatform(s);
+        //public static byte[] NormalizeCrlfWindows(this Span<byte> s) => Str.NormalizeCrlfWindows(s);
+        //public static byte[] NormalizeCrlfUnix(this Span<byte> s) => Str.NormalizeCrlfUnix(s);
+        //public static byte[] NormalizeCrlfThisPlatform(this Span<byte> s) => Str.NormalizeCrlfThisPlatform(s);
+
+        //public static byte[] NormalizeCrlfWindows(this ReadOnlySpan<byte> s) => Str.NormalizeCrlfWindows(s);
+        //public static byte[] NormalizeCrlfUnix(this ReadOnlySpan<byte> s) => Str.NormalizeCrlfUnix(s);
+        //public static byte[] NormalizeCrlfThisPlatform(this ReadOnlySpan<byte> s) => Str.NormalizeCrlfThisPlatform(s);
+
+        //public static byte[] NormalizeCrlfWindows(this byte[] s) => Str.NormalizeCrlfWindows(s);
+        //public static byte[] NormalizeCrlfUnix(this byte[] s) => Str.NormalizeCrlfUnix(s);
+        //public static byte[] NormalizeCrlfThisPlatform(this byte[] s) => Str.NormalizeCrlfThisPlatform(s);
 
         public static byte[] CloneByte(this byte[] a) => Util.CopyByte(a);
         public static byte[] CombineByte(this byte[] a, byte[] b) => Util.CombineByteArray(a, b);
@@ -195,6 +221,8 @@ namespace IPA.Cores.Helper.Basic
         public static string Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] ObjectToBinary(this object o) => Util.ObjectToBinary(o);
+        public static object BinaryToObject(this ReadOnlySpan<byte> b) => Util.BinaryToObject(b);
+        public static object BinaryToObject(this Span<byte> b) => Util.BinaryToObject(b);
         public static object BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
         public static void ObjectToXml(this object obj, MemoryBuffer<byte> dst) => Util.ObjectToXml(obj, dst);
         public static byte[] ObjectToXml(this object obj) => Util.ObjectToXml(obj);
@@ -441,10 +469,6 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static byte[] AsciiToByteArray(this object o) => Encoding.ASCII.GetBytes(o.ToString());
-
-        public static string ByteArrayToAscii(this byte[] d) => Encoding.ASCII.GetString(d);
-
         public static void DisposeSafe(this IDisposable obj)
         {
             try
@@ -552,7 +576,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool IsZero(this byte[] data) => Util.IsZero(data);
         public static bool IsZero(this byte[] data, int offset, int size) => Util.IsZero(data, offset, size);
+        public static bool IsZero(this ReadOnlySpan<byte> data) => Util.IsZero(data);
         public static bool IsZero(this Span<byte> data) => Util.IsZero(data);
+        public static bool IsZero(this ReadOnlyMemory<byte> data) => Util.IsZero(data);
         public static bool IsZero(this Memory<byte> data) => Util.IsZero(data);
 
         public static bool IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
