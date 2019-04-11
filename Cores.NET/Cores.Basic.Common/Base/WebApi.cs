@@ -55,7 +55,7 @@ namespace IPA.Cores.Basic
         public abstract void CheckError();
     }
 
-    class WebRet
+    partial class WebRet
     {
         public string Url { get; }
         public string ContentsType { get; }
@@ -103,39 +103,12 @@ namespace IPA.Cores.Basic
 
             if (this.Api.DebugPrintResponse)
             {
-                Json.Normalize(this.ToString()).Debug();
+                this.DebugObject();
             }
         }
 
         public override string ToString() => this.Data.GetString(this.DefaultEncoding);
         public string ToString(Encoding encoding) => this.Data.GetString(encoding);
-
-        dynamic jsonDynamic = null;
-        public dynamic JsonDynamic
-        {
-            get
-            {
-                if (jsonDynamic == null)
-                {
-                    jsonDynamic = Json.DeserializeDynamic(this.ToString());
-                }
-                return jsonDynamic;
-            }
-        }
-
-        public T Deserialize<T>()
-        {
-            return Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.MaxDepth);
-        }
-
-        public T DeserializeAndCheckError<T>() where T : WebResponseBasic
-        {
-            T t = Deserialize<T>();
-
-            t.CheckError();
-
-            return t;
-        }
     }
 
     enum WebApiMethods
@@ -146,7 +119,7 @@ namespace IPA.Cores.Basic
         PUT,
     }
 
-    class WebApi : IDisposable
+    partial class WebApi : IDisposable
     {
         public const int DefaultTimeoutMsecs = 60 * 1000;
         public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
@@ -157,10 +130,6 @@ namespace IPA.Cores.Basic
         public bool UseProxy { get; set; } = true;
         public List<string> SslAcceptCertSHA1HashList { get; set; } = new List<string>();
         public Encoding RequestEncoding { get; set; } = Str.Utf8Encoding;
-
-        public bool Json_IncludeNull { get; set; } = false;
-        public bool Json_EscapeHtml { get; set; } = false;
-        public int? MaxDepth { get; set; } = Json.DefaultMaxDepth;
 
         public bool DebugPrintResponse { get; set; } = false;
 
@@ -333,21 +302,6 @@ namespace IPA.Cores.Basic
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
             }
-        }
-
-        public string JsonSerialize(object obj)
-        {
-            return Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.MaxDepth);
-        }
-
-        public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject)
-        {
-            return await RequestWithJson(method, url, this.JsonSerialize(jsonObject));
-        }
-
-        public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic)
-        {
-            return await RequestWithJson(method, url, Json.SerializeDynamic(jsonDynamic));
         }
 
         Once DisposeFlag;
