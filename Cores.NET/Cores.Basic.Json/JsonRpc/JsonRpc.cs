@@ -367,6 +367,10 @@ namespace IPA.Cores.Basic
                 try
                 {
                     object retObj = await this.Api.InvokeMethod(req.Method, inObj, method);
+                    if (method.IsGenericTask == false)
+                    {
+                        retObj = null;
+                    }
                     return new JsonRpcResponseOk()
                     {
                         Id = req.Id,
@@ -755,15 +759,23 @@ namespace IPA.Cores.Basic
                 Task<object> ret = GetResponseObjectAsync(callRet);
 
                 var returnType = invocation.Method.ReturnType;
-                if (returnType.IsGenericType == false) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
-                if (returnType.BaseType != typeof(Task)) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
 
-                var genericArgs = returnType.GetGenericArguments();
-                if (genericArgs.Length != 1) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
-                var task_return_type = genericArgs[0];
+                if (returnType == typeof(Task))
+                {
+                    invocation.ReturnValue = ret;
+                }
+                else
+                {
+                    if (returnType.IsGenericType == false) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
+                    if (returnType.BaseType != typeof(Task)) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
 
-                invocation.ReturnValue = TaskUtil.ConvertTask(ret, typeof(object), task_return_type);
-                //Dbg.WhereThread(v.Method.Name);
+                    var genericArgs = returnType.GetGenericArguments();
+                    if (genericArgs.Length != 1) throw new ApplicationException($"The return type of the method '{invocation.Method.Name}' is not a Task<>.");
+                    var taskReturnType = genericArgs[0];
+
+                    invocation.ReturnValue = TaskUtil.ConvertTask(ret, typeof(object), taskReturnType);
+                    //Dbg.WhereThread(v.Method.Name);
+                }
             }
 
             async Task<object> GetResponseObjectAsync(Task<JsonRpcResponse<object>> o)
