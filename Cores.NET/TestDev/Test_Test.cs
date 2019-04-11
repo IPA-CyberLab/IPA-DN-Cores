@@ -51,23 +51,23 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            LocalFs.EnumDirectory(@"D:\tmp\190409").PrintAsJson();
+            string dirName = @"D:\tmp\LargeTest";
+            //for (int nFile = 0; nFile < 10; nFile++)
+            //{
+            //    string largeFileName = LLfs.PathInterpreter.Combine(dirName, $"file{nFile}");
 
-            using (var f = LocalFs.Open(@"D:\tmp\190409\a.dat", writeMode: true))
-            {
-                var r = f.GetRandomAccessHandle();
+            //    using (var randomHandle = LLfs.GetRandomAccessHandle(largeFileName, true))
+            //    {
+            //        for (int j = 0; j < 10; j++)
+            //        {
+            //            randomHandle.WriteRandom(Util.RandSInt63() % 20_000_000_000, "Hello".GetBytes_Ascii());
+            //        }
+            //    }
+            //}
 
-                int count = 0;
-                for (long offset = 1_000_000_000_000_0; ; offset += 1_000_000)
-                {
-                    r.WriteRandom(offset, "Hello".GetBytes_Ascii());
-                    Con.WriteLine(count++);
-                }
-                r.WriteRandom(500000000, "Hello".GetBytes_Ascii());
-                r.WriteRandom(1000000000, "Hello".GetBytes_Ascii());
-                r.WriteRandom(17_000_000_000_000, "Hello".GetBytes_Ascii());
-                r.WriteRandom(10000000000, new byte[100_000_000]);
-            }
+            LLfs.EnumDirectory(dirName).PrintAsJson();
+
+            LLfs.ReadFromFile(@"D:\tmp\LargeTest\file0", 4096).ToArray().GetString_UTF8().Print();
 
             return;
 
@@ -78,7 +78,7 @@ namespace IPA.TestDev
             //LocalFs.AppendToFile(@"C:\TMP\190409\test.txt", "Hello".GetBytes_Ascii());//, flags: FileOperationFlags.RemoveCompressionFlagOnCreate);
             //LocalFs.SetDirectoryMetadata(@"C:\tmp\20190209_020212.pcap987937.pcap", new FileMetadata(false, specialOperation: FileSpecialOperationFlags.SetCompressionFlag));
 
-            LocalFs.EnumDirectory(@"c:\tmp", false).Where(x => x.Name.EndsWith(".dat")).PrintAsJson();
+            Lfs.EnumDirectory(@"c:\tmp", false).Where(x => x.Name.EndsWith(".dat")).PrintAsJson();
 
             //Win32Api.Kernel32.GetCompressedFileSize(@"C:\tmp\20190209_020212.pcap987937.pcap").Print();
 
@@ -90,14 +90,14 @@ namespace IPA.TestDev
             string alt1 = @"C:\tmp\acl_test2\1.exe";
             string alt2 = @"C:\tmp\acl_test2\2.exe";
 
-            LocalFs.EnableBackupPrivilege();
+            Lfs.EnableBackupPrivilege();
 
             //var meta1 = Lfs.GetFileMetadata(alt1);
             //Lfs.SetFileMetadata(alt2, meta1.Clone(FileMetadataCopyMode.AlternateStream));
             //Con.WriteJsonLine(meta1);
 
             //Lfs.CopyFile(@"C:\tmp\acl_test2\1.exe", @"C:\tmp\acl_test2\3.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode));
-            LocalFs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
+            Lfs.CopyFile(@"C:\tmp\acl_test2\2.exe", @"C:\tmp\acl_test2\4.exe", new CopyFileParams(overwrite: true, flags: FileOperationFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
 
             return;
 
@@ -129,7 +129,7 @@ namespace IPA.TestDev
 
             //return;
 
-            LocalFs.EnableBackupPrivilege();
+            Lfs.EnableBackupPrivilege();
 
             //string aclFileName = @"c:\tmp\test.htm";
             //Lfs.AppendToFile(@"C:\tmp\a.dat", "Hello".GetBytes_Ascii());
@@ -143,20 +143,20 @@ namespace IPA.TestDev
             //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false));
             //Con.WriteJsonLine(PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", false));
 
-            LocalFs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, LocalFs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
+            Lfs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, Lfs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
 
             return;
 
-            LocalFs.EnableBackupPrivilege();
+            Lfs.EnableBackupPrivilege();
 
             //            Lfs.DeleteFile(@"C:\tmp\acl_test\test3.txt");
             //            return;
 
             string fn = @"c:\tmp\test.htm";
 
-            LocalFs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
+            Lfs.AppendToFile(fn, "xxx".GetBytes_UTF8(), FileOperationFlags.BackupMode);
 
-            var m1 = LocalFs.GetFileMetadata(fn);
+            var m1 = Lfs.GetFileMetadata(fn);
 
             Con.WriteLine(m1.ObjectToJson());
 
@@ -165,15 +165,15 @@ namespace IPA.TestDev
             m1.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
             m1.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
 
-            LocalFs.SetFileMetadata(fn, m1);
+            Lfs.SetFileMetadata(fn, m1);
 
-            var m2 = LocalFs.GetDirectoryMetadata(@"C:\TMP\acl_test\dir1");
+            var m2 = Lfs.GetDirectoryMetadata(@"C:\TMP\acl_test\dir1");
             Con.WriteLine(m2.ObjectToJson());
             m2.Attributes = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReadOnly;
             m2.CreationTime = DateTimeOffset.Now.AddYears(-1);
             m2.LastWriteTime = DateTimeOffset.Now.AddYears(-2);
             m2.LastAccessTime = DateTimeOffset.Now.AddYears(-3);
-            LocalFs.SetDirectoryMetadata(@"C:\TMP\acl_test\dir1", m2);
+            Lfs.SetDirectoryMetadata(@"C:\TMP\acl_test\dir1", m2);
 
             //byte[] xxx = Lfs.ReadFromFile(fn, flags: FileOperationFlags.BackupMode).ToArray();
             //Con.WriteLine(xxx.Length);
@@ -243,7 +243,7 @@ namespace IPA.TestDev
                 //return;
                 //LargeFileSystemParams p = new LargeFileSystemParams(30, 10000000);
                 LargeFileSystemParams p = new LargeFileSystemParams();
-                LargeFileSystem largeFs = new LargeFileSystem(lady, LocalFs, p);
+                LargeFileSystem largeFs = new LargeFileSystem(lady, Lfs, p);
 
                 //byte[] data = Str.MakeCharArray('x', 1).GetBytes_Ascii();
 
@@ -253,7 +253,7 @@ namespace IPA.TestDev
                 ////Con.WriteLine(data1.Length);
                 //Lfs.WriteToFile(@"c:\tmp\2.dat", data1);
 
-                LocalFs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
+                Lfs.CopyFile(@"C:\vm\vhd\xpaoe.vhdx", @"d:\tmp\190407\2/xpaoe.vhdx",
                     new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectory,
                     reporterFactory: CopyFileParams.ConsoleReporterFactory),
                     destFileSystem: largeFs);

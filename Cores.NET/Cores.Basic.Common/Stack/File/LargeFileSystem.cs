@@ -454,6 +454,12 @@ namespace IPA.Cores.Basic
             public string Extension { get; }
             public string PhysicalFilePath { get; }
             public string LogicalFilePath { get; }
+
+            string _PhysicalFileNameCache = null;
+            string _LogicalFileName = null;
+            public string PhysicalFileName => _PhysicalFileNameCache ?? (_PhysicalFileNameCache = LargeFileSystem.PathInterpreter.GetFileName(this.PhysicalFilePath));
+            public string LogicalFileName => _LogicalFileName ?? (_LogicalFileName = LargeFileSystem.PathInterpreter.GetFileName(this.LogicalFilePath));
+
             public FileSystemEntity PhysicalEntity { get; }
 
             readonly LargeFileSystem LargeFileSystem;
@@ -602,6 +608,14 @@ namespace IPA.Cores.Basic
                 {
                     cancel.ThrowIfCancellationRequested();
 
+                    bool isSimplePhysicalFileExists = await UnderlayFileSystem.IsFileExistsAsync(option.Path);
+
+                    if (isSimplePhysicalFileExists)
+                    {
+                        // If there is a simple physical file, open it.
+                        return await UnderlayFileSystem.CreateFileAsync(option, cancel);
+                    }
+
                     ParsedPath[] relatedFiles = await GetPhysicalFileStateInternal(option.Path, operationCancel);
 
                     return await LargeFileObject.CreateFileAsync(this, option, relatedFiles, operationCancel);
@@ -652,19 +666,23 @@ namespace IPA.Cores.Basic
                 sortedRelatedFiles.Reverse();
 
                 Dictionary<string, FileSystemEntity> parsedFileDictionaly = new Dictionary<string, FileSystemEntity>(PathInterpreter.PathStringComparer);
+                
+                var normalFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) == -1);
+                var normalFileHashSet = new HashSet<string>(normalFiles.Select(x => x.Name), PathInterpreter.PathStringComparer);
 
                 foreach (FileSystemEntity f in sortedRelatedFiles)
                 {
                     try
                     {
+                        // Split files
                         ParsedPath parsed = new ParsedPath(this, f.FullPath, f);
 
-                        if (parsedFileDictionaly.ContainsKey(parsed.LogicalFilePath) == false)
+                        if (parsedFileDictionaly.ContainsKey(parsed.LogicalFileName) == false)
                         {
                             var newFileEntity = new FileSystemEntity()
                             {
                                 FullPath = parsed.LogicalFilePath,
-                                Name = PathInterpreter.GetFileName(parsed.LogicalFilePath),
+                                Name = PathInterpreter.GetFileName(parsed.LogicalFileName),
                                 Size = f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
                                 PhysicalSize = f.PhysicalSize,
                                 Attributes = f.Attributes,
@@ -672,11 +690,11 @@ namespace IPA.Cores.Basic
                                 LastWriteTime = f.LastWriteTime,
                                 LastAccessTime = f.LastAccessTime,
                             };
-                            parsedFileDictionaly.Add(parsed.LogicalFilePath, newFileEntity);
+                            parsedFileDictionaly.Add(parsed.LogicalFileName, newFileEntity);
                         }
                         else
                         {
-                            var fileEntity = parsedFileDictionaly[parsed.LogicalFilePath];
+                            var fileEntity = parsedFileDictionaly[parsed.LogicalFileName];
 
                             fileEntity.PhysicalSize += f.PhysicalSize;
 
@@ -688,8 +706,13 @@ namespace IPA.Cores.Basic
                     catch { }
                 }
 
-                var retList = dirEntities.Where(x => x.IsDirectory).OrderBy(x => x.Name, PathInterpreter.PathStringComparer)
-                    .Concat(parsedFileDictionaly.Values.OrderBy(x => x.Name, PathInterpreter.PathStringComparer));
+                var logicalFiles = parsedFileDictionaly.Values.Where(x => normalFileHashSet.Contains(x.Name) == false);
+
+                var retList = dirEntities.Where(x => x.IsDirectory)
+                    .Concat(logicalFiles)
+                    .Concat(normalFiles)
+                    .OrderByDescending(x => x.IsDirectory)
+                    .ThenBy(x => x.Name);
 
                 return retList.ToArrayList();
             }
@@ -739,6 +762,13 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
+            // Try physical file first
+            try
+            {
+                return await UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
+            }
+            catch { }
+
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
             var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
@@ -749,7 +779,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                // File exists
+                // Large file exists
                 checked
                 {
                     FileMetadata ret = await UnderlayFileSystem.GetFileMetadataAsync(lastFileParsed.PhysicalFilePath, flags | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoAlternateStream, cancel);
@@ -770,13 +800,27 @@ namespace IPA.Cores.Basic
 
         protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
+            // Try physical file first
+            try
+            {
+                await UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
+                return;
+            }
+            catch { }
+
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
-            List<LargeFileSystem.ParsedPath> filesToDelete = physicalFiles.ToList();
+
+            if (physicalFiles.IsEmpty())
+            {
+                // File not found
+                throw new IOException($"The file '{path}' not found.");
+            }
+
             FileSystemObjectPool pool = UnderlayFileSystemPoolForWrite;
 
             await pool.EnumAndCloseHandlesAsync((key, file) =>
             {
-                if (filesToDelete.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathInterpreter.PathStringComparison)).Any())
+                if (physicalFiles.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathInterpreter.PathStringComparison)).Any())
                 {
                     return true;
                 }
@@ -784,7 +828,7 @@ namespace IPA.Cores.Basic
             },
             () =>
             {
-                foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
+                foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
                 {
                     UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
@@ -798,12 +842,24 @@ namespace IPA.Cores.Basic
 
         protected override async Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
+            // Try physical file first
+            try
+            {
+                await UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
+                return;
+            }
+            catch { }
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
-            List<LargeFileSystem.ParsedPath> filesToModify = physicalFiles.ToList();
+
+            if (physicalFiles.IsEmpty())
+            {
+                // File not found
+                throw new IOException($"The file '{path}' not found.");
+            }
 
             Exception exception = null;
 
-            foreach (var file in filesToModify.OrderBy(x => x.PhysicalFilePath, PathInterpreter.PathStringComparer))
+            foreach (var file in physicalFiles.OrderBy(x => x.PhysicalFilePath, PathInterpreter.PathStringComparer))
             {
                 cancel.ThrowIfCancellationRequested();
 

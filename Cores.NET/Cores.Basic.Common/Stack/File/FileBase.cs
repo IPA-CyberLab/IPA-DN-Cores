@@ -360,6 +360,9 @@ namespace IPA.Cores.Basic
 
         public void NormalizePath(FileSystemBase fileSystem, CancellationToken cancel = default)
             => NormalizePathAsync(fileSystem, cancel).GetResult();
+
+        public FileParameters Clone()
+            => (FileParameters)this.MemberwiseClone();
     }
 
     [Flags]

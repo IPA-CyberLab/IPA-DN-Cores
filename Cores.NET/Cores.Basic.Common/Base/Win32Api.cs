@@ -1067,7 +1067,7 @@ namespace IPA.Cores.Basic
             // (note that this is the effective default on CreateFile2)
             flagsAndAttributes |= (Win32Api.Kernel32.SecurityOptions.SECURITY_SQOS_PRESENT | Win32Api.Kernel32.SecurityOptions.SECURITY_ANONYMOUS);
 
-            using (LocalFs.EnterDisableMediaInsertionPrompt())
+            using (Lfs.EnterDisableMediaInsertionPrompt())
             {
                 return ValidateFileHandle(
                     Win32Api.Kernel32.CreateFile(_path, fAccess, share, mode, flagsAndAttributes), _path);
