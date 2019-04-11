@@ -9,7 +9,7 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Database", "..\
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Security", "..\Cores.Basic.Security\Cores.Basic.Security.shproj", "{23BA20A5-A273-462D-85F5-643287A39C33}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Web", "..\Cores.Basic.Web\Cores.Basic.Web.shproj", "{A2A7A5AF-5165-405F-BFC5-31C3CC3AB8EA}"
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.WebServer", "..\Cores.Basic.WebServer\Cores.Basic.WebServer.shproj", "{A2A7A5AF-5165-405F-BFC5-31C3CC3AB8EA}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Json", "..\Cores.Basic.Json\Cores.Basic.Json.shproj", "{9E437197-7FC4-4E8E-AC43-FD41EACB3687}"
 EndProject
@@ -27,7 +27,7 @@ Global
 		..\Cores.Basic.Html\Cores.Basic.Html.projitems*{6ebc798c-0969-41b5-b0e0-28914fb2d7f5}*SharedItemsImports = 13
 		..\Cores.Basic.Database\Cores.Basic.Database.projitems*{9c7f9935-f472-4a1f-8d15-ba824b371e05}*SharedItemsImports = 13
 		..\Cores.Basic.Json\Cores.Basic.Json.projitems*{9e437197-7fc4-4e8e-ac43-fd41eacb3687}*SharedItemsImports = 13
-		..\Cores.Basic.Web\Cores.Basic.Web.projitems*{a2a7a5af-5165-405f-bfc5-31c3cc3ab8ea}*SharedItemsImports = 13
+		..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems*{a2a7a5af-5165-405f-bfc5-31c3cc3ab8ea}*SharedItemsImports = 13
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -40,7 +40,7 @@
     <!-- Cores.Basic.Security -->
     <PackageReference Include="BouncyCastle.NetCore" Version="1.8.3" />
 
-    <!-- Cores.Basic.Web -->
+    <!-- Cores.Basic.WebServer -->
     <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.2.0" />
     <PackageReference Include="Castle.Core" Version="4.3.1" />
@@ -59,6 +59,6 @@
 
   <Import Project="..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
   
-  <Import Project="..\Cores.Basic.Web\Cores.Basic.Web.projitems" Label="Shared" />
+  <Import Project="..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems" Label="Shared" />
 
 </Project>

@@ -22,7 +22,7 @@
   </ItemGroup>
 ```
 
-## Cores.Basic.Web `->  Cores.Basic.Json`
+## Cores.Basic.WebServer `->  Cores.Basic.Json`
 ```
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
