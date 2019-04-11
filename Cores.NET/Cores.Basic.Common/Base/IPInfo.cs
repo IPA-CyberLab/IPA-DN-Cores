@@ -37,7 +37,7 @@ using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
-using static IPA.Cores.GlobalFunctions.Basic;
+using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {

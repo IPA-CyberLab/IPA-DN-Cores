@@ -45,11 +45,11 @@ using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
-using static IPA.Cores.GlobalFunctions.Basic;
+using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores
 {
-    static class GlobalFunctions
+    static class Globals
     {
         public static class Basic
         {

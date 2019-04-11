@@ -40,7 +40,7 @@ using System.IO;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
-using static IPA.Cores.GlobalFunctions.Basic;
+using static IPA.Cores.Globals.Basic;
 using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
