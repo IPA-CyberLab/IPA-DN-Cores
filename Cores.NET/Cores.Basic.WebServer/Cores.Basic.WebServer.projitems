@@ -10,8 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Base\HttpServer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\JsonRpcServer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\JsonRpcServerEasy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\HttpJsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\HttpJsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\WebHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\MsLogger.cs" />
