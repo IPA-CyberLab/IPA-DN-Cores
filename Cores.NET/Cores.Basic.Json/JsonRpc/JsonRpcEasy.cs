@@ -42,23 +42,17 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
+    abstract class EasyJsonRpcClient<TInterface> where TInterface : class
     {
-        HttpServer<JsonHttpRpcListener> HttpServer;
+        public JsonRpcHttpClient<TInterface> Client { get; }
+        public WebApi WebApi { get => this.Client.WebApi; }
+        public bool UseProxy { get => WebApi.UseProxy; set => WebApi.UseProxy = value; }
 
-        public EasyJsonRpcServer(HttpServerBuilderConfig httpConfig, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public TInterface Call { get => this.Client.Call; }
+
+        public EasyJsonRpcClient(string baseUrl)
         {
-            try
-            {
-                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig();
-
-                this.HttpServer = JsonHttpRpcListener.StartServer(httpConfig, rpc_cfg, this, lady, cancel);
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            this.Client = new JsonRpcHttpClient<TInterface>(baseUrl);
         }
     }
 }
