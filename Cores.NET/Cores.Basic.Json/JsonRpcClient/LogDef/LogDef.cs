@@ -45,15 +45,18 @@ namespace IPA.Cores.Basic
 {
     partial class LogTag
     {
-        public const string Kestrel = "Kestrel";
+        public const string JsonRpcRequestProcessor = "JsonRpcRequestProcessor";
     }
 
-
-    class MsLogData
+    class LogDefJsonRpc : ILogRecordTimeStamp
     {
-        public string TranscationId;
-        public int EventId;
-        public string Message;
-        public object Data;
+        [JsonIgnore]
+        public DateTimeOffset TimeStamp => ConnectedDateTime;
+
+        public DateTimeOffset ConnectedDateTime;
+        public LogDefIPEndPoints EndPoints;
+        public string RpcMethodName;
+        public bool RpcResultOk;
+        public JsonRpcError RpcError;
     }
 }
