@@ -9,11 +9,11 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Base\DebugWithJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\DebugJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Json.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\JsonHelper.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\TaskVmWithJson.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\UtilWithJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\TaskVmJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\UtilJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApiJson.cs" />
   </ItemGroup>

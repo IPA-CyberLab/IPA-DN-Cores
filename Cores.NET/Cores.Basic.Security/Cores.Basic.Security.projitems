@@ -10,7 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Base\Crypto.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\PackWithSecurity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\PackSecurity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Wpc.cs" />
   </ItemGroup>
   <ItemGroup>
