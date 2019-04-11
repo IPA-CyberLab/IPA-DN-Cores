@@ -231,7 +231,7 @@ namespace IPA.Cores.Basic
         static partial void InternalIsJsonSupported(ref bool ret);
 
         static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull = false, bool escapeHtml = false,
-            int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false);
+            int? maxDepth = 8, bool compact = false, bool referenceHandling = false);
 
         class ExceptionWrapper
         {

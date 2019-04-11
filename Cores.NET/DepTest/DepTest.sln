@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.168
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Common", "..\Cores.Basic.Common\Cores.Basic.Common.shproj", "{1C674893-7C84-4E7C-834E-6E2370225DA0}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Database", "..\Cores.Basic.Database\Cores.Basic.Database.shproj", "{9C7F9935-F472-4A1F-8D15-BA824B371E05}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Security", "..\Cores.Basic.Security\Cores.Basic.Security.shproj", "{23BA20A5-A273-462D-85F5-643287A39C33}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Web", "..\Cores.Basic.Web\Cores.Basic.Web.shproj", "{A2A7A5AF-5165-405F-BFC5-31C3CC3AB8EA}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Json", "..\Cores.Basic.Json\Cores.Basic.Json.shproj", "{9E437197-7FC4-4E8E-AC43-FD41EACB3687}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Config", "..\Cores.Basic.Config\Cores.Basic.Config.shproj", "{5AD4D704-3061-4A52-A25E-2BB60494AC6F}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic.Html", "..\Cores.Basic.Html\Cores.Basic.Html.shproj", "{6EBC798C-0969-41B5-B0E0-28914FB2D7F5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DepTest.Common", "DepTest.Common\DepTest.Common.csproj", "{37DCCD70-4C5D-4BF9-807E-3BAFC07310C8}"
+EndProject
+Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\Cores.Basic.Common\Cores.Basic.Common.projitems*{1c674893-7c84-4e7c-834e-6e2370225da0}*SharedItemsImports = 13
+		..\Cores.Basic.Security\Cores.Basic.Security.projitems*{23ba20a5-a273-462d-85f5-643287a39c33}*SharedItemsImports = 13
+		..\Cores.Basic.Config\Cores.Basic.Config.projitems*{5ad4d704-3061-4a52-a25e-2bb60494ac6f}*SharedItemsImports = 13
+		..\Cores.Basic.Html\Cores.Basic.Html.projitems*{6ebc798c-0969-41b5-b0e0-28914fb2d7f5}*SharedItemsImports = 13
+		..\Cores.Basic.Database\Cores.Basic.Database.projitems*{9c7f9935-f472-4a1f-8d15-ba824b371e05}*SharedItemsImports = 13
+		..\Cores.Basic.Json\Cores.Basic.Json.projitems*{9e437197-7fc4-4e8e-ac43-fd41eacb3687}*SharedItemsImports = 13
+		..\Cores.Basic.Web\Cores.Basic.Web.projitems*{a2a7a5af-5165-405f-bfc5-31c3cc3ab8ea}*SharedItemsImports = 13
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{37DCCD70-4C5D-4BF9-807E-3BAFC07310C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37DCCD70-4C5D-4BF9-807E-3BAFC07310C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37DCCD70-4C5D-4BF9-807E-3BAFC07310C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37DCCD70-4C5D-4BF9-807E-3BAFC07310C8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {85327306-E79C-402F-86A2-E60EF9AFF026}
+	EndGlobalSection
+EndGlobal

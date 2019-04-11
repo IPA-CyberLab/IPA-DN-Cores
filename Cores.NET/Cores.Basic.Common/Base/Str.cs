@@ -5305,7 +5305,7 @@ namespace IPA.Cores.Basic
 
     class XmlCheckObjectInternal
     {
-        public string Str;
+        public string Str = null;
     }
 
     // 文字列トークン操作

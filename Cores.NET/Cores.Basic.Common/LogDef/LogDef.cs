@@ -56,9 +56,9 @@ namespace IPA.Cores.Basic
 
     class LogDefIPEndPoints
     {
-        public string LocalIP;
-        public int LocalPort;
-        public string RemoteIP;
-        public int RemotePort;
+        public string LocalIP = null;
+        public int LocalPort = 0;
+        public string RemoteIP = null;
+        public int RemotePort = 0;
     }
 }

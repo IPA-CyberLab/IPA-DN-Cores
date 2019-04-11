@@ -202,10 +202,6 @@ namespace IPA.Cores.Basic
 
         public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
         {
-            if (this.Tag == LogTag.JsonRpcRequestProcessor)
-            {
-                Util.DoNothing();
-            }
             if (opt.WriteAsJsonFormat && Dbg.IsJsonSupported)
             {
                 // JSON text
