@@ -553,6 +553,16 @@ namespace IPA.Cores.Helper.Basic
         public static bool Bit<T>(this T value, T flag) where T : Enum
             => value.HasFlag(flag);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool BitAny<T>(this T value, T flags) where T : Enum
+        {
+            ulong value1 = Convert.ToUInt64(value);
+            ulong value2 = Convert.ToUInt64(flags);
+            if (value2 == 0) return true;
+
+            return ((value1 & value2) == 0) ? false : true;
+        }
+
         public static Exception GetSingleException(this Exception ex)
         {
             if (ex == null) return null;

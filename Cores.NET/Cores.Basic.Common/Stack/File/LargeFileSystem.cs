@@ -360,7 +360,8 @@ namespace IPA.Cores.Basic
 
                 List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
 
-                if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFileSystemAppendWithCrossBorder) && position == this.CurrentFileSize && cursorList.Count >= 2)
+                if (this.FileParams.Flags.BitAny(FileOperationFlags.LargeFsAppendWithoutCrossBorder | FileOperationFlags.LargeFsAppendNewLineForCrossBorder)
+                    && position == this.CurrentFileSize && cursorList.Count >= 2)
                 {
                     // Crossing the border when the LargeFileSystemAppendWithCrossBorder flag is set
                     if (cursorList.Count >= 3)
@@ -381,7 +382,21 @@ namespace IPA.Cores.Basic
                         using (var handle = await GetUnderleyRandomAccessHandle(position, cancel))
                         {
                             // Write the zero-cleared block toward the end of the first physical file
-                            await handle.WriteRandomAsync(firstCursor.PhysicalPosition, new byte[firstCursor.PhysicalRemainingLength], cancel);
+                            byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
+                            if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFsAppendNewLineForCrossBorder))
+                            {
+                                if (appendBytes.Length >= 2)
+                                {
+                                    appendBytes[0] = 13;
+                                    appendBytes[1] = 10;
+                                }
+                                else if (appendBytes.Length >= 1)
+                                {
+                                    appendBytes[0] = 10;
+                                }
+                            }
+
+                            await handle.WriteRandomAsync(firstCursor.PhysicalPosition, appendBytes, cancel);
                             this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
                         }
 

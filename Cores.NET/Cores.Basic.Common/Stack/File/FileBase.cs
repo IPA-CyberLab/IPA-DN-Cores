@@ -373,10 +373,11 @@ namespace IPA.Cores.Basic
         BackupMode = 2,
         AutoCreateDirectory = 4,
         RandomAccessOnly = 8,
-        LargeFileSystemAppendWithCrossBorder = 16,
-        ForceClearReadOnlyOrHiddenBitsOnNeed = 32,
-        OnCreateSetCompressionFlag = 64,
-        OnCreateRemoveCompressionFlag = 128,
+        LargeFsAppendWithoutCrossBorder = 16,
+        LargeFsAppendNewLineForCrossBorder = 32,
+        ForceClearReadOnlyOrHiddenBitsOnNeed = 64,
+        OnCreateSetCompressionFlag = 128,
+        OnCreateRemoveCompressionFlag = 256,
     }
 
     class FileBaseStream : FileStream
