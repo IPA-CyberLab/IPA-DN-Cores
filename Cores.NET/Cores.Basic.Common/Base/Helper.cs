@@ -49,6 +49,8 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -798,6 +800,12 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsync = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+
+        public static bool IsAsync(this SafeFileHandle handle)
+        {
+            return (bool)PInfo_SafeFileHandle_IsAsync.GetValue(handle);
+        }
     }
 }
 

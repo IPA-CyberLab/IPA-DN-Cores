@@ -43,6 +43,10 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Security.AccessControl;
 
+#pragma warning disable CS0219
+#pragma warning disable CS0162
+
+
 namespace IPA.TestDev
 {
     static class TestClass
@@ -51,14 +55,14 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            using (var bomfs = new AutoUtf8BomViewFileSystem(Lfs))
             {
-                //bomfs.AppendToFile(@"D:\TMP\bomTest\bomFile.txt", "World".GetBytes_Ascii());
-                //bomfs.AppendToFile(@"D:\TMP\bomTest\normalFile.txt", "World".GetBytes_Ascii());
-
-                using (var f = bomfs.CreateFile(new FileParameters(@"D:\TMP\bomTest\bomFile.txt", FileMode.Truncate, FileAccess.ReadWrite)))
+                using (var f = Lfs.Open(@"D:\TMP\bomTest\usl5p256.img", writeMode: true))
                 {
-                    f.Write("a".GetBytes_Ascii());
+                    LocalFileObject lf = f as LocalFileObject;
+
+                    Dbg.Where();
+                    lf.Test1(true);
+                    Dbg.Where();
                 }
             }
 

@@ -44,6 +44,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 #pragma warning disable 0618
 
@@ -296,7 +297,7 @@ namespace IPA.Cores.Basic
         public static void SetCompressionFlag(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
         {
             if (Env.IsWindows == false) return;
-
+            
             ushort lpInBuffer = (ushort)(compressionEnabled ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
             uint lpBytesReturned = 0;
 
@@ -304,6 +305,21 @@ namespace IPA.Cores.Basic
             {
                 Win32ApiUtil.ThrowLastWin32Error(pathForReference);
             }
+        }
+
+        public static async Task SetCompressionFlagAsync(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
+        {
+            if (Env.IsWindows == false) return;
+
+            ushort inFlag = (ushort)(compressionEnabled ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
+
+            ValueRef<uint> outBuffer = new ValueRef<uint>();
+
+            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, inFlag, outBuffer, pathForReference);
+
+            Dbg.Where();
+            await task;
+            Dbg.Where();
         }
 
         public static List<Tuple<string, long>> EnumAlternateStreams(string path, long maxSize, int maxNum)

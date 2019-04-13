@@ -835,6 +835,11 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void Test1(bool b)
+        {
+            Win32ApiUtil.SetCompressionFlagAsync(fileStream.SafeFileHandle, b, FileParams.Path).GetResult();
+        }
+
         protected override async Task CloseImplAsync()
         {
             fileStream.DisposeSafe();

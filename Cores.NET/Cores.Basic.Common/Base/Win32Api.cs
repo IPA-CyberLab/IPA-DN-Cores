@@ -44,6 +44,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Threading;
 
 #pragma warning disable 0618
 
@@ -182,6 +184,39 @@ namespace IPA.Cores.Basic
                 IntPtr overlapped
             );
 
+            [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal unsafe static extern bool DeviceIoControl(SafeFileHandle fileHandle, uint ioControlCode, void* inBuffer, uint cbInBuffer, void* outBuffer, uint cbOutBuffer,
+                out uint cbBytesReturned, IntPtr overlapped);//ref NativeOverlapped overlapped);
+
+            public static unsafe Task<uint> DeviceIoControlAsync<TIn, TOut>(
+                SafeFileHandle fileHandle, uint ioControlCode, TIn inBuffer, ValueRef<TOut> outBuffer, string pathForReference, uint ?inBufferSize = null, uint ?outBufferSize = null)
+                where TIn: unmanaged
+                where TOut: unmanaged
+            {
+                bool isAsync = fileHandle.IsAsync();
+                uint returnedSize = 0;
+
+                DeviceIoControlAsyncResult result = new DeviceIoControlAsyncResult(null);
+
+                Overlapped over = new Overlapped(0, 0, IntPtr.Zero, result);
+
+                void* ptrIn = &inBuffer;
+                {
+                    fixed (void* ptrOut = &outBuffer.Value)
+                    {
+                        bool ret = DeviceIoControl(fileHandle, ioControlCode, ptrIn, inBufferSize ?? (uint)Marshal.SizeOf<TIn>(), ptrOut, outBufferSize ?? (uint)outBuffer.Size,
+                            out returnedSize, IntPtr.Zero);
+
+                        if (ret == false)
+                        {
+                            Win32ApiUtil.ThrowLastWin32Error(pathForReference);
+                        }
+                        
+                        return Task.FromResult(returnedSize);
+                    }
+                }
+            }
+
             [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
             internal static extern bool SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS FileInformationClass, ref FILE_BASIC_INFO lpFileInformation, uint dwBufferSize);
 
@@ -268,6 +303,22 @@ namespace IPA.Cores.Basic
                 else
                     return ((ulong)high << 32) + low;
             }
+        }
+
+        class DeviceIoControlAsyncResult : IAsyncResult
+        {
+            public object AsyncState { get; }
+
+            public DeviceIoControlAsyncResult(object state)
+            {
+                this.AsyncState = state;
+            }
+
+            public WaitHandle AsyncWaitHandle => throw new NotImplementedException();
+
+            public bool CompletedSynchronously => throw new NotImplementedException();
+
+            public bool IsCompleted => throw new NotImplementedException();
         }
 
         internal static partial class NtDll

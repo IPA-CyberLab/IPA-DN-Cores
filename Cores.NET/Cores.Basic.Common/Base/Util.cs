@@ -275,9 +275,21 @@ namespace IPA.Cores.Basic
         public static implicit operator RefBool(bool value) => new RefBool(value);
     }
 
+    class ValueRef<T> where T: struct
+    {
+        public T Value;
+        public readonly int Size = Marshal.SizeOf<T>();
+
+        public ValueRef() : this(default) { }
+        public ValueRef(T value)
+        {
+            Value = value;
+        }
+    }
+
     class Ref<T>
     {
-        public Ref() : this(default(T)) { }
+        public Ref() : this(default) { }
         public Ref(T value)
         {
             Value = value;
