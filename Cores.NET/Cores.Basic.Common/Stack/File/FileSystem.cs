@@ -90,12 +90,12 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => $"FileObject('{FileParams.Path}')";
 
-        protected async Task InitAndCheckFileSizeAndPositionAsync(long initialPosition, CancellationToken cancel = default)
+        protected void InitAndCheckFileSizeAndPosition(long initialPosition, long initialFileSize, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
             {
                 this.InternalPosition = initialPosition;
-                this.InternalFileSize = await GetFileSizeImplAsync(operationCancel);
+                this.InternalFileSize = initialFileSize;
 
                 if (this.InternalPosition > this.InternalFileSize)
                     throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");

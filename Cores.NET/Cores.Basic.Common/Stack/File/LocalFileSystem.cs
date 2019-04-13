@@ -825,7 +825,7 @@ namespace IPA.Cores.Basic
 
                 this.CurrentPosition = fileStream.Position;
 
-                await InitAndCheckFileSizeAndPositionAsync(this.CurrentPosition, cancel);
+                InitAndCheckFileSizeAndPosition(this.CurrentPosition, await GetFileSizeImplAsync(cancel), cancel);
             }
             catch
             {

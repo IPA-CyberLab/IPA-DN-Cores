@@ -51,6 +51,20 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            using (var bomfs = new AutoUtf8BomViewFileSystem(Lfs))
+            {
+                //bomfs.AppendToFile(@"D:\TMP\bomTest\bomFile.txt", "World".GetBytes_Ascii());
+                //bomfs.AppendToFile(@"D:\TMP\bomTest\normalFile.txt", "World".GetBytes_Ascii());
+
+                using (var f = bomfs.CreateFile(new FileParameters(@"D:\TMP\bomTest\bomFile.txt", FileMode.Truncate, FileAccess.ReadWrite)))
+                {
+                    f.Write("a".GetBytes_Ascii());
+                }
+            }
+
+            return;
+
+
             string dirName = @"D:\tmp\LargeTest";
             //for (int nFile = 0; nFile < 10; nFile++)
             //{

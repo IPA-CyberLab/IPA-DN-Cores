@@ -47,12 +47,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class AutoUtf8BomFile : ViewFileObject
+    class AutoUtf8BomFileObject : ViewFileObject
     {
         public bool HasBom { get; private set; } = false;
         public long HeaderOffset { get; private set; } = 0;
 
-        public AutoUtf8BomFile(ViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public AutoUtf8BomFileObject(AutoUtf8BomViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {
         }
 
@@ -72,21 +72,30 @@ namespace IPA.Cores.Basic
                         {
                             await underlayFileObject.WriteRandomAsync(0, Str.BOM_UTF_8, cancel);
                             HasBom = true;
+                            fileSize = 3;
                         }
                     }
                     else if (fileSize >= 3)
                     {
                         Memory<byte> tmp = new byte[3];
-                        await underlayFileObject.ReadRandomAsync(0, tmp, cancel);
-                        if (tmp.Span.SequenceEqual(Str.BOM_UTF_8.Span))
+                        if (await underlayFileObject.ReadRandomAsync(0, tmp, cancel) == tmp.Length)
                         {
-                            HasBom = true;
+                            if (tmp.Span.SequenceEqual(Str.BOM_UTF_8.Span))
+                            {
+                                HasBom = true;
+                            }
                         }
                     }
 
                     HeaderOffset = HasBom ? 3 : 0;
 
-                    await InitAndCheckFileSizeAndPositionAsync(underlayFileObject.Position - HeaderOffset, cancel);
+                    fileSize -= HeaderOffset;
+
+                    long currentPosition = 0;
+                    if (FileParams.Mode == FileMode.Append)
+                        currentPosition = fileSize;
+
+                    InitAndCheckFileSizeAndPosition(currentPosition, fileSize, cancel);
 
                     return underlayFileObject;
                 }
@@ -111,33 +120,45 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            return base.ReadRandomImplAsync(position, data, cancel);
+            checked
+            {
+                long physicalSize = size + this.HeaderOffset;
+                await this.UnderlayFile.SetFileSizeAsync(physicalSize, cancel);
+            }
         }
 
-        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+        protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
         {
-            return base.SetFileSizeImplAsync(size, cancel);
+            checked
+            {
+                long physicalPosition = position + this.HeaderOffset;
+                return await this.UnderlayFile.ReadRandomAsync(physicalPosition, data, cancel);
+            }
         }
 
-        protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
-            return base.WriteRandomImplAsync(position, data, cancel);
+            checked
+            {
+                long physicalPosition = position + this.HeaderOffset;
+                await this.UnderlayFile.WriteRandomAsync(physicalPosition, data, cancel);
+            }
         }
     }
 
-    class AutoUtf8BomFs : ViewFileSystem
+    class AutoUtf8BomViewFileSystem : ViewFileSystem
     {
         public static readonly ReadOnlyMemory<byte> Utf8Bom = Str.BOM_UTF_8;
 
-        public AutoUtf8BomFs(FileSystemBase underlayFileSystem) : base(underlayFileSystem, null)
+        public AutoUtf8BomViewFileSystem(FileSystemBase underlayFileSystem) : base(underlayFileSystem, null)
         {
         }
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            AutoUtf8BomFile fileObj = new AutoUtf8BomFile(this, option);
+            AutoUtf8BomFileObject fileObj = new AutoUtf8BomFileObject(this, option);
 
             await fileObj._InternalCreateFileAsync(cancel);
 
@@ -146,7 +167,35 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
         {
-            return await base.GetFileMetadataImplAsync(path, flags, cancel);
+            FileMetadata physicalMetadata = await UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
+
+            try
+            {
+                long headerOffset = 0;
+                long physicalSize = physicalMetadata.Size;
+
+                using (FileObject physicalFile = await UnderlayFileSystem.OpenAsync(path))
+                {
+                    byte[] bomRead = new byte[3];
+                    Memory<byte> tmp = new byte[3];
+                    if (await physicalFile.ReadRandomAsync(0, tmp, cancel) == tmp.Length)
+                    {
+                        if (tmp.Span.SequenceEqual(Str.BOM_UTF_8.Span))
+                        {
+                            headerOffset = 3;
+                        }
+                    }
+
+                    physicalSize = await physicalFile.GetFileSizeAsync(true, cancel) - headerOffset;
+                    if (physicalSize >= 0)
+                    {
+                        physicalMetadata.Size = physicalSize;
+                    }
+                }
+            }
+            catch { }
+
+            return physicalMetadata;
         }
     }
 }

@@ -86,6 +86,23 @@ namespace IPA.Cores.Helper.Basic
         public static string GetString(this Span<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
         public static string GetString(this Span<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
 
+
+        public static string GetString_UTF8(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _);
+        public static string GetString_UTF16LE(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _);
+        public static string GetString_ShiftJis(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _);
+        public static string GetString_Ascii(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _);
+        public static string GetString_Euc(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _);
+        public static string GetString(this ReadOnlyMemory<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray.Span, default_encoding, out _);
+        public static string GetString(this ReadOnlyMemory<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray.Span, out _);
+
+        public static string GetString_UTF8(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _);
+        public static string GetString_UTF16LE(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _);
+        public static string GetString_ShiftJis(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _);
+        public static string GetString_Ascii(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _);
+        public static string GetString_Euc(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _);
+        public static string GetString(this Memory<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray.Span, default_encoding, out _);
+        public static string GetString(this Memory<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray.Span, out _);
+
         public static string GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string GetHexString(this Span<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string GetHexString(this ReadOnlySpan<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);

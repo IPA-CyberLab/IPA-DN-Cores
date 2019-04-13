@@ -736,6 +736,12 @@ namespace IPA.Cores.Basic
             get => GetCurrentPosition();
         }
 
+        public long Size
+        {
+            set => SetFileSize(value);
+            get => GetFileSize();
+        }
+
         public int Read(Memory<byte> data) => ReadAsync(data).GetResult();
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
             => ReadRandomAsync(position, data, cancel).GetResult();

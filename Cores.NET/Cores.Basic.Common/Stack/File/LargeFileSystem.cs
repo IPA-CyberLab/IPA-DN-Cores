@@ -119,7 +119,6 @@ namespace IPA.Cores.Basic
         readonly LargeFileSystem.ParsedPath[] InitialRelatedFiles;
 
         long CurrentFileSize;
-        long CurrentPosition;
 
         protected LargeFileObject(FileSystemBase fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles) : base(fileSystem, fileParams)
         {
@@ -185,13 +184,11 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                this.CurrentPosition = 0;
+                long currentPosition = 0;
                 if (FileParams.Mode == FileMode.Append)
-                {
-                    this.CurrentPosition = this.CurrentFileSize;
-                }
+                    currentPosition = this.CurrentFileSize;
 
-                await InitAndCheckFileSizeAndPositionAsync(this.CurrentPosition, cancel);
+                InitAndCheckFileSizeAndPosition(currentPosition, await GetFileSizeImplAsync(cancel), cancel);
             }
             catch
             {
