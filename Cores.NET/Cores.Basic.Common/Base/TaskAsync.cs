@@ -2082,7 +2082,7 @@ namespace IPA.Cores.Basic
                     int c = LeakCounters[k];
                     if (c != 0)
                     {
-                        w.WriteLine($"LeakCounters[{kind.ToString()}] = {c}");
+                        w.WriteLine($"LeakCounters [{kind.ToString()}] = {c};");
                     }
                 }
             }

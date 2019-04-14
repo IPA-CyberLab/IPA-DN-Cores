@@ -378,6 +378,7 @@ namespace IPA.Cores.Basic
         ForceClearReadOnlyOrHiddenBitsOnNeed = 64,
         OnCreateSetCompressionFlag = 128,
         OnCreateRemoveCompressionFlag = 256,
+        DisableOverlappedIo = 512,
     }
 
     class FileBaseStream : FileStream

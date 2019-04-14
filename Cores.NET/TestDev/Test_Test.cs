@@ -56,30 +56,29 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
-            ReadOnlyMemory<byte> hello = "Abcde".GetBytes_Ascii();
+            //FastReadOnlyMemoryBuffer<byte> hello = "Abcde".GetBytes_Ascii();
+            //Span<byte> hello2 = "Abcde".GetBytes_Ascii();
 
-            ref int a = ref hello.AsStructSafe<int>();
+            //ref readonly int a = ref hello.Span.AsStructSafe<int>();
 
-            a = 0x01020304;
+            //while (true)
+            //{
+            //    unsafe
+            //    {
+            //        fixed (void* ptr = &hello2[0])
+            //        {
+            //            Con.WriteLine("span: " + ((IntPtr)ptr).ToPointerHexString());
+            //            fixed (int* ptr2 = &a)
+            //            {
+            //                Con.WriteLine("int : " + ((IntPtr)ptr2).ToPointerHexString());
+            //            }
+            //            Con.WriteLine("valu: " + a.ToString("X"));
+            //        }
+            //    }
+            //    Dbg.GcTest();
+            //}
 
-            while (true)
-            {
-                unsafe
-                {
-                    fixed (void* ptr = &hello.Span[0])
-                    {
-                        Con.WriteLine("span: " + ((IntPtr)ptr).ToPointerHexString());
-                        fixed (int* ptr2 = &a)
-                        {
-                            Con.WriteLine("int : " + ((IntPtr)ptr2).ToPointerHexString());
-                        }
-                        Con.WriteLine("valu: " + a.ToString("X"));
-                    }
-                }
-                Dbg.GcTest();
-            }
-
-            return;
+            //return;
 
             {
                 //Lfs.EnableBackupPrivilege();
@@ -98,14 +97,18 @@ namespace IPA.TestDev
                 //}
                 //return;
 
-                using (var f = Lfs.Open(@"D:\TMP\bomTest\usl5p256.img", writeMode: true))
+                Lfs.EnableBackupPrivilege();
+
+                using (var f = Lfs.Open(@"D:\TMP\bomTest\usl5p256.img", writeMode: true, flags:  FileOperationFlags.BackupMode))
                 {
                     LocalFileObject lf = f as LocalFileObject;
 
                     Dbg.Where();
-                    lf.Test1(true);
+                    while (true)
+                    lf.Test1(false);
                     Dbg.Where();
                 }
+
             }
 
             return;

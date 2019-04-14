@@ -51,6 +51,7 @@ namespace IPA.Cores.Basic
         Span<T> InternalSpan;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool Empty => Length == 0;
 
         public Span<T> Span { get => InternalSpan.Slice(0, Length); }
         public Span<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
@@ -69,6 +70,15 @@ namespace IPA.Cores.Basic
             ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
             dst = src;
             return new SpanBuffer<byte>(baseMemory.Span);
+        }
+
+        static T dummyRefValue = default;
+        public ref T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public static implicit operator SpanBuffer<T>(Span<T> span) => new SpanBuffer<T>(span);
@@ -237,6 +247,7 @@ namespace IPA.Cores.Basic
         ReadOnlySpan<T> InternalSpan;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool Empty => Length == 0;
 
         public ReadOnlySpan<T> Span { get => InternalSpan.Slice(0, Length); }
         public ReadOnlySpan<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
@@ -290,6 +301,15 @@ namespace IPA.Cores.Basic
             ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
             dst = src;
             return new ReadOnlySpanBuffer<byte>(baseMemory.Span);
+        }
+
+        static T dummyRefValue = default;
+        public ref readonly T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public ReadOnlySpan<T> Read(int size, bool allowPartial = false)
@@ -381,6 +401,7 @@ namespace IPA.Cores.Basic
         Span<T> InternalSpan;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool Empty => Length == 0;
 
         public Memory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public Memory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -404,6 +425,15 @@ namespace IPA.Cores.Basic
             ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
             dst = src;
             return new FastMemoryBuffer<byte>(baseMemory);
+        }
+
+        static T dummyRefValue = default;
+        public ref T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public static implicit operator FastMemoryBuffer<T>(Memory<T> memory) => new FastMemoryBuffer<T>(memory);
@@ -634,6 +664,7 @@ namespace IPA.Cores.Basic
         ReadOnlySpan<T> InternalSpan;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool Empty => Length == 0;
 
         public ReadOnlyMemory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public ReadOnlyMemory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -653,10 +684,19 @@ namespace IPA.Cores.Basic
 
         public static FastReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
-            ReadOnlyMemory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
             ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
             dst = src;
             return new FastReadOnlyMemoryBuffer<byte>(baseMemory);
+        }
+
+        static T dummyRefValue = default;
+        public ref readonly T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public static implicit operator FastReadOnlyMemoryBuffer<T>(ReadOnlyMemory<T> memory) => new FastReadOnlyMemoryBuffer<T>(memory);
@@ -828,7 +868,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IBuffer<T>
+    interface IBuffer<T> : IEmptyChecker
     {
         int CurrentPosition { get; }
         int Length { get; }
@@ -928,6 +968,7 @@ namespace IPA.Cores.Basic
         Memory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool IsThisEmpty() => Length == 0;
 
         public Memory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public Memory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -981,6 +1022,15 @@ namespace IPA.Cores.Basic
                 }
             },
             LeakCounterKind.PinnedMemory);
+        }
+
+        static T dummyRefValue = default;
+        public ref T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public static implicit operator MemoryBuffer<T>(Memory<T> memory) => new MemoryBuffer<T>(memory);
@@ -1212,6 +1262,7 @@ namespace IPA.Cores.Basic
         ReadOnlyMemory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
+        public bool IsThisEmpty() => Length == 0;
 
         public ReadOnlyMemory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public ReadOnlyMemory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -1232,7 +1283,7 @@ namespace IPA.Cores.Basic
 
         public static ReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
-            ReadOnlyMemory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
             ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
             dst = src;
             return new ReadOnlyMemoryBuffer<byte>(baseMemory);
@@ -1265,6 +1316,15 @@ namespace IPA.Cores.Basic
                 }
             },
             LeakCounterKind.PinnedMemory);
+        }
+
+        static T dummyRefValue = default;
+        public ref readonly T GetRefForFixedPtr(int position = 0)
+        {
+            var span = this.Span.Slice(position);
+            if (span.IsEmpty)
+                return ref dummyRefValue;
+            return ref span[0];
         }
 
         public static implicit operator ReadOnlyMemoryBuffer<T>(ReadOnlyMemory<T> memory) => new ReadOnlyMemoryBuffer<T>(memory);

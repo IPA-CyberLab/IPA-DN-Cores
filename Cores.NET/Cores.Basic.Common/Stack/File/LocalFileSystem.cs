@@ -733,7 +733,7 @@ namespace IPA.Cores.Basic
             else
             {
                 // Use normal FileStream
-                ret = new FileStream(path, mode, access, share, bufferSize, FileOptions.Asynchronous);
+                ret = new FileStream(path, mode, access, share, bufferSize, options);
             }
 
             return ret;
@@ -747,7 +747,9 @@ namespace IPA.Cores.Basic
             {
                 Con.WriteDebug($"InternalInitAsync '{FileParams.Path}'");
 
-                FileOptions options = FileOptions.Asynchronous;
+                FileOptions options = FileOptions.None;
+                if (this.FileParams.Flags.Bit(FileOperationFlags.DisableOverlappedIo) == false)
+                    options |= FileOptions.Asynchronous;
 
                 if (Env.IsWindows)
                 {

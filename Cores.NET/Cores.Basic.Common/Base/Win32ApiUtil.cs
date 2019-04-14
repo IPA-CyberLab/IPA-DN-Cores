@@ -308,7 +308,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task SetCompressionFlagAsync(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
+        public static async Task SetCompressionFlagAsync(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null, CancellationToken cancel = default)
         {
             if (Env.IsWindows == false) return;
 
@@ -317,11 +317,9 @@ namespace IPA.Cores.Basic
             var bufferIn = ReadOnlyMemoryBuffer<byte>.FromStruct(inFlag);
             var bufferOut = new MemoryBuffer<byte>();
 
-            Task<bool> task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, bufferIn, bufferOut, pathForReference);
+            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, bufferIn, bufferOut, pathForReference, cancel);
 
-            Dbg.Where();
             await task;
-            Dbg.Where();
         }
 
         public static List<Tuple<string, long>> EnumAlternateStreams(string path, long maxSize, int maxNum)
@@ -425,6 +423,8 @@ namespace IPA.Cores.Basic
 
         unsafe class InternalOverlappedContext<TResult>
         {
+            public CriticalSection LockObj = new CriticalSection();
+
             public ReadOnlyMemoryBuffer<byte> InBuffer = null;
             public Holder InBufferPinHolder = null;
 
@@ -435,6 +435,8 @@ namespace IPA.Cores.Basic
             public NativeOverlapped* NativeOverlapped = null;
 
             public Win32CallOverlappedCompleteProc<TResult> UserCompleteProc;
+
+            public CancellationTokenRegistration CancelRegistration;
 
             public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>();
 
@@ -484,23 +486,42 @@ namespace IPA.Cores.Basic
             {
                 if (FreeFlag.IsFirstCall())
                 {
-                    InBufferPinHolder.DisposeSafe();
-                    InBufferPinHolder = null;
+                    try
+                    {
+                        CancelRegistration.DisposeSafe();
 
-                    OutBufferPinHolder.DisposeSafe();
-                    OutBufferPinHolder = null;
+                        InBufferPinHolder.DisposeSafe();
+                        InBufferPinHolder = null;
 
-                    Overlapped.Unpack(NativeOverlapped);
-                    Overlapped.Free(NativeOverlapped);
-                    NativeOverlapped = null;
+                        OutBufferPinHolder.DisposeSafe();
+                        OutBufferPinHolder = null;
+
+                        lock (LockObj)
+                        {
+                            if (Overlapped != null)
+                            {
+                                if (NativeOverlapped != null)
+                                {
+                                    Overlapped.Unpack(NativeOverlapped);
+                                    Overlapped.Free(NativeOverlapped);
+                                    NativeOverlapped = null;
+                                }
+                                Overlapped = null;
+                            }
+                        }
+                    }
+                    catch { }
                 }
             }
         }
 
-        public static unsafe Task<TResult> CallOverlappedAsync<TResult>
-            (SafeFileHandle handle, Win32CallOverlappedMainProc mainProc, Win32CallOverlappedCompleteProc<TResult> completeProc, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer)
+        public static unsafe Task<TResult> CallOverlappedAsync<TResult>(SafeFileHandle handle,
+            Win32CallOverlappedMainProc mainProc, Win32CallOverlappedCompleteProc<TResult> completeProc, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer,
+            CancellationToken cancel = default)
         {
-            ThreadPool.BindHandle(handle);
+            cancel.ThrowIfCancellationRequested();
+
+            bool isAsync = handle.IsAsync();
 
             inBuffer.SeekToBegin();
             outBuffer.SeekToBegin();
@@ -518,30 +539,48 @@ namespace IPA.Cores.Basic
                 ctx.OutBuffer = outBuffer;
                 ctx.OutBufferPinHolder = outBuffer.PinLock();
 
-                ctx.Overlapped = new Overlapped();
-
-                ctx.NativeOverlapped = ctx.Overlapped.Pack(ctx.IOCompletionCallback, null);
-
-                fixed (void* inPtr = &inBuffer.Span[0])
+                if (isAsync)
                 {
-                    fixed (void* outPtr = &outBuffer.Span[0])
+                    ctx.Overlapped = new Overlapped();
+                    ctx.NativeOverlapped = ctx.Overlapped.Pack(ctx.IOCompletionCallback, null);
+                }
+
+                fixed (void* inPtr = &inBuffer.GetRefForFixedPtr())
+                {
+                    fixed (void* outPtr = &outBuffer.GetRefForFixedPtr())
                     {
                         RefInt returnedSize = new RefInt();
-                        int err = mainProc((IntPtr)inPtr, inBuffer.Length, (IntPtr)outPtr, outBuffer.Length, returnedSize, (IntPtr)ctx.NativeOverlapped);
+                        int err = mainProc(
+                            inBuffer.IsEmpty() ? IntPtr.Zero : (IntPtr)inPtr,
+                            inBuffer.Length,
+                            outBuffer.IsEmpty() ? IntPtr.Zero : (IntPtr)outPtr,
+                            outBuffer.Length,
+                            returnedSize, (IntPtr)ctx.NativeOverlapped);
 
-                        if (err == Win32Api.Errors.ERROR_IO_PENDING)
+                        if (isAsync && err == Win32Api.Errors.ERROR_IO_PENDING)
                         {
-                            Con.WriteLine("Pending.");
+                            if (isAsync)
+                            {
+                                ctx.CancelRegistration = cancel.Register(() =>
+                                {
+                                    lock (ctx.LockObj)
+                                    {
+                                        if (ctx.NativeOverlapped != null)
+                                        {
+                                            bool cancelOk = Win32Api.Kernel32.CancelIoEx(handle, ctx.NativeOverlapped);
+                                            Con.WriteDebug($"cancelok = {cancelOk}");
+                                        }
+                                    }
+                                });
+                            }
                             isPending = true;
                         }
                         else if (err == Win32Api.Errors.ERROR_SUCCESS)
                         {
-                            Con.WriteLine("Completed.");
                             ctx.Completed(null, Win32Api.Errors.ERROR_SUCCESS, returnedSize);
                         }
                         else
                         {
-                            Con.WriteLine("Other error: " + err);
                             ctx.Completed(null, err, returnedSize);
                         }
                     }

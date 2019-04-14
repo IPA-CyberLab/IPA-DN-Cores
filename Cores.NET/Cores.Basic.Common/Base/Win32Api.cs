@@ -170,6 +170,8 @@ namespace IPA.Cores.Basic
                 return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, null, dwCreationDisposition, dwFlagsAndAttributes, IntPtr.Zero);
             }
 
+            [DllImport(Libraries.Kernel32, SetLastError = true)]
+            internal static extern unsafe bool CancelIoEx(SafeHandle handle, NativeOverlapped* lpOverlapped);
 
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern bool DeviceIoControl
@@ -189,7 +191,7 @@ namespace IPA.Cores.Basic
                 out uint cbBytesReturned, IntPtr overlapped);
 
             public static async Task<bool> DeviceIoControlAsync(
-                SafeFileHandle fileHandle, uint ioControlCode, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer, string pathForReference)
+                SafeFileHandle fileHandle, uint ioControlCode, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer, string pathForReference, CancellationToken cancel = default)
             {
                 bool ret = await Win32ApiUtil.CallOverlappedAsync<bool>(fileHandle,
                     (inPtr, inSize, outPtr, outSize, outReturnedSize, overlapped) =>
@@ -205,7 +207,8 @@ namespace IPA.Cores.Basic
                         return true;
                     },
                     inBuffer,
-                    outBuffer);
+                    outBuffer,
+                    cancel);
 
                 return ret;
             }
@@ -1110,7 +1113,7 @@ namespace IPA.Cores.Basic
 
             FileStream ret = new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
 
-            _fileHandle.SetAsync(options.Bit(FileOptions.Asynchronous));
+            _fileHandle.SetAsync(_useAsyncIO);
 
             if (mode == FileMode.Append)
             {
