@@ -105,6 +105,15 @@ namespace IPA.TestDev
                 //Lfs.SetFileMetadata(@"D:\TMP\bomTest\usl5p256.img", new FileMetadata(specialOperation: FileSpecialOperationFlags.SetCompressionFlag));
                 //Lfs.SetDirectoryMetadata(@"D:\TMP\bomTest", new FileMetadata(specialOperation: FileSpecialOperationFlags.RemoveCompressionFlag));
 
+                //Lfs.WriteToFile(@"D:\TMP\bomTest\sparse1.txt", "Hello".GetBytes_Ascii(), FileOperationFlags.SparseFile);
+
+                //Lfs.ReadFromFile(@"D:\TMP\bomTest\sparse1.txt", 10000, FileOperationFlags.SparseFile);
+
+                using (var f = Lfs.OpenOrCreate(@"D:\TMP\bomTest\sparse1.txt", flags: FileOperationFlags.None))
+                {
+                    f.SetFileSize(1_000_000_000);
+                    f.WriteRandom(500_000_000, "Hello".GetBytes_Ascii());
+                }
             }
 
             return;

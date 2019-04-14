@@ -712,7 +712,6 @@ namespace IPA.Cores.Basic
         protected LocalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         FileStream fileStream;
-
         long CurrentPosition;
 
         public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
@@ -799,7 +798,7 @@ namespace IPA.Cores.Basic
                         if (fileStream.Length == 0)
                         {
                             // Special operations on file creation
-                            await Util.DoMultipleActionsAsync(MultipleActionsFlag.AllOk, cancel,
+                            await Util.DoMultipleActionsAsync(MultipleActionsFlag.IgnoreError, cancel,
                                 async () =>
                                 {
                                     if (FileParams.Flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
@@ -812,6 +811,16 @@ namespace IPA.Cores.Basic
                                 }
                                 );
                         }
+                    }
+
+                    if (FileParams.Access.Bit(FileAccess.Write))
+                    {
+                        await Util.DoMultipleActionsAsync(MultipleActionsFlag.IgnoreError, cancel,
+                            async () =>
+                            {
+                                if (FileParams.Flags.Bit(FileOperationFlags.SparseFile))
+                                    await SetAsSparseFileAsync();
+                            });
                     }
                 }
 
@@ -840,6 +849,17 @@ namespace IPA.Cores.Basic
                 fileStream = null;
                 throw;
             }
+        }
+
+        bool isSparseFile = false;
+        async Task SetAsSparseFileAsync(CancellationToken cancel = default)
+        {
+            if (Env.IsWindows == false) return;
+            if (isSparseFile) return;
+
+            await Win32ApiUtil.SetSparseFileAsync(fileStream.SafeFileHandle, FileParams.Path, cancel);
+
+            isSparseFile = true;
         }
 
         protected override async Task CloseImplAsync()

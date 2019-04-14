@@ -379,6 +379,7 @@ namespace IPA.Cores.Basic
         OnCreateSetCompressionFlag = 128,
         OnCreateRemoveCompressionFlag = 256,
         DisableOverlappedIo = 512,
+        SparseFile = 1024,
     }
 
     class FileBaseStream : FileStream

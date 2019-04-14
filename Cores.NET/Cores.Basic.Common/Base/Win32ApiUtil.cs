@@ -294,6 +294,13 @@ namespace IPA.Cores.Basic
             return str.ToString();
         }
 
+        public static async Task SetSparseFileAsync(SafeFileHandle handle, string pathForReference, CancellationToken cancel = default)
+        {
+            if (Env.IsWindows == false) return;
+
+            await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetSparse, null, null, pathForReference, cancel);
+        }
+
         public static long GetCompressedFileSize(string filename)
             => (long)Win32Api.Kernel32.GetCompressedFileSize(filename);
 
@@ -320,9 +327,7 @@ namespace IPA.Cores.Basic
             var bufferIn = ReadOnlyMemoryBuffer<byte>.FromStruct(inFlag);
             var bufferOut = new MemoryBuffer<byte>();
 
-            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetCompression, bufferIn, bufferOut, pathForReference, cancel);
-
-            await task;
+            await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetCompression, bufferIn, bufferOut, pathForReference, cancel);
         }
 
         public static List<Tuple<string, long>> EnumAlternateStreams(string path, long maxSize, int maxNum)
@@ -524,6 +529,9 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
 
             bool isAsync = handle.IsAsync();
+
+            if (inBuffer == null) inBuffer = new ReadOnlyMemoryBuffer<byte>();
+            if (outBuffer == null) outBuffer = new MemoryBuffer<byte>();
 
             inBuffer.SeekToBegin();
             outBuffer.SeekToBegin();
