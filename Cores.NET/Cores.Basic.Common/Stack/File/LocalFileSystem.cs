@@ -924,6 +924,40 @@ namespace IPA.Cores.Basic
                 this.CurrentPosition += data.Length;
             }
         }
+
+        async Task WriteRandomAutoSparse(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            checked
+            {
+                long currentFileSize = fileStream.Length;
+                long expandingSize = (position + data.Length) - currentFileSize;
+
+                long existingDataRegionSize;
+                long expandingDataRegionSize;
+
+                if (expandingSize >= 1)
+                {
+                    existingDataRegionSize = Math.Max(data.Length - expandingSize, 0);
+                    expandingDataRegionSize = Math.Max(data.Length - existingDataRegionSize, 0);
+                }
+                else
+                {
+                    existingDataRegionSize = data.Length;
+                    expandingDataRegionSize = 0;
+                }
+
+                if (existingDataRegionSize >= 1)
+                {
+                    ReadOnlyMemory<byte> existingRegionMemory = data.Slice(0, (int)existingDataRegionSize);
+
+                    await fileStream.WriteAsync(existingRegionMemory, cancel);
+                }
+
+                if (expandingDataRegionSize >= 1)
+                {
+                }
+            }
+        }
     }
 
 }

@@ -52,8 +52,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class FileSystemSettings
         {
-            //public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
-            public static readonly Copenhagen<int> PooledHandleLifetime = 300;
+            public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
@@ -410,7 +409,10 @@ namespace IPA.Cores.Basic
                             {
                                 await GetFileSizeInternalAsync(true, operationCancel);
                                 if (this.InternalFileSize < newPosition)
-                                    throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                {
+                                    if (this.FileParams.Access.Bit(FileAccess.Write) == false)
+                                        throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                }
                             }
 
                             if (this.InternalPosition != newPosition)

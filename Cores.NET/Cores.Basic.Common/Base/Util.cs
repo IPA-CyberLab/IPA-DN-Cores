@@ -1940,6 +1940,56 @@ namespace IPA.Cores.Basic
                     throw new ArgumentOutOfRangeException("mode");
             }
         }
+
+        public static List<SparseChunk> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int blockSize)
+        {
+            List<SparseChunk> ret = new List<SparseChunk>();
+            var srcBuffer = srcMemory.AsReadOnlySpanBuffer();
+
+            int dataBeginPos = -1;
+
+            while (true)
+            {
+                int thisPos = srcBuffer.CurrentPosition;
+                ReadOnlySpan<byte> smallData = srcBuffer.Read(blockSize, allowPartial: true);
+
+                if (smallData.IsEmpty)
+                    break;
+
+                if (smallData.IsZero())
+                {
+                    int prevDataLength = thisPos - dataBeginPos;
+                    if (prevDataLength >= 1)
+                    {
+                        ret.Add(new SparseChunk(srcMemory.Slice(dataBeginPos, prevDataLength)));
+                    }
+                }
+                else
+                {
+                }
+            }
+        }
+    }
+
+    readonly struct SparseChunk
+    {
+        public readonly ReadOnlyMemory<byte> Memory;
+        public readonly bool IsSparse;
+        public readonly int Size;
+
+        public SparseChunk(int size)
+        {
+            this.IsSparse = true;
+            this.Size = size;
+            this.Memory = default;
+        }
+
+        public SparseChunk(ReadOnlyMemory<byte> memory)
+        {
+            this.IsSparse = false;
+            this.Memory = memory;
+            this.Size = memory.Length;
+        }
     }
 
     class XmlAndXsd
