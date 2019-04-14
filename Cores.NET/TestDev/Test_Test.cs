@@ -97,17 +97,13 @@ namespace IPA.TestDev
                 //}
                 //return;
 
-                Lfs.EnableBackupPrivilege();
+                //Lfs.EnableBackupPrivilege();
 
-                using (var f = Lfs.Open(@"D:\TMP\bomTest\usl5p256.img", writeMode: true, flags:  FileOperationFlags.BackupMode))
-                {
-                    LocalFileObject lf = f as LocalFileObject;
+                //Con.WriteLine(Win32Api.Kernel32.FSCTL_SET_COMPRESSION);
+                //Con.WriteLine((int)Win32Api.Kernel32.EIOControlCode.FsctlSetCompression);
 
-                    Dbg.Where();
-                    while (true)
-                    lf.Test1(false);
-                    Dbg.Where();
-                }
+                //Lfs.SetFileMetadata(@"D:\TMP\bomTest\usl5p256.img", new FileMetadata(specialOperation: FileSpecialOperationFlags.SetCompressionFlag));
+                //Lfs.SetDirectoryMetadata(@"D:\TMP\bomTest", new FileMetadata(specialOperation: FileSpecialOperationFlags.RemoveCompressionFlag));
 
             }
 
@@ -216,7 +212,7 @@ namespace IPA.TestDev
             //PalFileSystem.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", true, PalFileSystem.GetFileOrDirectorySecurityMetadata(@"d:\tmp", false));
             //Con.WriteJsonLine(PalFileSystem.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl_test\", false));
 
-            Lfs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, Lfs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
+            //Lfs.SetFileOrDirectorySecurityMetadata(@"C:\TMP\acl01\", true, Lfs.GetFileOrDirectorySecurityMetadata(@"C:\TMP\acl02\", true));
 
             return;
 

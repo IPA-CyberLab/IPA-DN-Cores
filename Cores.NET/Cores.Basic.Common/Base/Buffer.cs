@@ -57,6 +57,8 @@ namespace IPA.Cores.Basic
         public Span<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
         public Span<T> SpanAfter { get => Span.Slice(CurrentPosition); }
 
+        public SpanBuffer(int size = 0) : this(new T[size]) { }
+
         public SpanBuffer(Span<T> baseSpan)
         {
             InternalSpan = baseSpan;
@@ -288,6 +290,8 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public ReadOnlySpanBuffer(int size = 0) : this(new T[size]) { }
+
         public ReadOnlySpanBuffer(ReadOnlySpan<T> baseSpan)
         {
             InternalSpan = baseSpan;
@@ -410,6 +414,8 @@ namespace IPA.Cores.Basic
         public Span<T> Span { get => InternalBuffer.Slice(0, Length).Span; }
         public Span<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public Span<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
+
+        public FastMemoryBuffer(int size = 0) : this(new T[size]) { }
 
         public FastMemoryBuffer(Memory<T> baseMemory)
         {
@@ -673,6 +679,8 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<T> Span { get => InternalBuffer.Slice(0, Length).Span; }
         public ReadOnlySpan<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public ReadOnlySpan<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
+
+        public FastReadOnlyMemoryBuffer(int size = 0) : this(new T[size]) { }
 
         public FastReadOnlyMemoryBuffer(ReadOnlyMemory<T> baseMemory)
         {
@@ -978,7 +986,7 @@ namespace IPA.Cores.Basic
         public Span<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public Span<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
 
-        public MemoryBuffer() : this(Memory<T>.Empty) { }
+        public MemoryBuffer(int size = 0) : this(new T[size]) { }
 
         public MemoryBuffer(Memory<T> baseMemory)
         {
@@ -1272,7 +1280,7 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public ReadOnlySpan<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
 
-        public ReadOnlyMemoryBuffer() : this(ReadOnlyMemory<T>.Empty) { }
+        public ReadOnlyMemoryBuffer(int size = 0) : this(new T[size]) { }
 
         public ReadOnlyMemoryBuffer(ReadOnlyMemory<T> baseMemory)
         {

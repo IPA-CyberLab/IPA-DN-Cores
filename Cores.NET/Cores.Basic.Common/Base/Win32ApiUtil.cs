@@ -210,7 +210,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, bool writeMode = false, bool backupMode = false, int additionalFlags = 0)
+        public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, bool writeMode = false, bool backupMode = false, bool asyncMode = true, int additionalFlags = 0)
         {
             string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
             if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
@@ -219,27 +219,43 @@ namespace IPA.Cores.Basic
                 throw new ArgumentException("path");
             }
 
-            SafeFileHandle handle = Win32Api.Kernel32.CreateFile(
+            if (asyncMode)
+                additionalFlags |= (int)FileOptions.Asynchronous;
+
+            using (Lfs.EnterDisableMediaInsertionPrompt())
+            {
+                SafeFileHandle handle = Win32Api.Kernel32.CreateFile(
                 fullPath,
                 writeMode ? Win32Api.Kernel32.GenericOperations.GENERIC_WRITE | Win32Api.Kernel32.GenericOperations.GENERIC_READ : Win32Api.Kernel32.GenericOperations.GENERIC_READ,
                 FileShare.ReadWrite | FileShare.Delete,
                 FileMode.Open,
                 ((asDirectory || backupMode) ? Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS : 0) | additionalFlags);
 
-            if (handle.IsInvalid)
-            {
-                int errorCode = Marshal.GetLastWin32Error();
+                if (handle.IsInvalid)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
 
-                // NT5 oddity - when trying to open "C:\" as a File,
-                // we usually get ERROR_PATH_NOT_FOUND from the OS.  We should
-                // probably be consistent w/ every other directory.
-                if (!asDirectory && errorCode == Win32Api.Errors.ERROR_PATH_NOT_FOUND && fullPath.Equals(Directory.GetDirectoryRoot(fullPath)))
-                    errorCode = Win32Api.Errors.ERROR_ACCESS_DENIED;
+                    // NT5 oddity - when trying to open "C:\" as a File,
+                    // we usually get ERROR_PATH_NOT_FOUND from the OS.  We should
+                    // probably be consistent w/ every other directory.
+                    if (!asDirectory && errorCode == Win32Api.Errors.ERROR_PATH_NOT_FOUND && fullPath.Equals(Directory.GetDirectoryRoot(fullPath)))
+                        errorCode = Win32Api.Errors.ERROR_ACCESS_DENIED;
 
-                throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
+                    throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
+                }
+
+                if (((FileOptions)additionalFlags).Bit(FileOptions.Asynchronous))
+                {
+                    handle.SetAsync(true);
+                    ThreadPool.BindHandle(handle);
+                }
+                else
+                {
+                    handle.SetAsync(false);
+                }
+
+                return handle;
             }
-
-            return handle;
         }
 
         public static void ThrowLastWin32Error(string argument = null)
@@ -281,30 +297,17 @@ namespace IPA.Cores.Basic
         public static long GetCompressedFileSize(string filename)
             => (long)Win32Api.Kernel32.GetCompressedFileSize(filename);
 
-        public static void SetCompressionFlag(string path, bool isDirectory, bool compressionEnabled)
-            => Util.DoMultipleActions(MultipleActionsFlag.AnyOk,
-                () => SetCompressionFlag(path, isDirectory, compressionEnabled, false),
-                () => SetCompressionFlag(path, isDirectory, compressionEnabled, true)
+        public static Task SetCompressionFlagAsync(string path, bool isDirectory, bool compressionEnabled, CancellationToken cancel = default)
+            => Util.DoMultipleActionsAsync(MultipleActionsFlag.AnyOk, cancel,
+                () => SetCompressionFlagAsync(path, isDirectory, compressionEnabled, false, cancel),
+                () => SetCompressionFlagAsync(path, isDirectory, compressionEnabled, true, cancel)
                 );
 
-        public static void SetCompressionFlag(string path, bool isDirectory, bool compressionEnabled, bool isBackupMode)
+        public static async Task SetCompressionFlagAsync(string path, bool isDirectory, bool compressionEnabled, bool isBackupMode, CancellationToken cancel = default)
         {
             using (var handle = OpenHandle(path, isDirectory, true, isBackupMode))
             {
-                SetCompressionFlag(handle, compressionEnabled, path);
-            }
-        }
-
-        public static void SetCompressionFlag(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null)
-        {
-            if (Env.IsWindows == false) return;
-            
-            ushort lpInBuffer = (ushort)(compressionEnabled ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
-            uint lpBytesReturned = 0;
-
-            if (Win32Api.Kernel32.DeviceIoControl(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, out lpBytesReturned, IntPtr.Zero) == false)
-            {
-                Win32ApiUtil.ThrowLastWin32Error(pathForReference);
+                await SetCompressionFlagAsync(handle, compressionEnabled, path, cancel);
             }
         }
 
@@ -317,7 +320,7 @@ namespace IPA.Cores.Basic
             var bufferIn = ReadOnlyMemoryBuffer<byte>.FromStruct(inFlag);
             var bufferOut = new MemoryBuffer<byte>();
 
-            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, bufferIn, bufferOut, pathForReference, cancel);
+            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetCompression, bufferIn, bufferOut, pathForReference, cancel);
 
             await task;
         }
@@ -326,7 +329,7 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows == false) return null;
 
-            return Util.DoMultipleFuncs(MultipleActionsFlag.AnyOk,
+            return Util.DoMultipleFuncs(MultipleActionsFlag.AnyOk, default,
                 () => EnumAlternateStreamsInternal_UseFindFirstApi(path, maxSize, maxNum),
                 () => EnumAlternateStreamsInternal_UseNtDllApi(path, maxSize, maxNum, true)
                 );
@@ -452,8 +455,7 @@ namespace IPA.Cores.Basic
             {
                 if (CompletedFlag.IsFirstCall() == false)
                 {
-                    Debug.Assert(false, "CompletedFlag.IsFirstCall() == false");
-                    throw new ApplicationException("CompletedFlag.IsFirstCall() == false");
+                    return;
                 }
 
                 try
@@ -573,14 +575,17 @@ namespace IPA.Cores.Basic
                                     }
                                 });
                             }
+                            Con.WriteDebug("Pending.");
                             isPending = true;
                         }
                         else if (err == Win32Api.Errors.ERROR_SUCCESS)
                         {
+                            Con.WriteDebug("Completed.");
                             ctx.Completed(null, Win32Api.Errors.ERROR_SUCCESS, returnedSize);
                         }
                         else
                         {
+                            Con.WriteDebug("Error: " + err);
                             ctx.Completed(null, err, returnedSize);
                         }
                     }

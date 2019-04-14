@@ -2278,7 +2278,7 @@ namespace IPA.Cores.Basic
                     ushort lpInBuffer = (ushort)(compressed ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
                     uint lpBytesReturned = 0;
 
-                    if (Win32Api.Kernel32.DeviceIoControl(h, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, out lpBytesReturned, IntPtr.Zero) == false)
+                    if (Win32Api.Kernel32.DeviceIoControl(h, Win32Api.Kernel32.EIOControlCode.FsctlSetCompression, ref lpInBuffer, sizeof(short), IntPtr.Zero, 0, out lpBytesReturned, IntPtr.Zero) == false)
                     {
                         return false;
                     }

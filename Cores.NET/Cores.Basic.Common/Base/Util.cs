@@ -1666,7 +1666,7 @@ namespace IPA.Cores.Basic
             return obj;
         }
 
-        public static TResult DoMultipleFuncs<TResult>(MultipleActionsFlag flag, params Func<TResult>[] funcs)
+        public static TResult DoMultipleFuncs<TResult>(MultipleActionsFlag flag, CancellationToken cancel, params Func<TResult>[] funcs)
         {
             bool allOk = true;
             bool anyOk = false;
@@ -1684,6 +1684,7 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
+                            cancel.ThrowIfCancellationRequested();
                             lastRet = func();
 
                             if (isFirstRetSet == false)
@@ -1742,7 +1743,84 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static bool DoMultipleActions(MultipleActionsFlag flag, params Action[] actions)
+        public static async Task<TResult> DoMultipleFuncsAsync<TResult>(MultipleActionsFlag flag, CancellationToken cancel, params Func<Task<TResult>>[] funcs)
+        {
+            bool allOk = true;
+            bool anyOk = false;
+            Exception firstException = null;
+
+            TResult firstRet = default;
+            bool isFirstRetSet = false;
+            TResult lastRet = default;
+
+            if (funcs != null)
+            {
+                foreach (Func<Task<TResult>> func in funcs)
+                {
+                    if (func != null)
+                    {
+                        try
+                        {
+                            cancel.ThrowIfCancellationRequested();
+                            lastRet = await func();
+
+                            if (isFirstRetSet == false)
+                            {
+                                firstRet = lastRet;
+                                isFirstRetSet = true;
+                            }
+
+                            anyOk = true;
+
+                            if (flag == MultipleActionsFlag.AnyOk)
+                                break;
+                        }
+                        catch (Exception ex)
+                        {
+                            allOk = false;
+                            if (firstException == null)
+                                firstException = ex;
+                        }
+                    }
+                }
+            }
+
+            if (allOk)
+                anyOk = true;
+
+            switch (flag)
+            {
+                case MultipleActionsFlag.IgnoreError:
+                    return firstRet;
+
+                case MultipleActionsFlag.AllOk:
+                    if (allOk == false)
+                    {
+                        throw firstException;
+                    }
+                    return firstRet;
+
+                case MultipleActionsFlag.AnyOk:
+                case MultipleActionsFlag.AnyOkContinueAll:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return firstRet;
+
+                case MultipleActionsFlag.AnyOkContinueAllRetLast:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return lastRet;
+
+                default:
+                    throw new ArgumentOutOfRangeException("mode");
+            }
+        }
+
+        public static bool DoMultipleActions(MultipleActionsFlag flag, CancellationToken cancel, params Action[] actions)
         {
             bool allOk = true;
             bool anyOk = false;
@@ -1756,7 +1834,69 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
+                            cancel.ThrowIfCancellationRequested();
                             action();
+                            anyOk = true;
+
+                            if (flag == MultipleActionsFlag.AnyOk)
+                                break;
+                        }
+                        catch (Exception ex)
+                        {
+                            allOk = false;
+                            if (firstException == null)
+                                firstException = ex;
+                        }
+                    }
+                }
+            }
+
+            if (allOk)
+                anyOk = true;
+
+            switch (flag)
+            {
+                case MultipleActionsFlag.IgnoreError:
+                    return anyOk;
+
+                case MultipleActionsFlag.AllOk:
+                    if (allOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return true;
+
+                case MultipleActionsFlag.AnyOk:
+                case MultipleActionsFlag.AnyOkContinueAll:
+                case MultipleActionsFlag.AnyOkContinueAllRetLast:
+                    if (anyOk == false)
+                    {
+                        firstException.ReThrow();
+                    }
+                    return allOk;
+
+                default:
+                    throw new ArgumentOutOfRangeException("mode");
+            }
+        }
+
+
+        public static async Task<bool> DoMultipleActionsAsync(MultipleActionsFlag flag, CancellationToken cancel, params Func<Task>[] actions)
+        {
+            bool allOk = true;
+            bool anyOk = false;
+            Exception firstException = null;
+
+            if (actions != null)
+            {
+                foreach (Func<Task> action in actions)
+                {
+                    if (action != null)
+                    {
+                        try
+                        {
+                            cancel.ThrowIfCancellationRequested();
+                            await action();
                             anyOk = true;
 
                             if (flag == MultipleActionsFlag.AnyOk)
