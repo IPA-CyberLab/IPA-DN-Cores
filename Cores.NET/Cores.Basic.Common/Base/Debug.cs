@@ -480,6 +480,33 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        public static void GcTest()
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                List<byte[]> o1 = new List<byte[]>();
+                List<byte[]> o2 = new List<byte[]>();
+                for (int i = 0; i < 10; i++)
+                {
+                    int size = 1_000_000 * i;
+                    byte[] tmp = new byte[size];
+                    Limbo.SInt += tmp.Length;
+                    if ((i % 2) == 0)
+                        o1.Add(tmp);
+                    else
+                        o2.Add(tmp);
+                }
+
+                DoGcCollect();
+                o1.Clear();
+                DoGcCollect();
+                o2.Clear();
+                DoGcCollect();
+            }
+        }
+
+        static void DoGcCollect() => GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+
         public static void Suspend() => Kernel.SuspendForDebug();
 
         public static void Break() => Debugger.Break();

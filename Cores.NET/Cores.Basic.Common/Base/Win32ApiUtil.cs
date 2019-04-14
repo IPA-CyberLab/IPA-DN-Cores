@@ -45,6 +45,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading;
 
 #pragma warning disable 0618
 
@@ -313,9 +314,10 @@ namespace IPA.Cores.Basic
 
             ushort inFlag = (ushort)(compressionEnabled ? Win32Api.Kernel32.COMPRESSION_FORMAT_DEFAULT : Win32Api.Kernel32.COMPRESSION_FORMAT_NONE);
 
-            ValueRef<uint> outBuffer = new ValueRef<uint>();
+            var bufferIn = ReadOnlyMemoryBuffer<byte>.FromStruct(inFlag);
+            var bufferOut = new MemoryBuffer<byte>();
 
-            var task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, inFlag, outBuffer, pathForReference);
+            Task<bool> task = Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.FSCTL_SET_COMPRESSION, bufferIn, bufferOut, pathForReference);
 
             Dbg.Where();
             await task;
@@ -397,7 +399,172 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        //class OverlappedContext : IAsyncResult
+        //{
+        //    public object AsyncState { get; }
+
+        //    public OverlappedContext(object state)
+        //    {
+        //        this.AsyncState = state;
+        //    }
+
+        //    public WaitHandle AsyncWaitHandle => throw new NotImplementedException();
+
+        //    public bool CompletedSynchronously => throw new NotImplementedException();
+
+        //    public bool IsCompleted => throw new NotImplementedException();
+
+        //    public unsafe void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* overlapped)
+        //    {
+        //        Dbg.Where();
+        //        Overlapped.Unpack(overlapped);
+        //        Overlapped.Free(overlapped);
+        //    }
+        //}
+
+        unsafe class InternalOverlappedContext<TResult>
+        {
+            public ReadOnlyMemoryBuffer<byte> InBuffer = null;
+            public Holder InBufferPinHolder = null;
+
+            public MemoryBuffer<byte> OutBuffer = null;
+            public Holder OutBufferPinHolder = null;
+
+            public Overlapped Overlapped = null;
+            public NativeOverlapped* NativeOverlapped = null;
+
+            public Win32CallOverlappedCompleteProc<TResult> UserCompleteProc;
+
+            public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>();
+
+            public unsafe void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* overlapped)
+            {
+                Debug.Assert(overlapped == NativeOverlapped);
+                Completed(null, (int)errorCode, (int)numBytes);
+            }
+
+            Once CompletedFlag;
+
+            public void Completed(Exception exception, int errorCode, int returnedBytes)
+            {
+                if (CompletedFlag.IsFirstCall() == false)
+                {
+                    Debug.Assert(false, "CompletedFlag.IsFirstCall() == false");
+                    throw new ApplicationException("CompletedFlag.IsFirstCall() == false");
+                }
+
+                try
+                {
+                    if (exception != null)
+                        throw exception;
+
+                    if (returnedBytes >= 0)
+                    {
+                        OutBuffer.Seek(returnedBytes, SeekOrigin.Begin);
+                    }
+
+                    TResult ret = this.UserCompleteProc(errorCode, returnedBytes);
+
+                    CompletionSource.SetResult(ret);
+                }
+                catch (Exception ex)
+                {
+                    CompletionSource.SetException(ex);
+                }
+                finally
+                {
+                    FreeMemory();
+                }
+            }
+
+            Once FreeFlag;
+
+            public void FreeMemory()
+            {
+                if (FreeFlag.IsFirstCall())
+                {
+                    InBufferPinHolder.DisposeSafe();
+                    InBufferPinHolder = null;
+
+                    OutBufferPinHolder.DisposeSafe();
+                    OutBufferPinHolder = null;
+
+                    Overlapped.Unpack(NativeOverlapped);
+                    Overlapped.Free(NativeOverlapped);
+                    NativeOverlapped = null;
+                }
+            }
+        }
+
+        public static unsafe Task<TResult> CallOverlappedAsync<TResult>
+            (SafeFileHandle handle, Win32CallOverlappedMainProc mainProc, Win32CallOverlappedCompleteProc<TResult> completeProc, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer)
+        {
+            ThreadPool.BindHandle(handle);
+
+            inBuffer.SeekToBegin();
+            outBuffer.SeekToBegin();
+
+            InternalOverlappedContext<TResult> ctx = new InternalOverlappedContext<TResult>();
+            bool isPending = false;
+
+            try
+            {
+                ctx.UserCompleteProc = completeProc;
+
+                ctx.InBuffer = inBuffer;
+                ctx.InBufferPinHolder = inBuffer.PinLock();
+
+                ctx.OutBuffer = outBuffer;
+                ctx.OutBufferPinHolder = outBuffer.PinLock();
+
+                ctx.Overlapped = new Overlapped();
+
+                ctx.NativeOverlapped = ctx.Overlapped.Pack(ctx.IOCompletionCallback, null);
+
+                fixed (void* inPtr = &inBuffer.Span[0])
+                {
+                    fixed (void* outPtr = &outBuffer.Span[0])
+                    {
+                        RefInt returnedSize = new RefInt();
+                        int err = mainProc((IntPtr)inPtr, inBuffer.Length, (IntPtr)outPtr, outBuffer.Length, returnedSize, (IntPtr)ctx.NativeOverlapped);
+
+                        if (err == Win32Api.Errors.ERROR_IO_PENDING)
+                        {
+                            Con.WriteLine("Pending.");
+                            isPending = true;
+                        }
+                        else if (err == Win32Api.Errors.ERROR_SUCCESS)
+                        {
+                            Con.WriteLine("Completed.");
+                            ctx.Completed(null, Win32Api.Errors.ERROR_SUCCESS, returnedSize);
+                        }
+                        else
+                        {
+                            Con.WriteLine("Other error: " + err);
+                            ctx.Completed(null, err, returnedSize);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ctx.Completed(ex, 0, 0);
+            }
+            finally
+            {
+                if (isPending == false)
+                {
+                    ctx.FreeMemory();
+                }
+            }
+
+            return ctx.CompletionSource.Task;
+        }
     }
+
+    delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);
+    delegate TResult Win32CallOverlappedCompleteProc<TResult>(int errorCode, int numReturnedSize);
 }
 
 

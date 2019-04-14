@@ -42,6 +42,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Security.AccessControl;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable CS0219
 #pragma warning disable CS0162
@@ -55,7 +56,48 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            ReadOnlyMemory<byte> hello = "Abcde".GetBytes_Ascii();
+
+            ref int a = ref hello.AsStructSafe<int>();
+
+            a = 0x01020304;
+
+            while (true)
             {
+                unsafe
+                {
+                    fixed (void* ptr = &hello.Span[0])
+                    {
+                        Con.WriteLine("span: " + ((IntPtr)ptr).ToPointerHexString());
+                        fixed (int* ptr2 = &a)
+                        {
+                            Con.WriteLine("int : " + ((IntPtr)ptr2).ToPointerHexString());
+                        }
+                        Con.WriteLine("valu: " + a.ToString("X"));
+                    }
+                }
+                Dbg.GcTest();
+            }
+
+            return;
+
+            {
+                //Lfs.EnableBackupPrivilege();
+                //byte[] tmp = new byte[1000000000];
+                //using (var f = Lfs.Open(@"D:\tmp\STAR_WARS_EPISODE_1.ISO", flags: FileOperationFlags.BackupMode))
+                //{
+                //    while (true)
+                //    {
+                //        var task = f.ReadAsync(tmp);
+                //        Con.WriteLine($"begin");
+                //        task.GetResult();
+                //        Con.WriteLine("end");
+                //        if (task.Result == 0)
+                //            break;
+                //    }
+                //}
+                //return;
+
                 using (var f = Lfs.Open(@"D:\TMP\bomTest\usl5p256.img", writeMode: true))
                 {
                     LocalFileObject lf = f as LocalFileObject;

@@ -791,7 +791,7 @@ namespace IPA.Cores.Basic
             {
                 counter.Decrement();
             },
-            counter, true);
+            counter,  LeakCounterKind.EnterCriticalCounter);
         }
 
         public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
@@ -897,7 +897,7 @@ namespace IPA.Cores.Basic
 
                 x.Cts.DisposeSafe();
             },
-            ctx, true);
+            ctx, LeakCounterKind.CreateCombinedCancellationToken);
         }
     }
 
@@ -1464,14 +1464,19 @@ namespace IPA.Cores.Basic
         public T Value { get; }
         Action<T> DisposeProc;
         LeakCheckerHolder Leak = null;
+        LeakCounterKind LeakKind;
 
-        public Holder(Action<T> disposeProc, T value = default(T), bool noLeakCheck = false)
+        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind kind = LeakCounterKind.FullStackTracked)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
 
-            if (noLeakCheck == false)
+            if (kind == LeakCounterKind.FullStackTracked)
                 Leak = LeakChecker.Enter();
+
+            this.LeakKind = kind;
+
+            LeakChecker.IncrementLeakCounter(this.LeakKind);
         }
 
         Once DisposeFlag;
@@ -1489,6 +1494,8 @@ namespace IPA.Cores.Basic
                 {
                     if (Leak != null)
                         Leak.DisposeSafe();
+
+                    LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
             }
         }
@@ -1498,13 +1505,18 @@ namespace IPA.Cores.Basic
     {
         Action DisposeProc;
         LeakCheckerHolder Leak = null;
+        LeakCounterKind LeakKind;
 
-        public Holder(Action disposeProc, bool noLeakCheck = false)
+        public Holder(Action disposeProc, LeakCounterKind kind = LeakCounterKind.FullStackTracked)
         {
             this.DisposeProc = disposeProc;
 
-            if (noLeakCheck == false)
+            if (kind == LeakCounterKind.FullStackTracked)
                 Leak = LeakChecker.Enter();
+
+            this.LeakKind = kind;
+
+            LeakChecker.IncrementLeakCounter(this.LeakKind);
         }
 
         Once DisposeFlag;
@@ -1521,6 +1533,8 @@ namespace IPA.Cores.Basic
                 {
                     if (Leak != null)
                         Leak.DisposeSafe();
+
+                    LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
             }
         }
@@ -1961,12 +1975,25 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum LeakCounterKind
+    {
+        FullStackTracked = 0,
+        OthersUntracked = 1,
+        PinnedMemory = 2,
+        EnterCriticalCounter = 3,
+        CreateCombinedCancellationToken = 4,
+        FastAllocMemoryWithUsing = 5,
+    }
+
     static class LeakChecker
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
         internal static Dictionary<long, LeakCheckerHolder> _InternalList = new Dictionary<long, LeakCheckerHolder>();
         internal static long _InternalCurrentId = 0;
+
+        static int[] LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];
 
         static public AsyncCleanuperLady SuperGrandLady { get; } = new AsyncCleanuperLady();
 
@@ -1978,8 +2005,35 @@ namespace IPA.Cores.Basic
             get
             {
                 lock (_InternalList)
-                    return _InternalList.Count;
+                {
+                    int ret = 0;
+                    ret += _InternalList.Count;
+
+                    for (int k = 0; k < LeakCounters.Length; k++)
+                    {
+                        LeakCounterKind kind = (LeakCounterKind)k;
+                        if (kind != LeakCounterKind.FullStackTracked)
+                        {
+                            int counter = LeakCounters[k];
+                            ret += Math.Abs(counter);
+                        }
+                    }
+
+                    return ret;
+                }
             }
+        }
+
+        public static void IncrementLeakCounter(LeakCounterKind kind)
+        {
+            int r = Interlocked.Increment(ref LeakCounters[(int)kind]);
+            Debug.Assert(r >= 1);
+        }
+
+        public static void DecrementLeakCounter(LeakCounterKind kind)
+        {
+            int r = Interlocked.Decrement(ref LeakCounters[(int)kind]);
+            Debug.Assert(r >= 0);
         }
 
         public static void Print()
@@ -2019,6 +2073,16 @@ namespace IPA.Cores.Basic
                     {
                         w.WriteLine(v.Value.StackTrace);
                         w.WriteLine("---");
+                    }
+                }
+
+                for (int k = 0; k < LeakCounters.Length; k++)
+                {
+                    LeakCounterKind kind = (LeakCounterKind)k;
+                    int c = LeakCounters[k];
+                    if (c != 0)
+                    {
+                        w.WriteLine($"LeakCounters[{kind.ToString()}] = {c}");
                     }
                 }
             }

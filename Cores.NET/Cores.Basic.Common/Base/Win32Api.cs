@@ -185,37 +185,61 @@ namespace IPA.Cores.Basic
             );
 
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal unsafe static extern bool DeviceIoControl(SafeFileHandle fileHandle, uint ioControlCode, void* inBuffer, uint cbInBuffer, void* outBuffer, uint cbOutBuffer,
-                out uint cbBytesReturned, IntPtr overlapped);//ref NativeOverlapped overlapped);
+            internal unsafe static extern bool DeviceIoControl(SafeFileHandle fileHandle, uint ioControlCode, IntPtr inBuffer, uint cbInBuffer, IntPtr outBuffer, uint cbOutBuffer,
+                out uint cbBytesReturned, IntPtr overlapped);
 
-            public static unsafe Task<uint> DeviceIoControlAsync<TIn, TOut>(
-                SafeFileHandle fileHandle, uint ioControlCode, TIn inBuffer, ValueRef<TOut> outBuffer, string pathForReference, uint ?inBufferSize = null, uint ?outBufferSize = null)
-                where TIn: unmanaged
-                where TOut: unmanaged
+            public static async Task<bool> DeviceIoControlAsync(
+                SafeFileHandle fileHandle, uint ioControlCode, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer, string pathForReference)
             {
-                bool isAsync = fileHandle.IsAsync();
-                uint returnedSize = 0;
-
-                DeviceIoControlAsyncResult result = new DeviceIoControlAsyncResult(null);
-
-                Overlapped over = new Overlapped(0, 0, IntPtr.Zero, result);
-
-                void* ptrIn = &inBuffer;
-                {
-                    fixed (void* ptrOut = &outBuffer.Value)
+                bool ret = await Win32ApiUtil.CallOverlappedAsync<bool>(fileHandle,
+                    (inPtr, inSize, outPtr, outSize, outReturnedSize, overlapped) =>
                     {
-                        bool ret = DeviceIoControl(fileHandle, ioControlCode, ptrIn, inBufferSize ?? (uint)Marshal.SizeOf<TIn>(), ptrOut, outBufferSize ?? (uint)outBuffer.Size,
-                            out returnedSize, IntPtr.Zero);
+                        bool b = DeviceIoControl(fileHandle, ioControlCode, inPtr, (uint)inSize, outPtr, (uint)outSize, out uint retBytes, overlapped);
+                        if (b) return Errors.ERROR_SUCCESS;
+                        return Marshal.GetLastWin32Error();
+                    },
+                    (errorCode, numReturnedSize) =>
+                    {
+                        if (errorCode != Errors.ERROR_SUCCESS)
+                            throw Win32ApiUtil.ThrowWin32Error(errorCode, pathForReference);
+                        return true;
+                    },
+                    inBuffer,
+                    outBuffer);
 
-                        if (ret == false)
-                        {
-                            Win32ApiUtil.ThrowLastWin32Error(pathForReference);
-                        }
-                        
-                        return Task.FromResult(returnedSize);
-                    }
-                }
+                return ret;
             }
+
+
+            //public static unsafe Task<uint> DeviceIoControlAsync2<TIn, TOut>(
+            //    SafeFileHandle fileHandle, uint ioControlCode, TIn inBuffer, ValueRef<TOut> outBuffer, string pathForReference, uint ?inBufferSize = null, uint ?outBufferSize = null)
+            //    where TIn: unmanaged
+            //    where TOut: unmanaged
+            //{
+            //    bool isAsync = fileHandle.IsAsync();
+            //    uint returnedSize = 0;
+
+            //    DeviceIoControlAsyncResult result = new DeviceIoControlAsyncResult(null);
+
+            //    //Overlapped over = new Overlapped(0, 0, IntPtr.Zero, result);
+            //    //NativeOverlapped *overNative = over.Pack(
+
+            //    void* ptrIn = &inBuffer;
+            //    {
+            //        fixed (void* ptrOut = &outBuffer.Value)
+            //        {
+            //            bool ret = DeviceIoControl(fileHandle, ioControlCode, ptrIn, inBufferSize ?? (uint)Marshal.SizeOf<TIn>(), ptrOut, outBufferSize ?? (uint)outBuffer.Size,
+            //                out returnedSize, IntPtr.Zero);
+
+            //            if (ret == false)
+            //            {
+            //                Win32ApiUtil.ThrowLastWin32Error(pathForReference);
+            //            }
+
+            //            return Task.FromResult(returnedSize);
+            //        }
+            //    }
+            //}
 
             [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
             internal static extern bool SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS FileInformationClass, ref FILE_BASIC_INFO lpFileInformation, uint dwBufferSize);
@@ -1085,6 +1109,8 @@ namespace IPA.Cores.Basic
             SafeFileHandle _fileHandle = CreateFileOpenHandle(mode, share, options, _access, _path);
 
             FileStream ret = new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
+
+            _fileHandle.SetAsync(options.Bit(FileOptions.Asynchronous));
 
             if (mode == FileMode.Append)
             {

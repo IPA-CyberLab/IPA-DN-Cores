@@ -1170,5 +1170,57 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsStruct<T>(this ref byte data) => ref Unsafe.As<byte, T>(ref data);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsStruct<T>(this Span<byte> data) => ref Unsafe.As<byte, T>(ref data[0]);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ref T AsStruct<T>(this ReadOnlySpan<byte> data)
+        {
+            fixed (void* ptr = &data[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsStruct<T>(this Memory<byte> data) => ref Unsafe.As<byte, T>(ref data.Span[0]);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ref T AsStruct<T>(this ReadOnlyMemory<byte> data)
+        {
+            fixed (void* ptr = &data.Span[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsStructSafe<T>(this Span<byte> data, int minSize = 0)
+        {
+            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            return ref Unsafe.As<byte, T>(ref data.Slice(0, minSize)[0]);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ref T AsStructSafe<T>(this ReadOnlySpan<byte> data, int minSize = 0)
+        {
+            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            fixed (void* ptr = &data.Slice(0, minSize)[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ref T AsStructSafe<T>(this Memory<byte> data, int minSize = 0)
+        {
+            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            return ref Unsafe.As<byte, T>(ref data.Span.Slice(0, minSize)[0]);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ref T AsStructSafe<T>(this ReadOnlyMemory<byte> data, int minSize = 0)
+        {
+            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            fixed (void* ptr = &data.Span.Slice(0, minSize)[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
     }
 }

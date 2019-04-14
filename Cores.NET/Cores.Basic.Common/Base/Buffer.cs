@@ -63,6 +63,14 @@ namespace IPA.Cores.Basic
             Length = baseSpan.Length;
         }
 
+        public static SpanBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new SpanBuffer<byte>(baseMemory.Span);
+        }
+
         public static implicit operator SpanBuffer<T>(Span<T> span) => new SpanBuffer<T>(span);
         public static implicit operator SpanBuffer<T>(Memory<T> memory) => new SpanBuffer<T>(memory.Span);
         public static implicit operator SpanBuffer<T>(T[] array) => new SpanBuffer<T>(array.AsSpan());
@@ -276,6 +284,14 @@ namespace IPA.Cores.Basic
             Length = baseSpan.Length;
         }
 
+        public static ReadOnlySpanBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new ReadOnlySpanBuffer<byte>(baseMemory.Span);
+        }
+
         public ReadOnlySpan<T> Read(int size, bool allowPartial = false)
         {
             int sizeRead = size;
@@ -380,6 +396,14 @@ namespace IPA.Cores.Basic
             CurrentPosition = 0;
             Length = baseMemory.Length;
             InternalSpan = InternalBuffer.Span;
+        }
+
+        public static FastMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new FastMemoryBuffer<byte>(baseMemory);
         }
 
         public static implicit operator FastMemoryBuffer<T>(Memory<T> memory) => new FastMemoryBuffer<T>(memory);
@@ -627,6 +651,14 @@ namespace IPA.Cores.Basic
             InternalSpan = InternalBuffer.Span;
         }
 
+        public static FastReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            ReadOnlyMemory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new FastReadOnlyMemoryBuffer<byte>(baseMemory);
+        }
+
         public static implicit operator FastReadOnlyMemoryBuffer<T>(ReadOnlyMemory<T> memory) => new FastReadOnlyMemoryBuffer<T>(memory);
         public static implicit operator FastReadOnlyMemoryBuffer<T>(T[] array) => new FastReadOnlyMemoryBuffer<T>(array.AsMemory());
         public static implicit operator ReadOnlyMemory<T>(FastReadOnlyMemoryBuffer<T> buf) => buf.Memory;
@@ -805,6 +837,8 @@ namespace IPA.Cores.Basic
         ReadOnlySpan<T> Peek(int size, bool allowPartial = false);
         void Seek(int offset, SeekOrigin mode);
         void Clear();
+        Holder PinLock();
+        bool IsPinLocked();
     }
 
     class BufferStream : Stream
@@ -910,6 +944,43 @@ namespace IPA.Cores.Basic
             InternalBuffer = baseMemory;
             CurrentPosition = 0;
             Length = baseMemory.Length;
+        }
+
+        public static MemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new MemoryBuffer<byte>(baseMemory);
+        }
+
+        CriticalSection PinLockObj = new CriticalSection();
+        int PinLockedCounter = 0;
+        MemoryHandle PinHandle;
+        public bool IsPinLocked() => (PinLockedCounter != 0);
+        public Holder PinLock()
+        {
+            lock (PinLockObj)
+            {
+                if (PinLockedCounter == 0)
+                    PinHandle = InternalBuffer.Pin();
+                PinLockedCounter++;
+            }
+
+            return new Holder(() =>
+            {
+                lock (PinLockObj)
+                {
+                    Debug.Assert(PinLockedCounter >= 1);
+                    PinLockedCounter--;
+                    if (PinLockedCounter == 0)
+                    {
+                        PinHandle.Dispose();
+                        PinHandle = default;
+                    }
+                }
+            },
+            LeakCounterKind.PinnedMemory);
         }
 
         public static implicit operator MemoryBuffer<T>(Memory<T> memory) => new MemoryBuffer<T>(memory);
@@ -1121,11 +1192,15 @@ namespace IPA.Cores.Basic
             while (newInternalSize < newSize)
                 newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
 
+            if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
+
             InternalBuffer = InternalBuffer.ReAlloc(newInternalSize);
         }
 
         public void Clear()
         {
+            if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
+
             InternalBuffer = new Memory<T>();
             CurrentPosition = 0;
             Length = 0;
@@ -1153,6 +1228,43 @@ namespace IPA.Cores.Basic
             InternalBuffer = baseMemory;
             CurrentPosition = 0;
             Length = baseMemory.Length;
+        }
+
+        public static ReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        {
+            ReadOnlyMemory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            dst = src;
+            return new ReadOnlyMemoryBuffer<byte>(baseMemory);
+        }
+
+        CriticalSection PinLockObj = new CriticalSection();
+        int PinLockedCounter = 0;
+        MemoryHandle PinHandle;
+        public bool IsPinLocked() => (PinLockedCounter != 0);
+        public Holder PinLock()
+        {
+            lock (PinLockObj)
+            {
+                if (PinLockedCounter == 0)
+                    PinHandle = InternalBuffer.Pin();
+                PinLockedCounter++;
+            }
+
+            return new Holder(() =>
+            {
+                lock (PinLockObj)
+                {
+                    Debug.Assert(PinLockedCounter >= 1);
+                    PinLockedCounter--;
+                    if (PinLockedCounter == 0)
+                    {
+                        PinHandle.Dispose();
+                        PinHandle = default;
+                    }
+                }
+            },
+            LeakCounterKind.PinnedMemory);
         }
 
         public static implicit operator ReadOnlyMemoryBuffer<T>(ReadOnlyMemory<T> memory) => new ReadOnlyMemoryBuffer<T>(memory);
@@ -1315,12 +1427,7 @@ namespace IPA.Cores.Basic
             return span.Length;
         }
 
-        public void Clear()
-        {
-            InternalBuffer = new ReadOnlyMemory<T>();
-            CurrentPosition = 0;
-            Length = 0;
-        }
+        void IBuffer<T>.Clear() => throw new NotSupportedException();
 
         void IBuffer<T>.Write(ReadOnlySpan<T> data) => throw new NotSupportedException();
     }
@@ -1601,7 +1708,7 @@ namespace IPA.Cores.Basic
             {
                 FastFree(ret);
             },
-            noLeakCheck: true);
+            LeakCounterKind.FastAllocMemoryWithUsing);
         }
 
         unsafe struct DummyValueType

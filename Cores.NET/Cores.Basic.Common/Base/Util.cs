@@ -275,7 +275,7 @@ namespace IPA.Cores.Basic
         public static implicit operator RefBool(bool value) => new RefBool(value);
     }
 
-    class ValueRef<T> where T: struct
+    class ValueRef<T> where T : struct
     {
         public T Value;
         public readonly int Size = Marshal.SizeOf<T>();
@@ -988,7 +988,7 @@ namespace IPA.Cores.Basic
         public static bool IsZero(ReadOnlySpan<byte> data)
         {
             int i;
-            for (i = 0; i <data.Length; i++)
+            for (i = 0; i < data.Length; i++)
             {
                 if (data[i] != 0)
                 {
@@ -1389,14 +1389,17 @@ namespace IPA.Cores.Basic
         }
 
         // 構造体のサイズの取得
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOfStruct(object obj)
-        {
-            return Marshal.SizeOf(obj);
-        }
+            => Marshal.SizeOf(obj);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOfStruct(Type type)
-        {
-            return Marshal.SizeOf(type);
-        }
+            => Marshal.SizeOf(type);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOfStruct<T>()
+            => Unsafe.SizeOf<T>();
 
         // オブジェクトから XML とスキーマを生成
         public static XmlAndXsd GenerateXmlAndXsd(object obj)
@@ -1863,7 +1866,7 @@ namespace IPA.Cores.Basic
     }
 
     // シングルトン
-    struct Singleton<T> where T: class
+    struct Singleton<T> where T : class
     {
         static object lockobj = new object();
         T obj;
@@ -2876,7 +2879,7 @@ namespace IPA.Cores.Basic
                         ret = true;
 
                     if (Setting.ReportTimingSetting.ReportTimingIntervalMsecs > 0)
-                    {   
+                    {
                         if ((LastReportedReport.Tick + Setting.ReportTimingSetting.ReportTimingIntervalMsecs) <= report.Tick)
                             ret = true;
                     }

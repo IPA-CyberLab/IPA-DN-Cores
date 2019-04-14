@@ -800,12 +800,27 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsync = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncGet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncSet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.SetProperty);
 
         public static bool IsAsync(this SafeFileHandle handle)
         {
-            return (bool)PInfo_SafeFileHandle_IsAsync.GetValue(handle);
+            try
+            {
+                return ((bool?)PInfo_SafeFileHandle_IsAsyncGet.GetValue(handle)) ?? false;
+            }
+            catch
+            {
+                return false;
+            }
         }
+
+        public static void SetAsync(this SafeFileHandle handle, bool isAsync)
+        {
+            PInfo_SafeFileHandle_IsAsyncSet.SetValue(handle, isAsync);
+        }
+
+        public static string ToPointerHexString(this IntPtr ptr) => $"0x{ptr.ToInt64():X}";
     }
 }
 
