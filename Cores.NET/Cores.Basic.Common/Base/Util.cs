@@ -3294,5 +3294,13 @@ namespace IPA.Cores.Basic
             return new NullProgressReporter(state);
         }
     }
+
+    static class ZeroedSharedMemory
+    {
+        public static class _65536bytes
+        {
+            public static readonly ReadOnlyMemory<byte> Memory = new byte[65536];
+        }
+    }
 }
 

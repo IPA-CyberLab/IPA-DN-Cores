@@ -52,6 +52,14 @@ using System.Security.AccessControl;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class LocalFileSystemSettings
+        {
+            public static readonly Copenhagen<int> SparseFileMinBlockSize = 100;
+        }
+    }
+
     class LocalFileSystem : FileSystemBase
     {
         public const long Win32MaxAlternateStreamSize = 65536;
@@ -911,6 +919,12 @@ namespace IPA.Cores.Basic
 
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
+            if (this.FileParams.Flags.Bit(FileOperationFlags.SparseFile))
+            {
+                await WriteRandomAutoSparseAsync(position, data, cancel);
+                return;
+            }
+
             checked
             {
                 if (this.CurrentPosition != position)
@@ -925,8 +939,30 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task WriteRandomAutoSparse(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory._65536bytes.Memory;
+        async Task WriteFileStreamSparseData(long position, long size, CancellationToken cancel = default)
         {
+            checked
+            {
+                if (position < 0) throw new ArgumentOutOfRangeException("position");
+                if (size < 0) throw new ArgumentOutOfRangeException("size");
+                if (size == 0) return;
+
+                while (size >= 1)
+                {
+                    long currentSize = Math.Min(size, FillZeroBlockSize.Length);
+                    await WriteRandomImplAsync(position, FillZeroBlockSize.Slice(0, (int)currentSize), cancel);
+
+                    position += currentSize;
+                    size -= currentSize;
+                }
+            }
+        }
+
+        async Task WriteRandomAutoSparseAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            if (position < 0) throw new ArgumentOutOfRangeException("position");
+
             checked
             {
                 long currentFileSize = fileStream.Length;
@@ -938,7 +974,7 @@ namespace IPA.Cores.Basic
                 if (expandingSize >= 1)
                 {
                     existingDataRegionSize = Math.Max(data.Length - expandingSize, 0);
-                    expandingDataRegionSize = Math.Max(data.Length - existingDataRegionSize, 0);
+                    expandingDataRegionSize = data.Length - existingDataRegionSize;
                 }
                 else
                 {
@@ -946,19 +982,55 @@ namespace IPA.Cores.Basic
                     expandingDataRegionSize = 0;
                 }
 
+                long existingDataRegionPosition = position;
+                long expandingDataRegionPosition = position + existingDataRegionSize;
+
+                Debug.Assert(existingDataRegionPosition >= position);
+                Debug.Assert(expandingDataRegionPosition >= existingDataRegionPosition);
+                Debug.Assert(existingDataRegionSize >= 0);
+                Debug.Assert(expandingDataRegionSize >= 0);
+                Debug.Assert((existingDataRegionSize + expandingDataRegionSize) == data.Length);
+
                 if (existingDataRegionSize >= 1)
                 {
-                    ReadOnlyMemory<byte> existingRegionMemory = data.Slice(0, (int)existingDataRegionSize);
+                    var subData = data.Slice(0, (int)existingDataRegionSize);
+                    var chunkList = Util.GetSparseChunks(subData, AppConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
 
-                    await fileStream.WriteAsync(existingRegionMemory, cancel);
+                    foreach (var chunk in chunkList)
+                    {
+                        if (chunk.IsSparse)
+                        {
+                            await WriteFileStreamSparseData(existingDataRegionPosition + chunk.Offset, chunk.Size, cancel);
+                        }
+                        else
+                        {
+                            await WriteRandomImplAsync(existingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
+                        }
+                    }
                 }
 
                 if (expandingDataRegionSize >= 1)
                 {
+                    var subData = data.Slice((int)existingDataRegionSize, (int)expandingDataRegionSize);
+                    var chunkList = Util.GetSparseChunks(subData, AppConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
+
+                    foreach (var chunk in chunkList)
+                    {
+                        if (chunk.IsSparse)
+                        {
+                            long newFileSize = expandingDataRegionPosition + chunk.Offset + chunk.Size;
+                            Debug.Assert(this.fileStream.Length <= newFileSize);
+
+                            fileStream.SetLength(newFileSize);
+                        }
+                        else
+                        {
+                            await WriteRandomImplAsync(expandingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
+                        }
+                    }
                 }
             }
         }
     }
-
 }
 
