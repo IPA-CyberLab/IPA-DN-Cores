@@ -56,6 +56,49 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            {
+                string srcStr = "       a  bc x 1 x def    ghi   jkl 1   ";
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                foreach (char c in srcStr)
+                {
+                    if (c == ' ' || c == '0')
+                        buf.WriteUInt8((byte)0);
+                    else
+                        buf.WriteUInt8((byte)c);
+                }
+
+                var chunks = Util.GetSparseChunks(buf, 2);
+
+                string tmp2 = "";
+
+                foreach (var chunk in chunks)
+                {
+                    string tmp = "";
+                    if (chunk.IsSparse)
+                    {
+                        tmp = Str.MakeCharArray('*', chunk.Size);
+                    }
+                    else
+                    {
+                        foreach (byte b in chunk.Memory.Span)
+                        {
+                            char c;
+                            if (b == 0)
+                                c = ' ';
+                            else
+                                c = (char)b;
+                            tmp += c;
+                        }
+                    }
+
+                    tmp2 += tmp;
+                }
+
+                Con.WriteLine($"'{tmp2}'");
+
+                return;
+            }
+
             //FastReadOnlyMemoryBuffer<byte> hello = "Abcde".GetBytes_Ascii();
             //Span<byte> hello2 = "Abcde".GetBytes_Ascii();
 

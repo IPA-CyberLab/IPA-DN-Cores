@@ -1941,54 +1941,119 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<SparseChunk> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int blockSize)
+        public static List<SparseChunk> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int minZeroBlockSize)
         {
-            List<SparseChunk> ret = new List<SparseChunk>();
-            var srcBuffer = srcMemory.AsReadOnlySpanBuffer();
-
-            int dataBeginPos = -1;
-
-            while (true)
+            checked
             {
-                int thisPos = srcBuffer.CurrentPosition;
-                ReadOnlySpan<byte> smallData = srcBuffer.Read(blockSize, allowPartial: true);
+                int mode = -1;
+                int lastMode = -1;
+                int pos1 = 0, pos2 = 0;
+                long offset = 0;
 
-                if (smallData.IsEmpty)
-                    break;
+                minZeroBlockSize = Math.Max(minZeroBlockSize, 1);
 
-                if (smallData.IsZero())
+                ReadOnlySpan<byte> srcSpan = srcMemory.Span;
+                int length = srcSpan.Length;
+
+                List<SparseChunk> ret = new List<SparseChunk>();
+
+                int currentPos;
+
+                for (currentPos = 0; currentPos < length; currentPos++)
                 {
-                    int prevDataLength = thisPos - dataBeginPos;
-                    if (prevDataLength >= 1)
+                    mode = (srcSpan[currentPos] == 0) ? 0 : 1;
+
+                    if (lastMode != mode)
                     {
-                        ret.Add(new SparseChunk(srcMemory.Slice(dataBeginPos, prevDataLength)));
+                        lastMode = mode;
+                        if (mode == 1)
+                        {
+                            if ((currentPos - pos2) >= minZeroBlockSize)
+                            {
+                                int size1 = pos2 - pos1;
+                                if (size1 >= 1)
+                                {
+                                    var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
+                                    offset += size1;
+                                    ret.Add(chunk1);
+                                }
+
+                                int size2 = currentPos - pos2;
+                                if (size2 >= 1)
+                                {
+                                    var chunk2 = new SparseChunk(offset, size2);
+                                    offset += size2;
+                                    ret.Add(chunk2);
+                                }
+
+                                pos1 = currentPos;
+                            }
+                        }
+                        else if (mode == 0)
+                        {
+                            pos2 = currentPos;
+                        }
                     }
+                }
+
+                currentPos = length;
+                if ((currentPos - pos2) >= minZeroBlockSize)
+                {
+                    int size1 = pos2 - pos1;
+                    if (size1 >= 1)
+                    {
+                        var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
+                        offset += size1;
+                        ret.Add(chunk1);
+                    }
+
+                    int size2 = currentPos - pos2;
+                    if (size2 >= 1)
+                    {
+                        var chunk2 = new SparseChunk(offset, size2);
+                        offset += size2;
+                        ret.Add(chunk2);
+                    }
+
+                    pos1 = currentPos;
                 }
                 else
                 {
+                    int size = currentPos - pos1;
+                    if (size >= 1)
+                    {
+                        var chunk = new SparseChunk(offset, srcMemory.Slice(pos1, size));
+                        offset += size;
+                        ret.Add(chunk);
+                    }
                 }
+
+                return ret;
             }
         }
     }
 
-    readonly struct SparseChunk
+    class SparseChunk
     {
         public readonly ReadOnlyMemory<byte> Memory;
         public readonly bool IsSparse;
+        public readonly long Offset;
         public readonly int Size;
 
-        public SparseChunk(int size)
+        public SparseChunk(long offset, int size)
         {
             this.IsSparse = true;
             this.Size = size;
             this.Memory = default;
+            this.Offset = offset;
         }
 
-        public SparseChunk(ReadOnlyMemory<byte> memory)
+        public SparseChunk(long offset, ReadOnlyMemory<byte> memory)
         {
             this.IsSparse = false;
             this.Memory = memory;
             this.Size = memory.Length;
+            this.Offset = offset;
         }
     }
 
