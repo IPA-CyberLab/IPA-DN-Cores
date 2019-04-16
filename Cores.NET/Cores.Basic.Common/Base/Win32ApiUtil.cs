@@ -294,6 +294,21 @@ namespace IPA.Cores.Basic
             return str.ToString();
         }
 
+        public static async Task FileZeroClearAsync(SafeFileHandle handle, string pathForReference, long offset, long size, CancellationToken cancel = default)
+        {
+            if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+            if (offset < 0) throw new ArgumentOutOfRangeException("offset");
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+            if (size == 0)
+                return;
+
+            Win32Api.Kernel32.FILE_ZERO_DATA_INFORMATION data = new Win32Api.Kernel32.FILE_ZERO_DATA_INFORMATION(offset, size);
+            ReadOnlyMemoryBuffer<byte> inBuffer = ReadOnlyMemoryBuffer<byte>.FromStruct(data);
+
+            await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetZeroData, inBuffer, null, pathForReference, cancel);
+        }
+
         public static async Task SetSparseFileAsync(SafeFileHandle handle, string pathForReference, CancellationToken cancel = default)
         {
             if (Env.IsWindows == false) return;
@@ -450,6 +465,7 @@ namespace IPA.Cores.Basic
 
             public unsafe void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* overlapped)
             {
+                Debug.Assert(overlapped != null);
                 Debug.Assert(overlapped == NativeOverlapped);
                 Completed(null, (int)errorCode, (int)numBytes);
             }
@@ -460,6 +476,7 @@ namespace IPA.Cores.Basic
             {
                 if (CompletedFlag.IsFirstCall() == false)
                 {
+                    //Debug.Assert(false);
                     return;
                 }
 
@@ -553,6 +570,7 @@ namespace IPA.Cores.Basic
                 {
                     ctx.Overlapped = new Overlapped();
                     ctx.NativeOverlapped = ctx.Overlapped.Pack(ctx.IOCompletionCallback, null);
+                    Debug.Assert(ctx.NativeOverlapped != null);
                 }
 
                 fixed (void* inPtr = &inBuffer.GetRefForFixedPtr())
@@ -588,8 +606,23 @@ namespace IPA.Cores.Basic
                         }
                         else if (err == Win32Api.Errors.ERROR_SUCCESS)
                         {
-                            Con.WriteDebug("Completed.");
-                            ctx.Completed(null, Win32Api.Errors.ERROR_SUCCESS, returnedSize);
+                            if (isAsync == false)
+                                ctx.Completed(null, Win32Api.Errors.ERROR_SUCCESS, returnedSize);
+                            else
+                                isPending = true;
+
+                            //int outSz = 0;
+                            //if (Win32Api.Kernel32.GetOverlappedResult(handle, ctx.NativeOverlapped, ref outSz, true) == false)
+                            //{
+                            //    Console.WriteLine("GetOverlappedResult error.");
+                            //    ctx.Completed(null, err, 0);
+                            //}
+                            //else
+                            //{
+                            //    //Console.WriteLine("GetOverlappedResult ok.");
+
+                            //    ctx.Completed(null, err, outSz);
+                            //}
                         }
                         else
                         {

@@ -3310,10 +3310,14 @@ namespace IPA.Cores.Basic
 
     static class ZeroedSharedMemory
     {
-        public static class _65536bytes
-        {
-            public static readonly ReadOnlyMemory<byte> Memory = new byte[65536];
-        }
+        const int Size = 65536;
+        public static readonly ReadOnlyMemory<byte> Memory = new byte[Size];
+    }
+
+    static class ZeroedSharedMemory<T>
+    {
+        const int Size = 65536;
+        public static readonly ReadOnlyMemory<T> Memory = new T[Size];
     }
 }
 

@@ -3,9 +3,13 @@
     "TestDev": {
       "commandName": "Project"
     },
-    "TestDev /test": {
+    "TestDev /Test": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:Test"
+    },
+    "TestDev /SparseFile": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:SparseFile"
     }
   }
 }

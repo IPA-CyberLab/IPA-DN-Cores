@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.TestDev
 {
-    class TestDevCommands
+    partial class TestDevCommands
     {
         [ConsoleCommandMethod(
             "Test command",

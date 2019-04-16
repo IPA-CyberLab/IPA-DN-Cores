@@ -1723,6 +1723,9 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+        public static void CopyFile(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath,
+            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
+            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel).GetResult();
 
         static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel)
         {

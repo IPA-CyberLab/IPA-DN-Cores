@@ -173,6 +173,13 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, SetLastError = true)]
             internal static extern unsafe bool CancelIoEx(SafeHandle handle, NativeOverlapped* lpOverlapped);
 
+            [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto)]
+            unsafe internal static extern bool GetOverlappedResult(
+                SafeFileHandle hFile,
+                NativeOverlapped* lpOverlapped,
+                ref int lpNumberOfBytesTransferred,
+                bool bWait);
+
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
             internal static extern bool DeviceIoControl
             (
@@ -917,6 +924,22 @@ namespace IPA.Cores.Basic
                     fileSizeHigh = findData.nFileSizeHigh;
                     fileSizeLow = findData.nFileSizeLow;
                 }
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            internal struct FILE_ZERO_DATA_INFORMATION
+            {
+                public FILE_ZERO_DATA_INFORMATION(long offset, long count)
+                {
+                    checked
+                    {
+                        FileOffset = offset;
+                        BeyondFinalZero = offset + count;
+                    }
+                }
+
+                public long FileOffset;
+                public long BeyondFinalZero;
             }
 
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

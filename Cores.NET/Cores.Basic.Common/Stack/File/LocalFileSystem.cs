@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalFileSystemSettings
         {
-            public static readonly Copenhagen<int> SparseFileMinBlockSize = 8;
+            public static readonly Copenhagen<int> SparseFileMinBlockSize = 4096;
         }
     }
 
@@ -760,7 +760,7 @@ namespace IPA.Cores.Basic
                 Con.WriteDebug($"InternalInitAsync '{FileParams.Path}'");
 
                 FileOptions options = FileOptions.None;
-                if (this.FileParams.Flags.Bit(FileOperationFlags.DisableOverlappedIo) == false)
+                if (this.FileParams.Flags.Bit(FileOperationFlags.NoAsync) == false)
                     options |= FileOptions.Asynchronous;
 
                 if (Env.IsWindows)
@@ -919,7 +919,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
-            if (this.FileParams.Flags.Bit(FileOperationFlags.SparseFile))
+            if (isSparseFile)
             {
                 await WriteRandomAutoSparseAsync(position, data, cancel);
             }
@@ -945,8 +945,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory._65536bytes.Memory;
-        async Task WriteFileStreamSparseData(long position, long size, CancellationToken cancel = default)
+        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory.Memory;
+        async Task FileZeroClearDataAsync(long position, long size, CancellationToken cancel = default)
         {
             checked
             {
@@ -954,10 +954,28 @@ namespace IPA.Cores.Basic
                 if (size < 0) throw new ArgumentOutOfRangeException("size");
                 if (size == 0) return;
 
+                if (Env.IsWindows)
+                {
+                    // Use FSCTL_SET_ZERO_DATA first
+                    try
+                    {
+                        await Win32ApiUtil.FileZeroClearAsync(this.fileStream.SafeFileHandle, this.FileParams.Path, position, size);
+                        return;
+                    }
+                    catch { }
+                }
+
+                // Use normal zero-clear method
                 while (size >= 1)
                 {
                     long currentSize = Math.Min(size, FillZeroBlockSize.Length);
+                    
                     await WriteRandomImplInternalAsync(position, FillZeroBlockSize.Slice(0, (int)currentSize), cancel);
+
+                    //debug
+                    //Memory<byte> xxx = new byte[(int)currentSize];
+                    //xxx.Span.Fill((byte)'-');
+                    //await WriteRandomImplInternalAsync(position, xxx, cancel);
 
                     position += currentSize;
                     size -= currentSize;
@@ -1006,7 +1024,7 @@ namespace IPA.Cores.Basic
                     {
                         if (chunk.IsSparse)
                         {
-                            await WriteFileStreamSparseData(existingDataRegionPosition + chunk.Offset, chunk.Size, cancel);
+                            await FileZeroClearDataAsync(existingDataRegionPosition + chunk.Offset, chunk.Size, cancel);
                         }
                         else
                         {

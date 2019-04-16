@@ -57,59 +57,48 @@ namespace IPA.TestDev
             Con.WriteLine("This is a test.");
 
             {
-                string srcStr = "   Hello   1        World          NekoNek   o   ";
                 MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-                foreach (char c in srcStr)
+
+                for (int i = 0; i < 1000; i++)
                 {
-                    if (c == ' ' || c == '0')
-                        buf.WriteUInt8((byte)0);
-                    else
-                        buf.WriteUInt8((byte)c);
+                    buf.WriteUInt8((byte)('0' + i % 10));
                 }
+                //for (int i = 0; i < 100; i++)
+                //{
+                //    buf.WriteUInt8((byte)0);
+                //}
 
-                var chunks = Util.GetSparseChunks(buf, 3);
+                //for (int i = 0; i < 1000; i++)
+                //{
+                //    buf.WriteUInt8(0);
+                //}
 
-                string tmp2 = "";
+                //for (int i = 0; i < 1000; i++)
+                //{
+                //    buf.WriteUInt8((byte)('0' + i % 10));
+                //}
 
-                foreach (var chunk in chunks)
+                MemoryBuffer<byte> buf2 = new MemoryBuffer<byte>();
+                //buf2.Write(ZeroedSharedMemory._65536bytes.Memory.Slice(0, 1100));
+                buf2.WriteZero(1_000_000_000);
+                for (int i = 0; i < 0; i++)
                 {
-                    string tmp = "";
-                    if (chunk.IsSparse)
-                    {
-                        tmp = Str.MakeCharArray('*', chunk.Size);
-                    }
-                    else
-                    {
-                        foreach (byte b in chunk.Memory.Span)
-                        {
-                            char c;
-                            if (b == 0)
-                                c = ' ';
-                            else
-                                c = (char)b;
-                            tmp += c;
-                        }
-                    }
-
-                    tmp2 += tmp;
+                    buf2.WriteUInt8((byte)0);
                 }
-
-                Con.WriteLine($"'{tmp2}'");
-
-                return;
-            }
-
-            {
-                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-                buf.Write("Hello".GetBytes_Ascii());
-                buf.Write(new byte[65536]);
-                buf.Write("World".GetBytes_Ascii());
-                buf.Write(new byte[65536]);
-                buf.Write("Neko".GetBytes_Ascii());
+                
+                for (int i = 0; i < 100; i++)
+                {
+                    buf2.WriteUInt8((byte)('A' + i % 10));
+                }
 
                 using (var file = Lfs.Create(@"D:\TMP\190416sparse\sparse1.txt", flags: FileOperationFlags.SparseFile))
                 {
                     file.Write(buf);
+                }
+
+                using (var file = Lfs.OpenOrCreate(@"D:\TMP\190416sparse\sparse1.txt", flags: FileOperationFlags.SparseFile))
+                {
+                    file.WriteRandom(1000, buf2);
                 }
 
                 return;
