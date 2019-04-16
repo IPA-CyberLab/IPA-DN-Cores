@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalFileSystemSettings
         {
-            public static readonly Copenhagen<int> SparseFileMinBlockSize = 100;
+            public static readonly Copenhagen<int> SparseFileMinBlockSize = 8;
         }
     }
 
@@ -922,9 +922,15 @@ namespace IPA.Cores.Basic
             if (this.FileParams.Flags.Bit(FileOperationFlags.SparseFile))
             {
                 await WriteRandomAutoSparseAsync(position, data, cancel);
-                return;
             }
+            else
+            {
+                await WriteRandomImplInternalAsync(position, data, cancel);
+            }
+        }
 
+        async Task WriteRandomImplInternalAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
             checked
             {
                 if (this.CurrentPosition != position)
@@ -951,7 +957,7 @@ namespace IPA.Cores.Basic
                 while (size >= 1)
                 {
                     long currentSize = Math.Min(size, FillZeroBlockSize.Length);
-                    await WriteRandomImplAsync(position, FillZeroBlockSize.Slice(0, (int)currentSize), cancel);
+                    await WriteRandomImplInternalAsync(position, FillZeroBlockSize.Slice(0, (int)currentSize), cancel);
 
                     position += currentSize;
                     size -= currentSize;
@@ -1004,7 +1010,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
-                            await WriteRandomImplAsync(existingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
+                            await WriteRandomImplInternalAsync(existingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
                         }
                     }
                 }
@@ -1025,7 +1031,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
-                            await WriteRandomImplAsync(expandingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
+                            await WriteRandomImplInternalAsync(expandingDataRegionPosition + chunk.Offset, chunk.Memory, cancel);
                         }
                     }
                 }

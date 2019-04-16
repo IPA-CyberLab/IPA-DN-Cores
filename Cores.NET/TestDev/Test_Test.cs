@@ -56,6 +56,65 @@ namespace IPA.TestDev
         {
             Con.WriteLine("This is a test.");
 
+            {
+                string srcStr = "   Hello   1        World          NekoNek   o   ";
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                foreach (char c in srcStr)
+                {
+                    if (c == ' ' || c == '0')
+                        buf.WriteUInt8((byte)0);
+                    else
+                        buf.WriteUInt8((byte)c);
+                }
+
+                var chunks = Util.GetSparseChunks(buf, 3);
+
+                string tmp2 = "";
+
+                foreach (var chunk in chunks)
+                {
+                    string tmp = "";
+                    if (chunk.IsSparse)
+                    {
+                        tmp = Str.MakeCharArray('*', chunk.Size);
+                    }
+                    else
+                    {
+                        foreach (byte b in chunk.Memory.Span)
+                        {
+                            char c;
+                            if (b == 0)
+                                c = ' ';
+                            else
+                                c = (char)b;
+                            tmp += c;
+                        }
+                    }
+
+                    tmp2 += tmp;
+                }
+
+                Con.WriteLine($"'{tmp2}'");
+
+                return;
+            }
+
+            {
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                buf.Write("Hello".GetBytes_Ascii());
+                buf.Write(new byte[65536]);
+                buf.Write("World".GetBytes_Ascii());
+                buf.Write(new byte[65536]);
+                buf.Write("Neko".GetBytes_Ascii());
+
+                using (var file = Lfs.Create(@"D:\TMP\190416sparse\sparse1.txt", flags: FileOperationFlags.SparseFile))
+                {
+                    file.Write(buf);
+                }
+
+                return;
+            }
+
             //FastReadOnlyMemoryBuffer<byte> hello = "Abcde".GetBytes_Ascii();
             //Span<byte> hello2 = "Abcde".GetBytes_Ascii();
 

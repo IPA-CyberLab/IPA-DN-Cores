@@ -1987,6 +1987,7 @@ namespace IPA.Cores.Basic
                                 }
 
                                 pos1 = currentPos;
+                                pos2 = currentPos;
                             }
                         }
                         else if (mode == 0)
@@ -1997,27 +1998,39 @@ namespace IPA.Cores.Basic
                 }
 
                 currentPos = length;
-                if ((currentPos - pos2) >= minZeroBlockSize)
+
+                if (mode == 0)
                 {
-                    int size1 = pos2 - pos1;
-                    if (size1 >= 1)
+                    if ((currentPos - pos2) >= minZeroBlockSize)
                     {
-                        var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
-                        offset += size1;
-                        ret.Add(chunk1);
-                    }
+                        int size1 = pos2 - pos1;
+                        if (size1 >= 1)
+                        {
+                            var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
+                            offset += size1;
+                            ret.Add(chunk1);
+                        }
 
-                    int size2 = currentPos - pos2;
-                    if (size2 >= 1)
+                        int size2 = currentPos - pos2;
+                        if (size2 >= 1)
+                        {
+                            var chunk2 = new SparseChunk(offset, size2);
+                            offset += size2;
+                            ret.Add(chunk2);
+                        }
+                    }
+                    else
                     {
-                        var chunk2 = new SparseChunk(offset, size2);
-                        offset += size2;
-                        ret.Add(chunk2);
+                        int size = currentPos - pos1;
+                        if (size >= 1)
+                        {
+                            var chunk = new SparseChunk(offset, srcMemory.Slice(pos1, size));
+                            offset += size;
+                            ret.Add(chunk);
+                        }
                     }
-
-                    pos1 = currentPos;
                 }
-                else
+                else if (mode == 1)
                 {
                     int size = currentPos - pos1;
                     if (size >= 1)
