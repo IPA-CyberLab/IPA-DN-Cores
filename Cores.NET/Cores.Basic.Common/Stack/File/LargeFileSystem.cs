@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
                 await LargeFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
                 {
                     var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, key);
-                    if (parsed.LogicalFilePath.IsSame(this.FileParams.Path, LargeFileSystem.PathInterpreter.PathStringComparison))
+                    if (parsed.LogicalFilePath.IsSame(this.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison))
                     {
                         return true;
                     }
@@ -425,7 +425,7 @@ namespace IPA.Cores.Basic
 
                 await pool.EnumAndCloseHandlesAsync((key, file) =>
                 {
-                    if (filesToDelete.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, LargeFileSystem.PathInterpreter.PathStringComparison)).Any())
+                    if (filesToDelete.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison)).Any())
                     {
                         return true;
                     }
@@ -499,8 +499,8 @@ namespace IPA.Cores.Basic
 
             string _PhysicalFileNameCache = null;
             string _LogicalFileName = null;
-            public string PhysicalFileName => _PhysicalFileNameCache ?? (_PhysicalFileNameCache = LargeFileSystem.PathInterpreter.GetFileName(this.PhysicalFilePath));
-            public string LogicalFileName => _LogicalFileName ?? (_LogicalFileName = LargeFileSystem.PathInterpreter.GetFileName(this.LogicalFilePath));
+            public string PhysicalFileName => _PhysicalFileNameCache ?? (_PhysicalFileNameCache = LargeFileSystem.PathParser.GetFileName(this.PhysicalFilePath));
+            public string LogicalFileName => _LogicalFileName ?? (_LogicalFileName = LargeFileSystem.PathParser.GetFileName(this.LogicalFilePath));
 
             public FileSystemEntity PhysicalEntity { get; }
 
@@ -512,12 +512,12 @@ namespace IPA.Cores.Basic
 
                 this.LogicalFilePath = logicalFilePath;
 
-                string fileName = fs.PathInterpreter.GetFileName(logicalFilePath);
+                string fileName = fs.PathParser.GetFileName(logicalFilePath);
                 if (fileName.IndexOf(fs.Params.SplitStr) != -1)
                     throw new ApplicationException($"The original filename '{fileName}' contains '{fs.Params.SplitStr}'.");
 
-                string dir = fs.PathInterpreter.GetDirectoryName(logicalFilePath);
-                string filename = fs.PathInterpreter.GetFileName(logicalFilePath);
+                string dir = fs.PathParser.GetDirectoryName(logicalFilePath);
+                string filename = fs.PathParser.GetFileName(logicalFilePath);
                 string extension;
                 int dotIndex = fileName.IndexOf('.');
                 string filenameWithoutExtension;
@@ -546,8 +546,8 @@ namespace IPA.Cores.Basic
                 this.PhysicalEntity = physicalEntity;
                 this.PhysicalFilePath = physicalFilePath;
 
-                string dir = fs.PathInterpreter.GetDirectoryName(physicalFilePath);
-                string fn = fs.PathInterpreter.GetFileName(physicalFilePath);
+                string dir = fs.PathParser.GetDirectoryName(physicalFilePath);
+                string fn = fs.PathParser.GetFileName(physicalFilePath);
 
                 int[] indexes = fn.FindStringIndexes(fs.Params.SplitStr);
                 if (indexes.Length != 1)
@@ -584,7 +584,7 @@ namespace IPA.Cores.Basic
                 this.Extension = extension;
 
                 string filename = $"{OriginalFileNameWithoutExtension}{Extension}";
-                this.LogicalFilePath = fs.PathInterpreter.Combine(this.DirectoryPath, filename);
+                this.LogicalFilePath = fs.PathParser.Combine(this.DirectoryPath, filename);
             }
 
             public string GeneratePhysicalPath(long? fileNumberOverwrite = null)
@@ -595,7 +595,7 @@ namespace IPA.Cores.Basic
 
                 string filename = $"{OriginalFileNameWithoutExtension}{LargeFileSystem.Params.SplitStr}{fileNumberStr}{Extension}";
 
-                return LargeFileSystem.PathInterpreter.Combine(DirectoryPath, filename);
+                return LargeFileSystem.PathParser.Combine(DirectoryPath, filename);
             }
         }
 
@@ -636,7 +636,7 @@ namespace IPA.Cores.Basic
         public FileSystemObjectPool UnderlayFileSystemPoolForRead { get; }
         public FileSystemObjectPool UnderlayFileSystemPoolForWrite { get; }
 
-        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase underlayFileSystem, LargeFileSystemParams param) : base(lady, underlayFileSystem.PathInterpreter)
+        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase underlayFileSystem, LargeFileSystemParams param) : base(lady, underlayFileSystem.PathParser)
         {
             this.UnderlayFileSystem = underlayFileSystem;
             this.Params = param;
@@ -650,7 +650,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            string fileName = this.PathInterpreter.GetFileName(option.Path);
+            string fileName = this.PathParser.GetFileName(option.Path);
             if (fileName.IndexOf(Params.SplitStr) != -1)
                 throw new ApplicationException($"The original filename '{fileName}' contains '{Params.SplitStr}'.");
 
@@ -686,12 +686,12 @@ namespace IPA.Cores.Basic
             var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
             foreach (var f in relatedFiles)
             {
-                if (f.Name.StartsWith(parsed.OriginalFileNameWithoutExtension, PathInterpreter.PathStringComparison))
+                if (f.Name.StartsWith(parsed.OriginalFileNameWithoutExtension, PathParser.PathStringComparison))
                 {
                     try
                     {
                         ParsedPath parsedForFile = new ParsedPath(this, f.FullPath, f);
-                        if (parsed.LogicalFilePath.IsSame(parsedForFile.LogicalFilePath, PathInterpreter.PathStringComparison))
+                        if (parsed.LogicalFilePath.IsSame(parsedForFile.LogicalFilePath, PathParser.PathStringComparison))
                         {
                             ret.Add(parsedForFile);
                         }
@@ -714,13 +714,13 @@ namespace IPA.Cores.Basic
                 var relatedFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) != -1);
 
                 var sortedRelatedFiles = relatedFiles.ToList();
-                sortedRelatedFiles.Sort((x, y) => x.Name.Cmp(y.Name, PathInterpreter.PathStringComparison));
+                sortedRelatedFiles.Sort((x, y) => x.Name.Cmp(y.Name, PathParser.PathStringComparison));
                 sortedRelatedFiles.Reverse();
 
-                Dictionary<string, FileSystemEntity> parsedFileDictionaly = new Dictionary<string, FileSystemEntity>(PathInterpreter.PathStringComparer);
+                Dictionary<string, FileSystemEntity> parsedFileDictionaly = new Dictionary<string, FileSystemEntity>(PathParser.PathStringComparer);
                 
                 var normalFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) == -1);
-                var normalFileHashSet = new HashSet<string>(normalFiles.Select(x => x.Name), PathInterpreter.PathStringComparer);
+                var normalFileHashSet = new HashSet<string>(normalFiles.Select(x => x.Name), PathParser.PathStringComparer);
 
                 foreach (FileSystemEntity f in sortedRelatedFiles)
                 {
@@ -734,7 +734,7 @@ namespace IPA.Cores.Basic
                             var newFileEntity = new FileSystemEntity()
                             {
                                 FullPath = parsed.LogicalFilePath,
-                                Name = PathInterpreter.GetFileName(parsed.LogicalFileName),
+                                Name = PathParser.GetFileName(parsed.LogicalFileName),
                                 Size = f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
                                 PhysicalSize = f.PhysicalSize,
                                 Attributes = f.Attributes,
@@ -873,7 +873,7 @@ namespace IPA.Cores.Basic
 
             await pool.EnumAndCloseHandlesAsync((key, file) =>
             {
-                if (physicalFiles.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathInterpreter.PathStringComparison)).Any())
+                if (physicalFiles.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
                 {
                     return true;
                 }
@@ -912,7 +912,7 @@ namespace IPA.Cores.Basic
 
             Exception exception = null;
 
-            foreach (var file in physicalFiles.OrderBy(x => x.PhysicalFilePath, PathInterpreter.PathStringComparer))
+            foreach (var file in physicalFiles.OrderBy(x => x.PhysicalFilePath, PathParser.PathStringComparer))
             {
                 cancel.ThrowIfCancellationRequested();
 

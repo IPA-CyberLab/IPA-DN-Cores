@@ -619,7 +619,7 @@ namespace IPA.Cores.Basic
         public bool IsWriteMode { get; }
 
         public FileSystemObjectPool(FileSystemBase FileSystem, bool writeMode, int delayTimeout, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
-            : base(delayTimeout, new StrComparer(FileSystem.PathInterpreter.PathStringComparison))
+            : base(delayTimeout, new StrComparer(FileSystem.PathParser.PathStringComparison))
         {
             this.FileSystem = FileSystem;
             this.IsWriteMode = writeMode;
@@ -658,10 +658,10 @@ namespace IPA.Cores.Basic
         LocalSystem = 31,
     }
 
-    class FileSystemPathInterpreter
+    class FileSystemPathParser
     {
         public static FileSystemStyle LocalSystemStyle { get; } = Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux);
-        readonly static FileSystemPathInterpreter[] Cached = new FileSystemPathInterpreter[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
+        readonly static FileSystemPathParser[] Cached = new FileSystemPathParser[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
 
         public FileSystemStyle Style { get; }
         public char DirectorySeparator { get; }
@@ -669,14 +669,14 @@ namespace IPA.Cores.Basic
         public StringComparison PathStringComparison { get; }
         public StrComparer PathStringComparer { get; }
 
-        public static FileSystemPathInterpreter GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
+        public static FileSystemPathParser GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
         {
             if (style == FileSystemStyle.LocalSystem)
                 style = LocalSystemStyle;
 
             if (Cached[(int)style] == null)
             {
-                FileSystemPathInterpreter newObj = new FileSystemPathInterpreter(style);
+                FileSystemPathParser newObj = new FileSystemPathParser(style);
                 Cached[(int)style] = newObj;
                 return newObj;
             }
@@ -686,7 +686,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        private FileSystemPathInterpreter(FileSystemStyle style)
+        private FileSystemPathParser(FileSystemStyle style)
         {
             this.Style = style;
 
@@ -955,7 +955,7 @@ namespace IPA.Cores.Basic
     abstract class FileSystemBase : AsyncCleanupable
     {
         public DirectoryWalker DirectoryWalker { get; }
-        public FileSystemPathInterpreter PathInterpreter { get; }
+        public FileSystemPathParser PathParser { get; }
 
         CriticalSection LockObj = new CriticalSection();
         List<FileBase> OpenedHandleList = new List<FileBase>();
@@ -967,17 +967,15 @@ namespace IPA.Cores.Basic
 
         public LargeFileSystem LargeFileSystem { get; }
 
-        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathInterpreter fileSystemPathInterpreter) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathParser pathParser) : base(lady)
         {
             try
             {
-                this.PathInterpreter = fileSystemPathInterpreter;
+                this.PathParser = pathParser;
                 DirectoryWalker = new DirectoryWalker(this);
 
                 ObjectPoolForRead = new FileSystemObjectPool(this, false, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
                 ObjectPoolForWrite = new FileSystemObjectPool(this, true, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
-
-                //LargeFileSystem = new LargeFileSystem(lady, this, new LargeFileSystemParams(
             }
             catch
             {
@@ -1096,7 +1094,7 @@ namespace IPA.Cores.Basic
 
                         if (option.Flags.Bit(FileOperationFlags.AutoCreateDirectory))
                         {
-                            string dirName = this.PathInterpreter.GetDirectoryName(option.Path);
+                            string dirName = this.PathParser.GetDirectoryName(option.Path);
                             if (dirName.IsFilled())
                             {
                                 await CreateDirectoryImplAsync(dirName, option.Flags, opCancel);
@@ -1663,10 +1661,10 @@ namespace IPA.Cores.Basic
             destPath = await destFileSystem.NormalizePathAsync(destPath, cancel);
 
             if (srcFileSystem == destFileSystem)
-                if (srcFileSystem.PathInterpreter.PathStringComparer.Equals(srcPath, destPath))
+                if (srcFileSystem.PathParser.PathStringComparer.Equals(srcPath, destPath))
                     throw new FileException(destPath, "Both source and destination is the same file.");
 
-            using (ProgressReporterBase reporter = param.ProgressReporterFactory.CreateNewReporter($"Copying '{srcFileSystem.PathInterpreter.GetFileName(srcPath)}'", state))
+            using (ProgressReporterBase reporter = param.ProgressReporterFactory.CreateNewReporter($"Copying '{srcFileSystem.PathParser.GetFileName(srcPath)}'", state))
             {
                 using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
                 {

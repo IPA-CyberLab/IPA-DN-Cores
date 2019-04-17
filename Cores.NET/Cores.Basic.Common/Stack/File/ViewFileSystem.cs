@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
         public FileSystemBase UnderlayFileSystem { get; }
         public ViewFileSystemParamsBase Params { get; }
 
-        public ViewFileSystem(FileSystemBase underlayFileSystem, ViewFileSystemParamsBase param) : base(new AsyncCleanuperLady(), underlayFileSystem.PathInterpreter)
+        public ViewFileSystem(FileSystemBase underlayFileSystem, ViewFileSystemParamsBase param) : base(new AsyncCleanuperLady(), underlayFileSystem.PathParser)
         {
             this.UnderlayFileSystem = underlayFileSystem;
             this.Params = param;

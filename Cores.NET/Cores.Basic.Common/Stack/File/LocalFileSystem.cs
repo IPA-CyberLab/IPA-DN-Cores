@@ -347,7 +347,7 @@ namespace IPA.Cores.Basic
                     {
                         if (d.Name.IsEmpty() == false)
                         {
-                            if (d.Name.IndexOfAny(PathInterpreter.PossibleDirectorySeparators) == -1)
+                            if (d.Name.IndexOfAny(PathParser.PossibleDirectorySeparators) == -1)
                             {
                                 string fullpath = path + d.Name;
 

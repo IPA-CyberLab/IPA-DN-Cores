@@ -72,7 +72,7 @@ namespace IPA.TestDev
 
                 for (int j = 0; j < 2; j++)
                 {
-                    string filePath = LLfsUtf8.PathInterpreter.Combine(dirPath, $"test{j:D2}.txt");
+                    string filePath = LLfsUtf8.PathParser.Combine(dirPath, $"test{j:D2}.txt");
 
                     for (int i = 0; i < 10; i++)
                     {
@@ -110,7 +110,7 @@ namespace IPA.TestDev
                     100));
 
                 // 単純文字列
-                string filePath = LLfs.PathInterpreter.Combine(dirPath, @"test.txt");
+                string filePath = LLfs.PathParser.Combine(dirPath, @"test.txt");
 
                 for (int i = 0; ; i++)
                 {
@@ -126,7 +126,7 @@ namespace IPA.TestDev
                 AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
                     10_000_000));
                 // スパースファイル
-                string filePath = LLfs.PathInterpreter.Combine(dirPath, @"test2.txt");
+                string filePath = LLfs.PathParser.Combine(dirPath, @"test2.txt");
                 var handle = LLfs.GetRandomAccessHandle(filePath, true);
 
                 for (int i = 0; i < 100; i++)
@@ -176,7 +176,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            Lfs.CreateDirectory(Lfs.PathInterpreter.GetDirectoryName(normalFn));
+            Lfs.CreateDirectory(Lfs.PathParser.GetDirectoryName(normalFn));
 
             while (true)
             {
