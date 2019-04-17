@@ -92,9 +92,9 @@ namespace IPA.TestDev
 
             if (true)
             {
-                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET\Cores.Basic.Common\Stack";
+                string srcDir1 = @"C:\tmp\acl_test2";
 
-                string dstDir1 = @"d:\tmp\copy_test\dst23";
+                string dstDir1 = @"d:\tmp\copy_test\dst27";
 
                 var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default | CopyDirectoryFlags.BackupMode,
                     dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All),
