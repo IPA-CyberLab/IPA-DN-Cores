@@ -194,6 +194,7 @@ namespace IPA.Cores.Basic
 
 
 
+
         public static void WriteError()
         {
             WriteLine("");
@@ -252,11 +253,16 @@ namespace IPA.Cores.Basic
         }
 
 
-        public static string WriteDebug() => Dbg.WriteLine();
+        public static void WriteDebug() => Dbg.WriteLine();
         public static object WriteDebug(object obj) => Dbg.WriteLine(obj);
         public static void WriteDebug(string str) => Dbg.WriteLine(str);
         public static void WriteDebug(string str, params object[] args) => Dbg.WriteLine(str, args);
 
+
+        public static void WriteTrace() => Dbg.WriteTrace();
+        public static object WriteTrace(object obj) => Dbg.WriteTrace(obj);
+        public static void WriteTrace(string str) => Dbg.WriteTrace(str);
+        public static void WriteTrace(string str, params object[] args) => Dbg.WriteTrace(str, args);
     }
 
     // ユーザーによるキャンセル例外

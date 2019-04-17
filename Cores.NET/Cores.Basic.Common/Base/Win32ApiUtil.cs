@@ -601,7 +601,7 @@ namespace IPA.Cores.Basic
                                     }
                                 });
                             }
-                            Con.WriteDebug("Pending.");
+                            Con.WriteTrace("CallOverlappedAsync: Pending.");
                             isPending = true;
                         }
                         else if (err == Win32Api.Errors.ERROR_SUCCESS)
@@ -626,7 +626,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
-                            Con.WriteDebug("Error: " + err);
+                            Con.WriteTrace("CallOverlappedAsync: Error: " + err);
                             ctx.Completed(null, err, returnedSize);
                         }
                     }

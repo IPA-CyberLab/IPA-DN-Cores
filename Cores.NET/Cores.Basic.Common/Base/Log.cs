@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum LogPriority
     {
-        Minimal = 0,
+        Trace = 0,
         Debug = 1,
         Info = 2,
         Error = 4,

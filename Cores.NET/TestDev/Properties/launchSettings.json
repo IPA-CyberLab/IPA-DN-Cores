@@ -14,6 +14,10 @@
     "TestDev /LargeFile": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:LargeFile"
+    },
+    "TestDev /CopyFile": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:CopyFile"
     }
   }
 }

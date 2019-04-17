@@ -766,7 +766,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                Con.WriteDebug($"InternalInitAsync '{FileParams.Path}'");
+                Con.WriteTrace($"InternalInitAsync '{FileParams.Path}'");
 
                 FileOptions options = FileOptions.None;
                 if (this.FileParams.Flags.Bit(FileOperationFlags.NoAsync) == false)
@@ -884,7 +884,7 @@ namespace IPA.Cores.Basic
             fileStream.DisposeSafe();
             fileStream = null;
 
-            Con.WriteDebug($"CloseImplAsync '{FileParams.Path}'");
+            Con.WriteTrace($"CloseImplAsync '{FileParams.Path}'");
 
             await Task.CompletedTask;
         }

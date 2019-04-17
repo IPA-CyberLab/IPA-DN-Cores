@@ -52,6 +52,7 @@ namespace IPA.Cores.Basic
     enum DebugMode
     {
         Debug, // Default
+        Trace,
         ReleaseWithLogs,
         ReleaseNoDebugLogs,
         ReleaseNoLogs,
@@ -61,33 +62,41 @@ namespace IPA.Cores.Basic
     {
         public static partial class DebugSettings
         {
-            public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Minimal;
+            public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
             public static readonly Copenhagen<LogPriority> LogMinimalErrorLevel = LogPriority.Error;
 
-            public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Minimal;
-            public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Minimal;
+            public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Debug;
+            public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Debug;
 
-            public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Minimal;
+            public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Debug;
 
             public static void SetDebugMode(DebugMode mode = DebugMode.Debug)
             {
                 switch (mode)
                 {
-                    case DebugMode.Debug:
-                        LogMinimalDebugLevel.Set(LogPriority.Minimal);
+                    case DebugMode.Trace:
+                        LogMinimalDebugLevel.Set(LogPriority.Trace);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
 
-                        ConsoleMinimalLevel.Set(LogPriority.Minimal);
+                        ConsoleMinimalLevel.Set(LogPriority.Trace);
+                        break;
+
+                    case DebugMode.Debug:
+                        LogMinimalDebugLevel.Set(LogPriority.Debug);
+                        LogMinimalInfoLevel.Set(LogPriority.Info);
+                        LogMinimalErrorLevel.Set(LogPriority.Error);
+
+                        ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
 
                     case DebugMode.ReleaseWithLogs:
-                        LogMinimalDebugLevel.Set(LogPriority.Minimal);
+                        LogMinimalDebugLevel.Set(LogPriority.Debug);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
 
-                        ConsoleMinimalLevel.Set(LogPriority.Info);
+                        ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
 
                     case DebugMode.ReleaseNoDebugLogs:
@@ -213,6 +222,28 @@ namespace IPA.Cores.Basic
         {
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Error);
+        }
+
+        public static void WriteTrace()
+        {
+            WriteTrace("");
+        }
+
+        public static object WriteTrace(object obj)
+        {
+            if (obj == null) obj = "null";
+            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Trace);
+            return obj;
+        }
+        public static void WriteTrace(string str)
+        {
+            if (str == null) str = "null";
+            LocalLogRouter.PrintConsole(str, priority: LogPriority.Trace);
+        }
+        public static void WriteTrace(string str, params object[] args)
+        {
+            if (str == null) str = "null";
+            LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Trace);
         }
 
         public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)

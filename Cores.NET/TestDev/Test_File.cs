@@ -49,6 +49,58 @@ namespace IPA.TestDev
     {
 
         [ConsoleCommandMethod(
+            "CopyFile command",
+            "CopyFile [arg]",
+            "CopyFile test")]
+        static int CopyFile(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            if (true)
+            {
+                //Lfs.CopyFile(@"C:\git\IPA-DN-Cores\Cores.NET\Cores.NET.sln", @"D:\tmp\copy_test\test.sln",
+                //new CopyFileParams(metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
+
+                var meta = Lfs.GetFileMetadata(@"C:\tmp\acl_test2\2.exe");
+                FileMetadata meta2 = new FileMetadata(securityData: meta.Security);
+                Lfs.SetFileMetadata(@"C:\TMP2\abc.txt", meta);
+
+                return 0;
+            }
+
+            if (true)
+            {
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
+
+                string dstDir1 = @"d:\tmp\copy_test\dst1";
+
+                var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default | CopyDirectoryFlags.BackupMode,
+                    dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All),
+                    fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)
+                    );
+
+                var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null).GetResult();
+
+                Con.WriteLine("Copy Test Completed.");
+                ret1.PrintAsJson();
+
+                return 0;
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommandMethod(
             "LargeFile command",
             "LargeFile [arg]",
             "LargeFile test")]
@@ -66,7 +118,13 @@ namespace IPA.TestDev
 
                 var fileSystem = LLfsUtf8;
 
-                fileSystem.DeleteDirectory(dirPath, true);
+                try
+                {
+                    fileSystem.DeleteDirectory(dirPath, true);
+                }
+                catch
+                {
+                }
 
                 fileSystem.CreateDirectory(dirPath);
 

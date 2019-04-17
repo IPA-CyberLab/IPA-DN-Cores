@@ -69,15 +69,21 @@ namespace IPA.Cores.Basic
 
     class CopyDirectoryStatus
     {
-        public object State;
-        public long StartTick;
-        public long EndTick;
-        public long SizeTotal;
-        public long SizeOk;
-        public long NumFilesTotal;
-        public long NumFilesOk;
-        public long NumDirectoriesTotal;
-        public long NumDirectoriesOk;
+        public object State { get; set; }
+        public long StartTick { get; set; }
+        public long EndTick { get; set; }
+        public long SpentTime => EndTick - StartTick;
+        public long SizeTotal { get; set; }
+        public long SizeOk { get; set; }
+        public long SizeError => SizeTotal - SizeOk;
+        public long NumFilesTotal { get; set; }
+        public long NumFilesOk { get; set; }
+        public long NumFilesError => NumFilesTotal - NumFilesOk;
+        public long NumDirectoriesTotal { get; set; }
+        public long NumDirectoriesOk { get; set; }
+        public long NumDirectoriesError => NumDirectoriesTotal - NumDirectoriesOk;
+
+        public bool IsAllOk => (NumFilesTotal == NumFilesOk && NumDirectoriesTotal == NumDirectoriesOk);
 
         public void Clear()
         {
@@ -85,7 +91,7 @@ namespace IPA.Cores.Basic
             StartTick = EndTick = SizeTotal = SizeOk = NumFilesTotal = NumFilesOk = NumDirectoriesTotal = NumDirectoriesOk = 0;
         }
 
-        public CriticalSection LockObj = new CriticalSection();
+        public readonly CriticalSection LockObj = new CriticalSection();
     }
 
     class CopyDirectoryParams
@@ -122,13 +128,15 @@ namespace IPA.Cores.Basic
 
         async Task<bool> DefaultProgressCallback(CopyDirectoryStatus status, FileSystemEntity entity)
         {
+            Con.WriteError($"Copying: '{entity.FullPath}'");
+
             await Task.CompletedTask;
             return true;
         }
 
         async Task<bool> DefaultExceptionCallback(CopyDirectoryStatus status, FileSystemEntity entity, Exception exception)
         {
-            Con.WriteError($"Copying {(entity.IsDirectory ? "directory" : "file")} '{entity.FullPath}' error: {exception.Message}");
+            Con.WriteError($"Error: '{entity.FullPath}': {exception.Message}");
 
             await Task.CompletedTask;
 
@@ -157,7 +165,7 @@ namespace IPA.Cores.Basic
             this.CopyFileFlags = copyFileFlags;
             this.BufferSize = bufferSize;
             this.DirectoryMetadataCopier = dirMetadataCopier;
-            this.FileMetadataCopier = FileMetadataCopier;
+            this.FileMetadataCopier = fileMetadataCopier;
             this.EntireProgressReporterFactory = entireReporterFactory;
             this.FileProgressReporterFactory = fileReporterFactory;
 
