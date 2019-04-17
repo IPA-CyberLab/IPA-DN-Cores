@@ -315,11 +315,15 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
+            AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(100_000));
+
             string normalFn = @"D:\TMP\sparse_file_test\normal_file.txt";
             string standardApi = @"D:\TMP\sparse_file_test\standard_api.txt";
             string sparseFn = @"D:\TMP\sparse_file_test\sparse_file.txt";
             string copySparse2Fn = @"D:\TMP\sparse_file_test\sparse_file_2.txt";
             string copySparse3Fn = @"D:\TMP\sparse_file_test\sparse_file_3.txt";
+
+            string largeFn = @"D:\TMP\sparse_file_test\large\large.txt";
 
             string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
 
@@ -332,16 +336,21 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            Lfs.CreateDirectory(Lfs.PathParser.GetDirectoryName(normalFn));
+            Lfs.CreateDirectory(@"D:\TMP\sparse_file_test\large\");
 
+            int count = 0;
             while (true)
             {
+                count++;
+
                 Lfs.DeleteFile(normalFn);
                 Lfs.DeleteFile(sparseFn);
                 Lfs.DeleteFile(standardApi);
+                LLfsUtf8.DeleteFile(largeFn);
+
                 MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
 
-                for (int i = 0; i < 100; i++)
+                for (int i = 0; i < 3; i++)
                 {
                     FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
                     if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.NoAsync;
@@ -353,42 +362,51 @@ namespace IPA.TestDev
                         {
                             using (var api = new FileStream(standardApi, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.None))
                             {
-                                for (int k = 0; k < 100; k++)
+                                using (var large = LLfsUtf8.OpenOrCreate(largeFn))
                                 {
-                                    MemoryBuffer<byte> data = new MemoryBuffer<byte>();
-
-                                    int numBlocks = Util.RandSInt31() % 32;
-
-                                    for (int j = 0; j < numBlocks; j++)
+                                    for (int k = 0; k < 3; k++)
                                     {
-                                        if (j >= 1 || Util.RandBool())
-                                            data.WriteZero(Util.RandSInt31() % 100_000);
-                                        data.Write(SparseFile_GenerateTestData(Util.RandSInt31() % 10000));
+                                        MemoryBuffer<byte> data = new MemoryBuffer<byte>();
+
+                                        int numBlocks = Util.RandSInt31() % 32;
+
+                                        for (int j = 0; j < numBlocks; j++)
+                                        {
+                                            if (j >= 1 || Util.RandBool())
+                                                data.WriteZero(Util.RandSInt31() % 100_000);
+                                            data.Write(SparseFile_GenerateTestData(Util.RandSInt31() % 10000));
+                                        }
+
+                                        if (Util.RandBool())
+                                            data.WriteZero(Util.RandSInt31() % 10000);
+
+                                        long pos = Util.RandSInt31() % 10_000_000;
+                                        normal.WriteRandom(pos, data);
+                                        sparse.WriteRandom(pos, data);
+                                        large.WriteRandom(pos, data);
+
+                                        api.Seek(pos, SeekOrigin.Begin);
+                                        api.Write(data);
+
+                                        ram.Seek((int)pos, SeekOrigin.Begin, true);
+                                        var destSpan = ram.Walk(data.Length);
+                                        Debug.Assert(destSpan.Length == data.Span.Length);
+                                        data.Span.CopyTo(destSpan);
+                                        //Con.WriteLine($"ram size = {ram.Length}, file size = {api.Length}");
                                     }
-
-                                    if (Util.RandBool())
-                                        data.WriteZero(Util.RandSInt31() % 10000);
-
-                                    long pos = Util.RandSInt31() % 10_000_000;
-                                    normal.WriteRandom(pos, data);
-                                    sparse.WriteRandom(pos, data);
-                                    api.Seek(pos, SeekOrigin.Begin);
-                                    api.Write(data);
-
-                                    ram.Seek((int)pos, SeekOrigin.Begin, true);
-                                    var destSpan = ram.Walk(data.Length);
-                                    Debug.Assert(destSpan.Length == data.Span.Length);
-                                    data.Span.CopyTo(destSpan);
-                                    //Con.WriteLine($"ram size = {ram.Length}, file size = {api.Length}");
                                 }
                             }
                         }
                     }
 
+                    //Lfs.WriteToFile(ramFn, ram.Memory);
                     Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
                     Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
-                    //Lfs.WriteToFile(ramFn, ram.Memory);
                 }
+
+                var largebytes = LLfsUtf8.ReadFromFile(largeFn);
+
+                Lfs.WriteToFile(@"D:\TMP\sparse_file_test\large_copied.txt", largebytes);
 
                 string hash0 = Secure.HashSHA1(Lfs.ReadFromFile(standardApi).Span.ToArray()).GetHexString();
                 string hash1 = Secure.HashSHA1(Lfs.ReadFromFile(normalFn).Span.ToArray()).GetHexString();
@@ -396,8 +414,9 @@ namespace IPA.TestDev
                 string hash3 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse2Fn).Span.ToArray()).GetHexString();
                 string hash4 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse3Fn).Span.ToArray()).GetHexString();
                 string hash5 = Secure.HashSHA1(ram.Span.ToArray()).GetHexString();
+                string hash6 = Secure.HashSHA1(largebytes.Span.ToArray()).GetHexString();
 
-                if (hash0 != hash1 || hash1 != hash2 || hash1 != hash3 || hash1 != hash4 || hash1 != hash5)
+                if (hash0 != hash1 || hash1 != hash2 || hash1 != hash3 || hash1 != hash4 || hash1 != hash5 || hash1 != hash6)
                 {
                     Con.WriteLine("Error!!!\n");
                     Con.WriteLine($"hash0 = {hash0}");
@@ -406,11 +425,12 @@ namespace IPA.TestDev
                     Con.WriteLine($"hash3 = {hash3}");
                     Con.WriteLine($"hash4 = {hash4}");
                     Con.WriteLine($"hash5 = {hash5}");
+                    Con.WriteLine($"hash6 = {hash6}");
                     return 0;
                 }
                 else
                 {
-                    Util.DoNothing();
+                    Con.WriteLine($"count = {count}");
                 }
 
                 ram = null;

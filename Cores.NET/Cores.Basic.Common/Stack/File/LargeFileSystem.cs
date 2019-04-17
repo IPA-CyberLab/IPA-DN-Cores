@@ -228,6 +228,18 @@ namespace IPA.Cores.Basic
                     return false;
                 });
             }
+            else
+            {
+                await LargeFileSystem.UnderlayFileSystemPoolForRead.EnumAndCloseHandlesAsync((key, file) =>
+                {
+                    var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, key);
+                    if (parsed.LogicalFilePath.IsSame(this.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison))
+                    {
+                        return true;
+                    }
+                    return false;
+                });
+            }
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
@@ -316,11 +328,6 @@ namespace IPA.Cores.Basic
 
                             Debug.Assert(r <= (int)cursor.PhysicalDataLength);
 
-                            if (isLast && r == 0)
-                            {
-                                throw new ApplicationException($"Unable to read {cursor.PhysicalDataLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
-                            }
-
                             if (r < (int)cursor.PhysicalDataLength)
                             {
                                 var zeroClearMemory = subMemory.Slice(r);
@@ -332,11 +339,6 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        if (isLast)
-                        {
-                            throw new ApplicationException($"Unable to read {cursor.PhysicalDataLength} bytes from offset {cursor.PhysicalPosition} of the physical file '{cursor.GetParsedPath().PhysicalFilePath}'.");
-                        }
-
                         subMemory.Span.Fill(0);
 
                         totalLength += (int)cursor.PhysicalDataLength;
@@ -433,9 +435,28 @@ namespace IPA.Cores.Basic
                 LargeFileSystem.ParsedPath[] physicalFiles = await LargeFileSystem.GetPhysicalFileStateInternal(this.FileParams.Path, cancel);
                 List<LargeFileSystem.ParsedPath> filesToDelete = physicalFiles.Where(x => x.FileNumber > cursor.PhysicalFileNumber).ToList();
 
-                FileSystemObjectPool pool = LargeFileSystem.UnderlayFileSystemPoolForWrite;
+                await LargeFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
+                {
+                    if (filesToDelete.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison)).Any())
+                    {
+                        return true;
+                    }
+                    return false;
+                },
+                () =>
+                {
+                    foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
+                    {
+                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    }
+                },
+                (x, y) =>
+                {
+                    return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
+                },
+                cancel);
 
-                await pool.EnumAndCloseHandlesAsync((key, file) =>
+                await LargeFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
                 {
                     if (filesToDelete.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison)).Any())
                     {
@@ -810,7 +831,6 @@ namespace IPA.Cores.Basic
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
                 CancelSource.TryCancelNoBlock();
-                this.UnderlayFileSystemPoolForRead.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -887,8 +907,11 @@ namespace IPA.Cores.Basic
             // Try physical file first
             try
             {
-                await UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
-                return;
+                if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
+                {
+                    await UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
+                    return;
+                }
             }
             catch { }
 
@@ -897,12 +920,31 @@ namespace IPA.Cores.Basic
             if (physicalFiles.IsEmpty())
             {
                 // File not found
-                throw new IOException($"The file '{path}' not found.");
+                return;
             }
 
-            FileSystemObjectPool pool = UnderlayFileSystemPoolForWrite;
+            await UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
+            {
+                if (physicalFiles.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
+                {
+                    return true;
+                }
+                return false;
+            },
+            () =>
+            {
+                foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
+                {
+                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                }
+            },
+            (x, y) =>
+            {
+                return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
+            },
+            cancel);
 
-            await pool.EnumAndCloseHandlesAsync((key, file) =>
+            await UnderlayFileSystemPoolForRead.EnumAndCloseHandlesAsync((key, file) =>
             {
                 if (physicalFiles.Where(x => x.PhysicalFilePath.IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
                 {
