@@ -300,7 +300,8 @@ namespace IPA.Cores.Basic
             try
             {
                 FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
-                return sec.GetSecurityDescriptorSddlForm(section);
+                string ret = sec.GetSecurityDescriptorSddlForm(section);
+                return ret;
             }
             catch
             {

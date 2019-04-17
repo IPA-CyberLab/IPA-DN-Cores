@@ -68,12 +68,12 @@ namespace IPA.TestDev
 
             if (true)
             {
-                //Lfs.CopyFile(@"C:\git\IPA-DN-Cores\Cores.NET\Cores.NET.sln", @"D:\tmp\copy_test\test.sln",
-                //new CopyFileParams(metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
+                string srcDir1 = @"C:\git\";
 
-                var meta = Lfs.GetFileMetadata(@"C:\tmp\acl_test2\2.exe");
-                FileMetadata meta2 = new FileMetadata(securityData: meta.Security);
-                Lfs.SetFileMetadata(@"C:\TMP2\abc.txt", meta);
+                string dstDir1 = @"d:\tmp\copy_test\acld1";
+
+                Lfs.CreateDirectory(dstDir1);
+                Lfs.SetDirectoryMetadata(dstDir1, Lfs.GetDirectoryMetadata(srcDir1));
 
                 return 0;
             }
