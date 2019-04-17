@@ -812,7 +812,7 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
-        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             // Try physical file first
             try
@@ -934,7 +934,7 @@ namespace IPA.Cores.Basic
         protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
             => UnderlayFileSystem.SetDirectoryMetadataAsync(path, metadata, cancel);
 
-        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => UnderlayFileSystem.GetDirectoryMetadataAsync(path, flags | FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity, cancel);
 
         protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)

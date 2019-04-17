@@ -43,6 +43,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Text;
 
 #pragma warning disable CS0162
 
@@ -715,6 +716,30 @@ namespace IPA.Cores.Basic
             this.PathStringComparer = new StrComparer(this.PathStringComparison);
         }
 
+        public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
+        {
+            srcPath = srcPath.NonNull();
+
+            if (this == destPathParser)
+                return srcPath;
+
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in srcPath)
+            {
+                char d = c;
+                foreach (char sep in this.PossibleDirectorySeparators)
+                {
+                    if (sep == c)
+                    {
+                        d = this.DirectorySeparator;
+                        break;
+                    }
+                }
+                sb.Append(d);
+            }
+            return sb.ToString();
+        }
+
         public bool IsValidFileOrDirectoryName(string name)
         {
             if (name == null || name == "") return false;
@@ -1046,10 +1071,10 @@ namespace IPA.Cores.Basic
         protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
         protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
 
-        protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default);
+        protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default);
         protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
-        protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default);
+        protected abstract Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default);
         protected abstract Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
 
         protected abstract Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
@@ -1342,7 +1367,7 @@ namespace IPA.Cores.Basic
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
             => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
 
-        public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1358,10 +1383,10 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => GetFileMetadataAsync(path, flags, cancel).GetResult();
 
-        public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1377,7 +1402,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => GetDirectoryMetadataAsync(path, flags, cancel).GetResult();
 
         public virtual async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
@@ -1551,28 +1576,62 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class DirectoryPathInfo
+    {
+        public string FullPath { get; }
+        public string RelativePath { get; }
+        public FileSystemEntity Entity { get; }
+
+        public DirectoryPathInfo(string fullPath, string relativePath, FileSystemEntity entity)
+        {
+            this.FullPath = fullPath;
+            this.RelativePath = relativePath;
+            this.Entity = entity;
+        }
+    }
+
     class DirectoryWalker
     {
         public FileSystemBase FileSystem { get; }
+        public bool DeeperFirstInRecursive { get; }
 
-        public DirectoryWalker(FileSystemBase fileSystem)
+        public DirectoryWalker(FileSystemBase fileSystem, bool deeperFirstInRecursive = false)
         {
             this.FileSystem = fileSystem;
+            this.DeeperFirstInRecursive = deeperFirstInRecursive;
         }
 
-        async Task<bool> WalkDirectoryInternalAsync(string directoryPath, Func<FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<string, Exception, bool> exceptionHandler, bool recursive, CancellationToken opCancel)
+        async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler,
+            bool recursive, CancellationToken opCancel, FileSystemEntity dirEntity)
         {
             opCancel.ThrowIfCancellationRequested();
 
             FileSystemEntity[] entityList;
 
+            bool isRootDir = false;
+
+            if (dirEntity == null)
+            {
+                isRootDir = true;
+
+                dirEntity = new FileSystemEntity()
+                {
+                    FullPath = directoryFullPath,
+                    Name = this.FileSystem.PathParser.GetFileName(directoryFullPath),
+                };
+            }
+
+            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(directoryFullPath, directoryRelativePath, dirEntity);
+
             try
             {
-                entityList = await FileSystem.EnumDirectoryAsync(directoryPath, false, opCancel);
+                entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, opCancel);
             }
             catch (Exception ex)
             {
-                if (exceptionHandler(directoryPath, ex) == false)
+                if (await exceptionHandler(currentDirInfo, ex, opCancel) == false)
                 {
                     return false;
                 }
@@ -1582,20 +1641,31 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            if (await callback(entityList, opCancel) == false)
+            if (isRootDir)
             {
-                return false;
+                var rootDirEntry = entityList.Where(x => x.IsCurrentDirectory).Single();
+                currentDirInfo = new DirectoryPathInfo(directoryFullPath, directoryRelativePath, rootDirEntry);
+            }
+
+            if (this.DeeperFirstInRecursive == false)
+            {
+                // Deeper last
+                if (await callback(currentDirInfo, entityList, opCancel) == false)
+                {
+                    return false;
+                }
             }
 
             if (recursive)
             {
+                // Deep directory
                 foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
                 {
                     if (entity.IsDirectory)
                     {
                         opCancel.ThrowIfCancellationRequested();
 
-                        if (await WalkDirectoryInternalAsync(entity.FullPath, callback, exceptionHandler, true, opCancel) == false)
+                        if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, exceptionHandler, true, opCancel, entity) == false)
                         {
                             return false;
                         }
@@ -1603,196 +1673,33 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            if (this.DeeperFirstInRecursive)
+            {
+                // Deeper first
+                if (await callback(currentDirInfo, entityList, opCancel) == false)
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<string, Exception, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
-            return await WalkDirectoryInternalAsync(rootDirectory, callback, exceptionHandler, recursive, cancel);
+            rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel);
+
+            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, exceptionHandler, recursive, cancel, null);
         }
 
-        public bool WalkDirectory(string rootDirectory, Func<FileSystemEntity[], CancellationToken, bool> callback, Func<string, Exception, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
-            => WalkDirectoryAsync(rootDirectory, async (entity, c) => { await Task.CompletedTask; return callback(entity, c); }, exceptionHandler, recursive, cancel).GetResult();
+        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
+            => WalkDirectoryAsync(rootDirectory,
+                async (dirInfo, entity, c) => { await Task.CompletedTask; return callback(dirInfo, entity, c); },
+                async (dirInfo, exception, c) => { await Task.CompletedTask; return exceptionHandler(dirInfo, exception, c); },
+                recursive, cancel).GetResult();
     }
 
-    class CopyFileParams
-    {
-        public static FileMetadataCopier DefaultMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
-
-        public bool Overwrite { get; }
-        public FileOperationFlags Flags { get; }
-        public FileMetadataCopier MetadataCopier { get; }
-        public int BufferSize { get; }
-        public bool AsyncCopy { get; }
-
-        public ProgressReporterFactoryBase ProgressReporterFactory { get; }
-
-        public static ProgressReporterFactoryBase NullReporterFactory { get; } = new NullReporterFactory();
-        public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console);
-        public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
-
-        public CopyFileParams(bool overwrite = false, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
-            ProgressReporterFactoryBase reporterFactory = null)
-        {
-            if (metadataCopier == null) metadataCopier = DefaultMetadataCopier;
-            if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
-            if (reporterFactory == null) reporterFactory = NullReporterFactory;
-
-            this.Overwrite = overwrite;
-            this.Flags = flags;
-            this.MetadataCopier = metadataCopier;
-            this.BufferSize = bufferSize;
-            this.AsyncCopy = asyncCopy;
-            this.ProgressReporterFactory = reporterFactory;
-        }
-    }
-
-    static class FileUtil
-    {
-        public static async Task CopyFileAsync(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
-        {
-            if (param == null)
-                param = new CopyFileParams();
-
-            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel);
-            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel);
-
-            if (srcFileSystem == destFileSystem)
-                if (srcFileSystem.PathParser.PathStringComparer.Equals(srcPath, destPath))
-                    throw new FileException(destPath, "Both source and destination is the same file.");
-
-            using (ProgressReporterBase reporter = param.ProgressReporterFactory.CreateNewReporter($"Copying '{srcFileSystem.PathParser.GetFileName(srcPath)}'", state))
-            {
-                using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
-                {
-                    try
-                    {
-                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, param.MetadataCopier.OptimizedMetadataGetFlags, cancel);
-
-                        bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
-
-                        using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
-                        {
-                            try
-                            {
-                                reporter.ReportProgress(new ProgressData(0, srcFileMetadata.Size));
-
-                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel);
-
-                                reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
-
-                                await destFile.CloseAsync();
-
-                                try
-                                {
-                                    await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Con.WriteDebug($"CopyFileAsync: '{destPath}': SetFileMetadataAsync failed. Error: {ex.Message}");
-                                }
-                            }
-                            catch
-                            {
-                                if (destFileExists == false)
-                                {
-                                    try
-                                    {
-                                        await destFileSystem.DeleteFileAsync(destPath);
-                                    }
-                                    catch { }
-                                }
-
-                                throw;
-                            }
-                            finally
-                            {
-                                await destFile.CloseAsync();
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        await srcFile.CloseAsync();
-                    }
-                }
-            }
-        }
-        public static void CopyFile(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
-            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel).GetResult();
-
-        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel)
-        {
-            checked
-            {
-                long currentPosition = 0;
-
-                if (param.AsyncCopy == false)
-                {
-                    // Normal copy
-                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
-                    {
-                        while (true)
-                        {
-                            int readSize = await src.ReadAsync(buffer, cancel);
-
-                            Debug.Assert(readSize <= buffer.Length);
-
-                            if (readSize <= 0) break;
-
-                            await dest.WriteAsync(buffer.Slice(0, readSize), cancel);
-
-                            currentPosition += readSize;
-                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
-                        }
-                    }
-                }
-                else
-                {
-                    // Async copy
-                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
-                    {
-                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
-                        {
-                            Task lastWriteTask = null;
-                            int number = 0;
-                            int writeSize = 0;
-
-                            Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
-
-                            while (true)
-                            {
-                                Memory<byte> buffer = buffers[(number++) % 2];
-
-                                int readSize = await src.ReadAsync(buffer, cancel);
-
-                                Debug.Assert(readSize <= buffer.Length);
-
-                                if (lastWriteTask != null)
-                                {
-                                    await lastWriteTask;
-                                    currentPosition += writeSize;
-                                    reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
-                                }
-
-                                if (readSize <= 0) break;
-
-                                writeSize = readSize;
-                                lastWriteTask = dest.WriteAsync(buffer.Slice(0, writeSize), cancel);
-                            }
-
-                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
-                        }
-                    }
-                }
-
-                return currentPosition;
-            }
-        }
-    }
 }
 

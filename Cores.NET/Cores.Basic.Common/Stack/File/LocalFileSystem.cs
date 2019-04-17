@@ -506,7 +506,7 @@ namespace IPA.Cores.Basic
             return Task.FromResult(Path.GetFullPath(path));
         }
 
-        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             FileInfo fileInfo = new FileInfo(path);
 
@@ -610,7 +610,7 @@ namespace IPA.Cores.Basic
                 );
         }
 
-        protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             DirectoryInfo dirInfo = new DirectoryInfo(path);
 

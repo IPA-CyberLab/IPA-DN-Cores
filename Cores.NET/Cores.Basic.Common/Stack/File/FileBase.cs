@@ -63,7 +63,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum FileMetadataGetFlags
     {
-        None = 0,
+        DefaultAll = 0,
         NoAttributes = 1,
         NoTimes = 2,
         NoPreciseFileSize = 4,
@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
         CreationTime = 8,
         LastWriteTime = 16,
         LastAccessTime = 32,
-        AllDates = CreationTime | LastWriteTime | LastAccessTime,
+        TimeAll = CreationTime | LastWriteTime | LastAccessTime,
 
         SecurityOwner = 64,
         SecurityGroup = 128,
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
 
         AlternateStream = 1024,
 
-        Default = Attributes | AllDates | AlternateStream,
+        Default = Attributes | TimeAll | AlternateStream,
     }
 
     [Serializable]
@@ -318,15 +318,15 @@ namespace IPA.Cores.Basic
 
         public static FileMetadataGetFlags CalcOptimizedMetadataGetFlags(FileMetadataCopyMode mode)
         {
-            FileMetadataGetFlags ret = FileMetadataGetFlags.None;
+            FileMetadataGetFlags ret = FileMetadataGetFlags.DefaultAll;
 
             if (mode.Bit(FileMetadataCopyMode.All) == false)
             {
                 if (mode.Bit(FileMetadataCopyMode.Attributes) == false) ret |= FileMetadataGetFlags.NoAttributes;
 
-                if ((mode & FileMetadataCopyMode.All) == 0) ret |= FileMetadataGetFlags.NoTimes;
+                if (mode.BitAny(FileMetadataCopyMode.TimeAll) == false) ret |= FileMetadataGetFlags.NoTimes;
 
-                if ((mode & FileMetadataCopyMode.SecurityAll) == 0) ret |= FileMetadataGetFlags.NoSecurity;
+                if (mode.BitAny(FileMetadataCopyMode.SecurityAll) == false) ret |= FileMetadataGetFlags.NoSecurity;
 
                 if (mode.Bit(FileMetadataCopyMode.AlternateStream) == false) ret |= FileMetadataGetFlags.NoAlternateStream;
             }

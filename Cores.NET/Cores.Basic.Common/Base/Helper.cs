@@ -632,15 +632,15 @@ namespace IPA.Cores.Helper.Basic
 
         public static T DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T ret) ? ret : default);
 
-        public static async Task<bool> WaitUntilCancelledAsync(this CancellationToken cancel, int timeout = Timeout.Infinite)
+        public static async Task<bool> WaitUntilCanceledAsync(this CancellationToken cancel, int timeout = Timeout.Infinite)
         {
             if (cancel.IsCancellationRequested)
                 return true;
             await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: timeout);
             return cancel.IsCancellationRequested;
         }
-        public static Task<bool> WaitUntilCancelledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
-            => WaitUntilCancelledAsync(cancel.Token, timeout);
+        public static Task<bool> WaitUntilCanceledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
+            => WaitUntilCanceledAsync(cancel.Token, timeout);
 
         public static DateTime OverwriteKind(this DateTime dt, DateTimeKind kind) => new DateTime(dt.Ticks, kind);
 

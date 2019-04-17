@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         // 定期的に削除を実行するスレッド
         public async Task IntervalThreadAsync()
         {
-            while (await this.Cancel.WaitUntilCancelledAsync(this.Interval) == false)
+            while (await this.Cancel.WaitUntilCanceledAsync(this.Interval) == false)
             {
                 ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.Cancel.Token);
             }

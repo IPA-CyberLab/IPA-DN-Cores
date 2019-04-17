@@ -3447,7 +3447,7 @@ namespace IPA.Cores.Basic
         public AsyncCleanuperLady SingleLady { get; } = null;
 
         CancellationTokenSource CancelSource = new CancellationTokenSource();
-        public CancellationToken Cancelled => CancelSource.Token;
+        public CancellationToken Canceled => CancelSource.Token;
 
         public AsyncTester(bool createSingleLady) : this()
         {

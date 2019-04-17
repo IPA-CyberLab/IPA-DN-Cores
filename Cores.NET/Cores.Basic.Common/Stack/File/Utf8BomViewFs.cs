@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
             return fileObj;
         }
 
-        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.None, CancellationToken cancel = default)
+        protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             FileMetadata physicalMetadata = await UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
 
