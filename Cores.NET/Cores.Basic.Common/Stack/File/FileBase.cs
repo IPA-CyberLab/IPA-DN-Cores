@@ -99,33 +99,33 @@ namespace IPA.Cores.Basic
     [Serializable]
     class FileSecurityOwner : IEmptyChecker
     {
-        public string Win32OwnerSsdl;
+        public string Win32OwnerSddl;
 
-        public bool IsThisEmpty() => Win32OwnerSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32OwnerSddl.IsEmpty();
     }
 
     [Serializable]
     class FileSecurityGroup : IEmptyChecker
     {
-        public string Win32GroupSsdl;
+        public string Win32GroupSddl;
 
-        public bool IsThisEmpty() => Win32GroupSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32GroupSddl.IsEmpty();
     }
 
     [Serializable]
     class FileSecurityAcl : IEmptyChecker
     {
-        public string Win32AclSsdl;
+        public string Win32AclSddl;
 
-        public bool IsThisEmpty() => Win32AclSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32AclSddl.IsEmpty();
     }
 
     [Serializable]
     class FileSecurityAudit : IEmptyChecker
     {
-        public string Win32AuditSsdl;
+        public string Win32AuditSddl;
 
-        public bool IsThisEmpty() => Win32AuditSsdl.IsEmpty();
+        public bool IsThisEmpty() => Win32AuditSddl.IsEmpty();
     }
 
     [Serializable]

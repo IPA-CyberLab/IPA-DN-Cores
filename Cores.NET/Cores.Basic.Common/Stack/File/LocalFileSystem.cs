@@ -294,13 +294,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        string Win32GetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, AccessControlSections section)
+        string Win32GetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, AccessControlSections section)
         {
             if (Env.IsWindows == false) return null;
             try
             {
                 FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity(path, section)) : (FileSystemSecurity)(new FileSecurity(path, section));
                 string ret = sec.GetSecurityDescriptorSddlForm(section);
+
                 return ret;
             }
             catch
@@ -309,13 +310,32 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void Win32SetFileOrDirectorySecuritySsdlInternal(string path, bool isDirectory, string ssdl, AccessControlSections section)
+        void Win32SetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, string sddl, AccessControlSections section)
         {
             if (Env.IsWindows == false) return;
-            if (ssdl.IsEmpty()) return;
+            if (sddl.IsEmpty()) return;
+
+            bool setProtected = false;
+            if (sddl.StartsWith("!"))
+            {
+                sddl = sddl.Substring(1);
+                setProtected = true;
+            }
+
+            if (sddl.IsEmpty()) return;
 
             FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity()) : (FileSystemSecurity)(new FileSecurity());
-            sec.SetSecurityDescriptorSddlForm(ssdl, section);
+
+            sec.SetSecurityDescriptorSddlForm(sddl, section);
+
+            if (setProtected)
+            {
+                if (section == AccessControlSections.Audit)
+                    sec.SetAuditRuleProtection(true, true);
+
+                if (section == AccessControlSections.Access)
+                    sec.SetAccessRuleProtection(true, true);
+            }
 
             if (isDirectory == false)
             {
@@ -444,25 +464,25 @@ namespace IPA.Cores.Basic
         FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
         {
             FileSecurityMetadata ret = new FileSecurityMetadata();
-            string ssdl;
+            string sddl;
 
             if (Env.IsWindows)
             {
-                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Owner);
-                if (ssdl.IsFilled())
-                    ret.Owner = new FileSecurityOwner() { Win32OwnerSsdl = ssdl };
+                sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Owner);
+                if (sddl.IsFilled())
+                    ret.Owner = new FileSecurityOwner() { Win32OwnerSddl = sddl };
 
-                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Group);
-                if (ssdl.IsFilled())
-                    ret.Group = new FileSecurityGroup() { Win32GroupSsdl = ssdl };
+                sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Group);
+                if (sddl.IsFilled())
+                    ret.Group = new FileSecurityGroup() { Win32GroupSddl = sddl };
 
-                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Access);
-                if (ssdl.IsFilled())
-                    ret.Acl = new FileSecurityAcl() { Win32AclSsdl = ssdl };
+                sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Access);
+                if (sddl.IsFilled())
+                    ret.Acl = new FileSecurityAcl() { Win32AclSddl = sddl };
 
-                ssdl = Win32GetFileOrDirectorySecuritySsdlInternal(path, isDirectory, AccessControlSections.Audit);
-                if (ssdl.IsFilled())
-                    ret.Audit = new FileSecurityAudit() { Win32AuditSsdl = ssdl };
+                sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Audit);
+                if (sddl.IsFilled())
+                    ret.Audit = new FileSecurityAudit() { Win32AuditSddl = sddl };
             }
 
             return ret.FilledOrDefault();
@@ -493,10 +513,10 @@ namespace IPA.Cores.Basic
                 if (data.IsFilled())
                 {
                     Util.DoMultipleActions(MultipleActionsFlag.AllOk, default,
-                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Owner?.Win32OwnerSsdl, AccessControlSections.Owner),
-                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Group?.Win32GroupSsdl, AccessControlSections.Group),
-                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Acl?.Win32AclSsdl, AccessControlSections.Access),
-                        () => Win32SetFileOrDirectorySecuritySsdlInternal(path, isDirectory, data?.Audit?.Win32AuditSsdl, AccessControlSections.Audit)
+                        () => Win32SetFileOrDirectorySecuritySddlInternal(path, isDirectory, data?.Owner?.Win32OwnerSddl, AccessControlSections.Owner),
+                        () => Win32SetFileOrDirectorySecuritySddlInternal(path, isDirectory, data?.Group?.Win32GroupSddl, AccessControlSections.Group),
+                        () => Win32SetFileOrDirectorySecuritySddlInternal(path, isDirectory, data?.Acl?.Win32AclSddl, AccessControlSections.Access),
+                        () => Win32SetFileOrDirectorySecuritySddlInternal(path, isDirectory, data?.Audit?.Win32AuditSddl, AccessControlSections.Audit)
                         );
                 }
             }

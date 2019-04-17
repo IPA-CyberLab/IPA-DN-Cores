@@ -66,9 +66,21 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            if (true)
+            if (false)
             {
-                string srcDir1 = @"C:\git\";
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
+
+                string dstDir1 = @"D:\tmp\copy_test\dst2\a";
+
+                Lfs.GetDirectoryMetadata(srcDir1).PrintAsJson();
+                Lfs.GetDirectoryMetadata(dstDir1).PrintAsJson();
+
+                return 0;
+            }
+
+            if (false)
+            {
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
 
                 string dstDir1 = @"d:\tmp\copy_test\acld1";
 
@@ -80,9 +92,9 @@ namespace IPA.TestDev
 
             if (true)
             {
-                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET\Cores.Basic.Common\Stack";
 
-                string dstDir1 = @"d:\tmp\copy_test\dst1";
+                string dstDir1 = @"d:\tmp\copy_test\dst23";
 
                 var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default | CopyDirectoryFlags.BackupMode,
                     dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All),

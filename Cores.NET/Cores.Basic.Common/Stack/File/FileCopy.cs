@@ -63,8 +63,9 @@ namespace IPA.Cores.Basic
         AsyncCopy = 16,
         Overwrite = 32,
         Recursive = 64,
+        SetAclProtectionFlagOnRootDir = 128,
 
-        Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive,
+        Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive | SetAclProtectionFlagOnRootDir,
     }
 
     class CopyDirectoryStatus
@@ -238,7 +239,7 @@ namespace IPA.Cores.Basic
 
             using (ProgressReporterBase dirReporter = param.EntireProgressReporterFactory.CreateNewReporter($"CopyDir '{srcFileSystem.PathParser.GetFileName(srcPath)}'", state))
             {
-                DirectoryWalker walker = new DirectoryWalker(srcFileSystem, deeperFirstInRecursive: true);
+                DirectoryWalker walker = new DirectoryWalker(srcFileSystem, deeperFirstInRecursive: false);
                 bool walkRet = await walker.WalkDirectoryAsync(srcPath,
                     async (dirInfo, entries, c) =>
                     {
@@ -319,7 +320,24 @@ namespace IPA.Cores.Basic
 
                                     await destFileSystem.CreateDirectoryAsync(destFullPath, copyDirFlags, cancel);
 
-                                    await destFileSystem.SetFileMetadataAsync(destFullPath, param.DirectoryMetadataCopier.Copy(srcDirMetadata), cancel);
+                                    FileMetadata dstDirMetadata = param.DirectoryMetadataCopier.Copy(srcDirMetadata);
+
+                                    if (param.CopyDirFlags.Bit(CopyDirectoryFlags.SetAclProtectionFlagOnRootDir))
+                                    {
+                                        if (dirInfo.IsRoot)
+                                        {
+                                            if (dstDirMetadata.Security != null)
+                                            {
+                                                if (dstDirMetadata.Security.Acl != null)
+                                                    dstDirMetadata.Security.Acl.Win32AclSddl = "!" + dstDirMetadata.Security.Acl.Win32AclSddl;
+
+                                                if (dstDirMetadata.Security.Audit != null)
+                                                    dstDirMetadata.Security.Audit.Win32AuditSddl = "!" + dstDirMetadata.Security.Audit.Win32AuditSddl;
+                                            }
+                                        }
+                                    }
+
+                                    await destFileSystem.SetDirectoryMetadataAsync(destFullPath, dstDirMetadata, cancel);
 
                                     lock (status.LockObj)
                                         status.NumDirectoriesOk++;

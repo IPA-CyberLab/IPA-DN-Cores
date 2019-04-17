@@ -1578,12 +1578,14 @@ namespace IPA.Cores.Basic
 
     class DirectoryPathInfo
     {
+        public bool IsRoot { get; }
         public string FullPath { get; }
         public string RelativePath { get; }
         public FileSystemEntity Entity { get; }
 
-        public DirectoryPathInfo(string fullPath, string relativePath, FileSystemEntity entity)
+        public DirectoryPathInfo(bool isRoot, string fullPath, string relativePath, FileSystemEntity entity)
         {
+            this.IsRoot = isRoot;
             this.FullPath = fullPath;
             this.RelativePath = relativePath;
             this.Entity = entity;
@@ -1623,7 +1625,7 @@ namespace IPA.Cores.Basic
                 };
             }
 
-            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(directoryFullPath, directoryRelativePath, dirEntity);
+            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(isRootDir, directoryFullPath, directoryRelativePath, dirEntity);
 
             try
             {
@@ -1644,7 +1646,7 @@ namespace IPA.Cores.Basic
             if (isRootDir)
             {
                 var rootDirEntry = entityList.Where(x => x.IsCurrentDirectory).Single();
-                currentDirInfo = new DirectoryPathInfo(directoryFullPath, directoryRelativePath, rootDirEntry);
+                currentDirInfo = new DirectoryPathInfo(true, directoryFullPath, directoryRelativePath, rootDirEntry);
             }
 
             if (this.DeeperFirstInRecursive == false)
