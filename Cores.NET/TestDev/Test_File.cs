@@ -377,6 +377,8 @@ namespace IPA.TestDev
                                             data.Write(SparseFile_GenerateTestData(Util.RandSInt31() % 10000));
                                         }
 
+                                        data.Write("Hello World".GetBytes_Ascii());
+
                                         if (Util.RandBool())
                                             data.WriteZero(Util.RandSInt31() % 10000);
 
