@@ -288,7 +288,8 @@ namespace IPA.Cores.Basic
                                             if (attr.Bit(FileAttributes.SparseFile))
                                                 copyFileAdditionalFlags |= FileOperationFlags.SparseFile;
 
-                                    await CopyFileAsync(srcFileSystem, srcFullPath, destFileSystem, destFullPath, param.GenerateCopyFileParams(copyFileAdditionalFlags), state, cancel);
+                                    var copyFileParam = param.GenerateCopyFileParams(copyFileAdditionalFlags);
+                                    await CopyFileAsync(srcFileSystem, srcFullPath, destFileSystem, destFullPath, copyFileParam, state, cancel);
 
                                     lock (status.LockObj)
                                     {

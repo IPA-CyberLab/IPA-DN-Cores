@@ -47,7 +47,6 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
-
         [ConsoleCommandMethod(
             "CopyFile command",
             "CopyFile [arg]",
@@ -57,6 +56,7 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
+
             try
             {
                 Lfs.EnableBackupPrivilege();
@@ -64,6 +64,92 @@ namespace IPA.TestDev
             catch (Exception ex)
             {
                 Con.WriteError(ex);
+            }
+
+            if (false)
+            {
+                var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
+                    copyFileFlags: FileOperationFlags.SparseFile,
+                //progressCallback: (x, y) => { return Task.FromResult(true); },
+                dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
+                fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
+                );
+
+                var ret1 = FileUtil.CopyDirAsync(Lfs, @"D:\TMP\copy_test2\c1", Lfs, @"D:\TMP\copy_test2\c2", copyParam, null, null).GetResult();
+
+                return 0;
+            }
+
+            if (true)
+            {
+                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(10_000));
+
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
+                string dstDir1 = @"d:\tmp\copy_test2\01";
+                string dstDir2 = @"d:\tmp\copy_test2\02";
+                string dstDir3 = @"d:\tmp\copy_test2\03";
+
+                if (true)
+                {
+                    try
+                    {
+                        Lfs.DeleteDirectory(dstDir1);
+                    }
+                    catch { }
+
+                    var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
+                        copyFileFlags : FileOperationFlags.SparseFile,                  //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
+                        fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
+                        );
+
+                    var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null).GetResult();
+
+                    Con.WriteLine("Copy Test Completed.");
+                    ret1.PrintAsJson();
+                }
+
+                if (true)
+                {
+                    try
+                    {
+                        Lfs.DeleteDirectory(dstDir2);
+                    }
+                    catch { }
+
+                    var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
+                                                                                                     //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
+                        fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
+                        );
+
+                    var ret1 = FileUtil.CopyDirAsync(Lfs, dstDir1, LLfsUtf8, dstDir2, copyParam, null, null).GetResult();
+
+                    Con.WriteLine("Copy Test Completed.");
+                    ret1.PrintAsJson();
+                }
+
+                if (true)
+                {
+                    try
+                    {
+                        Lfs.DeleteDirectory(dstDir3);
+                    }
+                    catch { }
+
+                    var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
+                        copyFileFlags: FileOperationFlags.SparseFile,                                  //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
+                        fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
+                        );
+
+                    var ret1 = FileUtil.CopyDirAsync(LLfsUtf8, dstDir2, Lfs, dstDir3, copyParam, null, null).GetResult();
+
+                    Con.WriteLine("Copy Test Completed.");
+                    ret1.PrintAsJson();
+                }
+
+                return 0;
             }
 
             if (false)

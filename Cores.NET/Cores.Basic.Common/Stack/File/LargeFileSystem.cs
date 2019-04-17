@@ -137,12 +137,15 @@ namespace IPA.Cores.Basic
 
             try
             {
+                bool newFille = false;
+
                 var lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
                 if (lastFileParsed == null)
                 {
                     // New file
                     CurrentFileSize = 0;
+                    newFille = true;
 
                     if (FileParams.Mode == FileMode.Open || FileParams.Mode == FileMode.Truncate)
                     {
@@ -174,6 +177,8 @@ namespace IPA.Cores.Basic
 
                         lastFileParsed = null;
                         CurrentFileSize = 0;
+
+                        newFille = true;
                     }
                 }
 
@@ -182,6 +187,13 @@ namespace IPA.Cores.Basic
                     currentPosition = this.CurrentFileSize;
 
                 InitAndCheckFileSizeAndPosition(currentPosition, await GetFileSizeImplAsync(cancel), cancel);
+
+                if (newFille)
+                {
+                    using (var handle = await GetUnderleyRandomAccessHandle(0, cancel))
+                    {
+                    }
+                }
             }
             catch
             {
@@ -189,7 +201,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(1000), CacheType.UpdateExpiresWhenAccess);
+        readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(AppConfig.FileSystemSettings.PooledHandleLifetime.Value), CacheType.UpdateExpiresWhenAccess);
 
         async Task<RandomAccessHandle> GetUnderleyRandomAccessHandle(long logicalPosition, CancellationToken cancel)
         {
@@ -555,7 +567,7 @@ namespace IPA.Cores.Basic
 
                 string originalFileName = fn.Substring(0, indexes[0]);
                 string afterOriginalFileName = fn.Substring(indexes[0] + fs.Params.SplitStr.Length);
-                if (originalFileName.IsEmpty() || afterOriginalFileName.IsEmpty())
+                if (afterOriginalFileName.IsEmpty())
                     throw new ArgumentException($"Filename '{fn}' is not a large file.");
 
                 string extension;

@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class FileSystemSettings
         {
-            public static readonly Copenhagen<int> PooledHandleLifetime = 5 * 1000;
+            public static readonly Copenhagen<int> PooledHandleLifetime = 60 * 1000;
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
@@ -1537,6 +1537,9 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                if (File.Exists(path) == false)
+                    return false;
+
                 var existingFileMetadata = await this.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
                 var currentAttributes = existingFileMetadata.Attributes ?? 0;
                 if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
