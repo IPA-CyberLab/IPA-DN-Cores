@@ -72,7 +72,14 @@ namespace IPA.TestDev
 
             string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
 
-            //Lfs.EnableBackupPrivilege();
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
 
             Lfs.CreateDirectory(Lfs.PathInterpreter.GetDirectoryName(normalFn));
             Lfs.DeleteFile(normalFn);
