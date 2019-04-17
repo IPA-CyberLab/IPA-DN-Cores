@@ -82,59 +82,62 @@ namespace IPA.TestDev
             }
 
             Lfs.CreateDirectory(Lfs.PathInterpreter.GetDirectoryName(normalFn));
-            Lfs.DeleteFile(normalFn);
-            Lfs.DeleteFile(sparseFn);
-            Lfs.DeleteFile(standardApi);
 
-            MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
-            for (int i = 0;; i++)
+            while (true)
             {
-                FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
-                if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.NoAsync;
-                if (Util.RandBool()) flags |= FileOperationFlags.BackupMode;
+                Lfs.DeleteFile(normalFn);
+                Lfs.DeleteFile(sparseFn);
+                Lfs.DeleteFile(standardApi);
+                MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
 
-                Con.WriteLine($"----- {i} -----");
-                using (var normal = Lfs.OpenOrCreate(normalFn, flags: flags))
+                for (int i = 0; i < 100; i++)
                 {
-                    using (var sparse = Lfs.OpenOrCreate(sparseFn, flags: flags | FileOperationFlags.SparseFile))
+                    FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
+                    if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.NoAsync;
+                    if (Util.RandBool()) flags |= FileOperationFlags.BackupMode;
+
+                    using (var normal = Lfs.OpenOrCreate(normalFn, flags: flags))
                     {
-                        using (var api = new FileStream(standardApi, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.None))
+                        using (var sparse = Lfs.OpenOrCreate(sparseFn, flags: flags | FileOperationFlags.SparseFile))
                         {
-                            for (int k = 0; k < 1; k++)
+                            using (var api = new FileStream(standardApi, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.None))
                             {
-                                MemoryBuffer<byte> data = new MemoryBuffer<byte>();
-
-                                int numBlocks = Util.RandSInt31() % 32;
-
-                                for (int j = 0; j < numBlocks; j++)
+                                for (int k = 0; k < 100; k++)
                                 {
-                                    if (j >= 1 || Util.RandBool())
-                                        data.WriteZero(Util.RandSInt31() % 100_000);
-                                    data.Write(GenerateTestData(Util.RandSInt31() % 10000));
+                                    MemoryBuffer<byte> data = new MemoryBuffer<byte>();
+
+                                    int numBlocks = Util.RandSInt31() % 32;
+
+                                    for (int j = 0; j < numBlocks; j++)
+                                    {
+                                        if (j >= 1 || Util.RandBool())
+                                            data.WriteZero(Util.RandSInt31() % 100_000);
+                                        data.Write(GenerateTestData(Util.RandSInt31() % 10000));
+                                    }
+
+                                    if (Util.RandBool())
+                                        data.WriteZero(Util.RandSInt31() % 10000);
+
+                                    long pos = Util.RandSInt31() % 10_000_000;
+                                    normal.WriteRandom(pos, data);
+                                    sparse.WriteRandom(pos, data);
+                                    api.Seek(pos, SeekOrigin.Begin);
+                                    api.Write(data);
+
+                                    ram.Seek((int)pos, SeekOrigin.Begin, true);
+                                    var destSpan = ram.Walk(data.Length);
+                                    Debug.Assert(destSpan.Length == data.Span.Length);
+                                    data.Span.CopyTo(destSpan);
+                                    //Con.WriteLine($"ram size = {ram.Length}, file size = {api.Length}");
                                 }
-
-                                if (Util.RandBool())
-                                    data.WriteZero(Util.RandSInt31() % 10000);
-
-                                long pos = Util.RandSInt31() % 10_000_000;
-                                normal.WriteRandom(pos, data);
-                                sparse.WriteRandom(pos, data);
-                                api.Seek(pos, SeekOrigin.Begin);
-                                api.Write(data);
-
-                                ram.Seek((int)pos, SeekOrigin.Begin, true);
-                                var destSpan = ram.Walk(data.Length);
-                                Debug.Assert(destSpan.Length == data.Span.Length);
-                                data.Span.CopyTo(destSpan);
-                                //Con.WriteLine($"ram size = {ram.Length}, file size = {api.Length}");
                             }
                         }
                     }
-                }
 
-                Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
-                Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
-                Lfs.WriteToFile(ramFn, ram.Memory);
+                    Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
+                    Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
+                    //Lfs.WriteToFile(ramFn, ram.Memory);
+                }
 
                 string hash0 = Secure.HashSHA1(Lfs.ReadFromFile(standardApi).Span.ToArray()).GetHexString();
                 string hash1 = Secure.HashSHA1(Lfs.ReadFromFile(normalFn).Span.ToArray()).GetHexString();
@@ -158,6 +161,8 @@ namespace IPA.TestDev
                 {
                     Util.DoNothing();
                 }
+
+                ram = null;
             }
 
 
