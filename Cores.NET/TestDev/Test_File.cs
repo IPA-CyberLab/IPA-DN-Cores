@@ -41,6 +41,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Diagnostics;
 
 namespace IPA.TestDev
 {
@@ -64,53 +65,62 @@ namespace IPA.TestDev
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
             string normalFn = @"D:\TMP\sparse_file_test\normal_file.txt";
+            string standardApi = @"D:\TMP\sparse_file_test\standard_api.txt";
             string sparseFn = @"D:\TMP\sparse_file_test\sparse_file.txt";
             string copySparse2Fn = @"D:\TMP\sparse_file_test\sparse_file_2.txt";
             string copySparse3Fn = @"D:\TMP\sparse_file_test\sparse_file_3.txt";
 
             string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
 
-            Lfs.EnableBackupPrivilege();
+            //Lfs.EnableBackupPrivilege();
 
+            Lfs.CreateDirectory(Lfs.PathInterpreter.GetDirectoryName(normalFn));
             Lfs.DeleteFile(normalFn);
             Lfs.DeleteFile(sparseFn);
+            Lfs.DeleteFile(standardApi);
 
-            for (int i = 0; i < 100; i++)
+            MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
+            for (int i = 0;; i++)
             {
                 FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
                 if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.NoAsync;
                 if (Util.RandBool()) flags |= FileOperationFlags.BackupMode;
 
-                MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
-
-                Con.WriteLine($"----- i -----");
+                Con.WriteLine($"----- {i} -----");
                 using (var normal = Lfs.OpenOrCreate(normalFn, flags: flags))
                 {
                     using (var sparse = Lfs.OpenOrCreate(sparseFn, flags: flags | FileOperationFlags.SparseFile))
                     {
-                        for (int k = 0; k < 1; k++)
+                        using (var api = new FileStream(standardApi, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.None))
                         {
-                            MemoryBuffer<byte> data = new MemoryBuffer<byte>();
-
-                            int numBlocks = Util.RandSInt31() % 32;
-
-                            for (int j = 0; j < numBlocks; j++)
+                            for (int k = 0; k < 1; k++)
                             {
-                                if (j >= 1 || Util.RandBool())
-                                    data.WriteZero(Util.RandSInt31() % 100_000);
-                                data.Write(GenerateTestData(Util.RandSInt31() % 10000));
+                                MemoryBuffer<byte> data = new MemoryBuffer<byte>();
+
+                                int numBlocks = Util.RandSInt31() % 32;
+
+                                for (int j = 0; j < numBlocks; j++)
+                                {
+                                    if (j >= 1 || Util.RandBool())
+                                        data.WriteZero(Util.RandSInt31() % 100_000);
+                                    data.Write(GenerateTestData(Util.RandSInt31() % 10000));
+                                }
+
+                                if (Util.RandBool())
+                                    data.WriteZero(Util.RandSInt31() % 10000);
+
+                                long pos = Util.RandSInt31() % 10_000_000;
+                                normal.WriteRandom(pos, data);
+                                sparse.WriteRandom(pos, data);
+                                api.Seek(pos, SeekOrigin.Begin);
+                                api.Write(data);
+
+                                ram.Seek((int)pos, SeekOrigin.Begin, true);
+                                var destSpan = ram.Walk(data.Length);
+                                Debug.Assert(destSpan.Length == data.Span.Length);
+                                data.Span.CopyTo(destSpan);
+                                //Con.WriteLine($"ram size = {ram.Length}, file size = {api.Length}");
                             }
-
-                            if (Util.RandBool())
-                                data.WriteZero(Util.RandSInt31() % 10000);
-
-                            long pos = Util.RandSInt31() % 1000;
-                            normal.WriteRandom(pos, data);
-                            sparse.WriteRandom(pos, data);
-
-                            ram.Seek((int)pos, SeekOrigin.Begin, true);
-                            data.Span.CopyTo(ram.Walk(data.Length));
-                            Con.WriteLine($"ram size = {ram.Length}");
                         }
                     }
                 }
@@ -119,15 +129,22 @@ namespace IPA.TestDev
                 Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
                 Lfs.WriteToFile(ramFn, ram.Memory);
 
+                string hash0 = Secure.HashSHA1(Lfs.ReadFromFile(standardApi).Span.ToArray()).GetHexString();
                 string hash1 = Secure.HashSHA1(Lfs.ReadFromFile(normalFn).Span.ToArray()).GetHexString();
                 string hash2 = Secure.HashSHA1(Lfs.ReadFromFile(sparseFn).Span.ToArray()).GetHexString();
                 string hash3 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse2Fn).Span.ToArray()).GetHexString();
                 string hash4 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse3Fn).Span.ToArray()).GetHexString();
                 string hash5 = Secure.HashSHA1(ram.Span.ToArray()).GetHexString();
 
-                if (hash1 != hash2 || hash1 != hash3 || hash1 != hash4 || hash1 != hash5)
+                if (hash0 != hash1 || hash1 != hash2 || hash1 != hash3 || hash1 != hash4 || hash1 != hash5)
                 {
                     Con.WriteLine("Error!!!\n");
+                    Con.WriteLine($"hash0 = {hash0}");
+                    Con.WriteLine($"hash1 = {hash1}");
+                    Con.WriteLine($"hash2 = {hash2}");
+                    Con.WriteLine($"hash3 = {hash3}");
+                    Con.WriteLine($"hash4 = {hash4}");
+                    Con.WriteLine($"hash5 = {hash5}");
                     return 0;
                 }
                 else
