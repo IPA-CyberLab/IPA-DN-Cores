@@ -52,16 +52,9 @@ namespace IPA.Cores.Basic
     {
         public static partial class LargeFileSystemSettings
         {
-            //public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
-            //    = new LargeFileSystemParams(
-            //        maxSingleFileSize:      1_000_000_000,     // 1 TB
-            //        logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
-            //        splitStr: "~~~"
-            //        );
-
             public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
                 = new LargeFileSystemParams(
-                    maxSingleFileSize: 10,     // 1 TB
+                    maxSingleFileSize: 1_000_000_000,     // 1 TB
                     logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
                     splitStr: "~~~"
                     );
@@ -206,7 +199,7 @@ namespace IPA.Cores.Basic
 
             var parsed = ParsedPathCache.GetOrCreate(cacheKey, x => new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber));
 
-            return await LargeFileSystem.UnderlayFileSystem.GetRandomAccessHandleAsync(parsed.PhysicalFilePath, FileParams.Access.Bit(FileAccess.Write), this.FileParams.Flags, cancel);
+            return await LargeFileSystem.UnderlayFileSystem.GetRandomAccessHandleAsync(parsed.PhysicalFilePath, FileParams.Access.Bit(FileAccess.Write), this.FileParams.Flags | FileOperationFlags.SparseFile, cancel);
         }
 
         protected override async Task CloseImplAsync()
@@ -607,19 +600,29 @@ namespace IPA.Cores.Basic
         }
 
         public static LargeFileSystem Local { get; } = LargeFileSystem.CreateFirstLocalInstance();
+        public static LargeFileSystem LocalAutoUtf8 { get; } = LargeFileSystem.CreateFirstAutoUtf8LocalInstance();
 
-        static LargeFileSystem _SingletonInstance;
+        static LargeFileSystem _LocalSingletonInstance = null;
+        static LargeFileSystem _AutoUtf8SingletonInstance = null;
 
         static LargeFileSystem CreateFirstLocalInstance()
         {
-            if (_SingletonInstance == null)
+            if (_LocalSingletonInstance == null)
             {
-                var LocalFs = LocalFileSystem.Local;
-
-                _SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFs, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.Local, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
             }
 
-            return _SingletonInstance;
+            return _LocalSingletonInstance;
+        }
+
+        static LargeFileSystem CreateFirstAutoUtf8LocalInstance()
+        {
+            if (_AutoUtf8SingletonInstance == null)
+            {
+                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.LocalAutoUtf8, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+            }
+
+            return _AutoUtf8SingletonInstance;
         }
 
         CancellationTokenSource CancelSource = new CancellationTokenSource();
@@ -838,6 +841,7 @@ namespace IPA.Cores.Basic
                     long currentFileSize = lastFileParsed.FileNumber * Params.MaxSinglePhysicalFileSize + sizeOfLastFile;
 
                     ret.Size = currentFileSize;
+                    ret.PhysicalSize = physicalFiles.Sum(x => x.PhysicalEntity.PhysicalSize);
                     ret.CreationTime = physicalFiles.Min(x => x.PhysicalEntity.CreationTime);
                     ret.LastWriteTime = physicalFiles.Max(x => x.PhysicalEntity.LastWriteTime);
                     ret.LastAccessTime = physicalFiles.Max(x => x.PhysicalEntity.LastAccessTime);

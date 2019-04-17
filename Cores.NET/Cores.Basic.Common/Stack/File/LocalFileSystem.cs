@@ -66,15 +66,24 @@ namespace IPA.Cores.Basic
         public const int Win32MaxAlternateStreamNum = 16;
 
         public static LocalFileSystem Local { get; } = LocalFileSystem.CreateFirstLocalInstance();
+        public static AutoUtf8BomViewFileSystem LocalAutoUtf8 { get; } = LocalFileSystem.CreateFirstAutoUtf8Instance();
 
-        static LocalFileSystem _SingletonInstance;
-
+        static LocalFileSystem _LocalSingletonInstance = null;
         static LocalFileSystem CreateFirstLocalInstance()
         {
-            if (_SingletonInstance == null)
-                _SingletonInstance = new LocalFileSystem(LeakChecker.SuperGrandLady);
+            if (_LocalSingletonInstance == null)
+                _LocalSingletonInstance = new LocalFileSystem(LeakChecker.SuperGrandLady);
 
-            return _SingletonInstance;
+            return _LocalSingletonInstance;
+        }
+
+        static AutoUtf8BomViewFileSystem _AutoUtf8SingletonInstance = null;
+        static AutoUtf8BomViewFileSystem CreateFirstAutoUtf8Instance()
+        {
+            if (_AutoUtf8SingletonInstance == null)
+                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(LocalFileSystem.Local);
+
+            return _AutoUtf8SingletonInstance;
         }
 
         private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)

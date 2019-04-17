@@ -47,7 +47,102 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
-        static byte[] GenerateTestData(int size)
+
+        [ConsoleCommandMethod(
+            "LargeFile command",
+            "LargeFile [arg]",
+            "LargeFile test")]
+        static int LargeFile(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dirPath = @"d:\tmp\large_file_test";
+
+            if (true)
+            {
+                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                    100));
+
+                var fileSystem = LLfsUtf8;
+
+                fileSystem.DeleteDirectory(dirPath, true);
+
+                fileSystem.CreateDirectory(dirPath);
+
+                for (int j = 0; j < 2; j++)
+                {
+                    string filePath = LLfsUtf8.PathInterpreter.Combine(dirPath, $"test{j:D2}.txt");
+
+                    for (int i = 0; i < 10; i++)
+                    {
+                        string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
+
+                        fileSystem.AppendToFile(filePath, hello.GetBytes_Ascii());
+                    }
+
+                    using (var file = fileSystem.Open(filePath, writeMode: true))
+                    {
+                        file.WriteRandom(231, "<12345678>".GetBytes_Ascii());
+                    }
+                }
+
+                var dirent = fileSystem.EnumDirectory(dirPath);
+                dirent.PrintAsJson();
+
+                var meta = fileSystem.GetFileMetadata(dirent.Where(x => x.IsDirectory == false).First().FullPath);
+                meta.PrintAsJson();
+
+                fileSystem.CopyFile(@"C:\TMP\large_file_test\test00.txt", @"C:\TMP\large_file_test\plain.txt", destFileSystem: Lfs);
+
+                dirent = fileSystem.EnumDirectory(dirPath);
+                dirent.PrintAsJson();
+
+                fileSystem.CopyFile(@"C:\TMP\large_file_test\plain.txt", @"C:\TMP\large_file_test\plain2.txt", destFileSystem: LfsUtf8);
+
+                return 0;
+            }
+
+
+            if (false)
+            {
+                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                    100));
+
+                // 単純文字列
+                string filePath = LLfs.PathInterpreter.Combine(dirPath, @"test.txt");
+
+                for (int i = 0; ; i++)
+                {
+                    string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
+
+                    LLfs.AppendToFile(filePath, hello.GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
+                }
+                return 0;
+            }
+
+            if (false)
+            {
+                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                    10_000_000));
+                // スパースファイル
+                string filePath = LLfs.PathInterpreter.Combine(dirPath, @"test2.txt");
+                var handle = LLfs.GetRandomAccessHandle(filePath, true);
+
+                for (int i = 0; i < 100; i++)
+                {
+                    string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
+
+                    long position = Secure.Rand63i() % (LLfs.Params.MaxLogicalFileSize - 100);
+                    handle.WriteRandom(position, hello.GetBytes_Ascii());
+                }
+                return 0;
+            }
+
+            return 0;
+        }
+
+        static byte[] SparseFile_GenerateTestData(int size)
         {
             byte[] ret = new byte[size];
             for (int i = 0; i < size; i++)
@@ -112,7 +207,7 @@ namespace IPA.TestDev
                                     {
                                         if (j >= 1 || Util.RandBool())
                                             data.WriteZero(Util.RandSInt31() % 100_000);
-                                        data.Write(GenerateTestData(Util.RandSInt31() % 10000));
+                                        data.Write(SparseFile_GenerateTestData(Util.RandSInt31() % 10000));
                                     }
 
                                     if (Util.RandBool())

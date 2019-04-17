@@ -3720,6 +3720,7 @@ namespace IPA.Cores.Basic
 
                     if (ObjectList.TryGetValue(key, out ObjectEntry entry) == false)
                     {
+                        await Task.Yield();
                         TObject t = await OpenImplAsync(key, param, cancelOp);
                         entry = new ObjectEntry(this, t, key);
                         ObjectList.Add(key, entry);

@@ -10,6 +10,10 @@
     "TestDev /SparseFile": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:SparseFile"
+    },
+    "TestDev /LargeFile": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:LargeFile"
     }
   }
 }
