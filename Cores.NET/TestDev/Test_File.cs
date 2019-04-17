@@ -82,14 +82,14 @@ namespace IPA.TestDev
 
             if (true)
             {
-                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(10_000));
+                //AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(10_000));
 
                 string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
                 string dstDir1 = @"d:\tmp\copy_test2\01";
                 string dstDir2 = @"d:\tmp\copy_test2\02";
                 string dstDir3 = @"d:\tmp\copy_test2\03";
 
-                if (true)
+                if (false)
                 {
                     try
                     {

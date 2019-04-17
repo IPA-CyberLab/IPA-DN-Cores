@@ -977,6 +977,13 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum EnumDirectoryFlags
+    {
+        None = 0,
+        NoGetPhysicalSize = 1,
+    }
+
     abstract class FileSystemBase : AsyncCleanupable
     {
         public DirectoryWalker DirectoryWalker { get; }
@@ -1069,7 +1076,7 @@ namespace IPA.Cores.Basic
 
         protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default);
         protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
-        protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default);
+        protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default);
 
         protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default);
         protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
@@ -1079,6 +1086,9 @@ namespace IPA.Cores.Basic
 
         protected abstract Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
         protected abstract Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default);
+
+        protected abstract Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default);
+        protected abstract Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default);
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1289,7 +1299,7 @@ namespace IPA.Cores.Basic
         public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default)
             => DeleteDirectoryAsync(path, recursive, cancel).GetResult();
 
-        async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, CancellationToken opCancel)
+        async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken opCancel)
         {
             using (TaskUtil.EnterCriticalCounter(CriticalCounter))
             {
@@ -1297,7 +1307,7 @@ namespace IPA.Cores.Basic
 
                 opCancel.ThrowIfCancellationRequested();
 
-                FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, opCancel);
+                FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, flags, opCancel);
 
                 if (list.Select(x => x.Name).Distinct().Count() != list.Count())
                 {
@@ -1313,13 +1323,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, bool recursive, CancellationToken opCancel)
+        async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, bool recursive, EnumDirectoryFlags flags, CancellationToken opCancel)
         {
             CheckNotDisposed();
 
             opCancel.ThrowIfCancellationRequested();
 
-            FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, opCancel);
+            FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, opCancel);
 
             foreach (FileSystemEntity entity in entityList)
             {
@@ -1332,7 +1342,7 @@ namespace IPA.Cores.Basic
                 {
                     if (entity.IsDirectory && entity.IsCurrentDirectory == false)
                     {
-                        if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, true, opCancel) == false)
+                        if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, true, flags, opCancel) == false)
                         {
                             return false;
                         }
@@ -1343,7 +1353,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, CancellationToken cancel = default)
+        public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
             {
@@ -1355,7 +1365,7 @@ namespace IPA.Cores.Basic
 
                 List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
-                if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, recursive, opCancel) == false)
+                if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, recursive, flags, opCancel) == false)
                 {
                     throw new OperationCanceledException();
                 }
@@ -1364,8 +1374,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, CancellationToken cancel = default)
-            => EnumDirectoryAsync(directoryPath, recursive, cancel).GetResult();
+        public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+            => EnumDirectoryAsync(directoryPath, recursive, flags, cancel).GetResult();
 
         public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
@@ -1405,17 +1415,22 @@ namespace IPA.Cores.Basic
         public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => GetDirectoryMetadataAsync(path, flags, cancel).GetResult();
 
-        public virtual async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
+        public async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
         {
             try
             {
-                var metaData = await GetFileMetadataAsync(path,
-                    flags: FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoPreciseFileSize | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes);
+                return await IsFileExistsImplAsync(path, cancel);
+            }
+            catch { }
 
-                if ((metaData.Attributes ?? FileAttributes.Normal).Bit(FileAttributes.Directory) == false)
-                {
-                    return true;
-                }
+            return false;
+        }
+
+        public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default)
+        {
+            try
+            {
+                return await IsDirectoryExistsImplAsync(path, cancel);
             }
             catch { }
 
@@ -1599,11 +1614,13 @@ namespace IPA.Cores.Basic
     {
         public FileSystemBase FileSystem { get; }
         public bool DeeperFirstInRecursive { get; }
+        public EnumDirectoryFlags Flags { get; }
 
-        public DirectoryWalker(FileSystemBase fileSystem, bool deeperFirstInRecursive = false)
+        public DirectoryWalker(FileSystemBase fileSystem, bool deeperFirstInRecursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
         {
             this.FileSystem = fileSystem;
             this.DeeperFirstInRecursive = deeperFirstInRecursive;
+            this.Flags = flags;
         }
 
         async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
@@ -1632,7 +1649,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, opCancel);
+                entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, this.Flags, opCancel);
             }
             catch (Exception ex)
             {

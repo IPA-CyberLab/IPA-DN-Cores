@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
             => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
 
-        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
+        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
         {
             DirectoryInfo di = new DirectoryInfo(directoryPath);
 
@@ -108,9 +108,10 @@ namespace IPA.Cores.Basic
                 FileSystemEntity entity = ConvertFileSystemInfoToFileSystemEntity(info);
 
                 // Actual file size
-                if (entity.IsDirectory == false)
-                    if (entity.Attributes.Bit(FileAttributes.Compressed) || entity.Attributes.Bit(FileAttributes.SparseFile))
-                        entity.PhysicalSize = GetPhysicalFileSizeInternal(info.FullName, entity.Size);
+                if (flags.Bit(EnumDirectoryFlags.NoGetPhysicalSize) == false)
+                    if (entity.IsDirectory == false)
+                        if (entity.Attributes.Bit(FileAttributes.Compressed) || entity.Attributes.Bit(FileAttributes.SparseFile))
+                            entity.PhysicalSize = GetPhysicalFileSizeInternal(info.FullName, entity.Size);
 
                 if (entity.IsSymbolicLink)
                 {
@@ -154,13 +155,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-
         protected override async Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
         {
             Directory.Delete(directoryPath, recursive);
 
             await Task.CompletedTask;
         }
+
+        protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
+            => Task.FromResult(File.Exists(path));
+
+        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
+            => Task.FromResult(Directory.Exists(path));
 
         static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
         {

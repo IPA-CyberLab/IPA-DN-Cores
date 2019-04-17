@@ -693,7 +693,7 @@ namespace IPA.Cores.Basic
 
             ParsedPath parsed = new ParsedPath(this, logicalFilePath, 0);
 
-            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, cancel);
+            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
 
             var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
             foreach (var f in relatedFiles)
@@ -717,11 +717,11 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
+        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
         {
             checked
             {
-                FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, cancel);
+                FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, cancel);
 
                 var relatedFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) != -1);
 
@@ -824,6 +824,25 @@ namespace IPA.Cores.Basic
             finally { await base._CleanupAsyncInternal(); }
         }
 
+        protected override async Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
+        {
+            // Try physical file first
+            try
+            {
+                if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
+                    return true;
+            }
+            catch { }
+
+            LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
+            var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
+
+            return lastFileParsed != null;
+        }
+
+        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
+            => UnderlayFileSystem.IsDirectoryExistsAsync(path, cancel);
+
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
             // Try physical file first
@@ -910,8 +929,11 @@ namespace IPA.Cores.Basic
             // Try physical file first
             try
             {
-                await UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
-                return;
+                if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
+                {
+                    await UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
+                    return;
+                }
             }
             catch { }
             LargeFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);

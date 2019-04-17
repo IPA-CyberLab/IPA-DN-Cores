@@ -122,8 +122,8 @@ namespace IPA.Cores.Basic
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
             => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive, cancel);
 
-        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, CancellationToken cancel = default)
-            => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, cancel);
+        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+            => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, cancel);
 
         protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
@@ -142,6 +142,13 @@ namespace IPA.Cores.Basic
 
         protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
             => UnderlayFileSystem.MoveDirectoryAsync(srcPath, destPath, cancel);
+
+        protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
+            => UnderlayFileSystem.IsFileExistsAsync(path, cancel);
+
+        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
+            => UnderlayFileSystem.IsDirectoryExistsAsync(path, cancel);
+
     }
 }
 
