@@ -715,6 +715,36 @@ namespace IPA.Cores.Basic
             this.PathStringComparer = new StrComparer(this.PathStringComparison);
         }
 
+        public string[] SplitPathToElements(string path)
+        {
+            path = path.NonNull();
+            return path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        public string BuildPathStringFromElements(IEnumerable<string> elements)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (string name in elements.Where(x => string.IsNullOrEmpty(x) == false))
+            {
+                sb.Append(this.DirectorySeparator);
+                sb.Append(name);
+            }
+            return sb.ToString();
+        }
+
+        public bool IsLastCharDirectoryDirectorySeparator(string path)
+        {
+            path = path.NonNull();
+
+            if (path.Length >= 1)
+            {
+                char c = path.Last();
+                return this.PossibleDirectorySeparators.Where(x => x == c).Any();
+            }
+
+            return false;
+        }
+
         public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
         {
             srcPath = srcPath.NonNull();
@@ -750,6 +780,7 @@ namespace IPA.Cores.Basic
         public bool IsValidFileOrDirectoryName(string name)
         {
             if (name == null || name == "") return false;
+            if (name == "." || name == "..") return false;
 
             foreach (char c in name)
                 foreach (char sep in this.PossibleDirectorySeparators)

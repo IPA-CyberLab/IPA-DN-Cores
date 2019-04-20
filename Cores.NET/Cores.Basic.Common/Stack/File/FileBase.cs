@@ -204,7 +204,8 @@ namespace IPA.Cores.Basic
 
         public FileMetadata(bool isDirectory = false, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
-            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null)
+            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null,
+            long size = 0, long? physicalSize = null)
         {
             this.IsDirectory = isDirectory;
             this.Attributes = attributes;
@@ -214,6 +215,8 @@ namespace IPA.Cores.Basic
             this.Security = securityData.CloneDeep();
             this.AlternateStream = alternateStream.CloneDeep();
             this.SpecialOperationFlags = specialOperation;
+            this.Size = size;
+            this.PhysicalSize = physicalSize ?? size;
         }
 
         public FileMetadata Clone(FileMetadataCopyMode mode)

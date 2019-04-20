@@ -1466,15 +1466,15 @@ namespace IPA.Cores.Basic
         LeakCheckerHolder Leak = null;
         LeakCounterKind LeakKind;
 
-        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind kind = LeakCounterKind.FullStackTracked)
+        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
 
-            if (kind == LeakCounterKind.FullStackTracked)
+            if (leakCheckKind == LeakCounterKind.FullStackTracked)
                 Leak = LeakChecker.Enter();
 
-            this.LeakKind = kind;
+            this.LeakKind = leakCheckKind;
 
             LeakChecker.IncrementLeakCounter(this.LeakKind);
         }
@@ -1507,14 +1507,14 @@ namespace IPA.Cores.Basic
         LeakCheckerHolder Leak = null;
         LeakCounterKind LeakKind;
 
-        public Holder(Action disposeProc, LeakCounterKind kind = LeakCounterKind.FullStackTracked)
+        public Holder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
         {
             this.DisposeProc = disposeProc;
 
-            if (kind == LeakCounterKind.FullStackTracked)
+            if (leakCheckKind == LeakCounterKind.FullStackTracked)
                 Leak = LeakChecker.Enter();
 
-            this.LeakKind = kind;
+            this.LeakKind = leakCheckKind;
 
             LeakChecker.IncrementLeakCounter(this.LeakKind);
         }
@@ -1549,15 +1549,27 @@ namespace IPA.Cores.Basic
         Func<T, Task> AsyncCleanupProc;
         LeakCheckerHolder Leak;
         LeakCheckerHolder Leak2;
+        LeakCounterKind LeakCheckKind;
 
-        public AsyncHolder(Func<T, Task> asyncCleanupProc, Action<T> disposeProc = null, T userData = default(T))
+        public AsyncHolder(Func<T, Task> asyncCleanupProc, Action<T> disposeProc = null, T userData = default(T),
+            LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
         {
             this.UserData = userData;
             this.DisposeProc = disposeProc;
             this.AsyncCleanupProc = asyncCleanupProc;
+            this.LeakCheckKind = leakCheckKind;
 
-            Leak = LeakChecker.Enter();
-            Leak2 = LeakChecker.Enter();
+            if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+            {
+                Leak = LeakChecker.Enter();
+                Leak2 = LeakChecker.Enter();
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(LeakCheckKind);
+                LeakChecker.IncrementLeakCounter(LeakCheckKind);
+            }
+
             AsyncCleanuper = new AsyncCleanuper(this);
         }
 
@@ -1570,25 +1582,48 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    _CleanupAsyncInternal().TryGetResult();
+
                     if (DisposeProc != null)
                         DisposeProc(UserData);
                 }
                 finally
                 {
-                    Leak.DisposeSafe();
+                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+                    {
+                        Leak.DisposeSafe();
+                    }
+                    else
+                    {
+                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
+                    }
                 }
             }
         }
 
+        Once CleanupFlag;
+
         public async Task _CleanupAsyncInternal()
         {
-            try
+            if (CleanupFlag.IsFirstCall())
             {
-                await AsyncCleanupProc(UserData);
-            }
-            finally
-            {
-                Leak2.DisposeSafe();
+                try
+                {
+                    await AsyncCleanupProc(UserData);
+
+                    this.DisposeSafe();
+                }
+                finally
+                {
+                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+                    {
+                        Leak2.DisposeSafe();
+                    }
+                    else
+                    {
+                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
+                    }
+                }
             }
         }
 
@@ -1604,14 +1639,26 @@ namespace IPA.Cores.Basic
         Func<Task> AsyncCleanupProc;
         LeakCheckerHolder Leak;
         LeakCheckerHolder Leak2;
+        LeakCounterKind LeakCheckKind;
 
-        public AsyncHolder(Func<Task> asyncCleanupProc, Action disposeProc = null)
+        public AsyncHolder(Func<Task> asyncCleanupProc, Action disposeProc = null,
+            LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
         {
             this.DisposeProc = disposeProc;
             this.AsyncCleanupProc = asyncCleanupProc;
+            this.LeakCheckKind = leakCheckKind;
 
-            Leak = LeakChecker.Enter();
-            Leak2 = LeakChecker.Enter();
+            if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+            {
+                Leak = LeakChecker.Enter();
+                Leak2 = LeakChecker.Enter();
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(LeakCheckKind);
+                LeakChecker.IncrementLeakCounter(LeakCheckKind);
+            }
+
             AsyncCleanuper = new AsyncCleanuper(this);
         }
 
@@ -1624,25 +1671,48 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    _CleanupAsyncInternal().TryGetResult();
+
                     if (DisposeProc != null)
                         DisposeProc();
                 }
                 finally
                 {
-                    Leak.DisposeSafe();
+                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+                    {
+                        Leak.DisposeSafe();
+                    }
+                    else
+                    {
+                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
+                    }
                 }
             }
         }
 
+        Once CleanupFlag;
+
         public async Task _CleanupAsyncInternal()
         {
-            try
+            if (CleanupFlag.IsFirstCall())
             {
-                await AsyncCleanupProc();
-            }
-            finally
-            {
-                Leak2.DisposeSafe();
+                try
+                {
+                    await AsyncCleanupProc();
+
+                    this.DisposeSafe();
+                }
+                finally
+                {
+                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+                    {
+                        Leak2.DisposeSafe();
+                    }
+                    else
+                    {
+                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
+                    }
+                }
             }
         }
 
@@ -1984,6 +2054,7 @@ namespace IPA.Cores.Basic
         EnterCriticalCounter = 3,
         CreateCombinedCancellationToken = 4,
         FastAllocMemoryWithUsing = 5,
+        VfsOpenEntity = 6,
     }
 
     static class LeakChecker
