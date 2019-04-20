@@ -715,20 +715,50 @@ namespace IPA.Cores.Basic
             this.PathStringComparer = new StrComparer(this.PathStringComparison);
         }
 
-        public string[] SplitPathToElements(string path)
+        public string[] SplitAbsolutePathToElements(string path)
         {
             path = path.NonNull();
-            return path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+
+            if (path.StartsWith("/") == false)
+                throw new ArgumentException($"The speficied path \"{path}\" is not an absolute path.");
+
+            List<string> pathStack = new List<string>();
+
+            string[] tokens = path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string s in tokens)
+            {
+                string trimmed = s.Trim();
+                if (trimmed == ".") { }
+                else if (trimmed == "..")
+                {
+                    if (pathStack.Count >= 1)
+                        pathStack.RemoveAt(pathStack.Count - 1);
+                }
+                else
+                {
+                    pathStack.Add(s);
+                }
+            }
+
+            return pathStack.ToArray();
         }
 
-        public string BuildPathStringFromElements(IEnumerable<string> elements)
+        public string BuildAbsolutePathStringFromElements(IEnumerable<string> elements)
         {
             StringBuilder sb = new StringBuilder();
-            foreach (string name in elements.Where(x => string.IsNullOrEmpty(x) == false))
+            foreach (string name in elements)
             {
-                sb.Append(this.DirectorySeparator);
-                sb.Append(name);
+                if (name != null && name.Length >= 1)
+                {
+                    sb.Append(this.DirectorySeparator);
+                    sb.Append(name);
+                }
             }
+
+            if (sb.Length == 0)
+                sb.Append(this.DirectorySeparator);
+
             return sb.ToString();
         }
 
@@ -760,7 +790,7 @@ namespace IPA.Cores.Basic
                 {
                     if (sep == c)
                     {
-                        d = this.DirectorySeparator;
+                        d = destPathParser.DirectorySeparator;
                         break;
                     }
                 }
@@ -774,13 +804,14 @@ namespace IPA.Cores.Basic
             if (name == null || name == "")
                 throw new ArgumentNullException("The entity name is null or empty.");
             if (IsValidFileOrDirectoryName(name) == false)
-                throw new ArgumentOutOfRangeException($"The entity name \"name\" is invalid to this file system.");
+                throw new ArgumentException($"The entity name \"{name}\" is invalid to this file system.");
         }
 
         public bool IsValidFileOrDirectoryName(string name)
         {
             if (name == null || name == "") return false;
-            if (name == "." || name == "..") return false;
+            string trimmed = name.Trim();
+            if (trimmed == "." || trimmed == "..") return false;
 
             foreach (char c in name)
                 foreach (char sep in this.PossibleDirectorySeparators)
@@ -1145,7 +1176,9 @@ namespace IPA.Cores.Basic
 
                     cancel.ThrowIfCancellationRequested();
 
-                    return await NormalizePathImplAsync(path, cancel);
+                    string ret = await NormalizePathImplAsync(path, cancel);
+
+                    return ret;
                 }
             }
         }
@@ -1400,6 +1433,8 @@ namespace IPA.Cores.Basic
 
             return false;
         }
+        public bool IsFileExists(string path, CancellationToken cancel = default)
+            => IsFileExistsAsync(path, cancel).GetResult();
 
         public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default)
         {
@@ -1411,9 +1446,8 @@ namespace IPA.Cores.Basic
 
             return false;
         }
-
-        public bool IsFileExists(string path, CancellationToken cancel = default)
-            => IsFileExistsAsync(path, cancel).GetResult();
+        public bool IsDirectoryExists(string path, CancellationToken cancel = default)
+            => IsDirectoryExistsAsync(path, cancel).GetResult();
 
         public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {

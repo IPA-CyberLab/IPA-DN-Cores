@@ -193,6 +193,24 @@ namespace IPA.Cores.Basic
         }
         public Memory<byte> ReadFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => ReadFromFileAsync(path, maxSize, flags, cancel).GetResult();
+
+        protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
+        {
+            DirectoryWalker walker = new DirectoryWalker(this, true, EnumDirectoryFlags.NoGetPhysicalSize);
+            await walker.WalkDirectoryAsync(directoryPath,
+                async (info, entities, c) =>
+                {
+                    foreach (var file in entities.Where(x => x.IsDirectory == false))
+                    {
+                        await this.DeleteFileImplAsync(file.FullPath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    }
+
+                    await this.DeleteDirectoryImplAsync(info.FullPath, false, cancel);
+
+                    return true;
+                },
+                cancel: cancel);
+        }
     }
 
     class DirectoryPathInfo
@@ -254,6 +272,11 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
+                if (exceptionHandler == null)
+                {
+                    throw;
+                }
+
                 if (await exceptionHandler(currentDirInfo, ex, opCancel) == false)
                 {
                     return false;
@@ -308,7 +331,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -317,7 +340,7 @@ namespace IPA.Cores.Basic
             return await WalkDirectoryInternalAsync(rootDirectory, "", callback, exceptionHandler, recursive, cancel, null);
         }
 
-        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
+        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
                 async (dirInfo, entity, c) => { await Task.CompletedTask; return callback(dirInfo, entity, c); },
                 async (dirInfo, exception, c) => { await Task.CompletedTask; return exceptionHandler(dirInfo, exception, c); },

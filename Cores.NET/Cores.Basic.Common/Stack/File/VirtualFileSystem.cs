@@ -50,7 +50,7 @@ namespace IPA.Cores.Basic
 {
     class VfsException : Exception
     {
-        public VfsException(string path, string message) : base($"Entity \"{path}\": {message}") { }
+        public VfsException(string path, string message) : base($"Entity name \"{path}\": {message}") { }
     }
 
     class VfsNotFoundException : VfsException
@@ -63,13 +63,16 @@ namespace IPA.Cores.Basic
         public VirtualFileSystem FileSystem { get; }
         readonly RefInt LinkRef = new RefInt();
         readonly RefInt HandleRef = new RefInt();
-        readonly CriticalSection LockObj = new CriticalSection();
+        protected readonly CriticalSection LockObj = new CriticalSection();
 
-        public abstract string Name { get; }
-        public abstract FileAttributes Attributes { get; }
-        public abstract DateTimeOffset CreationTime { get; }
-        public abstract DateTimeOffset LastWriteTime { get; }
-        public abstract DateTimeOffset LastAccessTime { get; }
+        public virtual string Name { get; protected set; }
+        public virtual FileAttributes Attributes { get; protected set; }
+        public virtual DateTimeOffset CreationTime { get; protected set; }
+        public virtual DateTimeOffset LastWriteTime { get; protected set; }
+        public virtual DateTimeOffset LastAccessTime { get; protected set; }
+
+        public virtual Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default) => throw new NotSupportedException();
+        public virtual Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default) => throw new NotSupportedException();
 
         volatile bool ReleasedFlag = false;
         public bool IsReleased => this.LinkRef.Value <= 0 || ReleasedFlag;
@@ -79,7 +82,7 @@ namespace IPA.Cores.Basic
             this.FileSystem = fileSystem;
         }
 
-        protected virtual Task ReleaseLinkImplAsync() => Task.CompletedTask;
+        protected abstract Task ReleaseLinkImplAsync();
 
         public async Task<int> ReleaseLinkAsync(bool force = false)
         {
@@ -152,6 +155,8 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 int r = HandleRef.Decrement();
+                if (r < 0)
+                    Dbg.Break();
                 Debug.Assert(r >= 0);
                 return r;
             }
@@ -167,8 +172,24 @@ namespace IPA.Cores.Basic
         public abstract long Size { get; }
         public abstract long PhysicalSize { get; }
         public abstract Task<FileObject> OpenAsync(FileParameters option, CancellationToken cancel = default);
-        public abstract Task<FileMetadata> GetFileMetadataAsync(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default);
-        public abstract Task SetFileMetadataAsync(FileMetadata metadata, CancellationToken cancel = default);
+
+        public override async Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+
+            lock (this.LockObj)
+            {
+                return new FileMetadata(
+                    isDirectory: false,
+                    attributes: (this.Attributes) & ~FileAttributes.Directory,
+                    creationTime: this.CreationTime,
+                    lastWriteTime: this.LastWriteTime,
+                    lastAccessTime: this.LastAccessTime,
+                    size: this.Size,
+                    physicalSize: this.PhysicalSize
+                    );
+            }
+        }
     }
 
     abstract class VfsDirectory : VfsEntity
@@ -181,15 +202,13 @@ namespace IPA.Cores.Basic
         public abstract Task<VfsEntity[]> EnumEntitiesAsync(EnumDirectoryFlags flags, CancellationToken cancel = default);
         public abstract Task<Holder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default);
         public abstract Task AddDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
-        public abstract Task RemoveDirectoryAsync(VfsDirectory directory, bool recursive, CancellationToken cancel = default);
+        public abstract Task RemoveDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
         public abstract Task AddFileAsync(VfsFile file, CancellationToken cancel = default);
         public abstract Task RemoveFileAsync(VfsFile file, CancellationToken cancel = default);
 
         public virtual async Task ParseAsync(VfsPathParserContext ctx, CancellationToken cancel = default)
         {
-            string nextName = ctx.RemainingPathElements.Dequeue();
-
-            if (nextName == null)
+            if (ctx.RemainingPathElements.TryPeek(out string nextName) == false)
             {
                 // This is the final entity
                 ctx.Exception = null;
@@ -200,12 +219,13 @@ namespace IPA.Cores.Basic
             {
                 using (var nextEntityHolder = await this.OpenEntityAsync(nextName, cancel))
                 {
+                    ctx.RemainingPathElements.Dequeue();
+
                     VfsEntity nextEntity = nextEntityHolder.Value;
 
                     if (nextEntity is VfsDirectory nextDirectory)
                     {
-                        ctx.EntityStack.Add(nextDirectory);
-                        ctx.NormalizedPathStack.Add(nextDirectory.Name);
+                        ctx.AddToEntityStack(nextDirectory);
 
                         await nextDirectory.ParseAsync(ctx, cancel);
                     }
@@ -214,11 +234,10 @@ namespace IPA.Cores.Basic
                         if (ctx.RemainingPathElements.Count >= 1)
                         {
                             throw new VfsNotFoundException(ctx.SpecifiedPath,
-                                $"Invalid directory name. The file \"{nextName}\" is found on the directory \"{this.FileSystem.PathParser.BuildPathStringFromElements(ctx.NormalizedPathStack)}\".");
+                                $"Invalid directory name. The file \"{nextName}\" is found on the directory \"{this.FileSystem.PathParser.BuildAbsolutePathStringFromElements(ctx.NormalizedPathStack)}\".");
                         }
 
-                        ctx.EntityStack.Add(nextFile);
-                        ctx.NormalizedPathStack.Add(nextFile.Name);
+                        ctx.AddToEntityStack(nextFile);
                         ctx.Exception = null;
 
                         return;
@@ -233,9 +252,25 @@ namespace IPA.Cores.Basic
             catch (VfsNotFoundException)
             {
                 ctx.Exception = new VfsNotFoundException(ctx.SpecifiedPath,
-                    $"The object \"{nextName}\" is not found on the directory \"{this.FileSystem.PathParser.BuildPathStringFromElements(ctx.NormalizedPathStack)}\".");
+                    $"The object \"{nextName}\" is not found on the directory \"{this.FileSystem.PathParser.BuildAbsolutePathStringFromElements(ctx.NormalizedPathStack)}\".");
 
                 return;
+            }
+        }
+
+        public override async Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+
+            lock (this.LockObj)
+            {
+                return new FileMetadata(
+                    isDirectory: true,
+                    attributes: (this.Attributes | FileAttributes.Directory) & ~FileAttributes.Normal,
+                    creationTime: this.CreationTime,
+                    lastWriteTime: this.LastWriteTime,
+                    lastAccessTime: this.LastAccessTime
+                    );
             }
         }
     }
@@ -243,7 +278,7 @@ namespace IPA.Cores.Basic
     class VfsRamDirectory : VfsDirectory
     {
         readonly Dictionary<string, VfsEntity> EntityTable;
-        readonly AsyncLock LockObj = new AsyncLock();
+        readonly AsyncLock AsyncLock = new AsyncLock();
 
         public VfsRamDirectory(VirtualFileSystem fileSystem, string name, bool isRoot = false) : base(fileSystem)
         {
@@ -261,15 +296,9 @@ namespace IPA.Cores.Basic
             this.EntityTable = new Dictionary<string, VfsEntity>(fileSystem.PathParser.PathStringComparer);
         }
 
-        public override string Name { get; }
-        public override FileAttributes Attributes { get; }
-        public override DateTimeOffset CreationTime { get; }
-        public override DateTimeOffset LastWriteTime { get; }
-        public override DateTimeOffset LastAccessTime { get; }
-
         public override async Task AddDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default)
         {
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 int r = directory.AddLinkRef();
                 try
@@ -291,7 +320,7 @@ namespace IPA.Cores.Basic
 
         public override async Task AddFileAsync(VfsFile file, CancellationToken cancel = default)
         {
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 int r = file.AddLinkRef();
                 try
@@ -314,7 +343,7 @@ namespace IPA.Cores.Basic
         {
             await Task.CompletedTask;
 
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 var ret = this.EntityTable.Values.OrderBy(x => x.Name, this.FileSystem.PathParser.PathStringComparer).ToArray();
 
@@ -324,7 +353,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<Holder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default)
         {
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 if (this.EntityTable.TryGetValue(name, out VfsEntity entity) == false)
                     throw new VfsNotFoundException(name, $"The object \"{name}\" not found on the directory.");
@@ -336,13 +365,14 @@ namespace IPA.Cores.Basic
                     {
                         e.ReleaseHandleRef();
                     },
+                    entity,
                     leakCheckKind: LeakCounterKind.VfsOpenEntity);
             }
         }
 
-        public override async Task RemoveDirectoryAsync(VfsDirectory directory, bool recursive, CancellationToken cancel = default)
+        public override async Task RemoveDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default)
         {
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 if (EntityTable.ContainsValue(directory) == false)
                     throw new VfsException(directory.Name, $"The object is not contained on the parent directory \"{this.Name}\".");
@@ -355,7 +385,7 @@ namespace IPA.Cores.Basic
 
         public override async Task RemoveFileAsync(VfsFile file, CancellationToken cancel = default)
         {
-            using (await LockObj.LockWithAwait(cancel))
+            using (await AsyncLock.LockWithAwait(cancel))
             {
                 if (EntityTable.ContainsValue(file) == false)
                     throw new VfsException(file.Name, $"The object is not contained on the parent directory \"{this.Name}\".");
@@ -366,14 +396,32 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task ReleaseLinkImplAsync()
+        protected override async Task ReleaseLinkImplAsync()
         {
-            lock (LockObj)
+            using (await AsyncLock.LockWithAwait())
             {
-                if (EntityTable.Count >= 2)
+                if (EntityTable.Count > 0)
                     throw new VfsException(this.Name, $"This directory has one or more entities.");
+            }
+        }
 
-                return Task.CompletedTask;
+        public override async Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+
+            lock (this.LockObj)
+            {
+                if (metadata.Attributes.HasValue)
+                    this.Attributes = metadata.Attributes.Value | FileAttributes.Directory & ~FileAttributes.Normal;
+
+                if (metadata.CreationTime.HasValue)
+                    this.CreationTime = metadata.CreationTime.Value;
+
+                if (metadata.LastWriteTime.HasValue)
+                    this.LastWriteTime = metadata.LastWriteTime.Value;
+
+                if (metadata.LastAccessTime.HasValue)
+                    this.LastAccessTime = metadata.LastAccessTime.Value;
             }
         }
     }
@@ -386,21 +434,23 @@ namespace IPA.Cores.Basic
         public readonly string SpecifiedPath;
         public readonly Queue<string> RemainingPathElements = new Queue<string>();
 
-        public VfsPathParserContext(FileSystemPathParser parser, string[] pathElements)
+        public VfsPathParserContext(FileSystemPathParser parser, string[] pathElements, VfsEntity root)
         {
             this.Parser = parser;
             foreach (string element in pathElements)
             {
                 this.RemainingPathElements.Enqueue(element);
             }
-            this.SpecifiedPath = this.Parser.BuildPathStringFromElements(pathElements);
+            this.SpecifiedPath = this.Parser.BuildAbsolutePathStringFromElements(pathElements);
 
             Exception = new VfsException(SpecifiedPath, "Unknown path parser error.");
+
+            AddToEntityStack(root);
         }
 
         public readonly List<VfsEntity> EntityStack = new List<VfsEntity>();
         public readonly List<string> NormalizedPathStack = new List<string>();
-        public string NormalizedPath => Parser.BuildPathStringFromElements(NormalizedPathStack);
+        public string NormalizedPath => Parser.BuildAbsolutePathStringFromElements(NormalizedPathStack);
         public Exception Exception = null;
         public VfsEntity LastEntity => EntityStack.LastOrDefault();
 
@@ -408,6 +458,7 @@ namespace IPA.Cores.Basic
         {
             entity.AddHandleRef();
             EntityStack.Add(entity);
+            NormalizedPathStack.Add(entity.Name);
         }
 
         public void Dispose() => Dispose(true);
@@ -427,17 +478,17 @@ namespace IPA.Cores.Basic
 
         public VirtualFileSystem(AsyncCleanuperLady lady) : base(lady, FileSystemPathParser.GetInstance(FileSystemStyle.Linux))
         {
-            this.Root = new VfsRamDirectory(this, "/", true);
+            var rootDir = new VfsRamDirectory(this, "/", true);
+            rootDir.AddLinkRef();
+
+            this.Root = rootDir;
         }
 
         async Task<VfsPathParserContext> ParsePathInternalAsync(string path, CancellationToken cancel = default)
         {
-            if (path.StartsWith("/") == false)
-                throw new VfsException(path, "The speficied path is not an absolute path.");
+            string[] pathStack = this.PathParser.SplitAbsolutePathToElements(path);
 
-            string[] pathStack = this.PathParser.SplitPathToElements(path);
-
-            VfsPathParserContext ctx = new VfsPathParserContext(this.PathParser, pathStack);
+            VfsPathParserContext ctx = new VfsPathParserContext(this.PathParser, pathStack, Root);
             try
             {
                 await Root.ParseAsync(ctx, cancel);
@@ -475,9 +526,7 @@ namespace IPA.Cores.Basic
 
                     while (true)
                     {
-                        string nextDirName = ctx.RemainingPathElements.Dequeue();
-
-                        if (nextDirName == null)
+                        if (ctx.RemainingPathElements.TryDequeue(out string nextDirName) == false)
                             return;
 
                         var newDirectory = new VfsRamDirectory(this, nextDirName);
@@ -506,9 +555,39 @@ namespace IPA.Cores.Basic
             throw new NotImplementedException();
         }
 
-        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
+        protected override async Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            if (recursive)
+            {
+                await this.DeleteDirectoryRecursiveInternalAsync(directoryPath, cancel);
+                return;
+            }
+
+            using (VfsPathParserContext ctx = await ParsePathInternalAsync(directoryPath, cancel))
+            {
+                if (ctx.Exception != null)
+                    throw ctx.Exception;
+
+                if (ctx.LastEntity is VfsDirectory dir)
+                {
+                    if (dir.IsRoot)
+                        throw new VfsException(directoryPath, "The root directory cannot be removed.");
+
+                    Debug.Assert(ctx.EntityStack.Count >= 2);
+                    Debug.Assert(ctx.EntityStack.Last() == dir);
+                    VfsDirectory parentDir = ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory;
+                    Debug.Assert(parentDir != null);
+
+                    dir.ReleaseHandleRef();
+                    ctx.EntityStack.RemoveAt(ctx.EntityStack.Count - 1);
+
+                    await parentDir.RemoveDirectoryAsync(dir, cancel);
+                }
+                else
+                {
+                    throw new VfsNotFoundException(directoryPath, "Directory not found.");
+                }
+            }
         }
 
         protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
@@ -530,7 +609,7 @@ namespace IPA.Cores.Basic
 
                     FileSystemEntity thisDir = new FileSystemEntity()
                     {
-                        FullPath = PathParser.Combine(ctx.NormalizedPath),
+                        FullPath = ctx.NormalizedPath,
                         Name = ".",
                         Attributes = thisDirObject.Attributes,
                         CreationTime = thisDirObject.CreationTime,
@@ -543,29 +622,31 @@ namespace IPA.Cores.Basic
                     {
                         if (entity is VfsDirectory dirObject)
                         {
+                            FileMetadata meta = await dirObject.GetMetadataAsync(cancel);
                             FileSystemEntity dir = new FileSystemEntity()
                             {
                                 FullPath = PathParser.Combine(ctx.NormalizedPath, entity.Name),
                                 Name = entity.Name,
-                                Attributes = (entity.Attributes | FileAttributes.Directory) & ~FileAttributes.Normal,
-                                CreationTime = entity.CreationTime,
-                                LastWriteTime = entity.LastWriteTime,
-                                LastAccessTime = entity.LastAccessTime,
+                                Attributes = meta.Attributes ?? FileAttributes.Directory,
+                                CreationTime = meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                                LastWriteTime = meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                                LastAccessTime = meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
                             };
                             ret.Add(dir);
                         }
                         else if (entity is VfsFile fileObject)
                         {
+                            FileMetadata meta = await fileObject.GetMetadataAsync(cancel);
                             FileSystemEntity file = new FileSystemEntity()
                             {
                                 FullPath = PathParser.Combine(ctx.NormalizedPath, entity.Name),
                                 Name = entity.Name,
-                                Size = fileObject.Size,
-                                PhysicalSize = fileObject.PhysicalSize,
-                                Attributes = entity.Attributes & ~FileAttributes.Directory,
-                                CreationTime = entity.CreationTime,
-                                LastWriteTime = entity.LastWriteTime,
-                                LastAccessTime = entity.LastAccessTime,
+                                Size = meta.Size,
+                                PhysicalSize = meta.PhysicalSize,
+                                Attributes = meta.Attributes ?? FileAttributes.Directory,
+                                CreationTime = meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                                LastWriteTime = meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                                LastAccessTime = meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
                             };
                             ret.Add(file);
                         }
@@ -589,13 +670,7 @@ namespace IPA.Cores.Basic
 
                 if (ctx.LastEntity is VfsDirectory dir)
                 {
-                    return new FileMetadata(
-                        isDirectory: true,
-                        attributes: (dir.Attributes | FileAttributes.Directory) & ~FileAttributes.Normal,
-                        creationTime: dir.CreationTime,
-                        lastWriteTime: dir.LastWriteTime,
-                        lastAccessTime: dir.LastAccessTime
-                        );
+                    return await dir.GetMetadataAsync(cancel);
                 }
                 else
                 {
@@ -613,15 +688,7 @@ namespace IPA.Cores.Basic
 
                 if (ctx.LastEntity is VfsFile file)
                 {
-                    return new FileMetadata(
-                        isDirectory: false,
-                        attributes: (file.Attributes) & ~FileAttributes.Directory,
-                        creationTime: file.CreationTime,
-                        lastWriteTime: file.LastWriteTime,
-                        lastAccessTime: file.LastAccessTime,
-                        size: file.Size,
-                        physicalSize: file.PhysicalSize
-                        );
+                    return await file.GetMetadataAsync(cancel);
                 }
                 else
                 {
@@ -668,18 +735,46 @@ namespace IPA.Cores.Basic
         {
             using (VfsPathParserContext ctx = await ParsePathInternalAsync(path, cancel))
             {
-                return this.PathParser.BuildPathStringFromElements(ctx.NormalizedPathStack.Concat(ctx.RemainingPathElements));
+                string ret = this.PathParser.BuildAbsolutePathStringFromElements(ctx.NormalizedPathStack.Concat(ctx.RemainingPathElements));
+
+                return ret;
             }
         }
 
-        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        protected override async Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            using (VfsPathParserContext ctx = await ParsePathInternalAsync(path, cancel))
+            {
+                if (ctx.Exception != null)
+                    throw ctx.Exception;
+
+                if (ctx.LastEntity is VfsDirectory dir)
+                {
+                    await dir.SetMetadataAsync(metadata, cancel);
+                }
+                else
+                {
+                    throw new VfsNotFoundException(path, "Directory not found.");
+                }
+            }
         }
 
-        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        protected override async Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            using (VfsPathParserContext ctx = await ParsePathInternalAsync(path, cancel))
+            {
+                if (ctx.Exception != null)
+                    throw ctx.Exception;
+
+                if (ctx.LastEntity is VfsFile file)
+                {
+                    await file.SetMetadataAsync(metadata, cancel);
+                }
+                else
+                {
+                    throw new VfsNotFoundException(path, "Directory not found.");
+                }
+            }
         }
     }
 }

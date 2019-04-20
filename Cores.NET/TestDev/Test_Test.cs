@@ -56,7 +56,17 @@ namespace IPA.TestDev
         {
             using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady))
             {
-                Util.DoNothing();
+                vfs.CreateDirectory("/a");
+                vfs.CreateDirectory("/b");
+                vfs.CreateDirectory("/c");
+                vfs.CreateDirectory("/a/a");
+                vfs.CreateDirectory("/1/2/3");
+                vfs.CreateDirectory("/1/2/4");
+                vfs.CreateDirectory("/1/2/5");
+                vfs.CreateDirectory("/1/4/1/2/3/4/5/6/7/7/8/9");
+                vfs.DeleteDirectory("/a/a");
+                vfs.DeleteDirectory("/1", true);
+                vfs.EnumDirectory("/", true).Select(x => x.FullPath).PrintAsJson();
             }
         }
     }
