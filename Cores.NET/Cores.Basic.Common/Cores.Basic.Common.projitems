@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Base\DevTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalInitializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Log.cs" />
@@ -54,8 +55,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileCopy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\Utf8BomViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ViewFileSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\VirtualFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32Api.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32ApiUtil.cs" />

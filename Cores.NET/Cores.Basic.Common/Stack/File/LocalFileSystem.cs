@@ -955,6 +955,24 @@ namespace IPA.Cores.Basic
 
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
+            if (this.FileParams.Flags.Bit(FileOperationFlags.WriteOnlyIfChanged))
+            {
+                try
+                {
+                    using (MemoryHelper.FastAllocMemoryWithUsing(data.Length, out Memory<byte> readBuffer))
+                    {
+                        int readSize = await ReadRandomImplAsync(position, readBuffer, cancel);
+                        if (readSize == data.Length)
+                            if (data.Span.SequenceEqual(readBuffer.Span))
+                            {
+                                Dbg.Where("skip");
+                                return;
+                            }
+                    }
+                }
+                catch { }
+            }
+
             if (isSparseFile)
             {
                 await WriteRandomAutoSparseAsync(position, data, cancel);

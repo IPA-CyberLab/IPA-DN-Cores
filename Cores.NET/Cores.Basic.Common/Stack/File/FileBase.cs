@@ -380,6 +380,7 @@ namespace IPA.Cores.Basic
         OnCreateRemoveCompressionFlag = 256,
         NoAsync = 512,
         SparseFile = 1024,
+        WriteOnlyIfChanged = 2048,
     }
 
     class FileBaseStream : FileStream

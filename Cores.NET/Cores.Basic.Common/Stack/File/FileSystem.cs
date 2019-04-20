@@ -36,7 +36,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32.SafeHandles;
 using System.Buffers;
 using System.Diagnostics;
 
@@ -740,9 +739,22 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        public void ValidateFileOrDirectoryName(string name)
+        {
+            if (name == null || name == "")
+                throw new ArgumentNullException("The entity name is null or empty.");
+            if (IsValidFileOrDirectoryName(name) == false)
+                throw new ArgumentOutOfRangeException($"The entity name \"name\" is invalid to this file system.");
+        }
+
         public bool IsValidFileOrDirectoryName(string name)
         {
             if (name == null || name == "") return false;
+
+            foreach (char c in name)
+                foreach (char sep in this.PossibleDirectorySeparators)
+                    if (c == sep)
+                        return false;
 
             return true;
         }
@@ -984,7 +996,7 @@ namespace IPA.Cores.Basic
         NoGetPhysicalSize = 1,
     }
 
-    abstract class FileSystemBase : AsyncCleanupable
+    abstract partial class FileSystemBase : AsyncCleanupable
     {
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathParser PathParser { get; }
@@ -1191,74 +1203,6 @@ namespace IPA.Cores.Basic
 
         public FileObject OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
-
-        public async Task WriteToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-        {
-            using (var file = await CreateAsync(path, false, flags, doNotOverwrite, cancel))
-            {
-                try
-                {
-                    await file.WriteAsync(srcMemory, cancel);
-                }
-                finally
-                {
-                    await file.CloseAsync();
-                }
-            }
-        }
-        public void WriteToFile(string path, Memory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-            => WriteToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
-
-        public async Task AppendToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
-            {
-                try
-                {
-                    await file.WriteAsync(srcMemory, cancel);
-                }
-                finally
-                {
-                    await file.CloseAsync();
-                }
-            }
-        }
-        public void AppendToFile(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => AppendToFileAsync(path, srcMemory, flags, cancel).GetResult();
-
-        public async Task<int> ReadFromFileAsync(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
-            {
-                try
-                {
-                    return await file.ReadAsync(destMemory, cancel);
-                }
-                finally
-                {
-                    await file.CloseAsync();
-                }
-            }
-        }
-        public int ReadFromFile(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadFromFileAsync(path, destMemory, flags, cancel).GetResult();
-
-        public async Task<Memory<byte>> ReadFromFileAsync(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
-            {
-                try
-                {
-                    return await file.GetStream().ReadToEndAsync(maxSize, cancel);
-                }
-                finally
-                {
-                    await file.CloseAsync();
-                }
-            }
-        }
-        public Memory<byte> ReadFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadFromFileAsync(path, maxSize, flags, cancel).GetResult();
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -1548,41 +1492,6 @@ namespace IPA.Cores.Basic
             => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
 
 
-        public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
-        {
-            try
-            {
-                if (File.Exists(path) == false)
-                    return false;
-
-                var existingFileMetadata = await this.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
-                var currentAttributes = existingFileMetadata.Attributes ?? 0;
-                if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
-                {
-                    var newAttributes = (currentAttributes & ~(attributesToRemove)) | attributesToAdd;
-                    if (currentAttributes != newAttributes)
-                    {
-                        try
-                        {
-                            await this.SetFileMetadataAsync(path, new FileMetadata(false, attributes: newAttributes), cancel);
-
-                            return true;
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }
-            }
-            catch
-            {
-            }
-
-            return false;
-        }
-
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {
             SpecialFileNameKind ret = SpecialFileNameKind.Normal;
@@ -1594,134 +1503,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DirectoryPathInfo
-    {
-        public bool IsRoot { get; }
-        public string FullPath { get; }
-        public string RelativePath { get; }
-        public FileSystemEntity Entity { get; }
-
-        public DirectoryPathInfo(bool isRoot, string fullPath, string relativePath, FileSystemEntity entity)
-        {
-            this.IsRoot = isRoot;
-            this.FullPath = fullPath;
-            this.RelativePath = relativePath;
-            this.Entity = entity;
-        }
-    }
-
-    class DirectoryWalker
-    {
-        public FileSystemBase FileSystem { get; }
-        public bool DeeperFirstInRecursive { get; }
-        public EnumDirectoryFlags Flags { get; }
-
-        public DirectoryWalker(FileSystemBase fileSystem, bool deeperFirstInRecursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
-        {
-            this.FileSystem = fileSystem;
-            this.DeeperFirstInRecursive = deeperFirstInRecursive;
-            this.Flags = flags;
-        }
-
-        async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
-            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
-            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler,
-            bool recursive, CancellationToken opCancel, FileSystemEntity dirEntity)
-        {
-            opCancel.ThrowIfCancellationRequested();
-
-            FileSystemEntity[] entityList;
-
-            bool isRootDir = false;
-
-            if (dirEntity == null)
-            {
-                isRootDir = true;
-
-                dirEntity = new FileSystemEntity()
-                {
-                    FullPath = directoryFullPath,
-                    Name = this.FileSystem.PathParser.GetFileName(directoryFullPath),
-                };
-            }
-
-            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(isRootDir, directoryFullPath, directoryRelativePath, dirEntity);
-
-            try
-            {
-                entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, this.Flags, opCancel);
-            }
-            catch (Exception ex)
-            {
-                if (await exceptionHandler(currentDirInfo, ex, opCancel) == false)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-
-            if (isRootDir)
-            {
-                var rootDirEntry = entityList.Where(x => x.IsCurrentDirectory).Single();
-                currentDirInfo = new DirectoryPathInfo(true, directoryFullPath, directoryRelativePath, rootDirEntry);
-            }
-
-            if (this.DeeperFirstInRecursive == false)
-            {
-                // Deeper last
-                if (await callback(currentDirInfo, entityList, opCancel) == false)
-                {
-                    return false;
-                }
-            }
-
-            if (recursive)
-            {
-                // Deep directory
-                foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
-                {
-                    if (entity.IsDirectory)
-                    {
-                        opCancel.ThrowIfCancellationRequested();
-
-                        if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, exceptionHandler, true, opCancel, entity) == false)
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            if (this.DeeperFirstInRecursive)
-            {
-                // Deeper first
-                if (await callback(currentDirInfo, entityList, opCancel) == false)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
-        {
-            cancel.ThrowIfCancellationRequested();
-
-            rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel);
-
-            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, exceptionHandler, recursive, cancel, null);
-        }
-
-        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler, bool recursive = true, CancellationToken cancel = default)
-            => WalkDirectoryAsync(rootDirectory,
-                async (dirInfo, entity, c) => { await Task.CompletedTask; return callback(dirInfo, entity, c); },
-                async (dirInfo, exception, c) => { await Task.CompletedTask; return exceptionHandler(dirInfo, exception, c); },
-                recursive, cancel).GetResult();
-    }
 
 }
 

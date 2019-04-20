@@ -4926,6 +4926,17 @@ namespace IPA.Cores.Basic
             return new string(c, len);
         }
 
+        // 最後の改行を削除する
+        public static string RemoveLastCrlf(string str)
+        {
+            if (str == null) return null;
+            if (str.Length >= 1 && str[str.Length - 1] == 10)
+                str = str.Substring(0, str.Length - 1);
+            if (str.Length >= 1 && str[str.Length - 1] == 13)
+                str = str.Substring(0, str.Length - 1);
+            return str;
+        }
+
         // 改行コードを正規化する
         public static string NormalizeCrlfWindows(string str)
         {

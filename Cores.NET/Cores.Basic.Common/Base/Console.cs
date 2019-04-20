@@ -153,6 +153,7 @@ namespace IPA.Cores.Basic
 
         public static void WriteLine(string str)
         {
+            str = Str.RemoveLastCrlf(str);
             if (cs != null)
             {
                 cs.WriteLine(str, LogPriority.Info);
@@ -215,6 +216,7 @@ namespace IPA.Cores.Basic
 
         public static void WriteError(string str)
         {
+            str = Str.RemoveLastCrlf(str);
             if (cs != null)
             {
                 cs.WriteLine(str, LogPriority.Error);

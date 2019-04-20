@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
+    abstract class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
     {
         public byte[] Bytes;
         public int Size;
@@ -113,10 +113,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public virtual IPAddr Add(int i)
-        {
-            throw new NotImplementedException();
-        }
+        public abstract IPAddr Add(int i);
 
         public static byte[] PadBytes(byte[] b, int size)
         {
@@ -272,6 +269,34 @@ namespace IPA.Cores.Basic
             }
 
             return hashcode_cache;
+        }
+
+        public static bool operator >(IPAddr a, IPAddr b)
+        {
+            if (object.ReferenceEquals(a, b)) return false;
+            if ((object)a == null || (object)b == null) return false;
+            return a.CompareTo(b) > 0;
+        }
+
+        public static bool operator <(IPAddr a, IPAddr b)
+        {
+            if (object.ReferenceEquals(a, b)) return false;
+            if ((object)a == null || (object)b == null) return false;
+            return a.CompareTo(b) < 0;
+        }
+
+        public static bool operator >=(IPAddr a, IPAddr b)
+        {
+            if (object.ReferenceEquals(a, b)) return false;
+            if ((object)a == null || (object)b == null) return false;
+            return a.CompareTo(b) <= 0;
+        }
+
+        public static bool operator <=(IPAddr a, IPAddr b)
+        {
+            if (object.ReferenceEquals(a, b)) return false;
+            if (a == null || b == null) return false;
+            return a.CompareTo(b) >= 0;
         }
     }
 

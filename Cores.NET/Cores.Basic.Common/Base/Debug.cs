@@ -198,6 +198,7 @@ namespace IPA.Cores.Basic
         public static string WriteLine(string str)
         {
             if (str == null) str = "null";
+            str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
             return str;
         }
@@ -216,6 +217,7 @@ namespace IPA.Cores.Basic
         public static void WriteError(string str)
         {
             if (str == null) str = "null";
+            str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Error);
         }
         public static void WriteError(string str, params object[] args)
@@ -238,6 +240,7 @@ namespace IPA.Cores.Basic
         public static void WriteTrace(string str)
         {
             if (str == null) str = "null";
+            str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Trace);
         }
         public static void WriteTrace(string str, params object[] args)
