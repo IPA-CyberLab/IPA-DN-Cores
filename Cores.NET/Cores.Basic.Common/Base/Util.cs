@@ -339,6 +339,8 @@ namespace IPA.Cores.Basic
         public virtual object Clone() => this.MemberwiseClone();
     }
 
+    // Readonly values manager
+    // See https://en.wikipedia.org/wiki/Copenhagen_interpretation
     class Copenhagen<T>
     {
         T _Value;
