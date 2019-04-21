@@ -986,16 +986,15 @@ namespace IPA.Cores.Basic
 
     interface IBuffer<T> : IEmptyChecker
     {
-        int CurrentPosition { get; }
-        int Length { get; }
-        int InternalBufferSize { get; }
+        long LongCurrentPosition { get; }
+        long LongLength { get; }
+        long LongInternalBufferSize { get; }
         void Write(ReadOnlySpan<T> data);
-        ReadOnlySpan<T> Read(int size, bool allowPartial = false);
-        ReadOnlySpan<T> Peek(int size, bool allowPartial = false);
-        void Seek(int offset, SeekOrigin mode, bool allocate = false);
+        ReadOnlySpan<T> Read(long size, bool allowPartial = false);
+        ReadOnlySpan<T> Peek(long size, bool allowPartial = false);
+        void Seek(long offset, SeekOrigin mode, bool allocate = false);
+        void SetLength(long size);
         void Clear();
-        Holder PinLock();
-        bool IsPinLocked();
     }
 
     class BufferStream : Stream
@@ -1010,11 +1009,11 @@ namespace IPA.Cores.Basic
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => true;
-        public override long Length => BaseBuffer.Length;
+        public override long Length => BaseBuffer.LongLength;
 
         public override long Position
         {
-            get => BaseBuffer.CurrentPosition;
+            get => BaseBuffer.LongCurrentPosition;
             set => Seek(value, SeekOrigin.Begin);
         }
 
@@ -1022,19 +1021,15 @@ namespace IPA.Cores.Basic
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            checked
-            {
-                BaseBuffer.Seek((int)offset, origin);
-                return BaseBuffer.CurrentPosition;
-            }
+            BaseBuffer.Seek(offset, origin, true);
+            return BaseBuffer.LongCurrentPosition;
         }
 
-        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void SetLength(long value)
+            => BaseBuffer.SetLength(value);
 
         public override Task FlushAsync(CancellationToken cancellationToken)
-        {
-            return base.FlushAsync(cancellationToken);
-        }
+            => Task.CompletedTask;
 
         public override int Read(Span<byte> buffer)
         {
@@ -1052,7 +1047,7 @@ namespace IPA.Cores.Basic
 
         public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
 
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(this.Read(buffer, offset, count));
@@ -1065,7 +1060,7 @@ namespace IPA.Cores.Basic
             return this.Read(buffer.Span);
         }
 
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             this.Write(buffer, offset, count);
@@ -1095,6 +1090,12 @@ namespace IPA.Cores.Basic
         public Span<T> Span { get => InternalBuffer.Slice(0, Length).Span; }
         public Span<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public Span<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
+
+        public long LongCurrentPosition => this.CurrentPosition;
+
+        public long LongLength => this.LongLength;
+
+        public long LongInternalBufferSize => this.LongInternalBufferSize;
 
         public MemoryBuffer(int size = 0) : this(new T[size]) { }
 
@@ -1419,6 +1420,18 @@ namespace IPA.Cores.Basic
             CurrentPosition = 0;
             Length = 0;
         }
+
+        public ReadOnlySpan<T> Read(long size, bool allowPartial = false)
+            => Read(checked((int)size), allowPartial);
+
+        public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
+            => Peek(checked((int)size), allowPartial);
+
+        public void Seek(long offset, SeekOrigin mode, bool allocate = false)
+            => Seek(checked((int)offset), mode, allocate);
+
+        public void SetLength(long size)
+            => SetLength(checked((int)size));
     }
 
     class ReadOnlyMemoryBuffer<T> : IBuffer<T>
@@ -1436,6 +1449,12 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<T> Span { get => InternalBuffer.Slice(0, Length).Span; }
         public ReadOnlySpan<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public ReadOnlySpan<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
+
+        public long LongCurrentPosition => this.CurrentPosition;
+
+        public long LongLength => this.Length;
+
+        public long LongInternalBufferSize => this.InternalBufferSize;
 
         public ReadOnlyMemoryBuffer(int size = 0) : this(new T[size]) { }
 
@@ -1659,21 +1678,33 @@ namespace IPA.Cores.Basic
         void IBuffer<T>.Clear() => throw new NotSupportedException();
 
         void IBuffer<T>.Write(ReadOnlySpan<T> data) => throw new NotSupportedException();
+
+        public ReadOnlySpan<T> Read(long size, bool allowPartial = false)
+            => Read(checked((int)size), allowPartial);
+
+        public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
+            => Peek(checked((int)size), allowPartial);
+
+        public void Seek(long offset, SeekOrigin mode, bool allocate = false)
+            => Seek(checked((int)offset), mode, allocate);
+
+        public void SetLength(long size)
+            => SetLength(checked((int)size));
     }
 
-    class LargeMemoryBufferOptions
+    class HugeMemoryBufferOptions
     {
         public readonly long SegmentSize;
 
-        public LargeMemoryBufferOptions(long? segmentSize = null)
+        public HugeMemoryBufferOptions(long? segmentSize = null)
         {
             this.SegmentSize = Math.Max(1, segmentSize ?? AppConfig.LargeMemoryBuffer.DefaultSegmentSize.Value);
         }
     }
 
-    class HugeMemoryBuffer<T> : IEmptyChecker
+    class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>
     {
-        public readonly LargeMemoryBufferOptions Options;
+        public readonly HugeMemoryBufferOptions Options;
 
         Dictionary<long, MemoryBuffer<T>> Segments = new Dictionary<long, MemoryBuffer<T>>();
         public long CurrentPosition { get; private set; } = 0;
@@ -1682,11 +1713,15 @@ namespace IPA.Cores.Basic
 
         public long PhysicalSize => this.Segments.Values.Select(x => (long)x.InternalBufferSize).Sum();
 
-        public HugeMemoryBuffer(LargeMemoryBufferOptions options = null, Memory<T> initialContents = default)
+        public long LongCurrentPosition => this.CurrentPosition;
+        public long LongLength => this.Length;
+        public long LongInternalBufferSize => PhysicalSize;
+
+        public HugeMemoryBuffer(HugeMemoryBufferOptions options = null, Memory<T> initialContents = default)
         {
             checked
             {
-                this.Options = options ?? new LargeMemoryBufferOptions();
+                this.Options = options ?? new HugeMemoryBufferOptions();
 
                 if (this.Options.SegmentSize <= 0) throw new ArgumentOutOfRangeException("Options.SegmentSize <= 0");
 
@@ -2067,6 +2102,12 @@ namespace IPA.Cores.Basic
                     this.CurrentPosition = this.Length;
             }
         }
+
+        public ReadOnlySpan<T> Read(long size, bool allowPartial = false)
+            => Read(checked((int)size), allowPartial);
+
+        public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
+            => Peek(checked((int)size), allowPartial);
     }
 
     static class SpanMemoryBufferHelper

@@ -54,6 +54,24 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            HugeMemoryBuffer<byte> membuf = new HugeMemoryBuffer<byte>();
+            BufferStream st = membuf.AsStream();
+
+            st.Seek(2_080_000_000, SeekOrigin.Begin);
+
+            st.Length.Print();
+
+            st.Write("Hello".GetBytes_Ascii());
+
+            st.Length.Print();
+
+            st.Seek(2_080_000_0098, SeekOrigin.Begin);
+
+            var xxx = st.ReadToEnd();
+            xxx.Length.Print();
+            xxx.GetString_Ascii().Print();
+
+            return;
             //HugeMemoryBuffer<byte> huge = new HugeMemoryBuffer<byte>();
 
             //long size = 8_000_000_000;
@@ -90,7 +108,7 @@ namespace IPA.TestDev
 
             //return;
 
-            HugeMemoryBuffer<char> b = new HugeMemoryBuffer<char>(new LargeMemoryBufferOptions());
+            HugeMemoryBuffer<char> b = new HugeMemoryBuffer<char>(new HugeMemoryBufferOptions());
 
             b.Write("0123456789");
             b.Write("abcdefghij");

@@ -46,6 +46,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static BufferStream AsStream(this MemoryBuffer<byte> buffer) => new BufferStream(buffer);
         public static BufferStream AsStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferStream(buffer);
+        public static BufferStream AsStream(this HugeMemoryBuffer<byte> buffer) => new BufferStream(buffer);
     }
 
     static class MemoryHelper
