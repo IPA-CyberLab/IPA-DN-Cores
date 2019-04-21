@@ -36,32 +36,70 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-using System.Text;
+using System.Buffers;
 using System.Diagnostics;
+using System.Reflection;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Immutable;
 
 #pragma warning disable CS0162
 
 namespace IPA.Cores.Basic
 {
-    static partial class DevTools
+    class VfsResourceFile : VfsRandomAccessFile
     {
-        public static void WriteToFile(string path, string bodyString, Encoding encoding = null, bool writeBom = false)
+        protected new ResourceFileSystem FileSystem => (ResourceFileSystem)base.FileSystem;
+        readonly Assembly Assembly;
+        public string ResourceName { get; }
+
+        public VfsResourceFile(ResourceFileSystem fileSystem, string fileName) : base(fileSystem, fileName)
         {
-            bodyString = bodyString.NonNull();
-            bodyString = Str.NormalizeCrlfThisPlatform(bodyString);
+            this.Assembly = FileSystem.Params.Assembly;
+            this.ResourceName = fileName;
+        }
 
-            Lfs.WriteStringToFile(path, bodyString, FileOperationFlags.AutoCreateDirectory | FileOperationFlags.WriteOnlyIfChanged,
-                encoding: encoding, writeBom: writeBom);
+        protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
+        {
+            return new StreamRandomAccessWrapper(Assembly.GetManifestResourceStream(ResourceName));
+        }
+    }
 
-            Con.WriteDebug($"--- WriteToFile \"{path}\" ---");
-            Con.WriteDebug(bodyString);
-            Con.WriteDebug($"--- EOF ---");
-            Con.WriteDebug();
+    class ResourceFileSystemParam : VirtualFileSystemParams
+    {
+        public Assembly Assembly { get; }
+
+        public ResourceFileSystemParam(Assembly assembly)
+        {
+            this.Assembly = assembly;
+        }
+    }
+
+    class ResourceFileSystem : VirtualFileSystem
+    {
+        public static Singleton<Assembly, ResourceFileSystem> Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(new ResourceFileSystemParam(asm)));
+
+        public new ResourceFileSystemParam Params => (ResourceFileSystemParam)base.Params;
+
+        public ResourceFileSystem(ResourceFileSystemParam param) : base(new AsyncCleanuperLady(), param)
+        {
+            string[] names = Params.Assembly.GetManifestResourceNames();
+
+            foreach (string name in names)
+            {
+                string fullPath = this.PathParser.Combine("/", name);
+
+                using (this.AddFileAsync(new FileParameters(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
+                    async (newFilename, newFileOption, c) =>
+                    {
+                        await Task.CompletedTask;
+                        return new VfsResourceFile(this, name);
+                    }).GetResult())
+                {
+                }
+            }
         }
     }
 }

@@ -380,11 +380,11 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
+                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
                                 }
                                 catch
                                 {
-                                    await this.WriteToFileAsync(fullpath, d.Data, FileOperationFlags.BackupMode, cancel: cancel);
+                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileOperationFlags.BackupMode, cancel: cancel);
                                 }
                             }
                         }
@@ -444,11 +444,11 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
+                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
                         }
                         catch
                         {
-                            memory = await this.ReadFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.BackupMode, cancel);
+                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.BackupMode, cancel);
                         }
 
                         FileAlternateStreamItemMetadata newItem = new FileAlternateStreamItemMetadata()
@@ -924,6 +924,7 @@ namespace IPA.Cores.Basic
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
             BaseStream.SetLength(size);
+            this.CurrentPosition = BaseStream.Position;
             await Task.CompletedTask;
         }
 

@@ -69,7 +69,7 @@ namespace IPA.Cores.Helper.Basic
         public static string GetString_ShiftJis(this byte[] byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
         public static string GetString_Ascii(this byte[] byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
         public static string GetString_Euc(this byte[] byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
-        public static string GetString(this byte[] byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
+        public static string GetString(this byte[] byteArray, Encoding defaultEncoding) => Str.DecodeString(byteArray, defaultEncoding, out _);
         public static string GetString(this byte[] byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
 
         public static string GetString_UTF8(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
@@ -821,6 +821,8 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static string ToPointerHexString(this IntPtr ptr) => $"0x{ptr.ToInt64():X}";
+
+        public static ConcurrentRandomAccess<T> CreateConcurrentRandomAccess<T>(this IRandomAccess<T> randomAccess) => new ConcurrentRandomAccess<T>(randomAccess);
     }
 }
 

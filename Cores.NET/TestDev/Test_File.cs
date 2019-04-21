@@ -234,7 +234,7 @@ namespace IPA.TestDev
                     {
                         string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                        fileSystem.AppendToFile(filePath, hello.GetBytes_Ascii());
+                        fileSystem.AppendDataToFile(filePath, hello.GetBytes_Ascii());
                     }
 
                     using (var file = fileSystem.Open(filePath, writeMode: true))
@@ -272,7 +272,7 @@ namespace IPA.TestDev
                 {
                     string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                    LLfs.AppendToFile(filePath, hello.GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
+                    LLfs.AppendDataToFile(filePath, hello.GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
                 }
                 return 0;
             }
@@ -406,15 +406,15 @@ namespace IPA.TestDev
                     Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
                 }
 
-                var largebytes = LLfsUtf8.ReadFromFile(largeFn);
+                var largebytes = LLfsUtf8.ReadDataFromFile(largeFn);
 
-                Lfs.WriteToFile(@"D:\TMP\sparse_file_test\large_copied.txt", largebytes);
+                Lfs.WriteDataToFile(@"D:\TMP\sparse_file_test\large_copied.txt", largebytes);
 
-                string hash0 = Secure.HashSHA1(Lfs.ReadFromFile(standardApi).Span.ToArray()).GetHexString();
-                string hash1 = Secure.HashSHA1(Lfs.ReadFromFile(normalFn).Span.ToArray()).GetHexString();
-                string hash2 = Secure.HashSHA1(Lfs.ReadFromFile(sparseFn).Span.ToArray()).GetHexString();
-                string hash3 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse2Fn).Span.ToArray()).GetHexString();
-                string hash4 = Secure.HashSHA1(Lfs.ReadFromFile(copySparse3Fn).Span.ToArray()).GetHexString();
+                string hash0 = Secure.HashSHA1(Lfs.ReadDataFromFile(standardApi).Span.ToArray()).GetHexString();
+                string hash1 = Secure.HashSHA1(Lfs.ReadDataFromFile(normalFn).Span.ToArray()).GetHexString();
+                string hash2 = Secure.HashSHA1(Lfs.ReadDataFromFile(sparseFn).Span.ToArray()).GetHexString();
+                string hash3 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse2Fn).Span.ToArray()).GetHexString();
+                string hash4 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse3Fn).Span.ToArray()).GetHexString();
                 string hash5 = Secure.HashSHA1(ram.Span.ToArray()).GetHexString();
                 string hash6 = Secure.HashSHA1(largebytes.Span.ToArray()).GetHexString();
 

@@ -85,7 +85,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public async Task<int> WriteToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public async Task<int> WriteDataToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         {
             if (flags.Bit(FileOperationFlags.WriteOnlyIfChanged))
             {
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
                 {
                     if (await IsFileExistsAsync(path, cancel))
                     {
-                        Memory<byte> existingData = await ReadFromFileAsync(path, srcMemory.Length, flags, cancel);
+                        Memory<byte> existingData = await ReadDataFromFileAsync(path, srcMemory.Length, flags, cancel);
                         if (existingData.Length == srcMemory.Length && existingData.Span.SequenceEqual(srcMemory.Span))
                         {
                             return srcMemory.Length;
@@ -116,10 +116,10 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public int WriteToFile(string path, Memory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-            => WriteToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
+        public int WriteDataToFile(string path, Memory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
 
-        public Task<int> WriteToFileAsync(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        public Task<int> WriteStringToFileAsync(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
         {
             checked
             {
@@ -137,13 +137,13 @@ namespace IPA.Cores.Basic
                 int encodedSize = encoding.GetBytes(srcString, buf.Walk(sizeReserved));
                 buf.SetLength(bomSpan.Length + encodedSize);
 
-                return WriteToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel);
+                return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel);
             }
         }
-        public int WriteToFile(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
-            => WriteToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel).GetResult();
+        public int WriteStringToFile(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+            => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel).GetResult();
 
-        public async Task AppendToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public async Task AppendDataToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
             {
@@ -157,10 +157,10 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public void AppendToFile(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => AppendToFileAsync(path, srcMemory, flags, cancel).GetResult();
+        public void AppendDataToFile(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => AppendDataToFileAsync(path, srcMemory, flags, cancel).GetResult();
 
-        public async Task<int> ReadFromFileAsync(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public async Task<int> ReadDataFromFileAsync(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
@@ -174,10 +174,10 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public int ReadFromFile(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadFromFileAsync(path, destMemory, flags, cancel).GetResult();
+        public int ReadDataFromFile(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => ReadDataFromFileAsync(path, destMemory, flags, cancel).GetResult();
 
-        public async Task<Memory<byte>> ReadFromFileAsync(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        public async Task<Memory<byte>> ReadDataFromFileAsync(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
@@ -191,8 +191,79 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public Memory<byte> ReadFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadFromFileAsync(path, maxSize, flags, cancel).GetResult();
+        public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => ReadDataFromFileAsync(path, maxSize, flags, cancel).GetResult();
+
+        public async Task<string> ReadStringFromFileAsync(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            Memory<byte> data = await ReadDataFromFileAsync(path, maxSize, flags, cancel);
+
+            if (encoding == null)
+                return Str.DecodeStringAutoDetect(data.Span, out _);
+            else
+                return Str.DecodeString(data.Span, encoding, out _);
+        }
+        public string ReadStringFromFile(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => ReadStringFromFileAsync(path, encoding, maxSize, flags, cancel).GetResult();
+
+        class FindSingleFileData
+        {
+            public string FullPath;
+            public double MatchRate;
+        }
+
+        public async Task<string> FindSingleFileAsync(string fileName, CancellationToken cancel = default)
+        {
+            DirectoryWalker walk = new DirectoryWalker(this, false, EnumDirectoryFlags.NoGetPhysicalSize);
+            string exactFile = null;
+
+            List<FindSingleFileData> candidates = new List<FindSingleFileData>();
+
+            await walk.WalkDirectoryAsync("/",
+                async (info, entities, c) =>
+                {
+                    await Task.CompletedTask;
+
+                    foreach (var file in entities.Where(x => x.IsDirectory == false))
+                    {
+                        if (fileName.IsSamei(file.Name))
+                        {
+                            // Exact match
+                            exactFile = file.FullPath;
+                            return false;
+                        }
+
+                        if (file.Name.Search(fileName) != -1)
+                        {
+                            int originalLen = file.Name.Length;
+                            if (originalLen >= 1)
+                            {
+                                int replacedLen = file.Name.ReplaceStr(fileName, "").Length;
+                                int matchLen = originalLen - replacedLen;
+                                FindSingleFileData d = new FindSingleFileData()
+                                {
+                                    FullPath = file.FullPath,
+                                    MatchRate = (double)matchLen / (double)originalLen,
+                                };
+                                candidates.Add(d);
+                            }
+                        }
+                    }
+                    return true;
+                },
+                cancel: cancel);
+
+            if (exactFile.IsFilled())
+                return exactFile;
+
+            var match = candidates.OrderByDescending(x => x.MatchRate).FirstOrDefault();
+            if (match == null)
+                throw new FileException(fileName, "The name did not match to any existing files.");
+
+            return match.FullPath;
+        }
+        public string FindSingleFile(string fileName, CancellationToken cancel = default)
+            => FindSingleFileAsync(fileName, cancel).GetResult();
 
         protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
         {

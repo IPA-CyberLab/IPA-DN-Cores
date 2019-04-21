@@ -2244,8 +2244,36 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class Singleton<TKey, TObject>
+    {
+        readonly CriticalSection LockObj = new CriticalSection();
+        readonly Func<TKey, TObject> CreateProc;
+        readonly Dictionary<TKey, TObject> Table;
+
+        public Singleton(Func<TKey, TObject> createProc)
+        {
+            this.CreateProc = createProc;
+            this.Table = new Dictionary<TKey, TObject>();
+        }
+
+        public TObject this [TKey key] => CreateOrGet(key);
+
+        public TObject CreateOrGet(TKey key)
+        {
+            lock (LockObj)
+            {
+                if (this.Table.TryGetValue(key, out TObject obj) == false)
+                {
+                    obj = this.CreateProc(key);
+                    this.Table.Add(key, obj);
+                }
+                return obj;
+            }
+        }
+    }
+
     // シングルトン
-    struct Singleton<T> where T : class
+    struct OldSingleton<T> where T : class
     {
         static object lockobj = new object();
         T obj;

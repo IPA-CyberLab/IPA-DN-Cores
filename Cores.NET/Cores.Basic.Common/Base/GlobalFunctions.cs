@@ -49,9 +49,9 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores
 {
-    static class Globals
+    static partial class Globals
     {
-        public static class Basic
+        public static partial class Basic
         {
             public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
 
@@ -113,6 +113,11 @@ namespace IPA.Cores
             public static LargeFileSystem LLfs => LargeFileSystem.Local;
             public static AutoUtf8BomViewFileSystem LfsUtf8 => LocalFileSystem.LocalAutoUtf8;
             public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalAutoUtf8;
+
+            public static partial class Res
+            {
+                public static readonly ResourceFileSystem Cores = ResourceFileSystem.Singleton[typeof(Res).Assembly];
+            }
         }
     }
 }

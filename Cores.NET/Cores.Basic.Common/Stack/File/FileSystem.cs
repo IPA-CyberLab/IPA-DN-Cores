@@ -355,13 +355,11 @@ namespace IPA.Cores.Basic
                             await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
                             {
                                 await WriteRandomImplAsync(pos, target, c);
+
+                                if (this.InternalFileSize < (pos + target.Length))
+                                    this.InternalFileSize = (pos + target.Length);
                             },
                             data, MicroOperationSize, position, operationCancel);
-
-                            if (this.InternalFileSize < (position + data.Length))
-                            {
-                                this.InternalFileSize = (position + data.Length);
-                            }
 
                             return;
                         }

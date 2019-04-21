@@ -56,6 +56,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileCopy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystemUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ResourceFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\Utf8BomViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ViewFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\VirtualFileSystem.cs" />
@@ -80,5 +81,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resource\Test\HelloWorld.txt" />
   </ItemGroup>
 </Project>

@@ -747,7 +747,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class SingletonFactory
+    static class OldSingletonFactory
     {
         static Dictionary<string, object> Table = new Dictionary<string, object>();
 
@@ -777,7 +777,7 @@ namespace IPA.Cores.Basic
         SortedList<string, object> table2 = new SortedList<string, object>();
         ThreadObj thread;
 
-        public static GlobalIntervalReporter Singleton { get => SingletonFactory.New<GlobalIntervalReporter>(); }
+        public static GlobalIntervalReporter Singleton { get => OldSingletonFactory.New<GlobalIntervalReporter>(); }
 
         public GlobalIntervalReporter()
         {
@@ -936,7 +936,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static Singleton<IntervalReporter> thread_pool_stat_reporter;
+        static OldSingleton<IntervalReporter> thread_pool_stat_reporter;
         public static IntervalReporter StartThreadPoolStatReporter()
         {
             return thread_pool_stat_reporter.CreateOrGet(() =>

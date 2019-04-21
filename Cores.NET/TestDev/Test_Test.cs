@@ -54,7 +54,21 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady))
+            var rfs = Res.Cores;
+            {
+                rfs.EnumDirectory("/", true).Where(x => x.IsDirectory == false).Select(x => x).PrintAsJson();
+
+                string str = rfs.ReadStringFromFile(rfs.FindSingleFile("nek"));
+
+                Con.WriteLine($"'{str}'");
+
+                rfs.DeleteFile("/TestDev.Resource.Test.HelloWorld.txt");
+
+                rfs.EnumDirectory("/", true).Where(x => x.IsDirectory == false).Select(x => x).PrintAsJson();
+            }
+            return;
+
+            using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady, new VirtualFileSystemParams()))
             {
                 vfs.CreateDirectory("/a");
                 vfs.CreateDirectory("/b");
@@ -67,14 +81,16 @@ namespace IPA.TestDev
                 vfs.DeleteDirectory("/a/a");
                 //vfs.DeleteDirectory("/z", false);
 
-                vfs.WriteToFile("/readme.txt", "Hello".GetBytes_Ascii());
-                vfs.AppendToFile("/readme.txt", "a".GetBytes_Ascii());
+                vfs.WriteDataToFile("/readme.txt", "Hello".GetBytes_Ascii());
+                vfs.WriteDataToFile("/readme.txt", "a".GetBytes_Ascii());
 
-                var span = vfs.ReadFromFile("/readme.txt");
+                var span = vfs.ReadDataFromFile("/readme.txt");
                 Con.WriteLine(span.GetString_Ascii());
 
 
                 vfs.GetFileMetadata("/readme.txt").PrintAsJson();
+
+                //vfs.DeleteFile("/readme.txt");
 
                 vfs.EnumDirectory("/", true).Where(x => x.IsDirectory==false).Select(x=>x).PrintAsJson();
             }

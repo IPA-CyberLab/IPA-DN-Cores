@@ -615,10 +615,175 @@ namespace IPA.Cores.Basic
         Closed,
     }
 
+    class StreamRandomAccessWrapper : IRandomAccess<byte>
+    {
+        public Stream BaseStream { get; }
+
+        long InternalFileSize;
+        long InternalPosition;
+
+        public int MicroOperationSize { get; set; } = AppConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
+
+        readonly bool AutoDisposeBase;
+
+        public StreamRandomAccessWrapper(Stream baseStream, bool autoDisposeBase = false)
+        {
+            this.BaseStream = baseStream;
+            this.AutoDisposeBase = autoDisposeBase;
+
+            this.InternalFileSize = GetFileSize(true);
+            this.InternalPosition = 0;
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            if (this.AutoDisposeBase)
+            {
+                BaseStream.DisposeSafe();
+            }
+        }
+
+        public void CheckIsOpened()
+        {
+            if (DisposeFlag.IsSet)
+                throw new ObjectDisposedException("StreamRandomAccessWrapper");
+        }
+
+        public AsyncLock SharedAsyncLock => new AsyncLock();
+
+        public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => WriteRandomAsync(-1, data, cancel);
+
+        public async Task FlushAsync(CancellationToken cancel = default)
+        {
+            CheckIsOpened();
+            cancel.ThrowIfCancellationRequested();
+            await BaseStream.FlushAsync(cancel);
+        }
+
+        public async Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
+        {
+            CheckIsOpened();
+            cancel.ThrowIfCancellationRequested();
+
+            if (refresh)
+                InternalFileSize = BaseStream.Length;
+
+            await Task.CompletedTask;
+
+            return InternalFileSize;
+        }
+
+        public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+            => GetFileSizeAsync(false, cancel);
+
+        public async Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        {
+            if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
+            CheckIsOpened();
+            cancel.ThrowIfCancellationRequested();
+
+            int r = await TaskUtil.DoMicroReadOperations(async (target, pos, c) =>
+            {
+                if (this.InternalPosition != pos)
+                {
+                    BaseStream.Seek(pos, SeekOrigin.Begin);
+                    this.InternalPosition = pos;
+                }
+
+                int r2 = await BaseStream.ReadAsync(target, c);
+
+                if (r2 >= 1)
+                {
+                    this.InternalPosition += r2;
+                }
+
+                return r2;
+            },
+            data, MicroOperationSize, position, cancel);
+
+            return r;
+        }
+
+        public async Task SetFileSizeAsync(long size, CancellationToken cancel = default)
+        {
+            if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
+            CheckIsOpened();
+            cancel.ThrowIfCancellationRequested();
+
+            BaseStream.SetLength(size);
+
+            this.InternalFileSize = size;
+            this.InternalPosition = BaseStream.Position;
+
+            await Task.CompletedTask;
+        }
+
+        public async Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            if (data.IsEmpty) return;
+            CheckIsOpened();
+            cancel.ThrowIfCancellationRequested();
+
+            if (position < 0)
+            {
+                // Append mode
+                position = this.InternalFileSize;
+            }
+
+            if (this.InternalFileSize < position)
+            {
+                await GetFileSizeAsync(true, cancel);
+
+                if (this.InternalFileSize < position)
+                {
+                    await SetFileSizeAsync(position, cancel);
+                }
+            }
+
+            await TaskUtil.DoMicroWriteOperations(async (target, pos, c) =>
+            {
+                if (this.InternalPosition != pos)
+                {
+                    BaseStream.Seek(pos, SeekOrigin.Begin);
+                    this.InternalPosition = pos;
+                }
+
+                await BaseStream.WriteAsync(target, c);
+
+                this.InternalPosition += target.Length;
+
+                if (this.InternalFileSize < (pos + target.Length))
+                    this.InternalFileSize = (pos + target.Length);
+            },
+            data, MicroOperationSize, position, cancel);
+        }
+
+        public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => AppendAsync(data, cancel).GetResult();
+        public void Flush(CancellationToken cancel = default)
+            => FlushAsync(cancel).GetResult();
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default)
+            => GetFileSizeAsync(refresh, cancel).GetResult();
+        public long GetPhysicalSize(CancellationToken cancel = default)
+            => GetPhysicalSizeAsync(cancel).GetResult();
+        public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
+            => ReadRandomAsync(position, data, cancel).GetResult();
+        public void SetFileSize(long size, CancellationToken cancel = default)
+            => SetFileSizeAsync(size, cancel).GetResult();
+        public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => WriteRandomAsync(position, data, cancel).GetResult();
+    }
+
     class ConcurrentRandomAccess<T> : IRandomAccess<T>
     {
         public readonly AsyncLock TargetLock;
         public readonly IRandomAccess<T> Target;
+
+        Exception LastError = null;
 
         public ConcurrentRandomAccess(IRandomAccess<T> target)
         {
@@ -635,12 +800,32 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
         }
 
+        void CheckState()
+        {
+            if (this.LastError != null) throw this.LastError;
+            if (DisposeFlag.IsSet) throw new ObjectDisposedException("ConcurrentRandomAccess");
+        }
+
+        void SetError(Exception error)
+        {
+            this.LastError = error;
+        }
+
         public async Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
+
+                try
+                {
+                    await Target.AppendAsync(data, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -648,10 +833,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                await Target.FlushAsync(cancel);
+                try
+                {
+                    await Target.FlushAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -659,10 +851,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                return await Target.GetFileSizeAsync(refresh, cancel);
+                try
+                {
+                    return await Target.GetFileSizeAsync(refresh, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -670,10 +869,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                return await Target.GetPhysicalSizeAsync(cancel);
+                try
+                {
+                    return await Target.GetPhysicalSizeAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -681,10 +887,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                return await Target.ReadRandomAsync(position, data, cancel);
+                try
+                {
+                    return await Target.ReadRandomAsync(position, data, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -692,10 +905,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                await Target.SetFileSizeAsync(size, cancel);
+                try
+                {
+                    await Target.SetFileSizeAsync(size, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 
@@ -703,10 +923,17 @@ namespace IPA.Cores.Basic
         {
             using (await TargetLock.LockWithAwait(cancel))
             {
-                if (DisposeFlag.IsSet)
-                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+                CheckState();
 
-                await Target.WriteRandomAsync(position, data, cancel);
+                try
+                {
+                    await Target.WriteRandomAsync(position, data, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
             }
         }
 

@@ -543,8 +543,6 @@ namespace IPA.Cores.Basic
             => this.Buffer;
     }
 
-    abstract class VirtualFileSystemParamsBase { }
-
     class VfsPathParserContext : IDisposable
     {
         readonly FileSystemPathParser Parser;
@@ -589,12 +587,18 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class VirtualFileSystemParams { }
+
     class VirtualFileSystem : FileSystemBase
     {
+        protected VirtualFileSystemParams Params;
+
         readonly VfsDirectory Root;
 
-        public VirtualFileSystem(AsyncCleanuperLady lady) : base(lady, FileSystemPathParser.GetInstance(FileSystemStyle.Linux))
+        public VirtualFileSystem(AsyncCleanuperLady lady, VirtualFileSystemParams param) : base(lady, FileSystemPathParser.GetInstance(FileSystemStyle.Linux))
         {
+            this.Params = param;
+
             var rootDir = new VfsRamDirectory(this, "/", true);
             rootDir.AddLinkRef();
 
@@ -669,6 +673,19 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
+            return await this.AddFileAsync(option,
+                async (newFilename, newFileOption, c) =>
+                {
+                    await Task.CompletedTask;
+                    return new VfsRamFile(this, newFilename);
+                },
+                cancel);
+        }
+
+        public delegate Task<VfsFile> CreateFileCallback(string newFilename, FileParameters newFileOption, CancellationToken cancel);
+
+        protected async Task<FileObject> AddFileAsync(FileParameters option, CreateFileCallback createFileCallback, CancellationToken cancel = default)
+        {
             using (VfsPathParserContext ctx = await ParsePathInternalAsync(option.Path, cancel))
             {
                 if (ctx.Exception == null)
@@ -697,7 +714,7 @@ namespace IPA.Cores.Basic
 
                     string fileName = ctx.RemainingPathElements.Peek();
 
-                    var newFile = new VfsRamFile(this, fileName);
+                    var newFile = await createFileCallback(fileName, option, cancel);
 
                     string fullPath = PathParser.Combine(ctx.NormalizedPath, fileName);
 
@@ -755,9 +772,30 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            using (VfsPathParserContext ctx = await ParsePathInternalAsync(path, cancel))
+            {
+                if (ctx.Exception != null)
+                    throw ctx.Exception;
+
+                if (ctx.LastEntity is VfsFile file)
+                {
+                    Debug.Assert(ctx.EntityStack.Count >= 2);
+                    Debug.Assert(ctx.EntityStack.Last() == file);
+                    VfsDirectory parentDir = ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory;
+                    Debug.Assert(parentDir != null);
+
+                    file.ReleaseHandleRef();
+                    ctx.EntityStack.RemoveAt(ctx.EntityStack.Count - 1);
+
+                    await parentDir.RemoveFileAsync(file, cancel);
+                }
+                else
+                {
+                    throw new VfsNotFoundException(path, "File not found.");
+                }
+            }
         }
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
