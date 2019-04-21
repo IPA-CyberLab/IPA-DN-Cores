@@ -473,6 +473,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        HugeMemoryBuffer<byte> Buffer = new HugeMemoryBuffer<byte>();
+
         public VfsRamFile(VirtualFileSystem fileSystem, string fileName) : base(fileSystem)
         {
             fileSystem.PathParser.ValidateFileOrDirectoryName(fileName);

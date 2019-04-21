@@ -1682,12 +1682,34 @@ namespace IPA.Cores.Basic
 
         public long PhysicalSize => this.Segments.Values.Select(x => (long)x.InternalBufferSize).Sum();
 
-        public HugeMemoryBuffer(LargeMemoryBufferOptions options = null)
+        public HugeMemoryBuffer(LargeMemoryBufferOptions options = null, Memory<T> initialContents = default)
         {
-            this.Options = options ?? new LargeMemoryBufferOptions();
+            checked
+            {
+                this.Options = options ?? new LargeMemoryBufferOptions();
 
-            if (this.Options.SegmentSize <= 0) throw new ArgumentOutOfRangeException("Options.SegmentSize <= 0");
+                if (this.Options.SegmentSize <= 0) throw new ArgumentOutOfRangeException("Options.SegmentSize <= 0");
+
+                if (initialContents.IsEmpty == false)
+                {
+                    Debug.Assert(Segments.Count == 0);
+
+                    long totalSize = 0;
+                    DividedSegmentList segList = new DividedSegmentList(0, initialContents.Length, this.Options.SegmentSize);
+                    foreach (var seg in segList.SegmentList)
+                    {
+                        totalSize += seg.Size;
+                        Segments.Add(seg.SegmentIndex, new MemoryBuffer<T>(initialContents.Slice((int)seg.RelativePosition, (int)seg.Size)));
+                    }
+                    Debug.Assert(totalSize == initialContents.Length);
+                    Length = initialContents.Length;
+                }
+            }
         }
+
+        public static implicit operator HugeMemoryBuffer<T>(ReadOnlyMemory<T> readOnlyMemory) => new HugeMemoryBuffer<T>(initialContents: readOnlyMemory.ToArray());
+        public static implicit operator HugeMemoryBuffer<T>(Memory<T> memory) => new HugeMemoryBuffer<T>(initialContents: memory);
+        public static implicit operator HugeMemoryBuffer<T>(T[] array) => new HugeMemoryBuffer<T>(initialContents: array);
 
         public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsMemory(offset, length ?? data.Length - offset));
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
@@ -2041,6 +2063,8 @@ namespace IPA.Cores.Basic
                 }
 
                 this.Length = size;
+                if (this.CurrentPosition > this.Length)
+                    this.CurrentPosition = this.Length;
             }
         }
     }

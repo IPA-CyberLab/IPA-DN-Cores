@@ -54,41 +54,41 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            HugeMemoryBuffer<byte> huge = new HugeMemoryBuffer<byte>();
+            //HugeMemoryBuffer<byte> huge = new HugeMemoryBuffer<byte>();
 
-            long size = 8_000_000_000;
-            byte[] data = new byte[10_000_000];
+            //long size = 8_000_000_000;
+            //byte[] data = new byte[10_000_000];
 
-            while (huge.Length < size)
-            {
-                huge.Write(data);
-            }
+            //while (huge.Length < size)
+            //{
+            //    huge.Write(data);
+            //}
 
-            Con.WriteLine(huge.Length);
+            //Con.WriteLine(huge.Length);
 
-            data = null;
+            //data = null;
 
-            GC.Collect();
+            //GC.Collect();
 
-            Con.WriteLine("Start reading...");
+            //Con.WriteLine("Start reading...");
 
-            huge.SeekToBegin();
+            //huge.SeekToBegin();
 
-            long total = 0;
-            while (true)
-            {
-                var span = huge.Read(2_400_000, true);
-                if (span.IsEmpty)
-                {
-                    break;
-                }
+            //long total = 0;
+            //while (true)
+            //{
+            //    var span = huge.Read(2_400_000, true);
+            //    if (span.IsEmpty)
+            //    {
+            //        break;
+            //    }
 
-                total += span.Length;
-            }
+            //    total += span.Length;
+            //}
 
-            Con.WriteLine(total);
+            //Con.WriteLine(total);
 
-            return;
+            //return;
 
             HugeMemoryBuffer<char> b = new HugeMemoryBuffer<char>(new LargeMemoryBufferOptions());
 
@@ -107,6 +107,9 @@ namespace IPA.TestDev
             b.Write("NEKOAB");
             b.Write("AHO");
 
+            b.Seek(9821, SeekOrigin.Begin, true);
+            b.Write("Odd");
+
             b.SeekToBegin();
             var mem1 = b.Read(10, true);
             var mem2 = b.Read(10, true);
@@ -114,6 +117,7 @@ namespace IPA.TestDev
             var mem4 = b.Read(10, true);
             var mem5 = b.Read(10, true);
             var mem6 = b.Read(10, true);
+            var mem7 = b.Read(int.MaxValue, true);
 
 
             b.SetLength(0);
