@@ -1941,7 +1941,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<SparseChunk<T>> GetSparseChunks<T>(ReadOnlyMemory<T> srcMemory, int minZeroBlockSize)
+        public static IReadOnlyList<SparseChunk<T>> GetSparseChunks<T>(ReadOnlyMemory<T> srcMemory, int minZeroBlockSize)
         {
             checked
             {

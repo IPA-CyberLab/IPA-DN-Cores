@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
     class HamCoreBuilder
     {
         List<HamCoreBuilderFileEntry> fileList;
-        public List<HamCoreBuilderFileEntry> FileList
+        public IReadOnlyList<HamCoreBuilderFileEntry> FileList
         {
             get { return fileList; }
         }

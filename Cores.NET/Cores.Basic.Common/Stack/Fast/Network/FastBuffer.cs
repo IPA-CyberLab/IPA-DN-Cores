@@ -137,9 +137,9 @@ namespace IPA.Cores.Basic
         void Enqueue(T item);
         void EnqueueAll(Span<T> itemList);
         void EnqueueAllWithLock(Span<T> itemList);
-        List<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
-        List<T> DequeueAll(out long totalReadSize);
-        List<T> DequeueAllWithLock(out long totalReadSize);
+        IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
+        IReadOnlyList<T> DequeueAll(out long totalReadSize);
+        IReadOnlyList<T> DequeueAllWithLock(out long totalReadSize);
         long DequeueAllAndEnqueueToOther(IFastBuffer<T> other);
     }
 
@@ -696,13 +696,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public List<Memory<T>> DequeueAllWithLock(out long totalReadSize)
+        public IReadOnlyList<Memory<T>> DequeueAllWithLock(out long totalReadSize)
         {
             lock (this.LockObj)
                 return DequeueAll(out totalReadSize);
         }
-        public List<Memory<T>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
-        public List<Memory<T>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        public IReadOnlyList<Memory<T>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
+        public IReadOnlyList<Memory<T>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
             checked
@@ -1286,7 +1286,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public List<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        public IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
             checked
@@ -1318,9 +1318,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public List<T> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
+        public IReadOnlyList<T> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
 
-        public List<T> DequeueAllWithLock(out long totalReadSize)
+        public IReadOnlyList<T> DequeueAllWithLock(out long totalReadSize)
         {
             lock (LockObj)
                 return DequeueAll(out totalReadSize);

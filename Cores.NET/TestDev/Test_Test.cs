@@ -54,7 +54,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            LargeMemoryBuffer<char> b = new LargeMemoryBuffer<char>(new LargeMemoryBufferOptions(true));
+            LargeMemoryBuffer<char> b = new LargeMemoryBuffer<char>(new LargeMemoryBufferOptions());
 
             b.Write("0123456789".ToArray());
             b.Write("abcdefghij".ToArray());

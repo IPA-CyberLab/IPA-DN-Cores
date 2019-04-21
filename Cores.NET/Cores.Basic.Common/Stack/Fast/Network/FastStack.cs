@@ -770,7 +770,7 @@ namespace IPA.Cores.Basic
         public Memory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
             => ReceiveAsync(maxSize, cancel).GetResult();
 
-        public async Task<List<Memory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
+        public async Task<IReadOnlyList<Memory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
             try
             {
@@ -915,7 +915,7 @@ namespace IPA.Cores.Basic
         public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
             => SendToAsync(buffer, remoteEndPoint, cancel).GetResult();
 
-        public async Task<List<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
+        public async Task<IReadOnlyList<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
         {
             LABEL_RETRY:
             await WaitReadyToReceiveFromAsync(cancel, ReadTimeout);
@@ -937,7 +937,7 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             await WaitReadyToReceiveFromAsync(cancel, ReadTimeout);
 
-            List<Datagram> dataList;
+            IReadOnlyList<Datagram> dataList;
 
             long totalReadSize;
 
@@ -1436,7 +1436,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            List<Memory<byte>> sendArray;
+            IReadOnlyList<Memory<byte>> sendArray;
 
             sendArray = fifo.DequeueAllWithLock(out long totalReadSize);
             fifo.CompleteRead();
@@ -1491,7 +1491,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Datagram) == false) throw new NotSupportedException();
 
-            List<Datagram> sendList;
+            IReadOnlyList<Datagram> sendList;
 
             sendList = fifo.DequeueAllWithLock(out _);
             fifo.CompleteRead();
