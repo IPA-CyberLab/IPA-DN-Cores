@@ -77,7 +77,7 @@ namespace IPA.TestDev
             long total = 0;
             while (true)
             {
-                var span = huge.Read(98219821, true);
+                var span = huge.Read(2_400_000, true);
                 if (span.IsEmpty)
                 {
                     break;
@@ -114,6 +114,7 @@ namespace IPA.TestDev
             var mem4 = b.Read(10, true);
             var mem5 = b.Read(10, true);
             var mem6 = b.Read(10, true);
+
 
             b.SetLength(0);
             Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");

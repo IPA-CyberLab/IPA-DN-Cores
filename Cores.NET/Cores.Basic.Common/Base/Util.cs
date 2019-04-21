@@ -2097,6 +2097,14 @@ namespace IPA.Cores.Basic
             this.Size = memory.Length;
             this.Offset = offset;
         }
+
+        public ReadOnlyMemory<T> GetMemoryOrGenerateSparse()
+        {
+            if (this.IsSparse == false)
+                return this.Memory;
+            else
+                return ZeroedSharedMemory<T>.GetZeroFilledMemory(this.Size);
+        }
     }
 
     readonly struct DividedSegment
@@ -3411,16 +3419,17 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class ZeroedSharedMemory
-    {
-        const int Size = 65536;
-        public static readonly ReadOnlyMemory<byte> Memory = new byte[Size];
-    }
-
     static class ZeroedSharedMemory<T>
     {
         const int Size = 65536;
         public static readonly ReadOnlyMemory<T> Memory = new T[Size];
+        public static ReadOnlyMemory<T> GetZeroFilledMemory(int size)
+        {
+            if (size < Size)
+                return Memory.Slice(0, size);
+            else
+                return new T[size];
+        }
     }
 }
 

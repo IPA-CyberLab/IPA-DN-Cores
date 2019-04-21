@@ -1875,8 +1875,18 @@ namespace IPA.Cores.Basic
                 long remainSize = this.Length - this.CurrentPosition;
                 if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
                 int sizeToRead = (int)Math.Min(remainSize, size);
+
+                var chunkList = ReadFast(sizeToRead, out long readSize1, allowPartial);
+                Debug.Assert(readSize1 == sizeToRead);
+
+                if (chunkList.Count == 1)
+                {
+                    // No need to copy
+                    return chunkList[0].GetMemoryOrGenerateSparse().Span;
+                }
+
                 Span<T> ret = new T[sizeToRead];
-                int retSize = Read(ret, allowPartial);
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
@@ -1889,8 +1899,18 @@ namespace IPA.Cores.Basic
                 long remainSize = this.Length - this.CurrentPosition;
                 if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
                 int sizeToRead = (int)Math.Min(remainSize, size);
+
+                var chunkList = PeekFast(sizeToRead, out long readSize1, allowPartial);
+                Debug.Assert(readSize1 == sizeToRead);
+
+                if (chunkList.Count == 1)
+                {
+                    // No need to copy
+                    return chunkList[0].GetMemoryOrGenerateSparse().Span;
+                }
+
                 Span<T> ret = new T[sizeToRead];
-                int retSize = Peek(ret, allowPartial);
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
@@ -1903,8 +1923,18 @@ namespace IPA.Cores.Basic
                 long remainSize = this.Length - this.CurrentPosition;
                 if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
                 int sizeToRead = (int)Math.Min(remainSize, size);
+
+                var chunkList = ReadFast(sizeToRead, out long readSize1, allowPartial);
+                Debug.Assert(readSize1 == sizeToRead);
+
+                if (chunkList.Count == 1)
+                {
+                    // No need to copy
+                    return chunkList[0].GetMemoryOrGenerateSparse();
+                }
+
                 Memory<T> ret = new T[sizeToRead];
-                int retSize = Read(ret.Span, allowPartial);
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret.Span);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
@@ -1917,8 +1947,18 @@ namespace IPA.Cores.Basic
                 long remainSize = this.Length - this.CurrentPosition;
                 if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
                 int sizeToRead = (int)Math.Min(remainSize, size);
+
+                var chunkList = PeekFast(sizeToRead, out long readSize1, allowPartial);
+                Debug.Assert(readSize1 == sizeToRead);
+
+                if (chunkList.Count == 1)
+                {
+                    // No need to copy
+                    return chunkList[0].GetMemoryOrGenerateSparse();
+                }
+
                 Memory<T> ret = new T[sizeToRead];
-                int retSize = Peek(ret.Span, allowPartial);
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret.Span);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }

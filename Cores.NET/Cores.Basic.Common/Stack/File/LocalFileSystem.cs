@@ -999,7 +999,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory.Memory;
+        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory<byte>.Memory;
         async Task FileZeroClearDataAsync(long position, long size, CancellationToken cancel = default)
         {
             checked
