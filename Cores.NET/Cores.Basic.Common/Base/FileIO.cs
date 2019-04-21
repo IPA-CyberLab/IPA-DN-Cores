@@ -2229,17 +2229,24 @@ namespace IPA.Cores.Basic
             if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
-            byte[] tmp = new byte[200000];
-            while (true)
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(200000);
+            try
             {
-                cancel.ThrowIfCancellationRequested();
-                int r = await s.ReadAsync(tmp, 0, tmp.Length, cancel);
-                if (r == 0)
+                while (true)
                 {
-                    break;
+                    cancel.ThrowIfCancellationRequested();
+                    int r = await s.ReadAsync(tmp, 0, tmp.Length, cancel);
+                    if (r == 0)
+                    {
+                        break;
+                    }
+                    ms.Write(tmp, 0, r);
+                    if (ms.Length > maxSize) throw new OverflowException("ReadStreamToEndAsync: too large data");
                 }
-                ms.Write(tmp, 0, r);
-                if (ms.Length > maxSize) throw new OverflowException("ReadStreamToEndAsync: too large data");
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
             }
 
             return ms.ToArray();

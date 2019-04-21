@@ -428,54 +428,81 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VfsRamFile : VfsFile
+    abstract class VfsRandomAccessFile : VfsFile
     {
-        public class FileImpl : FileObject
+        public class FileImpl : FileObjectRandomAccessWrapperBase
         {
-            readonly VfsRamFile File;
+            readonly VfsRandomAccessFile File;
+            readonly string FullPath;
 
-            public FileImpl(VfsRamFile file, FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+            public FileImpl(VfsRandomAccessFile file, IRandomAccess<byte> randomAccessBase, string fullPath, FileSystemBase fileSystem, FileParameters fileParams)
+                : base(new ConcurrentRandomAccess<byte>(randomAccessBase), fileSystem, fileParams)
             {
                 this.File = file;
-
                 this.File.AddHandleRef();
+
+                try
+                {
+                    this.FullPath = fullPath;
+                }
+                catch
+                {
+                    this.File.ReleaseHandleRef();
+                    throw;
+                }
             }
 
-            public override string FinalPhysicalPath => this.File.FullPath;
+            public override string FinalPhysicalPath => base.FinalPhysicalPath;
 
-            protected override Task CloseImplAsync()
+            protected override void OnCloseImpl()
             {
                 this.File.ReleaseHandleRef();
-
-                return Task.CompletedTask;
-            }
-
-            protected override Task FlushImplAsync(CancellationToken cancel = default) => Task.CompletedTask;
-
-            protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
-            {
-                throw new NotImplementedException();
             }
 
             protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
             {
-                throw new NotImplementedException();
+                this.File.LastAccessTime = DateTimeOffset.Now;
+                return base.ReadRandomImplAsync(position, data, cancel);
             }
 
             protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
             {
-                throw new NotImplementedException();
+                this.File.LastWriteTime = DateTimeOffset.Now;
+                return base.SetFileSizeImplAsync(size, cancel);
             }
 
-            protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             {
-                throw new NotImplementedException();
+                await base.WriteRandomImplAsync(position, data, cancel);
+
+                this.File.LastWriteTime = DateTimeOffset.Now;
             }
         }
 
-        HugeMemoryBuffer<byte> Buffer = new HugeMemoryBuffer<byte>();
+        public override long Size
+        {
+            get
+            {
+                using (var access = CreateConcurrentRandomAccess())
+                    return access.GetFileSize();
+            }
+            protected set => throw new NotSupportedException();
+        }
 
-        public VfsRamFile(VirtualFileSystem fileSystem, string fileName) : base(fileSystem)
+        public override long PhysicalSize
+        {
+            get
+            {
+                using (var access = CreateConcurrentRandomAccess())
+                    return access.GetPhysicalSize();
+            }
+            protected set => throw new NotSupportedException();
+        }
+
+        protected abstract IRandomAccess<byte> GetSharedRandomAccessBaseImpl();
+        protected ConcurrentRandomAccess<byte> CreateConcurrentRandomAccess() => new ConcurrentRandomAccess<byte>(GetSharedRandomAccessBaseImpl());
+
+        public VfsRandomAccessFile(VirtualFileSystem fileSystem, string fileName) : base(fileSystem)
         {
             fileSystem.PathParser.ValidateFileOrDirectoryName(fileName);
 
@@ -488,7 +515,11 @@ namespace IPA.Cores.Basic
 
         public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
         {
-            FileImpl impl = new FileImpl(this, this.FileSystem, option);
+            await Task.CompletedTask;
+
+            this.LastAccessTime = DateTimeOffset.Now;
+
+            FileImpl impl = new FileImpl(this, GetSharedRandomAccessBaseImpl(), fullPath, this.FileSystem, option);
 
             return impl;
         }
@@ -497,6 +528,19 @@ namespace IPA.Cores.Basic
         {
             return Task.CompletedTask;
         }
+    }
+
+    class VfsRamFile : VfsRandomAccessFile
+    {
+        HugeMemoryBuffer<byte> Buffer;
+
+        public VfsRamFile(VirtualFileSystem fileSystem, string fileName) : base(fileSystem, fileName)
+        {
+            Buffer = new HugeMemoryBuffer<byte>();
+        }
+
+        protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
+            => this.Buffer;
     }
 
     abstract class VirtualFileSystemParamsBase { }
@@ -656,8 +700,6 @@ namespace IPA.Cores.Basic
                     var newFile = new VfsRamFile(this, fileName);
 
                     string fullPath = PathParser.Combine(ctx.NormalizedPath, fileName);
-
-                    newFile.AddHandleRef();
 
                     try
                     {

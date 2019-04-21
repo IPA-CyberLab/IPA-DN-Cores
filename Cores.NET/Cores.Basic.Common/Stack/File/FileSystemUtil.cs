@@ -347,4 +347,57 @@ namespace IPA.Cores.Basic
                 recursive, cancel).GetResult();
     }
 
+    abstract class FileObjectRandomAccessWrapperBase : FileObject
+    {
+        protected readonly ConcurrentRandomAccess<byte> BaseAccess;
+
+        public FileObjectRandomAccessWrapperBase(ConcurrentRandomAccess<byte> sharedBaseAccess, FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        {
+            this.BaseAccess = sharedBaseAccess;
+
+            long initialPosition = 0;
+
+            if (fileParams.Mode == FileMode.Create || fileParams.Mode == FileMode.CreateNew || fileParams.Mode == FileMode.Truncate)
+            {
+                this.BaseAccess.SetFileSize(0);
+            }
+
+            long initialFileSize = this.BaseAccess.GetFileSize(true);
+
+            if (fileParams.Mode == FileMode.Append)
+            {
+                initialPosition = initialFileSize;
+            }
+
+            InitAndCheckFileSizeAndPosition(initialPosition, initialFileSize);
+        }
+
+        protected abstract void OnCloseImpl();
+
+        protected override Task CloseImplAsync()
+        {
+            try
+            {
+                OnCloseImpl();
+            }
+            catch { }
+
+            return Task.CompletedTask;
+        }
+
+        protected override Task FlushImplAsync(CancellationToken cancel = default)
+            => this.BaseAccess.FlushAsync(cancel);
+
+        protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+            => this.BaseAccess.GetFileSizeAsync(cancel: cancel);
+
+        protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+            => this.BaseAccess.ReadRandomAsync(position, data, cancel);
+
+        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+            => this.BaseAccess.SetFileSizeAsync(size, cancel);
+
+        protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => this.BaseAccess.WriteRandomAsync(position, data, cancel);
+    }
 }

@@ -755,7 +755,7 @@ namespace IPA.Cores.Basic
 
         protected LocalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
-        FileStream fileStream;
+        protected FileStream BaseStream;
         long CurrentPosition;
 
         public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
@@ -823,35 +823,35 @@ namespace IPA.Cores.Basic
 
                     FileMode fileMode = (FileParams.Mode != FileMode.Append) ? FileParams.Mode : FileMode.OpenOrCreate;
 
-                    fileStream = Win32CreateFileStreamInternal(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, options);
+                    BaseStream = Win32CreateFileStreamInternal(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, options);
                 }
                 else
                 {
                     FileMode fileMode = (FileParams.Mode != FileMode.Append) ? FileParams.Mode : FileMode.OpenOrCreate;
 
-                    fileStream = new FileStream(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
+                    BaseStream = new FileStream(FileParams.Path, fileMode, FileParams.Access, FileParams.Share, 4096, FileOptions.Asynchronous);
                 }
 
                 if (FileParams.Mode == FileMode.Append)
-                    fileStream.Seek(0, SeekOrigin.End);
+                    BaseStream.Seek(0, SeekOrigin.End);
 
                 if (Env.IsWindows)
                 {
                     if (FileParams.Mode == FileMode.Create || FileParams.Mode == FileMode.CreateNew || FileParams.Mode == FileMode.OpenOrCreate || FileParams.Mode == FileMode.Append)
                     {
-                        if (fileStream.Length == 0)
+                        if (BaseStream.Length == 0)
                         {
                             // Special operations on file creation
                             await Util.DoMultipleActionsAsync(MultipleActionsFlag.IgnoreError, cancel,
                                 async () =>
                                 {
                                     if (FileParams.Flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
-                                        await Win32ApiUtil.SetCompressionFlagAsync(fileStream.SafeFileHandle, true, FileParams.Path, cancel);
+                                        await Win32ApiUtil.SetCompressionFlagAsync(BaseStream.SafeFileHandle, true, FileParams.Path, cancel);
                                 },
                                 async () =>
                                 {
                                     if (FileParams.Flags.Bit(FileOperationFlags.OnCreateRemoveCompressionFlag))
-                                        await Win32ApiUtil.SetCompressionFlagAsync(fileStream.SafeFileHandle, false, FileParams.Path, cancel);
+                                        await Win32ApiUtil.SetCompressionFlagAsync(BaseStream.SafeFileHandle, false, FileParams.Path, cancel);
                                 }
                                 );
                         }
@@ -873,7 +873,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        physicalFinalPathTmp = Win32ApiUtil.GetFinalPath(fileStream.SafeFileHandle);
+                        physicalFinalPathTmp = Win32ApiUtil.GetFinalPath(BaseStream.SafeFileHandle);
                     }
                     catch { }
                 }
@@ -883,14 +883,14 @@ namespace IPA.Cores.Basic
 
                 _PhysicalFinalPath = physicalFinalPathTmp;
 
-                this.CurrentPosition = fileStream.Position;
+                this.CurrentPosition = BaseStream.Position;
 
                 InitAndCheckFileSizeAndPosition(this.CurrentPosition, await GetFileSizeImplAsync(cancel), cancel);
             }
             catch
             {
-                fileStream.DisposeSafe();
-                fileStream = null;
+                BaseStream.DisposeSafe();
+                BaseStream = null;
                 throw;
             }
         }
@@ -901,15 +901,15 @@ namespace IPA.Cores.Basic
             if (Env.IsWindows == false) return;
             if (isSparseFile) return;
 
-            await Win32ApiUtil.SetSparseFileAsync(fileStream.SafeFileHandle, FileParams.Path, cancel);
+            await Win32ApiUtil.SetSparseFileAsync(BaseStream.SafeFileHandle, FileParams.Path, cancel);
 
             isSparseFile = true;
         }
 
         protected override async Task CloseImplAsync()
         {
-            fileStream.DisposeSafe();
-            fileStream = null;
+            BaseStream.DisposeSafe();
+            BaseStream = null;
 
             Con.WriteTrace($"CloseImplAsync '{FileParams.Path}'");
 
@@ -919,17 +919,17 @@ namespace IPA.Cores.Basic
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
-            return fileStream.Length;
+            return BaseStream.Length;
         }
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            fileStream.SetLength(size);
+            BaseStream.SetLength(size);
             await Task.CompletedTask;
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            await fileStream.FlushAsync(cancel);
+            await BaseStream.FlushAsync(cancel);
         }
 
         protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
@@ -938,11 +938,11 @@ namespace IPA.Cores.Basic
             {
                 if (this.CurrentPosition != position)
                 {
-                    fileStream.Seek(position, SeekOrigin.Begin);
+                    BaseStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
 
-                int ret = await fileStream.ReadAsync(data, cancel);
+                int ret = await BaseStream.ReadAsync(data, cancel);
 
                 if (ret >= 1)
                 {
@@ -989,11 +989,11 @@ namespace IPA.Cores.Basic
             {
                 if (this.CurrentPosition != position)
                 {
-                    fileStream.Seek(position, SeekOrigin.Begin);
+                    BaseStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
 
-                await fileStream.WriteAsync(data, cancel);
+                await BaseStream.WriteAsync(data, cancel);
 
                 this.CurrentPosition += data.Length;
             }
@@ -1013,7 +1013,7 @@ namespace IPA.Cores.Basic
                     // Use FSCTL_SET_ZERO_DATA first
                     try
                     {
-                        await Win32ApiUtil.FileZeroClearAsync(this.fileStream.SafeFileHandle, this.FileParams.Path, position, size);
+                        await Win32ApiUtil.FileZeroClearAsync(this.BaseStream.SafeFileHandle, this.FileParams.Path, position, size);
                         return;
                     }
                     catch { }
@@ -1043,7 +1043,7 @@ namespace IPA.Cores.Basic
 
             checked
             {
-                long currentFileSize = fileStream.Length;
+                long currentFileSize = BaseStream.Length;
                 long expandingSize = (position + data.Length) - currentFileSize;
 
                 long existingDataRegionSize;
@@ -1097,9 +1097,9 @@ namespace IPA.Cores.Basic
                         if (chunk.IsSparse)
                         {
                             long newFileSize = expandingDataRegionPosition + chunk.Offset + chunk.Size;
-                            Debug.Assert(this.fileStream.Length <= newFileSize);
+                            Debug.Assert(this.BaseStream.Length <= newFileSize);
 
-                            fileStream.SetLength(newFileSize);
+                            BaseStream.SetLength(newFileSize);
                         }
                         else
                         {

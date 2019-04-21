@@ -615,34 +615,143 @@ namespace IPA.Cores.Basic
         Closed,
     }
 
-    interface IRandomAccess : IDisposable
+    class ConcurrentRandomAccess<T> : IRandomAccess<T>
     {
-        FileStream GetStream();
+        public readonly AsyncLock TargetLock;
+        public readonly IRandomAccess<T> Target;
 
-        Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);
-        int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default);
+        public ConcurrentRandomAccess(IRandomAccess<T> target)
+        {
+            this.Target = target;
+            this.TargetLock = this.Target.SharedAsyncLock;
+        }
 
-        Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
-        void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
-        Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
-        void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        }
+
+        public async Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+            }
+        }
+
+        public async Task FlushAsync(CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                await Target.FlushAsync(cancel);
+            }
+        }
+
+        public async Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                return await Target.GetFileSizeAsync(refresh, cancel);
+            }
+        }
+
+        public async Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                return await Target.GetPhysicalSizeAsync(cancel);
+            }
+        }
+
+        public async Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                return await Target.ReadRandomAsync(position, data, cancel);
+            }
+        }
+
+        public async Task SetFileSizeAsync(long size, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                await Target.SetFileSizeAsync(size, cancel);
+            }
+        }
+
+        public async Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                if (DisposeFlag.IsSet)
+                    throw new ObjectDisposedException("ConcurrentRandomAccess");
+
+                await Target.WriteRandomAsync(position, data, cancel);
+            }
+        }
+
+        public void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default) => AppendAsync(data, cancel).GetResult();
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
+        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
+        public int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default) => ReadRandomAsync(position, data, cancel).GetResult();
+        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
+        public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel).GetResult();
+    }
+
+    interface IRandomAccess<T> : IDisposable
+    {
+        Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
+        int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default);
+
+        Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default);
+
+        Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default);
 
         Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
         long GetFileSize(bool refresh = false, CancellationToken cancel = default);
+
+        Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default);
+        long GetPhysicalSize(CancellationToken cancel = default);
 
         Task SetFileSizeAsync(long size, CancellationToken cancel = default);
         void SetFileSize(long size, CancellationToken cancel = default);
 
         Task FlushAsync(CancellationToken cancel = default);
         void Flush(CancellationToken cancel = default);
+
+        AsyncLock SharedAsyncLock { get; }
     }
 
-    class RandomAccessHandle : IRandomAccess, IDisposable
+    class RandomAccessHandle : IRandomAccess<byte>, IDisposable
     {
         readonly RefObjectHandle<FileBase> Ref;
         readonly FileBase File;
         bool DisposeFile = false;
+
+        public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
         public RandomAccessHandle(FileBase fileHandle, bool disposeObject = false)
         {
@@ -698,9 +807,13 @@ namespace IPA.Cores.Basic
         public Task FlushAsync(CancellationToken cancel = default)
             => this.File.FlushAsync(cancel);
         public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
+
+        public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+            => this.File.GetPhysicalSizeAsync(cancel);
+        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
     }
 
-    abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess
+    abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte>
     {
         public FileParameters FileParams { get; }
         public virtual string FinalPhysicalPath => throw new NotImplementedException();
@@ -708,6 +821,8 @@ namespace IPA.Cores.Basic
         public abstract Exception LastError { get; protected set; }
         public FastEventListenerList<FileBase, FileObjectEventType> EventListeners { get; }
             = new FastEventListenerList<FileBase, FileObjectEventType>();
+
+        public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
         protected FileBase(FileParameters fileParams)
         {
@@ -727,6 +842,9 @@ namespace IPA.Cores.Basic
 
         public abstract Task SetFileSizeAsync(long size, CancellationToken cancel = default);
         public abstract Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
+
+        public virtual Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default) => GetFileSizeAsync(false, cancel);
+        public virtual long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
 
         public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
         public abstract Task CloseAsync();

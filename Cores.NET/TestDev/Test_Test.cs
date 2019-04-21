@@ -54,95 +54,6 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            HugeMemoryBuffer<byte> membuf = new HugeMemoryBuffer<byte>();
-            BufferStream st = membuf.AsStream();
-
-            st.Seek(2_080_000_000, SeekOrigin.Begin);
-
-            st.Length.Print();
-
-            st.Write("Hello".GetBytes_Ascii());
-
-            st.Length.Print();
-
-            st.Seek(2_080_000_0098, SeekOrigin.Begin);
-
-            var xxx = st.ReadToEnd();
-            xxx.Length.Print();
-            xxx.GetString_Ascii().Print();
-
-            return;
-            //HugeMemoryBuffer<byte> huge = new HugeMemoryBuffer<byte>();
-
-            //long size = 8_000_000_000;
-            //byte[] data = new byte[10_000_000];
-
-            //while (huge.Length < size)
-            //{
-            //    huge.Write(data);
-            //}
-
-            //Con.WriteLine(huge.Length);
-
-            //data = null;
-
-            //GC.Collect();
-
-            //Con.WriteLine("Start reading...");
-
-            //huge.SeekToBegin();
-
-            //long total = 0;
-            //while (true)
-            //{
-            //    var span = huge.Read(2_400_000, true);
-            //    if (span.IsEmpty)
-            //    {
-            //        break;
-            //    }
-
-            //    total += span.Length;
-            //}
-
-            //Con.WriteLine(total);
-
-            //return;
-
-            HugeMemoryBuffer<char> b = new HugeMemoryBuffer<char>(new HugeMemoryBufferOptions());
-
-            b.Write("0123456789");
-            b.Write("abcdefghij");
-            b.Write("kaa");
-            b.Write("x");
-            b.Seek(20, SeekOrigin.Current, true);
-            b.Write("add");
-
-            Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
-
-            //var read = b.ReadRandomFast(0, b.Length);
-
-            b.Seek(44, SeekOrigin.Begin);
-            b.Write("NEKOAB");
-            b.Write("AHO");
-
-            b.Seek(9821, SeekOrigin.Begin, true);
-            b.Write("Odd");
-
-            b.SeekToBegin();
-            var mem1 = b.Read(10, true);
-            var mem2 = b.Read(10, true);
-            var mem3 = b.Read(10, true);
-            var mem4 = b.Read(10, true);
-            var mem5 = b.Read(10, true);
-            var mem6 = b.Read(10, true);
-            var mem7 = b.Read(int.MaxValue, true);
-
-
-            b.SetLength(0);
-            Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
-
-            return;
-
             using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady))
             {
                 vfs.CreateDirectory("/a");
@@ -152,10 +63,20 @@ namespace IPA.TestDev
                 vfs.CreateDirectory("/1/2/3");
                 vfs.CreateDirectory("/1/2/4");
                 vfs.CreateDirectory("/1/2/5");
-                vfs.CreateDirectory("/1/4/1/2/3/4/5/6/7/7/8/9");
+                vfs.CreateDirectory("/z/4/1/2/3/4/5/6/7/7/8/9");
                 vfs.DeleteDirectory("/a/a");
-                vfs.DeleteDirectory("/z", true);
-                vfs.EnumDirectory("/", true).Select(x => x.FullPath).PrintAsJson();
+                //vfs.DeleteDirectory("/z", false);
+
+                vfs.WriteToFile("/readme.txt", "Hello".GetBytes_Ascii());
+                vfs.AppendToFile("/readme.txt", "a".GetBytes_Ascii());
+
+                var span = vfs.ReadFromFile("/readme.txt");
+                Con.WriteLine(span.GetString_Ascii());
+
+
+                vfs.GetFileMetadata("/readme.txt").PrintAsJson();
+
+                vfs.EnumDirectory("/", true).Where(x => x.IsDirectory==false).Select(x=>x).PrintAsJson();
             }
         }
     }

@@ -997,11 +997,11 @@ namespace IPA.Cores.Basic
         void Clear();
     }
 
-    class BufferStream : Stream
+    class BufferDirectStream : Stream
     {
         public IBuffer<byte> BaseBuffer { get; }
 
-        public BufferStream(IBuffer<byte> baseBuffer)
+        public BufferDirectStream(IBuffer<byte> baseBuffer)
         {
             BaseBuffer = baseBuffer;
         }
@@ -1702,7 +1702,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>
+    class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAccess<T>
     {
         public readonly HugeMemoryBufferOptions Options;
 
@@ -1716,6 +1716,8 @@ namespace IPA.Cores.Basic
         public long LongCurrentPosition => this.CurrentPosition;
         public long LongLength => this.Length;
         public long LongInternalBufferSize => PhysicalSize;
+
+        public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
         public HugeMemoryBuffer(HugeMemoryBufferOptions options = null, Memory<T> initialContents = default)
         {
@@ -1749,11 +1751,12 @@ namespace IPA.Cores.Basic
         public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsMemory(offset, length ?? data.Length - offset));
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
 
-        public void Write(ReadOnlySpan<T> data)
+        public void WriteRandom(long position, ReadOnlySpan<T> data)
         {
+            if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
             checked
             {
-                long start = this.CurrentPosition;
+                long start = position;
 
                 DividedSegmentList segList = new DividedSegmentList(start, data.Length, this.Options.SegmentSize);
                 foreach (DividedSegment seg in segList.SegmentList)
@@ -1767,8 +1770,17 @@ namespace IPA.Cores.Basic
                     srcSpan.CopyTo(destSpan);
                 }
 
-                this.CurrentPosition = start + data.Length;
-                this.Length = Math.Max(this.Length, this.CurrentPosition);
+                this.Length = Math.Max(this.Length, start + data.Length);
+            }
+        }
+
+        public void Write(ReadOnlySpan<T> data)
+        {
+            checked
+            {
+                WriteRandom(this.CurrentPosition, data);
+
+                this.CurrentPosition += data.Length;
             }
         }
 
@@ -1791,14 +1803,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void WriteZero(long length)
+        public void WriteZeroRandom(long position, long length)
         {
             checked
             {
+                if (position < 0) throw new ArgumentOutOfRangeException("position < 0");
                 if (length < 0) throw new ArgumentOutOfRangeException("length");
                 if (length == 0) return;
 
-                long start = this.CurrentPosition;
+                long start = position;
 
                 DividedSegmentList segList = new DividedSegmentList(start, length, this.Options.SegmentSize);
                 foreach (DividedSegment seg in segList.SegmentList)
@@ -1810,7 +1823,20 @@ namespace IPA.Cores.Basic
                     destSpan.Fill(default);
                 }
 
-                this.CurrentPosition = start + length;
+                this.Length = Math.Max(this.Length, start + length);
+            }
+        }
+
+        public void WriteZero(long length)
+        {
+            checked
+            {
+                if (length < 0) throw new ArgumentOutOfRangeException("length");
+                if (length == 0) return;
+
+                WriteZeroRandom(this.CurrentPosition, length);
+
+                this.CurrentPosition += length;
             }
         }
 
@@ -2108,6 +2134,86 @@ namespace IPA.Cores.Basic
 
         public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
             => Peek(checked((int)size), allowPartial);
+
+        public Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default)
+            => Task.FromResult(ReadRandom(position, data, cancel));
+
+        public int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            long readSize2 = Util.CopySparseChunkListToSpan(ReadRandomFast(position, data.Length, out long readSize1, true), data.Span);
+            Debug.Assert(readSize1 == readSize2);
+            return (int)readSize1;
+        }
+
+        public Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            WriteRandom(position, data, cancel);
+            return Task.CompletedTask;
+        }
+
+        public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            WriteRandom(position, data.Span);
+        }
+
+        public Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            Append(data, cancel);
+            return Task.CompletedTask;
+        }
+
+        public void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            WriteRandom(this.CurrentPosition, data.Span);
+        }
+
+        public Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
+            => Task.FromResult(GetFileSize(refresh, cancel));
+
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            return this.Length;
+        }
+
+        public Task SetFileSizeAsync(long size, CancellationToken cancel = default)
+        {
+            SetFileSize(size, cancel);
+            return Task.CompletedTask;
+        }
+
+        public void SetFileSize(long size, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            this.SetLength(size);
+        }
+
+        public Task FlushAsync(CancellationToken cancel = default)
+        {
+            Flush(cancel);
+            return Task.CompletedTask;
+        }
+
+        public void Flush(CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+        }
+
+        public void Dispose() { }
+
+        public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+        {
+            return Task.FromResult(GetPhysicalSize(cancel));
+        }
+
+        public long GetPhysicalSize(CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+            return this.PhysicalSize;
+        }
     }
 
     static class SpanMemoryBufferHelper
@@ -2352,7 +2458,7 @@ namespace IPA.Cores.Basic
 
         public const int MemoryUsePoolThreshold = 1024;
 
-        public static T[] FastAlloc<T>(int size)
+        public static T[] FastAllocMoreThan<T>(int size)
         {
             if (size < MemoryUsePoolThreshold)
                 return new T[size];
@@ -2360,12 +2466,12 @@ namespace IPA.Cores.Basic
                 return ArrayPool<T>.Shared.Rent(size);
         }
 
-        public static Memory<T> FastAllocMemory<T>(int size)
+        public static Memory<T> FastAllocMemoryMoreThan<T>(int size)
         {
             if (size < MemoryUsePoolThreshold)
                 return new T[size];
             else
-                return new Memory<T>(FastAlloc<T>(size)).Slice(0, size);
+                return new Memory<T>(FastAllocMoreThan<T>(size)).Slice(0, size);
         }
 
         public static void FastFree<T>(T[] array)
@@ -2378,13 +2484,16 @@ namespace IPA.Cores.Basic
 
         public static Holder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
         {
-            var ret = FastAllocMemory<T>(size);
+            T[] allocatedArray = FastAllocMoreThan<T>(size);
 
-            memory = ret;
+            if (allocatedArray.Length == size)
+                memory = allocatedArray;
+            else
+                memory = allocatedArray.AsMemory(0, size);
 
             return new Holder(() =>
             {
-                FastFree(ret);
+                FastFree(allocatedArray);
             },
             LeakCounterKind.FastAllocMemoryWithUsing);
         }

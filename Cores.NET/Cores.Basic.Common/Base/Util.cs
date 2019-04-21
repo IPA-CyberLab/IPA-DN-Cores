@@ -1228,7 +1228,7 @@ namespace IPA.Cores.Basic
             DataContractSerializerSettings settings = new DataContractSerializerSettings();
             settings.PreserveObjectReferences = true;
             DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
-            d.WriteObject(dst.AsStream(), obj);
+            d.WriteObject(dst.AsDirectStream(), obj);
         }
         public static byte[] ObjectToXml(object obj)
         {
@@ -1242,7 +1242,7 @@ namespace IPA.Cores.Basic
             DataContractSerializerSettings settings = new DataContractSerializerSettings();
             settings.PreserveObjectReferences = true;
             DataContractSerializer d = new DataContractSerializer(type, settings);
-            return d.ReadObject(src.AsStream());
+            return d.ReadObject(src.AsDirectStream());
         }
         public static T XmlToObject<T>(MemoryBuffer<byte> src) => (T)XmlToObject(src, typeof(T));
 

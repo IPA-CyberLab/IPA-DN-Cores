@@ -44,9 +44,9 @@ namespace IPA.Cores.Helper.Basic
         public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this T[] data, int offset) => new ReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset));
         public static ReadOnlyMemoryBuffer<T> AsReadOnlyMemoryBuffer<T>(this T[] data, int offset, int size) => new ReadOnlyMemoryBuffer<T>(data.AsReadOnlyMemory(offset, size));
 
-        public static BufferStream AsStream(this MemoryBuffer<byte> buffer) => new BufferStream(buffer);
-        public static BufferStream AsStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferStream(buffer);
-        public static BufferStream AsStream(this HugeMemoryBuffer<byte> buffer) => new BufferStream(buffer);
+        public static BufferDirectStream AsDirectStream(this MemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
+        public static BufferDirectStream AsDirectStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
+        public static BufferDirectStream AsDirectStream(this HugeMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
     }
 
     static class MemoryHelper
