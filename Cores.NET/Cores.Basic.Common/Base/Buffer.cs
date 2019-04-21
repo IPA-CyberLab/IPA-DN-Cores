@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class LargeMemoryBuffer
         {
@@ -1698,7 +1698,7 @@ namespace IPA.Cores.Basic
 
         public HugeMemoryBufferOptions(long? segmentSize = null)
         {
-            this.SegmentSize = Math.Max(1, segmentSize ?? AppConfig.LargeMemoryBuffer.DefaultSegmentSize.Value);
+            this.SegmentSize = Math.Max(1, segmentSize ?? CoresConfig.LargeMemoryBuffer.DefaultSegmentSize.Value);
         }
     }
 

@@ -211,7 +211,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
                     100));
 
                 var fileSystem = LLfsUtf8;
@@ -262,7 +262,7 @@ namespace IPA.TestDev
 
             if (false)
             {
-                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
                     100));
 
                 // 単純文字列
@@ -279,7 +279,7 @@ namespace IPA.TestDev
 
             if (false)
             {
-                AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
+                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
                     10_000_000));
                 // スパースファイル
                 string filePath = LLfs.PathParser.Combine(dirPath, @"test2.txt");
@@ -315,7 +315,7 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(100_000));
+            CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(100_000));
 
             string normalFn = @"D:\TMP\sparse_file_test\normal_file.txt";
             string standardApi = @"D:\TMP\sparse_file_test\standard_api.txt";

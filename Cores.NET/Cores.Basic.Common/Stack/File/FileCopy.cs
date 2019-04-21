@@ -156,7 +156,7 @@ namespace IPA.Cores.Basic
         {
             if (dirMetadataCopier == null) dirMetadataCopier = CopyDirectoryParams.DefaultDirectoryMetadataCopier;
             if (fileMetadataCopier == null) fileMetadataCopier = CopyFileParams.DefaultFileMetadataCopier;
-            if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
+            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize.Value;
             if (entireReporterFactory == null) entireReporterFactory = NullReporterFactory;
             if (fileReporterFactory == null) fileReporterFactory = NullReporterFactory;
             if (exceptionCallback == null) exceptionCallback = DefaultExceptionCallback;
@@ -204,7 +204,7 @@ namespace IPA.Cores.Basic
             ProgressReporterFactoryBase reporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
-            if (bufferSize <= 0) bufferSize = AppConfig.FileUtilSettings.FileCopyBufferSize.Value;
+            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize.Value;
             if (reporterFactory == null) reporterFactory = NullReporterFactory;
 
             this.Overwrite = overwrite;

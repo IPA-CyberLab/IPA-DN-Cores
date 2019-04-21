@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class Logger
         {
@@ -306,7 +306,7 @@ namespace IPA.Cores.Basic
         public string Extension { get; }
         public bool DiscardPendingDataOnDispose { get; set; }
 
-        public int MaxPendingRecords { get; set; } = AppConfig.Logger.DefaultMaxPendingRecords;
+        public int MaxPendingRecords { get; set; } = CoresConfig.Logger.DefaultMaxPendingRecords;
 
         LogInfoOptions InfoOptions { get; }
 
@@ -338,7 +338,7 @@ namespace IPA.Cores.Basic
                 this.Extension = extension.FilledOrDefault(DefaultExtension);
                 this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
                 if (this.MaxLogSize <= 0)
-                    this.MaxLogSize = AppConfig.Logger.DefaultMaxLogSize;
+                    this.MaxLogSize = CoresConfig.Logger.DefaultMaxLogSize;
                 this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
                 if (this.Extension.StartsWith(".") == false)
                     this.Extension = "." + this.Extension;
@@ -349,8 +349,8 @@ namespace IPA.Cores.Basic
 
                 if (autoDeleteTotalMinSize != null)
                 {
-                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(AppConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
-                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, AppConfig.Logger.EraserIntervalMsecs);
+                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
+                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
                 }
 
                 this.Lady.Add(LogThreadAsync().LeakCheck());

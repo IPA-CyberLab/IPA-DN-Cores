@@ -72,8 +72,8 @@ namespace IPA.Cores.Basic
             Log = new Logger(new AsyncCleanuperLady(), dir, kind, prefix,
                 switchType: switchType,
                 infoOptions: infoOptions,
-                maxLogSize: AppConfig.Logger.DefaultMaxLogSize,
-                autoDeleteTotalMinSize: autoDeleteTotalMaxSize ?? AppConfig.Logger.DefaultAutoDeleteTotalMinSize);
+                maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
+                autoDeleteTotalMinSize: autoDeleteTotalMaxSize ?? CoresConfig.Logger.DefaultAutoDeleteTotalMinSize);
         }
 
         Once DisposeFlag;
@@ -223,47 +223,47 @@ namespace IPA.Cores.Basic
         {
             // Console log
             Router.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
-                AppConfig.DebugSettings.ConsoleMinimalLevel));
+                CoresConfig.DebugSettings.ConsoleMinimalLevel));
 
             // Debug log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
-                AppConfig.DebugSettings.LogMinimalDebugLevel, 
+                CoresConfig.DebugSettings.LogMinimalDebugLevel, 
                 "debug",
-                AppConfig.LocalLogRouterSettings.LogDebugDir.Value(),
-                AppConfig.LocalLogRouterSettings.SwitchTypeForDebug,
-                AppConfig.LocalLogRouterSettings.InfoOptionsForDebug));
+                CoresConfig.LocalLogRouterSettings.LogDebugDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForDebug,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForDebug));
 
             // Info log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
-                AppConfig.DebugSettings.LogMinimalInfoLevel, 
+                CoresConfig.DebugSettings.LogMinimalInfoLevel, 
                 "info",
-                AppConfig.LocalLogRouterSettings.LogInfoDir.Value(),
-                AppConfig.LocalLogRouterSettings.SwitchTypeForInfo,
-                AppConfig.LocalLogRouterSettings.InfoOptionsForInfo));
+                CoresConfig.LocalLogRouterSettings.LogInfoDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForInfo,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForInfo));
 
             // Error log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
-                AppConfig.DebugSettings.LogMinimalErrorLevel,
+                CoresConfig.DebugSettings.LogMinimalErrorLevel,
                 "error",
-                AppConfig.LocalLogRouterSettings.LogErrorDir.Value(),
-                AppConfig.LocalLogRouterSettings.SwitchTypeForError,
-                AppConfig.LocalLogRouterSettings.InfoOptionsForError));
+                CoresConfig.LocalLogRouterSettings.LogErrorDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForError,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForError));
 
             // Data log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Data,
-                AppConfig.DebugSettings.LogMinimalDataLevel,
+                CoresConfig.DebugSettings.LogMinimalDataLevel,
                 "data",
-                AppConfig.LocalLogRouterSettings.LogDataDir.Value(),
-                AppConfig.LocalLogRouterSettings.SwitchTypeForData,
-                AppConfig.LocalLogRouterSettings.InfoOptionsForData));
+                CoresConfig.LocalLogRouterSettings.LogDataDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForData,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForData));
 
             // Access log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Access,
-                AppConfig.DebugSettings.LogMinimalAccessLevel,
+                CoresConfig.DebugSettings.LogMinimalAccessLevel,
                 "access",
-                AppConfig.LocalLogRouterSettings.LogAccessDir.Value(),
-                AppConfig.LocalLogRouterSettings.SwitchTypeForAccess,
-                AppConfig.LocalLogRouterSettings.InfoOptionsForAccess));
+                CoresConfig.LocalLogRouterSettings.LogAccessDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForAccess,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForAccess));
 
             var snapshot = new EnvInfoSnapshot("--- Process boottime log ---");
 
@@ -309,7 +309,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class LocalLogRouterSettings
         {

@@ -48,7 +48,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class LargeFileSystemSettings
         {
@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(AppConfig.FileSystemSettings.PooledHandleLifetime.Value), CacheType.UpdateExpiresWhenAccess);
+        readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(CoresConfig.FileSystemSettings.PooledHandleLifetime.Value), CacheType.UpdateExpiresWhenAccess);
 
         async Task<RandomAccessHandle> GetUnderleyRandomAccessHandle(long logicalPosition, CancellationToken cancel)
         {
@@ -642,7 +642,7 @@ namespace IPA.Cores.Basic
         {
             if (_LocalSingletonInstance == null)
             {
-                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.Local, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.Local, CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
             }
 
             return _LocalSingletonInstance;
@@ -652,7 +652,7 @@ namespace IPA.Cores.Basic
         {
             if (_AutoUtf8SingletonInstance == null)
             {
-                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.LocalAutoUtf8, AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.LocalAutoUtf8, CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
             }
 
             return _AutoUtf8SingletonInstance;

@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class JsonRpcServerSettings
         {
@@ -513,7 +513,7 @@ namespace IPA.Cores.Basic
 
     class JsonRpcServerConfig
     {
-        public int MaxRequestBodyLen { get; set; } = AppConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
+        public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     }
 
     abstract class JsonRpcClient

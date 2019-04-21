@@ -622,7 +622,7 @@ namespace IPA.Cores.Basic
         long InternalFileSize;
         long InternalPosition;
 
-        public int MicroOperationSize { get; set; } = AppConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
+        public int MicroOperationSize { get; set; } = CoresConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
 
         readonly bool AutoDisposeBase;
 

@@ -48,7 +48,7 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class FileSystemSettings
         {
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         public sealed override bool IsOpened => !this.ClosedFlag.IsSet;
         public sealed override Exception LastError { get; protected set; } = null;
 
-        public int MicroOperationSize { get; set; } = AppConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
+        public int MicroOperationSize { get; set; } = CoresConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
 
         long InternalPosition = 0;
         long InternalFileSize = 0;
@@ -1078,8 +1078,8 @@ namespace IPA.Cores.Basic
                 this.PathParser = pathParser;
                 DirectoryWalker = new DirectoryWalker(this);
 
-                ObjectPoolForRead = new FileSystemObjectPool(this, false, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
-                ObjectPoolForWrite = new FileSystemObjectPool(this, true, AppConfig.FileSystemSettings.PooledHandleLifetime.Value);
+                ObjectPoolForRead = new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime.Value);
+                ObjectPoolForWrite = new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime.Value);
             }
             catch
             {

@@ -52,7 +52,7 @@ using System.Security.AccessControl;
 
 namespace IPA.Cores.Basic
 {
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class LocalFileSystemSettings
         {
@@ -1073,7 +1073,7 @@ namespace IPA.Cores.Basic
                 if (existingDataRegionSize >= 1)
                 {
                     var subData = data.Slice(0, (int)existingDataRegionSize);
-                    var chunkList = Util.GetSparseChunks(subData, AppConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
+                    var chunkList = Util.GetSparseChunks(subData, CoresConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
 
                     foreach (var chunk in chunkList)
                     {
@@ -1091,7 +1091,7 @@ namespace IPA.Cores.Basic
                 if (expandingDataRegionSize >= 1)
                 {
                     var subData = data.Slice((int)existingDataRegionSize, (int)expandingDataRegionSize);
-                    var chunkList = Util.GetSparseChunks(subData, AppConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
+                    var chunkList = Util.GetSparseChunks(subData, CoresConfig.LocalFileSystemSettings.SparseFileMinBlockSize.Value);
 
                     foreach (var chunk in chunkList)
                     {

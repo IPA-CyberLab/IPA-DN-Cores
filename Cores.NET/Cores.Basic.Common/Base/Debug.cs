@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         ReleaseNoLogs,
     }
 
-    static partial class AppConfig
+    static partial class CoresConfig
     {
         public static partial class DebugSettings
         {
@@ -173,11 +173,11 @@ namespace IPA.Cores.Basic
 
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public static void SetDebugMode(DebugMode mode = DebugMode.Debug) => AppConfig.DebugSettings.SetDebugMode(mode);
+        public static void SetDebugMode(DebugMode mode = DebugMode.Debug) => CoresConfig.DebugSettings.SetDebugMode(mode);
 
-        public static bool IsDebugMode => AppConfig.DebugSettings.IsDebugMode();
+        public static bool IsDebugMode => CoresConfig.DebugSettings.IsDebugMode();
 
-        public static bool IsConsoleDebugMode => AppConfig.DebugSettings.IsConsoleDebugMode();
+        public static bool IsConsoleDebugMode => CoresConfig.DebugSettings.IsConsoleDebugMode();
 
         public static void Report(string name, string value)
         {
