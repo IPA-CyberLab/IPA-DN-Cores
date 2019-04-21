@@ -39,6 +39,7 @@ using System.Runtime.InteropServices;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -46,12 +47,22 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class AppConfig
+    {
+        public static partial class LargeMemoryBuffer
+        {
+            public static readonly Copenhagen<int> DefaultSegmentSize = 10;
+            public static readonly Copenhagen<int> DefaultSparseMinZeroSize = 4;
+        }
+    }
+
     ref struct SpanBuffer<T>
     {
         Span<T> InternalSpan;
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool Empty => Length == 0;
+        public int InternalBufferSize => InternalSpan.Length;
 
         public Span<T> Span { get => InternalSpan.Slice(0, Length); }
         public Span<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
@@ -254,7 +265,17 @@ namespace IPA.Cores.Basic
             while (newInternalSize < newSize)
                 newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
 
-            InternalSpan = InternalSpan.ReAlloc(newInternalSize);
+            InternalSpan = InternalSpan.ReAlloc(newInternalSize, this.Length);
+        }
+
+        public void OptimizeInternalBufferSize()
+        {
+            int newInternalSize = 128;
+            while (newInternalSize < this.Length)
+                newInternalSize = checked(newInternalSize * 2);
+
+            if (this.InternalSpan.Length > newInternalSize)
+                InternalSpan = InternalSpan.ReAlloc(newInternalSize, this.Length);
         }
 
         public void SetLength(int size)
@@ -281,6 +302,7 @@ namespace IPA.Cores.Basic
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool Empty => Length == 0;
+        public int InternalBufferSize => InternalSpan.Length;
 
         public ReadOnlySpan<T> Span { get => InternalSpan.Slice(0, Length); }
         public ReadOnlySpan<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
@@ -439,6 +461,7 @@ namespace IPA.Cores.Basic
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool Empty => Length == 0;
+        public int InternalBufferSize => InternalBuffer.Length;
 
         public Memory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public Memory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -708,8 +731,21 @@ namespace IPA.Cores.Basic
             while (newInternalSize < newSize)
                 newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
 
-            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize);
+            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
             InternalSpan = InternalBuffer.Span;
+        }
+
+        public void OptimizeInternalBufferSize()
+        {
+            int newInternalSize = 128;
+            while (newInternalSize < this.Length)
+                newInternalSize = checked(newInternalSize * 2);
+
+            if (this.InternalBuffer.Length > newInternalSize)
+            {
+                InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+                InternalSpan = InternalBuffer.Span;
+            }
         }
 
         public void SetLength(int size)
@@ -738,6 +774,7 @@ namespace IPA.Cores.Basic
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool Empty => Length == 0;
+        public int InternalBufferSize => InternalBuffer.Length;
 
         public ReadOnlyMemory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public ReadOnlyMemory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -951,6 +988,7 @@ namespace IPA.Cores.Basic
     {
         int CurrentPosition { get; }
         int Length { get; }
+        int InternalBufferSize { get; }
         void Write(ReadOnlySpan<T> data);
         ReadOnlySpan<T> Read(int size, bool allowPartial = false);
         ReadOnlySpan<T> Peek(int size, bool allowPartial = false);
@@ -1048,6 +1086,7 @@ namespace IPA.Cores.Basic
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool IsThisEmpty() => Length == 0;
+        public int InternalBufferSize => InternalBuffer.Length;
 
         public Memory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public Memory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -1357,7 +1396,19 @@ namespace IPA.Cores.Basic
 
             if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
 
-            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize);
+            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+        }
+
+        public void OptimizeInternalBufferSize()
+        {
+            if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
+
+            int newInternalSize = 128;
+            while (newInternalSize < this.Length)
+                newInternalSize = checked(newInternalSize * 2);
+
+            if (this.InternalBuffer.Length > newInternalSize)
+                InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
         }
 
         public void Clear()
@@ -1376,6 +1427,7 @@ namespace IPA.Cores.Basic
         public int CurrentPosition { get; private set; }
         public int Length { get; private set; }
         public bool IsThisEmpty() => Length == 0;
+        public int InternalBufferSize => InternalBuffer.Length;
 
         public ReadOnlyMemory<T> Memory { get => InternalBuffer.Slice(0, Length); }
         public ReadOnlyMemory<T> MemoryBefore { get => Memory.Slice(0, CurrentPosition); }
@@ -1607,6 +1659,247 @@ namespace IPA.Cores.Basic
         void IBuffer<T>.Clear() => throw new NotSupportedException();
 
         void IBuffer<T>.Write(ReadOnlySpan<T> data) => throw new NotSupportedException();
+    }
+
+    class LargeMemoryBufferOptions
+    {
+        public readonly long SegmentSize;
+
+        public LargeMemoryBufferOptions(long? segmentSize = null)
+        {
+            this.SegmentSize = Math.Max(1, segmentSize ?? AppConfig.LargeMemoryBuffer.DefaultSegmentSize.Value);
+        }
+    }
+
+    class LargeMemoryBuffer<T> : IEmptyChecker
+    {
+        public readonly LargeMemoryBufferOptions Options;
+
+        Dictionary<long, MemoryBuffer<T>> Segments = new Dictionary<long, MemoryBuffer<T>>();
+        public long CurrentPosition { get; private set; } = 0;
+        public long Length { get; private set; } = 0;
+        public bool IsThisEmpty() => Length == 0;
+
+        public long PhysicalSize => this.Segments.Values.Select(x => (long)x.InternalBufferSize).Sum();
+
+        public LargeMemoryBuffer(LargeMemoryBufferOptions options = null)
+        {
+            this.Options = options ?? new LargeMemoryBufferOptions();
+
+            if (this.Options.SegmentSize <= 0) throw new ArgumentOutOfRangeException("Options.SegmentSize <= 0");
+        }
+
+        public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsMemory(offset, length ?? data.Length - offset));
+        public void Write(Memory<T> data) => Write(data);
+        public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
+
+        public void Write(ReadOnlySpan<T> data)
+        {
+            checked
+            {
+                long start = this.CurrentPosition;
+
+                DividedSegmentList segList = new DividedSegmentList(start, data.Length, this.Options.SegmentSize);
+                foreach (DividedSegment seg in segList.SegmentList)
+                {
+                    var srcSpan = data.Slice((int)seg.RelativePosition, (int)seg.Size);
+                    var destSpan = PrepareSegment(in seg);
+
+                    Debug.Assert(srcSpan.Length == destSpan.Length);
+                    Debug.Assert(srcSpan.Length >= 1);
+
+                    srcSpan.CopyTo(destSpan);
+                }
+
+                this.CurrentPosition = start + data.Length;
+                this.Length = Math.Max(this.Length, this.CurrentPosition);
+            }
+        }
+
+        Span<T> PrepareSegment(in DividedSegment seg)
+        {
+            checked
+            {
+                long segIndex = seg.AbsolutePosition / this.Options.SegmentSize;
+                if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T> segment))
+                {
+                    if (segment.Length < (seg.InSegmentOffset + seg.Size))
+                        segment.SetLength((int)(seg.InSegmentOffset + seg.Size));
+                }
+                else
+                {
+                    segment = new MemoryBuffer<T>((int)seg.Size);
+                    this.Segments.Add(segIndex, segment);
+                }
+                return segment.Span.Slice((int)seg.InSegmentOffset, (int)seg.Size);
+            }
+        }
+
+        public void WriteZero(long length)
+        {
+            checked
+            {
+                if (length < 0) throw new ArgumentOutOfRangeException("length");
+                if (length == 0) return;
+
+                long start = this.CurrentPosition;
+
+                DividedSegmentList segList = new DividedSegmentList(start, length, this.Options.SegmentSize);
+                foreach (DividedSegment seg in segList.SegmentList)
+                {
+                    var destSpan = PrepareSegment(in seg);
+
+                    Debug.Assert(destSpan.Length >= 1);
+
+                    destSpan.Fill(default);
+                }
+
+                this.CurrentPosition = start + length;
+            }
+        }
+
+        public IReadOnlyList<SparseChunk<T>> ReadFast(long start, long size, bool allowPartial = false)
+        {
+            checked
+            {
+                if (start < 0) throw new ArgumentOutOfRangeException("start");
+                if (size < 0) throw new ArgumentOutOfRangeException("size");
+                if (start > this.Length) throw new ArgumentException("start > length");
+
+                long end = start + size;
+
+                if (end > this.Length)
+                {
+                    if (allowPartial == false)
+                        throw new ArgumentException("start + size > length");
+                    size = this.Length - start;
+                    end = this.Length;
+                }
+
+                List<SparseChunk<T>> ret = new List<SparseChunk<T>>();
+
+                DividedSegmentList segList = new DividedSegmentList(start, size, this.Options.SegmentSize);
+                foreach (DividedSegment seg in segList.SegmentList)
+                {
+                    long segIndex = seg.AbsolutePosition / this.Options.SegmentSize;
+                    if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T> segment))
+                    {
+                        if (seg.InSegmentOffset >= segment.Length)
+                        {
+                            ret.Add(new SparseChunk<T>(seg.RelativePosition, (int)seg.Size));
+                        }
+                        else
+                        {
+                            if (segment.Length >= (seg.InSegmentOffset + seg.Size))
+                            {
+                                ret.Add(new SparseChunk<T>(seg.RelativePosition, segment.Memory.Slice((int)seg.InSegmentOffset, (int)seg.Size)));
+                            }
+                            else
+                            {
+                                ret.Add(new SparseChunk<T>(seg.RelativePosition, segment.Memory.Slice((int)seg.InSegmentOffset, (int)(segment.Length - seg.InSegmentOffset))));
+                                ret.Add(new SparseChunk<T>(seg.RelativePosition, (int)(seg.Size - (segment.Length - seg.InSegmentOffset))));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ret.Add(new SparseChunk<T>(seg.RelativePosition, (int)seg.Size));
+                    }
+                }
+
+                return ret;
+            }
+        }
+
+        public ReadOnlyMemory<T> ReadAsMemory(int size, bool allowPartial = false)
+        {
+            return default;
+        }
+
+        public ReadOnlyMemory<T> PeekAsMemory(int size, bool allowPartial = false)
+        {
+            return default;
+        }
+
+        public void Seek(long offset, SeekOrigin mode, bool allocate = false)
+        {
+            checked
+            {
+                long newPosition = 0;
+                if (mode == SeekOrigin.Current)
+                    newPosition = checked(CurrentPosition + offset);
+                else if (mode == SeekOrigin.End)
+                    newPosition = checked(Length + offset);
+                else
+                    newPosition = offset;
+
+                if (newPosition < 0) throw new ArgumentOutOfRangeException("newPosition < 0");
+
+                if (allocate == false)
+                {
+                    if (newPosition > Length) throw new ArgumentOutOfRangeException("newPosition > Size");
+                }
+                else
+                {
+                    Length = Math.Max(newPosition, Length);
+                }
+
+                CurrentPosition = newPosition;
+            }
+        }
+        public LargeMemoryBuffer<T> SeekToBegin()
+        {
+            Seek(0, SeekOrigin.Begin);
+            return this;
+        }
+        public LargeMemoryBuffer<T> SeekToEnd()
+        {
+            Seek(0, SeekOrigin.End);
+            return this;
+        }
+
+        public void Clear() => SetLength(0);
+
+        public void SetLength(long size)
+        {
+            checked
+            {
+                if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+                if (this.Length > size)
+                {
+                    // Shrinking
+                    if (size == 0)
+                    {
+                        this.Segments.Clear();
+                    }
+                    else
+                    {
+                        // Get the last segment information
+                        DividedSegmentList segList = new DividedSegmentList(size - 1, 1, this.Options.SegmentSize);
+                        Debug.Assert(segList.SegmentList.Length == 1);
+                        DividedSegment lastSegInfo = segList.SegmentList[0];
+
+                        // delete all unnecessary segments following the last segment
+                        var deleteList = this.Segments.Keys.Where(x => x > lastSegInfo.SegmentIndex).ToArray();
+                        foreach (var index in deleteList)
+                            this.Segments.Remove(index);
+
+                        // shrink the last segment if necessary
+                        if (this.Segments.TryGetValue(lastSegInfo.SegmentIndex, out MemoryBuffer<T> lastSegment))
+                        {
+                            if (lastSegment.Length > lastSegInfo.Size)
+                            {
+                                lastSegment.SetLength((int)lastSegInfo.Size);
+                                lastSegment.OptimizeInternalBufferSize();
+                            }
+                        }
+                    }
+                }
+
+                this.Length = size;
+            }
+        }
     }
 
     static class SpanMemoryBufferHelper

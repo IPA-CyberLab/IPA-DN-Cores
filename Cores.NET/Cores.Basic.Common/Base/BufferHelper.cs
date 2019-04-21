@@ -1090,9 +1090,10 @@ namespace IPA.Cores.Helper.Basic
             return ret;
         }
 
-        public static Span<T> ReAlloc<T>(this Span<T> src, int newSize)
+        public static Span<T> ReAlloc<T>(this Span<T> src, int newSize, int maxCopySize = int.MaxValue)
         {
             if (newSize < 0) throw new ArgumentOutOfRangeException("newSize");
+            if (maxCopySize < 0) throw new ArgumentOutOfRangeException("maxCopySize");
             if (newSize == src.Length)
             {
                 return src;
@@ -1100,14 +1101,17 @@ namespace IPA.Cores.Helper.Basic
             else
             {
                 T[] ret = new T[newSize];
-                src.Slice(0, Math.Min(src.Length, ret.Length)).CopyTo(ret);
+                int copySize = Math.Min(Math.Min(src.Length, ret.Length), maxCopySize);
+                if (copySize >= 1)
+                    src.Slice(0, copySize).CopyTo(ret);
                 return ret.AsSpan();
             }
         }
 
-        public static Memory<T> ReAlloc<T>(this Memory<T> src, int newSize)
+        public static Memory<T> ReAlloc<T>(this Memory<T> src, int newSize, int maxCopySize = int.MaxValue)
         {
             if (newSize < 0) throw new ArgumentOutOfRangeException("newSize");
+            if (maxCopySize < 0) throw new ArgumentOutOfRangeException("maxCopySize");
             if (newSize == src.Length)
             {
                 return src;
@@ -1115,7 +1119,9 @@ namespace IPA.Cores.Helper.Basic
             else
             {
                 T[] ret = new T[newSize];
-                src.Slice(0, Math.Min(src.Length, ret.Length)).CopyTo(ret);
+                int copySize = Math.Min(Math.Min(src.Length, ret.Length), maxCopySize);
+                if (copySize >= 1)
+                    src.Slice(0, copySize).CopyTo(ret);
                 return ret.AsMemory();
             }
         }

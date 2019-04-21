@@ -54,6 +54,20 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            LargeMemoryBuffer<char> b = new LargeMemoryBuffer<char>(new LargeMemoryBufferOptions(true));
+
+            b.Write("0123456789".ToArray());
+            b.Write("abcdefghij".ToArray());
+            b.Write("kaa".ToArray());
+            b.Write("x".ToArray());
+
+            Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
+
+            b.SetLength(0);
+            Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
+
+            return;
+
             using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady))
             {
                 vfs.CreateDirectory("/a");
@@ -65,7 +79,7 @@ namespace IPA.TestDev
                 vfs.CreateDirectory("/1/2/5");
                 vfs.CreateDirectory("/1/4/1/2/3/4/5/6/7/7/8/9");
                 vfs.DeleteDirectory("/a/a");
-                vfs.DeleteDirectory("/1", true);
+                vfs.DeleteDirectory("/z", true);
                 vfs.EnumDirectory("/", true).Select(x => x.FullPath).PrintAsJson();
             }
         }

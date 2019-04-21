@@ -1941,10 +1941,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<SparseChunk> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int minZeroBlockSize)
+        public static List<SparseChunk<T>> GetSparseChunks<T>(ReadOnlyMemory<T> srcMemory, int minZeroBlockSize)
         {
             checked
             {
+                List<SparseChunk<T>> ret = new List<SparseChunk<T>>();
+
+                if (minZeroBlockSize <= 0 || minZeroBlockSize == int.MaxValue)
+                {
+                    ret.Add(new SparseChunk<T>(0, srcMemory));
+                    return ret;
+                }
+
                 int mode = -1;
                 int lastMode = -1;
                 int pos1 = 0, pos2 = 0;
@@ -1952,16 +1960,14 @@ namespace IPA.Cores.Basic
 
                 minZeroBlockSize = Math.Max(minZeroBlockSize, 1);
 
-                ReadOnlySpan<byte> srcSpan = srcMemory.Span;
+                ReadOnlySpan<T> srcSpan = srcMemory.Span;
                 int length = srcSpan.Length;
-
-                List<SparseChunk> ret = new List<SparseChunk>();
 
                 int currentPos;
 
                 for (currentPos = 0; currentPos < length; currentPos++)
                 {
-                    mode = (srcSpan[currentPos] == 0) ? 0 : 1;
+                    mode = (srcSpan[currentPos] == default) ? 0 : 1;
 
                     if (lastMode != mode)
                     {
@@ -1973,7 +1979,7 @@ namespace IPA.Cores.Basic
                                 int size1 = pos2 - pos1;
                                 if (size1 >= 1)
                                 {
-                                    var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
+                                    var chunk1 = new SparseChunk<T>(offset, srcMemory.Slice(pos1, size1));
                                     offset += size1;
                                     ret.Add(chunk1);
                                 }
@@ -1981,7 +1987,7 @@ namespace IPA.Cores.Basic
                                 int size2 = currentPos - pos2;
                                 if (size2 >= 1)
                                 {
-                                    var chunk2 = new SparseChunk(offset, size2);
+                                    var chunk2 = new SparseChunk<T>(offset, size2);
                                     offset += size2;
                                     ret.Add(chunk2);
                                 }
@@ -2006,7 +2012,7 @@ namespace IPA.Cores.Basic
                         int size1 = pos2 - pos1;
                         if (size1 >= 1)
                         {
-                            var chunk1 = new SparseChunk(offset, srcMemory.Slice(pos1, size1));
+                            var chunk1 = new SparseChunk<T>(offset, srcMemory.Slice(pos1, size1));
                             offset += size1;
                             ret.Add(chunk1);
                         }
@@ -2014,7 +2020,7 @@ namespace IPA.Cores.Basic
                         int size2 = currentPos - pos2;
                         if (size2 >= 1)
                         {
-                            var chunk2 = new SparseChunk(offset, size2);
+                            var chunk2 = new SparseChunk<T>(offset, size2);
                             offset += size2;
                             ret.Add(chunk2);
                         }
@@ -2024,7 +2030,7 @@ namespace IPA.Cores.Basic
                         int size = currentPos - pos1;
                         if (size >= 1)
                         {
-                            var chunk = new SparseChunk(offset, srcMemory.Slice(pos1, size));
+                            var chunk = new SparseChunk<T>(offset, srcMemory.Slice(pos1, size));
                             offset += size;
                             ret.Add(chunk);
                         }
@@ -2035,7 +2041,7 @@ namespace IPA.Cores.Basic
                     int size = currentPos - pos1;
                     if (size >= 1)
                     {
-                        var chunk = new SparseChunk(offset, srcMemory.Slice(pos1, size));
+                        var chunk = new SparseChunk<T>(offset, srcMemory.Slice(pos1, size));
                         offset += size;
                         ret.Add(chunk);
                     }
@@ -2046,9 +2052,83 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SparseChunk
+    public readonly struct DividedSegment
     {
-        public readonly ReadOnlyMemory<byte> Memory;
+        public readonly long AbsolutePosition;
+        public readonly long RelativePosition;
+        public readonly long InSegmentOffset;
+        public readonly long Size;
+        public readonly long SegmentIndex;
+
+        public DividedSegment(long absolutePosition, long relativePosition, long inSegmentOffset, long size, long segmentIndex)
+        {
+            this.AbsolutePosition = absolutePosition;
+            this.RelativePosition = relativePosition;
+            this.InSegmentOffset = inSegmentOffset;
+            this.Size = size;
+            this.SegmentIndex = segmentIndex;
+        }
+    }
+
+    class DividedSegmentList
+    {
+        public readonly long SegmentSize;
+        public readonly long Start;
+        public readonly long Size;
+
+        public readonly DividedSegment[] SegmentList;
+
+        public DividedSegmentList(long start, long size, long segmentSize)
+        {
+            this.Start = start;
+            this.Size = size;
+            this.SegmentSize = segmentSize;
+            this.SegmentList = CalcSegmentInfo(start, size, segmentSize);
+        }
+
+        DividedSegment[] CalcSegmentInfo(long start, long size, long segmentSize)
+        {
+            checked
+            {
+                if (start < 0) throw new ArgumentOutOfRangeException("start");
+                if (size < 0) throw new ArgumentOutOfRangeException("size");
+                if (segmentSize <= 0) throw new ArgumentOutOfRangeException("size");
+
+                long end = start + size;
+
+                if (end == start)
+                    return new DividedSegment[0];
+
+                long startIndex = start / segmentSize;
+                long endIndex = (end - 1) / segmentSize;
+                long numIndex = endIndex - startIndex + 1;
+                Debug.Assert(numIndex >= 1);
+
+                DividedSegment[] ret = new DividedSegment[numIndex];
+
+                for (long i = startIndex; i <= endIndex; i++)
+                {
+                    long startOfThisSegment = i * segmentSize;
+                    long endOfThisSegment = (i + 1) * segmentSize;
+
+                    long absoluteStart = Math.Max(startOfThisSegment, start);
+                    long absoluteEnd = Math.Min(endOfThisSegment, end);
+                    long sizeInThisSegment = absoluteEnd - absoluteStart;
+
+                    Debug.Assert(sizeInThisSegment >= 1);
+                    Debug.Assert(sizeInThisSegment <= segmentSize);
+
+                    ret[i - startIndex] = new DividedSegment(absoluteStart, absoluteStart - start, absoluteStart - startOfThisSegment, sizeInThisSegment, i);
+                }
+
+                return ret;
+            }
+        }
+    }
+
+    class SparseChunk<T>
+    {
+        public readonly ReadOnlyMemory<T> Memory;
         public readonly bool IsSparse;
         public readonly long Offset;
         public readonly int Size;
@@ -2061,7 +2141,7 @@ namespace IPA.Cores.Basic
             this.Offset = offset;
         }
 
-        public SparseChunk(long offset, ReadOnlyMemory<byte> memory)
+        public SparseChunk(long offset, ReadOnlyMemory<T> memory)
         {
             this.IsSparse = false;
             this.Memory = memory;

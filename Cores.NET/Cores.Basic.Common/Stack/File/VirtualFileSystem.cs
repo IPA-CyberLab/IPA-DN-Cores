@@ -169,9 +169,11 @@ namespace IPA.Cores.Basic
         {
         }
 
-        public abstract long Size { get; }
-        public abstract long PhysicalSize { get; }
-        public abstract Task<FileObject> OpenAsync(FileParameters option, CancellationToken cancel = default);
+        public virtual string FullPath { get; protected set; }
+        public virtual long Size { get; protected set; }
+        public virtual long PhysicalSize { get; protected set; }
+
+        public abstract Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default);
 
         public override async Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default)
         {
@@ -426,6 +428,75 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class VfsRamFile : VfsFile
+    {
+        public class FileImpl : FileObject
+        {
+            readonly VfsRamFile File;
+
+            public FileImpl(VfsRamFile file, FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+            {
+                this.File = file;
+
+                this.File.AddHandleRef();
+            }
+
+            public override string FinalPhysicalPath => this.File.FullPath;
+
+            protected override Task CloseImplAsync()
+            {
+                this.File.ReleaseHandleRef();
+
+                return Task.CompletedTask;
+            }
+
+            protected override Task FlushImplAsync(CancellationToken cancel = default) => Task.CompletedTask;
+
+            protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+            {
+                throw new NotImplementedException();
+            }
+
+            protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+            {
+                throw new NotImplementedException();
+            }
+
+            protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+            {
+                throw new NotImplementedException();
+            }
+
+            protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public VfsRamFile(VirtualFileSystem fileSystem, string fileName) : base(fileSystem)
+        {
+            fileSystem.PathParser.ValidateFileOrDirectoryName(fileName);
+
+            this.Name = fileName;
+
+            this.Attributes = FileAttributes.Normal;
+
+            this.CreationTime = this.LastAccessTime = this.LastWriteTime = DateTimeOffset.Now;
+        }
+
+        public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
+        {
+            FileImpl impl = new FileImpl(this, this.FileSystem, option);
+
+            return impl;
+        }
+
+        protected override Task ReleaseLinkImplAsync()
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     abstract class VirtualFileSystemParamsBase { }
 
     class VfsPathParserContext : IDisposable
@@ -550,9 +621,59 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            using (VfsPathParserContext ctx = await ParsePathInternalAsync(option.Path, cancel))
+            {
+                if (ctx.Exception == null)
+                {
+                    if (ctx.LastEntity is VfsFile file)
+                    {
+                        // Already exists
+                        if (option.Mode == FileMode.CreateNew)
+                        {
+                            throw new VfsException(option.Path, $"The file already exists.");
+                        }
+
+                        return await file.OpenAsync(option, ctx.NormalizedPath, cancel);
+                    }
+                    else
+                    {
+                        // There is existing another type object
+                        throw new VfsException(option.Path, $"There are existing object at the speficied path.");
+                    }
+                }
+
+                if (ctx.Exception is VfsNotFoundException && ctx.RemainingPathElements.Count == 1 && ctx.LastEntity is VfsDirectory && option.Mode != FileMode.Open)
+                {
+                    // Create new RAM file
+                    var lastDir = ctx.LastEntity as VfsDirectory;
+
+                    string fileName = ctx.RemainingPathElements.Peek();
+
+                    var newFile = new VfsRamFile(this, fileName);
+
+                    string fullPath = PathParser.Combine(ctx.NormalizedPath, fileName);
+
+                    newFile.AddHandleRef();
+
+                    try
+                    {
+                        await lastDir.AddFileAsync(newFile);
+                    }
+                    catch
+                    {
+                        await newFile.ReleaseLinkAsync(true);
+                        throw;
+                    }
+
+                    return await newFile.OpenAsync(option, fullPath, cancel);
+                }
+                else
+                {
+                    throw ctx.Exception;
+                }
+            }
         }
 
         protected override async Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
