@@ -55,12 +55,16 @@ namespace IPA.TestDev
         public static void Test()
         {
             var rfs = Res.Cores;
+
+            "".PrintAsJson();
+
+            Con.WriteLine(">" + Res.Cores.EasyReadString("hello"));
             {
                 rfs.EnumDirectory("/", true).Where(x => x.IsDirectory == false).Select(x => x).PrintAsJson();
 
-                string str = rfs.ReadStringFromFile(rfs.FindSingleFile("nek"));
+                //string str = rfs.ReadStringFromFile(rfs.EasyFindSingleFile("nek"));
 
-                Con.WriteLine($"'{str}'");
+                //Con.WriteLine($"'{str}'");
 
                 rfs.DeleteFile("/TestDev.Resource.Test.HelloWorld.txt");
 

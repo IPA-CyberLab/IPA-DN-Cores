@@ -212,33 +212,38 @@ namespace IPA.Cores.Basic
             public double MatchRate;
         }
 
-        public async Task<string> FindSingleFileAsync(string fileName, CancellationToken cancel = default)
+        public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => await ReadStringFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), encoding, maxSize, flags, cancel);
+        public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+            => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, cancel).GetResult();
+
+        public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
         {
             DirectoryWalker walk = new DirectoryWalker(this, false, EnumDirectoryFlags.NoGetPhysicalSize);
             string exactFile = null;
 
             List<FindSingleFileData> candidates = new List<FindSingleFileData>();
 
-            await walk.WalkDirectoryAsync("/",
+            await walk.WalkDirectoryAsync(rootDir,
                 async (info, entities, c) =>
                 {
                     await Task.CompletedTask;
 
                     foreach (var file in entities.Where(x => x.IsDirectory == false))
                     {
-                        if (fileName.IsSamei(file.Name))
+                        if (partOfFileName.IsSamei(file.Name))
                         {
                             // Exact match
                             exactFile = file.FullPath;
                             return false;
                         }
 
-                        if (file.Name.Search(fileName) != -1)
+                        if (file.Name.Search(partOfFileName) != -1)
                         {
                             int originalLen = file.Name.Length;
                             if (originalLen >= 1)
                             {
-                                int replacedLen = file.Name.ReplaceStr(fileName, "").Length;
+                                int replacedLen = file.Name.ReplaceStr(partOfFileName, "").Length;
                                 int matchLen = originalLen - replacedLen;
                                 FindSingleFileData d = new FindSingleFileData()
                                 {
@@ -256,14 +261,18 @@ namespace IPA.Cores.Basic
             if (exactFile.IsFilled())
                 return exactFile;
 
+            if (exact && candidates.Count >= 2)
+                throw new FileException(partOfFileName, "Two or more files matched while exact flag is set.");
+
             var match = candidates.OrderByDescending(x => x.MatchRate).FirstOrDefault();
+
             if (match == null)
-                throw new FileException(fileName, "The name did not match to any existing files.");
+                throw new FileException(partOfFileName, "The name did not match to any existing files.");
 
             return match.FullPath;
         }
-        public string FindSingleFile(string fileName, CancellationToken cancel = default)
-            => FindSingleFileAsync(fileName, cancel).GetResult();
+        public string EasyFindSingleFile(string fileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
+            => EasyFindSingleFileAsync(fileName, exact, rootDir, cancel).GetResult();
 
         protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
         {
