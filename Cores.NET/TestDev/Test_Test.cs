@@ -54,14 +54,66 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            LargeMemoryBuffer<char> b = new LargeMemoryBuffer<char>(new LargeMemoryBufferOptions());
+            HugeMemoryBuffer<byte> huge = new HugeMemoryBuffer<byte>();
 
-            b.Write("0123456789".ToArray());
-            b.Write("abcdefghij".ToArray());
-            b.Write("kaa".ToArray());
-            b.Write("x".ToArray());
+            long size = 8_000_000_000;
+            byte[] data = new byte[10_000_000];
+
+            while (huge.Length < size)
+            {
+                huge.Write(data);
+            }
+
+            Con.WriteLine(huge.Length);
+
+            data = null;
+
+            GC.Collect();
+
+            Con.WriteLine("Start reading...");
+
+            huge.SeekToBegin();
+
+            long total = 0;
+            while (true)
+            {
+                var span = huge.Read(98219821, true);
+                if (span.IsEmpty)
+                {
+                    break;
+                }
+
+                total += span.Length;
+            }
+
+            Con.WriteLine(total);
+
+            return;
+
+            HugeMemoryBuffer<char> b = new HugeMemoryBuffer<char>(new LargeMemoryBufferOptions());
+
+            b.Write("0123456789");
+            b.Write("abcdefghij");
+            b.Write("kaa");
+            b.Write("x");
+            b.Seek(20, SeekOrigin.Current, true);
+            b.Write("add");
 
             Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
+
+            //var read = b.ReadRandomFast(0, b.Length);
+
+            b.Seek(44, SeekOrigin.Begin);
+            b.Write("NEKOAB");
+            b.Write("AHO");
+
+            b.SeekToBegin();
+            var mem1 = b.Read(10, true);
+            var mem2 = b.Read(10, true);
+            var mem3 = b.Read(10, true);
+            var mem4 = b.Read(10, true);
+            var mem5 = b.Read(10, true);
+            var mem6 = b.Read(10, true);
 
             b.SetLength(0);
             Con.WriteLine($"size = {b.Length}, phy = {b.PhysicalSize}");
@@ -85,4 +137,5 @@ namespace IPA.TestDev
         }
     }
 }
+
 

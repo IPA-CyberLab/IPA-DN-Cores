@@ -2050,9 +2050,56 @@ namespace IPA.Cores.Basic
                 return ret;
             }
         }
+
+        public static int CopySparseChunkListToSpan<T>(IReadOnlyList<SparseChunk<T>> chunkList, Span<T> dest)
+        {
+            Span<T> pos = dest;
+
+            int size = 0;
+
+            foreach (var chunk in chunkList)
+            {
+                if (chunk.IsSparse == false)
+                {
+                    pos.WalkWrite(chunk.Memory.Span);
+                    size += chunk.Memory.Span.Length;
+                }
+                else
+                {
+                    pos.Walk(chunk.Size).Fill(default);
+                    size += chunk.Size;
+                }
+            }
+
+            return size;
+        }
     }
 
-    public readonly struct DividedSegment
+    class SparseChunk<T>
+    {
+        public readonly ReadOnlyMemory<T> Memory;
+        public readonly bool IsSparse;
+        public readonly long Offset;
+        public readonly int Size;
+
+        public SparseChunk(long offset, int size)
+        {
+            this.IsSparse = true;
+            this.Size = size;
+            this.Memory = default;
+            this.Offset = offset;
+        }
+
+        public SparseChunk(long offset, ReadOnlyMemory<T> memory)
+        {
+            this.IsSparse = false;
+            this.Memory = memory;
+            this.Size = memory.Length;
+            this.Offset = offset;
+        }
+    }
+
+    readonly struct DividedSegment
     {
         public readonly long AbsolutePosition;
         public readonly long RelativePosition;
@@ -2123,30 +2170,6 @@ namespace IPA.Cores.Basic
 
                 return ret;
             }
-        }
-    }
-
-    class SparseChunk<T>
-    {
-        public readonly ReadOnlyMemory<T> Memory;
-        public readonly bool IsSparse;
-        public readonly long Offset;
-        public readonly int Size;
-
-        public SparseChunk(long offset, int size)
-        {
-            this.IsSparse = true;
-            this.Size = size;
-            this.Memory = default;
-            this.Offset = offset;
-        }
-
-        public SparseChunk(long offset, ReadOnlyMemory<T> memory)
-        {
-            this.IsSparse = false;
-            this.Memory = memory;
-            this.Size = memory.Length;
-            this.Offset = offset;
         }
     }
 

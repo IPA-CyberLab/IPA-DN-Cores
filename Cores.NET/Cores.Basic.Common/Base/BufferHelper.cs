@@ -798,7 +798,7 @@ namespace IPA.Cores.Helper.Basic
         }
         #endregion
 
-        public static void WalkWrite<T>(ref this Span<T> span, Span<T> data) => data.CopyTo(span.Walk(data.Length));
+        public static void WalkWrite<T>(ref this Span<T> span, ReadOnlySpan<T> data) => data.CopyTo(span.Walk(data.Length));
 
         public static ReadOnlySpan<T> Walk<T>(ref this ReadOnlySpan<T> span, int size)
         {
@@ -998,8 +998,8 @@ namespace IPA.Cores.Helper.Basic
         public static void WalkWriteSInt16(ref this Memory<byte> memory, short value) => value.SetSInt16(memory.Walk(2));
         public static void WalkWriteSInt32(ref this Memory<byte> memory, int value) => value.SetSInt32(memory.Walk(4));
         public static void WalkWriteSInt64(ref this Memory<byte> memory, long value) => value.SetSInt64(memory.Walk(8));
-        public static void WalkWrite<T>(ref this Memory<T> memory, Memory<T> data) => data.CopyTo(memory.Walk(data.Length));
-        public static void WalkWrite<T>(ref this Memory<T> memory, Span<T> data) => data.CopyTo(memory.Walk(data.Length).Span);
+        public static void WalkWrite<T>(ref this Memory<T> memory, ReadOnlyMemory<T> data) => data.CopyTo(memory.Walk(data.Length));
+        public static void WalkWrite<T>(ref this Memory<T> memory, ReadOnlySpan<T> data) => data.CopyTo(memory.Walk(data.Length).Span);
         public static void WalkWrite<T>(ref this Memory<T> memory, T[] data) => data.CopyTo(memory.Walk(data.Length).Span);
 
         public static void WalkAutoDynamicWriteBool8(ref this Memory<byte> memory, bool value) => value.SetBool8(memory.WalkAutoDynamic(1));

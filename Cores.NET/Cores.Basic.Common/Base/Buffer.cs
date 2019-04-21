@@ -51,8 +51,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class LargeMemoryBuffer
         {
-            public static readonly Copenhagen<int> DefaultSegmentSize = 10;
-            public static readonly Copenhagen<int> DefaultSparseMinZeroSize = 4;
+            public static readonly Copenhagen<int> DefaultSegmentSize = 10_000_000;
+            //public static readonly Copenhagen<int> DefaultSegmentSize = 10;
         }
     }
 
@@ -1671,7 +1671,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeMemoryBuffer<T> : IEmptyChecker
+    class HugeMemoryBuffer<T> : IEmptyChecker
     {
         public readonly LargeMemoryBufferOptions Options;
 
@@ -1682,7 +1682,7 @@ namespace IPA.Cores.Basic
 
         public long PhysicalSize => this.Segments.Values.Select(x => (long)x.InternalBufferSize).Sum();
 
-        public LargeMemoryBuffer(LargeMemoryBufferOptions options = null)
+        public HugeMemoryBuffer(LargeMemoryBufferOptions options = null)
         {
             this.Options = options ?? new LargeMemoryBufferOptions();
 
@@ -1690,7 +1690,6 @@ namespace IPA.Cores.Basic
         }
 
         public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsMemory(offset, length ?? data.Length - offset));
-        public void Write(Memory<T> data) => Write(data);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
 
         public void Write(ReadOnlySpan<T> data)
@@ -1728,7 +1727,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    segment = new MemoryBuffer<T>((int)seg.Size);
+                    segment = new MemoryBuffer<T>((int)(seg.InSegmentOffset + seg.Size));
                     this.Segments.Add(segIndex, segment);
                 }
                 return segment.Span.Slice((int)seg.InSegmentOffset, (int)seg.Size);
@@ -1758,7 +1757,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public IReadOnlyList<SparseChunk<T>> ReadFast(long start, long size, bool allowPartial = false)
+        public IReadOnlyList<SparseChunk<T>> ReadRandomFast(long start, long size, out long readSize, bool allowPartial = false)
         {
             checked
             {
@@ -1807,18 +1806,122 @@ namespace IPA.Cores.Basic
                     }
                 }
 
+                Debug.Assert(ret.Select(x => x.Size).Sum() == size);
+
+                readSize = size;
+
+                return ret;
+            }
+        }
+
+        public IReadOnlyList<SparseChunk<T>> ReadFast(long size, out long readSize, bool allowPartial = false)
+        {
+            long sizeToRead = size;
+            if (checked(CurrentPosition + size) > Length)
+            {
+                if (allowPartial == false) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                sizeToRead = Length - CurrentPosition;
+            }
+
+            var ret = this.ReadRandomFast(CurrentPosition, size, out readSize, allowPartial);
+
+            Debug.Assert(readSize == sizeToRead);
+
+            CurrentPosition += sizeToRead;
+
+            return ret;
+        }
+
+        public IReadOnlyList<SparseChunk<T>> PeekFast(long size, out long readSize, bool allowPartial = false)
+        {
+            long sizeToRead = size;
+            if (checked(CurrentPosition + size) > Length)
+            {
+                if (allowPartial == false) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                sizeToRead = Length - CurrentPosition;
+            }
+
+            var ret = this.ReadRandomFast(CurrentPosition, size, out readSize, allowPartial);
+
+            Debug.Assert(readSize == sizeToRead);
+
+            return ret;
+        }
+
+        public int Read(Span<T> dest, bool allowPartial = false)
+        {
+            checked
+            {
+                long readSize2 = Util.CopySparseChunkListToSpan(ReadFast(dest.Length, out long readSize1, allowPartial), dest);
+                Debug.Assert(readSize1 == readSize2);
+                return (int)readSize1;
+            }
+        }
+
+        public int Peek(Span<T> dest, bool allowPartial = false)
+        {
+            checked
+            {
+                long readSize2 = Util.CopySparseChunkListToSpan(PeekFast(dest.Length, out long readSize1, allowPartial), dest);
+                Debug.Assert(readSize1 == readSize2);
+                return (int)readSize1;
+            }
+        }
+
+        public ReadOnlySpan<T> Read(int size, bool allowPartial = false)
+        {
+            checked
+            {
+                long remainSize = this.Length - this.CurrentPosition;
+                if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                int sizeToRead = (int)Math.Min(remainSize, size);
+                Span<T> ret = new T[sizeToRead];
+                int retSize = Read(ret, allowPartial);
+                Debug.Assert(retSize == sizeToRead);
+                return ret;
+            }
+        }
+
+        public ReadOnlySpan<T> Peek(int size, bool allowPartial = false)
+        {
+            checked
+            {
+                long remainSize = this.Length - this.CurrentPosition;
+                if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                int sizeToRead = (int)Math.Min(remainSize, size);
+                Span<T> ret = new T[sizeToRead];
+                int retSize = Peek(ret, allowPartial);
+                Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
         }
 
         public ReadOnlyMemory<T> ReadAsMemory(int size, bool allowPartial = false)
         {
-            return default;
+            checked
+            {
+                long remainSize = this.Length - this.CurrentPosition;
+                if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                int sizeToRead = (int)Math.Min(remainSize, size);
+                Memory<T> ret = new T[sizeToRead];
+                int retSize = Read(ret.Span, allowPartial);
+                Debug.Assert(retSize == sizeToRead);
+                return ret;
+            }
         }
 
         public ReadOnlyMemory<T> PeekAsMemory(int size, bool allowPartial = false)
         {
-            return default;
+            checked
+            {
+                long remainSize = this.Length - this.CurrentPosition;
+                if (allowPartial == false && remainSize < size) throw new ArgumentOutOfRangeException("(CurrentPosition + size) > Size");
+                int sizeToRead = (int)Math.Min(remainSize, size);
+                Memory<T> ret = new T[sizeToRead];
+                int retSize = Peek(ret.Span, allowPartial);
+                Debug.Assert(retSize == sizeToRead);
+                return ret;
+            }
         }
 
         public void Seek(long offset, SeekOrigin mode, bool allocate = false)
@@ -1847,12 +1950,12 @@ namespace IPA.Cores.Basic
                 CurrentPosition = newPosition;
             }
         }
-        public LargeMemoryBuffer<T> SeekToBegin()
+        public HugeMemoryBuffer<T> SeekToBegin()
         {
             Seek(0, SeekOrigin.Begin);
             return this;
         }
-        public LargeMemoryBuffer<T> SeekToEnd()
+        public HugeMemoryBuffer<T> SeekToEnd()
         {
             Seek(0, SeekOrigin.End);
             return this;
