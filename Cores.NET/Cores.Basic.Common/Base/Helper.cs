@@ -266,10 +266,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static T[] SingleArray<T>(this T t) => new T[] { t };
 
-        public static string ToStr3(this long s) => Str.ToStr3(s);
-        public static string ToStr3(this int s) => Str.ToStr3(s);
-        public static string ToStr3(this ulong s) => Str.ToStr3(s);
-        public static string ToStr3(this uint s) => Str.ToStr3(s);
+        public static string ToString3(this long s) => Str.ToString3(s);
+        public static string ToString3(this int s) => Str.ToString3(s);
+        public static string ToString3(this ulong s) => Str.ToString3(s);
+        public static string ToString3(this uint s) => Str.ToString3(s);
 
         public static string ToDtStr(this DateTime dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSecs, option, withNanoSecs);
         public static string ToDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSsecs, option, withNanoSecs);

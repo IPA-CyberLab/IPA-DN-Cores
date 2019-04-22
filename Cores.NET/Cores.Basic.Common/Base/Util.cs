@@ -2787,7 +2787,7 @@ namespace IPA.Cores.Basic
 
             double perSecond = 1000000000.0 / ret;
 
-            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToStr3()} / sec");
+            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToString3()} / sec");
 
             return ret;
         }
@@ -3028,7 +3028,7 @@ namespace IPA.Cores.Basic
                 return value == null ? "??" : Str.GetFileSizeStr((long)value);
             }
 
-            string s = value == null ? "??" : (tostr3 ? ((long)value).ToStr3() : value.ToString());
+            string s = value == null ? "??" : (tostr3 ? ((long)value).ToString3() : value.ToString());
             if (unitString.IsFilled()) s += " " + unitString;
             return s;
         }

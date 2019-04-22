@@ -120,16 +120,37 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            static bool? IsDebugModeCache = null;
             public static bool IsDebugMode()
             {
+                if (IsDebugModeCache != null) return IsDebugModeCache.Value;
                 if (LogMinimalDebugLevel.Get() <= LogPriority.Debug ||
                     LogMinimalInfoLevel.Get() <= LogPriority.Debug ||
                     LogMinimalErrorLevel.Get() <= LogPriority.Debug ||
                     ConsoleMinimalLevel.Get() <= LogPriority.Debug)
                 {
+                    IsDebugModeCache = true;
                     return true;
                 }
 
+                IsDebugModeCache = false;
+                return false;
+            }
+
+            static bool? IsTraceModeCache = null;
+            public static bool IsTraceMode()
+            {
+                if (IsTraceModeCache != null) return IsTraceModeCache.Value;
+                if (LogMinimalDebugLevel.Get() <= LogPriority.Trace ||
+                    LogMinimalInfoLevel.Get() <= LogPriority.Trace ||
+                    LogMinimalErrorLevel.Get() <= LogPriority.Trace ||
+                    ConsoleMinimalLevel.Get() <= LogPriority.Trace)
+                {
+                    IsTraceModeCache = true;
+                    return true;
+                }
+
+                IsTraceModeCache = false;
                 return false;
             }
 
@@ -177,6 +198,8 @@ namespace IPA.Cores.Basic
 
         public static bool IsDebugMode => CoresConfig.DebugSettings.IsDebugMode();
 
+        public static bool IsTraceMode => CoresConfig.DebugSettings.IsTraceMode();
+
         public static bool IsConsoleDebugMode => CoresConfig.DebugSettings.IsConsoleDebugMode();
 
         public static void Report(string name, string value)
@@ -186,17 +209,19 @@ namespace IPA.Cores.Basic
 
         public static string WriteLine()
         {
+            if (Dbg.IsDebugMode == false) return "";
             WriteLine("");
             return "";
         }
         public static object WriteLine(object obj)
         {
-            if (obj == null) obj = "null";
-            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
+            if (Dbg.IsDebugMode == false) return obj;
+            LocalLogRouter.PrintConsole(obj ?? "null", priority: LogPriority.Debug);
             return obj;
         }
         public static string WriteLine(string str)
         {
+            if (Dbg.IsDebugMode == false) return str;
             if (str == null) str = "null";
             str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
@@ -204,6 +229,7 @@ namespace IPA.Cores.Basic
         }
         public static void WriteLine(string str, params object[] args)
         {
+            if (Dbg.IsDebugMode == false) return;
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
         }
@@ -228,23 +254,26 @@ namespace IPA.Cores.Basic
 
         public static void WriteTrace()
         {
+            if (Dbg.IsTraceMode == false) return;
             WriteTrace("");
         }
 
         public static object WriteTrace(object obj)
         {
-            if (obj == null) obj = "null";
-            LocalLogRouter.PrintConsole(obj, priority: LogPriority.Trace);
+            if (Dbg.IsTraceMode == false) return obj;
+            LocalLogRouter.PrintConsole(obj ?? "null", priority: LogPriority.Trace);
             return obj;
         }
         public static void WriteTrace(string str)
         {
+            if (Dbg.IsTraceMode == false) return;
             if (str == null) str = "null";
             str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Trace);
         }
         public static void WriteTrace(string str, params object[] args)
         {
+            if (Dbg.IsTraceMode == false) return;
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Trace);
         }
@@ -727,7 +756,7 @@ namespace IPA.Cores.Basic
                 double r = (double)diff_value * 1000.0 / (double)span2;
 
                 string name = this.Name;
-                string value = $"{Str.ToStr3((long)r)} / sec";
+                string value = $"{Str.ToString3((long)r)} / sec";
 
                 GlobalIntervalReporter.Singleton.Report(name, value);
                 //Dbg.WriteLine($"{name}: {value}");
@@ -962,7 +991,7 @@ namespace IPA.Cores.Basic
 
                     o.Add($"I/O: {max_ports - avail_ports}");
 
-                    o.Add($"Mem: {(mem / 1024).ToStr3()} kb");
+                    o.Add($"Mem: {(mem / 1024).ToString3()} kb");
 
                     return Str.CombineStringArray(o.ToArray(), ", ");
                 });

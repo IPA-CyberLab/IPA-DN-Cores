@@ -216,7 +216,7 @@ namespace IPA.Cores.Basic
                 {
                     if (Str.IsEmptyStr(stderr))
                     {
-                        stderr = $"Process run timeout ({timeout.ToStr3()} msecs).";
+                        stderr = $"Process run timeout ({timeout.ToString3()} msecs).";
                     }
                 }
 

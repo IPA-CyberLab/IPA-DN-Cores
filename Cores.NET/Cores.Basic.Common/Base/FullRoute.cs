@@ -2743,7 +2743,7 @@ namespace IPA.Cores.Basic
                 r.UpdateTrie();
 
                 long t2 = Time.Tick64;
-                Con.WriteLine("Load from BIRD: Took time: {0}", Str.ToStr3(t2 - t1));
+                Con.WriteLine("Load from BIRD: Took time: {0}", Str.ToString3(t2 - t1));
 
                 Buf rbuf = new Buf();
                 r.Dump(rbuf);
@@ -2751,14 +2751,14 @@ namespace IPA.Cores.Basic
                 rbuf.WriteToFileWithHash(@"C:\tmp\141207fullroute\dump_fullroute_ipv4.dat");
 
                 long t3 = Time.Tick64;
-                Con.WriteLine("Save dump: Took time: {0}", Str.ToStr3(t3 - t2));
+                Con.WriteLine("Save dump: Took time: {0}", Str.ToString3(t3 - t2));
                 if (true)
                 {
                     Str.WriteTextFile(@"C:\tmp\141207fullroute\fullroute_ipv4_2.csv", r.ToCsv(),
                         Str.AsciiEncoding, false);
                     long t4 = Time.Tick64;
 
-                    Con.WriteLine("Save CSV: Took time: {0}", Str.ToStr3(t4 - t3));
+                    Con.WriteLine("Save CSV: Took time: {0}", Str.ToString3(t4 - t3));
                 }
             }
             else
@@ -2768,7 +2768,7 @@ namespace IPA.Cores.Basic
                 r = new FullRoute(AddressFamily.InterNetwork, rbuf);
 
                 long t2 = Time.Tick64;
-                Con.WriteLine("Load from dump: Took time: {0}", Str.ToStr3(t2 - t1));
+                Con.WriteLine("Load from dump: Took time: {0}", Str.ToString3(t2 - t1));
 
                 if (false)
                 {
@@ -2776,7 +2776,7 @@ namespace IPA.Cores.Basic
                         Str.AsciiEncoding, false);
                     long t3 = Time.Tick64;
 
-                    Con.WriteLine("Save CSV: Took time: {0}", Str.ToStr3(t3 - t2));
+                    Con.WriteLine("Save CSV: Took time: {0}", Str.ToString3(t3 - t2));
                 }
             }
 
@@ -2816,7 +2816,7 @@ namespace IPA.Cores.Basic
 
                     long end = Time.Tick64;
 
-                    Con.WriteLine("New: {0} msecs", Str.ToStr3(end - start));
+                    Con.WriteLine("New: {0} msecs", Str.ToString3(end - start));
 
                     start = Time.Tick64;
 
@@ -2827,7 +2827,7 @@ namespace IPA.Cores.Basic
 
                     end = Time.Tick64;
 
-                    Con.WriteLine("Old: {0} msecs", Str.ToStr3(end - start));
+                    Con.WriteLine("Old: {0} msecs", Str.ToString3(end - start));
 
                 }
 
