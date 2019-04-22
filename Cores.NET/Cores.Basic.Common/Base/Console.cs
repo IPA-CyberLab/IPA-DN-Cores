@@ -2411,7 +2411,7 @@ namespace IPA.Cores.Basic
         {
             if (outFile != null)
             {
-                string tmp = Str.NormalizeCrlf(str);
+                string tmp = Str.NormalizeCrlf(str, CrlfStyle.LocalSystem);
 
                 outFile.Write(Str.Utf8Encoding.GetBytes(str));
 

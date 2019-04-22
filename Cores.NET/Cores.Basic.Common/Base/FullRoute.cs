@@ -838,7 +838,7 @@ namespace IPA.Cores.Basic
                 throw new ApplicationException("no </html>");
             }
 
-            body = Str.NormalizeCrlf(body);
+            body = Str.NormalizeCrlf(body, CrlfStyle.CrLf);
 
             int pos = 0;
             while (true)

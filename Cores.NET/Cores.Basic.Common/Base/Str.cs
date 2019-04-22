@@ -46,7 +46,17 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    [Flags]
+    enum CrlfStyle
+    {
+        LocalSystem,
+        Lf,
+        CrLf,
+        NoChange,
+    }
+
     // DateTime をシンブル文字列に変換
+    [Flags]
     enum DtstrOption
     {
         All,
@@ -683,6 +693,50 @@ namespace IPA.Cores.Basic
 
         public static byte[] BomUtf8 { get; }
 
+        public static readonly byte[] NewLine_Bytes_Windows = new byte[] { 13, 10 };
+        public static readonly byte[] NewLine_Bytes_Unix = new byte[] { 10 };
+        public static readonly byte[] NewLine_Bytes_Local = (Environment.OSVersion.Platform == PlatformID.Win32NT) ? NewLine_Bytes_Windows : NewLine_Bytes_Unix;
+
+        public static readonly string NewLine_Str_Windows = "\r\n";
+        public static readonly string NewLine_Str_Unix = "\n";
+        public static readonly string NewLine_Str_Local = (Environment.OSVersion.Platform == PlatformID.Win32NT) ? NewLine_Str_Windows : NewLine_Str_Unix;
+
+        public static byte[] GetNewLineBytes(CrlfStyle style)
+        {
+            switch (style)
+            {
+                case CrlfStyle.LocalSystem:
+                    return NewLine_Bytes_Local;
+
+                case CrlfStyle.CrLf:
+                    return NewLine_Bytes_Windows;
+
+                case CrlfStyle.Lf:
+                    return NewLine_Bytes_Unix;
+
+                default:
+                    throw new ArgumentOutOfRangeException("style");
+            }
+        }
+
+        public static string GetNewLineStr(CrlfStyle style)
+        {
+            switch (style)
+            {
+                case CrlfStyle.LocalSystem:
+                    return NewLine_Str_Local;
+
+                case CrlfStyle.CrLf:
+                    return NewLine_Str_Windows;
+
+                case CrlfStyle.Lf:
+                    return NewLine_Str_Unix;
+
+                default:
+                    throw new ArgumentOutOfRangeException("style");
+            }
+        }
+
         // Encoding の初期化
         static Str()
         {
@@ -1101,7 +1155,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                str = Str.NormalizeCrlf(str);
+                str = Str.NormalizeCrlf(str, CrlfStyle.CrLf);
 
                 byte[] utf1 = Str.Utf8Encoding.GetBytes(str);
 
@@ -2243,7 +2297,7 @@ namespace IPA.Cores.Basic
 
             str = str.Replace(HtmlLt, "<").Replace(HtmlGt, ">").Replace(HtmlAmp, "&");
 
-            str = NormalizeCrlf(str);
+            str = NormalizeCrlf(str, CrlfStyle.CrLf);
 
             return str;
         }
@@ -2252,7 +2306,7 @@ namespace IPA.Cores.Basic
         public static string ToHtml(string str, bool forceAllSpaceToTag = false)
         {
             // 改行を正規化
-            str = NormalizeCrlf(str);
+            str = NormalizeCrlf(str, CrlfStyle.CrLf);
 
             // & を変換
             str = str.Replace("&", HtmlAmp);
@@ -4938,64 +4992,30 @@ namespace IPA.Cores.Basic
         }
 
         // 改行コードを正規化する
-        public static string NormalizeCrlfWindows(string str)
+        public static string NormalizeCrlf(string str, CrlfStyle style)
         {
-            return NormalizeCrlf(str, new byte[] { 13, 10 });
-        }
-        public static string NormalizeCrlfUnix(string str)
-        {
-            return NormalizeCrlf(str, new byte[] { 10 });
-        }
-        public static string NormalizeCrlfThisPlatform(string str)
-        {
-            if (Env.IsWindows)
-            {
-                return NormalizeCrlfWindows(str);
-            }
-            else
-            {
-                return NormalizeCrlfUnix(str);
-            }
-        }
-        public static byte[] NormalizeCrlfWindows(ReadOnlySpan<byte> str)
-        {
-            return NormalizeCrlf(str, new byte[] { 13, 10 });
-        }
-        public static byte[] NormalizeCrlfUnix(ReadOnlySpan<byte> str)
-        {
-            return NormalizeCrlf(str, new byte[] { 10 });
-        }
-        public static byte[] NormalizeCrlfThisPlatform(ReadOnlySpan<byte> str)
-        {
-            if (Env.IsWindows)
-            {
-                return NormalizeCrlfWindows(str);
-            }
-            else
-            {
-                return NormalizeCrlfUnix(str);
-            }
-        }
-        public static string NormalizeCrlf(string str)
-        {
-            return NormalizeCrlf(str, new byte[] { 13, 10 });
+            if (str == null) return null;
+            if (style == CrlfStyle.NoChange) return str;
+            return NormalizeCrlf(str, Str.GetNewLineBytes(style));
         }
         public static string NormalizeCrlf(string str, byte[] crlfData)
         {
             byte[] srcData = Str.Utf8Encoding.GetBytes(str);
-            byte[] destData = NormalizeCrlf(srcData, crlfData);
-            return Str.Utf8Encoding.GetString(destData);
+            Memory<byte> destData = NormalizeCrlf(srcData, crlfData);
+            return Str.Utf8Encoding.GetString(destData.Span);
         }
-        public static byte[] NormalizeCrlf(ReadOnlySpan<byte> srcData)
+        public static Memory<byte> NormalizeCrlf(ReadOnlySpan<byte> srcData, CrlfStyle style)
         {
-            return NormalizeCrlf(srcData, new byte[] { 13, 10 });
+            if (srcData == null) return null;
+            if (style == CrlfStyle.NoChange) return srcData.ToArray();
+            return NormalizeCrlf(srcData, Str.GetNewLineBytes(style));
         }
-        public static byte[] NormalizeCrlf(ReadOnlySpan<byte> srcData, byte[] crlfData)
+        public static Memory<byte> NormalizeCrlf(ReadOnlySpan<byte> srcData, byte[] crlfData)
         {
-            Buf ret = new Buf();
+            FastMemoryBuffer<byte> ret = new FastMemoryBuffer<byte>();
+            FastMemoryBuffer<byte> tmp = new FastMemoryBuffer<byte>();
 
             int i;
-            Buf b = new Buf();
             for (i = 0; i < srcData.Length; i++)
             {
                 bool isNewLine = false;
@@ -5014,19 +5034,19 @@ namespace IPA.Cores.Basic
 
                 if (isNewLine)
                 {
-                    ret.Write(b.ByteData);
+                    ret.Write(tmp.Span);
                     ret.Write(crlfData);
 
-                    b.Clear();
+                    tmp.Clear();
                 }
                 else
                 {
-                    b.WriteByte(srcData[i]);
+                    tmp.WriteUInt8(srcData[i]);
                 }
             }
-            ret.Write(b.ByteData);
+            ret.Write(tmp.Span);
 
-            return ret.ByteData;
+            return ret.Memory;
         }
 
         // トークンリストを重複の無いものに変換する

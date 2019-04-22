@@ -136,9 +136,6 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsInt(this string s) => Str.IsInt(s);
         public static bool IsNumber(this string s) => Str.IsNumber(s);
         public static bool InStr(this string s, string keyword, bool ignoreCase = false) => Str.InStr(s, keyword, !ignoreCase);
-        public static string NormalizeCrlfWindows(this string s) => Str.NormalizeCrlfWindows(s);
-        public static string NormalizeCrlfUnix(this string s) => Str.NormalizeCrlfUnix(s);
-        public static string NormalizeCrlfThisPlatform(this string s) => Str.NormalizeCrlfThisPlatform(s);
         public static string[] ParseCmdLine(this string s) => Str.ParseCmdLine(s);
         public static object Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
@@ -210,6 +207,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsZenkaku(this char c) => Str.IsZenkaku(c);
         public static bool IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
         public static bool IsPrintableAndSafe(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsPrintableAndSafe(c, crlIsOk, html_tag_ng);
+
+        public static string NormalizeCrlf(this string str, CrlfStyle style) => Str.NormalizeCrlf(str, style);
 
         //public static byte[] NormalizeCrlfWindows(this Span<byte> s) => Str.NormalizeCrlfWindows(s);
         //public static byte[] NormalizeCrlfUnix(this Span<byte> s) => Str.NormalizeCrlfUnix(s);
