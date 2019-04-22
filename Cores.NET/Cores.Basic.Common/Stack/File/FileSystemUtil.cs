@@ -291,6 +291,42 @@ namespace IPA.Cores.Basic
                 },
                 cancel: cancel);
         }
+
+        Singleton<string, EasyFileAccess> EasyFileAccessSingleton;
+        Singleton<string, string> EasyAccessFileNameCache;
+        void InitEasyFileAccessSingleton()
+        {
+            EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath));
+            EasyAccessFileNameCache = new Singleton<string, string>(name => FindEasyAccessFilePathFromNameImpl(name));
+        }
+
+        protected virtual string FindEasyAccessFilePathFromNameImpl(string name)
+        {
+            EasyAccessPathFindMode mode = this.Params.EasyAccessPathFindMode.Value;
+            switch (mode)
+            {
+                case EasyAccessPathFindMode.MostMatch:
+                    return this.EasyFindSingleFile(name, false);
+
+                case EasyAccessPathFindMode.MostMatchExact:
+                    return this.EasyFindSingleFile(name, true);
+
+                case EasyAccessPathFindMode.ExactFullPath:
+                    return name;
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public virtual EasyFileAccess GetEasyAccess(string name)
+        {
+            string fullPath = EasyAccessFileNameCache[name];
+
+            return this.EasyFileAccessSingleton[fullPath];
+        }
+
+        public virtual EasyFileAccess this[string name] => GetEasyAccess(name);
     }
 
     class DirectoryPathInfo
@@ -425,6 +461,51 @@ namespace IPA.Cores.Basic
                 async (dirInfo, entity, c) => { await Task.CompletedTask; return callback(dirInfo, entity, c); },
                 async (dirInfo, exception, c) => { await Task.CompletedTask; return exceptionHandler(dirInfo, exception, c); },
                 recursive, cancel).GetResult();
+    }
+
+    enum EasyFileAccessType
+    {
+        String,
+        Binary,
+    }
+
+    class EasyFileAccess
+    {
+        // Properties
+        public string String => (string)this[EasyFileAccessType.String];
+        public Memory<byte> Binary => (Memory<byte>)this[EasyFileAccessType.Binary];
+
+        // Implementation
+        public FileSystemBase FileSystem { get; }
+        public string FilePath { get; }
+
+        readonly Singleton<EasyFileAccessType, object> CachedData;
+
+        public object this[EasyFileAccessType type] => this.GetData(type);
+
+        public EasyFileAccess(FileSystemBase fileSystem, string filePath)
+        {
+            this.FileSystem = fileSystem;
+            this.FilePath = filePath;
+            this.CachedData = new Singleton<EasyFileAccessType, object>(type => this.InternalReadData(type));
+        }
+
+        public object GetData(EasyFileAccessType type) => this.CachedData[type];
+
+        object InternalReadData(EasyFileAccessType type)
+        {
+            switch (type)
+            {
+                case EasyFileAccessType.String:
+                    return FileSystem.ReadStringFromFile(this.FilePath);
+
+                case EasyFileAccessType.Binary:
+                    return FileSystem.ReadDataFromFile(this.FilePath);
+
+                default:
+                    throw new ArgumentOutOfRangeException("type");
+            }
+        }
     }
 
     abstract class FileObjectRandomAccessWrapperBase : FileObject

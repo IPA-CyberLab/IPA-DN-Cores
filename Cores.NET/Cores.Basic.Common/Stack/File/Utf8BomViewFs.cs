@@ -148,11 +148,16 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class AutoUtf8BomViewFileSystemParam : ViewFileSystemParams
+    {
+        public AutoUtf8BomViewFileSystemParam(FileSystemBase underlayFileSystem) : base(underlayFileSystem) { }
+    }
+
     class AutoUtf8BomViewFileSystem : ViewFileSystem
     {
         public static readonly ReadOnlyMemory<byte> Utf8Bom = Str.BOM_UTF_8;
 
-        public AutoUtf8BomViewFileSystem(FileSystemBase underlayFileSystem) : base(underlayFileSystem, null)
+        public AutoUtf8BomViewFileSystem(AutoUtf8BomViewFileSystemParam param) : base(param)
         {
         }
 

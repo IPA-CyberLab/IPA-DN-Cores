@@ -1056,10 +1056,31 @@ namespace IPA.Cores.Basic
         NoGetPhysicalSize = 1,
     }
 
+    [Flags]
+    enum EasyAccessPathFindMode
+    {
+        NotSupported,
+        ExactFullPath,
+        MostMatch,
+        MostMatchExact,
+    }
+
+    class FileSystemParams
+    {
+        public FileSystemPathParser PathParser { get; }
+        public Copenhagen<EasyAccessPathFindMode> EasyAccessPathFindMode { get; } = new Copenhagen<EasyAccessPathFindMode>(Basic.EasyAccessPathFindMode.NotSupported);
+
+        public FileSystemParams(FileSystemPathParser pathParser)
+        {
+            this.PathParser = pathParser;
+        }
+    }
+
     abstract partial class FileSystemBase : AsyncCleanupable
     {
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathParser PathParser { get; }
+        protected FileSystemParams Params { get; }
 
         CriticalSection LockObj = new CriticalSection();
         List<FileBase> OpenedHandleList = new List<FileBase>();
@@ -1071,11 +1092,12 @@ namespace IPA.Cores.Basic
 
         public LargeFileSystem LargeFileSystem { get; }
 
-        public FileSystemBase(AsyncCleanuperLady lady, FileSystemPathParser pathParser) : base(lady)
+        public FileSystemBase(AsyncCleanuperLady lady, FileSystemParams param) : base(lady)
         {
             try
             {
-                this.PathParser = pathParser;
+                this.Params = param;
+                this.PathParser = this.Params.PathParser;
                 DirectoryWalker = new DirectoryWalker(this);
 
                 ObjectPoolForRead = new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime.Value);
@@ -1086,6 +1108,12 @@ namespace IPA.Cores.Basic
                 Lady.DisposeAllSafe();
                 throw;
             }
+
+            try
+            {
+                InitEasyFileAccessSingleton();
+            }
+            catch { }
         }
 
         public async Task<RandomAccessHandle> GetRandomAccessHandleAsync(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)

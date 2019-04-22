@@ -81,12 +81,12 @@ namespace IPA.Cores.Basic
         static AutoUtf8BomViewFileSystem CreateFirstAutoUtf8Instance()
         {
             if (_AutoUtf8SingletonInstance == null)
-                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(LocalFileSystem.Local);
+                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
 
             return _AutoUtf8SingletonInstance;
         }
 
-        private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, Env.LocalFileSystemPathInterpreter)
+        private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, new FileSystemParams(Env.LocalFileSystemPathInterpreter))
         {
         }
 

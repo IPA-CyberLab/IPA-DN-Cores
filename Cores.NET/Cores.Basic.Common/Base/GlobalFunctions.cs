@@ -113,6 +113,7 @@ namespace IPA.Cores
             public static LargeFileSystem LLfs => LargeFileSystem.Local;
             public static AutoUtf8BomViewFileSystem LfsUtf8 => LocalFileSystem.LocalAutoUtf8;
             public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalAutoUtf8;
+            public static ResourceFileSystem CoresRes => Res.Cores;
 
             public static partial class Res
             {

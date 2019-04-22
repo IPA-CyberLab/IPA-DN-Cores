@@ -85,6 +85,8 @@ namespace IPA.Cores.Basic
 
         public ResourceFileSystem(ResourceFileSystemParam param) : base(new AsyncCleanuperLady(), param)
         {
+            this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
+
             string[] names = Params.Assembly.GetManifestResourceNames();
 
             foreach (string name in names)

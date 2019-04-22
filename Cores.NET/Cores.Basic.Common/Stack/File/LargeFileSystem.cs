@@ -50,14 +50,11 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class LargeFileSystemSettings
+        public static partial class LocalLargeFileSystemSettings
         {
-            public static readonly Copenhagen<LargeFileSystemParams> LocalLargeFileSystemParams
-                = new LargeFileSystemParams(
-                    maxSingleFileSize: 1_000_000_000,     // 1 TB
-                    logicalMaxSize: 1_000_000_000_000_000_000, // 1 EB
-                    splitStr: "~~~"
-                    );
+            public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000_000; // 1 TB
+            public static readonly Copenhagen<long> LogicalMaxSize = 1_000_000_000_000_000_000; // 1 EB
+            public static readonly Copenhagen<string> SplitStr = "~~~";
         }
     }
 
@@ -488,21 +485,26 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileSystemParams
+    class LargeFileSystemParams : FileSystemParams
     {
-        public const long DefaultMaxSinglePhysicalFileSize = 1_000_000_000; // 1GB
-        public const long DefaultMaxLogicalFileSize = 1_000_000_000_000_000_000; // 1EB
-
         public long MaxSinglePhysicalFileSize { get; }
         public long MaxLogicalFileSize { get; }
         public int NumDigits { get; }
         public string SplitStr { get; }
         public long MaxFileNumber { get; }
 
-        public LargeFileSystemParams(long maxSingleFileSize = DefaultMaxSinglePhysicalFileSize, long logicalMaxSize = DefaultMaxLogicalFileSize, string splitStr = "~~~")
+        public FileSystemBase UnderlayFileSystem { get; }
+
+        public LargeFileSystemParams(FileSystemBase underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null)
+            : base(underlayFileSystem.PathParser)
         {
             checked
             {
+                if (maxSingleFileSize <= 0) maxSingleFileSize = CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.Value;
+                if (logicalMaxSize <= 0) logicalMaxSize = CoresConfig.LocalLargeFileSystemSettings.LogicalMaxSize.Value;
+                if (splitStr.IsEmpty()) splitStr = CoresConfig.LocalLargeFileSystemSettings.SplitStr.Value;
+
+                this.UnderlayFileSystem = underlayFileSystem;
                 this.SplitStr = splitStr.NonNullTrim().FilledOrDefault("~~~");
                 this.MaxSinglePhysicalFileSize = Math.Min(Math.Max(maxSingleFileSize, 1), int.MaxValue);
                 this.MaxLogicalFileSize = logicalMaxSize;
@@ -642,7 +644,7 @@ namespace IPA.Cores.Basic
         {
             if (_LocalSingletonInstance == null)
             {
-                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.Local, CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, new LargeFileSystemParams(LocalFileSystem.Local));
             }
 
             return _LocalSingletonInstance;
@@ -652,7 +654,7 @@ namespace IPA.Cores.Basic
         {
             if (_AutoUtf8SingletonInstance == null)
             {
-                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, LocalFileSystem.LocalAutoUtf8, CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Value);
+                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8));
             }
 
             return _AutoUtf8SingletonInstance;
@@ -662,17 +664,16 @@ namespace IPA.Cores.Basic
         CancellationToken CancelToken => CancelSource.Token;
 
         public FileSystemBase UnderlayFileSystem { get; }
-        public LargeFileSystemParams Params { get; }
+        public new LargeFileSystemParams Params => (LargeFileSystemParams)base.Params;
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
         public FileSystemObjectPool UnderlayFileSystemPoolForRead { get; }
         public FileSystemObjectPool UnderlayFileSystemPoolForWrite { get; }
 
-        public LargeFileSystem(AsyncCleanuperLady lady, FileSystemBase underlayFileSystem, LargeFileSystemParams param) : base(lady, underlayFileSystem.PathParser)
+        public LargeFileSystem(AsyncCleanuperLady lady, LargeFileSystemParams param) : base(lady, param)
         {
-            this.UnderlayFileSystem = underlayFileSystem;
-            this.Params = param;
+            this.UnderlayFileSystem = param.UnderlayFileSystem;
 
             this.UnderlayFileSystemPoolForRead = this.UnderlayFileSystem.ObjectPoolForRead;
             this.UnderlayFileSystemPoolForWrite = this.UnderlayFileSystem.ObjectPoolForWrite;

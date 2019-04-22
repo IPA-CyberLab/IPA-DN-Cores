@@ -587,18 +587,19 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VirtualFileSystemParams { }
+    class VirtualFileSystemParams : FileSystemParams
+    {
+        public VirtualFileSystemParams() : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux)) { }
+    }
 
     class VirtualFileSystem : FileSystemBase
     {
-        protected VirtualFileSystemParams Params;
+        protected new VirtualFileSystemParams Params => (VirtualFileSystemParams)base.Params;
 
         readonly VfsDirectory Root;
 
-        public VirtualFileSystem(AsyncCleanuperLady lady, VirtualFileSystemParams param) : base(lady, FileSystemPathParser.GetInstance(FileSystemStyle.Linux))
+        public VirtualFileSystem(AsyncCleanuperLady lady, VirtualFileSystemParams param) : base(lady, param)
         {
-            this.Params = param;
-
             var rootDir = new VfsRamDirectory(this, "/", true);
             rootDir.AddLinkRef();
 

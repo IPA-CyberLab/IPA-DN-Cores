@@ -88,17 +88,23 @@ namespace IPA.Cores.Basic
             => this.UnderlayFile.WriteRandomAsync(position, data, cancel);
     }
 
-    abstract class ViewFileSystemParamsBase { }
+    class ViewFileSystemParams : FileSystemParams
+    {
+        public FileSystemBase UnderlayFileSystem { get; }
+
+        public ViewFileSystemParams(FileSystemBase underlayFileSystem) : base(underlayFileSystem.PathParser)
+        {
+            this.UnderlayFileSystem = underlayFileSystem;
+        }
+    }
 
     class ViewFileSystem : FileSystemBase
     {
-        public FileSystemBase UnderlayFileSystem { get; }
-        public ViewFileSystemParamsBase Params { get; }
+        public FileSystemBase UnderlayFileSystem => this.Params.UnderlayFileSystem;
+        protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
 
-        public ViewFileSystem(FileSystemBase underlayFileSystem, ViewFileSystemParamsBase param) : base(new AsyncCleanuperLady(), underlayFileSystem.PathParser)
+        public ViewFileSystem(ViewFileSystemParams param) : base(new AsyncCleanuperLady(), param)
         {
-            this.UnderlayFileSystem = underlayFileSystem;
-            this.Params = param;
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
