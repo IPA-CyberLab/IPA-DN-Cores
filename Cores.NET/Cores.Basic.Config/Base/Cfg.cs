@@ -236,7 +236,7 @@ namespace IPA.Cores.Basic
 
             str = headerStr + "\n\n" + str + "\n";
 
-            str = str.NormalizeCrlf(CrlfStyle.LocalSystem);
+            str = str.NormalizeCrlf(CrlfStyle.LocalPlatform);
 
             string newFilename = filename + ".new";
 

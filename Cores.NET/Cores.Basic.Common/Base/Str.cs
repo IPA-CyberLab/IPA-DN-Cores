@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum CrlfStyle
     {
-        LocalSystem,
+        LocalPlatform,
         Lf,
         CrLf,
         NoChange,
@@ -705,7 +705,7 @@ namespace IPA.Cores.Basic
         {
             switch (style)
             {
-                case CrlfStyle.LocalSystem:
+                case CrlfStyle.LocalPlatform:
                     return NewLine_Bytes_Local;
 
                 case CrlfStyle.CrLf:
@@ -723,7 +723,7 @@ namespace IPA.Cores.Basic
         {
             switch (style)
             {
-                case CrlfStyle.LocalSystem:
+                case CrlfStyle.LocalPlatform:
                     return NewLine_Str_Local;
 
                 case CrlfStyle.CrLf:

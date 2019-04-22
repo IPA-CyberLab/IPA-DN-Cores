@@ -506,6 +506,13 @@ namespace IPA.Cores.Basic
                     throw new ArgumentOutOfRangeException("type");
             }
         }
+
+        public static implicit operator string(EasyFileAccess access) => access.String;
+        public static implicit operator Memory<byte>(EasyFileAccess access) => access.Binary;
+        public static implicit operator Span<byte>(EasyFileAccess access) => access.Binary.Span;
+        public static implicit operator ReadOnlyMemory<byte>(EasyFileAccess access) => access.Binary;
+        public static implicit operator ReadOnlySpan<byte>(EasyFileAccess access) => access.Binary.Span;
+        public static implicit operator byte[](EasyFileAccess access) => access.Binary.ToArray();
     }
 
     abstract class FileObjectRandomAccessWrapperBase : FileObject

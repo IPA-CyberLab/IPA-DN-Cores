@@ -50,18 +50,21 @@ namespace IPA.Cores.Basic
 {
     static partial class DevTools
     {
-        public static void WriteToFile(string path, string bodyString, Encoding encoding = null, bool writeBom = false)
+        public static void WriteToFile(string path, string bodyString, Encoding encoding = null, bool writeBom = false, bool noDebug = false)
         {
             bodyString = bodyString.NonNull();
-            bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.Lf);
+            bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.LocalPlatform);
 
             Lfs.WriteStringToFile(path, bodyString, FileOperationFlags.AutoCreateDirectory | FileOperationFlags.WriteOnlyIfChanged,
                 encoding: encoding, writeBom: writeBom);
 
-            Con.WriteDebug($"--- WriteToFile \"{path}\" ---");
-            Con.WriteDebug(bodyString);
-            Con.WriteDebug($"--- EOF ---");
-            Con.WriteDebug();
+            if (noDebug == false)
+            {
+                Con.WriteDebug($"--- WriteToFile \"{path}\" ---");
+                Con.WriteDebug(bodyString);
+                Con.WriteDebug($"--- EOF ---");
+                Con.WriteDebug();
+            }
         }
     }
 }
