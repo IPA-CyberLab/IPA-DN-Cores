@@ -56,38 +56,32 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            WebApi api = new WebApi();
+
             while (true)
             {
-                CancellationTokenSource cancelSource = new CancellationTokenSource();
+                int num = 1;
+                string url = "http://httpbin.org/delay/1";
 
-                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80), cancelSource.Token);
+                List<Task> taskList = new List<Task>();
+
+                Dbg.Where();
+
+                for (int i = 0; i < num; i++)
                 {
-                    var pal = sock.GetStream().NetworkStream;
-
-                    var w = new StreamWriter(pal);
-                    var r = new StreamReader(pal);
-
-                    cancelSource.Cancel();
-
-                    w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
-                    w.WriteLine();
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
+                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
-                        string s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
-                        }
+                        await api.RequestWithQueryAsync(WebApiMethods.GET, url);
+                    });
 
-                        Con.WriteLine(s);
-                    }
-
-                    sock.Disconnect();
+                    taskList.Add(t);
                 }
+
+                Dbg.Where();
+
+                taskList.DoForEach(x => x.TryGetResult());
+
+                taskList.Where(x => x.IsCompletedSuccessfully).Count().Print();
             }
         }
     }

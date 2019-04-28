@@ -42,9 +42,19 @@ using System.Net.Http.Headers;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class HttpClientSettings
+        {
+            public static readonly Copenhagen<int> MaxConnectionPerServer = 512;
+            public static readonly Copenhagen<int> PooledConnectionLifeTime = 3 * 1000;
+        }
+    }
+
     class WebResponseException : Exception
     {
         public WebResponseException(string message) : base(message) { }
@@ -121,6 +131,8 @@ namespace IPA.Cores.Basic
 
     partial class WebApi : IDisposable
     {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
         public const int DefaultTimeoutMsecs = 60 * 1000;
         public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
 
@@ -135,16 +147,20 @@ namespace IPA.Cores.Basic
 
         public SortedList<string, string> RequestHeaders = new SortedList<string, string>();
 
-        HttpClientHandler ClientHandler = new HttpClientHandler();
+        SocketsHttpHandler ClientHandler;
 
-        public X509CertificateCollection ClientCerts { get => this.ClientHandler.ClientCertificates; }
+        public X509CertificateCollection ClientCerts { get => this.ClientHandler.SslOptions.ClientCertificates; }
 
         public HttpClient Client { get; private set; }
 
         public WebApi()
         {
+            this.ClientHandler = new SocketsHttpHandler();
+
             this.ClientHandler.AllowAutoRedirect = true;
             this.ClientHandler.MaxAutomaticRedirections = 10;
+            this.ClientHandler.MaxConnectionsPerServer = CoresConfig.HttpClientSettings.MaxConnectionPerServer;
+            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan((ulong)CoresConfig.HttpClientSettings.PooledConnectionLifeTime.Value);
 
             this.Client = new HttpClient(this.ClientHandler, true);
             this.MaxRecvSize = WebApi.DefaultMaxRecvSize;
@@ -203,22 +219,22 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            HttpRequestMessage req_msg = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
+            HttpRequestMessage requestMessage = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
 
-            CacheControlHeaderValue cache_control = new CacheControlHeaderValue();
-            cache_control.NoStore = true;
-            cache_control.NoCache = true;
-            req_msg.Headers.CacheControl = cache_control;
+            CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
+            cacheControl.NoStore = true;
+            cacheControl.NoCache = true;
+            requestMessage.Headers.CacheControl = cacheControl;
 
             try
             {
                 if (this.SslAcceptAnyCerts)
                 {
-                    this.ClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
                 }
                 else if (this.SslAcceptCertSHA1HashList != null && SslAcceptCertSHA1HashList.Count >= 1)
                 {
-                    this.ClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
                     {
                         foreach (var s in this.SslAcceptCertSHA1HashList)
                             if (cert.GetCertHashString().IsSamei(s)) return true;
@@ -237,10 +253,10 @@ namespace IPA.Cores.Basic
             foreach (string name in this.RequestHeaders.Keys)
             {
                 string value = this.RequestHeaders[name];
-                req_msg.Headers.Add(name, value);
+                requestMessage.Headers.Add(name, value);
             }
 
-            return req_msg;
+            return requestMessage;
         }
 
         public static void ThrowIfError(HttpResponseMessage res)
@@ -248,7 +264,7 @@ namespace IPA.Cores.Basic
             res.EnsureSuccessStatusCode();
         }
 
-        public async Task<WebRet> RequestWithQuery(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        public async Task<WebRet> RequestWithQueryAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
         {
             if (postContentsType.IsEmpty()) postContentsType = "application/x-www-form-urlencoded";
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
@@ -267,8 +283,10 @@ namespace IPA.Cores.Basic
                 return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
             }
         }
+        public WebRet RequestWithQuery(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+            => RequestWithQueryAsync(method, url, postContentsType, queryList).GetResult();
 
-        public async Task<WebRet> RequestWithPostData(string url, byte[] postData, string postContentsType = "application/json")
+        public async Task<WebRet> RequestWithPostDataAsync(string url, byte[] postData, string postContentsType = "application/json")
         {
             if (postContentsType.IsEmpty()) postContentsType = "application/json";
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
@@ -284,8 +302,10 @@ namespace IPA.Cores.Basic
                 return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
             }
         }
+        public WebRet RequestWithPostData(string url, byte[] postData, string postContentsType = "application/json")
+            => RequestWithPostDataAsync(url, postData, postContentsType).GetResult();
 
-        public virtual async Task<WebRet> RequestWithJson(WebApiMethods method, string url, string jsonString)
+        public virtual async Task<WebRet> RequestWithJsonAsync(WebApiMethods method, string url, string jsonString)
         {
             if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
@@ -304,14 +324,16 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public virtual WebRet RequestWithJson(WebApiMethods method, string url, string jsonString)
+            => RequestWithJsonAsync(method, url, jsonString).GetResult();
+
+        public void Dispose() => Dispose(true);
         Once DisposeFlag;
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
-            if (DisposeFlag.IsFirstCall())
-            {
-                this.Client.Dispose();
-                this.Client = null;
-            }
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.Client.DisposeSafe();
+            this.Client = null;
         }
     }
 }

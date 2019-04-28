@@ -109,7 +109,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl)
         {
-            WebRet ret = await this.RequestWithQuery(WebApiMethods.POST, "https://slack.com/api/oauth.access",
+            WebRet ret = await this.RequestWithQueryAsync(WebApiMethods.POST, "https://slack.com/api/oauth.access",
                 null,
                 ("client_id", this.ClientId),
                 ("client_secret", clientSecret),
@@ -153,7 +153,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<ChannelsList> GetChannelsListAsync()
         {
-            return (await RequestWithQuery(WebApiMethods.POST, "https://slack.com/api/channels.list")).DeserializeAndCheckError<ChannelsList>();
+            return (await RequestWithQueryAsync(WebApiMethods.POST, "https://slack.com/api/channels.list")).DeserializeAndCheckError<ChannelsList>();
         }
 
         public async Task PostMessageAsync(string channelId, string text, bool asUser)
