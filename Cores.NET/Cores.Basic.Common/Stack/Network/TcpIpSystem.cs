@@ -173,6 +173,18 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class TcpListenParam
+    {
+        public FastTcpListenerAcceptedProcCallback AcceptCallback { get; }
+        public IReadOnlyList<int> PortsList { get; }
+
+        public TcpListenParam(FastTcpListenerAcceptedProcCallback acceptCallback, params int[] ports)
+        {
+            this.PortsList = new List<int>(ports);
+            this.AcceptCallback = acceptCallback;
+        }
+    }
+
     [Flags]
     enum DnsQueryOptions
     {
@@ -227,38 +239,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetworkSock : FastSock
-    {
-        FastAppStub AppStub = null;
-
-        public NetworkSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
-
-        public FastPipeEndStream GetStream(bool autoFlush = true)
-        {
-            if (AppStub == null)
-                AppStub = this.GetFastAppProtocolStub();
-
-            return AppStub.GetStream(autoFlush);
-        }
-
-        public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
-
-        public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
-    }
-
-    class StreamSock : NetworkSock
-    {
-        public StreamSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
-    }
-
-    partial class TcpSock : StreamSock
-    {
-        public TcpSock(AsyncCleanuperLady lady, FastTcpProtocolStubBase protocolStack) : base(lady, protocolStack)
-        {
-        }
-    }
-
     class TcpIpSystemParam : NetworkSystemParam { }
+
+    delegate Task TcpIpAcceptCallbackAsync(Listener listener, TcpSock newSock);
 
     abstract partial class TcpIpSystemBase : NetworkSystemBase
     {
@@ -266,6 +249,7 @@ namespace IPA.Cores.Basic
 
         protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
+        protected abstract FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param);
 
         public TcpIpSystemBase(AsyncCleanuperLady lady, TcpIpSystemParam param) : base(lady, param)
         {
@@ -316,6 +300,23 @@ namespace IPA.Cores.Basic
         public TcpSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel).GetResult();
 
+        public FastTcpListenerBase CreateListener(AsyncCleanuperLady lady, TcpListenParam param)
+        {
+            using (EnterCriticalCounter(CriticalCounter))
+            {
+                CheckNotDisposed();
+
+                FastTcpListenerBase ret = CreateListenerImpl(lady, param);
+
+                foreach (int port in param.PortsList)
+                {
+                    ret.Add(port);
+                }
+
+                return ret;
+            }
+        }
+
         public async Task<DnsResponse> QueryDnsAsync(DnsQueryParam param, CancellationToken cancel = default)
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
@@ -328,7 +329,6 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-
         public DnsResponse QueryDns(DnsQueryParam param, CancellationToken cancel = default)
             => QueryDnsAsync(param, cancel).GetResult();
     }

@@ -69,6 +69,13 @@ namespace IPA.Cores.Basic
             return tcp;
         }
 
+        protected override FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param)
+        {
+            FastPalTcpListener ret = new FastPalTcpListener(lady, param.AcceptCallback);
+
+            return ret;
+        }
+
         protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel)
         {
             switch (param)

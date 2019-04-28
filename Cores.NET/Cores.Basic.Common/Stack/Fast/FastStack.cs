@@ -1897,11 +1897,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<FastSock> AcceptAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
+        public async Task<TcpSock> AcceptAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
         {
             if (IsListening == false) throw new ApplicationException("Not listening.");
 
-            return new FastSock(lady, await AcceptMainAsync(lady, cancelForNewSocket));
+            return new TcpSock(lady, await AcceptMainAsync(lady, cancelForNewSocket));
         }
     }
 
@@ -2027,8 +2027,10 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastSock : AsyncCleanupable
+    class NetworkSock : AsyncCleanupable
     {
+        FastAppStub AppStub = null;
+
         public FastProtocolBase Stack { get; }
         public FastPipe Pipe { get; }
         public FastPipeEnd LowerEnd { get; }
@@ -2036,7 +2038,7 @@ namespace IPA.Cores.Basic
         public LayerInfo Info { get => this.LowerEnd.LayerInfo; }
         public CancelWatcher CancelWatcher => Stack.CancelWatcher;
 
-        public FastSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
+        public NetworkSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
             : base(lady)
         {
             try
@@ -2076,6 +2078,30 @@ namespace IPA.Cores.Basic
 
         public void Disconnect(Exception ex = null)
             => this.Dispose();
+
+        public FastPipeEndStream GetStream(bool autoFlush = true)
+        {
+            if (AppStub == null)
+                AppStub = this.GetFastAppProtocolStub();
+
+            return AppStub.GetStream(autoFlush);
+        }
+
+        public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
+
+        public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
+    }
+
+    class StreamSock : NetworkSock
+    {
+        public StreamSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+    }
+
+    partial class TcpSock : StreamSock
+    {
+        public TcpSock(AsyncCleanuperLady lady, FastTcpProtocolStubBase protocolStack) : base(lady, protocolStack)
+        {
+        }
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }
@@ -2272,6 +2298,8 @@ namespace IPA.Cores.Basic
         Stopped,
     }
 
+    delegate Task FastTcpListenerAcceptedProcCallback(FastTcpListenerBase.Listener listener, TcpSock newSock);
+
     abstract class FastTcpListenerBase : IAsyncCleanupable
     {
         public class Listener
@@ -2361,7 +2389,7 @@ namespace IPA.Cores.Basic
 
                                 AsyncCleanuperLady ladyForNewTcpStub = new AsyncCleanuperLady();
 
-                                FastSock sock = await listenTcp.AcceptAsync(ladyForNewTcpStub);
+                                TcpSock sock = await listenTcp.AcceptAsync(ladyForNewTcpStub);
 
                                 TcpListener.InternalSocketAccepted(this, sock, ladyForNewTcpStub);
                             }
@@ -2398,13 +2426,11 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<string, Listener> List = new Dictionary<string, Listener>();
 
-        readonly Dictionary<Task, FastSock> RunningAcceptedTasks = new Dictionary<Task, FastSock>();
+        readonly Dictionary<Task, TcpSock> RunningAcceptedTasks = new Dictionary<Task, TcpSock>();
 
         readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public delegate Task AcceptedProcCallback(Listener listener, FastSock newSock);
-
-        AcceptedProcCallback AcceptedProc { get; }
+        FastTcpListenerAcceptedProcCallback AcceptedProc { get; }
 
         public int CurrentConnections
         {
@@ -2415,7 +2441,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastTcpListenerBase(AsyncCleanuperLady lady, AcceptedProcCallback acceptedProc)
+        public FastTcpListenerBase(AsyncCleanuperLady lady, FastTcpListenerAcceptedProcCallback acceptedProc)
         {
             AcceptedProc = acceptedProc;
 
@@ -2476,7 +2502,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        async Task InternalSocketAcceptedAsync(Listener listener, FastSock sock, AsyncCleanuperLady lady)
+        async Task InternalSocketAcceptedAsync(Listener listener, TcpSock sock, AsyncCleanuperLady lady)
         {
             try
             {
@@ -2488,7 +2514,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void InternalSocketAccepted(Listener listener, FastSock sock, AsyncCleanuperLady lady)
+        void InternalSocketAccepted(Listener listener, TcpSock sock, AsyncCleanuperLady lady)
         {
             try
             {
@@ -2546,7 +2572,7 @@ namespace IPA.Cores.Basic
                 await s._InternalStopAsync().TryWaitAsync();
 
             List<Task> waitTasks = new List<Task>();
-            List<FastSock> disconnectStubs = new List<FastSock>();
+            List<TcpSock> disconnectStubs = new List<TcpSock>();
 
             lock (LockObj)
             {
@@ -2578,7 +2604,7 @@ namespace IPA.Cores.Basic
 
     class FastPalTcpListener : FastTcpListenerBase
     {
-        public FastPalTcpListener(AsyncCleanuperLady lady, AcceptedProcCallback acceptedProc) : base(lady, acceptedProc) { }
+        public FastPalTcpListener(AsyncCleanuperLady lady, FastTcpListenerAcceptedProcCallback acceptedProc) : base(lady, acceptedProc) { }
 
         protected internal override FastTcpProtocolStubBase _InternalGetNewTcpStubForListen(AsyncCleanuperLady lady, CancellationToken cancel)
             => new FastPalTcpProtocolStub(lady, null, null, cancel);

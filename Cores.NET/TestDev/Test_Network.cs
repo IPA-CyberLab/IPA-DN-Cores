@@ -63,16 +63,41 @@ namespace IPA.TestDev
 
             //Net_Test1_PlainTcp_Client();
 
-            Net_Test2_Ssl_Client();
+            //Net_Test2_Ssl_Client();
+
+            while (true)
+            Net_Test3_PlainTcp_Server();
 
             return 0;
         }
 
+        static void Net_Test3_PlainTcp_Server()
+        {
+            using (AsyncCleanuperLady lady = new AsyncCleanuperLady())
+            {
+                var listener = LocalNet.CreateListener(lady, new TcpListenParam(
+                    async (listener2, sock) =>
+                    {
+                        var stream = sock.GetStream().NetworkStream;
+                        StreamWriter w = new StreamWriter(stream);
+                        while (true)
+                        {
+                            w.WriteLine(DateTimeOffset.Now.ToDtStr(true));
+                            await w.FlushAsync();
+                            await Task.Delay(100);
+                        }
+                    },
+                    9821));
+
+                Con.ReadLine(">");
+            }
+        }
+
         static void Net_Test2_Ssl_Client()
         {
-            string hostname = "www.google.com";
+            string hostname = "www.google.co.jp";
 
-            using (TcpSock sock = LocalNet.Connect(new TcpConnectParam("www.google.com", 443)))
+            using (TcpSock sock = LocalNet.Connect(new TcpConnectParam(hostname, 443)))
             {
                 using (SslSock ssl = new SslSock(sock))
                 {
@@ -90,7 +115,7 @@ namespace IPA.TestDev
                     var r = new StreamReader(st);
 
                     w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine("HOST: www.google.com");
+                    w.WriteLine($"HOST: {hostname}");
                     w.WriteLine();
                     w.WriteLine();
                     w.Flush();

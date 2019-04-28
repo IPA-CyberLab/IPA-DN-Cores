@@ -408,7 +408,7 @@ namespace IPA.Cores.Basic
 
                 await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                FastSock sock = new FastSock(lady, tcp);
+                NetworkSock sock = new NetworkSock(lady, tcp);
 
                 FastAppStub app = sock.GetFastAppProtocolStub();
 
