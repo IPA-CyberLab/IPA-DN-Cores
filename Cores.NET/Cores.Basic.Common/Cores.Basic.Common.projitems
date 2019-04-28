@@ -66,10 +66,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\ZLib.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastBuffer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastGlobalConfig.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastPrimitives.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\FastStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastBuffer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastGlobalConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\LargeFileSystem.cs" />
@@ -78,9 +78,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalUnixFileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalWin32FileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\ProtoApp\SpeedTest.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)Stack\Fast\Network\" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resource\Test\HelloWorld.txt" />
