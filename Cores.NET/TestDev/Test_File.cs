@@ -59,8 +59,11 @@ namespace IPA.TestDev
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
             string src1 = @"C:\git\IPA-DNP-LabUtil";
-            string dst1 = @"D:\tmp\190428\test2\LabUtil.NET\LabUtil.Basic\Base";
+            string dst1 = @"D:\tmp\190428\test2\";
+            //string dst1 = @"D:\TMP\190428\test2\LabUtil.NET\LabUtil.Basic\Base";
             string dst2 = "/test1/";
+            string dst3 = "/test2/";
+            string dst4 = @"D:\tmp\190428\test3\";
             for (int i = 0; i < 1; i++)
             {
                 var lady = new AsyncCleanuperLady();
@@ -70,8 +73,9 @@ namespace IPA.TestDev
 
                     Lfs.CopyDir(dst1, dst2, ramfs);
 
+                    ramfs.CopyDir(dst2, dst3);
 
-                    Util.DoNothing();
+                    ramfs.CopyDir(dst3, dst4, Lfs);
                 }
                 lady.CleanupAsync().GetResult();
             }

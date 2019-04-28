@@ -53,6 +53,12 @@ namespace IPA.Cores
     {
         public static partial class Basic
         {
+            static volatile int VolatileZero = 0;
+
+            public static int NoOp() => VolatileZero;
+
+            public static int DoNothing() => VolatileZero;
+
             public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
 
             public static string UnixOrWindows(string unix, string windows) => Env.IsUnix ? unix : windows;
