@@ -353,13 +353,13 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
         }
 
-        public async Task NormalizePathAsync(FileSystemBase fileSystem, CancellationToken cancel = default)
+        public async Task NormalizePathAsync(FileSystem fileSystem, CancellationToken cancel = default)
         {
             string ret = await fileSystem.NormalizePathAsync(this.Path, cancel);
             this.Path = ret;
         }
 
-        public void NormalizePath(FileSystemBase fileSystem, CancellationToken cancel = default)
+        public void NormalizePath(FileSystem fileSystem, CancellationToken cancel = default)
             => NormalizePathAsync(fileSystem, cancel).GetResult();
 
         public FileParameters Clone()

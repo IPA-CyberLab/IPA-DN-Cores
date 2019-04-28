@@ -103,12 +103,12 @@ namespace IPA.Cores.Basic
         }
 
         readonly LargeFileSystem LargeFileSystem;
-        readonly FileSystemBase UnderlayFileSystem;
+        readonly FileSystem UnderlayFileSystem;
         readonly LargeFileSystem.ParsedPath[] InitialRelatedFiles;
 
         long CurrentFileSize;
 
-        protected LargeFileObject(FileSystemBase fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles) : base(fileSystem, fileParams)
+        protected LargeFileObject(FileSystem fileSystem, FileParameters fileParams, LargeFileSystem.ParsedPath[] relatedFiles) : base(fileSystem, fileParams)
         {
             this.LargeFileSystem = (LargeFileSystem)fileSystem;
             this.UnderlayFileSystem = this.LargeFileSystem.UnderlayFileSystem;
@@ -491,9 +491,9 @@ namespace IPA.Cores.Basic
         public string SplitStr { get; }
         public long MaxFileNumber { get; }
 
-        public FileSystemBase UnderlayFileSystem { get; }
+        public FileSystem UnderlayFileSystem { get; }
 
-        public LargeFileSystemParams(FileSystemBase underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null)
+        public LargeFileSystemParams(FileSystem underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null)
             : base(underlayFileSystem.PathParser)
         {
             checked
@@ -519,7 +519,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileSystem : FileSystemBase
+    class LargeFileSystem : FileSystem
     {
         public class ParsedPath
         {
@@ -661,7 +661,7 @@ namespace IPA.Cores.Basic
         CancellationTokenSource CancelSource = new CancellationTokenSource();
         CancellationToken CancelToken => CancelSource.Token;
 
-        public FileSystemBase UnderlayFileSystem { get; }
+        public FileSystem UnderlayFileSystem { get; }
         public new LargeFileSystemParams Params => (LargeFileSystemParams)base.Params;
 
         AsyncLock AsyncLockObj = new AsyncLock();

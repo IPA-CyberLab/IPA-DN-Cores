@@ -671,7 +671,7 @@ namespace IPA.Cores.Basic
 
         Action callMeCache = null;
 
-        public override void RegisterSystemStateChangeNotificationCallbackOnlyOnce(Action callMe)
+        public override void RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(Action callMe)
         {
             callMeCache = callMe;
 

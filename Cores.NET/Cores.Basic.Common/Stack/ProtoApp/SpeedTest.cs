@@ -45,72 +45,37 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class SpeedTest
+    [Flags]
+    enum SpeedTestDirection
     {
-        [Flags]
-        enum Direction
-        {
-            Send,
-            Recv,
-        }
+        Send,
+        Recv,
+    }
 
-        [Flags]
-        public enum ModeFlag
-        {
-            Upload,
-            Download,
-            Both,
-        }
+    [Flags]
+    public enum SpeedTestModeFlag
+    {
+        Upload,
+        Download,
+        Both,
+    }
 
-        public class Result
-        {
-            public long NumBytesUpload;      // Uploaded size
-            public long NumBytesDownload;    // Downloaded size
-            public long NumBytesTotal;       // Total size
-            public long Span;                // Period (in milliseconds)
-            public long BpsUpload;           // Upload throughput
-            public long BpsDownload;         // Download throughput
-            public long BpsTotal;            // Total throughput
-        }
-
-        bool IsServerMode;
+    class SpeedTestServer
+    {
         Memory<byte> SendData;
 
-        IPAddress ServerIP;
-        int ServerPort;
-        int NumConnection;
-        ModeFlag Mode;
-        int TimeSpan;
-        ulong SessionId;
+        int[] ServerPorts;
         CancellationToken Cancel;
-        ExceptionQueue ExceptionQueue;
-        AsyncManualResetEvent ClientStartEvent;
 
-        int ConnectTimeout = 10 * 1000;
         int RecvTimeout = 5000;
 
-        public SpeedTest(IPAddress ip, int port, int numConnection, int timespan, ModeFlag mode, CancellationToken cancel)
-        {
-            this.IsServerMode = false;
-            this.ServerIP = ip;
-            this.ServerPort = port;
-            this.Cancel = cancel;
-            this.NumConnection = Math.Max(numConnection, 1);
-            this.TimeSpan = Math.Max(timespan, 1000);
-            this.Mode = mode;
-            if (Mode == ModeFlag.Both)
-            {
-                this.NumConnection = Math.Max(NumConnection, 2);
-            }
-            this.ClientStartEvent = new AsyncManualResetEvent();
-            InitSendData();
-        }
+        TcpIpSystem System;
 
-        public SpeedTest(int port, CancellationToken cancel)
+        public SpeedTestServer(TcpIpSystem system, CancellationToken cancel, params int[] ports)
         {
-            IsServerMode = true;
+            this.System = system;
             this.Cancel = cancel;
-            this.ServerPort = port;
+            this.ServerPorts = ports;
             InitSendData();
         }
 
@@ -135,9 +100,6 @@ namespace IPA.Cores.Basic
 
         public async Task RunServerAsync()
         {
-            if (IsServerMode == false)
-                throw new ApplicationException("Client mode");
-
             if (Once.IsFirstCall() == false)
                 throw new ApplicationException("You cannot reuse the object.");
 
@@ -154,7 +116,7 @@ namespace IPA.Cores.Basic
             {
                 AsyncCleanuperLady glady = new AsyncCleanuperLady();
 
-                FastPalTcpListener listener = new FastPalTcpListener(glady, async (lx, sock) =>
+                var listener = System.CreateListener(glady, new TcpListenParam(async (lx, sock) =>
                 {
                     AsyncCleanuperLady lady = new AsyncCleanuperLady();
 
@@ -174,7 +136,7 @@ namespace IPA.Cores.Basic
 
                         MemoryBuffer<byte> buf = await st.ReceiveAsync(17);
 
-                        Direction dir = buf.ReadBool8() ? Direction.Send : Direction.Recv;
+                        SpeedTestDirection dir = buf.ReadBool8() ? SpeedTestDirection.Send : SpeedTestDirection.Recv;
                         ulong sessionId = 0;
                         long timespan = 0;
 
@@ -192,7 +154,7 @@ namespace IPA.Cores.Basic
                         {
                             using (var delay = new DelayAction(lady, (int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app.Disconnect(new TimeoutException())))
                             {
-                                if (dir == Direction.Recv)
+                                if (dir == SpeedTestDirection.Recv)
                                 {
                                     RefInt refTmp = new RefInt();
                                     long totalSize = 0;
@@ -261,13 +223,11 @@ namespace IPA.Cores.Basic
                         await lady;
                         Dbg.Where();
                     }
-                });
+                },
+                this.ServerPorts));
 
                 try
                 {
-                    listener.Add(this.ServerPort, IPVersion.IPv4);
-                    listener.Add(this.ServerPort, IPVersion.IPv6);
-
                     Con.WriteLine("Listening.");
 
                     await TaskUtil.WaitObjectsAsync(cancels: this.Cancel.SingleArray());
@@ -278,12 +238,70 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+    }
+
+    class SpeedTestClient
+    {
+        public class Result
+        {
+            public long NumBytesUpload;      // Uploaded size
+            public long NumBytesDownload;    // Downloaded size
+            public long NumBytesTotal;       // Total size
+            public long Span;                // Period (in milliseconds)
+            public long BpsUpload;           // Upload throughput
+            public long BpsDownload;         // Download throughput
+            public long BpsTotal;            // Total throughput
+        }
+
+        Memory<byte> SendData;
+
+        IPAddress ServerIP;
+        int ServerPort;
+        int NumConnection;
+        SpeedTestModeFlag Mode;
+        int TimeSpan;
+        ulong SessionId;
+        CancellationToken Cancel;
+        ExceptionQueue ExceptionQueue;
+        AsyncManualResetEvent ClientStartEvent;
+        TcpIpSystem System;
+
+        int ConnectTimeout = 10 * 1000;
+        int RecvTimeout = 5000;
+
+        public SpeedTestClient(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, CancellationToken cancel = default)
+        {
+            this.System = system;
+            this.ServerIP = ip;
+            this.ServerPort = port;
+            this.Cancel = cancel;
+            this.NumConnection = Math.Max(numConnection, 1);
+            this.TimeSpan = Math.Max(timespan, 1000);
+            this.Mode = mode;
+            if (Mode == SpeedTestModeFlag.Both)
+            {
+                this.NumConnection = Math.Max(NumConnection, 2);
+            }
+            this.ClientStartEvent = new AsyncManualResetEvent();
+            InitSendData();
+        }
+
+        void InitSendData()
+        {
+            int size = 65536;
+            byte[] data = Util.Rand(size);
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (data[i] == (byte)'!')
+                    data[i] = (byte)'*';
+            }
+            SendData = data;
+        }
+
+        Once Once;
 
         public async Task<Result> RunClientAsync()
         {
-            if (IsServerMode)
-                throw new ApplicationException("Server mode");
-
             if (Once.IsFirstCall() == false)
                 throw new ApplicationException("You cannot reuse the object.");
 
@@ -302,13 +320,13 @@ namespace IPA.Cores.Basic
                 CancelWatcher cancelWatcher = new CancelWatcher(lady, this.Cancel);
                 for (int i = 0; i < NumConnection; i++)
                 {
-                    Direction dir;
-                    if (Mode == ModeFlag.Download)
-                        dir = Direction.Recv;
-                    else if (Mode == ModeFlag.Upload)
-                        dir = Direction.Send;
+                    SpeedTestDirection dir;
+                    if (Mode == SpeedTestModeFlag.Download)
+                        dir = SpeedTestDirection.Recv;
+                    else if (Mode == SpeedTestModeFlag.Upload)
+                        dir = SpeedTestDirection.Send;
                     else
-                        dir = ((i % 2) == 0) ? Direction.Recv : Direction.Send;
+                        dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
 
                     AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
                     var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
@@ -398,7 +416,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        async Task<Result> ClientSingleConnectionAsync(Direction dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
+        async Task<Result> ClientSingleConnectionAsync(SpeedTestDirection dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
         {
             Result ret = new Result();
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
@@ -416,7 +434,7 @@ namespace IPA.Cores.Basic
 
                 FastPipeEndStream st = app.GetStream();
 
-                if (dir == Direction.Recv)
+                if (dir == SpeedTestDirection.Recv)
                     app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
 
                 try
@@ -443,13 +461,13 @@ namespace IPA.Cores.Basic
                     long tickEnd = tickStart + this.TimeSpan;
 
                     var sendData = new MemoryBuffer<byte>();
-                    sendData.WriteBool8(dir == Direction.Recv);
+                    sendData.WriteBool8(dir == SpeedTestDirection.Recv);
                     sendData.WriteUInt64(SessionId);
                     sendData.WriteSInt64(TimeSpan);
 
                     await st.SendAsync(sendData);
 
-                    if (dir == Direction.Recv)
+                    if (dir == SpeedTestDirection.Recv)
                     {
                         RefInt totalRecvSize = new RefInt();
                         while (true)

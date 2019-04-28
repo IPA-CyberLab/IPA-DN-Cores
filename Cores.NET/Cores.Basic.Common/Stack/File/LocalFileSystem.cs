@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LocalFileSystem : FileSystemBase
+    class LocalFileSystem : FileSystem
     {
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
@@ -751,7 +751,7 @@ namespace IPA.Cores.Basic
         string _PhysicalFinalPath = null;
         public override string FinalPhysicalPath => _PhysicalFinalPath.FilledOrException();
 
-        protected LocalFileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+        protected LocalFileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
         protected FileStream BaseStream;
         long CurrentPosition;

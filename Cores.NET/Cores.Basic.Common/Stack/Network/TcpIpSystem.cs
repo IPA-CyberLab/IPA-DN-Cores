@@ -134,7 +134,7 @@ namespace IPA.Cores.Basic
                 throw new ArgumentOutOfRangeException("family");
         }
 
-        public async Task ResolveDestHostnameIfNecessaryAsync(TcpIpSystemBase system, CancellationToken cancel = default)
+        public async Task ResolveDestHostnameIfNecessaryAsync(TcpIpSystem system, CancellationToken cancel = default)
         {
             if (this.NeedToSolveDestHostname == false) return;
 
@@ -239,19 +239,31 @@ namespace IPA.Cores.Basic
         }
     }
 
+    abstract class TcpIpSystemHostInfoBase
+    {
+        public virtual int InfoVersion { get; protected set; }
+        public virtual string HostName { get; protected set; }
+        public virtual string DomainName { get; protected set; }
+        public virtual string FqdnHostName => HostName + (string.IsNullOrEmpty(DomainName) ? "" : "." + DomainName);
+        public virtual bool IsIPv4Supported { get; protected set; }
+        public virtual bool IsIPv6Supported { get; protected set; }
+        public virtual IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
+    }
+
     class TcpIpSystemParam : NetworkSystemParam { }
 
     delegate Task TcpIpAcceptCallbackAsync(Listener listener, TcpSock newSock);
 
-    abstract partial class TcpIpSystemBase : NetworkSystemBase
+    abstract partial class TcpIpSystem : NetworkSystemBase
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
+        protected abstract TcpIpSystemHostInfoBase GetHostInfoImpl();
         protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
         protected abstract FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param);
 
-        public TcpIpSystemBase(AsyncCleanuperLady lady, TcpIpSystemParam param) : base(lady, param)
+        public TcpIpSystem(AsyncCleanuperLady lady, TcpIpSystemParam param) : base(lady, param)
         {
             try
             {
@@ -262,6 +274,8 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+
+        public TcpIpSystemHostInfoBase GetHostInfo() => GetHostInfoImpl();
 
         public async Task<TcpSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
@@ -302,6 +316,8 @@ namespace IPA.Cores.Basic
 
         public FastTcpListenerBase CreateListener(AsyncCleanuperLady lady, TcpListenParam param)
         {
+            var hostInfo = GetHostInfo();
+
             using (EnterCriticalCounter(CriticalCounter))
             {
                 CheckNotDisposed();
@@ -310,7 +326,8 @@ namespace IPA.Cores.Basic
 
                 foreach (int port in param.PortsList)
                 {
-                    ret.Add(port);
+                    if (hostInfo.IsIPv4Supported) ret.Add(port, IPVersion.IPv4);
+                    if (hostInfo.IsIPv6Supported) ret.Add(port, IPVersion.IPv6);
                 }
 
                 return ret;

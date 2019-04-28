@@ -46,7 +46,7 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    abstract partial class FileSystemBase
+    abstract partial class FileSystem
     {
         public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
         {
@@ -345,11 +345,11 @@ namespace IPA.Cores.Basic
 
     class DirectoryWalker
     {
-        public FileSystemBase FileSystem { get; }
+        public FileSystem FileSystem { get; }
         public bool DeeperFirstInRecursive { get; }
         public EnumDirectoryFlags Flags { get; }
 
-        public DirectoryWalker(FileSystemBase fileSystem, bool deeperFirstInRecursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
+        public DirectoryWalker(FileSystem fileSystem, bool deeperFirstInRecursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
         {
             this.FileSystem = fileSystem;
             this.DeeperFirstInRecursive = deeperFirstInRecursive;
@@ -474,14 +474,14 @@ namespace IPA.Cores.Basic
         public Memory<byte> Binary => (Memory<byte>)this[EasyFileAccessType.Binary];
 
         // Implementation
-        public FileSystemBase FileSystem { get; }
+        public FileSystem FileSystem { get; }
         public string FilePath { get; }
 
         readonly Singleton<EasyFileAccessType, object> CachedData;
 
         public object this[EasyFileAccessType type] => this.GetData(type);
 
-        public EasyFileAccess(FileSystemBase fileSystem, string filePath)
+        public EasyFileAccess(FileSystem fileSystem, string filePath)
         {
             this.FileSystem = fileSystem;
             this.FilePath = filePath;
@@ -517,7 +517,7 @@ namespace IPA.Cores.Basic
     {
         protected readonly ConcurrentRandomAccess<byte> BaseAccess;
 
-        public FileObjectRandomAccessWrapperBase(ConcurrentRandomAccess<byte> sharedBaseAccess, FileSystemBase fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public FileObjectRandomAccessWrapperBase(ConcurrentRandomAccess<byte> sharedBaseAccess, FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {
             this.BaseAccess = sharedBaseAccess;
 

@@ -61,14 +61,41 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
+            var hostInfo = LocalNet.GetHostInfo();
+
             //Net_Test1_PlainTcp_Client();
 
             //Net_Test2_Ssl_Client();
 
-            while (true)
-            Net_Test3_PlainTcp_Server();
+            //Net_Test3_PlainTcp_Server();
+
+            Net_Test4_SpeedTest_Client();
+
+            //Net_Test5_SpeedTest_Server();
 
             return 0;
+        }
+
+        static void Net_Test5_SpeedTest_Server()
+        {
+            AsyncTester tester = new AsyncTester(true);
+
+            var server = new SpeedTestServer(LocalNet, tester.CancelToken, 9821);
+
+            Task t = server.RunServerAsync();
+
+            tester.EnterKeyPrompt();
+
+            t.GetResult();
+        }
+
+        static void Net_Test4_SpeedTest_Client()
+        {
+            string hostname = "speed.coe.ad.jp";
+
+            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 15000, SpeedTestModeFlag.Upload);
+
+            client.RunClientAsync().GetResult().PrintAsJson();
         }
 
         static void Net_Test3_PlainTcp_Server()

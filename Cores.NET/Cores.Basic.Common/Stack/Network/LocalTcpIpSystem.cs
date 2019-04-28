@@ -49,8 +49,24 @@ namespace IPA.Cores.Basic
     {
     }
 
-    class LocalTcpIpSystem : TcpIpSystemBase
+    class LocalTcpIpSystem : TcpIpSystem
     {
+        class HostInfo : TcpIpSystemHostInfoBase
+        {
+            public HostInfo()
+            {
+                var current = BackgroundState<PalHostNetInfo>.Current;
+                var data = current.Data;
+
+                this.InfoVersion = current.Version;
+                this.HostName = data.HostName;
+                this.DomainName = data.DomainName;
+                this.IsIPv4Supported = data.IsIPv4Supported;
+                this.IsIPv6Supported = data.IsIPv6Supported;
+                this.IPAddressList = data.IPAddressList;
+            }
+        }
+
         static Singleton<LocalTcpIpSystem> _Singleton = new Singleton<LocalTcpIpSystem>(() => new LocalTcpIpSystem(LeakChecker.SuperGrandLady, new LocalTcpIpSystemParam()),
             leakKind: LeakCounterKind.DoNotTrack);
 
@@ -61,6 +77,8 @@ namespace IPA.Cores.Basic
         private LocalTcpIpSystem(AsyncCleanuperLady lady, LocalTcpIpSystemParam param) : base(lady, param)
         {
         }
+
+        protected override TcpIpSystemHostInfoBase GetHostInfoImpl() => new HostInfo();
 
         protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel)
         {

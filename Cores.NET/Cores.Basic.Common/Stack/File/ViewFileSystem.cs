@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
     class ViewFileObject : FileObject
     {
         readonly ViewFileSystem ViewFileSystem;
-        FileSystemBase UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
+        FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
         protected FileObject UnderlayFile { get; private set; }
 
         public ViewFileObject(ViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
@@ -88,17 +88,17 @@ namespace IPA.Cores.Basic
 
     class ViewFileSystemParams : FileSystemParams
     {
-        public FileSystemBase UnderlayFileSystem { get; }
+        public FileSystem UnderlayFileSystem { get; }
 
-        public ViewFileSystemParams(FileSystemBase underlayFileSystem) : base(underlayFileSystem.PathParser)
+        public ViewFileSystemParams(FileSystem underlayFileSystem) : base(underlayFileSystem.PathParser)
         {
             this.UnderlayFileSystem = underlayFileSystem;
         }
     }
 
-    class ViewFileSystem : FileSystemBase
+    class ViewFileSystem : FileSystem
     {
-        public FileSystemBase UnderlayFileSystem => this.Params.UnderlayFileSystem;
+        public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
         protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
 
         public ViewFileSystem(AsyncCleanuperLady lady, ViewFileSystemParams param) : base(lady, param)

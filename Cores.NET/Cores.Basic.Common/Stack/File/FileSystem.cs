@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
 
     abstract class FileObject : FileBase
     {
-        public FileSystemBase FileSystem { get; }
+        public FileSystem FileSystem { get; }
         public sealed override bool IsOpened => !this.ClosedFlag.IsSet;
         public sealed override Exception LastError { get; protected set; } = null;
 
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
 
         AsyncLock AsyncLockObj = new AsyncLock();
 
-        protected FileObject(FileSystemBase fileSystem, FileParameters fileParams) : base(fileParams)
+        protected FileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileParams)
         {
             this.FileSystem = fileSystem;
         }
@@ -610,11 +610,11 @@ namespace IPA.Cores.Basic
 
     class FileSystemObjectPool : ObjectPoolBase<FileBase, FileOperationFlags>
     {
-        public FileSystemBase FileSystem { get; }
+        public FileSystem FileSystem { get; }
         public FileOperationFlags DefaultFileOperationFlags { get; }
         public bool IsWriteMode { get; }
 
-        public FileSystemObjectPool(FileSystemBase FileSystem, bool writeMode, int delayTimeout, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
+        public FileSystemObjectPool(FileSystem FileSystem, bool writeMode, int delayTimeout, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
             : base(delayTimeout, new StrComparer(FileSystem.PathParser.PathStringComparison))
         {
             this.FileSystem = FileSystem;
@@ -1074,7 +1074,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract partial class FileSystemBase : AsyncCleanupable
+    abstract partial class FileSystem : AsyncCleanupable
     {
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathParser PathParser { get; }
@@ -1090,7 +1090,7 @@ namespace IPA.Cores.Basic
 
         public LargeFileSystem LargeFileSystem { get; }
 
-        public FileSystemBase(AsyncCleanuperLady lady, FileSystemParams param) : base(lady)
+        public FileSystem(AsyncCleanuperLady lady, FileSystemParams param) : base(lady)
         {
             try
             {

@@ -433,7 +433,7 @@ namespace IPA.Cores.Basic
             readonly VfsRandomAccessFile File;
             readonly string FullPath;
 
-            public FileImpl(VfsRandomAccessFile file, IRandomAccess<byte> randomAccessBase, string fullPath, FileSystemBase fileSystem, FileParameters fileParams)
+            public FileImpl(VfsRandomAccessFile file, IRandomAccess<byte> randomAccessBase, string fullPath, FileSystem fileSystem, FileParameters fileParams)
                 : base(new ConcurrentRandomAccess<byte>(randomAccessBase), fileSystem, fileParams)
             {
                 this.File = file;
@@ -611,7 +611,7 @@ namespace IPA.Cores.Basic
         public VirtualFileSystemParams() : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux)) { }
     }
 
-    class VirtualFileSystem : FileSystemBase
+    class VirtualFileSystem : FileSystem
     {
         protected new VirtualFileSystemParams Params => (VirtualFileSystemParams)base.Params;
 

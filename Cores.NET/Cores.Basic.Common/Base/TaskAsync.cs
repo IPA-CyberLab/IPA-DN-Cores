@@ -3267,7 +3267,7 @@ namespace IPA.Cores.Basic
 
         public abstract bool Equals(BackgroundStateDataBase other);
 
-        public abstract void RegisterSystemStateChangeNotificationCallbackOnlyOnce(Action callMe);
+        public abstract void RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(Action callMe);
     }
 
     static class BackgroundState<TData>
@@ -3315,7 +3315,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        ret.RegisterSystemStateChangeNotificationCallbackOnlyOnce(() =>
+                        ret.RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(() =>
                         {
                             callbackIsCalled = true;
                             GetState();
@@ -3568,7 +3568,7 @@ namespace IPA.Cores.Basic
         public AsyncCleanuperLady SingleLady { get; } = null;
 
         CancellationTokenSource CancelSource = new CancellationTokenSource();
-        public CancellationToken Canceled => CancelSource.Token;
+        public CancellationToken CancelToken => CancelSource.Token;
 
         public AsyncTester(bool createSingleLady) : this()
         {
