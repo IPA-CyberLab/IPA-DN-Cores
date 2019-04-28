@@ -45,8 +45,6 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 
-#pragma warning disable CS0162
-
 namespace IPA.Cores.Basic
 {
     class VfsResourceFile : VfsRandomAccessFile

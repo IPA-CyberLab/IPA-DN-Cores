@@ -43,8 +43,6 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-#pragma warning disable CS0162
-
 namespace IPA.Cores.Basic
 {
     class FileException : Exception

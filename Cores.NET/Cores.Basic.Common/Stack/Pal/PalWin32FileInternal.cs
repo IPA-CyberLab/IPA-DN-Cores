@@ -45,8 +45,6 @@ using static IPA.Cores.Globals.Basic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-#pragma warning disable CS0162
-
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
 // The MIT License (MIT)

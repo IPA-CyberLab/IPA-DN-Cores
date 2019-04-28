@@ -43,6 +43,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 
+#pragma warning disable CS0162
+
 namespace IPA.TestDev
 {
     partial class TestDevCommands
@@ -211,8 +213,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
-                    100));
+                CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.Set(100);
 
                 var fileSystem = LLfsUtf8;
 
@@ -262,8 +263,7 @@ namespace IPA.TestDev
 
             if (false)
             {
-                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
-                    100));
+                CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.Set(100);
 
                 // 単純文字列
                 string filePath = LLfs.PathParser.Combine(dirPath, @"test.txt");
@@ -279,8 +279,8 @@ namespace IPA.TestDev
 
             if (false)
             {
-                CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(
-                    10_000_000));
+                CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.Set(10_000_000);
+
                 // スパースファイル
                 string filePath = LLfs.PathParser.Combine(dirPath, @"test2.txt");
                 var handle = LLfs.GetRandomAccessHandle(filePath, true);
@@ -315,7 +315,7 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            CoresConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(100_000));
+            CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.Set(100_000);
 
             string normalFn = @"D:\TMP\sparse_file_test\normal_file.txt";
             string standardApi = @"D:\TMP\sparse_file_test\standard_api.txt";
@@ -325,7 +325,7 @@ namespace IPA.TestDev
 
             string largeFn = @"D:\TMP\sparse_file_test\large\large.txt";
 
-            string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
+//            string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
 
             try
             {

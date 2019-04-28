@@ -44,8 +44,6 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Text;
 
-#pragma warning disable CS0162
-
 namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
