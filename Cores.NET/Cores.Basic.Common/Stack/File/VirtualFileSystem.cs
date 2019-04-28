@@ -539,6 +539,27 @@ namespace IPA.Cores.Basic
 
         protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
             => this.Buffer;
+
+
+        public override async Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+
+            lock (this.LockObj)
+            {
+                if (metadata.Attributes.HasValue)
+                    this.Attributes = metadata.Attributes.Value | FileAttributes.Directory & ~FileAttributes.Normal;
+
+                if (metadata.CreationTime.HasValue)
+                    this.CreationTime = metadata.CreationTime.Value;
+
+                if (metadata.LastWriteTime.HasValue)
+                    this.LastWriteTime = metadata.LastWriteTime.Value;
+
+                if (metadata.LastAccessTime.HasValue)
+                    this.LastAccessTime = metadata.LastAccessTime.Value;
+            }
+        }
     }
 
     class VfsPathParserContext : IDisposable

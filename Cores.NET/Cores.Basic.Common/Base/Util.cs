@@ -2198,6 +2198,7 @@ namespace IPA.Cores.Basic
         public void Set() => IsFirstCall();
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
         public bool IsSet => (this.flag != 0);
+        public static implicit operator bool(Once once) => once.flag != 0;
     }
 
     // 再試行ヘルパー
@@ -2243,6 +2244,61 @@ namespace IPA.Cores.Basic
             }
 
             throw first_exception;
+        }
+    }
+
+    class Singleton<TObject> : IDisposable where TObject: class
+    {
+        readonly CriticalSection LockObj = new CriticalSection();
+        readonly Func<TObject> CreateProc;
+        TObject Object = null;
+        readonly LeakCounterKind LeakKind = LeakCounterKind.FullStackTracked;
+        IHolder LeakHolder = null;
+
+        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.FullStackTracked)
+        {
+            this.CreateProc = createProc;
+            this.LeakKind = leakKind;
+        }
+
+        public static implicit operator TObject(Singleton<TObject> singleton) => singleton.CreateOrGet();
+
+        public TObject CreateOrGet()
+        {
+            if (DisposeFlag) throw new ObjectDisposedException("Singleton");
+
+            lock (LockObj)
+            {
+                if (DisposeFlag) throw new ObjectDisposedException("Singleton");
+
+                if (this.Object == null)
+                {
+                    this.Object = this.CreateProc();
+                    if (this.Object != null)
+                    {
+                        LeakHolder = LeakChecker.Enter(this.LeakKind);
+                    }
+                }
+                return this.Object;
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            TObject obj = null;
+            lock (LockObj)
+            {
+                obj = this.Object;
+            }
+
+            if (obj is IDisposable disposeTarget)
+                disposeTarget.DisposeSafe();
+
+            LeakHolder.DisposeSafe();
         }
     }
 

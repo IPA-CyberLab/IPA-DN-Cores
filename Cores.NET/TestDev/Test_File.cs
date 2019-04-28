@@ -50,6 +50,36 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommandMethod(
+            "RamFile command",
+            "RamFile [arg]",
+            "RamFile test")]
+        static int RamFile(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string src1 = @"C:\git\IPA-DNP-LabUtil";
+            string dst1 = @"D:\tmp\190428\test2\LabUtil.NET\LabUtil.Basic\Base";
+            string dst2 = "/test1/";
+            for (int i = 0; i < 1; i++)
+            {
+                var lady = new AsyncCleanuperLady();
+                using (var ramfs = new VirtualFileSystem(lady, new VirtualFileSystemParams()))
+                {
+                    //Lfs.CopyDir(src1, dst1);
+
+                    Lfs.CopyDir(dst1, dst2, ramfs);
+
+
+                    Util.DoNothing();
+                }
+                lady.CleanupAsync().GetResult();
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommandMethod(
             "CopyFile command",
             "CopyFile [arg]",
             "CopyFile test")]
@@ -100,7 +130,7 @@ namespace IPA.TestDev
                     catch { }
 
                     var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
-                        copyFileFlags : FileOperationFlags.SparseFile,                  //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        copyFileFlags: FileOperationFlags.SparseFile,                  //progressCallback: (x, y) => { return Task.FromResult(true); },
                         dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
@@ -325,7 +355,7 @@ namespace IPA.TestDev
 
             string largeFn = @"D:\TMP\sparse_file_test\large\large.txt";
 
-//            string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
+            //            string ramFn = @"D:\TMP\sparse_file_test\ram.txt";
 
             try
             {

@@ -560,15 +560,15 @@ namespace IPA.Cores.Basic
                         o2.Add(tmp);
                 }
 
-                DoGcCollect();
+                GcCollect();
                 o1.Clear();
-                DoGcCollect();
+                GcCollect();
                 o2.Clear();
-                DoGcCollect();
+                GcCollect();
             }
         }
 
-        static void DoGcCollect() => GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+        public static void GcCollect() => GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
 
         public static void Suspend() => Kernel.SuspendForDebug();
 

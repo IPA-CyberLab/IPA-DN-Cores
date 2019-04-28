@@ -42,6 +42,16 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class TimeAdjustSettings
+        {
+            public static readonly Copenhagen<bool> DisableTimeAdjustThread = true;
+            public static readonly Copenhagen<int> DiffThresholdMsecs = 1000;
+            public static readonly Copenhagen<int> MaxNumHistory = 1000;
+        }
+    }
+
     class TimeHelper
     {
         internal Stopwatch Sw;
@@ -71,7 +81,6 @@ namespace IPA.Cores.Basic
         }
 
         public const int DefaultInterval = 1000;
-        public const int MaxAdjustTime = 1024;
 
         long Time64;
         long Tick64WithTime64;
@@ -111,6 +120,7 @@ namespace IPA.Cores.Basic
             bool first = false;
             bool createFirstEntry = true;
             int tickSpan = this.Interval;
+            int diffThreshold = Math.Max(CoresConfig.TimeAdjustSettings.DiffThresholdMsecs, 100);
 
             while (true)
             {
@@ -125,6 +135,12 @@ namespace IPA.Cores.Basic
 
                     InitCompletedEvent.Set();
                     createFirstEntry = false;
+
+                    if (CoresConfig.TimeAdjustSettings.DisableTimeAdjustThread)
+                    {
+                        // Disabled
+                        return;
+                    }
                 }
 
                 // Time correction
@@ -134,7 +150,7 @@ namespace IPA.Cores.Basic
                     long now = Time.SystemTime64;
                     long diff = Math.Abs(((now - this.Time64) + this.Tick64WithTime64) - tick64);
 
-                    if (now < this.Time64 || diff >= 1000)
+                    if (now < this.Time64 || diff >= diffThreshold)
                     {
                         History t = new History();
                         t.Tick = tick64;
@@ -145,7 +161,7 @@ namespace IPA.Cores.Basic
                         Dbg.WriteLine(new { AdjustTime = new { Diff = diff, Tick = t.Tick, Time = t.Time, HistoryCount = HistoryList.Count } });
 
                         // To prevent consuming memory infinite on a system that clock is skewd
-                        if (this.HistoryList.Count >= MaxAdjustTime)
+                        if (this.HistoryList.Count >= CoresConfig.TimeAdjustSettings.MaxNumHistory)
                         {
                             // Remove the second
                             this.HistoryList = this.HistoryList.RemoveAt(1);

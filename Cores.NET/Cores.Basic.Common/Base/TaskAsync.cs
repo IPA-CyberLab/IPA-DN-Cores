@@ -1172,7 +1172,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncCleanuperLady
+    class AsyncCleanuperLady : IDisposable
     {
         static volatile int IdSeed;
 
@@ -1290,6 +1290,14 @@ namespace IPA.Cores.Basic
 
         public TaskAwaiter GetAwaiter()
             => CleanupAsync().GetAwaiter();
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            CleanupAsync().TryGetResult();
+        }
     }
 
     interface IAsyncCleanupable : IDisposable
@@ -1501,7 +1509,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Holder : IDisposable
+    interface IHolder : IDisposable { }
+
+    class Holder : IHolder
     {
         Action DisposeProc;
         LeakCheckerHolder Leak = null;
@@ -2071,6 +2081,18 @@ namespace IPA.Cores.Basic
         public static LeakCheckerHolder Enter([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
             => new LeakCheckerHolder($"{caller}() - {Path.GetFileName(filename)}:{line}", Environment.StackTrace);
 
+        public static IHolder Enter(LeakCounterKind leakKind, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        {
+            if (leakKind == LeakCounterKind.FullStackTracked)
+            {
+                return Enter(filename, line, caller);
+            }
+            else
+            {
+                return new Holder(() => { }, leakKind);
+            }
+        }
+
         public static int Count
         {
             get
@@ -2161,7 +2183,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LeakCheckerHolder : IDisposable
+    class LeakCheckerHolder : IHolder
     {
         long Id;
         public string Name { get; }
@@ -2169,8 +2191,6 @@ namespace IPA.Cores.Basic
 
         internal LeakCheckerHolder(string name, string stackTrace)
         {
-            stackTrace = "";
-
             if (string.IsNullOrEmpty(name)) name = "<untitled>";
 
             Id = Interlocked.Increment(ref LeakChecker._InternalCurrentId);

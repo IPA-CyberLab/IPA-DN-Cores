@@ -48,6 +48,9 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
+            //CoresConfig.TimeAdjustSettings.DisableTimeAdjustThread.Set(true);
+            //Dbg.SetDebugMode(DebugMode.ReleaseNoLogs);
+
             try
             {
                 ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));

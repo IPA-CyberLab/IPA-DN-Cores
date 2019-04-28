@@ -214,6 +214,30 @@ namespace IPA.Cores.Basic
         }
     }
 
+
+    abstract partial class FileSystemBase
+    {
+        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
+        {
+            if (destFileSystem == null) destFileSystem = this;
+
+            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, cancel);
+        }
+        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
+            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
+
+        public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystemBase destFileSystem = null,
+            CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
+        {
+            if (destFileSystem == null) destFileSystem = this;
+
+            return await FileUtil.CopyDirAsync(this, srcPath, destFileSystem, destPath, param, state, statusObject, cancel);
+        }
+        public CopyDirectoryStatus CopyDir(string srcPath, string destPath, FileSystemBase destFileSystem = null,
+            CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
+            => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel).GetResult();
+    }
+
     static partial class FileUtil
     {
         public static async Task<CopyDirectoryStatus> CopyDirAsync(FileSystemBase srcFileSystem, string srcPath, FileSystemBase destFileSystem, string destPath,

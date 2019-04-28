@@ -1085,8 +1085,8 @@ namespace IPA.Cores.Basic
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public FileSystemObjectPool ObjectPoolForRead { get; }
-        public FileSystemObjectPool ObjectPoolForWrite { get; }
+        public Singleton<FileSystemObjectPool> ObjectPoolForRead { get; }
+        public Singleton<FileSystemObjectPool> ObjectPoolForWrite { get; }
 
         public LargeFileSystem LargeFileSystem { get; }
 
@@ -1098,8 +1098,8 @@ namespace IPA.Cores.Basic
                 this.PathParser = this.Params.PathParser;
                 DirectoryWalker = new DirectoryWalker(this);
 
-                ObjectPoolForRead = new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime.Value);
-                ObjectPoolForWrite = new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime.Value);
+                ObjectPoolForRead = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime));
+                ObjectPoolForWrite = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime));
             }
             catch
             {
@@ -1138,6 +1138,8 @@ namespace IPA.Cores.Basic
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
                 CancelSource.Cancel();
+                ObjectPoolForRead.DisposeSafe();
+                ObjectPoolForWrite.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -1570,16 +1572,6 @@ namespace IPA.Cores.Basic
         }
         public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default)
             => MoveDirectoryAsync(srcPath, destPath, cancel).GetResult();
-
-        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
-        {
-            if (destFileSystem == null) destFileSystem = this;
-
-            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, cancel);
-        }
-        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystemBase destFileSystem = null)
-            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
-
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {

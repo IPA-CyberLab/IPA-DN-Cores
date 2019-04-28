@@ -64,11 +64,14 @@ namespace IPA.Cores.Basic
 
     class LoggerLogRoute : LogRouteBase
     {
-        Logger Log;
+        Logger Log = null;
 
         public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType = LogSwitchType.Day, LogInfoOptions infoOptions = null,
             long? autoDeleteTotalMaxSize = null) : base(kind, minimalPriority)
         {
+            if (minimalPriority == LogPriority.None)
+                return;
+
             Log = new Logger(new AsyncCleanuperLady(), dir, kind, prefix,
                 switchType: switchType,
                 infoOptions: infoOptions,
@@ -82,7 +85,10 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Log.DisposeSafe();
+                if (Log != null)
+                {
+                    Log.DisposeSafe();
+                }
             }
             finally { base.Dispose(disposing); }
         }
@@ -91,14 +97,20 @@ namespace IPA.Cores.Basic
 
         public async override Task OnUninstallingAsync()
         {
-            Log.DisposeSafe();
+            if (Log != null)
+            {
+                Log.DisposeSafe();
 
-            await Log.Lady;
+                await Log.Lady;
+            }
         }
 
         public override void ReceiveLog(LogRecord record)
         {
-            Log.Add(record);
+            if (Log != null)
+            {
+                Log.Add(record);
+            }
         }
     }
 

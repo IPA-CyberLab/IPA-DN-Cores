@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
         static AutoUtf8BomViewFileSystem CreateFirstAutoUtf8Instance()
         {
             if (_AutoUtf8SingletonInstance == null)
-                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
+                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(LeakChecker.SuperGrandLady, new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
 
             return _AutoUtf8SingletonInstance;
         }
@@ -215,9 +215,9 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                File.SetLastWriteTimeUtc(path, dt);
+                File.SetCreationTimeUtc(path, dt);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
                 if (Env.IsWindows)
                 {
@@ -600,16 +600,6 @@ namespace IPA.Cores.Basic
                 },
                 () =>
                 {
-                    if (metadata.Attributes != null)
-                        SetFileAttributes(path, (FileAttributes)metadata.Attributes);
-                    return Task.CompletedTask;
-                },
-                async () =>
-                {
-                    await ApplyFileOrDirectorySpecialOperationFlagsMedatataAsync(path, false, metadata.SpecialOperationFlags, cancel);
-                },
-                () =>
-                {
                     if (metadata.CreationTime != null)
                         SetFileCreationTimeUtc(path, ((DateTimeOffset)metadata.CreationTime).UtcDateTime);
                     return Task.CompletedTask;
@@ -625,6 +615,16 @@ namespace IPA.Cores.Basic
                     if (metadata.LastAccessTime != null)
                         SetFileLastAccessTimeUtc(path, ((DateTimeOffset)metadata.LastAccessTime).UtcDateTime);
                     return Task.CompletedTask;
+                },
+                () =>
+                {
+                    if (metadata.Attributes != null)
+                        SetFileAttributes(path, (FileAttributes)metadata.Attributes);
+                    return Task.CompletedTask;
+                },
+                async () =>
+                {
+                    await ApplyFileOrDirectorySpecialOperationFlagsMedatataAsync(path, false, metadata.SpecialOperationFlags, cancel);
                 },
                 () =>
                 {
