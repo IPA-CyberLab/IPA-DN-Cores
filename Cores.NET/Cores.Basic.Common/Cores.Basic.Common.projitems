@@ -82,6 +82,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalUnixFileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Pal\PalWin32FileInternal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\ProtoApp\SpeedTest.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebHandler\HttpHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebHandler\HttpHandlerResource.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resource\Test\HelloWorld.txt" />
