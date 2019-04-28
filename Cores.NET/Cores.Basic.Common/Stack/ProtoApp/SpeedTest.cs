@@ -404,15 +404,15 @@ namespace IPA.Cores.Basic
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
             try
             {
-                var tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
+                FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
 
-                var sock = await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
+                FastSock sock = await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                var app = sock.GetFastAppProtocolStub();
+                FastAppStub app = sock.GetFastAppProtocolStub();
 
-                var attachHandle = app.AttachHandle;
+                FastAttachHandle attachHandle = app.AttachHandle;
 
-                var st = app.GetStream();
+                FastPipeEndStream st = app.GetStream();
 
                 if (dir == Direction.Recv)
                     app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);

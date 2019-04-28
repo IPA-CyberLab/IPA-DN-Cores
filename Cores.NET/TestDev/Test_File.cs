@@ -44,6 +44,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 
 #pragma warning disable CS0162
+#pragma warning disable CS0219
 
 namespace IPA.TestDev
 {

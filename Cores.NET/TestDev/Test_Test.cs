@@ -54,50 +54,6 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            var rfs = Res.Cores;
-
-            "".PrintAsJson();
-
-            Con.WriteLine(">" + Res.Cores.EasyReadString("hello"));
-            {
-                rfs.EnumDirectory("/", true).Where(x => x.IsDirectory == false).Select(x => x).PrintAsJson();
-
-                //string str = rfs.ReadStringFromFile(rfs.EasyFindSingleFile("nek"));
-
-                //Con.WriteLine($"'{str}'");
-
-                rfs.DeleteFile("/TestDev.Resource.Test.HelloWorld.txt");
-
-                rfs.EnumDirectory("/", true).Where(x => x.IsDirectory == false).Select(x => x).PrintAsJson();
-            }
-            return;
-
-            using (VirtualFileSystem vfs = new VirtualFileSystem(LeakChecker.SuperGrandLady, new VirtualFileSystemParams()))
-            {
-                vfs.CreateDirectory("/a");
-                vfs.CreateDirectory("/b");
-                vfs.CreateDirectory("/c");
-                vfs.CreateDirectory("/a/a");
-                vfs.CreateDirectory("/1/2/3");
-                vfs.CreateDirectory("/1/2/4");
-                vfs.CreateDirectory("/1/2/5");
-                vfs.CreateDirectory("/z/4/1/2/3/4/5/6/7/7/8/9");
-                vfs.DeleteDirectory("/a/a");
-                //vfs.DeleteDirectory("/z", false);
-
-                vfs.WriteDataToFile("/readme.txt", "Hello".GetBytes_Ascii());
-                vfs.WriteDataToFile("/readme.txt", "a".GetBytes_Ascii());
-
-                var span = vfs.ReadDataFromFile("/readme.txt");
-                Con.WriteLine(span.GetString_Ascii());
-
-
-                vfs.GetFileMetadata("/readme.txt").PrintAsJson();
-
-                //vfs.DeleteFile("/readme.txt");
-
-                vfs.EnumDirectory("/", true).Where(x => x.IsDirectory==false).Select(x=>x).PrintAsJson();
-            }
         }
     }
 }

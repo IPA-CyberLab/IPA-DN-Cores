@@ -217,7 +217,7 @@ namespace IPA.Cores.Basic
             {
                 File.SetCreationTimeUtc(path, dt);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
                 if (Env.IsWindows)
                 {
