@@ -60,6 +60,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\Utf8BomViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ViewFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\VirtualFileSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Network\LocalTcpIpSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Network\NetworkSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Network\TcpIpSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Network\TcpIpSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebApi\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32Api.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Win32ApiUtil.cs" />

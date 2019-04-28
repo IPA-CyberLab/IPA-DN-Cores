@@ -31,70 +31,28 @@
 // LAW OR COURT RULE.
 
 using System;
-using System.IO;
-using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Security.AccessControl;
-using System.Runtime.CompilerServices;
 
-#pragma warning disable CS0219
-#pragma warning disable CS0162
-
-
-namespace IPA.TestDev
+namespace IPA.Cores.Basic
 {
-    static class TestClass
+    abstract partial class TcpIpSystemBase
     {
-        public static void Test()
+        public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
         {
-            while (true)
-            {
-                CancellationTokenSource cancelSource = new CancellationTokenSource();
+            DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
 
-                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80), cancelSource.Token);
-                {
-                    var stub = sock.GetFastAppProtocolStub(cancelSource.Token);
-
-                    var stream = stub.GetStream();
-
-                    var pal = stream.NetworkStream;
-
-                    var w = new StreamWriter(pal);
-                    var r = new StreamReader(pal);
-
-                    cancelSource.Cancel();
-
-                    w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
-                    w.WriteLine();
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
-                    {
-                        string s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
-                        }
-
-                        Con.WriteLine(s);
-                    }
-
-                    sock.Disconnect();
-                }
-            }
+            return res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
+                .Where(x => addressFamily == null || x.AddressFamily == addressFamily).First();
         }
     }
 }
-
-

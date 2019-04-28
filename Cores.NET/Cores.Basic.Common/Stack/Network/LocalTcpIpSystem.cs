@@ -31,70 +31,57 @@
 // LAW OR COURT RULE.
 
 using System;
-using System.IO;
-using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Security.AccessControl;
-using System.Runtime.CompilerServices;
 
-#pragma warning disable CS0219
-#pragma warning disable CS0162
-
-
-namespace IPA.TestDev
+namespace IPA.Cores.Basic
 {
-    static class TestClass
+    class LocalTcpIpSystemParam : TcpIpSystemParam
     {
-        public static void Test()
+    }
+
+    class LocalTcpIpSystem : TcpIpSystemBase
+    {
+        static Singleton<LocalTcpIpSystem> _Singleton = new Singleton<LocalTcpIpSystem>(() => new LocalTcpIpSystem(LeakChecker.SuperGrandLady, new LocalTcpIpSystemParam()),
+            leakKind: LeakCounterKind.DoNotTrack);
+
+        public static LocalTcpIpSystem Local => _Singleton;
+
+        protected new LocalTcpIpSystemParam Param => (LocalTcpIpSystemParam)base.Param;
+
+        private LocalTcpIpSystem(AsyncCleanuperLady lady, LocalTcpIpSystemParam param) : base(lady, param)
         {
-            while (true)
+        }
+
+        protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel)
+        {
+            FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
+
+            return tcp;
+        }
+
+        protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel)
+        {
+            switch (param)
             {
-                CancellationTokenSource cancelSource = new CancellationTokenSource();
-
-                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80), cancelSource.Token);
-                {
-                    var stub = sock.GetFastAppProtocolStub(cancelSource.Token);
-
-                    var stream = stub.GetStream();
-
-                    var pal = stream.NetworkStream;
-
-                    var w = new StreamWriter(pal);
-                    var r = new StreamReader(pal);
-
-                    cancelSource.Cancel();
-
-                    w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
-                    w.WriteLine();
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
-                    {
-                        string s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
-                        }
-
-                        Con.WriteLine(s);
-                    }
-
-                    sock.Disconnect();
-                }
+                case DnsGetIpQueryParam getIpQuery:
+                    if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress ip))
+                        return new DnsResponse(param, ip.SingleArray());
+                    else
+                        return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));
             }
+
+            throw new NotImplementedException();
         }
     }
 }
-
 

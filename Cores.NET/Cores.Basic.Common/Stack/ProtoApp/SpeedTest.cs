@@ -406,7 +406,9 @@ namespace IPA.Cores.Basic
             {
                 FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
 
-                FastSock sock = await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
+                await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
+
+                FastSock sock = new FastSock(lady, tcp);
 
                 FastAppStub app = sock.GetFastAppProtocolStub();
 

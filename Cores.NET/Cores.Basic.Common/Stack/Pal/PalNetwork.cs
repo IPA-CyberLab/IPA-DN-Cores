@@ -533,7 +533,7 @@ namespace IPA.Cores.Basic
     class PalSslStream : PalStream
     {
         SslStream ssl;
-        public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream.GetPalNetworkStream(), true))
+        public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream.NetworkStream, true))
         {
             ssl = (SslStream)NativeStream;
         }

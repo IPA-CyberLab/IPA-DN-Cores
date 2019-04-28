@@ -1653,6 +1653,11 @@ namespace IPA.Cores.Basic
 
     abstract class FastStream : IDisposable, IFastStream
     {
+        public FastStream()
+        {
+            this.NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, false);
+        }
+
         public abstract int ReadTimeout { get; set; }
         public abstract int WriteTimeout { get; set; }
         public abstract bool DataAvailable { get; }
@@ -1661,11 +1666,10 @@ namespace IPA.Cores.Basic
         public abstract ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
         public abstract Task FlushAsync(CancellationToken cancel = default);
 
+        public NetworkStream NetworkStream { get; }
+
         public void Dispose() => Dispose(true);
         protected virtual void Dispose(bool disposing) { }
-
-        public FastStreamToPalNetworkStream GetPalNetworkStream(bool disposeObject = false)
-            => FastStreamToPalNetworkStream.CreateFromFastStream(this, disposeObject);
     }
 
     abstract class FastStackOptionsBase { }
@@ -1849,7 +1853,7 @@ namespace IPA.Cores.Basic
 
         AsyncLock ConnectLock = new AsyncLock();
 
-        public async Task<FastSock> ConnectAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout)
+        public async Task ConnectAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout)
         {
             using (await ConnectLock.LockWithAwait())
             {
@@ -1860,15 +1864,13 @@ namespace IPA.Cores.Basic
 
                 IsConnected = true;
                 IsServerMode = false;
-
-                return new FastSock(this.Lady, this);
             }
         }
 
-        public Task<FastSock> ConnectAsync(IPAddress ip, int port, CancellationToken cancel = default, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
+        public Task ConnectAsync(IPAddress ip, int port, CancellationToken cancel = default, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => ConnectAsync(new IPEndPoint(ip, port), connectTimeout);
 
-        public async Task<FastSock> ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
+        public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => await ConnectAsync(await Options.DnsClient.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
 
         CriticalSection ListenLock = new CriticalSection();
@@ -2025,7 +2027,7 @@ namespace IPA.Cores.Basic
         public FastPipeEnd UpperEnd { get; }
         public LayerInfo Info { get => this.LowerEnd.LayerInfo; }
 
-        internal FastSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
+        public FastSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
             : base(lady)
         {
             try
@@ -2052,10 +2054,19 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void Disconnect(Exception ex = null)
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
         {
-            Pipe.Disconnect(ex);
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                Pipe.Disconnect();
+            }
+            finally { base.Dispose(disposing); }
         }
+
+        public void Disconnect(Exception ex = null)
+            => this.Dispose();
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }

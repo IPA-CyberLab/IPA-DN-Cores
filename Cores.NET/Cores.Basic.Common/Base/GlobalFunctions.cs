@@ -125,6 +125,8 @@ namespace IPA.Cores
             {
                 public static readonly ResourceFileSystem Cores = ResourceFileSystem.Singleton[typeof(Res).Assembly];
             }
+
+            public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
         }
     }
 }

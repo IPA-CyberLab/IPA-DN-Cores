@@ -43,26 +43,36 @@ using System.Net.Sockets;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Security.AccessControl;
-using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
-#pragma warning disable CS0219
 #pragma warning disable CS0162
-
+#pragma warning disable CS0219
 
 namespace IPA.TestDev
 {
-    static class TestClass
+    partial class TestDevCommands
     {
-        public static void Test()
+        [ConsoleCommandMethod(
+            "Net command",
+            "Net [arg]",
+            "Net test")]
+        static int Net(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Net_Test1();
+
+            return 0;
+        }
+
+        static void Net_Test1()
         {
             while (true)
             {
-                CancellationTokenSource cancelSource = new CancellationTokenSource();
-
-                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80), cancelSource.Token);
+                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {
-                    var stub = sock.GetFastAppProtocolStub(cancelSource.Token);
+                    var stub = sock.GetFastAppProtocolStub();
 
                     var stream = stub.GetStream();
 
@@ -70,8 +80,6 @@ namespace IPA.TestDev
 
                     var w = new StreamWriter(pal);
                     var r = new StreamReader(pal);
-
-                    cancelSource.Cancel();
 
                     w.WriteLine("GET / HTTP/1.0");
                     w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
@@ -96,5 +104,3 @@ namespace IPA.TestDev
         }
     }
 }
-
-

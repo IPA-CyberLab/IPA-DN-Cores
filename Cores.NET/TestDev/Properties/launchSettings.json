@@ -18,6 +18,10 @@
     "TestDev /CopyFile": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:CopyFile"
+    },
+    "TestDev /Net": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:Net"
     }
   }
 }

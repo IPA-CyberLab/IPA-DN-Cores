@@ -784,14 +784,14 @@ namespace IPA.Cores.Basic
 
         public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"];
 
-        public static Holder<RefInt> EnterCriticalCounter(RefInt counter)
+        public static Holder EnterCriticalCounter(RefInt counter)
         {
             counter.Increment();
-            return new Holder<RefInt>(c =>
+            return new Holder(() =>
             {
                 counter.Decrement();
             },
-            counter,  LeakCounterKind.EnterCriticalCounter);
+            LeakCounterKind.EnterCriticalCounter);
         }
 
         public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
@@ -857,30 +857,47 @@ namespace IPA.Cores.Basic
 
         public static Holder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
         {
+            if (cancels == null)
+            {
+                combinedToken = default;
+                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+            }
+
+            cancels = cancels.Where(x => x.CanBeCanceled).ToArray();
+
+            if (cancels.Length == 0)
+            {
+                combinedToken = default;
+                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+            }
+
+            if (cancels.Length == 1)
+            {
+                combinedToken = cancels[0];
+                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+            }
+
+            foreach (CancellationToken c in cancels)
+            {
+                if (c.IsCancellationRequested)
+                {
+                    combinedToken = new CancellationToken(true);
+                    return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+                }
+            }
+
             CombinedCancelContext ctx = new CombinedCancelContext();
 
-            if (cancels != null)
+            foreach (CancellationToken c in cancels)
             {
-                foreach (CancellationToken c in cancels)
+                if (c != default)
                 {
-                    if (c.IsCancellationRequested)
+                    var reg = c.Register(() =>
                     {
-                        combinedToken = new CancellationToken(true);
-                        return new Holder<object>(null);
-                    }
-                }
+                        ctx.Cts.Cancel();
+                    });
 
-                foreach (CancellationToken c in cancels)
-                {
-                    if (c != default)
-                    {
-                        var reg = c.Register(() =>
-                        {
-                            ctx.Cts.Cancel();
-                        });
-
-                        ctx.RegList.Add(reg);
-                    }
+                    ctx.RegList.Add(reg);
                 }
             }
 
@@ -1312,6 +1329,8 @@ namespace IPA.Cores.Basic
 
         public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
 
+        protected readonly RefInt CriticalCounter = new RefInt();
+
         public AsyncCleanupableCancellable(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady)
         {
             try
@@ -1324,6 +1343,12 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+
+        protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+            => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel.SingleArray().Concat(cancels).ToArray());
+
+        public Holder EnterCriticalCounter(RefInt counter)
+            => TaskUtil.EnterCriticalCounter(counter);
     }
 
     abstract class AsyncCleanupable : IAsyncCleanupable
@@ -1375,6 +1400,8 @@ namespace IPA.Cores.Basic
 
         public virtual async Task _CleanupAsyncInternal()
         {
+            this.DisposeSafe();
+
             await Lady;
         }
 
@@ -2058,13 +2085,14 @@ namespace IPA.Cores.Basic
     [Flags]
     enum LeakCounterKind
     {
-        FullStackTracked = 0,
-        OthersUntracked = 1,
-        PinnedMemory = 2,
-        EnterCriticalCounter = 3,
-        CreateCombinedCancellationToken = 4,
-        FastAllocMemoryWithUsing = 5,
-        VfsOpenEntity = 6,
+        DoNotTrack,
+        FullStackTracked,
+        OthersCounter,
+        PinnedMemory,
+        EnterCriticalCounter,
+        CreateCombinedCancellationToken,
+        FastAllocMemoryWithUsing,
+        VfsOpenEntity,
     }
 
     static class LeakChecker
@@ -2119,12 +2147,14 @@ namespace IPA.Cores.Basic
 
         public static void IncrementLeakCounter(LeakCounterKind kind)
         {
+            if (kind == LeakCounterKind.DoNotTrack) return;
             int r = Interlocked.Increment(ref LeakCounters[(int)kind]);
             Debug.Assert(r >= 1);
         }
 
         public static void DecrementLeakCounter(LeakCounterKind kind)
         {
+            if (kind == LeakCounterKind.DoNotTrack) return;
             int r = Interlocked.Decrement(ref LeakCounters[(int)kind]);
             Debug.Assert(r >= 0);
         }

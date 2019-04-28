@@ -1081,7 +1081,7 @@ namespace IPA.Cores.Basic
         protected FileSystemParams Params { get; }
 
         CriticalSection LockObj = new CriticalSection();
-        List<FileBase> OpenedHandleList = new List<FileBase>();
+        HashSet<FileBase> OpenedHandleList = new HashSet<FileBase>();
         RefInt CriticalCounter = new RefInt();
         CancellationTokenSource CancelSource = new CancellationTokenSource();
 
