@@ -2092,16 +2092,9 @@ namespace IPA.Cores.Basic
         public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
     }
 
-    class StreamSock : NetworkSock
+    class TcpSock : NetworkSock
     {
-        public StreamSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
-    }
-
-    partial class TcpSock : StreamSock
-    {
-        public TcpSock(AsyncCleanuperLady lady, FastTcpProtocolStubBase protocolStack) : base(lady, protocolStack)
-        {
-        }
+        public TcpSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }

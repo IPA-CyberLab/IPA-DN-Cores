@@ -822,6 +822,25 @@ namespace IPA.Cores.Helper.Basic
         public static string ToPointerHexString(this IntPtr ptr) => $"0x{ptr.ToInt64():X}";
 
         public static ConcurrentRandomAccess<T> CreateConcurrentRandomAccess<T>(this IRandomAccess<T> randomAccess) => new ConcurrentRandomAccess<T>(randomAccess);
+
+        public static string ToIPv4v6String(this AddressFamily family) => ToIPv4v6String(family);
+        public static string ToIPv4v6String(this AddressFamily? family)
+        {
+            switch (family)
+            {
+                case null:
+                    return "IPv4 / IPv6";
+
+                case AddressFamily.InterNetwork:
+                    return "IPv4";
+
+                case AddressFamily.InterNetworkV6:
+                    return "IPv6";
+
+                default:
+                    return "Unknown";
+            }
+        }
     }
 }
 

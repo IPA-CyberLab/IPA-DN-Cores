@@ -69,11 +69,56 @@ namespace IPA.TestDev
 
             //Net_Test3_PlainTcp_Server();
 
-            Net_Test4_SpeedTest_Client();
+            //Net_Test4_SpeedTest_Client();
 
             //Net_Test5_SpeedTest_Server();
 
+            Net_Test6_DualStack_Client();
+
             return 0;
+        }
+
+        static void Net_Test6_DualStack_Client()
+        {
+            string hostname = "www.google.com";
+
+            using (var tcp = LocalNet.ConnectIPv4v6Dual(new TcpConnectParam(hostname, 443, connectTimeout: 5 * 1000)))
+            {
+                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress.AddressFamily.ToString().Print();
+
+                using (SslSock ssl = new SslSock(tcp))
+                {
+                    var sslClientOptions = new PalSslClientAuthenticationOptions()
+                    {
+                        TargetHost = hostname,
+                        ValidateRemoteCertificateProc = (cert) => { return true; },
+                    };
+
+                    ssl.StartSslClient(sslClientOptions);
+
+                    var st = ssl.GetStream().NetworkStream;
+
+                    var w = new StreamWriter(st);
+                    var r = new StreamReader(st);
+
+                    w.WriteLine("GET / HTTP/1.0");
+                    w.WriteLine($"HOST: {hostname}");
+                    w.WriteLine();
+                    w.WriteLine();
+                    w.Flush();
+
+                    while (true)
+                    {
+                        string s = r.ReadLine();
+                        if (s == null)
+                        {
+                            break;
+                        }
+
+                        Con.WriteLine(s);
+                    }
+                }
+            }
         }
 
         static void Net_Test5_SpeedTest_Server()

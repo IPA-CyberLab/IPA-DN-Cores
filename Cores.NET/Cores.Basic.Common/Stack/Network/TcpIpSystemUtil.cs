@@ -45,18 +45,171 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    abstract class SpeculativeConnectorBase
+    {
+        protected class Attempt
+        {
+            public ITcpConnectableSystem System { get; }
+            public TcpConnectParam Param { get; }
+            public int PostWaitMsecs { get; }
+
+            public Attempt(ITcpConnectableSystem system, TcpConnectParam param, int postWaitMsecs)
+            {
+                this.System = system;
+                this.Param = param;
+                this.PostWaitMsecs = postWaitMsecs;
+            }
+
+            public async Task<TcpSock> ConnectAsyncInternal(SpeculativeConnectorBase connector, CancellationToken cancel = default)
+            {
+                try
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    TcpSock tcp = await this.System.ConnectAsync(this.Param, cancel);
+
+                    if (PostWaitMsecs >= 1)
+                    {
+                        await connector.PostWaitEvent.WaitAsync(this.PostWaitMsecs, cancel);
+                    }
+
+                    return tcp;
+                }
+                catch (Exception ex)
+                {
+                    if (PostWaitMsecs == 0)
+                    {
+                        connector.PostWaitEvent.Set();
+                    }
+
+                    connector.ExceptionList.Add(ex, ex is GetIpAddressFamilyMismatchException ? 1 : 100);
+                    throw;
+                }
+            }
+        }
+
+        readonly WeightedExceptionList ExceptionList = new WeightedExceptionList();
+
+        AsyncManualResetEvent PostWaitEvent = new AsyncManualResetEvent();
+
+        List<Attempt> AttemptList = new List<Attempt>();
+
+        public TcpConnectParam BasicParam { get; }
+
+        public SpeculativeConnectorBase(TcpConnectParam basicParam)
+        {
+            this.BasicParam = basicParam;
+        }
+
+        protected void AddAttempt(Attempt attempt)
+        {
+            AttemptList.Add(attempt);
+        }
+
+        Once Flag;
+
+        public async Task<TcpSock> ConnectAsync(CancellationToken cancel = default)
+        {
+            if (Flag.IsFirstCall() == false) throw new ApplicationException("ConnectAsync() has been already called.");
+
+            List<Task<TcpSock>> taskList = new List<Task<TcpSock>>();
+
+            foreach (var attempt in AttemptList)
+            {
+                taskList.Add(attempt.ConnectAsyncInternal(this, cancel));
+            }
+
+            if (taskList.Count == 0)
+            {
+                throw new ApplicationException("SpeculativeConnectorBase: The attempt list is empty.");
+            }
+
+            while (true)
+            {
+                var okTask = taskList.Where(x => x.IsCompletedSuccessfully).FirstOrDefault();
+                if (okTask != null)
+                {
+                    // OK
+                    PostWaitEvent.Set();
+                    taskList.ForEach(x => x.TryWait(true));
+                    taskList.Where(x => x != okTask).Where(x => x.IsCompletedSuccessfully).DoForEach(x => x.Result.DisposeSafe());
+                    return okTask.GetResult();
+                }
+
+                taskList.Where(x => x.IsCanceled || x.IsFaulted).ToArray().DoForEach(x => taskList.Remove(x));
+
+                if (taskList.Count == 0)
+                {
+                    // Error
+                    throw this.ExceptionList.GetException();
+                }
+
+                await TaskUtil.WaitObjectsAsync(taskList.ToArray(), exceptions: ExceptionWhen.None);
+            }
+        }
+    }
+
+    class IPv4V6DualStackSpeculativeConnector : SpeculativeConnectorBase
+    {
+        public IPv4V6DualStackSpeculativeConnector(TcpConnectParam basicParam, TcpIpSystem system) : base(basicParam)
+        {
+            if (basicParam.DestHostname.IsEmpty())
+            {
+                // IP address is specified
+                AddAttempt(new Attempt(system, basicParam, 0));
+                return;
+            }
+
+            // Hostname is specified
+            var hostInfo = system.GetHostInfo();
+
+            if (hostInfo.IsIPv4Supported)
+            {
+                AddAttempt(new Attempt(system,new TcpConnectParam(basicParam.DestHostname, basicParam.DestPort, AddressFamily.InterNetwork,
+                    connectTimeout: basicParam.ConnectTimeout, dnsTimeout: basicParam.DnsTimeout), 0));
+            }
+
+            if (hostInfo.IsIPv6Supported)
+            {
+                AddAttempt(new Attempt(system, new TcpConnectParam(basicParam.DestHostname, basicParam.DestPort, AddressFamily.InterNetworkV6,
+                    connectTimeout: basicParam.ConnectTimeout, dnsTimeout: basicParam.DnsTimeout), 0));
+            }
+        }
+    }
+
+
+    class GetIpAddressFamilyMismatchException : ApplicationException
+    {
+        public GetIpAddressFamilyMismatchException(string message) : base(message) { }
+    }
+
     abstract partial class TcpIpSystem
     {
         public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
         {
             DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
 
-            return res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
-                .Where(x => addressFamily == null || x.AddressFamily == addressFamily).First();
+            var ret = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
+                .Where(x => addressFamily == null || x.AddressFamily == addressFamily).FirstOrDefault();
+
+            if (ret == null)
+            {
+                throw new GetIpAddressFamilyMismatchException($"The hostname \"{hostname}\" has no {addressFamily.ToIPv4v6String()} address.");
+            }
+
+            return ret;
         }
 
         public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
             => GetIpAsync(hostname, addressFamily, timeout, cancel).GetResult();
+
+        public async Task<TcpSock> ConnectIPv4v6DualAsync(TcpConnectParam param, CancellationToken cancel = default)
+        {
+            IPv4V6DualStackSpeculativeConnector connector = new IPv4V6DualStackSpeculativeConnector(param, this);
+
+            return await connector.ConnectAsync(cancel);
+        }
+        public TcpSock ConnectIPv4v6Dual(TcpConnectParam param, CancellationToken cancel = default)
+            => ConnectIPv4v6DualAsync(param, cancel).GetResult();
     }
 
     class MiddleSock : NetworkSock
@@ -68,7 +221,7 @@ namespace IPA.Cores.Basic
     {
         protected new FastSslProtocolStack Stack => (FastSslProtocolStack)base.Stack;
 
-        public SslSock(StreamSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
+        public SslSock(TcpSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
         {
         }
 

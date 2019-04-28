@@ -254,7 +254,12 @@ namespace IPA.Cores.Basic
 
     delegate Task TcpIpAcceptCallbackAsync(Listener listener, TcpSock newSock);
 
-    abstract partial class TcpIpSystem : NetworkSystemBase
+    interface ITcpConnectableSystem
+    {
+        Task<TcpSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default);
+    }
+
+    abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSystem
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 

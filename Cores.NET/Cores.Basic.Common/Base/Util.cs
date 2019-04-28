@@ -3517,5 +3517,37 @@ namespace IPA.Cores.Basic
                 return new T[size];
         }
     }
+
+    class WeightedExceptionList
+    {
+        static long IdSeed = 0;
+
+        class Entry
+        {
+            public long Id;
+            public int Weight;
+            public Exception Exception;
+        }
+
+        readonly List<Entry> List = new List<Entry>();
+
+        CriticalSection LockObj = new CriticalSection();
+
+        public void Add(Exception exception, int weight)
+        {
+            lock (LockObj)
+            {
+                List.Add(new Entry() { Exception = exception, Weight = weight, Id = Interlocked.Increment(ref IdSeed) });
+            }
+        }
+
+        public Exception GetException()
+        {
+            lock (LockObj)
+            {
+                return this.List.OrderByDescending(x => x.Weight).ThenBy(x => IdSeed).FirstOrDefault()?.Exception ?? null;
+            }
+        }
+    }
 }
 

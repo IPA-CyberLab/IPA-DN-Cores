@@ -574,7 +574,7 @@ namespace IPA.Cores.Basic
         public string FqdnHostName => HostName + (string.IsNullOrEmpty(DomainName) ? "" : "." + DomainName);
         public bool IsIPv4Supported;
         public bool IsIPv6Supported;
-        public List<IPAddress> IPAddressList = new List<IPAddress>();
+        public IReadOnlyList<IPAddress> IPAddressList = null;
 
         public static bool IsUnix { get; } = (Environment.OSVersion.Platform != PlatformID.Win32NT);
 
