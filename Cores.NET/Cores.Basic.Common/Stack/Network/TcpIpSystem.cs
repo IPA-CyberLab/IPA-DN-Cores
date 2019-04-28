@@ -229,12 +229,33 @@ namespace IPA.Cores.Basic
 
     class NetworkSock : FastSock
     {
+        FastAppStub AppStub = null;
+
         public NetworkSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+
+        public FastPipeEndStream GetStream(bool autoFlush = true)
+        {
+            if (AppStub == null)
+                AppStub = this.GetFastAppProtocolStub();
+
+            return AppStub.GetStream(autoFlush);
+        }
+
+        public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
+
+        public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
     }
 
-    class TcpSock : NetworkSock
+    class StreamSock : NetworkSock
     {
-        public TcpSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+        public StreamSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+    }
+
+    partial class TcpSock : StreamSock
+    {
+        public TcpSock(AsyncCleanuperLady lady, FastTcpProtocolStubBase protocolStack) : base(lady, protocolStack)
+        {
+        }
     }
 
     class TcpIpSystemParam : NetworkSystemParam { }
@@ -260,10 +281,10 @@ namespace IPA.Cores.Basic
 
         public async Task<TcpSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
-            await param.ResolveDestHostnameIfNecessaryAsync(this, cancel);
-
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
+                await param.ResolveDestHostnameIfNecessaryAsync(this, opCancel);
+
                 using (EnterCriticalCounter(CriticalCounter))
                 {
                     CheckNotDisposed();
@@ -272,9 +293,9 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(lady, param, opCancel);
+                        FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(lady, param, this.GrandCancel);
 
-                        await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout);
+                        await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout, opCancel);
 
                         TcpSock sock = new TcpSock(lady, tcp);
 

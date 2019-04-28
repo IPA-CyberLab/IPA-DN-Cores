@@ -61,25 +61,66 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Net_Test1();
+            //Net_Test1_PlainTcp_Client();
+
+            Net_Test2_Ssl_Client();
 
             return 0;
         }
 
-        static void Net_Test1()
+        static void Net_Test2_Ssl_Client()
+        {
+            string hostname = "www.google.com";
+
+            using (TcpSock sock = LocalNet.Connect(new TcpConnectParam("www.google.com", 443)))
+            {
+                using (SslSock ssl = new SslSock(sock))
+                {
+                    var sslClientOptions = new PalSslClientAuthenticationOptions()
+                    {
+                        TargetHost = hostname,
+                        ValidateRemoteCertificateProc = (cert) => { return true; },
+                    };
+
+                    ssl.StartSslClient(sslClientOptions);
+
+                    var st = ssl.GetStream().NetworkStream;
+
+                    var w = new StreamWriter(st);
+                    var r = new StreamReader(st);
+
+                    w.WriteLine("GET / HTTP/1.0");
+                    w.WriteLine("HOST: www.google.com");
+                    w.WriteLine();
+                    w.WriteLine();
+                    w.Flush();
+
+                    while (true)
+                    {
+                        string s = r.ReadLine();
+                        if (s == null)
+                        {
+                            break;
+                        }
+
+                        Con.WriteLine(s);
+                    }
+
+                    sock.Disconnect();
+                }
+            }
+        }
+
+        static void Net_Test1_PlainTcp_Client()
         {
             while (true)
             {
-                var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+                TcpSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {
-                    var stub = sock.GetFastAppProtocolStub();
+                    var st = sock.GetStream().NetworkStream;
 
-                    var stream = stub.GetStream();
-
-                    var pal = stream.NetworkStream;
-
-                    var w = new StreamWriter(pal);
-                    var r = new StreamReader(pal);
+                    var w = new StreamWriter(st);
+                    var r = new StreamReader(st);
 
                     w.WriteLine("GET / HTTP/1.0");
                     w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");

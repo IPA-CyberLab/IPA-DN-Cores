@@ -54,5 +54,31 @@ namespace IPA.Cores.Basic
             return res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
                 .Where(x => addressFamily == null || x.AddressFamily == addressFamily).First();
         }
+
+        public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
+            => GetIpAsync(hostname, addressFamily, timeout, cancel).GetResult();
+    }
+
+    class MiddleSock : NetworkSock
+    {
+        public MiddleSock(NetworkSock LowerSock, FastProtocolBase protocolStack) : base(LowerSock.Lady, protocolStack) { }
+    }
+
+    class SslSock : MiddleSock
+    {
+        protected new FastSslProtocolStack Stack => (FastSslProtocolStack)base.Stack;
+
+        public SslSock(StreamSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
+        {
+        }
+
+        public async Task StartSslClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
+        {
+            await Stack.SslStartClientAsync(sslClientAuthenticationOptions, cancellationToken);
+        }
+
+        public void StartSslClient(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
+            => StartSslClientAsync(sslClientAuthenticationOptions, cancellationToken).GetResult();
     }
 }
+

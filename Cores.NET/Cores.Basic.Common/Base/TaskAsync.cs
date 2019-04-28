@@ -1861,8 +1861,8 @@ namespace IPA.Cores.Basic
         public CancelWatcher(AsyncCleanuperLady parentLady, params CancellationToken[] cancels)
             : base(new AsyncCleanuperLady())
         {
-            AddWatch(canceller.Token);
-            AddWatch(cancels);
+            Add(canceller.Token);
+            Add(cancels);
 
             if (parentLady != null)
                 parentLady.Add(this);
@@ -1925,7 +1925,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool AddWatch(params CancellationToken[] cancels)
+        public bool Add(params CancellationToken[] cancels)
         {
             bool ret = false;
 

@@ -1653,11 +1653,6 @@ namespace IPA.Cores.Basic
 
     abstract class FastStream : IDisposable, IFastStream
     {
-        public FastStream()
-        {
-            this.NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, false);
-        }
-
         public abstract int ReadTimeout { get; set; }
         public abstract int WriteTimeout { get; set; }
         public abstract bool DataAvailable { get; }
@@ -1666,7 +1661,17 @@ namespace IPA.Cores.Basic
         public abstract ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
         public abstract Task FlushAsync(CancellationToken cancel = default);
 
-        public NetworkStream NetworkStream { get; }
+        NetworkStream _NetworkStream = null;
+        public NetworkStream NetworkStream
+        {
+            get
+            {
+                if (_NetworkStream == null)
+                    _NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, false);
+
+                return _NetworkStream;
+            }
+        }
 
         public void Dispose() => Dispose(true);
         protected virtual void Dispose(bool disposing) { }
@@ -1843,7 +1848,7 @@ namespace IPA.Cores.Basic
             Options = options;
         }
 
-        protected abstract Task ConnectMainAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout);
+        protected abstract Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout, CancellationToken cancel = default);
         protected abstract void ListenMain(IPEndPoint localEndPoint);
         protected abstract Task<FastTcpProtocolStubBase> AcceptMainAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default);
 
@@ -1853,14 +1858,17 @@ namespace IPA.Cores.Basic
 
         AsyncLock ConnectLock = new AsyncLock();
 
-        public async Task ConnectAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout)
+        public async Task ConnectAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout, CancellationToken cancel = default)
         {
             using (await ConnectLock.LockWithAwait())
             {
                 if (IsConnected) throw new ApplicationException("Already connected.");
                 if (IsListening) throw new ApplicationException("Already listening.");
 
-                await ConnectMainAsync(remoteEndPoint, connectTimeout);
+                using (CreatePerTaskCancellationToken(out CancellationToken cancelOp, cancel))
+                {
+                    await ConnectImplAsync(remoteEndPoint, connectTimeout, cancelOp);
+                }
 
                 IsConnected = true;
                 IsServerMode = false;
@@ -1868,7 +1876,7 @@ namespace IPA.Cores.Basic
         }
 
         public Task ConnectAsync(IPAddress ip, int port, CancellationToken cancel = default, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
-            => ConnectAsync(new IPEndPoint(ip, port), connectTimeout);
+            => ConnectAsync(new IPEndPoint(ip, port), connectTimeout, cancel);
 
         public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => await ConnectAsync(await Options.DnsClient.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
@@ -1945,7 +1953,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task ConnectMainAsync(IPEndPoint remoteEndPoint, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
+        protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
         {
             AsyncCleanuperLady lady = new AsyncCleanuperLady();
 
@@ -1963,7 +1971,7 @@ namespace IPA.Cores.Basic
                 },
                 cancelProc: () => s.DisposeSafe(),
                 timeout: connectTimeout,
-                cancel: GrandCancel);
+                cancel: cancel);
 
                 FromSocket(s);
 
@@ -2026,6 +2034,7 @@ namespace IPA.Cores.Basic
         public FastPipeEnd LowerEnd { get; }
         public FastPipeEnd UpperEnd { get; }
         public LayerInfo Info { get => this.LowerEnd.LayerInfo; }
+        public CancelWatcher CancelWatcher => Stack.CancelWatcher;
 
         public FastSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
             : base(lady)
@@ -2047,9 +2056,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastAppStub GetFastAppProtocolStub(CancellationToken cancel = default)
+        public FastAppStub GetFastAppProtocolStub()
         {
-            FastAppStub ret = UpperEnd.GetFastAppProtocolStub(this.Lady, cancel);
+            FastAppStub ret = UpperEnd.GetFastAppProtocolStub(this.Lady);
 
             return ret;
         }
@@ -2213,33 +2222,34 @@ namespace IPA.Cores.Basic
         public FastSslProtocolStack(AsyncCleanuperLady lady, FastPipeEnd lower, FastPipeEnd upper, FastSslProtocolOptions options,
             CancellationToken cancel = default) : base(lady, lower, upper, options ?? new FastSslProtocolOptions(), cancel) { }
 
-        public async Task<FastSock> SslStartClient(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
+        public async Task SslStartClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
         {
             try
             {
-                var lowerStream = LowerAttach.GetStream(autoFlush: false);
-
-                var ssl = new PalSslStream(lowerStream).AddToLady(this);
-
-                await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, CancelWatcher.CancelToken);
-
-                LowerAttach.SetLayerInfo(new LayerInfo()
+                using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
                 {
-                    IsServerMode = false,
-                    SslProtocol = ssl.SslProtocol.ToString(),
-                    CipherAlgorithm = ssl.CipherAlgorithm.ToString(),
-                    CipherStrength = ssl.CipherStrength,
-                    HashAlgorithm = ssl.HashAlgorithm.ToString(),
-                    HashStrength = ssl.HashStrength,
-                    KeyExchangeAlgorithm = ssl.KeyExchangeAlgorithm.ToString(),
-                    KeyExchangeStrength = ssl.KeyExchangeStrength,
-                    LocalCertificate = ssl.LocalCertificate,
-                    RemoteCertificate = ssl.RemoteCertificate,
-                }, this);
+                    var lowerStream = LowerAttach.GetStream(autoFlush: false);
 
-                var upperStreamWrapper = new FastPipeEndStreamWrapper(this.Lady, UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                    var ssl = new PalSslStream(lowerStream).AddToLady(this);
 
-                return new FastSock(this.Lady, this);
+                    await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, opCancel);
+
+                    LowerAttach.SetLayerInfo(new LayerInfo()
+                    {
+                        IsServerMode = false,
+                        SslProtocol = ssl.SslProtocol.ToString(),
+                        CipherAlgorithm = ssl.CipherAlgorithm.ToString(),
+                        CipherStrength = ssl.CipherStrength,
+                        HashAlgorithm = ssl.HashAlgorithm.ToString(),
+                        HashStrength = ssl.HashStrength,
+                        KeyExchangeAlgorithm = ssl.KeyExchangeAlgorithm.ToString(),
+                        KeyExchangeStrength = ssl.KeyExchangeStrength,
+                        LocalCertificate = ssl.LocalCertificate,
+                        RemoteCertificate = ssl.RemoteCertificate,
+                    }, this);
+
+                    FastPipeEndStreamWrapper upperStreamWrapper = new FastPipeEndStreamWrapper(this.Lady, UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                }
             }
             catch
             {

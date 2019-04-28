@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
         public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg, CancellationToken cancelToken)
         {
             this.Api = api;
-            this.Api.CancelWatcher.AddWatch(cancelToken);
+            this.Api.CancelWatcher.Add(cancelToken);
             this.Config = cfg;
         }
 

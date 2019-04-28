@@ -62,11 +62,7 @@ namespace IPA.TestDev
 
                 var sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80), cancelSource.Token);
                 {
-                    var stub = sock.GetFastAppProtocolStub(cancelSource.Token);
-
-                    var stream = stub.GetStream();
-
-                    var pal = stream.NetworkStream;
+                    var pal = sock.GetStream().NetworkStream;
 
                     var w = new StreamWriter(pal);
                     var r = new StreamReader(pal);

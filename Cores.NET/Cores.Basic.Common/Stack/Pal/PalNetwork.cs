@@ -484,7 +484,8 @@ namespace IPA.Cores.Basic
 
         Once DisposeFlag;
 
-        public override int ReadTimeout { get => NativeStream.ReadTimeout; set => NativeStream.ReadTimeout = value; }
+        public override int ReadTimeout { get => NativeStream.ReadTimeout;
+            set => NativeStream.ReadTimeout = value; }
         public override int WriteTimeout { get => NativeStream.WriteTimeout; set => NativeStream.WriteTimeout = value; }
 
         public override bool DataAvailable => NativeNetworkStream?.DataAvailable ?? true;
