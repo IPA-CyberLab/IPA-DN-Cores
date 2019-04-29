@@ -73,7 +73,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastBuffer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastGlobalConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastPrimitives.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastNetwork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\LargeFileSystem.cs" />
