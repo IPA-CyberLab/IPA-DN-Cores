@@ -83,6 +83,7 @@ namespace IPA.Cores.Basic
             this.Url = url;
             this.Cancel = cancel;
             this.UploadContentType = uploadContentType.FilledOrDefault("application/octet-stream");
+            this.UploadStream = uploadStream;
         }
 
         public void Dispose() => Dispose(true);
@@ -184,6 +185,7 @@ namespace IPA.Cores.Basic
         public string ToString(Encoding encoding) => this.Data.GetString(encoding);
     }
 
+    [Flags]
     enum WebApiMethods
     {
         GET,
@@ -399,7 +401,21 @@ namespace IPA.Cores.Basic
         {
             HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
 
-            HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead);
+            if (request.Method.EqualsAny(WebApiMethods.POST, WebApiMethods.PUT))
+            {
+                if (request.UploadStream == null)
+                    throw new ArgumentException("request.UploadStream == null");
+
+                r.Content = new StreamContent(request.UploadStream);
+                r.Content.Headers.ContentType = new MediaTypeHeaderValue(request.UploadContentType);
+            }
+            else
+            {
+                if (request.UploadStream != null)
+                    throw new ArgumentException($"request.UploadStream != null, but the specified method is {request.Method}.");
+            }
+
+            HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
             try
             {
                 ThrowIfError(res);

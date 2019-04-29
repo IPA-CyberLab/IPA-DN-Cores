@@ -75,12 +75,45 @@ namespace IPA.TestDev
 
             //Net_Test6_DualStack_Client();
 
-            Net_Test7_Http_ClientAsync().GetResult();
+            Net_Test8_Http_Upload_Async().GetResult();
 
             return 0;
         }
 
-        static async Task Net_Test7_Http_ClientAsync()
+        static async Task Net_Test8_Http_Upload_Async()
+        {
+            string url = "https://httpbin.org/anything";
+
+            MemoryBuffer<byte> uploadData = new MemoryBuffer<byte>("Hello World".GetBytes_Ascii());
+            var stream = uploadData.AsDirectStream();
+            stream.SeekToBegin();
+
+            using (WebApi api = new WebApi())
+            {
+                Dbg.Where();
+                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.POST, url, uploadStream: stream));
+                MemoryBuffer<byte> downloadData = new MemoryBuffer<byte>();
+                using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
+                {
+                    long total = 0;
+                    while (true)
+                    {
+                        int r = await res.DownloadStream.ReadAsync(tmp);
+                        if (r <= 0) break;
+
+                        total += r;
+
+                        downloadData.Write(tmp.Slice(0, r));
+
+                        Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                    }
+                }
+                downloadData.Span.GetString_Ascii().Print();
+                Dbg.Where();
+            }
+        }
+
+        static async Task Net_Test7_Http_Download_Async()
         {
             //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/masterz";
             string url = "http://speed.softether.com/001.1Mbytes.dat";

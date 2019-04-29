@@ -1093,9 +1093,9 @@ namespace IPA.Cores.Basic
 
         public long LongCurrentPosition => this.CurrentPosition;
 
-        public long LongLength => this.LongLength;
+        public long LongLength => this.Length;
 
-        public long LongInternalBufferSize => this.LongInternalBufferSize;
+        public long LongInternalBufferSize => this.InternalBufferSize;
 
         public MemoryBuffer(int size = 0) : this(new T[size]) { }
 
