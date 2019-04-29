@@ -416,6 +416,8 @@ namespace IPA.Cores.Basic
 
                 Lady.Add(Stack);
                 Lady.Add(Pipe);
+
+                Pipe.OnDisconnected.Add(() => this.Disconnect());
             }
             catch
             {

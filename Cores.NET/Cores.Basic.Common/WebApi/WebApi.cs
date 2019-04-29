@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
 
         public WebApi()
         {
-            this.ClientHandler = new SocketsHttpHandler();
+            this.ClientHandler = new SocketsHttpHandler(LocalNet);
 
             this.ClientHandler.AllowAutoRedirect = true;
             this.ClientHandler.MaxAutomaticRedirections = 10;

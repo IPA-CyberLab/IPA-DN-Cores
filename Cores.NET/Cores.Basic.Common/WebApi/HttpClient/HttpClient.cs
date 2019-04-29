@@ -15421,7 +15421,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         private static readonly System.Collections.Concurrent.ConcurrentQueue<ConnectHelper.ConnectEventArgs> s_connectEventArgs = new System.Collections.Concurrent.ConcurrentQueue<ConnectEventArgs>();
 
         // Token: 0x060004EC RID: 1260 RVA: 0x000486F4 File Offset: 0x000286F4
-        public static async ValueTask<ValueTuple<Socket, Stream>> ConnectAsync(string host, int port, CancellationToken cancellationToken)
+        public static async ValueTask<ValueTuple<Socket, Stream>> ConnectAsync(TcpIpSystem system, string host, int port, CancellationToken cancellationToken)
         {
             ConnectHelper.ConnectEventArgs saea = null;
             //if (!ConnectHelper.s_connectEventArgs.TryDequeue(out saea))
@@ -15433,24 +15433,35 @@ namespace IPA.Cores.Basic.HttpClientCore
             {
                 saea.Initialize(cancellationToken);
                 saea.RemoteEndPoint = new DnsEndPoint(host, port);
-                if (Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, saea))
+
+                if (system == null)
                 {
-                    using (cancellationToken.Register(delegate (object s)
+                    if (Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, saea))
                     {
-                        Socket.CancelConnectAsync((SocketAsyncEventArgs)s);
-                    }, saea))
-                    {
-                        await saea.Builder.Task.ConfigureAwait(false);
+                        using (cancellationToken.Register(delegate (object s)
+                        {
+                            Socket.CancelConnectAsync((SocketAsyncEventArgs)s);
+                        }, saea))
+                        {
+                            await saea.Builder.Task.ConfigureAwait(false);
+                        }
+                        CancellationTokenRegistration cancellationTokenRegistration = default(CancellationTokenRegistration);
                     }
-                    CancellationTokenRegistration cancellationTokenRegistration = default(CancellationTokenRegistration);
+                    else if (saea.SocketError != SocketError.Success)
+                    {
+                        throw new SocketException((int)saea.SocketError);
+                    }
+                    Socket connectSocket = saea.ConnectSocket;
+                    connectSocket.NoDelay = true;
+                    result = new ValueTuple<Socket, Stream>(connectSocket, new NetworkStream(connectSocket, true));
                 }
-                else if (saea.SocketError != SocketError.Success)
+                else
                 {
-                    throw new SocketException((int)saea.SocketError);
+                    ConnSock connSock = await system.ConnectIPv4v6DualAsync(new TcpConnectParam(host, port), cancellationToken);
+                    var networkStream = connSock.GetStream(true).NetworkStream;
+                    networkStream.DisposeParentObjectAutomatically = true;
+                    result = new ValueTuple<Socket, Stream>(null, networkStream);
                 }
-                Socket connectSocket = saea.ConnectSocket;
-                connectSocket.NoDelay = true;
-                result = new ValueTuple<Socket, Stream>(connectSocket, new NetworkStream(connectSocket, true));
             }
             catch (Exception ex)
             {
@@ -16552,9 +16563,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         ///         <see cref="T:System.Net.Http.HttpClient" /> クラスの新しいインスタンスを初期化します。
         ///       </summary>
         // Token: 0x0600021A RID: 538 RVA: 0x000399CA File Offset: 0x000199CA
-        public HttpClient() : this(new SocketsHttpHandler())
-        {
-        }
+        //public HttpClient() : this(new SocketsHttpHandler())
+        //{
+        //}
 
         /// <summary>
         ///         指定したハンドラーを使用して、<see cref="T:System.Net.Http.HttpClient" /> クラスの新しいインスタンスを初期化します。
@@ -20786,7 +20797,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                     case HttpConnectionKind.Https:
                     case HttpConnectionKind.ProxyConnect:
                         {
-                            ValueTuple<Socket, Stream> valueTuple = await ConnectHelper.ConnectAsync(this._host, this._port, cancellationToken).ConfigureAwait(false);
+                            ValueTuple<Socket, Stream> valueTuple = await ConnectHelper.ConnectAsync(this.Settings._tcpIpSystem, this._host, this._port, cancellationToken).ConfigureAwait(false);
                             ValueTuple<Socket, Stream> valueTuple2 = valueTuple;
                             socket = valueTuple2.Item1;
                             stream = valueTuple2.Item2;
@@ -20794,7 +20805,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                         }
                     case HttpConnectionKind.Proxy:
                         {
-                            ValueTuple<Socket, Stream> valueTuple3 = await ConnectHelper.ConnectAsync(this._proxyUri.IdnHost, this._proxyUri.Port, cancellationToken).ConfigureAwait(false);
+                            ValueTuple<Socket, Stream> valueTuple3 = await ConnectHelper.ConnectAsync(this.Settings._tcpIpSystem, this._proxyUri.IdnHost, this._proxyUri.Port, cancellationToken).ConfigureAwait(false);
                             socket = valueTuple3.Item1;
                             stream = valueTuple3.Item2;
                             break;
@@ -21699,6 +21710,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             httpConnectionSettings._sslOptions = ((sslOptions != null) ? sslOptions.ShallowClone() : null);
             httpConnectionSettings._useCookies = this._useCookies;
             httpConnectionSettings._useProxy = this._useProxy;
+            httpConnectionSettings._tcpIpSystem = this._tcpIpSystem;
             return httpConnectionSettings;
         }
 
@@ -21761,6 +21773,8 @@ namespace IPA.Cores.Basic.HttpClientCore
 
         // Token: 0x0400046C RID: 1132
         internal IDictionary<string, object> _properties;
+
+        internal TcpIpSystem _tcpIpSystem = null;
     }
 
 
@@ -26082,9 +26096,21 @@ namespace IPA.Cores.Basic.HttpClientCore
         private readonly int _maxAutomaticRedirections;
     }
 
+
+
     // Token: 0x020000F9 RID: 249
     sealed class SocketsHttpHandler : HttpMessageHandler
     {
+        readonly TcpIpSystem TcpIpSystem;
+
+        public SocketsHttpHandler(TcpIpSystem tcpIpSystem)
+        {
+            TcpIpSystem = tcpIpSystem;
+
+            this._settings = new HttpConnectionSettings();
+            this._settings._tcpIpSystem = this.TcpIpSystem;
+        }
+
         // Token: 0x06000584 RID: 1412 RVA: 0x0004B9B9 File Offset: 0x0002B9B9
         private void CheckDisposed()
         {
@@ -26561,7 +26587,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x0400046E RID: 1134
-        private readonly HttpConnectionSettings _settings = new HttpConnectionSettings();
+        private readonly HttpConnectionSettings _settings;
 
         // Token: 0x0400046F RID: 1135
         private HttpMessageHandler _handler;

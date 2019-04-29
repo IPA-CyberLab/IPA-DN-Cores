@@ -288,12 +288,12 @@ namespace IPA.Cores.Basic
         private FastStreamToPalNetworkStream() : base(null) { }
         FastStream FastStream;
 
-        bool DisposeObject = false;
+        public bool DisposeParentObjectAutomatically = false;
 
-        private void _InternalInit(FastStream fastStream, bool disposeObject)
+        private void _InternalInit(FastStream fastStream, bool disposeParentObject)
         {
             FastStream = fastStream;
-            DisposeObject = disposeObject;
+            DisposeParentObjectAutomatically = disposeParentObject;
 
             ReadTimeout = Timeout.Infinite;
             WriteTimeout = Timeout.Infinite;
@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
         {
             if (DisposeFlag.IsFirstCall() && disposing)
             {
-                if (this.DisposeObject)
+                if (this.DisposeParentObjectAutomatically)
                 {
                     FastStream.DisposeSafe();
                 }

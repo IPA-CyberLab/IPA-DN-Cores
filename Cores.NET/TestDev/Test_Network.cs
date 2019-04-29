@@ -75,7 +75,9 @@ namespace IPA.TestDev
 
             //Net_Test6_DualStack_Client();
 
-            Net_Test8_Http_Upload_Async().GetResult();
+            Net_Test7_Http_Download_Async().GetResult();
+
+            //Net_Test8_Http_Upload_Async().GetResult();
 
             return 0;
         }
@@ -115,26 +117,33 @@ namespace IPA.TestDev
 
         static async Task Net_Test7_Http_Download_Async()
         {
-            //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/masterz";
-            string url = "http://speed.softether.com/001.1Mbytes.dat";
+            string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
+            //string url = "http://speed.softether.com/001.1Mbytes.dat";
+            //string url = "http://speed.softether.com/001.1Mbytes.dat";
 
-            using (WebApi api = new WebApi())
+            for (int j = 0; ; j++)
             {
-                Dbg.Where();
-                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.GET, url));
-                using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
+                using (WebApi api = new WebApi())
                 {
-                    long total = 0;
-                    while (true)
+                    //for (int i = 0; ; i++)
                     {
-                        int r = await res.DownloadStream.ReadAsync(tmp);
-                        if (r <= 0) break;
-                        total += r;
+                        Dbg.Where();
+                        var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.GET, url));
+                        using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
+                        {
+                            long total = 0;
+                            while (true)
+                            {
+                                int r = await res.DownloadStream.ReadAsync(tmp);
+                                if (r <= 0) break;
+                                total += r;
 
-                        Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                                Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                            }
+                        }
+                        Dbg.Where();
                     }
                 }
-                Dbg.Where();
             }
         }
 

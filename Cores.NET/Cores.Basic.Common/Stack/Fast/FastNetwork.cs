@@ -1661,13 +1661,13 @@ namespace IPA.Cores.Basic
         public abstract ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
         public abstract Task FlushAsync(CancellationToken cancel = default);
 
-        NetworkStream _NetworkStream = null;
-        public NetworkStream NetworkStream
+        FastStreamToPalNetworkStream _NetworkStream = null;
+        public FastStreamToPalNetworkStream NetworkStream
         {
             get
             {
                 if (_NetworkStream == null)
-                    _NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, false);
+                    _NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, true);
 
                 return _NetworkStream;
             }
