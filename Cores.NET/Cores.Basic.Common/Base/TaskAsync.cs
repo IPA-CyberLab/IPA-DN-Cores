@@ -3223,7 +3223,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public readonly struct BackgroundStateDataUpdatePolicy
+    readonly struct BackgroundStateDataUpdatePolicy
     {
         public readonly int InitialPollingInterval;
         public readonly int MaxPollingInterval;

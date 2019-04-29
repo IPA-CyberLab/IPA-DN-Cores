@@ -813,7 +813,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<string> SendRequestAndGetResponse(string req)
         {
-            WebRet ret = await this.WebApi.RequestWithPostDataAsync(this.ApiBaseUrl, req.GetBytes_UTF8(), "application/json");
+            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req.GetBytes_UTF8(), "application/json");
 
             return ret.ToString();
         }

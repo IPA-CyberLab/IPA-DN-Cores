@@ -82,10 +82,10 @@ namespace IPA.Cores.Basic
             => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
 
         public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject)
-            => await RequestWithJsonAsync(method, url, this.JsonSerialize(jsonObject));
+            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject));
 
         public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic)
-            => await RequestWithJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic));
+            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic));
     }
 }
 

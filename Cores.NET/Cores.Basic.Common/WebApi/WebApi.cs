@@ -77,9 +77,9 @@ namespace IPA.Cores.Basic
         public Encoding DefaultEncoding { get; } = null;
         public WebApi Api { get; }
 
-        public WebRet(WebApi webapi, string url, string contentsType, byte[] data)
+        public WebRet(WebApi api, string url, string contentsType, byte[] data)
         {
-            this.Api = webapi;
+            this.Api = api;
             this.Url = url.NonNull();
             this.ContentsType = contentsType.NonNull();
 
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
 
             if (this.DefaultEncoding == null)
             {
-                this.DefaultEncoding = webapi.RequestEncoding;
+                this.DefaultEncoding = api.RequestEncoding;
             }
 
             this.Data = data.NonNull();
@@ -168,6 +168,16 @@ namespace IPA.Cores.Basic
             this.MaxRecvSize = WebApi.DefaultMaxRecvSize;
             this.TimeoutMsecs = WebApi.DefaultTimeoutMsecs;
         }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.Client.DisposeSafe();
+            this.Client = null;
+        }
+
 
         public string BuildQueryString(params (string name, string value)[] queryList)
         {
@@ -266,7 +276,7 @@ namespace IPA.Cores.Basic
             res.EnsureSuccessStatusCode();
         }
 
-        public async Task<WebRet> RequestWithQueryAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
         {
             if (postContentsType.IsEmpty()) postContentsType = "application/x-www-form-urlencoded";
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
@@ -285,10 +295,9 @@ namespace IPA.Cores.Basic
                 return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
             }
         }
-        public WebRet RequestWithQuery(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
-            => RequestWithQueryAsync(method, url, postContentsType, queryList).GetResult();
 
-        public async Task<WebRet> RequestWithPostDataAsync(string url, byte[] postData, string postContentsType = "application/json")
+
+        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, string postContentsType = "application/json")
         {
             if (postContentsType.IsEmpty()) postContentsType = "application/json";
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
@@ -304,10 +313,9 @@ namespace IPA.Cores.Basic
                 return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
             }
         }
-        public WebRet RequestWithPostData(string url, byte[] postData, string postContentsType = "application/json")
-            => RequestWithPostDataAsync(url, postData, postContentsType).GetResult();
 
-        public virtual async Task<WebRet> RequestWithJsonAsync(WebApiMethods method, string url, string jsonString)
+
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString)
         {
             if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
@@ -326,16 +334,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public virtual WebRet RequestWithJson(WebApiMethods method, string url, string jsonString)
-            => RequestWithJsonAsync(method, url, jsonString).GetResult();
 
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
+        public virtual async Task<WebRet> HttpSendRecvAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded")
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.Client.DisposeSafe();
-            this.Client = null;
         }
     }
 }

@@ -71,7 +71,7 @@ namespace IPA.TestDev
                 {
                     Task t = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
-                        var ret = await api.RequestWithQueryAsync(WebApiMethods.GET, url);
+                        var ret = await api.SimpleQueryAsync(WebApiMethods.GET, url);
 
                         ret.Data.GetString_UTF8().Print();
                     });

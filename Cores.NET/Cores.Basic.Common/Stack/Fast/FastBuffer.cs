@@ -84,7 +84,7 @@ namespace IPA.Cores.Basic
 
     static class IFastBufferStateHelper
     {
-        public static async Task WaitForReadyToWrite(this IFastBufferState writer, CancellationToken cancel, int timeout)
+        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout)
         {
             LocalTimer timer = new LocalTimer();
 
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public static async Task WaitForReadyToRead(this IFastBufferState reader, CancellationToken cancel, int timeout)
+        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout)
         {
             LocalTimer timer = new LocalTimer();
 
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
         long DequeueAllAndEnqueueToOther(IFastBuffer<T> other);
     }
 
-    public readonly struct FastBufferSegment<T>
+    readonly struct FastBufferSegment<T>
     {
         public readonly T Item;
         public readonly long Pin;
@@ -1377,15 +1377,15 @@ namespace IPA.Cores.Basic
         public T[] ItemsSlow { get => ToArray(); }
     }
 
-    class FastStreamFifo : FastStreamBuffer<byte>
+    class FastStreamBuffer : FastStreamBuffer<byte>
     {
-        public FastStreamFifo(bool enableEvents = false, long? thresholdLength = null)
+        public FastStreamBuffer(bool enableEvents = false, long? thresholdLength = null)
             : base(enableEvents, thresholdLength) { }
     }
 
-    class FastDatagramFifo : FastDatagramBuffer<Datagram>
+    class FastDatagramBuffer : FastDatagramBuffer<Datagram>
     {
-        public FastDatagramFifo(bool enableEvents = false, long? thresholdLength = null)
+        public FastDatagramBuffer(bool enableEvents = false, long? thresholdLength = null)
             : base(enableEvents, thresholdLength) { }
     }
 }

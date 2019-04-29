@@ -1,0 +1,96 @@
+﻿■ FastPrimitives.cs - 基本的なデータ型とアルゴリズム
+Datagram - UDP データグラムを表現する型。ReadOnlyMemory<byte> を内包する。
+FastLinkedListNode<T>, FastLinkedList<T> - .NET ライブラリよりも高速なリンクリスト
+
+
+■ FastBuffer.cs - 低レベル高速バッファ
+FastStreamBuffer<T>: IFastBuffer<Memory<T>> - ストリームバッファのメインの実装。内部に多数の Memory<T> のセグメント化された配列を持つ。
+
+FastDatagramBuffer<T> : IFastBuffer<T> - データグラムバッファのメイン実装。内部は Fifo<T> (T の高速キュー) によって実装されている。
+
+バッファは、いずれも、pin 位置、例外キュー、レイヤ固有情報、ロック、読み書き可能かどうかのフラグ、イベントリスナ、読み書き完了通知 の仕組みを有する。
+
+IFastBufferState - バッファの pin 位置、例外キュー、レイヤ固有情報、ロック、読み書き可能かどうかのフラグ、イベントリスナ、読み書き完了通知 へアクセスできる最低限のインターフェイス
+    WaitForReadyToWriteAsync() - バッファが書き込み可能になるまで待つ
+    WaitForReadyToReadAsync() - バッファが読み込み可能になるまで待つ
+
+IFastBuffer<T>: IFastBufferState - IFastBufferState に加えて、バッファ内のデータの消去、末尾への追加、先頭からの読み出しなどの機能にアクセスできるインターフェイス
+
+FastBufferSegment<T> - バッファをセグメント単位で操作する際のデータ受け渡し用の軽量な構造体。
+
+
+
+
+■ FastStack.cs - 高レベルネットワークスタックレイヤ
+LayerInfo - 複数のレイヤの情報の統合的な集合。レイヤ固有情報の Install, Uninstall, 値の取得が可能である。値の取得は GetValues<T> メソッドで行なう。ここで登録済みのレイヤ固有情報の型を指定することになる。同一の型が複数登録されている場合は index 指定できる。全件取得もできる。
+
+    Encounter() メソッド: 複数の LayerInfo を結合して、1 つの LayerInfo に統合する。LayerInfo のインスタンス自体は別々であるが、データとしては、同じ物を指すようになる。
+    
+    便利のために、LayerInfoBase の派生クラスには、対応するプロパティ読み出し用のインターフェイスの定義が推奨される。定義されたインターフェイスを用いた読み出しプロパティのショートカットが、LayerInfo クラスの末尾に記載される。
+    
+    例: ILayerInfoSsl - SSL レイヤ固有情報 (L7 ?)
+        ILayerInfoTcpEndPoint - TCP レイヤ固有情報 (L4)
+        ILayerInfoIpEndPoint - IP レイヤ固有情報 (L3)
+
+    レイヤ情報について:
+      各スタックの実装は、レイヤ固有の情報 (LayerInfoBase から派生したデータ型に限る) を LayerInfo に Install することができる。1 つの LayerInfo 内では、複数のレイヤ固有情報 (LayerInfoBase の派生) が、上下関係を有して整列されている。Install 時は、いずれの既存の情報の上または下に配置するかを指定する。
+      レイヤ固有情報のインスタンスの内容 (フィールド) は、動作中に変化することが多い。登録元のスタックはいつでも登録済みの内容を直接書き換えてよい。
+
+LayerInfoBase - 登録されるレイヤ固有情報の抽象型。
+    ProtocolStack - 関連するプロトコルスタックへの参照。FastAttachHandle.SetLayerInfo でインストールする際に設定される。
+
+FastPipe - 対称系・双方向 (Duplex) なストリーム (FastStreamBuffer) およびデータグラム (FastDatagramBuffer) のバッファの組みを実装する。方向は、A -> B, B -> A の 2 つであり、ネットワークレイヤ的に、A が下位 (LowerSide)、B が上位 (UpperSide) として利用される。
+
+    内部で生成される 4 組のバッファ:
+        StreamAtoB, StreamBtoA
+        DatagramAtoB, DatagramBtoA
+    
+    A_LowerSide, B_UpperSide: 「FastPipeEnd」型のパイプ遠端。FastPipeEnd 型は自動的に new される。
+        A_LowerSide: A -> B 方向のバッファが登録されている。
+        B_UpperSide: B -> A 方向のバッファが登録されている。
+
+    コンストラクタ: 全体 cancel (直ちに切断する)、Threshold を指定。
+            Threshold: ストリームとデータグラムでの目標最大バッファサイズ。
+
+    LayerInfo と例外キューを実装する。
+        LayerInfo と例外キューは、 AtoB <--> BtoA 間が、最初に Encounter される。これらの Encounter されたキュー等の実体は、FastStreamBuffer, FastDatagramBuffer の内部に存在するが、これらが相互に結合されるので、それぞれのモジュールでのプログラミングへの集中が容易くなるのである。
+    
+    OnDisconnected リストを用いると、切断発生時に Action を呼ぶことができる。
+    OnDisconnectedEvent イベントは、切断発生時にシグナル状態になる。
+    
+    Disconnect メソッド: 1 回のみ実行可能。すべてのバッファを切断し、イベント等を発生させる。なお、各バッファに対する切断動作は、Disconnect メソッドの呼び出しに戻ってくるが、1 回しか実行されない仕組みになっている。
+    
+    Dispose: Disconnect と同一。
+    
+    CheckDisconnected(): いずれかのバッファが切断されていたら、例外を発生。
+
+FastPipeEnd - FastPipe によって 2 組作られるパイプの操作用末端。(普通は、自分で作らない)
+    ストリームバッファとデータグラムバッファの、読み込み方向、書き込み方向への参照を持っている。
+    
+    Side - 自分がパイプの上端か下端かの識別 (コードの誤りを防止するために存在)
+    CounterPart - 逆方向の対応する FastPipeEnd への参照
+    static NewFastPipeAndGetOneSide() - 特殊なメソッド。簡単に FastPipe を作成した後に、指定された方向の FastPipeEnd を戻り値として返す。
+    
+    Attach(): アタッチハンドル「FastAttachHandle」を取得する。
+      FastPipeEnd は、Attach されていない状態 / されている状態の 2 つを持つ。
+      Attach は同時に 1 つしかできない。Attach() をすると、Attach Handle が取得できる。
+    
+    GetFastAppProtocolStub(): FastAppStub を新規作成して Attach する。
+
+FastAttachHandle - FastPipe に対するアタッチハンドル。
+    SetLayerInfo(): アタッチ後、プロトコルスタックと組み合わせたレイヤ固有情報をインストールする。Detach する際に自動的にアンインストールされるので便利である。
+    SetStreamTimeout(): 内部ストリームの送受信タイムアウトを指定する。
+    GetStream(): FastPipeEndStream 型を生成する。
+    Dispose(): デタッチする。
+
+IFastStream - インターフェイス。タイムアウト変数の設定、データの読み込み可能フラグの取得、WriteAsync(), ReadAsync(), FlushAsync() を提供する。
+
+FastStream : IFastStream - 抽象クラスであり、タイムアウト変数の設定、データの読み込み可能フラグの取得、WriteAsync(), ReadAsync(), FlushAsync() を提供する。また、NetworkStream 型のラッパー「FastStreamToPalNetworkStream」 (.NET の既存ライブラリとの接続に便利) を生成することができる。
+
+FastPipeEndStream: FastStream - FastPipeEnd のパイプにおける、ストリームおよびデータグラムのバッファに対する、非同期読み書きを簡単にするためのユーティリティクラスである。タイムアウト付きの待機など、.NET のストリームに似たことができる。データグラム型もサポートしている。
+
+
+
+
+
+
