@@ -36,8 +36,6 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;

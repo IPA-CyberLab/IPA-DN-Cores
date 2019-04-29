@@ -39,7 +39,6 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net;
-using System.Net.Http;
 
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
@@ -67,7 +66,7 @@ using System.Net.Http;
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-namespace IPA.Cores.Basic.HttpHandler
+namespace IPA.Cores.Basic.HttpClientCore
 {
     static class SR
     {

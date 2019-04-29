@@ -87,13 +87,13 @@ using static IPA.Cores.Globals.Basic;
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-namespace IPA.Cores.Basic.HttpHandler
+namespace IPA.Cores.Basic.HttpClientCore
 {
     /// <summary>
     ///         Authorization、ProxyAuthorization、Www-authenticate、およびプロキシ認証ヘッダーの値での認証情報を表します。
     ///       </summary>
     // Token: 0x0200011E RID: 286
-    public class AuthenticationHeaderValue : ICloneable
+    class AuthenticationHeaderValue : ICloneable
     {
         /// <summary>
         ///         承認のために使用するスキームを取得します。
@@ -547,7 +547,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Cache-Control ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000122 RID: 290
-    public class CacheControlHeaderValue : ICloneable
+    class CacheControlHeaderValue : ICloneable
     {
         /// <summary>
         ///         HTTP クライアントがキャッシュされた応答を許容できるかどうか。
@@ -1488,7 +1488,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Content-Disposition ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000123 RID: 291
-    public class ContentDispositionHeaderValue : ICloneable
+    class ContentDispositionHeaderValue : ICloneable
     {
         /// <summary>
         ///         コンテンツのボディ部の配置タイプです。
@@ -2166,7 +2166,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Content-Range ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000124 RID: 292
-    public class ContentRangeHeaderValue : ICloneable
+    class ContentRangeHeaderValue : ICloneable
     {
         /// <summary>
         ///         使用されている範囲単位。
@@ -2709,7 +2709,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         entity-tag ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000126 RID: 294
-    public class EntityTagHeaderValue : ICloneable
+    class EntityTagHeaderValue : ICloneable
     {
         /// <summary>
         ///         引用符で囲まれたを不透明な文字列を取得します。
@@ -3710,7 +3710,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されているコンテンツ ヘッダーのコレクションを表します。
     ///       </summary>
     // Token: 0x0200012B RID: 299
-    public sealed class HttpContentHeaders : HttpHeaders
+    sealed class HttpContentHeaders : HttpHeaders
     {
         /// <summary>
         ///         HTTP 応答の <see langword="Allow" /> コンテンツ ヘッダーの値を取得します。
@@ -4348,7 +4348,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されているヘッダーとその値のコレクション。
     ///       </summary>
     // Token: 0x0200012E RID: 302
-    public abstract class HttpHeaders : IEnumerable<KeyValuePair<string, IEnumerable<string>>>, IEnumerable
+    abstract class HttpHeaders : IEnumerable<KeyValuePair<string, IEnumerable<string>>>, IEnumerable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.HttpHeaders" /> クラスの新しいインスタンスを初期化します。
@@ -5644,7 +5644,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///           ヘッダーのコレクション型。
     ///         </typeparam>
     // Token: 0x02000134 RID: 308
-    public sealed class HttpHeaderValueCollection<T> : ICollection<T>, IEnumerable<T>, IEnumerable where T : class
+    sealed class HttpHeaderValueCollection<T> : ICollection<T>, IEnumerable<T>, IEnumerable where T : class
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.HttpHeaderValueCollection`1" /> 内のヘッダーの数を取得します。
@@ -5947,7 +5947,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されている要求ヘッダーのコレクションを表します。
     ///       </summary>
     // Token: 0x02000136 RID: 310
-    public sealed class HttpRequestHeaders : HttpHeaders
+    sealed class HttpRequestHeaders : HttpHeaders
     {
         // Token: 0x0600084B RID: 2123 RVA: 0x00058688 File Offset: 0x00038688
         private T GetSpecializedCollection<T>(int slot, Func<HttpRequestHeaders, T> creationFunc)
@@ -6635,7 +6635,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されている応答ヘッダーのコレクションを表します。
     ///       </summary>
     // Token: 0x02000138 RID: 312
-    public sealed class HttpResponseHeaders : HttpHeaders
+    sealed class HttpResponseHeaders : HttpHeaders
     {
         // Token: 0x06000889 RID: 2185 RVA: 0x00058CFC File Offset: 0x00038CFC
         private T GetSpecializedCollection<T>(int slot, Func<HttpResponseHeaders, T> creationFunc)
@@ -8620,7 +8620,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されているコンテンツ タイプ ヘッダーで使用されるメディアの種類を表します。
     ///       </summary>
     // Token: 0x0200013D RID: 317
-    public class MediaTypeHeaderValue : ICloneable
+    class MediaTypeHeaderValue : ICloneable
     {
         /// <summary>
         ///         文字セットを取得または設定します。
@@ -8944,7 +8944,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Content-type ヘッダーで使用されるその他の品質係数でメディアの種類を表します。
     ///       </summary>
     // Token: 0x0200013E RID: 318
-    public sealed class MediaTypeWithQualityHeaderValue : MediaTypeHeaderValue, ICloneable
+    sealed class MediaTypeWithQualityHeaderValue : MediaTypeHeaderValue, ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.MediaTypeWithQualityHeaderValue" /> の品質の値を取得または設定します。
@@ -9070,7 +9070,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されているさまざまなヘッダーで使用される名前/値ペアを表します。
     ///       </summary>
     // Token: 0x0200013F RID: 319
-    public class NameValueHeaderValue : ICloneable
+    class NameValueHeaderValue : ICloneable
     {
         /// <summary>
         ///         ヘッダー名を取得します。
@@ -9479,7 +9479,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         RFC 2616 で定義されているさまざまなヘッダーで使用されるパラメーターを名前/値ペアを表します。
     ///       </summary>
     // Token: 0x02000140 RID: 320
-    public class NameValueWithParametersHeaderValue : NameValueHeaderValue, ICloneable
+    class NameValueWithParametersHeaderValue : NameValueHeaderValue, ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.NameValueWithParametersHeaderValue" /> オブジェクトからパラメーターを取得します。
@@ -9759,7 +9759,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         ユーザー エージェント ヘッダーに製品トークン値を表します。
     ///       </summary>
     // Token: 0x02000142 RID: 322
-    public class ProductHeaderValue : ICloneable
+    class ProductHeaderValue : ICloneable
     {
         /// <summary>
         ///         製品トークンの名前を取得します。
@@ -10037,7 +10037,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         使用できる成果物または User-agent ヘッダー内のコメント値を表します。
     ///       </summary>
     // Token: 0x02000144 RID: 324
-    public class ProductInfoHeaderValue : ICloneable
+    class ProductInfoHeaderValue : ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.ProductInfoHeaderValue" /> オブジェクトから製品を取得します。
@@ -10300,7 +10300,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         If 範囲ヘッダーの値になる可能性がか、日付/時刻またはエンティティ タグ値を表します。
     ///       </summary>
     // Token: 0x02000145 RID: 325
-    public class RangeConditionHeaderValue : ICloneable
+    class RangeConditionHeaderValue : ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.RangeConditionHeaderValue" /> オブジェクトから日付を取得します。
@@ -10560,7 +10560,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         範囲ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000146 RID: 326
-    public class RangeHeaderValue : ICloneable
+    class RangeHeaderValue : ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.RangeHeaderValue" /> オブジェクトから単位を取得します。
@@ -10822,7 +10822,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         バイトの範囲に範囲ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000147 RID: 327
-    public class RangeItemHeaderValue : ICloneable
+    class RangeItemHeaderValue : ICloneable
     {
         /// <summary>
         ///         データの送信を開始する位置を取得します。
@@ -11075,7 +11075,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         日付/時刻を指定できます Retry-after 後ヘッダー値か timespan の値を表します。
     ///       </summary>
     // Token: 0x02000148 RID: 328
-    public class RetryConditionHeaderValue : ICloneable
+    class RetryConditionHeaderValue : ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.RetryConditionHeaderValue" /> オブジェクトから日付と時刻のオフセットを取得します。
@@ -11329,7 +11329,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         品質に関する追加情報を持つ文字列ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x02000149 RID: 329
-    public class StringWithQualityHeaderValue : ICloneable
+    class StringWithQualityHeaderValue : ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.StringWithQualityHeaderValue" /> オブジェクトから文字列値を取得します。
@@ -11697,7 +11697,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Accept-encoding ヘッダー値を表します。
     ///       </summary>
     // Token: 0x0200014C RID: 332
-    public class TransferCodingHeaderValue : ICloneable
+    class TransferCodingHeaderValue : ICloneable
     {
         /// <summary>
         ///         transfer-coding 値を取得します。
@@ -11923,7 +11923,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Accept-encoding ヘッダー value.with 省略可能な品質係数を表します。
     ///       </summary>
     // Token: 0x0200014D RID: 333
-    public sealed class TransferCodingWithQualityHeaderValue : TransferCodingHeaderValue, ICloneable
+    sealed class TransferCodingWithQualityHeaderValue : TransferCodingHeaderValue, ICloneable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.Headers.TransferCodingWithQualityHeaderValue" /> から品質要因を取得します。
@@ -12145,7 +12145,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Via ヘッダーの値を表します。
     ///       </summary>
     // Token: 0x0200014F RID: 335
-    public class ViaHeaderValue : ICloneable
+    class ViaHeaderValue : ICloneable
     {
         /// <summary>
         ///         受信したプロトコルのプロトコル名を取得します。
@@ -12533,7 +12533,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         Warning ヘッダーで使用される警告の値を表します。
     ///       </summary>
     // Token: 0x02000150 RID: 336
-    public class WarningHeaderValue : ICloneable
+    class WarningHeaderValue : ICloneable
     {
         /// <summary>
         ///         特定の警告コードを取得します。
@@ -15214,7 +15214,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         バイト配列に基づく HTTP コンテンツを提供します。
     ///       </summary>
     // Token: 0x0200006F RID: 111
-    public class ByteArrayContent : HttpContent
+    class ByteArrayContent : HttpContent
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.ByteArrayContent" /> クラスの新しいインスタンスを初期化します。
@@ -15823,7 +15823,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         別のハンドラーでは、HTTP 応答メッセージの処理をデリゲートする HTTP ハンドラーの型には、内部のハンドラーが呼び出されます。
     ///       </summary>
     // Token: 0x02000071 RID: 113
-    public abstract class DelegatingHandler : HttpMessageHandler
+    abstract class DelegatingHandler : HttpMessageHandler
     {
         /// <summary>
         ///         HTTP 応答メッセージを処理する内部ハンドラーを取得または設定します。
@@ -16333,7 +16333,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         MIME の種類 application/x-www-form-urlencoded を使用してエンコードされた名前と値のタプルのコンテナー。
     ///       </summary>
     // Token: 0x02000072 RID: 114
-    public class FormUrlEncodedContent : ByteArrayContent
+    class FormUrlEncodedContent : ByteArrayContent
     {
         /// <summary>
         ///         新しいインスタンスを初期化、 <see cref="T:System.Net.Http.FormUrlEncodedContent" /> 名前/値ペアのコレクションを指定しています。
@@ -16424,7 +16424,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         URI で識別されるリソースに HTTP 要求を送信し、そのリソースから HTTP 応答を受信するための基本クラスを提供します。
     ///       </summary>
     // Token: 0x02000073 RID: 115
-    public class HttpClient : HttpMessageInvoker
+    class HttpClient : HttpMessageInvoker
     {
         /// <summary>
         ///         各要求と一緒に送信する必要があるヘッダーを取得します。
@@ -21784,7 +21784,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         HTTP エンティティ本体およびコンテンツ ヘッダーを表す基本クラス。
     ///       </summary>
     // Token: 0x0200007C RID: 124
-    public abstract class HttpContent : IDisposable
+    abstract class HttpContent : IDisposable
     {
         /// <summary>
         ///         RFC 2616 で定義されているように HTTP コンテンツ ヘッダーを取得します。
@@ -23291,7 +23291,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         HTTP メッセージ ハンドラーの基本データ型。
     ///       </summary>
     // Token: 0x02000083 RID: 131
-    public abstract class HttpMessageHandler : IDisposable
+    abstract class HttpMessageHandler : IDisposable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.HttpMessageHandler" /> クラスの新しいインスタンスを初期化します。
@@ -23350,7 +23350,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         呼び出すアプリケーションを使用する特別なクラス、 <see cref="M:System.Net.Http.HttpMessageInvoker.SendAsync(System.Net.Http.HttpRequestMessage,System.Threading.CancellationToken)" /> Http ハンドラー チェーン上のメソッドです。
     ///       </summary>
     // Token: 0x02000084 RID: 132
-    public class HttpMessageInvoker : IDisposable
+    class HttpMessageInvoker : IDisposable
     {
         /// <summary>
         ///         インスタンスを初期化、 <see cref="T:System.Net.Http.HttpMessageInvoker" /> 、特定のクラス <see cref="T:System.Net.Http.HttpMessageHandler" />します。
@@ -23479,7 +23479,7 @@ namespace IPA.Cores.Basic.HttpHandler
     }
 
 
-    public class HttpMethod : IEquatable<HttpMethod>
+    class HttpMethod : IEquatable<HttpMethod>
     {
         private readonly string _method;
         private int _hashcode;
@@ -23668,7 +23668,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         によってスローされた例外の基底クラス、 <see cref="T:System.Net.Http.HttpClient" /> と <see cref="T:System.Net.Http.HttpMessageHandler" /> クラスです。
     ///       </summary>
     // Token: 0x02000087 RID: 135
-    public class HttpRequestException : Exception
+    class HttpRequestException : Exception
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.HttpRequestException" /> クラスの新しいインスタンスを初期化します。
@@ -23712,7 +23712,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         HTTP 要求メッセージを表します。
     ///       </summary>
     // Token: 0x02000088 RID: 136
-    public class HttpRequestMessage : IDisposable
+    class HttpRequestMessage : IDisposable
     {
         /// <summary>
         ///         HTTP メッセージ バージョンを取得または設定します。
@@ -24055,7 +24055,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         ステータス コードとデータを含む HTTP 応答メッセージを表します。
     ///       </summary>
     // Token: 0x02000089 RID: 137
-    public class HttpResponseMessage : IDisposable
+    class HttpResponseMessage : IDisposable
     {
         /// <summary>
         ///         HTTP メッセージ バージョンを取得または設定します。
@@ -24822,7 +24822,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         要求メッセージと応答メッセージの一部の小さな処理のみを行うハンドラーの基本データ型。
     ///       </summary>
     // Token: 0x0200008C RID: 140
-    public abstract class MessageProcessingHandler : DelegatingHandler
+    abstract class MessageProcessingHandler : DelegatingHandler
     {
         /// <summary>
         ///         インスタンスを作成、 <see cref="T:System.Net.Http.MessageProcessingHandler" /> クラスです。
@@ -24980,7 +24980,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         コレクションを提供 <see cref="T:System.Net.Http.HttpContent" /> マルチパートを使用してシリアル化されるオブジェクト/* コンテンツの種類に指定します。
     ///       </summary>
     // Token: 0x0200008F RID: 143
-    public class MultipartContent : HttpContent, IEnumerable<HttpContent>, IEnumerable
+    class MultipartContent : HttpContent, IEnumerable<HttpContent>, IEnumerable
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.MultipartContent" /> クラスの新しいインスタンスを作成します。
@@ -25679,7 +25679,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         MIME の種類 multipart/form-data を使用してエンコードされたコンテンツのコンテナーを提供します。
     ///       </summary>
     // Token: 0x02000094 RID: 148
-    public class MultipartFormDataContent : MultipartContent
+    class MultipartFormDataContent : MultipartContent
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.MultipartFormDataContent" /> クラスの新しいインスタンスを作成します。
@@ -25904,7 +25904,7 @@ namespace IPA.Cores.Basic.HttpHandler
     }
 
     // Token: 0x02000095 RID: 149
-    public sealed class ReadOnlyMemoryContent : HttpContent
+    sealed class ReadOnlyMemoryContent : HttpContent
     {
         // Token: 0x0600038D RID: 909 RVA: 0x0003EB04 File Offset: 0x0001EB04
         public ReadOnlyMemoryContent(ReadOnlyMemory<byte> content)
@@ -26083,7 +26083,7 @@ namespace IPA.Cores.Basic.HttpHandler
     }
 
     // Token: 0x020000F9 RID: 249
-    public sealed class SocketsHttpHandler : HttpMessageHandler
+    sealed class SocketsHttpHandler : HttpMessageHandler
     {
         // Token: 0x06000584 RID: 1412 RVA: 0x0004B9B9 File Offset: 0x0002B9B9
         private void CheckDisposed()
@@ -26574,7 +26574,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         ストリームに基づく HTTP コンテンツを提供します。
     ///       </summary>
     // Token: 0x02000096 RID: 150
-    public class StreamContent : HttpContent
+    class StreamContent : HttpContent
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.StreamContent" /> クラスの新しいインスタンスを作成します。
@@ -26911,7 +26911,7 @@ namespace IPA.Cores.Basic.HttpHandler
     ///         文字列に基く HTTP コンテンツを提供します。
     ///       </summary>
     // Token: 0x0200009A RID: 154
-    public class StringContent : ByteArrayContent
+    class StringContent : ByteArrayContent
     {
         /// <summary>
         ///         <see cref="T:System.Net.Http.StringContent" /> クラスの新しいインスタンスを作成します。
