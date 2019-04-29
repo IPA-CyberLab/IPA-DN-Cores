@@ -30,7 +30,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\FullRoute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GZip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Helper.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Base\HttpClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\DnHttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\IPInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Kernel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Listener.cs" />
