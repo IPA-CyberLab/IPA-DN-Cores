@@ -263,11 +263,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<ConnectionSock> AcceptAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
+        public async Task<ConnSock> AcceptAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
         {
             if (IsListening == false) throw new ApplicationException("Not listening.");
 
-            return new ConnectionSock(lady, await AcceptImplAsync(lady, cancelForNewSocket));
+            return new ConnSock(lady, await AcceptImplAsync(lady, cancelForNewSocket));
         }
     }
 
@@ -458,9 +458,9 @@ namespace IPA.Cores.Basic
         public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
     }
 
-    class ConnectionSock : NetworkSock
+    class ConnSock : NetworkSock
     {
-        public ConnectionSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+        public ConnSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }
@@ -631,7 +631,7 @@ namespace IPA.Cores.Basic
         Stopped,
     }
 
-    delegate Task FastTcpListenerAcceptedProcCallback(FastTcpListenerBase.Listener listener, ConnectionSock newSock);
+    delegate Task FastTcpListenerAcceptedProcCallback(FastTcpListenerBase.Listener listener, ConnSock newSock);
 
     abstract class FastTcpListenerBase : IAsyncCleanupable
     {
@@ -722,7 +722,7 @@ namespace IPA.Cores.Basic
 
                                 AsyncCleanuperLady ladyForNewTcpStub = new AsyncCleanuperLady();
 
-                                ConnectionSock sock = await listenTcp.AcceptAsync(ladyForNewTcpStub);
+                                ConnSock sock = await listenTcp.AcceptAsync(ladyForNewTcpStub);
 
                                 TcpListener.InternalSocketAccepted(this, sock, ladyForNewTcpStub);
                             }
@@ -759,7 +759,7 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<string, Listener> List = new Dictionary<string, Listener>();
 
-        readonly Dictionary<Task, ConnectionSock> RunningAcceptedTasks = new Dictionary<Task, ConnectionSock>();
+        readonly Dictionary<Task, ConnSock> RunningAcceptedTasks = new Dictionary<Task, ConnSock>();
 
         readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
 
@@ -835,7 +835,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        async Task InternalSocketAcceptedAsync(Listener listener, ConnectionSock sock, AsyncCleanuperLady lady)
+        async Task InternalSocketAcceptedAsync(Listener listener, ConnSock sock, AsyncCleanuperLady lady)
         {
             try
             {
@@ -847,7 +847,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void InternalSocketAccepted(Listener listener, ConnectionSock sock, AsyncCleanuperLady lady)
+        void InternalSocketAccepted(Listener listener, ConnSock sock, AsyncCleanuperLady lady)
         {
             try
             {
@@ -905,7 +905,7 @@ namespace IPA.Cores.Basic
                 await s._InternalStopAsync().TryWaitAsync();
 
             List<Task> waitTasks = new List<Task>();
-            List<ConnectionSock> disconnectStubs = new List<ConnectionSock>();
+            List<ConnSock> disconnectStubs = new List<ConnSock>();
 
             lock (LockObj)
             {

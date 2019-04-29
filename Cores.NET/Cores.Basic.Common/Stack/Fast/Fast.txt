@@ -144,7 +144,7 @@ NetworkSock - 抽象ソケット。上位レイヤから下位の中間プロト
        その時点で対象のスタックオブジェクトの Upper に FastAppStub を
        作成してアタッチする。
 
-ConnectionSock : NetworkSock - TCP 的なストリームを扱うことを示す NetworkSock。
+ConnSock : NetworkSock - TCP 的なストリームを扱うことを示す NetworkSock。
        TCP 的すなわちストリームを扱うものであればよく、TCP でなくてもよい。
 
 FastStackBase - 根っこの派生元。

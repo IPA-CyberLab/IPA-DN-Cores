@@ -252,11 +252,11 @@ namespace IPA.Cores.Basic
 
     class TcpIpSystemParam : NetworkSystemParam { }
 
-    delegate Task TcpIpAcceptCallbackAsync(Listener listener, ConnectionSock newSock);
+    delegate Task TcpIpAcceptCallbackAsync(Listener listener, ConnSock newSock);
 
     interface ITcpConnectableSystem
     {
-        Task<ConnectionSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default);
+        Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default);
     }
 
     abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSystem
@@ -282,7 +282,7 @@ namespace IPA.Cores.Basic
 
         public TcpIpSystemHostInfoBase GetHostInfo() => GetHostInfoImpl();
 
-        public async Task<ConnectionSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
+        public async Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
@@ -300,7 +300,7 @@ namespace IPA.Cores.Basic
 
                         await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout, opCancel);
 
-                        ConnectionSock sock = new ConnectionSock(lady, tcp);
+                        ConnSock sock = new ConnSock(lady, tcp);
 
                         this.AddToOpenedSockList(sock);
 
@@ -316,7 +316,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public ConnectionSock Connect(TcpConnectParam param, CancellationToken cancel = default)
+        public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel).GetResult();
 
         public FastTcpListenerBase CreateListener(AsyncCleanuperLady lady, TcpListenParam param)
