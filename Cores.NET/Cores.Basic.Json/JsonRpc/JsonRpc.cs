@@ -581,7 +581,7 @@ namespace IPA.Cores.Basic
 
                 //req.Debug();
 
-                string ret = await SendRequestAndGetResponse(req);
+                string ret = await SendRequestAndGetResponseImplAsync(req);
 
                 if (ret.StartsWith("{")) isSingle = true;
 
@@ -726,7 +726,7 @@ namespace IPA.Cores.Basic
             return (JsonRpcResponse<TResponse>)q.Response;
         }
 
-        public abstract Task<string> SendRequestAndGetResponse(string req);
+        public abstract Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default);
 
         public abstract int TimeoutMsecs { get; set; }
 
@@ -811,9 +811,9 @@ namespace IPA.Cores.Basic
             this.ApiBaseUrl = apiUrl;
         }
 
-        public override async Task<string> SendRequestAndGetResponse(string req)
+        public override async Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default)
         {
-            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req.GetBytes_UTF8(), "application/json");
+            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req.GetBytes_UTF8(), cancel, "application/json");
 
             return ret.ToString();
         }

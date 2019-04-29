@@ -73,9 +73,36 @@ namespace IPA.TestDev
 
             //Net_Test5_SpeedTest_Server();
 
-            Net_Test6_DualStack_Client();
+            //Net_Test6_DualStack_Client();
+
+            Net_Test7_Http_ClientAsync().GetResult();
 
             return 0;
+        }
+
+        static async Task Net_Test7_Http_ClientAsync()
+        {
+            //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/masterz";
+            string url = "http://speed.softether.com/001.1Mbytes.dat";
+
+            using (WebApi api = new WebApi())
+            {
+                Dbg.Where();
+                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.GET, url));
+                using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
+                {
+                    long total = 0;
+                    while (true)
+                    {
+                        int r = await res.DownloadStream.ReadAsync(tmp);
+                        if (r <= 0) break;
+                        total += r;
+
+                        Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                    }
+                }
+                Dbg.Where();
+            }
         }
 
         static void Net_Test6_DualStack_Client()

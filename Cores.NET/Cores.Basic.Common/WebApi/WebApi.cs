@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
@@ -67,31 +68,91 @@ namespace IPA.Cores.Basic
         public abstract void CheckError();
     }
 
+    class WebSendRecvRequest : IDisposable
+    {
+        public WebApiMethods Method { get; }
+        public string Url { get; }
+        public CancellationToken Cancel { get; }
+        public string UploadContentType { get; }
+        public Stream UploadStream { get; }
+
+        public WebSendRecvRequest(WebApiMethods method, string url, CancellationToken cancel = default,
+            string uploadContentType = "application/octet-stream", Stream uploadStream = null)
+        {
+            this.Method = method;
+            this.Url = url;
+            this.Cancel = cancel;
+            this.UploadContentType = uploadContentType.FilledOrDefault("application/octet-stream");
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.UploadStream.DisposeSafe();
+        }
+    }
+
+    class WebSendRecvResponse : IDisposable
+    {
+        public HttpContent DownloadContent { get; }
+        public HttpResponseMessage HttpResponseMessage { get; }
+        public string DownloadContentType { get; }
+        public long? DownloadContentLength { get; }
+        public Stream DownloadStream { get; }
+
+        public WebSendRecvResponse(HttpResponseMessage response, Stream downloadStream)
+        {
+            this.HttpResponseMessage = response;
+            this.DownloadContent = response.Content;
+
+            this.DownloadContentType = this.DownloadContent.Headers.ContentType?.MediaType.NonNullTrim();
+
+            if (this.DownloadContent.TryComputeLength(out long length))
+                this.DownloadContentLength = length;
+            else
+                this.DownloadContentLength = response.Content.Headers.ContentLength;
+
+            DownloadStream = downloadStream;
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.HttpResponseMessage.DisposeSafe();
+            this.DownloadContent.DisposeSafe();
+            this.DownloadStream.DisposeSafe();
+        }
+    }
+
     partial class WebRet
     {
         public string Url { get; }
-        public string ContentsType { get; }
+        public string ContentType { get; }
         public byte[] Data { get; }
         public string MediaType { get; }
         public string CharSet { get; }
         public Encoding DefaultEncoding { get; } = null;
         public WebApi Api { get; }
 
-        public WebRet(WebApi api, string url, string contentsType, byte[] data)
+        public WebRet(WebApi api, string url, string contentType, byte[] data)
         {
             this.Api = api;
             this.Url = url.NonNull();
-            this.ContentsType = contentsType.NonNull();
+            this.ContentType = contentType.NonNull();
 
             try
             {
-                var ct = new System.Net.Mime.ContentType(this.ContentsType);
+                var ct = new System.Net.Mime.ContentType(this.ContentType);
                 this.MediaType = ct.MediaType.NonNull();
                 this.CharSet = ct.CharSet.NonNull();
             }
             catch
             {
-                this.MediaType = this.ContentsType;
+                this.MediaType = this.ContentType;
                 this.CharSet = "";
             }
 
@@ -276,46 +337,46 @@ namespace IPA.Cores.Basic
             res.EnsureSuccessStatusCode();
         }
 
-        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, CancellationToken cancel = default, string postContentType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
         {
-            if (postContentsType.IsEmpty()) postContentsType = "application/x-www-form-urlencoded";
+            if (postContentType.IsEmpty()) postContentType = "application/x-www-form-urlencoded";
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebApiMethods.POST || method == WebApiMethods.PUT)
             {
                 string qs = BuildQueryString(queryList);
 
-                r.Content = new StringContent(qs, this.RequestEncoding, postContentsType);
+                r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
             }
 
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead))
+            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
+                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
             }
         }
 
 
-        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, string postContentsType = "application/json")
+        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = "application/json")
         {
-            if (postContentsType.IsEmpty()) postContentsType = "application/json";
+            if (postContentType.IsEmpty()) postContentType = "application/json";
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentsType);
+            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
 
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead))
+            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                string type = res.Content.Headers.TryGetContentsType();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
+                string type = res.Content.Headers.TryGetContentType();
+                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
             }
         }
 
 
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString)
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default)
         {
             if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
@@ -326,17 +387,30 @@ namespace IPA.Cores.Basic
             r.Content = new ByteArrayContent(upload_data);
             r.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead))
+            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentsType(), data);
+                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
             }
         }
 
-
-        public virtual async Task<WebRet> HttpSendRecvAsync(WebApiMethods method, string url, string postContentsType = "application/x-www-form-urlencoded")
+        public virtual async Task<WebSendRecvResponse> HttpSendRecvDataAsync(WebSendRecvRequest request)
         {
+            HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
+
+            HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead);
+            try
+            {
+                ThrowIfError(res);
+
+                return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
+            }
+            catch
+            {
+                res.DisposeSafe();
+                throw;
+            }
         }
     }
 }

@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
@@ -109,9 +110,9 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string team_id;
         }
 
-        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl)
+        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl, CancellationToken cancel = default)
         {
-            WebRet ret = await this.SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/oauth.access",
+            WebRet ret = await this.SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/oauth.access", cancel,
                 null,
                 ("client_id", this.ClientId),
                 ("client_secret", clientSecret),

@@ -143,6 +143,17 @@ NetworkSock - 抽象ソケット。上位レイヤから下位の中間プロト
        しかし、GetFastAppProtocolStub() または GetStream() を呼び出すと、
        その時点で対象のスタックオブジェクトの Upper に FastAppStub を
        作成してアタッチする。
+       
+       すなわち、NetworkSock は以下の 2 つの使い方があり、いずれか一方を
+       選択すると、もう一方の使い方はできなくなるのである。
+
+         (1) UpperEnd を取得し、他の FastMiddleProtocolStackBase の Lower
+             に接続する。
+             (FastAppStubBase の Lower に接続することも可能)
+         
+         (2) GetFastAppProtocolStub() または GetStream() を呼び出し、
+             FastAppStub を作成する。
+             (他のプロトコルスタックには接続できなくなる) 
 
 ConnSock : NetworkSock - TCP 的なストリームを扱うことを示す NetworkSock。
        TCP 的すなわちストリームを扱うものであればよく、TCP でなくてもよい。

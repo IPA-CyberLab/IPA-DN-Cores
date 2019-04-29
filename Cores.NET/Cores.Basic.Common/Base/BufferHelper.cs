@@ -49,7 +49,7 @@ namespace IPA.Cores.Helper.Basic
         public static BufferDirectStream AsDirectStream(this HugeMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
     }
 
-    static class MemoryHelper
+    static class MemoryExtHelper
     {
         public static ReadOnlyMemory<T> AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
         public static ReadOnlySpan<T> AsReadOnlySpan<T>(this Span<T> span) => span;
