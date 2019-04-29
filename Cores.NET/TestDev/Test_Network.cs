@@ -169,7 +169,7 @@ namespace IPA.TestDev
         {
             string hostname = "www.google.co.jp";
 
-            using (TcpSock sock = LocalNet.Connect(new TcpConnectParam(hostname, 443)))
+            using (ConnectionSock sock = LocalNet.Connect(new TcpConnectParam(hostname, 443)))
             {
                 using (SslSock ssl = new SslSock(sock))
                 {
@@ -212,7 +212,7 @@ namespace IPA.TestDev
         {
             while (true)
             {
-                TcpSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+                ConnectionSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {
                     var st = sock.GetStream().NetworkStream;
 

@@ -21,8 +21,7 @@ FastBufferSegment<T> - バッファをセグメント単位で操作する際の
 
 
 
-■ FastNetwork.cs - 高レベルネットワーク処理
------- 共通クラス ------
+■ FastNetwork.cs - 高レベルネットワーククラス
 LayerInfo - 複数のレイヤの情報の統合的な集合。レイヤ固有情報の Install, Uninstall, 値の取得が可能である。値の取得は GetValues<T> メソッドで行なう。ここで登録済みのレイヤ固有情報の型を指定することになる。同一の型が複数登録されている場合は index 指定できる。全件取得もできる。
 
     Encounter() メソッド: 複数の LayerInfo を結合して、1 つの LayerInfo に統合する。LayerInfo のインスタンス自体は別々であるが、データとしては、同じ物を指すようになる。
@@ -88,10 +87,156 @@ IFastStream - インターフェイス。タイムアウト変数の設定、デ
 
 FastStream : IFastStream - 抽象クラスであり、タイムアウト変数の設定、データの読み込み可能フラグの取得、WriteAsync(), ReadAsync(), FlushAsync() を提供する。また、NetworkStream 型のラッパー「FastStreamToPalNetworkStream」 (.NET の既存ライブラリとの接続に便利) を生成することができる。
 
-FastPipeEndStream: FastStream - FastPipeEnd のパイプにおける、ストリームおよびデータグラムのバッファに対する、非同期読み書きを簡単にするためのユーティリティクラスである。タイムアウト付きの待機など、.NET のストリームに似たことができる。データグラム型もサポートしている。
+FastPipeEndStream: FastStream - FastPipeEnd のパイプにおける、ストリームおよびデータグラムのバッファに対する、非同期読み書きを簡単にするためのユーティリティクラスである。読み書きは、フラグメント化されたデータをそのまま扱うことができる高速バージョンも用意されている ('Fast' という名前で始まるメソッド) 。タイムアウト付きの待機など、.NET のストリームに似たことができる。データグラム型もサポートしている。
+
+FastStreamToPalNetworkStream - NetworkStream 型のラッパー。FastStream を、.NET の Stream オブジェクトに見せかける。FastStream を下位の通信源とし、上位のアプリケーション (Stream オブジェクトの読み書きに対応している) に対して通信を提供し満足をさせる。
+
+FastPipeNonblockStateHelper - 1 つのルーチン内で、1 つまたは多数のパイプに対して、送受信の両方を多重サポートしたいときに便利な状態変化監視・待機可能ヘルパである。UNIX における select や poll のようなものである。使い方: https://github.com/dnobori/DNT-Jikken/blob/9e7ebb898e2088c25853d7ece04adc6e5d694913/MVPNClientTest/MVPNClientTest/Program.cs#L726
+
+FastPipeEndAsyncObjectWrapperBase - 何らかの他ライブラリのオブジェクト (例: .NET の Stream) を下位レイヤの通信源とし、下位通信源オブジェクトから届いた受信データを Upper の FastPipeEnd に対して渡し、Upper の FastPipeEnd から届いた送信データを下位通信源オブジェクトに渡すループ処理を実施する抽象クラス。このクラス本体はループを定義しているのみであり、実際の動作は派生クラスで実装する。
+
+FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Socket オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。
+
+FastPipeEndStreamWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Stream オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(※ すなわち、FastStreamToPalNetworkStream の逆。)
 
 
------- 共通クラス ------
+
+■ FastStack.cs - 高レベルネットワーククラス
+
+--- スタック ---
+
+     図解
+         .NET Stream 型をサポートする既存クラス       より高速な読み書き可能
+             ↑                                            ↑
+          FastStreamToPalNetworkStream                FastPipeEndStream
+             ↑--------------------------------------------↑
+           開発者
+             ↑FastAppStub で GetStream() または GetPipeEnd() して利用
+     [FastAppStubBase]  例: FastAppStub
+             ↓Lower
+             ↓
+             ↑
+             ↑Upper
+     [FastMiddleProtocolStackBase] 例: FastSslProtocolStack
+             ↓Lower
+             ↓
+             ↑
+             ↑Upper
+     [FastBottomProtocolStubBase]  例: FastPalTcpProtocolStub
+             ↓
+            FastPipeEndSocketWrapper - Socket を Wrap して上にサービス
+            FastPipeEndStreamWrapper - Stream を Wrap して上にサービス
+            ※ 将来: 独自実装 TCP スタック
+
+NetworkSock - 抽象ソケット。上位レイヤから下位の中間プロトコルスタック
+       (FastProtocolBase) を表現し保持するためのデータ型である。
+       
+       Upper が存在する中間プロトコルスタック (FastProtocolBase) を指定
+       して NetworkSock を作成することができる。
+       
+       Listener などの各種コールバック動作において、新規作成された
+       スタックおよびその遠端パイプを呼び出し元に渡す際に便利に使用される。
+       
+       NetworkSock 型を作成するだけでは、単なるデータ型であり、
+       対象のスタックオブジェクトの状態には影響を与えない。
+       
+       しかし、GetFastAppProtocolStub() または GetStream() を呼び出すと、
+       その時点で対象のスタックオブジェクトの Upper に FastAppStub を
+       作成してアタッチする。
+
+ConnectionSock : NetworkSock - TCP 的なストリームを扱うことを示す NetworkSock。
+       TCP 的すなわちストリームを扱うものであればよく、TCP でなくてもよい。
+
+FastStackBase - 根っこの派生元。
+
+    ★ FastAppStubBase - プロトコルスタックの最上位、アプリとの接点。
+                      Lower のみがある。Upper がない。
+                      Lower の FastPipeEnd に自動 Attach する。
+    
+        ☆ FastAppStub - FastAppStubBase の派生実装。
+                      GetStream(), GetPipeEnd(), AttachHandle など。
+                      FastPipeEnd.GetFastAppProtocolStub() で
+                      既存の FastPipeEnd から生成して利用するとよい。
+
+    ★ FastProtocolBase - プロトコルスタックの中間または最下位。
+                      Upper が必ず存在する。Lower はない場合がある。
+                      Upper の FastPipeEnd に自動 Attach する。
+                      
+                      作成時に、Upper を指定する。Upper に null を指定
+                      することもできる。null を指定した場合は、
+                      FastPipeEnd.NewFastPipeAndGetOneSide() が呼び出され
+                      自動的に空の Upper が作成される。
+
+        ☆ FastBottomProtocolStubBase - プロトコルスタック最下位。
+                      Upper のみが存在する。Lower は存在しない。
+
+            ◆ FastTcpProtocolStubBase - TCP 的ストリームのセッションを
+                      表現するプロトコルスタックの最下位。
+                      抽象クラスであり、派生クラスではいくつかのメソッド
+                      を継承して実装する。
+                      
+                      使い方: まず実装クラスを new() する。これだけでは
+                              何も起こらない。次に以下のメソッドを呼ぶ。
+
+                      ConnectAsync() - 接続処理を実施する。
+                      
+                      Listen(), AcceptAsync() - ポートを開いて着信処理
+                                                を実施する。
+
+                ◇ FastPalTcpProtocolStub - Socket API を用いた TCP 的
+                      ストリーム処理の最下位。
+                      
+                      ILayerInfoTcpEndPoint をレイヤ固有情報として提供。
+                      
+                      ConnectImplAsync() - ソケットを作成して接続処理
+                             を実施する。作成したソケットを
+                             FromSocket() -> FastPipeEndSocketWrapper
+                             を用いてラッピングし、ソケットを通信源として
+                             Upper にサービスを提供する。
+                      
+                      ListenImpl() - ソケットを作成して Listen 処理を
+                             実施する。これ単体では通信をしないが、次の
+                             AcceptAsync() まで着信キューをソケット内に
+                             溜める。
+                      
+                      AcceptImplAsync() - Listen 中のソケットに着信する
+                             まで待機。着信したら、ソケットを
+                             FromSocket() -> FastPipeEndSocketWrapper
+                             を用いてラッピングし、ソケットを通信源として
+                             Upper にサービスを提供する。
+
+        ☆ FastMiddleProtocolStackBase - プロトコルスタックの中間。
+                     Upper と Lower が必ず存在する。
+
+            ◆ FastSslProtocolStack - SSL レイヤを挿入実現する中間レイヤ。
+                     メモリ上のみの処理。
+                     
+                     SslStartClientAsync() - SSL クライアントとしてネゴシ
+                             エーションを実施する。
+
+--- ユーティリティ ---
+FastTcpListenerBase - ロバスト生の高い汎用 TCP リスナ。
+                      抽象クラスであり、
+                      CreateNewTcpStubForListenImpl() を派生クラスで実装する。
+                      CreateNewTcpStubForListenImpl() は、
+                      FastTcpProtocolStubBase() の実装クラスを new() するだけ
+                      である。その後、本リスナが Listen, Accept し、その結果、
+                      新しい TcpSock ソケットを作成して
+                      FastTcpListenerAcceptedProcCallback デリゲートで
+                      呼び出し元に非同期で通知する。
+                      
+                      FastTcpListenerAcceptedProcCallback デリゲートを実装する
+                      呼び出し元は、任意の非同期タスクを作成してそのソケット
+                      に対する処理を実施し、そのタスクを返す。
+                      
+                      Listener はタスクが完了するまで待機し、タスクが完了した
+                      ら自動的にソケットを閉じる。
+                      
+                      Listener 自体を終了しようとする場合は、自動的に全派生
+                      ソケットが閉じられる。
+
+    FastPalTcpListener - 物理ネットワーク Socket を用いた Listener 実装。
+
 
 
 

@@ -60,12 +60,12 @@ namespace IPA.Cores.Basic
                 this.PostWaitMsecs = postWaitMsecs;
             }
 
-            public async Task<TcpSock> ConnectAsyncInternal(SpeculativeConnectorBase connector, CancellationToken cancel = default)
+            public async Task<ConnectionSock> ConnectAsyncInternal(SpeculativeConnectorBase connector, CancellationToken cancel = default)
             {
                 try
                 {
                     cancel.ThrowIfCancellationRequested();
-                    TcpSock tcp = await this.System.ConnectAsync(this.Param, cancel);
+                    ConnectionSock tcp = await this.System.ConnectAsync(this.Param, cancel);
 
                     if (PostWaitMsecs >= 1)
                     {
@@ -107,11 +107,11 @@ namespace IPA.Cores.Basic
 
         Once Flag;
 
-        public async Task<TcpSock> ConnectAsync(CancellationToken cancel = default)
+        public async Task<ConnectionSock> ConnectAsync(CancellationToken cancel = default)
         {
             if (Flag.IsFirstCall() == false) throw new ApplicationException("ConnectAsync() has been already called.");
 
-            List<Task<TcpSock>> taskList = new List<Task<TcpSock>>();
+            List<Task<ConnectionSock>> taskList = new List<Task<ConnectionSock>>();
 
             foreach (var attempt in AttemptList)
             {
@@ -202,13 +202,13 @@ namespace IPA.Cores.Basic
         public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
             => GetIpAsync(hostname, addressFamily, timeout, cancel).GetResult();
 
-        public async Task<TcpSock> ConnectIPv4v6DualAsync(TcpConnectParam param, CancellationToken cancel = default)
+        public async Task<ConnectionSock> ConnectIPv4v6DualAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
             IPv4V6DualStackSpeculativeConnector connector = new IPv4V6DualStackSpeculativeConnector(param, this);
 
             return await connector.ConnectAsync(cancel);
         }
-        public TcpSock ConnectIPv4v6Dual(TcpConnectParam param, CancellationToken cancel = default)
+        public ConnectionSock ConnectIPv4v6Dual(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectIPv4v6DualAsync(param, cancel).GetResult();
     }
 
@@ -221,7 +221,7 @@ namespace IPA.Cores.Basic
     {
         protected new FastSslProtocolStack Stack => (FastSslProtocolStack)base.Stack;
 
-        public SslSock(TcpSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
+        public SslSock(ConnectionSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
         {
         }
 
