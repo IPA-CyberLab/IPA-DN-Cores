@@ -57,7 +57,7 @@ namespace IPA.TestDev
         public static void Test()
         {
             WebApi api = new WebApi();
-
+            
             while (true)
             {
                 int num = 1;
@@ -71,7 +71,9 @@ namespace IPA.TestDev
                 {
                     Task t = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
-                        await api.RequestWithQueryAsync(WebApiMethods.GET, url);
+                        var ret = await api.RequestWithQueryAsync(WebApiMethods.GET, url);
+
+                        ret.Data.GetString_UTF8().Print();
                     });
 
                     taskList.Add(t);

@@ -340,7 +340,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static void ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
 
-        public static string TryGetContentsType(this HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString().NonNull());
+        public static string TryGetContentsType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString().NonNull());
+        public static string TryGetContentsType(this IPA.Cores.Basic.HttpHandler.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString().NonNull());
 
         public static string GetStrOrEmpty(this NameValueCollection d, string key)
         {

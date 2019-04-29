@@ -35,9 +35,6 @@ using System.Collections.Generic;
 using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
-using IPA.Cores.Basic;
-using IPA.Cores.Helper.Basic;
-using static IPA.Cores.Globals.Basic;
 using System.Net;
 using System.Collections.Concurrent;
 using System.IO;
@@ -56,6 +53,10 @@ using System.Runtime.CompilerServices;
 using System.Buffers;
 using System.Buffers.Text;
 using System.Security.Authentication.ExtendedProtection;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
 
 #pragma warning disable CS0219
 #pragma warning disable CS0162
@@ -18417,7 +18418,7 @@ namespace IPA.Cores.Basic.HttpHandler
         // Token: 0x0600041E RID: 1054 RVA: 0x0004141B File Offset: 0x0002141B
         private static void ParseStatusLine(ArraySegment<byte> line, HttpResponseMessage response)
         {
-            HttpConnection.ParseStatusLine(line, response);
+            HttpConnection.ParseStatusLine((Span<byte>)line, response);
         }
 
         // Token: 0x0600041F RID: 1055 RVA: 0x0004142C File Offset: 0x0002142C
@@ -18487,7 +18488,7 @@ namespace IPA.Cores.Basic.HttpHandler
         // Token: 0x06000420 RID: 1056 RVA: 0x000415BC File Offset: 0x000215BC
         private static void ParseHeaderNameValue(ArraySegment<byte> line, HttpResponseMessage response)
         {
-            HttpConnection.ParseHeaderNameValue(line, response);
+            HttpConnection.ParseHeaderNameValue((Span<byte>)line, response);
         }
 
         // Token: 0x06000421 RID: 1057 RVA: 0x000415CC File Offset: 0x000215CC
@@ -23478,365 +23479,178 @@ namespace IPA.Cores.Basic.HttpHandler
     }
 
 
-    /// <summary>
-    ///         取得して、標準の HTTP メソッドを比較して、新しい HTTP メソッドを作成するためのヘルパー クラスです。
-    ///       </summary>
-    // Token: 0x02000085 RID: 133
     public class HttpMethod : IEquatable<HttpMethod>
     {
-        /// <summary>
-        ///         HTTP GET プロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B3 RID: 179
-        // (get) Token: 0x060002F1 RID: 753 RVA: 0x0003C7AD File Offset: 0x0001C7AD
+        private readonly string _method;
+        private int _hashcode;
+
+        private static readonly HttpMethod s_getMethod = new HttpMethod("GET");
+        private static readonly HttpMethod s_putMethod = new HttpMethod("PUT");
+        private static readonly HttpMethod s_postMethod = new HttpMethod("POST");
+        private static readonly HttpMethod s_deleteMethod = new HttpMethod("DELETE");
+        private static readonly HttpMethod s_headMethod = new HttpMethod("HEAD");
+        private static readonly HttpMethod s_optionsMethod = new HttpMethod("OPTIONS");
+        private static readonly HttpMethod s_traceMethod = new HttpMethod("TRACE");
+        private static readonly HttpMethod s_patchMethod = new HttpMethod("PATCH");
+        private static readonly HttpMethod s_connectMethod = new HttpMethod("CONNECT");
+
+        private static readonly Dictionary<HttpMethod, HttpMethod> s_knownMethods = new Dictionary<HttpMethod, HttpMethod>(9)
+        {
+            { s_getMethod, s_getMethod },
+            { s_putMethod, s_putMethod },
+            { s_postMethod, s_postMethod },
+            { s_deleteMethod, s_deleteMethod },
+            { s_headMethod, s_headMethod },
+            { s_optionsMethod, s_optionsMethod },
+            { s_traceMethod, s_traceMethod },
+            { s_patchMethod, s_patchMethod },
+            { s_connectMethod, s_connectMethod },
+        };
+
         public static HttpMethod Get
         {
-            get
-            {
-                return HttpMethod.s_getMethod;
-            }
+            get { return s_getMethod; }
         }
 
-        /// <summary>
-        ///         URI で識別されるエンティティを置き換えるために使用される、HTTP PUT するプロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B4 RID: 180
-        // (get) Token: 0x060002F2 RID: 754 RVA: 0x0003C7B4 File Offset: 0x0001C7B4
         public static HttpMethod Put
         {
-            get
-            {
-                return HttpMethod.s_putMethod;
-            }
+            get { return s_putMethod; }
         }
 
-        /// <summary>
-        ///         URI に追加される新しいエンティティが投稿に使用される HTTP POST プロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B5 RID: 181
-        // (get) Token: 0x060002F3 RID: 755 RVA: 0x0003C7BB File Offset: 0x0001C7BB
         public static HttpMethod Post
         {
-            get
-            {
-                return HttpMethod.s_postMethod;
-            }
+            get { return s_postMethod; }
         }
 
-        /// <summary>
-        ///         HTTP DELETE プロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B6 RID: 182
-        // (get) Token: 0x060002F4 RID: 756 RVA: 0x0003C7C2 File Offset: 0x0001C7C2
         public static HttpMethod Delete
         {
-            get
-            {
-                return HttpMethod.s_deleteMethod;
-            }
+            get { return s_deleteMethod; }
         }
 
-        /// <summary>
-        ///         HTTP HEAD プロトコル メソッドを表します。
-        ///          HEAD メソッドは、サーバー メッセージ ヘッダーをメッセージ本文のない応答でのみ返される点が GET と同じです。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B7 RID: 183
-        // (get) Token: 0x060002F5 RID: 757 RVA: 0x0003C7C9 File Offset: 0x0001C7C9
         public static HttpMethod Head
         {
-            get
-            {
-                return HttpMethod.s_headMethod;
-            }
+            get { return s_headMethod; }
         }
 
-        /// <summary>
-        ///         HTTP オプション プロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B8 RID: 184
-        // (get) Token: 0x060002F6 RID: 758 RVA: 0x0003C7D0 File Offset: 0x0001C7D0
         public static HttpMethod Options
         {
-            get
-            {
-                return HttpMethod.s_optionsMethod;
-            }
+            get { return s_optionsMethod; }
         }
 
-        /// <summary>
-        ///         HTTP トレース プロトコル メソッドを表します。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.Net.Http.HttpMethod" /> を返します。
-        ///       </returns>
-        // Token: 0x170000B9 RID: 185
-        // (get) Token: 0x060002F7 RID: 759 RVA: 0x0003C7D7 File Offset: 0x0001C7D7
         public static HttpMethod Trace
         {
-            get
-            {
-                return HttpMethod.s_traceMethod;
-            }
+            get { return s_traceMethod; }
         }
 
-        // Token: 0x170000BA RID: 186
-        // (get) Token: 0x060002F8 RID: 760 RVA: 0x0003C7DE File Offset: 0x0001C7DE
         public static HttpMethod Patch
         {
-            get
-            {
-                return HttpMethod.s_patchMethod;
-            }
+            get { return s_patchMethod; }
         }
 
-        // Token: 0x170000BB RID: 187
-        // (get) Token: 0x060002F9 RID: 761 RVA: 0x0003C7E5 File Offset: 0x0001C7E5
+        // Don't expose CONNECT as static property, since it's used by the transport to connect to a proxy.
+        // CONNECT is not used by users directly.
+
         internal static HttpMethod Connect
         {
-            get
-            {
-                return HttpMethod.s_connectMethod;
-            }
+            get { return s_connectMethod; }
         }
 
-        /// <summary>
-        ///         HTTP メソッド。
-        ///       </summary>
-        /// <returns>
-        ///         <see cref="T:System.String" /> として表される HTTP メソッド。
-        ///       </returns>
-        // Token: 0x170000BC RID: 188
-        // (get) Token: 0x060002FA RID: 762 RVA: 0x0003C7EC File Offset: 0x0001C7EC
         public string Method
         {
-            get
-            {
-                return this._method;
-            }
+            get { return _method; }
         }
 
-        /// <summary>
-        ///         新しいインスタンスを初期化、 <see cref="T:System.Net.Http.HttpMethod" /> 特定の HTTP メソッドを持つクラス。
-        ///       </summary>
-        /// <param name="method">
-        ///           HTTP メソッド。
-        ///         </param>
-        // Token: 0x060002FB RID: 763 RVA: 0x0003C7F4 File Offset: 0x0001C7F4
         public HttpMethod(string method)
         {
             if (string.IsNullOrEmpty(method))
             {
-                throw new ArgumentException(SR.net_http_argument_empty_string, "method");
+                throw new ArgumentException(SR.net_http_argument_empty_string, nameof(method));
             }
             if (HttpRuleParser.GetTokenLength(method, 0) != method.Length)
             {
                 throw new FormatException(SR.net_http_httpmethod_format_error);
             }
-            this._method = method;
+
+            _method = method;
         }
 
-        /// <summary>
-        ///         指定した <see cref="T:System.Net.Http.HttpMethod" /> が現在の <see cref="T:System.Object" /> と等しいかどうかを示します。
-        ///       </summary>
-        /// <param name="other">
-        ///           現在のオブジェクトと比較する HTTP メソッド。
-        ///         </param>
-        /// <returns>
-        ///         指定したオブジェクトが現在のオブジェクトと等しい場合は <see langword="true" />。それ以外の場合は <see langword="false" />です。
-        ///       </returns>
-        // Token: 0x060002FC RID: 764 RVA: 0x0003C840 File Offset: 0x0001C840
+        #region IEquatable<HttpMethod> Members
+
         public bool Equals(HttpMethod other)
         {
-            return other != null && (this._method == other._method || string.Equals(this._method, other._method, StringComparison.OrdinalIgnoreCase));
+            if ((object)other == null)
+            {
+                return false;
+            }
+
+            if (object.ReferenceEquals(_method, other._method))
+            {
+                // Strings are static, so there is a good chance that two equal methods use the same reference
+                // (unless they differ in case).
+                return true;
+            }
+
+            return string.Equals(_method, other._method, StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        ///         指定した <see cref="T:System.Object" /> が現在の <see cref="T:System.Object" /> と等しいかどうかを示します。
-        ///       </summary>
-        /// <param name="obj">
-        ///           現在のオブジェクトと比較するオブジェクト。
-        ///         </param>
-        /// <returns>
-        ///         指定したオブジェクトが現在のオブジェクトと等しい場合は <see langword="true" />。それ以外の場合は <see langword="false" />です。
-        ///       </returns>
-        // Token: 0x060002FD RID: 765 RVA: 0x0003C869 File Offset: 0x0001C869
+        #endregion
+
         public override bool Equals(object obj)
         {
-            return this.Equals(obj as HttpMethod);
+            return Equals(obj as HttpMethod);
         }
 
-        /// <summary>
-        ///         この型のハッシュ関数として機能します。
-        ///       </summary>
-        /// <returns>
-        ///         現在の <see cref="T:System.Object" /> のハッシュ コード。
-        ///       </returns>
-        // Token: 0x060002FE RID: 766 RVA: 0x0003C877 File Offset: 0x0001C877
         public override int GetHashCode()
         {
-            if (this._hashcode == 0)
+            if (_hashcode == 0)
             {
-                this._hashcode = StringComparer.OrdinalIgnoreCase.GetHashCode(this._method);
+                _hashcode = StringComparer.OrdinalIgnoreCase.GetHashCode(_method);
             }
-            return this._hashcode;
+
+            return _hashcode;
         }
 
-        /// <summary>
-        ///         現在のオブジェクトを表す文字列を返します。
-        ///       </summary>
-        /// <returns>
-        ///         現在のオブジェクトを表す文字列。
-        ///       </returns>
-        // Token: 0x060002FF RID: 767 RVA: 0x0003C7EC File Offset: 0x0001C7EC
         public override string ToString()
         {
-            return this._method;
+            return _method;
         }
 
-        /// <summary>
-        ///         2 つの <see cref="T:System.Net.Http.HttpMethod" /> オブジェクトを比較する等値演算子。
-        ///       </summary>
-        /// <param name="left">
-        ///           等値演算子に表示される左側の <see cref="T:System.Net.Http.HttpMethod" />。
-        ///         </param>
-        /// <param name="right">
-        ///           等値演算子に表示される右側の <see cref="T:System.Net.Http.HttpMethod" />。
-        ///         </param>
-        /// <returns>
-        ///         指定した <paramref name="left" /> パラメーターと <paramref name="right" /> パラメーターが等しい場合は <see langword="true" />。それ以外の場合は <see langword="false" />。
-        ///       </returns>
-        // Token: 0x06000300 RID: 768 RVA: 0x0003C89D File Offset: 0x0001C89D
         public static bool operator ==(HttpMethod left, HttpMethod right)
         {
-            if (left != null && right != null)
-            {
-                return left.Equals(right);
-            }
-            return left == right;
+            return (object)left == null || (object)right == null ?
+                ReferenceEquals(left, right) :
+                left.Equals(right);
         }
 
-        /// <summary>
-        ///         2 つの <see cref="T:System.Net.Http.HttpMethod" /> オブジェクトを比較する非等値演算子。
-        ///       </summary>
-        /// <param name="left">
-        ///           非等値演算子に表示される左側の <see cref="T:System.Net.Http.HttpMethod" />。
-        ///         </param>
-        /// <param name="right">
-        ///           非等値演算子に表示される右側の <see cref="T:System.Net.Http.HttpMethod" />。
-        ///         </param>
-        /// <returns>
-        ///         指定した <paramref name="left" /> パラメーターと <paramref name="right" /> パラメーターが等しくない場合は <see langword="true" />。それ以外の場合は <see langword="false" />。
-        ///       </returns>
-        // Token: 0x06000301 RID: 769 RVA: 0x0003C8B1 File Offset: 0x0001C8B1
         public static bool operator !=(HttpMethod left, HttpMethod right)
         {
             return !(left == right);
         }
 
-        // Token: 0x06000302 RID: 770 RVA: 0x0003C8C0 File Offset: 0x0001C8C0
+        /// <summary>
+        /// Returns a singleton method instance with a capitalized method name for the supplied method
+        /// if it's known; otherwise, returns the original.
+        /// </summary>
         internal static HttpMethod Normalize(HttpMethod method)
         {
-            HttpMethod result;
-            if (!HttpMethod.s_knownMethods.TryGetValue(method, out result))
-            {
-                return method;
-            }
-            return result;
+            Debug.Assert(method != null);
+            return s_knownMethods.TryGetValue(method, out HttpMethod normalized) ?
+                normalized :
+                method;
         }
 
-        // Token: 0x0400022C RID: 556
-        private readonly string _method;
-
-        // Token: 0x0400022D RID: 557
-        private int _hashcode;
-
-        // Token: 0x0400022E RID: 558
-        private static readonly HttpMethod s_getMethod = new HttpMethod("GET");
-
-        // Token: 0x0400022F RID: 559
-        private static readonly HttpMethod s_putMethod = new HttpMethod("PUT");
-
-        // Token: 0x04000230 RID: 560
-        private static readonly HttpMethod s_postMethod = new HttpMethod("POST");
-
-        // Token: 0x04000231 RID: 561
-        private static readonly HttpMethod s_deleteMethod = new HttpMethod("DELETE");
-
-        // Token: 0x04000232 RID: 562
-        private static readonly HttpMethod s_headMethod = new HttpMethod("HEAD");
-
-        // Token: 0x04000233 RID: 563
-        private static readonly HttpMethod s_optionsMethod = new HttpMethod("OPTIONS");
-
-        // Token: 0x04000234 RID: 564
-        private static readonly HttpMethod s_traceMethod = new HttpMethod("TRACE");
-
-        // Token: 0x04000235 RID: 565
-        private static readonly HttpMethod s_patchMethod = new HttpMethod("PATCH");
-
-        // Token: 0x04000236 RID: 566
-        private static readonly HttpMethod s_connectMethod = new HttpMethod("CONNECT");
-
-        // Token: 0x04000237 RID: 567
-        private static readonly Dictionary<HttpMethod, HttpMethod> s_knownMethods = new Dictionary<HttpMethod, HttpMethod>(9)
+        internal bool MustHaveRequestBody
         {
+            get
             {
-                HttpMethod.s_getMethod,
-                HttpMethod.s_getMethod
-            },
-            {
-                HttpMethod.s_putMethod,
-                HttpMethod.s_putMethod
-            },
-            {
-                HttpMethod.s_postMethod,
-                HttpMethod.s_postMethod
-            },
-            {
-                HttpMethod.s_deleteMethod,
-                HttpMethod.s_deleteMethod
-            },
-            {
-                HttpMethod.s_headMethod,
-                HttpMethod.s_headMethod
-            },
-            {
-                HttpMethod.s_optionsMethod,
-                HttpMethod.s_optionsMethod
-            },
-            {
-                HttpMethod.s_traceMethod,
-                HttpMethod.s_traceMethod
-            },
-            {
-                HttpMethod.s_patchMethod,
-                HttpMethod.s_patchMethod
-            },
-            {
-                HttpMethod.s_connectMethod,
-                HttpMethod.s_connectMethod
-            }
-        };
-    }
+                // Normalize before calling this
+                Debug.Assert(ReferenceEquals(this, Normalize(this)));
 
+                return !ReferenceEquals(this, HttpMethod.Get) && !ReferenceEquals(this, HttpMethod.Head) && !ReferenceEquals(this, HttpMethod.Connect) &&
+                       !ReferenceEquals(this, HttpMethod.Options) && !ReferenceEquals(this, HttpMethod.Delete);
+            }
+        }
+    }
 
     // Token: 0x02000086 RID: 134
     internal enum HttpParseResult
@@ -24154,7 +23968,7 @@ namespace IPA.Cores.Basic.HttpHandler
         // Token: 0x06000316 RID: 790 RVA: 0x0003CCD8 File Offset: 0x0001CCD8
         private void InitializeValues(HttpMethod method, Uri requestUri)
         {
-            if (method == null)
+            if (((object)method) == null)
             {
                 throw new ArgumentNullException("method");
             }

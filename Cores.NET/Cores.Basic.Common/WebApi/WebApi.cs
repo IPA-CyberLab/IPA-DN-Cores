@@ -36,13 +36,15 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Net;
+//using System.Net.Http;
+//using System.Net.Http.Headers;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Net;
+
+using IPA.Cores.Basic.HttpHandler;
 
 namespace IPA.Cores.Basic
 {
@@ -292,7 +294,7 @@ namespace IPA.Cores.Basic
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
-            r.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(postContentsType);
+            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentsType);
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead))
             {
@@ -314,7 +316,7 @@ namespace IPA.Cores.Basic
             byte[] upload_data = jsonString.GetBytes(this.RequestEncoding);
 
             r.Content = new ByteArrayContent(upload_data);
-            r.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            r.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead))
             {
