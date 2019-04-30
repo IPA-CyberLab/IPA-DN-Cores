@@ -36,7 +36,7 @@ namespace IPA.TestDev
                 {
                 };
                 rpc_server_api_test h = new rpc_server_api_test(lady);
-                var s = JsonHttpRpcListener.StartServer(http_cfg, rpc_cfg, h, lady);
+                var s = JsonRpcHttpServerBuilder.StartServer(http_cfg, rpc_cfg, h, lady);
 
                 Ref<bool> client_stop_flag = new Ref<bool>();
 

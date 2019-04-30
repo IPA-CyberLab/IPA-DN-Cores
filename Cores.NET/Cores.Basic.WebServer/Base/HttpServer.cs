@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
     {
     }
 
-    abstract class HttpServerImplementation
+    abstract class HttpServerBuilderBase
     {
         public IConfiguration Configuration { get; }
         HttpServerBuilderConfig BuilderConfig;
@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
         protected object Param;
         public CancellationToken CancelToken { get; }
 
-        public HttpServerImplementation(IConfiguration configuration)
+        public HttpServerBuilderBase(IConfiguration configuration)
         {
             this.Configuration = configuration;
 
@@ -80,11 +80,11 @@ namespace IPA.Cores.Basic
             services.AddRouting();
         }
 
-        public abstract void SetupStartupConfig(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
+        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            SetupStartupConfig(this.StartupConfig, app, env);
+            ConfigureImpl(this.StartupConfig, app, env);
 
             if (BuilderConfig.UseStaticFiles) app.UseStaticFiles();
             if (BuilderConfig.ShowDetailError) app.UseDeveloperExceptionPage();
@@ -109,8 +109,8 @@ namespace IPA.Cores.Basic
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
     }
 
-    class HttpServer<THttpServerStartup> : AsyncCleanupableCancellable
-        where THttpServerStartup : HttpServerImplementation
+    sealed class HttpServer<THttpServerBuilder> : AsyncCleanupableCancellable
+        where THttpServerBuilder : HttpServerBuilderBase
     {
         HttpServerBuilderConfig Config;
         Task HostTask;
@@ -186,7 +186,7 @@ namespace IPA.Cores.Basic
                         }
                     })
                     .UseConfiguration(iconf)
-                    .UseStartup<THttpServerStartup>()
+                    .UseStartup<THttpServerBuilder>()
                     .Build();
 
                 HostTask = h.RunAsync(this.CancelWatcher.CancelToken);

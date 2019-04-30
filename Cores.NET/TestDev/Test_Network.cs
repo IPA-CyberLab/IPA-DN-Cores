@@ -44,12 +44,26 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
 namespace IPA.TestDev
 {
+    class TestHttpServerBuilder : HttpServerBuilderBase
+    {
+        public TestHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        {
+        }
+
+        protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
+        {
+        }
+    }
+
     partial class TestDevCommands
     {
         [ConsoleCommandMethod(
@@ -75,11 +89,24 @@ namespace IPA.TestDev
 
             //Net_Test6_DualStack_Client();
 
-            Net_Test7_Http_Download_Async().GetResult();
+            //Net_Test7_Http_Download_Async().GetResult();
 
             //Net_Test8_Http_Upload_Async().GetResult();
 
+            Net_Test9_WebServer();
+
             return 0;
+        }
+
+        static void Net_Test9_WebServer()
+        {
+            using (var lady = new AsyncCleanuperLady())
+            {
+                var cfg = new HttpServerBuilderConfig();
+                HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello", lady);
+
+                Con.ReadLine(">");
+            }
         }
 
         static async Task Net_Test8_Http_Upload_Async()

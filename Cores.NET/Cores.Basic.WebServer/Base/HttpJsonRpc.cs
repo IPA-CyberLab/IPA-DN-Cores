@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
             await response.SendStringContents(ret_str, responseContentsType, cancel: this.CancelToken);
         }
 
-        public void RegisterToHttpServer(IApplicationBuilder appBuilder, string path = "rpc")
+        public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "rpc")
         {
             RouteBuilder rb = new RouteBuilder(appBuilder);
 
@@ -165,21 +165,21 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonHttpRpcListener : HttpServerImplementation
+    class JsonRpcHttpServerBuilder : HttpServerBuilderBase
     {
         public JsonRpcHttpServer JsonServer { get; }
 
-        public JsonHttpRpcListener(IConfiguration configuration) : base(configuration)
+        private JsonRpcHttpServerBuilder(IConfiguration configuration) : base(configuration)
         {
             (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param;
 
             JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg, this.CancelToken);
         }
 
-        public static HttpServer<JsonHttpRpcListener> StartServer(HttpServerBuilderConfig httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, AsyncCleanuperLady lady, CancellationToken cancel = default)
-            => new HttpServer<JsonHttpRpcListener>(httpCfg, (rpcServerCfg, rpcApi), lady, cancel);
+        public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerBuilderConfig httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, AsyncCleanuperLady lady, CancellationToken cancel = default)
+            => new HttpServer<JsonRpcHttpServerBuilder>(httpCfg, (rpcServerCfg, rpcApi), lady, cancel);
 
-        public override void SetupStartupConfig(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
-            => this.JsonServer.RegisterToHttpServer(app);
+        protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
+            => this.JsonServer.RegisterRoutesToHttpServer(app);
     }
 }

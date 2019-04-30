@@ -44,7 +44,7 @@ namespace IPA.Cores.Basic
 {
     abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
     {
-        HttpServer<JsonHttpRpcListener> HttpServer;
+        HttpServer<JsonRpcHttpServerBuilder> HttpServer;
 
         public EasyJsonRpcServer(HttpServerBuilderConfig httpConfig, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
             {
                 JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig();
 
-                this.HttpServer = JsonHttpRpcListener.StartServer(httpConfig, rpc_cfg, this, lady, cancel);
+                this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpc_cfg, this, lady, cancel);
             }
             catch
             {

@@ -56,27 +56,6 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            Task t1 = TaskUtil.StartSyncTaskAsync(() =>
-            {
-                while (true)
-                {
-                }
-            },
-            true, true);
-            Task t2 = TaskUtil.StartSyncTaskAsync(() =>
-            {
-                while (true)
-                {
-                }
-            },
-            true);
-            Task t3 = TaskUtil.StartSyncTaskAsync(() =>
-            {
-                while (true)
-                {
-                }
-            },
-            true);
             Con.ReadLine(">");
         }
     }
