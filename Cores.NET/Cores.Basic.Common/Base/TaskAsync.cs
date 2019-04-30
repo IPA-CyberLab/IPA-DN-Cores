@@ -1781,6 +1781,12 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum NonsenseEventType
+    {
+        Nonsense,
+    }
+
     class FastEventListenerList<TCaller, TEventType>
     {
         FastReadList<FastEvent<TCaller, TEventType>> ListenerList;
@@ -1827,6 +1833,78 @@ namespace IPA.Cores.Basic
                     e.Set();
         }
     }
+
+
+    delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
+
+    class AsyncEvent<TCaller, TEventType>
+    {
+        public AsyncEventCallback<TCaller, TEventType> Proc { get; }
+        public object UserState { get; }
+
+        public AsyncEvent(AsyncEventCallback<TCaller, TEventType> proc, object userState)
+        {
+            this.Proc = proc;
+            this.UserState = userState;
+        }
+
+        public async Task CallSafeAsync(TCaller buffer, TEventType type)
+        {
+            try
+            {
+                await this.Proc(buffer, type, UserState);
+            }
+            catch { }
+        }
+    }
+
+    class AsyncEventListenerList<TCaller, TEventType>
+    {
+        FastReadList<AsyncEvent<TCaller, TEventType>> ListenerList;
+        FastReadList<AsyncAutoResetEvent> AsyncEventList;
+
+        public int RegisterCallback(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
+        {
+            if (proc == null) return 0;
+            return ListenerList.Add(new AsyncEvent<TCaller, TEventType>(proc, userState));
+        }
+
+        public bool UnregisterCallback(int id)
+        {
+            return ListenerList.Delete(id);
+        }
+
+        public Holder<int> RegisterCallbackWithUsing(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
+            => new Holder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
+
+        public int RegisterAsyncEvent(AsyncAutoResetEvent ev)
+        {
+            if (ev == null) return 0;
+            return AsyncEventList.Add(ev);
+        }
+
+        public bool UnregisterAsyncEvent(int id)
+        {
+            return AsyncEventList.Delete(id);
+        }
+
+        public Holder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
+            => new Holder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
+
+        public async Task FireAsync(TCaller caller, TEventType type)
+        {
+            var listenerList = ListenerList.GetListFast();
+            if (listenerList != null)
+                foreach (var e in listenerList)
+                    await e.CallSafeAsync(caller, type);
+
+            var asyncEventList = AsyncEventList.GetListFast();
+            if (asyncEventList != null)
+                foreach (var e in asyncEventList)
+                    e.Set();
+        }
+    }
+
 
     enum CancelWatcherCallbackEventType
     {

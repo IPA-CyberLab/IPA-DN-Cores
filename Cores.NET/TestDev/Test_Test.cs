@@ -56,35 +56,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            WebApi api = new WebApi();
-            
-            while (true)
-            {
-                int num = 1;
-                string url = "http://httpbin.org/delay/1";
-
-                List<Task> taskList = new List<Task>();
-
-                Dbg.Where();
-
-                for (int i = 0; i < num; i++)
-                {
-                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
-                    {
-                        var ret = await api.SimpleQueryAsync(WebApiMethods.GET, url);
-
-                        ret.Data.GetString_UTF8().Print();
-                    });
-
-                    taskList.Add(t);
-                }
-
-                Dbg.Where();
-
-                taskList.DoForEach(x => x.TryGetResult());
-
-                taskList.Where(x => x.IsCompletedSuccessfully).Count().Print();
-            }
+            Con.ReadLine(">");
         }
     }
 }

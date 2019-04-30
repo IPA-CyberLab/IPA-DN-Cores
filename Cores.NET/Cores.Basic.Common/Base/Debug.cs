@@ -66,6 +66,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
             public static readonly Copenhagen<LogPriority> LogMinimalErrorLevel = LogPriority.Error;
 
+            public static readonly Copenhagen<LogPriority> LogMinimalStatLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Debug;
 

@@ -89,7 +89,4 @@
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resource\Test\HelloWorld.txt" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)Stack\Fast\Fast.txt" />
-  </ItemGroup>
 </Project>

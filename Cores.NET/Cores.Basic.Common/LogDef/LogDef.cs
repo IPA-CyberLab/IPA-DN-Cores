@@ -52,6 +52,7 @@ namespace IPA.Cores.Basic
         public const string Default = "Default";
         public const string Data = "Data";
         public const string Access = "Access";
+        public const string Stat = "Stat";
     }
 
     class LogDefIPEndPoints

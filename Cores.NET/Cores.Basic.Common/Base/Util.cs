@@ -599,6 +599,60 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        // 2 つの値を引き算する return (a - b)
+        public static object Subtract(object a, object b)
+        {
+            if (a == null) throw new ArgumentNullException("a");
+            if (b == null) throw new ArgumentNullException("b");
+            if (a.GetType() != b.GetType()) throw new ArgumentException("a.GetType() != b.GetType()");
+
+            switch (a)
+            {
+                case byte aa: return aa - (byte)b;
+                case sbyte aa: return aa - (sbyte)b;
+                case short aa: return aa - (short)b;
+                case ushort aa: return aa - (ushort)b;
+                case int aa: return aa - (int)b;
+                case uint aa: return aa - (uint)b;
+                case long aa: return aa - (long)b;
+                case ulong aa: return aa - (ulong)b;
+                case char aa: return aa - (char)b;
+                case float aa: return aa - (float)b;
+                case double aa: return aa - (double)b;
+                case decimal aa: return aa - (decimal)b;
+                case bool aa: return aa != (bool)b;
+                case BigNumber aa: return aa - (BigNumber)b;
+                case BigInteger aa: return aa - (BigInteger)b;
+                default: throw new ArgumentException("The specified type is not supported.");
+            }
+        }
+
+        // 割り算する (return a / b)
+        public static object Divide(object a, double b)
+        {
+            if (a == null) throw new ArgumentNullException("a");
+
+            switch (a)
+            {
+                case byte aa: return (byte)((double)aa / b);
+                case sbyte aa: return (sbyte)((double)aa / b);
+                case short aa: return (short)((double)aa / b);
+                case ushort aa: return (ushort)((double)aa / b);
+                case int aa: return (int)((double)aa / b);
+                case uint aa: return (uint)((double)aa / b);
+                case long aa: return (long)((double)aa / b);
+                case ulong aa: return (ulong)((double)aa / b);
+                case char aa: return (char)((double)aa / b);
+                case float aa: return (float)((double)aa / b);
+                case double aa: return (double)((double)aa / b);
+                case decimal aa: return (decimal)((double)aa / b);
+                case bool aa: return aa;
+                case BigNumber aa: return aa / (long)b;
+                case BigInteger aa: return aa / (long)b;
+                default: throw new ArgumentException("The specified type is not supported.");
+            }
+        }
+
         // 2 つの年をはさむ年度のリストを取得する
         public static DateTime[] GetYearNendoList(DateTime startYear, DateTime endYear)
         {
@@ -3547,6 +3601,224 @@ namespace IPA.Cores.Basic
             {
                 return this.List.OrderByDescending(x => x.Weight).ThenBy(x => IdSeed).FirstOrDefault()?.Exception ?? null;
             }
+        }
+    }
+
+    class ColumnsReaderWriter
+    {
+        readonly Dictionary<string, MemberInfo> ColumnsTable = new Dictionary<string, MemberInfo>();
+
+        public Type TargetType { get; }
+        public IReadOnlyList<string> NamesList { get; }
+
+        static readonly Singleton<Type, ColumnsReaderWriter> _Singleton = new Singleton<Type, ColumnsReaderWriter>(t => new ColumnsReaderWriter(t));
+
+        public ColumnsReaderWriter(Type targetType)
+        {
+            this.TargetType = targetType;
+
+            FieldInfo[] fields;
+            PropertyInfo[] properties;
+
+            fields = TargetType.GetFields(BindingFlags.Instance | BindingFlags.Public);
+            properties = TargetType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.SetProperty);
+
+            foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>()))
+            {
+                ColumnsTable.Add(info.Name, info);
+            }
+
+            this.NamesList = new List<string>(ColumnsTable.Keys);
+        }
+
+        public static ColumnsReaderWriter GetCached(Type type) => _Singleton.CreateOrGet(type);
+        public static ColumnsReaderWriter GetCached<T>() => GetCached(typeof(T));
+
+        public object GetValue(object targetObject, string name)
+        {
+            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+
+            if (this.ColumnsTable.TryGetValue(name, out MemberInfo info) == false) return null;
+            switch (info)
+            {
+                case FieldInfo field:
+                    return field.GetValue(targetObject);
+
+                case PropertyInfo property:
+                    return property.GetValue(targetObject);
+
+                default:
+                    throw new ApplicationException("info");
+            }
+        }
+
+        public T GetValue<T>(object targetObject, string name)
+        {
+            object ret = GetValue(targetObject, name);
+            if (ret == null) return default;
+            return (T)ret;
+        }
+
+        public void SetValue(object targetObject, string name, object value)
+        {
+            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+
+            if (this.ColumnsTable.TryGetValue(name, out MemberInfo info) == false) return;
+            switch (info)
+            {
+                case FieldInfo field:
+                    field.SetValue(targetObject, value);
+                    return;
+
+                case PropertyInfo property:
+                    property.SetValue(targetObject, value);
+                    return;
+
+                default:
+                    throw new ApplicationException("info");
+            }
+        }
+
+        public void SetValue<T>(object targetObject, string name, T value) => SetValue(targetObject, name, value);
+
+        public T CalcDiff<T>(T current, T prev)
+        {
+            T ret = (T)Util.NewWithoutConstructor(this.TargetType);
+
+            CalcDiff(ret, current, prev);
+
+            return ret;
+        }
+
+        public void CalcDiff(object dest, object current, object prev)
+        {
+            foreach (string name in this.NamesList)
+            {
+                object prevValue = this.GetValue(prev, name);
+                object currentValue = this.GetValue(current, name);
+                object destValue = Util.Subtract(currentValue, prevValue);
+                this.SetValue(dest, name, destValue);
+            }
+        }
+
+        public T DivideBy<T>(T target, double by)
+        {
+            T ret = (T)Util.NewWithoutConstructor(this.TargetType);
+
+            DivideBy(ret, target, by);
+
+            return ret;
+        }
+
+        public void DivideBy(object dest, object target, double by)
+        {
+            foreach (string name in this.NamesList)
+            {
+                object currentValue = this.GetValue(target, name);
+                object destValue = Util.Divide(currentValue, by);
+                this.SetValue(dest, name, destValue);
+            }
+        }
+
+        public void CopyValues(object dest, object src)
+        {
+            foreach (string name in this.NamesList)
+            {
+                object srcValue = this.GetValue(src, name);
+                this.SetValue(dest, name, srcValue);
+            }
+        }
+
+        public object CreateClone(object targetObject)
+        {
+            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+
+            object ret = Util.NewWithoutConstructor(this.TargetType);
+
+            CopyValues(ret, targetObject);
+
+            return ret;
+        }
+
+        public T CreateClone<T>(T targetObject) => (T)CreateClone((object)targetObject);
+    }
+
+    class StatisticsReporter<T> : AsyncCleanupableCancellable
+        where T: class
+    {
+        public readonly T CurrentValues;
+
+        public int Interval { get; }
+
+        readonly Task MainLoopTask;
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        public readonly AsyncEventListenerList<T, NonsenseEventType> ListenerList = new AsyncEventListenerList<T, NonsenseEventType>();
+
+        readonly ColumnsReaderWriter ReaderWriter;
+
+        readonly Func<T, T, T, Task> ReceiverAsync; // async (snapshot, diff, velocity)
+
+        public StatisticsReporter(int interval, AsyncCleanuperLady lady, Func<T, T, T, Task> receiverProc, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(lady, default)
+        {
+            this.Interval = interval;
+            this.ReaderWriter = new ColumnsReaderWriter(typeof(T));
+            this.CurrentValues = Util.NewWithoutConstructor<T>();
+            this.ReceiverAsync = receiverProc;
+
+            foreach (var proc in initialListenerProcs)
+            {
+                ListenerList.RegisterCallback(proc);
+            }
+
+            this.MainLoopTask = MainLoopAsync();
+        }
+
+        async Task FireEventAsync()
+        {
+            await ListenerList.FireAsync(this.CurrentValues, NonsenseEventType.Nonsense);
+        }
+
+        async Task MainLoopAsync()
+        {
+            T prevValues = Util.NewWithoutConstructor<T>();
+            double prevTime = Time.NowHighResDouble;
+            int num = 0;
+
+            while (true)
+            {
+                this.GrandCancel.ThrowIfCancellationRequested();
+
+                await FireEventAsync();
+
+                double nowTime = Time.NowHighResDouble;
+                double timeDiff = nowTime - prevTime;
+
+                T snapshot = this.ReaderWriter.CreateClone(this.CurrentValues);
+                T diffs = this.ReaderWriter.CalcDiff(prevValues, snapshot);
+                T velocity = (num == 0 ? Util.NewWithoutConstructor<T>() : this.ReaderWriter.DivideBy(diffs, timeDiff));
+
+                prevValues = snapshot;
+
+                await this.ReceiverAsync(snapshot, diffs, velocity);
+
+                await TaskUtil.WaitObjectsAsync(cancels: this.GrandCancel.SingleArray(), timeout: this.Interval);
+
+                num++;
+            }
+        }
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                this.CancelWatcher.Cancel();
+                this.MainLoopTask.TryWait(true);
+            }
+            finally { base.Dispose(disposing); }
         }
     }
 }

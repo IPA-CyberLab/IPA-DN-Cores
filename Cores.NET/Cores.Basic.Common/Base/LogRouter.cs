@@ -269,6 +269,14 @@ namespace IPA.Cores.Basic
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForData,
                 CoresConfig.LocalLogRouterSettings.InfoOptionsForData));
 
+            // Statistics log (file)
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Stat,
+                CoresConfig.DebugSettings.LogMinimalStatLevel,
+                "stat",
+                CoresConfig.LocalLogRouterSettings.LogStatDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForStat,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForStat));
+
             // Access log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Access,
                 CoresConfig.DebugSettings.LogMinimalAccessLevel,
@@ -299,6 +307,15 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static void PostStat(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        {
+            Post(obj, priority, kind: LogKind.Stat, tag: tag);
+            if (copyToDebug)
+            {
+                Post(new PostedStat() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
+            }
+        }
+
         public static void PostAccessLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Access, tag: tag);
@@ -315,6 +332,12 @@ namespace IPA.Cores.Basic
         }
 
         class PostedAccessLog
+        {
+            public string Tag;
+            public object Data;
+        }
+
+        class PostedStat
         {
             public string Tag;
             public object Data;
@@ -346,6 +369,11 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<Func<string>> LogDataDir = new Func<string>(() => Path.Combine(LogRootDir, "Data"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForData = LogSwitchType.Day;
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForData = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
+
+            // Stat
+            public static readonly Copenhagen<Func<string>> LogStatDir = new Func<string>(() => Path.Combine(LogRootDir, "Stat"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForStat = LogSwitchType.Day;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForStat = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
 
             // Access log
             public static readonly Copenhagen<Func<string>> LogAccessDir = new Func<string>(() => Path.Combine(LogRootDir, "Access"));
