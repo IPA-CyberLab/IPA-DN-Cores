@@ -3629,6 +3629,9 @@ namespace IPA.Cores.Basic
             var methods = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.InvokeMethod)
                 .Concat(includePrivate ? TargetType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod) : new MethodInfo[0]);
 
+            var m1 = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.InvokeMethod);
+            var m2 = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod);
+
             foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>().Concat(methods.Cast<MemberInfo>())))
             {
                 MetadataTable.Add(info.Name, info);
@@ -3647,7 +3650,7 @@ namespace IPA.Cores.Basic
         public object Invoke(object targetObject, string name, params object[] parameters)
         {
             if (parameters == null) parameters = new object[1] { null };
-            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
@@ -3671,7 +3674,7 @@ namespace IPA.Cores.Basic
 
         public object GetValue(object targetObject, string name)
         {
-            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
@@ -3689,16 +3692,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T GetValue<T>(object targetObject, string name)
-        {
-            object ret = GetValue(targetObject, name);
-            if (ret == null) return default;
-            return (T)ret;
-        }
-
         public void SetValue(object targetObject, string name, object value)
         {
-            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
             {

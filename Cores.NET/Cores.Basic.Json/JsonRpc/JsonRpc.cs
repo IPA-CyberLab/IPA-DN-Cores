@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
 
             var r = methodInfo.ReturnParameter;
             bool isTask = false;
-            if (r.ParameterType == typeof(Task) || r.ParameterType.IsSubclassOf(typeof(Task))) isTask = true;
+            if (r.ParameterType.IsSubClassOfOrSame(typeof(Task))) isTask = true;
 
             if (isTask == false)
             {

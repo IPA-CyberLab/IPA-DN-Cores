@@ -46,10 +46,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
-using Castle.DynamicProxy;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -57,18 +58,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class ProxyInterceptor : IInterceptor
-    {
-        public void Intercept(IInvocation invocation)
-        {
-            invocation.Debug();
-        }
-    }
 
-    static class HttpServerWithStackUtil
+    public static class HttpServerWithStackUtil
     {
-        static Task Test(object param)
+        public static Task Test(ListenOptions targetObject, object param)
         {
+            //Dbg.Where(s);
+
             return Task.CompletedTask;
         }
 
@@ -76,13 +72,13 @@ namespace IPA.Cores.Basic
         {
             Type typeofOriginal = typeof(ListenOptions);
 
-            //string name = "DefineMethodOverrideExample";
-            AssemblyName asmName = new AssemblyName("Microsoft.AspNetCore.Server.Kestrel.Tests");
-            asmName.SetPublicKey(
-                "0024000004800000940000000602000000240000525341310004000001000100f33a29044fa9d740c9b3213a93e57c84b472c84e0b8a0e1ae48e67a9f8f6de9d5f7f3d52ac23e48ac51801f1dc950abe901da34d2a9e3baadb141a17c77ef3c565dd5ee5054b91cf63bb3c6ab83f72ab3aafe93d0fc3c2348b764fafb0b1c0733de51459aeab46580384bf9d74c4e28164b7cde247f891ba07891c9d872ad2bb"
-                .GetHexBytes());
+            Assembly originalAsm = typeofOriginal.Assembly;
+
+            string friendAssemblyName = originalAsm.GetCustomAttributes<InternalsVisibleToAttribute>().Where(x => x.AllInternalsVisible).First().AssemblyName;
+
+            AssemblyName asmName = new AssemblyName(friendAssemblyName);
             AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
-            ModuleBuilder modBuilder = asmBuilder.DefineDynamicModule("MainModule");
+            ModuleBuilder modBuilder = asmBuilder.DefineDynamicModule(Guid.NewGuid().ToString());
 
             TypeBuilder typeBuilder = modBuilder.DefineType(typeofOriginal.Name + "_Ex", TypeAttributes.Public | TypeAttributes.Class, typeofOriginal);
 
@@ -94,7 +90,7 @@ namespace IPA.Cores.Basic
 
             MethodInfo methodToOverride = typeofOriginal.GetMethod("BindAsync", BindingFlags.NonPublic | BindingFlags.Instance);
 
-            MethodInfo methodToCall = typeof(HttpServerWithStackUtil).GetMethod("Test", BindingFlags.NonPublic | BindingFlags.Static);
+            MethodInfo methodToCall = typeof(HttpServerWithStackUtil).GetMethod("Test", BindingFlags.Public | BindingFlags.Static);
 
             Type arg0Type = typeofOriginal.Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext");
 
@@ -104,44 +100,26 @@ namespace IPA.Cores.Basic
                 new Type[] { arg0Type });
 
             il = newMethod.GetILGenerator();
-            //il.Emit(OpCodes.Call, methodToCall);
+            il.Emit(OpCodes.Ldarg, 0);
+            il.Emit(OpCodes.Ldarg, 1);
+            il.Emit(OpCodes.Call, methodToCall);
             il.Emit(OpCodes.Ret);
 
 
             Type newType = typeBuilder.CreateType();
 
 
-            ListenOptions ob = (ListenOptions)Util.NewWithoutConstructor(newType);
+            ListenOptions ret = (ListenOptions)Util.NewWithoutConstructor(newType);
 
-            //ProxyGenerator g = new ProxyGenerator();
-            //ProxyInterceptor ic = new ProxyInterceptor();
+            ret.PrivateSet<ListenOptions>("Type", ListenType.IPEndPoint);
+            ret.PrivateSet<ListenOptions>("IPEndPoint", endPoint);
+            ret.PrivateSet<ListenOptions>("NoDelay", true);
+            ret.PrivateSet<ListenOptions>("Protocols", HttpProtocols.Http1AndHttp2);
+            ret.PrivateSet<ListenOptions>("ConnectionAdapters", new List<IConnectionAdapter>());
 
-            ////ProxyGenerationOptions opt = new ProxyGenerationOptions();
-
-            //var x = g.CreateClassProxy(newType, ic);
-
-            //Con.WriteLine(x is ListenOptions);
-
-            //ListenOptions optt = (ListenOptions)x;
-
-            object reta = ob.PrivateInvoke("BindAsync", null);
+            object reta = ret.PrivateInvoke("BindAsync", null);
 
             return null;
-
-
-
-
-            ListenOptions ret = Util.NewWithoutConstructor<ListenOptions>();
-
-            ret.PrivateSet("Type", ListenType.IPEndPoint);
-            ret.PrivateSet("IPEndPoint", endPoint);
-            ret.PrivateSet("NoDelay", true);
-            ret.PrivateSet("Protocols", HttpProtocols.Http1AndHttp2);
-            ret.PrivateSet("ConnectionAdapters", new List<IConnectionAdapter>());
-
-
-
-            return ret;
         }
     }
 }

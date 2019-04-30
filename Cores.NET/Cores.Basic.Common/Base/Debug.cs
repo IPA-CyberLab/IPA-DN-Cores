@@ -534,8 +534,8 @@ namespace IPA.Cores.Basic
         public static bool IsPrimitiveType(Type t)
         {
             if (t == null) return true;
-            if (t.IsSubclassOf(typeof(System.Type))) return true;
-            if (t.IsSubclassOf(typeof(System.Delegate))) return true;
+            if (t.IsSubClassOfOrSame(typeof(System.Type))) return true;
+            if (t.IsSubClassOfOrSame(typeof(System.Delegate))) return true;
             if (t.IsEnum) return true;
             if (t.IsPrimitive) return true;
             if (t == typeof(System.Delegate)) return true;
