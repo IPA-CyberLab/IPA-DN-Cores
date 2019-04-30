@@ -543,167 +543,175 @@ namespace IPA.Cores.Basic
             AsyncManualResetEvent[] manualEvents = null, int timeout = Timeout.Infinite,
             ExceptionWhen exceptions = ExceptionWhen.None)
         {
-            if (tasks == null) tasks = new Task[0];
-            if (cancels == null) cancels = new CancellationToken[0];
-            if (events == null) events = new AsyncAutoResetEvent[0];
-            if (manualEvents == null) manualEvents = new AsyncManualResetEvent[0];
-            if (timeout == 0)
-            {
-                if (exceptions.Bit(ExceptionWhen.TimeoutException))
-                    throw new TimeoutException();
-
-                return ExceptionWhen.TimeoutException;
-            }
-
-            if (exceptions.Bit(ExceptionWhen.TaskException))
-            {
-                foreach (Task t in tasks)
-                {
-                    if (t != null)
-                    {
-                        if (t.IsFaulted) t.Exception.ReThrow();
-                        if (t.IsCanceled) throw new TaskCanceledException();
-                    }
-                }
-            }
-            else
-            {
-                foreach (Task t in tasks)
-                {
-                    if (t != null)
-                    {
-                        if (t.IsFaulted) return ExceptionWhen.TaskException;
-                        if (t.IsCanceled) return ExceptionWhen.TaskException;
-                    }
-                }
-            }
-
-            if (exceptions.Bit(ExceptionWhen.CancelException))
-            {
-                foreach (CancellationToken c in cancels)
-                    c.ThrowIfCancellationRequested();
-            }
-            else
-            {
-                foreach (CancellationToken c in cancels)
-                    if (c.IsCancellationRequested)
-                        return ExceptionWhen.CancelException;
-            }
-
-            List<Task> taskList = new List<Task>();
-            List<CancellationTokenRegistration> regList = new List<CancellationTokenRegistration>();
-            List<Action> undoList = new List<Action>();
-
-            foreach (Task t in tasks)
-            {
-                if (t != null)
-                {
-                    taskList.Add(t);
-                }
-            }
-
-            foreach (CancellationToken c in cancels)
-            {
-                taskList.Add(WhenCanceled(c, out CancellationTokenRegistration reg));
-                regList.Add(reg);
-            }
-
-            foreach (AsyncAutoResetEvent ev in events)
-            {
-                if (ev != null)
-                {
-                    taskList.Add(ev.WaitOneAsync(out Action undo));
-                    undoList.Add(undo);
-                }
-            }
-
-            foreach (AsyncManualResetEvent ev in manualEvents)
-            {
-                if (ev != null)
-                {
-                    taskList.Add(ev.WaitAsync());
-                }
-            }
-
-            CancellationTokenSource delayCancel = new CancellationTokenSource();
-
-            Task timeoutTask = null;
-            bool timedOut = false;
-
-            if (timeout >= 1)
-            {
-                timeoutTask = Task.Delay(timeout, delayCancel.Token);
-                taskList.Add(timeoutTask);
-            }
-
+            LeakChecker.IncrementLeakCounter(LeakCounterKind.WaitObjectsAsync);
             try
             {
-                Task r = await Task.WhenAny(taskList.ToArray());
-                if (r == timeoutTask) timedOut = true;
-            }
-            catch { }
+                if (tasks == null) tasks = new Task[0];
+                if (cancels == null) cancels = new CancellationToken[0];
+                if (events == null) events = new AsyncAutoResetEvent[0];
+                if (manualEvents == null) manualEvents = new AsyncManualResetEvent[0];
+                if (timeout == 0)
+                {
+                    if (exceptions.Bit(ExceptionWhen.TimeoutException))
+                        throw new TimeoutException();
 
-            foreach (Action undo in undoList)
-                undo();
-
-            foreach (CancellationTokenRegistration reg in regList)
-            {
-                reg.Dispose();
-            }
-
-            if (delayCancel != null)
-            {
-                delayCancel.Cancel();
-                delayCancel.Dispose();
-            }
-
-            if (exceptions.Bit(ExceptionWhen.TimeoutException))
-            {
-                if (timedOut)
-                    throw new TimeoutException();
-            }
-            else
-            {
-                if (timedOut)
                     return ExceptionWhen.TimeoutException;
-            }
+                }
 
-            if (exceptions.Bit(ExceptionWhen.TaskException))
-            {
+                if (exceptions.Bit(ExceptionWhen.TaskException))
+                {
+                    foreach (Task t in tasks)
+                    {
+                        if (t != null)
+                        {
+                            if (t.IsFaulted) t.Exception.ReThrow();
+                            if (t.IsCanceled) throw new TaskCanceledException();
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (Task t in tasks)
+                    {
+                        if (t != null)
+                        {
+                            if (t.IsFaulted) return ExceptionWhen.TaskException;
+                            if (t.IsCanceled) return ExceptionWhen.TaskException;
+                        }
+                    }
+                }
+
+                if (exceptions.Bit(ExceptionWhen.CancelException))
+                {
+                    foreach (CancellationToken c in cancels)
+                        c.ThrowIfCancellationRequested();
+                }
+                else
+                {
+                    foreach (CancellationToken c in cancels)
+                        if (c.IsCancellationRequested)
+                            return ExceptionWhen.CancelException;
+                }
+
+                List<Task> taskList = new List<Task>();
+                List<CancellationTokenRegistration> regList = new List<CancellationTokenRegistration>();
+                List<Action> undoList = new List<Action>();
+
                 foreach (Task t in tasks)
                 {
                     if (t != null)
                     {
-                        if (t.IsFaulted) t.Exception.ReThrow();
-                        if (t.IsCanceled) throw new TaskCanceledException();
+                        taskList.Add(t);
                     }
                 }
-            }
-            else
-            {
-                foreach (Task t in tasks)
+
+                foreach (CancellationToken c in cancels)
                 {
-                    if (t != null)
+                    taskList.Add(WhenCanceled(c, out CancellationTokenRegistration reg));
+                    regList.Add(reg);
+                }
+
+                foreach (AsyncAutoResetEvent ev in events)
+                {
+                    if (ev != null)
                     {
-                        if (t.IsFaulted) return ExceptionWhen.TaskException;
-                        if (t.IsCanceled) return ExceptionWhen.TaskException;
+                        taskList.Add(ev.WaitOneAsync(out Action undo));
+                        undoList.Add(undo);
                     }
                 }
-            }
 
-            if (exceptions.Bit(ExceptionWhen.CancelException))
-            {
-                foreach (CancellationToken c in cancels)
-                    c.ThrowIfCancellationRequested();
-            }
-            else
-            {
-                foreach (CancellationToken c in cancels)
-                    if (c.IsCancellationRequested)
-                        return ExceptionWhen.CancelException;
-            }
+                foreach (AsyncManualResetEvent ev in manualEvents)
+                {
+                    if (ev != null)
+                    {
+                        taskList.Add(ev.WaitAsync());
+                    }
+                }
 
-            return ExceptionWhen.None;
+                CancellationTokenSource delayCancel = new CancellationTokenSource();
+
+                Task timeoutTask = null;
+                bool timedOut = false;
+
+                if (timeout >= 1)
+                {
+                    timeoutTask = Task.Delay(timeout, delayCancel.Token);
+                    taskList.Add(timeoutTask);
+                }
+
+                try
+                {
+                    Task r = await Task.WhenAny(taskList.ToArray());
+                    if (r == timeoutTask) timedOut = true;
+                }
+                catch { }
+
+                foreach (Action undo in undoList)
+                    undo();
+
+                foreach (CancellationTokenRegistration reg in regList)
+                {
+                    reg.Dispose();
+                }
+
+                if (delayCancel != null)
+                {
+                    delayCancel.Cancel();
+                    delayCancel.Dispose();
+                }
+
+                if (exceptions.Bit(ExceptionWhen.TimeoutException))
+                {
+                    if (timedOut)
+                        throw new TimeoutException();
+                }
+                else
+                {
+                    if (timedOut)
+                        return ExceptionWhen.TimeoutException;
+                }
+
+                if (exceptions.Bit(ExceptionWhen.TaskException))
+                {
+                    foreach (Task t in tasks)
+                    {
+                        if (t != null)
+                        {
+                            if (t.IsFaulted) t.Exception.ReThrow();
+                            if (t.IsCanceled) throw new TaskCanceledException();
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (Task t in tasks)
+                    {
+                        if (t != null)
+                        {
+                            if (t.IsFaulted) return ExceptionWhen.TaskException;
+                            if (t.IsCanceled) return ExceptionWhen.TaskException;
+                        }
+                    }
+                }
+
+                if (exceptions.Bit(ExceptionWhen.CancelException))
+                {
+                    foreach (CancellationToken c in cancels)
+                        c.ThrowIfCancellationRequested();
+                }
+                else
+                {
+                    foreach (CancellationToken c in cancels)
+                        if (c.IsCancellationRequested)
+                            return ExceptionWhen.CancelException;
+                }
+
+                return ExceptionWhen.None;
+            }
+            finally
+            {
+                LeakChecker.DecrementLeakCounter(LeakCounterKind.WaitObjectsAsync);
+            }
         }
 
         public static Task WhenCanceled(CancellationToken cancel, out CancellationTokenRegistration registration)
@@ -2171,6 +2179,7 @@ namespace IPA.Cores.Basic
         CreateCombinedCancellationToken,
         FastAllocMemoryWithUsing,
         VfsOpenEntity,
+        WaitObjectsAsync,
     }
 
     static class LeakChecker
@@ -2184,8 +2193,10 @@ namespace IPA.Cores.Basic
 
         static public AsyncCleanuperLady SuperGrandLady { get; } = new AsyncCleanuperLady();
 
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
         public static LeakCheckerHolder Enter([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
-            => new LeakCheckerHolder($"{caller}() - {Path.GetFileName(filename)}:{line}", Environment.StackTrace);
+            => new LeakCheckerHolder($"{caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
 
         public static IHolder Enter(LeakCounterKind leakKind, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
         {

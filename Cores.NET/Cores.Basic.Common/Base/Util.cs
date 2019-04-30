@@ -602,8 +602,8 @@ namespace IPA.Cores.Basic
         // 2 つの値を引き算する return (a - b)
         public static object Subtract(object a, object b)
         {
-            if (a == null) throw new ArgumentNullException("a");
-            if (b == null) throw new ArgumentNullException("b");
+            if (a == null) return null;
+            if (b == null) return a;
             if (a.GetType() != b.GetType()) throw new ArgumentException("a.GetType() != b.GetType()");
 
             switch (a)
@@ -623,14 +623,14 @@ namespace IPA.Cores.Basic
                 case bool aa: return aa != (bool)b;
                 case BigNumber aa: return aa - (BigNumber)b;
                 case BigInteger aa: return aa - (BigInteger)b;
-                default: throw new ArgumentException("The specified type is not supported.");
+                default: return a;
             }
         }
 
         // 割り算する (return a / b)
         public static object Divide(object a, double b)
         {
-            if (a == null) throw new ArgumentNullException("a");
+            if (a == null) return null;
 
             switch (a)
             {
@@ -649,7 +649,7 @@ namespace IPA.Cores.Basic
                 case bool aa: return aa;
                 case BigNumber aa: return aa / (long)b;
                 case BigInteger aa: return aa / (long)b;
-                default: throw new ArgumentException("The specified type is not supported.");
+                default: return a;
             }
         }
 
@@ -3743,6 +3743,16 @@ namespace IPA.Cores.Basic
         public T CreateClone<T>(T targetObject) => (T)CreateClone((object)targetObject);
     }
 
+    [Flags]
+    enum StatisticsReporterLogTypes
+    {
+        None = 0,
+        Snapshot = 1,
+        Diffs = 2,
+        Velocity = 4,
+        All = 0x7fffffff,
+    }
+
     class StatisticsReporter<T> : AsyncCleanupableCancellable
         where T: class
     {
@@ -3760,9 +3770,12 @@ namespace IPA.Cores.Basic
 
         readonly Func<T, T, T, Task> ReceiverAsync; // async (snapshot, diff, velocity)
 
-        public StatisticsReporter(int interval, AsyncCleanuperLady lady, Func<T, T, T, Task> receiverProc, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(lady, default)
+        readonly StatisticsReporterLogTypes LogTypes;
+
+        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, AsyncCleanuperLady lady, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(lady, default)
         {
             this.Interval = interval;
+            this.LogTypes = logTypes;
             this.ReaderWriter = new ColumnsReaderWriter(typeof(T));
             this.CurrentValues = Util.NewWithoutConstructor<T>();
             this.ReceiverAsync = receiverProc;
@@ -3772,7 +3785,7 @@ namespace IPA.Cores.Basic
                 ListenerList.RegisterCallback(proc);
             }
 
-            this.MainLoopTask = MainLoopAsync();
+            this.MainLoopTask = TaskUtil.StartAsyncTaskAsync(MainLoopAsync, true);
         }
 
         async Task FireEventAsync()
@@ -3794,14 +3807,33 @@ namespace IPA.Cores.Basic
 
                 double nowTime = Time.NowHighResDouble;
                 double timeDiff = nowTime - prevTime;
+                prevTime = nowTime;
 
-                T snapshot = this.ReaderWriter.CreateClone(this.CurrentValues);
-                T diffs = this.ReaderWriter.CalcDiff(prevValues, snapshot);
-                T velocity = (num == 0 ? Util.NewWithoutConstructor<T>() : this.ReaderWriter.DivideBy(diffs, timeDiff));
 
-                prevValues = snapshot;
+                try
+                {
+                    T snapshot = this.ReaderWriter.CreateClone(this.CurrentValues);
+                    T diffs = this.ReaderWriter.CalcDiff(snapshot, prevValues);
+                    T velocity = (num == 0 ? Util.NewWithoutConstructor<T>() : this.ReaderWriter.DivideBy(diffs, timeDiff));
 
-                await this.ReceiverAsync(snapshot, diffs, velocity);
+                    prevValues = snapshot;
+
+                    if (LogTypes.Bit(StatisticsReporterLogTypes.Snapshot))
+                        LocalLogRouter.PostStat(snapshot, tag: "Snapshot");
+
+                    if (LogTypes.Bit(StatisticsReporterLogTypes.Diffs))
+                        LocalLogRouter.PostStat(diffs, tag: "Diffs");
+
+                    if (LogTypes.Bit(StatisticsReporterLogTypes.Velocity))
+                        LocalLogRouter.PostStat(velocity, tag: "Velocity");
+
+                    if (this.ReceiverAsync != null)
+                        await this.ReceiverAsync(snapshot, diffs, velocity);
+                }
+                catch (Exception ex)
+                {
+                    ex.Debug();
+                }
 
                 await TaskUtil.WaitObjectsAsync(cancels: this.GrandCancel.SingleArray(), timeout: this.Interval);
 

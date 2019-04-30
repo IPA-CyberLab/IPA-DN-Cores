@@ -32,6 +32,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
@@ -72,7 +73,12 @@ namespace IPA.Cores.Basic
 
             public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Debug;
 
-            public static void SetDebugMode(DebugMode mode = DebugMode.Debug)
+            public static readonly Copenhagen<bool> LeakCheckerFullStackLog = false;
+
+            public static readonly Copenhagen<StatisticsReporterLogTypes> CoresStatLogType = StatisticsReporterLogTypes.Snapshot;
+            public static readonly Copenhagen<bool> CoresStatPrintToConsole = false;
+
+            public static void SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false)
             {
                 switch (mode)
                 {
@@ -119,6 +125,8 @@ namespace IPA.Cores.Basic
                     default:
                         throw new ArgumentException("mode");
                 }
+
+                CoresStatPrintToConsole.Set(printStatToConsole);
             }
 
             static bool? IsDebugModeCache = null;
@@ -195,7 +203,7 @@ namespace IPA.Cores.Basic
 
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public static void SetDebugMode(DebugMode mode = DebugMode.Debug) => CoresConfig.DebugSettings.SetDebugMode(mode);
+        public static void SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false) => CoresConfig.DebugSettings.SetDebugMode(mode, printStatToConsole);
 
         public static bool IsDebugMode => CoresConfig.DebugSettings.IsDebugMode();
 
@@ -998,6 +1006,57 @@ namespace IPA.Cores.Basic
                 });
             });
         }
+    }
+
+    class CoresRuntimeStat
+    {
+        public int Task;
+        public int P;
+        public int Q;
+        public int Leak;
+        public int IO;
+        public long Mem;
+        public int FreeTask;
+        public string Str;
+
+        public void Refresh()
+        {
+            ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
+            ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
+            ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
+            long mem = GC.GetTotalMemory(false);
+            int num_queued = TaskUtil.GetQueuedTasksCount();
+            int num_timered = TaskUtil.GetScheduledTimersCount();
+
+            this.Task = max_workers - avail_workers;
+            this.FreeTask = avail_workers;
+            this.P = num_queued;
+            this.Q = num_timered;
+            this.Leak = LeakChecker.Count;
+            this.IO = max_ports - avail_ports;
+            this.Mem = mem / 1024;
+        }
+    }
+
+    static class CoresRuntimeStatReporter
+    {
+        public readonly static StatisticsReporter<CoresRuntimeStat> Reporter = new StatisticsReporter<CoresRuntimeStat>(1000,
+            CoresConfig.DebugSettings.CoresStatLogType,
+            LeakChecker.SuperGrandLady,
+            async (snapshot, diff, velocity)
+            =>
+            {
+                if (CoresConfig.DebugSettings.CoresStatPrintToConsole)
+                {
+                    snapshot.Debug();
+                }
+                await Task.CompletedTask;
+            },
+            (current, nonsense, userState) =>
+            {
+                current.Refresh();
+                return Task.CompletedTask;
+            });
     }
 }
 

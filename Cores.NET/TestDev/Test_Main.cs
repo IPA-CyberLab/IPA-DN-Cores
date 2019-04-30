@@ -48,8 +48,7 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            //CoresConfig.TimeAdjustSettings.DisableTimeAdjustThread.Set(true);
-            //Dbg.SetDebugMode(DebugMode.ReleaseNoLogs);
+            Dbg.SetDebugMode(DebugMode.Debug, true);
 
             try
             {

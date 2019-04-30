@@ -117,11 +117,11 @@ namespace IPA.TestDev
 
         static async Task Net_Test7_Http_Download_Async()
         {
-            string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
-            //string url = "http://speed.softether.com/001.1Mbytes.dat";
+            //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
+            string url = "http://speed.softether.com/001.1Mbytes.dat";
             //string url = "http://speed.softether.com/001.1Mbytes.dat";
 
-            for (int j = 0; ; j++)
+            for (int j = 0; j < 10; j++)
             {
                 using (WebApi api = new WebApi())
                 {

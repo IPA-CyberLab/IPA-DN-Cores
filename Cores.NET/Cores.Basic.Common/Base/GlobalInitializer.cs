@@ -15,9 +15,13 @@ namespace IPA.Cores.Basic
         {
             Limbo.SInt = Time.Tick64;
             Limbo.ObjectSlow = Env.AppRootDir;
+
+            var ensureReporter = CoresRuntimeStatReporter.Reporter;
         }
 
         public GlobalInitializer() => Ensure();
         public static int Ensure() => 0;
+
+
     }
 }
