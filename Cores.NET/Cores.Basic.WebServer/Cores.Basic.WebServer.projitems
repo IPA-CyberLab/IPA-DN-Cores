@@ -13,6 +13,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\HttpJsonRpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\HttpJsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\HttpServerHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base\HttpServerWithStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\MsLogger.cs" />
   </ItemGroup>

@@ -899,6 +899,13 @@ namespace IPA.Cores.Helper.Basic
                     return "Unknown";
             }
         }
+
+        public static object PrivateGet(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).GetValue(obj, name);
+        public static T PrivateGet<T>(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).GetValue<T>(obj, name);
+
+        public static void PrivateSet(this object obj, string name, object value) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).SetValue(obj, name, value);
+
+        public static object PrivateInvoke(this object obj, string name, params object[] parameters) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).Invoke(obj, name, parameters);
     }
 }
 

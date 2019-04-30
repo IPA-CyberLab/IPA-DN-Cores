@@ -3604,41 +3604,78 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ColumnsReaderWriter
+    class FieldReaderWriter
     {
-        readonly Dictionary<string, MemberInfo> ColumnsTable = new Dictionary<string, MemberInfo>();
+        readonly Dictionary<string, MemberInfo> MetadataTable = new Dictionary<string, MemberInfo>();
 
         public Type TargetType { get; }
-        public IReadOnlyList<string> NamesList { get; }
 
-        static readonly Singleton<Type, ColumnsReaderWriter> _Singleton = new Singleton<Type, ColumnsReaderWriter>(t => new ColumnsReaderWriter(t));
+        public IReadOnlyList<string> FieldOrPropertyNamesList { get; }
+        public IReadOnlyList<string> MethodNamesList { get; }
 
-        public ColumnsReaderWriter(Type targetType)
+        static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false));
+        static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true));
+
+        public FieldReaderWriter(Type targetType, bool includePrivate = false)
         {
             this.TargetType = targetType;
 
-            FieldInfo[] fields;
-            PropertyInfo[] properties;
+            var fields = TargetType.GetFields(BindingFlags.Instance | BindingFlags.Public)
+                .Concat(includePrivate ? TargetType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic) : new FieldInfo[0]);
 
-            fields = TargetType.GetFields(BindingFlags.Instance | BindingFlags.Public);
-            properties = TargetType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.SetProperty);
+            var properties = TargetType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.SetProperty)
+                .Concat(includePrivate ? TargetType.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.GetProperty | BindingFlags.SetProperty) : new PropertyInfo[0]);
 
-            foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>()))
+            var methods = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.InvokeMethod)
+                .Concat(includePrivate ? TargetType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod) : new MethodInfo[0]);
+
+            foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>().Concat(methods.Cast<MemberInfo>())))
             {
-                ColumnsTable.Add(info.Name, info);
+                MetadataTable.Add(info.Name, info);
             }
 
-            this.NamesList = new List<string>(ColumnsTable.Keys);
+            this.FieldOrPropertyNamesList = new List<string>(MetadataTable.Values.Where(x => x is FieldInfo || x is PropertyInfo).Select(x => x.Name));
+            this.MethodNamesList = new List<string>(MetadataTable.Values.Where(x => x is MethodInfo).Select(x => x.Name));
         }
 
-        public static ColumnsReaderWriter GetCached(Type type) => _Singleton.CreateOrGet(type);
-        public static ColumnsReaderWriter GetCached<T>() => GetCached(typeof(T));
+        public static FieldReaderWriter GetCached(Type type) => _PublicSingleton.CreateOrGet(type);
+        public static FieldReaderWriter GetCached<T>() => GetCached(typeof(T));
+
+        public static FieldReaderWriter GetCachedPrivate(Type type) => _PrivateSingleton.CreateOrGet(type);
+        public static FieldReaderWriter GetCachedPrivate<T>() => GetCachedPrivate(typeof(T));
+
+        public object Invoke(object targetObject, string name, params object[] parameters)
+        {
+            if (parameters == null) parameters = new object[1] { null };
+            if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
+
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
+                throw new ArgumentException($"The member \"{name}\" not found.");
+
+            switch (info)
+            {
+                case MethodInfo method:
+                    try
+                    {
+                        return method.Invoke(targetObject, parameters);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw ex.GetSingleException();
+                    }
+
+                default:
+                    throw new ApplicationException($"The member \"{name}\" is not a method.");
+            }
+        }
 
         public object GetValue(object targetObject, string name)
         {
             if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.ColumnsTable.TryGetValue(name, out MemberInfo info) == false) return null;
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
+                throw new ArgumentException($"The member \"{name}\" not found.");
+
             switch (info)
             {
                 case FieldInfo field:
@@ -3648,7 +3685,7 @@ namespace IPA.Cores.Basic
                     return property.GetValue(targetObject);
 
                 default:
-                    throw new ApplicationException("info");
+                    throw new ApplicationException($"The member \"{name}\" is not a field or a property.");
             }
         }
 
@@ -3663,7 +3700,14 @@ namespace IPA.Cores.Basic
         {
             if (targetObject.GetType() != this.TargetType) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.ColumnsTable.TryGetValue(name, out MemberInfo info) == false) return;
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
+            {
+                if (this.MetadataTable.TryGetValue($"<{name}>k__BackingField", out info) == false)
+                {
+                    throw new ArgumentException($"The member \"{name}\" not found.");
+                }
+            }
+
             switch (info)
             {
                 case FieldInfo field:
@@ -3675,11 +3719,9 @@ namespace IPA.Cores.Basic
                     return;
 
                 default:
-                    throw new ApplicationException("info");
+                    throw new ApplicationException($"The member \"{name}\" is not a field or a property.");
             }
         }
-
-        public void SetValue<T>(object targetObject, string name, T value) => SetValue(targetObject, name, value);
 
         public T CalcDiff<T>(T current, T prev)
         {
@@ -3692,7 +3734,7 @@ namespace IPA.Cores.Basic
 
         public void CalcDiff(object dest, object current, object prev)
         {
-            foreach (string name in this.NamesList)
+            foreach (string name in this.FieldOrPropertyNamesList)
             {
                 object prevValue = this.GetValue(prev, name);
                 object currentValue = this.GetValue(current, name);
@@ -3712,7 +3754,7 @@ namespace IPA.Cores.Basic
 
         public void DivideBy(object dest, object target, double by)
         {
-            foreach (string name in this.NamesList)
+            foreach (string name in this.FieldOrPropertyNamesList)
             {
                 object currentValue = this.GetValue(target, name);
                 object destValue = Util.Divide(currentValue, by);
@@ -3722,7 +3764,7 @@ namespace IPA.Cores.Basic
 
         public void CopyValues(object dest, object src)
         {
-            foreach (string name in this.NamesList)
+            foreach (string name in this.FieldOrPropertyNamesList)
             {
                 object srcValue = this.GetValue(src, name);
                 this.SetValue(dest, name, srcValue);
@@ -3766,7 +3808,7 @@ namespace IPA.Cores.Basic
 
         public readonly AsyncEventListenerList<T, NonsenseEventType> ListenerList = new AsyncEventListenerList<T, NonsenseEventType>();
 
-        readonly ColumnsReaderWriter ReaderWriter;
+        readonly FieldReaderWriter ReaderWriter;
 
         readonly Func<T, T, T, Task> ReceiverAsync; // async (snapshot, diff, velocity)
 
@@ -3776,7 +3818,7 @@ namespace IPA.Cores.Basic
         {
             this.Interval = interval;
             this.LogTypes = logTypes;
-            this.ReaderWriter = new ColumnsReaderWriter(typeof(T));
+            this.ReaderWriter = new FieldReaderWriter(typeof(T));
             this.CurrentValues = Util.NewWithoutConstructor<T>();
             this.ReceiverAsync = receiverProc;
 
