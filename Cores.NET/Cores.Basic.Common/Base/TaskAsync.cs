@@ -490,6 +490,8 @@ namespace IPA.Cores.Basic
 
         static bool FailedFlag_GetScheduledTimersCount = false;
 
+        static readonly FieldInfo TimerQueueTimer_mNext_FieldInfo = TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
+
         public static int GetScheduledTimersCount()
         {
             if (FailedFlag_GetScheduledTimersCount) return -1;
@@ -508,13 +510,11 @@ namespace IPA.Cores.Basic
 
                         if (timer != null)
                         {
-                            Type timerType = timer.GetType();
-                            FieldInfo nextField = timerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
                             lock (timerQueueInstance)
                             {
                                 while (timer != null)
                                 {
-                                    timer = nextField.GetValue(timer);
+                                    timer = TimerQueueTimer_mNext_FieldInfo.GetValue(timer);
                                     num++;
                                 }
                             }
