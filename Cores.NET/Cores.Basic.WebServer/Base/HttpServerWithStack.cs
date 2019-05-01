@@ -58,58 +58,102 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    class InternalOverrideClassTypeBuilder
+    {
+        readonly TypeBuilder TypeBuilder;
 
-    public static class HttpServerWithStackUtil
+        Type BuiltType = null;
+
+        public InternalOverrideClassTypeBuilder(Type originalType, string typeNameSuffix = "Ex")
+        {
+            Assembly originalAsm = originalType.Assembly;
+            string friendAssemblyName = originalAsm.GetCustomAttributes<InternalsVisibleToAttribute>().Where(x => x.AllInternalsVisible).First().AssemblyName;
+
+            AssemblyName asmName = new AssemblyName(friendAssemblyName);
+            AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+            ModuleBuilder moduleBuilder = asmBuilder.DefineDynamicModule(Guid.NewGuid().ToString());
+
+            TypeBuilder = moduleBuilder.DefineType(originalType.Name + typeNameSuffix, TypeAttributes.Public | TypeAttributes.Class, originalType);
+
+            ConstructorBuilder emptyConstructor = TypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, null);
+            ILGenerator il = emptyConstructor.GetILGenerator();
+            il.Emit(OpCodes.Ret);
+        }
+
+        public void AddOverloadMethod(string name, Delegate m, Type retType, params Type[] argsType)
+            => AddOverloadMethod(name, m.GetMethodInfo(), retType, argsType);
+
+        public void AddOverloadMethod(string name, MethodInfo methodInfoToCall, Type retType, params Type[] argsType)
+        {
+            if (BuiltType != null) throw new ApplicationException("BuildType() has been already called.");
+
+            if (argsType == null) argsType = new Type[0];
+
+            MethodBuilder newMethod = this.TypeBuilder.DefineMethod("BindAsync",
+                MethodAttributes.Virtual | MethodAttributes.Public,
+                retType,
+                argsType);
+
+
+            var il = newMethod.GetILGenerator();
+
+            if (methodInfoToCall.IsStatic)
+            {
+                for (int i = 0; i < argsType.Length + 1; i++)
+                    il.Emit(OpCodes.Ldarg, i);
+            }
+            else
+            {
+                il.Emit(OpCodes.Ldarg, 0);
+                for (int i = 0; i < argsType.Length + 1; i++)
+                    il.Emit(OpCodes.Ldarg, i);
+            }
+
+            il.Emit(OpCodes.Call, methodInfoToCall);
+            il.Emit(OpCodes.Ret);
+        }
+
+        public Type BuildType()
+        {
+            if (BuiltType == null)
+                BuiltType = this.TypeBuilder.CreateType();
+
+            return BuiltType;
+        }
+
+        public object NewUninitializedbject()
+            => Util.NewWithoutConstructor(this.BuildType());
+    }
+
+    static class HttpServerWithStackUtil
     {
         public static Task Test(ListenOptions targetObject, object param)
         {
-            //Dbg.Where(s);
+            Con.WriteLine(targetObject.ToString());
 
             return Task.CompletedTask;
         }
 
         public static ListenOptions NewListenOptions(IPEndPoint endPoint)
         {
-            Type typeofOriginal = typeof(ListenOptions);
+            InternalOverrideClassTypeBuilder builder = new InternalOverrideClassTypeBuilder(typeof(ListenOptions));
 
-            Assembly originalAsm = typeofOriginal.Assembly;
-
-            string friendAssemblyName = originalAsm.GetCustomAttributes<InternalsVisibleToAttribute>().Where(x => x.AllInternalsVisible).First().AssemblyName;
-
-            AssemblyName asmName = new AssemblyName(friendAssemblyName);
-            AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
-            ModuleBuilder modBuilder = asmBuilder.DefineDynamicModule(Guid.NewGuid().ToString());
-
-            TypeBuilder typeBuilder = modBuilder.DefineType(typeofOriginal.Name + "_Ex", TypeAttributes.Public | TypeAttributes.Class, typeofOriginal);
-
-            //TypeBuilder typeBuilder = typeofOriginal.Assembly.GetModule().bui
-
-            ConstructorBuilder emptyConstructor = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, null);
-            ILGenerator il = emptyConstructor.GetILGenerator();
-            il.Emit(OpCodes.Ret);
-
-            MethodInfo methodToOverride = typeofOriginal.GetMethod("BindAsync", BindingFlags.NonPublic | BindingFlags.Instance);
-
-            MethodInfo methodToCall = typeof(HttpServerWithStackUtil).GetMethod("Test", BindingFlags.Public | BindingFlags.Static);
-
-            Type arg0Type = typeofOriginal.Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext");
-
-            MethodBuilder newMethod = typeBuilder.DefineMethod("BindAsync",
-                MethodAttributes.Virtual | MethodAttributes.Public,
+            builder.AddOverloadMethod("BindAsync",
+                typeof(HttpServerWithStackUtil).GetMethod("Test"),
                 typeof(Task),
-                new Type[] { arg0Type });
+                typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
 
-            il = newMethod.GetILGenerator();
-            il.Emit(OpCodes.Ldarg, 0);
-            il.Emit(OpCodes.Ldarg, 1);
-            il.Emit(OpCodes.Call, methodToCall);
-            il.Emit(OpCodes.Ret);
+            //builder.AddOverloadMethod("BindAsync",
+            //    new Func<ListenOptions, object, Task>(
+            //        (targetObject, param) =>
+            //        {
+            //            Con.WriteLine(targetObject.ToString());
+            //            return Task.CompletedTask;
+            //        }),
+            //    typeof(Task),
+            //    typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
 
-
-            Type newType = typeBuilder.CreateType();
-
-
-            ListenOptions ret = (ListenOptions)Util.NewWithoutConstructor(newType);
+            ListenOptions ret = (ListenOptions)builder.NewUninitializedbject();
 
             ret.PrivateSet<ListenOptions>("Type", ListenType.IPEndPoint);
             ret.PrivateSet<ListenOptions>("IPEndPoint", endPoint);
@@ -117,9 +161,9 @@ namespace IPA.Cores.Basic
             ret.PrivateSet<ListenOptions>("Protocols", HttpProtocols.Http1AndHttp2);
             ret.PrivateSet<ListenOptions>("ConnectionAdapters", new List<IConnectionAdapter>());
 
-            object reta = ret.PrivateInvoke("BindAsync", null);
+            object a = ret.PrivateInvoke("BindAsync", null);
 
-            return null;
+            return ret;
         }
     }
 }

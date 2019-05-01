@@ -3634,7 +3634,7 @@ namespace IPA.Cores.Basic
 
             foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>().Concat(methods.Cast<MemberInfo>())))
             {
-                MetadataTable.Add(info.Name, info);
+                MetadataTable.TryAdd(info.Name, info);
             }
 
             this.FieldOrPropertyNamesList = new List<string>(MetadataTable.Values.Where(x => x is FieldInfo || x is PropertyInfo).Select(x => x.Name));
