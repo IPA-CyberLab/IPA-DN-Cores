@@ -56,7 +56,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions x = HttpServerWithStackUtil.NewListenOptions(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 123));
+            //Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions x = HttpServerWithStackHelper.NewExtendedListenOptions(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 123));
         }
     }
 }

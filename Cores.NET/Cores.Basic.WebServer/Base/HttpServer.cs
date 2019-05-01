@@ -112,8 +112,9 @@ namespace IPA.Cores.Basic
     sealed class HttpServer<THttpServerBuilder> : AsyncCleanupableCancellable
         where THttpServerBuilder : HttpServerBuilderBase
     {
-        HttpServerBuilderConfig Config;
-        Task HostTask;
+        readonly HttpServerBuilderConfig Config;
+        readonly Task HostTask;
+        readonly AsyncCleanuperLady StackListenerCleanupLady = new AsyncCleanuperLady();
 
         public HttpServer(HttpServerBuilderConfig cfg, object param, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
         {
@@ -137,25 +138,28 @@ namespace IPA.Cores.Basic
                     .Build();
 
                 var h = new WebHostBuilder()
-                    .UseKestrel(opt =>
+                    .UseKestrelWithStack(opt =>
                     {
                         if (Config.LocalHostOnly)
                         {
                             foreach (int port in Config.HttpPortsList) opt.ListenLocalhost(port);
-                            foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
                         }
                         else if (Config.IPv4Only)
                         {
                             foreach (int port in Config.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                            foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
                         }
                         else
                         {
                             foreach (int port in Config.HttpPortsList) opt.ListenAnyIP(port);
-                            foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => InitHttpsOptions(lo));
+                            foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
                         }
 
-                        void InitHttpsOptions(ListenOptions listenOptions)
+                        //HttpServerWithStackListener stackListener = new HttpServerWithStackListener(StackListenerCleanupLady, LocalNet, default, 8081, 8082, 8083);
+                        //opt.ListenWithStack(stackListener);
+
+                        void EnableHttps(ListenOptions listenOptions)
                         {
                             listenOptions.UseHttps(httpsOptions =>
                             {
@@ -167,6 +171,39 @@ namespace IPA.Cores.Basic
                             });
                         }
                     })
+                    //.UseKestrel(opt =>
+                    //{
+                    //    if (Config.LocalHostOnly)
+                    //    {
+                    //        foreach (int port in Config.HttpPortsList) opt.ListenLocalhost(port);
+                    //        foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
+                    //    }
+                    //    else if (Config.IPv4Only)
+                    //    {
+                    //        foreach (int port in Config.HttpPortsList) opt.Listen(IPAddress.Any, port);
+                    //        foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
+                    //    }
+                    //    else
+                    //    {
+                    //        foreach (int port in Config.HttpPortsList) opt.ListenAnyIP(port);
+                    //        foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
+                    //    }
+
+                    //    HttpServerWithStackListener stackListener = new HttpServerWithStackListener(StackListenerCleanupLady, LocalNet, default, 8081, 8082, 8083);
+                    //    opt.ListenWithStack(stackListener);
+
+                    //    void EnableHttps(ListenOptions listenOptions)
+                    //    {
+                    //        listenOptions.UseHttps(httpsOptions =>
+                    //        {
+                    //            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+                    //            if (Config.ServerCertSelector != null)
+                    //            {
+                    //                httpsOptions.ServerCertificateSelector = ((ctx, sni) => Config.ServerCertSelector(param, sni));
+                    //            }
+                    //        });
+                    //    }
+                    //})
                     .UseWebRoot(Config.ContentsRoot)
                     .UseContentRoot(Config.ContentsRoot)
                     .ConfigureAppConfiguration((hostingContext, config) =>
@@ -203,6 +240,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                await StackListenerCleanupLady;
                 await HostTask;
             }
             finally { await base._CleanupAsyncInternal(); }

@@ -681,6 +681,8 @@ namespace IPA.Cores.Basic
 
                 Status = ListenStatus.Trying;
 
+                bool reportError = true;
+
                 int numRetry = 0;
                 int lastNetworkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
 
@@ -716,7 +718,10 @@ namespace IPA.Cores.Basic
 
                             listenTcp.Listen(new IPEndPoint(IPAddress, Port));
 
+                            reportError = true;
                             Status = ListenStatus.Listening;
+
+                            Con.WriteDebug($"Listener starts on [{IPAddress.ToString()}]:{Port}.");
 
                             while (true)
                             {
@@ -732,6 +737,15 @@ namespace IPA.Cores.Basic
                         catch (Exception ex)
                         {
                             LastError = ex;
+
+                            if (_InternalSelfCancelToken.IsCancellationRequested == false)
+                            {
+                                if (reportError)
+                                {
+                                    reportError = false;
+                                    Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.Message);
+                                }
+                            }
                         }
                         finally
                         {

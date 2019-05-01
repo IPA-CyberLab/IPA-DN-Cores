@@ -3900,6 +3900,8 @@ namespace IPA.Cores.Basic
 
         readonly TypeBuilder TypeBuilder;
 
+        const string AppStateFieldName = "__AppState__";
+
         Type BuiltType = null;
 
         public InternalOverrideClassTypeBuilder(Type originalType, string typeNameSuffix = "Ex")
@@ -3915,6 +3917,9 @@ namespace IPA.Cores.Basic
 
             ConstructorInfo[] baseConstructorsList = originalType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
                 .Concat(originalType.GetConstructors(BindingFlags.Instance | BindingFlags.Public)).ToArray();
+
+            // App state field
+            this.TypeBuilder.DefineField(AppStateFieldName, typeof(object), FieldAttributes.Public);
 
             // Create all new constructors for each of base constructors
             foreach (ConstructorInfo baseCtor in baseConstructorsList)
@@ -3934,7 +3939,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        int FieldIdSeed = 0;
+        public static int FieldIdSeed = 0;
 
         class FieldEntry
         {
@@ -3953,7 +3958,7 @@ namespace IPA.Cores.Basic
 
             if (argsType == null) argsType = new Type[0];
 
-            FieldBuilder fieldForMethodToCall = this.TypeBuilder.DefineField($"__method_to_call_{FieldIdSeed++}_{name}", typeof(MethodInfo), FieldAttributes.Public);
+            FieldBuilder fieldForMethodToCall = this.TypeBuilder.DefineField($"__method_to_call_{Interlocked.Increment(ref FieldIdSeed)}_{name}", typeof(MethodInfo), FieldAttributes.Public);
 
             DynamicFieldList.Add(new FieldEntry() { Field = fieldForMethodToCall, Value = methodInfoToCall });
 
@@ -3961,11 +3966,9 @@ namespace IPA.Cores.Basic
 
             if (methodInfoToCall.IsStatic == false)
             {
-                fieldAsThisPointer = this.TypeBuilder.DefineField($"__method_as_this_for_{FieldIdSeed++}_{name}", methodInfoToCall.DeclaringType, FieldAttributes.Public);
+                fieldAsThisPointer = this.TypeBuilder.DefineField($"__method_as_this_for_{Interlocked.Increment(ref FieldIdSeed)}_{name}", methodInfoToCall.DeclaringType, FieldAttributes.Public);
 
                 DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = Util.NewWithoutConstructor(methodInfoToCall.DeclaringType) });
-
-                //DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = "Hello" });
             }
 
             MethodBuilder newMethod = this.TypeBuilder.DefineMethod(name,
@@ -4039,19 +4042,19 @@ namespace IPA.Cores.Basic
             return BuiltType;
         }
 
-        public object CreateInstance(params object[] constructorParameters)
+        public object CreateInstance(object appState, params object[] parameters)
         {
-            if (constructorParameters == null)
-                constructorParameters = new object[] { null };
+            if (parameters == null)
+                parameters = new object[] { null };
 
             object ret;
 
             try
             {
-                if (constructorParameters.Length == 0)
+                if (parameters.Length == 0)
                     ret = Activator.CreateInstance(this.BuildType());
                 else
-                    ret = Activator.CreateInstance(this.BuildType(), constructorParameters);
+                    ret = Activator.CreateInstance(this.BuildType(), parameters);
             }
             catch (Exception ex)
             {
@@ -4063,8 +4066,14 @@ namespace IPA.Cores.Basic
                 ret.PrivateSet(fieldEntry.Field.Name, fieldEntry.Value);
             }
 
+            SetAppState(ret, appState);
+
             return ret;
         }
+
+        public static object GetAppState(object targetObject) => targetObject.PrivateGet(AppStateFieldName);
+
+        public static void SetAppState(object targetObject, object state) => targetObject.PrivateSet(AppStateFieldName, state);
     }
 }
 
