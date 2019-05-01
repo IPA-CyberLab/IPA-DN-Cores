@@ -58,7 +58,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class HttpServerWithStackUtil
+    static class HttpServerWithStackUtil
     {
         public static ListenOptions NewListenOptions(IPEndPoint endPoint)
         {
@@ -74,15 +74,7 @@ namespace IPA.Cores.Basic
                 typeof(Task),
                 typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
 
-            ListenOptions ret = (ListenOptions)builder.NewUninitializedbject();
-
-            ret.PrivateSet<ListenOptions>("Type", ListenType.IPEndPoint);
-            ret.PrivateSet<ListenOptions>("IPEndPoint", endPoint);
-            ret.PrivateSet<ListenOptions>("NoDelay", true);
-            ret.PrivateSet<ListenOptions>("Protocols", HttpProtocols.Http1AndHttp2);
-            ret.PrivateSet<ListenOptions>("ConnectionAdapters", new List<IConnectionAdapter>());
-
-            object a = ret.PrivateInvoke("BindAsync", null);
+            ListenOptions ret = (ListenOptions)builder.CreateInstance(endPoint);
 
             return ret;
         }

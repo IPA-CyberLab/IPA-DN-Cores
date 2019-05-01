@@ -3913,9 +3913,25 @@ namespace IPA.Cores.Basic
 
             TypeBuilder = moduleBuilder.DefineType(originalType.Name + typeNameSuffix, TypeAttributes.Public | TypeAttributes.Class, originalType);
 
-            ConstructorBuilder emptyConstructor = TypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, null);
-            ILGenerator il = emptyConstructor.GetILGenerator();
-            il.Emit(OpCodes.Ret);
+            ConstructorInfo[] baseConstructorsList = originalType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Concat(originalType.GetConstructors(BindingFlags.Instance | BindingFlags.Public)).ToArray();
+
+            // Create all new constructors for each of base constructors
+            foreach (ConstructorInfo baseCtor in baseConstructorsList)
+            {
+                Type[] parameterTypes = baseCtor.GetParameters().Select(x => x.ParameterType).ToArray();
+
+                ConstructorBuilder newCtor = TypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, parameterTypes);
+                ILGenerator il = newCtor.GetILGenerator();
+
+                for (int i = 0; i < parameterTypes.Length + 1; i++)
+                {
+                    il.Emit(OpCodes.Ldarg, i);
+                }
+
+                il.Emit(OpCodes.Call, baseCtor);
+                il.Emit(OpCodes.Ret);
+            }
         }
 
         int FieldIdSeed = 0;
@@ -4023,9 +4039,24 @@ namespace IPA.Cores.Basic
             return BuiltType;
         }
 
-        public object NewUninitializedbject()
+        public object CreateInstance(params object[] constructorParameters)
         {
-            object ret = Util.NewWithoutConstructor(this.BuildType());
+            if (constructorParameters == null)
+                constructorParameters = new object[] { null };
+
+            object ret;
+
+            try
+            {
+                if (constructorParameters.Length == 0)
+                    ret = Activator.CreateInstance(this.BuildType());
+                else
+                    ret = Activator.CreateInstance(this.BuildType(), constructorParameters);
+            }
+            catch (Exception ex)
+            {
+                throw ex.GetSingleException();
+            }
 
             foreach (var fieldEntry in this.DynamicFieldList)
             {
