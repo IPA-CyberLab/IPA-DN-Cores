@@ -48,7 +48,7 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, false);
+            Dbg.SetDebugMode(DebugMode.Debug, true);
 
             try
             {

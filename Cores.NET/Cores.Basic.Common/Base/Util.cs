@@ -3606,7 +3606,7 @@ namespace IPA.Cores.Basic
 
     class FieldReaderWriter
     {
-        readonly Dictionary<string, MemberInfo> MetadataTable = new Dictionary<string, MemberInfo>();
+        public readonly Dictionary<string, MemberInfo> MetadataTable = new Dictionary<string, MemberInfo>();
 
         public Type TargetType { get; }
 

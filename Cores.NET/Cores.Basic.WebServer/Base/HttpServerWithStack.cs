@@ -60,33 +60,9 @@ namespace IPA.Cores.Basic
 {
     class HttpServerWithStackUtil
     {
-        static Task Test(ListenOptions targetObject, object param)
-        {
-            Con.WriteLine((targetObject).ToString());
-
-            return Task.CompletedTask;
-        }
-
-        Task Test2(ListenOptions targetObject, object param)
-        {
-            Con.WriteLine((targetObject).ToString());
-
-            return Task.CompletedTask;
-        }
-
         public static ListenOptions NewListenOptions(IPEndPoint endPoint)
         {
             InternalOverrideClassTypeBuilder builder = new InternalOverrideClassTypeBuilder(typeof(ListenOptions));
-
-            //builder.AddOverloadMethod("BindAsync",
-            //    typeof(HttpServerWithStackUtil).GetMethod("Test", BindingFlags.NonPublic | BindingFlags.Static),
-            //    typeof(Task),
-            //    typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
-
-            //builder.AddOverloadMethod("BindAsync",
-            //    typeof(HttpServerWithStackUtil).GetMethod(nameof(Test2), BindingFlags.NonPublic | BindingFlags.Instance),
-            //    typeof(Task),
-            //    typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
 
             builder.AddOverloadMethod("BindAsync",
                 new Func<ListenOptions, object, Task>(

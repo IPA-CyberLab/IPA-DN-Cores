@@ -482,33 +482,52 @@ namespace IPA.Cores.Basic
             }
         }
 
+        static readonly Type TimerQueueType = Type.GetType("System.Threading.TimerQueue");
+        static readonly FieldReaderWriter TimerQueueReaderWriter = new FieldReaderWriter(TimerQueueType, true);
+
+        static readonly Type TimerQueueTimerType = Type.GetType("System.Threading.TimerQueueTimer");
+        static readonly FieldInfo[] TimerQueueTimersFieldList = TimerQueueReaderWriter.MetadataTable.Values.OfType<FieldInfo>().Where(x => x.FieldType == TimerQueueTimerType).ToArray();
+
+        static bool FailedFlag_GetScheduledTimersCount = false;
+
         public static int GetScheduledTimersCount()
         {
+            if (FailedFlag_GetScheduledTimersCount) return -1;
+
             try
             {
                 int num = 0;
-                object instance = Type.GetType("System.Threading.TimerQueue").GetProperty("Instance", BindingFlags.Static | BindingFlags.Public).GetValue(null);
 
-                lock (instance)
+                Array timerQueueInstanceList = (Array)TimerQueueType.GetProperty("Instances", BindingFlags.Static | BindingFlags.Public).GetValue(null);
+
+                foreach (object timerQueueInstance in timerQueueInstanceList)
                 {
-                    object timer = instance.GetType().GetField("m_timers", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(instance);
-                    Type timerType = timer.GetType();
-                    FieldInfo nextField = timerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
-
-                    while (timer != null)
+                    foreach (FieldInfo timerField in TimerQueueTimersFieldList)
                     {
-                        timer = nextField.GetValue(timer);
-                        num++;
-                    }
+                        object timer = timerField.GetValue(timerQueueInstance);
 
-                    Util.DoNothing();
+                        if (timer != null)
+                        {
+                            Type timerType = timer.GetType();
+                            FieldInfo nextField = timerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
+                            lock (timerQueueInstance)
+                            {
+                                while (timer != null)
+                                {
+                                    timer = nextField.GetValue(timer);
+                                    num++;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 return num;
             }
             catch
             {
-                return 0;
+                FailedFlag_GetScheduledTimersCount = true;
+                return -1;
             }
         }
 
