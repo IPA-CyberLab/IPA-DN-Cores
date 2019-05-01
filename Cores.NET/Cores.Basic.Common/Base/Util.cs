@@ -40,13 +40,13 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Linq;
-using System.Xml;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Collections;
+using System.Reflection.Emit;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -3889,6 +3889,150 @@ namespace IPA.Cores.Basic
                 this.MainLoopTask.TryWait(true);
             }
             finally { base.Dispose(disposing); }
+        }
+    }
+
+
+    class InternalOverrideClassTypeBuilder
+    {
+        static readonly MethodInfo MethodInfoForMethodInvoke = typeof(MethodInfo).GetMethods().Where(x => x.Name == "Invoke").Where(x => x.GetParameters().Length == 2).Single();
+        static readonly MethodInfo MethodInfoForMethodInvoke2 = typeof(MethodBase).GetMethods().Where(x => x.Name == "Invoke").Where(x => x.GetParameters().Length == 2).Single();
+
+        readonly TypeBuilder TypeBuilder;
+
+        Type BuiltType = null;
+
+        public InternalOverrideClassTypeBuilder(Type originalType, string typeNameSuffix = "Ex")
+        {
+            Assembly originalAsm = originalType.Assembly;
+            string friendAssemblyName = originalAsm.GetCustomAttributes<InternalsVisibleToAttribute>().Where(x => x.AllInternalsVisible).First().AssemblyName;
+
+            AssemblyName asmName = new AssemblyName(friendAssemblyName);
+            AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+            ModuleBuilder moduleBuilder = asmBuilder.DefineDynamicModule(Guid.NewGuid().ToString());
+
+            TypeBuilder = moduleBuilder.DefineType(originalType.Name + typeNameSuffix, TypeAttributes.Public | TypeAttributes.Class, originalType);
+
+            ConstructorBuilder emptyConstructor = TypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, null);
+            ILGenerator il = emptyConstructor.GetILGenerator();
+            il.Emit(OpCodes.Ret);
+        }
+
+        int FieldIdSeed = 0;
+
+        class FieldEntry
+        {
+            public FieldInfo Field;
+            public object Value;
+        }
+
+        List<FieldEntry> DynamicFieldList = new List<FieldEntry>();
+
+        public void AddOverloadMethod(string name, Delegate m, Type retType, params Type[] argsType)
+            => AddOverloadMethod(name, m.GetMethodInfo(), retType, argsType);
+
+        public void AddOverloadMethod(string name, MethodInfo methodInfoToCall, Type retType, params Type[] argsType)
+        {
+            if (BuiltType != null) throw new ApplicationException("BuildType() has been already called.");
+
+            if (argsType == null) argsType = new Type[0];
+
+            FieldBuilder fieldForMethodToCall = this.TypeBuilder.DefineField($"__method_to_call_{FieldIdSeed++}_{name}", typeof(MethodInfo), FieldAttributes.Public);
+
+            DynamicFieldList.Add(new FieldEntry() { Field = fieldForMethodToCall, Value = methodInfoToCall });
+
+            FieldBuilder fieldAsThisPointer = null;
+
+            if (methodInfoToCall.IsStatic == false)
+            {
+                fieldAsThisPointer = this.TypeBuilder.DefineField($"__method_as_this_for_{FieldIdSeed++}_{name}", methodInfoToCall.DeclaringType, FieldAttributes.Public);
+
+                DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = Util.NewWithoutConstructor(methodInfoToCall.DeclaringType) });
+
+                //DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = "Hello" });
+            }
+
+            MethodBuilder newMethod = this.TypeBuilder.DefineMethod(name,
+                MethodAttributes.Virtual | MethodAttributes.Public,
+                retType,
+                argsType);
+
+            ILGenerator il = newMethod.GetILGenerator();
+
+            // Generate IL for:
+            // ----
+            // public virtual retType NAME(argsType[0] arg0, argsType[1] arg1, argsType[2] arg2, ...)
+            // {
+            //    return methodInfoToCall.Invoke(this, new object[] { arg0, arg1, arg2, ... });
+            // }
+            // ----
+
+            // The target object for MethodInfo.Invoke()
+            il.Emit(OpCodes.Ldarg, 0); // to execute Ldfld, the target container object of the field must be loaded onto the stack
+            il.Emit(OpCodes.Ldfld, fieldForMethodToCall);
+
+            // this (The first argument for MethodInfo.Invoke())
+            if (methodInfoToCall.IsStatic)
+            {
+                // Set null since the method to call is a static method
+                il.Emit(OpCodes.Ldnull);
+            }
+            else
+            {
+                // Set the dummy instance as the this pointer of the dynamic method to call
+                il.Emit(OpCodes.Ldarg, 0); // to execute Ldfld, the target container object of the field must be loaded onto the stack
+                il.Emit(OpCodes.Ldfld, fieldAsThisPointer);
+            }
+
+            // create new object[argsType.Length] array
+            il.Emit(OpCodes.Ldc_I4, argsType.Length + 1);
+            il.Emit(OpCodes.Newarr, typeof(object));
+
+            // array_copy = array
+            il.Emit(OpCodes.Dup);
+
+            // array_copy[0] = arg[0]
+            il.Emit(OpCodes.Ldc_I4, 0);
+            il.Emit(OpCodes.Ldarg, 0);
+            il.Emit(OpCodes.Stelem_Ref);
+
+            for (int i = 0; i < argsType.Length; i++)
+            {
+                // array_copy = array
+                il.Emit(OpCodes.Dup);
+
+                // array_copy[i + 1] = arg[i + 1]
+                il.Emit(OpCodes.Ldc_I4, i + 1);
+                il.Emit(OpCodes.Ldarg, i + 1);
+                il.Emit(OpCodes.Stelem_Ref);
+            }
+
+            // Call MethodInfo.Invoke()
+            il.Emit(OpCodes.Call, MethodInfoForMethodInvoke);
+
+            // return with cast
+            il.Emit(OpCodes.Castclass, retType);
+            il.Emit(OpCodes.Ret);
+        }
+
+        public Type BuildType()
+        {
+            if (BuiltType == null)
+                BuiltType = this.TypeBuilder.CreateType();
+
+            return BuiltType;
+        }
+
+        public object NewUninitializedbject()
+        {
+            object ret = Util.NewWithoutConstructor(this.BuildType());
+
+            foreach (var fieldEntry in this.DynamicFieldList)
+            {
+                ret.PrivateSet(fieldEntry.Field.Name, fieldEntry.Value);
+            }
+
+            return ret;
         }
     }
 }

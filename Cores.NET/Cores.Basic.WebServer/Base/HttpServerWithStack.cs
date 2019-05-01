@@ -58,78 +58,18 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class InternalOverrideClassTypeBuilder
+    class HttpServerWithStackUtil
     {
-        readonly TypeBuilder TypeBuilder;
-
-        Type BuiltType = null;
-
-        public InternalOverrideClassTypeBuilder(Type originalType, string typeNameSuffix = "Ex")
+        static Task Test(ListenOptions targetObject, object param)
         {
-            Assembly originalAsm = originalType.Assembly;
-            string friendAssemblyName = originalAsm.GetCustomAttributes<InternalsVisibleToAttribute>().Where(x => x.AllInternalsVisible).First().AssemblyName;
+            Con.WriteLine((targetObject).ToString());
 
-            AssemblyName asmName = new AssemblyName(friendAssemblyName);
-            AssemblyBuilder asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
-            ModuleBuilder moduleBuilder = asmBuilder.DefineDynamicModule(Guid.NewGuid().ToString());
-
-            TypeBuilder = moduleBuilder.DefineType(originalType.Name + typeNameSuffix, TypeAttributes.Public | TypeAttributes.Class, originalType);
-
-            ConstructorBuilder emptyConstructor = TypeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, null);
-            ILGenerator il = emptyConstructor.GetILGenerator();
-            il.Emit(OpCodes.Ret);
+            return Task.CompletedTask;
         }
 
-        public void AddOverloadMethod(string name, Delegate m, Type retType, params Type[] argsType)
-            => AddOverloadMethod(name, m.GetMethodInfo(), retType, argsType);
-
-        public void AddOverloadMethod(string name, MethodInfo methodInfoToCall, Type retType, params Type[] argsType)
+        Task Test2(ListenOptions targetObject, object param)
         {
-            if (BuiltType != null) throw new ApplicationException("BuildType() has been already called.");
-
-            if (argsType == null) argsType = new Type[0];
-
-            MethodBuilder newMethod = this.TypeBuilder.DefineMethod("BindAsync",
-                MethodAttributes.Virtual | MethodAttributes.Public,
-                retType,
-                argsType);
-
-
-            var il = newMethod.GetILGenerator();
-
-            if (methodInfoToCall.IsStatic)
-            {
-                for (int i = 0; i < argsType.Length + 1; i++)
-                    il.Emit(OpCodes.Ldarg, i);
-            }
-            else
-            {
-                il.Emit(OpCodes.Ldarg, 0);
-                for (int i = 0; i < argsType.Length + 1; i++)
-                    il.Emit(OpCodes.Ldarg, i);
-            }
-
-            il.Emit(OpCodes.Call, methodInfoToCall);
-            il.Emit(OpCodes.Ret);
-        }
-
-        public Type BuildType()
-        {
-            if (BuiltType == null)
-                BuiltType = this.TypeBuilder.CreateType();
-
-            return BuiltType;
-        }
-
-        public object NewUninitializedbject()
-            => Util.NewWithoutConstructor(this.BuildType());
-    }
-
-    static class HttpServerWithStackUtil
-    {
-        public static Task Test(ListenOptions targetObject, object param)
-        {
-            Con.WriteLine(targetObject.ToString());
+            Con.WriteLine((targetObject).ToString());
 
             return Task.CompletedTask;
         }
@@ -138,20 +78,25 @@ namespace IPA.Cores.Basic
         {
             InternalOverrideClassTypeBuilder builder = new InternalOverrideClassTypeBuilder(typeof(ListenOptions));
 
-            builder.AddOverloadMethod("BindAsync",
-                typeof(HttpServerWithStackUtil).GetMethod("Test"),
-                typeof(Task),
-                typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
-
             //builder.AddOverloadMethod("BindAsync",
-            //    new Func<ListenOptions, object, Task>(
-            //        (targetObject, param) =>
-            //        {
-            //            Con.WriteLine(targetObject.ToString());
-            //            return Task.CompletedTask;
-            //        }),
+            //    typeof(HttpServerWithStackUtil).GetMethod("Test", BindingFlags.NonPublic | BindingFlags.Static),
             //    typeof(Task),
             //    typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
+
+            //builder.AddOverloadMethod("BindAsync",
+            //    typeof(HttpServerWithStackUtil).GetMethod(nameof(Test2), BindingFlags.NonPublic | BindingFlags.Instance),
+            //    typeof(Task),
+            //    typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
+
+            builder.AddOverloadMethod("BindAsync",
+                new Func<ListenOptions, object, Task>(
+                    (targetObject, param) =>
+                    {
+                        Con.WriteLine("Hello " + targetObject.ToString());
+                        return Task.CompletedTask;
+                    }),
+                typeof(Task),
+                typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
 
             ListenOptions ret = (ListenOptions)builder.NewUninitializedbject();
 

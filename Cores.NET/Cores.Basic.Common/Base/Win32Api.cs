@@ -339,22 +339,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        class DeviceIoControlAsyncResult : IAsyncResult
-        {
-            public object AsyncState { get; }
-
-            public DeviceIoControlAsyncResult(object state)
-            {
-                this.AsyncState = state;
-            }
-
-            public WaitHandle AsyncWaitHandle => throw new NotImplementedException();
-
-            public bool CompletedSynchronously => throw new NotImplementedException();
-
-            public bool IsCompleted => throw new NotImplementedException();
-        }
-
         internal static partial class NtDll
         {
             [DllImport(Libraries.NtDll, ExactSpelling = true)]
