@@ -774,12 +774,7 @@ namespace IPA.Cores.Basic
         }
 
         public static void TryCancelNoBlock(CancellationTokenSource cts)
-        {
-            BackgroundWorker.Run(arg =>
-            {
-                cts.TryCancel();
-            }, null);
-        }
+            => cts.TryCancelAsync().LaissezFaire(true);
 
         public static async Task TryWaitAsync(Task t, bool noDebugMessage = false)
         {
