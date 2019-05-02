@@ -2630,7 +2630,7 @@ namespace IPA.Cores.Basic
 
     class AsyncBulkReceiver<TUserReturnElement, TUserState>
     {
-        public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback(TUserState state);
+        public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback(TUserState state, CancellationToken cancel);
 
         public int DefaultMaxCount { get; } = 1024;
 
@@ -2662,7 +2662,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    userTask = AsyncReceiveProc(state);
+                    userTask = AsyncReceiveProc(state, cancel);
                 }
                 if (userTask.IsCompleted == false)
                 {

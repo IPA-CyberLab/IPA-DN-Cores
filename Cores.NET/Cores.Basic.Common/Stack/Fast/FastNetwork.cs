@@ -38,6 +38,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO.Pipelines;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -178,8 +179,8 @@ namespace IPA.Cores.Basic
             {
                 CancelWatcher = new CancelWatcher(lady, cancel);
 
-                if (thresholdLengthStream == null) thresholdLengthStream = FastPipeGlobalConfig.MaxStreamBufferLength;
-                if (thresholdLengthDatagram == null) thresholdLengthDatagram = FastPipeGlobalConfig.MaxDatagramQueueLength;
+                if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+                if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
 
                 StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
                 StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
@@ -707,8 +708,7 @@ namespace IPA.Cores.Basic
 
                 int ret = 0;
 
-                lock (End.StreamReader.LockObj)
-                    ret = End.StreamReader.DequeueContiguousSlow(buffer);
+                ret = End.StreamReader.DequeueContiguousSlowWithLock(buffer);
 
                 if (ret == 0)
                 {
@@ -939,10 +939,7 @@ namespace IPA.Cores.Basic
 
             long totalReadSize;
 
-            lock (End.DatagramReader.LockObj)
-            {
-                dataList = End.DatagramReader.Dequeue(1, out totalReadSize);
-            }
+            dataList = End.DatagramReader.DequeueWithLock(1, out totalReadSize);
 
             if (totalReadSize == 0)
             {
@@ -1107,9 +1104,11 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
+
         public async Task<bool> WaitIfNothingChanged(int timeout = Timeout.Infinite, int salt = 0)
         {
-            timeout = TaskUtil.GetMinTimeout(timeout, FastPipeGlobalConfig.PollingTimeout);
+            timeout = TaskUtil.GetMinTimeout(timeout, PollingTimeout);
             if (timeout == 0) return false;
             if (IsStateChanged(salt)) return false;
 
@@ -1159,7 +1158,7 @@ namespace IPA.Cores.Basic
         }
 
         Once ConnectedFlag;
-        protected void BaseStart()
+        protected void StartBaseTasks()
         {
             if (ConnectedFlag.IsFirstCall())
                 MainLoopTask = MainLoopAsync();
@@ -1198,11 +1197,13 @@ namespace IPA.Cores.Basic
         List<Action> OnDisconnectedList = new List<Action>();
         public void AddOnDisconnected(Action proc) => OnDisconnectedList.Add(proc);
 
-        protected abstract Task StreamWriteToObject(FastStreamBuffer fifo, CancellationToken cancel);
-        protected abstract Task StreamReadFromObject(FastStreamBuffer fifo, CancellationToken cancel);
+        protected abstract Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel);
+        protected abstract Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel);
 
-        protected abstract Task DatagramWriteToObject(FastDatagramBuffer fifo, CancellationToken cancel);
-        protected abstract Task DatagramReadFromObject(FastDatagramBuffer fifo, CancellationToken cancel);
+        protected abstract Task DatagramWriteToObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel);
+        protected abstract Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel);
+
+        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
 
         async Task StreamReadFromPipeLoopAsync()
         {
@@ -1222,7 +1223,7 @@ namespace IPA.Cores.Basic
 
                             while (reader.IsReadyToRead)
                             {
-                                await StreamWriteToObject(reader, CancelWatcher.CancelToken);
+                                await StreamWriteToObjectAsync(reader, CancelWatcher.CancelToken);
                                 stateChanged = true;
                             }
                         }
@@ -1231,7 +1232,7 @@ namespace IPA.Cores.Basic
                         await TaskUtil.WaitObjectsAsync(
                             events: new AsyncAutoResetEvent[] { reader.EventReadReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
-                            timeout: FastPipeGlobalConfig.PollingTimeout
+                            timeout: PollingTimeout
                             );
                     }
                 }
@@ -1266,7 +1267,7 @@ namespace IPA.Cores.Basic
                             if (writer.IsReadyToWrite)
                             {
                                 long lastTail = writer.PinTail;
-                                await StreamReadFromObject(writer, CancelWatcher.CancelToken);
+                                await StreamReadFromObjectAsync(writer, CancelWatcher.CancelToken);
                                 if (writer.PinTail != lastTail)
                                 {
                                     stateChanged = true;
@@ -1279,7 +1280,7 @@ namespace IPA.Cores.Basic
                         await TaskUtil.WaitObjectsAsync(
                             events: new AsyncAutoResetEvent[] { writer.EventWriteReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
-                            timeout: FastPipeGlobalConfig.PollingTimeout
+                            timeout: PollingTimeout
                             );
                     }
                 }
@@ -1312,7 +1313,7 @@ namespace IPA.Cores.Basic
 
                             while (reader.IsReadyToRead)
                             {
-                                await DatagramWriteToObject(reader, CancelWatcher.CancelToken);
+                                await DatagramWriteToObjectAsync(reader, CancelWatcher.CancelToken);
                                 stateChanged = true;
                             }
                         }
@@ -1321,7 +1322,7 @@ namespace IPA.Cores.Basic
                         await TaskUtil.WaitObjectsAsync(
                             events: new AsyncAutoResetEvent[] { reader.EventReadReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
-                            timeout: FastPipeGlobalConfig.PollingTimeout
+                            timeout: PollingTimeout
                             );
                     }
                 }
@@ -1356,7 +1357,7 @@ namespace IPA.Cores.Basic
                             if (writer.IsReadyToWrite)
                             {
                                 long lastTail = writer.PinTail;
-                                await DatagramReadFromObject(writer, CancelWatcher.CancelToken);
+                                await DatagramReadFromObjectAsync(writer, CancelWatcher.CancelToken);
                                 if (writer.PinTail != lastTail)
                                 {
                                     stateChanged = true;
@@ -1369,7 +1370,7 @@ namespace IPA.Cores.Basic
                         await TaskUtil.WaitObjectsAsync(
                             events: new AsyncAutoResetEvent[] { writer.EventWriteReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
-                            timeout: FastPipeGlobalConfig.PollingTimeout
+                            timeout: PollingTimeout
                             );
                     }
                 }
@@ -1427,10 +1428,10 @@ namespace IPA.Cores.Basic
             }
             this.AddOnDisconnected(() => Socket.DisposeSafe());
 
-            this.BaseStart();
+            this.StartBaseTasks();
         }
 
-        protected override async Task StreamWriteToObject(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
@@ -1450,13 +1451,15 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
-        AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper>(async me =>
+        static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+
+        AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
                 int i = me.Socket.ReceiveBufferSize;
                 if (i <= 0) i = 65536;
-                me.RecvTmpBufferSize = Math.Min(i, FastPipeGlobalConfig.MaxStreamBufferLength);
+                me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
             Memory<byte> tmp = me.FastMemoryAllocatorForStream.Reserve(me.RecvTmpBufferSize);
@@ -1467,7 +1470,7 @@ namespace IPA.Cores.Basic
             return new ValueOrClosed<Memory<byte>>(tmp);
         });
 
-        protected override async Task StreamReadFromObject(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
@@ -1485,7 +1488,7 @@ namespace IPA.Cores.Basic
             fifo.CompleteWrite();
         }
 
-        protected override async Task DatagramWriteToObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        protected override async Task DatagramWriteToObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Datagram) == false) throw new NotSupportedException();
 
@@ -1509,7 +1512,7 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
 
-        AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper>(async me =>
+        AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper>(async (me, cancel) =>
         {
             Memory<byte> tmp = me.FastMemoryAllocatorForDatagram.Reserve(65536);
 
@@ -1521,7 +1524,7 @@ namespace IPA.Cores.Basic
             return new ValueOrClosed<Datagram>(pkt);
         });
 
-        protected override async Task DatagramReadFromObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        protected override async Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Datagram) == false) throw new NotSupportedException();
 
@@ -1551,10 +1554,6 @@ namespace IPA.Cores.Basic
         public const int SendTmpBufferSize = 65536;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        Memory<byte> SendTmpBuffer = new byte[SendTmpBufferSize];
-
-        //static bool UseDontLingerOption = true;
-
         public FastPipeEndStreamWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, FastStream stream, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
         {
             this.Stream = stream;
@@ -1563,24 +1562,33 @@ namespace IPA.Cores.Basic
             Stream.ReadTimeout = Stream.WriteTimeout = Timeout.Infinite;
             this.AddOnDisconnected(() => Stream.DisposeSafe());
 
-            this.BaseStart();
+            this.StartBaseTasks();
         }
 
-        protected override async Task StreamWriteToObject(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
             await TaskUtil.DoAsyncWithTimeout(
                 async c =>
                 {
-                    while (true)
-                    {
-                        int size = fifo.DequeueContiguousSlow(SendTmpBuffer, SendTmpBuffer.Length);
-                        if (size == 0)
-                            break;
+                    bool flush = false;
 
-                        await Stream.WriteAsync(SendTmpBuffer.Slice(0, size));
+                    using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
+                    {
+                        while (true)
+                        {
+                            int size = fifo.DequeueContiguousSlowWithLock(buffer);
+                            if (size == 0)
+                                break;
+
+                            await Stream.WriteAsync(buffer.Slice(0, size), cancel);
+                            flush = true;
+                        }
                     }
+
+                    if (flush)
+                        await Stream.FlushAsync(cancel);
 
                     return 0;
                 },
@@ -1589,23 +1597,25 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
-        AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper>(async me =>
+        static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+
+        AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
                 int i = 65536;
-                me.RecvTmpBufferSize = Math.Min(i, FastPipeGlobalConfig.MaxStreamBufferLength);
+                me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
             Memory<byte> tmp = me.FastMemoryAllocatorForStream.Reserve(me.RecvTmpBufferSize);
-            int r = await me.Stream.ReadAsync(tmp);
+            int r = await me.Stream.ReadAsync(tmp, cancel);
             if (r < 0) throw new BaseStreamDisconnectedException();
             me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
             if (r == 0) return new ValueOrClosed<Memory<byte>>();
             return new ValueOrClosed<Memory<byte>>(tmp);
         });
 
-        protected override async Task StreamReadFromObject(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
@@ -1623,10 +1633,10 @@ namespace IPA.Cores.Basic
             fifo.CompleteWrite();
         }
 
-        protected override Task DatagramWriteToObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        protected override Task DatagramWriteToObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel)
             => throw new NotSupportedException();
 
-        protected override Task DatagramReadFromObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        protected override Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel)
             => throw new NotSupportedException();
 
         Once DisposeFlag;
@@ -1641,32 +1651,108 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeEndPipelineWrapper : FastPipeEndAsyncObjectWrapperBase
+    class FastPipeEndDuplexPipeWrapper : FastPipeEndAsyncObjectWrapperBase
     {
-        public FastPipeEndPipelineWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
+        public override PipeSupportedDataTypes SupportedDataTypes { get; }
+
+        public const int SendTmpBufferSize = 65536;
+        public int RecvTmpBufferSize { get; private set; }
+
+        readonly PipeWriter PipeToWrite;
+        readonly PipeReader PipeToRead;
+
+        public FastPipeEndDuplexPipeWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
         {
+            this.SupportedDataTypes = PipeSupportedDataTypes.Stream;
+
+            this.PipeToWrite = duplexPipe.Output;
+            this.PipeToRead = duplexPipe.Input;
+
+            //this.AddOnDisconnected(() => Stream.DisposeSafe());
+
+            this.StartBaseTasks();
         }
 
-        public override PipeSupportedDataTypes SupportedDataTypes => throw new NotImplementedException();
-
-        protected override Task DatagramReadFromObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
-            throw new NotImplementedException();
+            await TaskUtil.DoAsyncWithTimeout(
+                async c =>
+                {
+                    bool flush = false;
+
+                    using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
+                    {
+                        while (true)
+                        {
+                            int size = fifo.DequeueContiguousSlowWithLock(buffer);
+                            if (size == 0)
+                                break;
+
+                            await PipeToWrite.WriteAsync(buffer.Slice(0, size), cancel);
+                            flush = true;
+                        }
+                    }
+
+                    if (flush)
+                        await PipeToWrite.FlushAsync(cancel);
+
+                    return 0;
+                },
+                cancel: cancel);
         }
 
-        protected override Task DatagramWriteToObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
+
+        static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+
+        AsyncBulkReceiver<IReadOnlyList<ReadOnlyMemory<byte>>, FastPipeEndDuplexPipeWrapper> StreamBulkReceiver = new AsyncBulkReceiver<IReadOnlyList<ReadOnlyMemory<byte>>, FastPipeEndDuplexPipeWrapper>(async (me, cancel) =>
         {
-            throw new NotImplementedException();
+            if (me.RecvTmpBufferSize == 0)
+            {
+                int i = 65536;
+                me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
+            }
+
+            ReadResult r = await me.PipeToRead.ReadAsync(cancel);
+            if (r.IsCanceled) throw new BaseStreamDisconnectedException();
+            if (r.IsCompleted || r.Buffer.Length == 0) return new ValueOrClosed<IReadOnlyList<ReadOnlyMemory<byte>>>();
+
+            List<ReadOnlyMemory<byte>> ret = new List<ReadOnlyMemory<byte>>();
+            foreach (ReadOnlyMemory<byte> x in r.Buffer)
+                ret.Add(x);
+
+            return new ValueOrClosed<IReadOnlyList<ReadOnlyMemory<byte>>>(ret);
+        });
+
+        protected override async Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
+        {
+            if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
+
+            ReadResult r = await this.PipeToRead.ReadAsync(cancel);
+
+            if (r.Buffer.Length == 0)
+            {
+                // disconnected
+                fifo.Disconnect();
+                return;
+            }
+
+            fifo.EnqueueAllWithLock(recvList);
+
+            fifo.CompleteWrite();
         }
 
-        protected override Task StreamReadFromObject(FastStreamBuffer fifo, CancellationToken cancel)
-        {
-            throw new NotImplementedException();
-        }
+        protected override Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
+        protected override Task DatagramWriteToObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
 
-        protected override Task StreamWriteToObject(FastStreamBuffer fifo, CancellationToken cancel)
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
         {
-            throw new NotImplementedException();
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            }
+            finally { base.Dispose(disposing); }
         }
     }
 

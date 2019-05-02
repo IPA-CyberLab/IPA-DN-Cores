@@ -84,11 +84,13 @@ namespace IPA.Cores.Basic
 
     static class IFastBufferStateHelper
     {
+        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
+
         public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout)
         {
             LocalTimer timer = new LocalTimer();
 
-            timer.AddTimeout(FastPipeGlobalConfig.PollingTimeout);
+            timer.AddTimeout(PollingTimeout);
             long timeoutTick = timer.AddTimeout(timeout);
 
             while (writer.IsReadyToWrite == false)
@@ -110,7 +112,7 @@ namespace IPA.Cores.Basic
         {
             LocalTimer timer = new LocalTimer();
 
-            timer.AddTimeout(FastPipeGlobalConfig.PollingTimeout);
+            timer.AddTimeout(PollingTimeout);
             long timeoutTick = timer.AddTimeout(timeout);
 
             while (reader.IsReadyToRead == false)
@@ -136,6 +138,7 @@ namespace IPA.Cores.Basic
         void EnqueueAll(Span<T> itemList);
         void EnqueueAllWithLock(Span<T> itemList);
         IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
+        IReadOnlyList<T> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueAll(out long totalReadSize);
         IReadOnlyList<T> DequeueAllWithLock(out long totalReadSize);
         long DequeueAllAndEnqueueToOther(IFastBuffer<T> other);
@@ -646,6 +649,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public int DequeueContiguousSlowWithLock(Memory<T> dest, int size = int.MaxValue)
+        {
+            lock (this.LockObj)
+                return DequeueContiguousSlow(dest, size);
+        }
+
         public int DequeueContiguousSlow(Memory<T> dest, int size = int.MaxValue)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
@@ -674,6 +683,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public Memory<T> DequeueContiguousSlowWithLock(int size = int.MaxValue)
+        {
+            lock (this.LockObj)
+                return DequeueContiguousSlow(size);
+        }
+
         public Memory<T> DequeueContiguousSlow(int size = int.MaxValue)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
@@ -700,6 +715,13 @@ namespace IPA.Cores.Basic
                 return DequeueAll(out totalReadSize);
         }
         public IReadOnlyList<Memory<T>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
+
+        public IReadOnlyList<Memory<T>> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        {
+            lock (this.LockObj)
+                return Dequeue(minReadSize, out totalReadSize, allowSplitSegments);
+        }
+
         public IReadOnlyList<Memory<T>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
@@ -1282,6 +1304,12 @@ namespace IPA.Cores.Basic
                 if (Length != 0 && oldLen == 0)
                     EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
             }
+        }
+
+        public IReadOnlyList<T> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        {
+            lock (this.LockObj)
+                return Dequeue(minReadSize, out totalReadSize, allowSplitSegments);
         }
 
         public IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)

@@ -46,27 +46,30 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static class FastPipeGlobalConfig
+    static partial class CoresConfig
     {
-        public static int MaxStreamBufferLength = 4 * 65536;
-        public static int MaxDatagramQueueLength = 65536;
-        public static int MaxPollingTimeout = 256 * 1000;
-
-        public static void ApplyHeavyLoadServerConfig()
+        public static partial class FastPipeConfig
         {
-            MaxStreamBufferLength = 65536;
-            MaxPollingTimeout = 4321;
-            MaxDatagramQueueLength = 1024;
-        }
+            public static readonly Copenhagen<int> MaxStreamBufferLength = 4 * 65536;
+            public static readonly Copenhagen<int> MaxDatagramQueueLength = 65536;
+            public static readonly Copenhagen<int> MaxPollingTimeout = 256 * 1000;
 
-        public static int PollingTimeout
-        {
-            get
+            public static void ApplyHeavyLoadServerConfig()
             {
-                int v = MaxPollingTimeout / 10;
-                if (v != 0)
-                    v = Util.RandSInt31() % v;
-                return MaxPollingTimeout - v;
+                MaxStreamBufferLength.Set(65536);
+                MaxPollingTimeout.Set(4321);
+                MaxDatagramQueueLength.Set(1024);
+            }
+
+            public static int PollingTimeout
+            {
+                get
+                {
+                    int v = MaxPollingTimeout / 10;
+                    if (v != 0)
+                        v = Util.RandSInt31() % v;
+                    return MaxPollingTimeout - v;
+                }
             }
         }
     }

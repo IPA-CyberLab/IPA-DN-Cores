@@ -99,6 +99,8 @@ FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Socket �
 
 FastPipeEndStreamWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Stream オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(※ すなわち、FastStreamToPalNetworkStream の逆。) (上位 / 下位は逆でもよい)
 
+FastPipeEndDuplexPipeWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の IDuplexPipe を下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(上位 / 下位は逆でもよい)
+
 
 
 ■ FastStack.cs - 高レベルネットワーククラス
