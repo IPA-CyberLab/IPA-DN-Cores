@@ -1042,7 +1042,6 @@ namespace IPA.Cores.Basic
     {
         public readonly static StatisticsReporter<CoresRuntimeStat> Reporter = new StatisticsReporter<CoresRuntimeStat>(1000,
             CoresConfig.DebugSettings.CoresStatLogType,
-            LeakChecker.SuperGrandLady,
             async (snapshot, diff, velocity)
             =>
             {

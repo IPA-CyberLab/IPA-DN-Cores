@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // 古いファイルから順番に削除する
-    class OldFileEraser : AsyncCleanupable
+    class OldFileEraser : AsyncService
     {
         string[] DirList;
         string ExtensionList;
@@ -54,48 +54,38 @@ namespace IPA.Cores.Basic
 
         public const int DefaultInterval = 60 * 1000;
         public int Interval { get; }
-        CancellationTokenSource Cancel { get; } = new CancellationTokenSource();
 
-        public OldFileEraser(AsyncCleanuperLady lady, long totalMinSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
-            : base(lady)
+        Task MainTask;
+
+        public OldFileEraser(long totalMinSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
+            : base()
         {
-            try
-            {
-                this.Interval = interval;
-                List<string> tmp = new List<string>();
-                foreach (string dir in dirs) tmp.Add(dir.InnerFilePath());
-                this.DirList = tmp.ToArray();
+            this.Interval = interval;
+            List<string> tmp = new List<string>();
+            foreach (string dir in dirs) tmp.Add(dir.InnerFilePath());
+            this.DirList = tmp.ToArray();
 
-                this.ExtensionList = extensions;
-                this.TotalMinSize = totalMinSize;
+            this.ExtensionList = extensions;
+            this.TotalMinSize = totalMinSize;
 
-                this.Lady.Add(IntervalThreadAsync().LeakCheck());
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            this.MainTask = IntervalThreadAsync().LeakCheck();
         }
 
-        // 停止
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Cancel.Cancel();
-            }
-            finally { base.Dispose(disposing); }
+            await this.MainTask;
         }
+
+        protected override void DisposeImpl() { }
 
         // 定期的に削除を実行するスレッド
         public async Task IntervalThreadAsync()
         {
-            while (await this.Cancel.WaitUntilCanceledAsync(this.Interval) == false)
+            while (await this.GrandCancel.WaitUntilCanceledAsync(this.Interval) == false)
             {
-                ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.Cancel.Token);
+                ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.GrandCancel);
             }
         }
 

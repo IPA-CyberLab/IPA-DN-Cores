@@ -54,30 +54,16 @@ namespace IPA.Cores.Basic
 
     class NetworkSystemParam { }
 
-    abstract class NetworkSystemBase : AsyncCleanupableCancellable
+    abstract class NetworkSystemBase : AsyncService
     {
         protected NetworkSystemParam Param;
 
         protected readonly CriticalSection LockObj = new CriticalSection();
         protected readonly HashSet<NetworkSock> OpenedSockList = new HashSet<NetworkSock>();
 
-        public NetworkSystemBase(AsyncCleanuperLady lady, NetworkSystemParam param) : base(lady)
+        public NetworkSystemBase(NetworkSystemParam param)
         {
-            try
-            {
-                this.Param = param;
-            }
-            catch
-            {
-                Lady.DisposeSafe();
-                throw;
-            }
-        }
-
-        protected void CheckNotDisposed()
-        {
-            if (DisposeFlag.IsSet)
-                throw new NetworkStackException("The network stack is already disposed.");
+            this.Param = param;
         }
 
         protected void AddToOpenedSockList(NetworkSock sock)
@@ -96,42 +82,27 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
+            NetworkSock[] openedSockets;
+
+            lock (LockObj)
             {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.CancelWatcher.Cancel();
+                openedSockets = OpenedSockList.ToArray();
+                OpenedSockList.Clear();
             }
-            finally { base.Dispose(disposing); }
+
+            foreach (var s in openedSockets)
+            {
+                s.CancelSafe();
+                await s.CleanupSafeAsync();
+                s.DisposeSafe();
+            }
         }
 
-        public override async Task _CleanupInternalAsync()
-        {
-            try
-            {
-                while (CriticalCounter.Value >= 1)
-                {
-                    await Task.Delay(10);
-                }
-
-                NetworkSock[] openedSockets;
-
-                lock (LockObj)
-                {
-                    openedSockets = OpenedSockList.ToArray();
-                    OpenedSockList.Clear();
-                }
-
-                foreach (var s in openedSockets)
-                {
-                    s.Disconnect();
-                    await s.Lady.CleanupAsync();
-                }
-            }
-            finally { await base._CleanupInternalAsync(); }
-        }
+        protected override void DisposeImpl() { }
     }
 }
 

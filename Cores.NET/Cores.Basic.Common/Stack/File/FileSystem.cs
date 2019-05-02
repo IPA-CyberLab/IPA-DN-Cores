@@ -1074,7 +1074,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract partial class FileSystem : AsyncCleanupable
+    abstract partial class FileSystem : AsyncService
     {
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathParser PathParser { get; }
@@ -1082,30 +1082,20 @@ namespace IPA.Cores.Basic
 
         CriticalSection LockObj = new CriticalSection();
         HashSet<FileBase> OpenedHandleList = new HashSet<FileBase>();
-        RefInt CriticalCounter = new RefInt();
-        CancellationTokenSource CancelSource = new CancellationTokenSource();
 
         public Singleton<FileSystemObjectPool> ObjectPoolForRead { get; }
         public Singleton<FileSystemObjectPool> ObjectPoolForWrite { get; }
 
         public LargeFileSystem LargeFileSystem { get; }
 
-        public FileSystem(AsyncCleanuperLady lady, FileSystemParams param) : base(lady)
+        public FileSystem(FileSystemParams param) : base()
         {
-            try
-            {
-                this.Params = param;
-                this.PathParser = this.Params.PathParser;
-                DirectoryWalker = new DirectoryWalker(this);
+            this.Params = param;
+            this.PathParser = this.Params.PathParser;
+            DirectoryWalker = new DirectoryWalker(this);
 
-                ObjectPoolForRead = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime));
-                ObjectPoolForWrite = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime));
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            ObjectPoolForRead = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime));
+            ObjectPoolForWrite = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime));
 
             try
             {
@@ -1116,6 +1106,8 @@ namespace IPA.Cores.Basic
 
         public async Task<RandomAccessHandle> GetRandomAccessHandleAsync(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
+            CheckNotCanceled();
+
             FileSystemObjectPool pool = writeMode ? ObjectPoolForWrite : ObjectPoolForRead;
 
             RefObjectHandle<FileBase> refFileBase = await pool.OpenOrGetAsync(fileName, flags, cancel);
@@ -1125,48 +1117,28 @@ namespace IPA.Cores.Basic
         public RandomAccessHandle GetRandomAccessHandle(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel).GetResult();
 
-        void CheckNotDisposed()
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            if (DisposeFlag.IsSet)
-                throw new FileSystemException("The file system is already disposed.");
+            FileBase[] fileHandles;
+
+            lock (LockObj)
+            {
+                fileHandles = OpenedHandleList.ToArray();
+                OpenedHandleList.Clear();
+            }
+
+            foreach (var fileHandle in fileHandles)
+            {
+                await fileHandle.CloseAsync();
+            }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void DisposeImpl()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                CancelSource.Cancel();
-                ObjectPoolForRead.DisposeSafe();
-                ObjectPoolForWrite.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
-        }
-
-        public override async Task _CleanupInternalAsync()
-        {
-            try
-            {
-                while (CriticalCounter.Value >= 1)
-                {
-                    await Task.Delay(10);
-                }
-
-                FileBase[] fileHandles;
-
-                lock (LockObj)
-                {
-                    fileHandles = OpenedHandleList.ToArray();
-                    OpenedHandleList.Clear();
-                }
-
-                foreach (var fileHandle in fileHandles)
-                {
-                    await fileHandle.CloseAsync();
-                }
-            }
-            finally { await base._CleanupInternalAsync(); }
+            ObjectPoolForRead.DisposeSafe();
+            ObjectPoolForWrite.DisposeSafe();
         }
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
@@ -1194,12 +1166,10 @@ namespace IPA.Cores.Basic
         {
             path = path.NonNull();
 
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     string ret = await NormalizePathImplAsync(path, cancel);
@@ -1213,12 +1183,10 @@ namespace IPA.Cores.Basic
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     await option.NormalizePathAsync(this, opCancel);
 
                     if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew ||
@@ -1296,12 +1264,10 @@ namespace IPA.Cores.Basic
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     path = await NormalizePathAsync(path, opCancel);
 
                     opCancel.ThrowIfCancellationRequested();
@@ -1316,12 +1282,10 @@ namespace IPA.Cores.Basic
 
         public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     path = await NormalizePathAsync(path, opCancel);
 
                     opCancel.ThrowIfCancellationRequested();
@@ -1335,10 +1299,8 @@ namespace IPA.Cores.Basic
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken opCancel)
         {
-            using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+            using (EnterCriticalCounter())
             {
-                CheckNotDisposed();
-
                 opCancel.ThrowIfCancellationRequested();
 
                 FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, flags, opCancel);
@@ -1359,8 +1321,6 @@ namespace IPA.Cores.Basic
 
         async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, bool recursive, EnumDirectoryFlags flags, CancellationToken opCancel)
         {
-            CheckNotDisposed();
-
             opCancel.ThrowIfCancellationRequested();
 
             FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, opCancel);
@@ -1389,10 +1349,10 @@ namespace IPA.Cores.Basic
 
         public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
-            {
-                CheckNotDisposed();
+            CheckNotCanceled();
 
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            {
                 opCancel.ThrowIfCancellationRequested();
 
                 directoryPath = await NormalizePathAsync(directoryPath, opCancel);
@@ -1413,12 +1373,10 @@ namespace IPA.Cores.Basic
 
         public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     path = await NormalizePathImplAsync(path, opCancel);
@@ -1432,12 +1390,10 @@ namespace IPA.Cores.Basic
 
         public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     path = await NormalizePathImplAsync(path, opCancel);
@@ -1451,6 +1407,8 @@ namespace IPA.Cores.Basic
 
         public async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
         {
+            CheckNotCanceled();
+
             try
             {
                 return await IsFileExistsImplAsync(path, cancel);
@@ -1464,6 +1422,8 @@ namespace IPA.Cores.Basic
 
         public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default)
         {
+            CheckNotCanceled();
+
             try
             {
                 return await IsDirectoryExistsImplAsync(path, cancel);
@@ -1477,12 +1437,10 @@ namespace IPA.Cores.Basic
 
         public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     path = await NormalizePathImplAsync(path, opCancel);
@@ -1496,12 +1454,10 @@ namespace IPA.Cores.Basic
 
         public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     path = await NormalizePathImplAsync(path, opCancel);
@@ -1515,12 +1471,10 @@ namespace IPA.Cores.Basic
 
         public async Task DeleteFileAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     path = await NormalizePathImplAsync(path, opCancel);
@@ -1535,12 +1489,10 @@ namespace IPA.Cores.Basic
 
         public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     srcPath = await NormalizePathImplAsync(srcPath, opCancel);
@@ -1555,12 +1507,10 @@ namespace IPA.Cores.Basic
 
         public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, this.CancelSource.Token))
+            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (TaskUtil.EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     cancel.ThrowIfCancellationRequested();
 
                     srcPath = await NormalizePathImplAsync(srcPath, opCancel);

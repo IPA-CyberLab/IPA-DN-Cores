@@ -46,19 +46,11 @@ namespace IPA.Cores.Basic
     {
         HttpServer<JsonRpcHttpServerBuilder> HttpServer;
 
-        public EasyJsonRpcServer(HttpServerBuilderConfig httpConfig, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public EasyJsonRpcServer(HttpServerBuilderConfig httpConfig, CancellationToken cancel = default) : base(cancel)
         {
-            try
-            {
-                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig();
+            JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig();
 
-                this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpc_cfg, this, lady, cancel);
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpc_cfg, this, cancel);
         }
     }
 }

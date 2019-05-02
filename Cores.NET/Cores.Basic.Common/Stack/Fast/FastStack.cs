@@ -47,23 +47,20 @@ namespace IPA.Cores.Basic
 {
     abstract class FastStackOptionsBase { }
 
-    abstract class FastStackBase : AsyncCleanupableCancellable
+    abstract class FastStackBase : AsyncService
     {
-        public FastStackOptionsBase StackOptions { get; }
+        public FastStackOptionsBase Options { get; }
 
-        public FastStackBase(AsyncCleanuperLady lady, FastStackOptionsBase options, CancellationToken cancel = default) :
-            base(lady, cancel)
+        public FastStackBase(FastStackOptionsBase options, CancellationToken cancel = default) : base(cancel)
         {
-            try
-            {
-                StackOptions = options;
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            Options = options;
         }
+
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override Task CleanupImplAsync() => Task.CompletedTask;
+
+        protected override void DisposeImpl() { }
     }
 
     abstract class FastAppStubOptionsBase : FastStackOptionsBase { }
@@ -73,28 +70,40 @@ namespace IPA.Cores.Basic
         protected FastPipeEnd Lower { get; }
         protected FastAttachHandle LowerAttach { get; private set; }
 
-        public FastAppStubOptionsBase TopOptions { get; }
+        public new FastAppStubOptionsBase Options => (FastAppStubOptionsBase)base.Options;
 
-        public FastAppStubBase(AsyncCleanuperLady lady, FastPipeEnd lower, FastAppStubOptionsBase options, CancellationToken cancel = default)
-            : base(lady, options, cancel)
+        public FastAppStubBase(FastPipeEnd lower, FastAppStubOptionsBase options, CancellationToken cancel = default)
+            : base(options, cancel)
         {
-            try
-            {
-                TopOptions = options;
-                Lower = lower;
+            Lower = lower;
 
-                LowerAttach = Lower.Attach(this.Lady, FastPipeEndAttachDirection.B_UpperSide);
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
         }
 
-        public virtual void Disconnect(Exception ex)
+        protected override void CancelImpl(Exception ex)
         {
-            Lower.Disconnect(ex);
+            LowerAttach.Cancel(ex);
+            LowerAttach.DisposeSafe();
+
+            Lower.Cancel(ex);
+
+            base.CancelImpl(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await LowerAttach.CleanupAsync();
+            await Lower.CleanupAsync();
+
+            await base.CleanupImplAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            LowerAttach.DisposeSafe();
+            Lower.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -102,8 +111,10 @@ namespace IPA.Cores.Basic
 
     class FastAppStub : FastAppStubBase
     {
-        public FastAppStub(AsyncCleanuperLady lady, FastPipeEnd lower, CancellationToken cancel = default, FastAppStubOptions options = null)
-            : base(lady, lower, options ?? new FastAppStubOptions(), cancel)
+        public new FastAppStubOptions Options => (FastAppStubOptions)base.Options;
+
+        public FastAppStub(FastPipeEnd lower, CancellationToken cancel = default, FastAppStubOptions options = null)
+            : base(lower, options ?? new FastAppStubOptions(), cancel)
         {
         }
 
@@ -124,7 +135,7 @@ namespace IPA.Cores.Basic
 
         public FastPipeEnd GetPipeEnd()
         {
-            Lower.CheckDisconnected();
+            Lower.CheckCanceled();
 
             return Lower;
         }
@@ -133,20 +144,21 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                Lower.CheckDisconnected();
+                Lower.CheckCanceled();
                 return this.LowerAttach;
             }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex)
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                StreamCache.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
+            StreamCache.DisposeSafe();
+            base.CancelImpl(ex);
+        }
+
+        protected override void DisposeImpl()
+        {
+            StreamCache.DisposeSafe();
+            base.DisposeImpl();
         }
     }
 
@@ -160,34 +172,46 @@ namespace IPA.Cores.Basic
 
         protected FastAttachHandle UpperAttach { get; private set; }
 
-        public FastProtocolOptionsBase ProtocolOptions { get; }
+        public new FastProtocolOptionsBase Options => (FastProtocolOptionsBase)base.Options;
 
-        public FastProtocolBase(AsyncCleanuperLady lady, FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default)
-            : base(lady, options, cancel)
+        public FastProtocolBase(FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default)
+            : base(options, cancel)
         {
-            try
+            if (upper == null)
             {
-                if (upper == null)
-                {
-                    upper = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, Lady, cancel);
-                    Lady.Add(upper.Pipe);
-                }
-
-                ProtocolOptions = options;
-                Upper = upper;
-
-                UpperAttach = Upper.Attach(this.Lady, FastPipeEndAttachDirection.A_LowerSide);
+                upper = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancel);
             }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+
+            Upper = upper;
+
+            UpperAttach = Upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
         }
 
-        public virtual void Disconnect(Exception ex = null)
+
+        protected override void CancelImpl(Exception ex)
         {
-            Upper.Disconnect(ex);
+            UpperAttach.Cancel(ex);
+            UpperAttach.DisposeSafe();
+
+            Upper.Cancel(ex);
+
+            base.CancelImpl(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await UpperAttach.CleanupAsync();
+            await Upper.CleanupAsync();
+
+            await base.CleanupImplAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            UpperAttach.DisposeSafe();
+            Upper.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -195,7 +219,11 @@ namespace IPA.Cores.Basic
 
     abstract class FastBottomProtocolStubBase : FastProtocolBase
     {
-        public FastBottomProtocolStubBase(AsyncCleanuperLady lady, FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default) : base(lady, upper, options, cancel) { }
+        public new FastBottomProtocolOptionsBase Options => (FastBottomProtocolOptionsBase)base.Options;
+
+        public FastBottomProtocolStubBase(FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        {
+        }
     }
 
     abstract class FastTcpProtocolOptionsBase : FastBottomProtocolOptionsBase
@@ -207,16 +235,15 @@ namespace IPA.Cores.Basic
     {
         public const int DefaultTcpConnectTimeout = 15 * 1000;
 
-        FastTcpProtocolOptionsBase Options { get; }
+        public new FastTcpProtocolOptionsBase Options => (FastTcpProtocolOptionsBase)base.Options;
 
-        public FastTcpProtocolStubBase(AsyncCleanuperLady lady, FastPipeEnd upper, FastTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(lady, upper, options, cancel)
+        public FastTcpProtocolStubBase(FastPipeEnd upper, FastTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
-            Options = options;
         }
 
         protected abstract Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout, CancellationToken cancel = default);
         protected abstract void ListenImpl(IPEndPoint localEndPoint);
-        protected abstract Task<FastTcpProtocolStubBase> AcceptImplAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default);
+        protected abstract Task<FastTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default);
 
         public bool IsConnected { get; private set; }
         public bool IsListening { get; private set; }
@@ -263,11 +290,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<ConnSock> AcceptAsync(AsyncCleanuperLady ladyForNewTcpStub, CancellationToken cancelForNewSocket = default)
+        public async Task<ConnSock> AcceptAsync(CancellationToken cancelForNewSocket = default)
         {
             if (IsListening == false) throw new ApplicationException("Not listening.");
 
-            return new ConnSock(ladyForNewTcpStub, await AcceptImplAsync(ladyForNewTcpStub, cancelForNewSocket));
+            return new ConnSock(await AcceptImplAsync(cancelForNewSocket));
         }
     }
 
@@ -289,112 +316,118 @@ namespace IPA.Cores.Basic
             public IPAddress RemoteIPAddress { get; set; }
         }
 
-        public FastPalTcpProtocolStub(AsyncCleanuperLady lady, FastPipeEnd upper = null, FastPalTcpProtocolOptions options = null, CancellationToken cancel = default)
-            : base(lady, upper, options ?? new FastPalTcpProtocolOptions(), cancel)
+        public new FastPalTcpProtocolOptions Options => (FastPalTcpProtocolOptions)base.Options;
+
+        PalSocket ConnectedSocket = null;
+        FastPipeEndSocketWrapper SocketWrapper = null;
+
+        PalSocket ListeningSocket = null;
+
+        public FastPalTcpProtocolStub(FastPipeEnd upper = null, FastPalTcpProtocolOptions options = null, CancellationToken cancel = default)
+            : base(upper, options ?? new FastPalTcpProtocolOptions(), cancel)
         {
         }
 
-        public virtual void FromSocket(PalSocket s)
+        void InitSocketWrapperFromSocket(PalSocket s)
         {
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
+            this.ConnectedSocket = s;
+            this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
 
-            try
+            UpperAttach.SetLayerInfo(new LayerInfo()
             {
-                var socketWrapper = new FastPipeEndSocketWrapper(lady, Upper, s, GrandCancel);
-
-                UpperAttach.SetLayerInfo(new LayerInfo()
-                {
-                    LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
-                    LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
-                    RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
-                    RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
-                }, this);
-
-                this.Lady.MergeFrom(lady);
-            }
-            catch
-            {
-                lady.DisposeAllSafe();
-                throw;
-            }
+                LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
+                LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
+                RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
+                RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
+            }, this);
         }
 
         protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
         {
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
+            if (!(remoteEndPoint.AddressFamily == AddressFamily.InterNetwork || remoteEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
+                throw new ArgumentException("RemoteEndPoint.AddressFamily");
 
-            try
+            PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
+
+            await TaskUtil.DoAsyncWithTimeout(async localCancel =>
             {
-                if (!(remoteEndPoint.AddressFamily == AddressFamily.InterNetwork || remoteEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
-                    throw new ArgumentException("RemoteEndPoint.AddressFamily");
+                await s.ConnectAsync(remoteEndPoint);
+                return 0;
+            },
+            cancelProc: () => s.DisposeSafe(),
+            timeout: connectTimeout,
+            cancel: cancel);
 
-                PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp).AddToLady(lady);
-
-                this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
-
-                await TaskUtil.DoAsyncWithTimeout(async localCancel =>
-                {
-                    await s.ConnectAsync(remoteEndPoint);
-                    return 0;
-                },
-                cancelProc: () => s.DisposeSafe(),
-                timeout: connectTimeout,
-                cancel: cancel);
-
-                FromSocket(s);
-
-                this.Lady.MergeFrom(lady);
-            }
-            catch
-            {
-                await lady;
-                throw;
-            }
+            InitSocketWrapperFromSocket(s);
         }
-
-        PalSocket ListeningSocket = null;
 
         protected override void ListenImpl(IPEndPoint localEndPoint)
         {
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
+            if (!(localEndPoint.AddressFamily == AddressFamily.InterNetwork || localEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
+                throw new ArgumentException("RemoteEndPoint.AddressFamily");
 
+            PalSocket s = new PalSocket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try
             {
-                if (!(localEndPoint.AddressFamily == AddressFamily.InterNetwork || localEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
-                    throw new ArgumentException("RemoteEndPoint.AddressFamily");
-
-                PalSocket s = new PalSocket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp).AddToLady(lady);
-
-                this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
-
                 s.Bind(localEndPoint);
 
                 s.Listen(int.MaxValue);
-
-                ListeningSocket = s;
-
-                this.Lady.MergeFrom(lady);
             }
             catch
             {
-                lady.DisposeAllSafe();
+                s.DisposeSafe();
+                throw;
+            }
+
+            this.ListeningSocket = s;
+        }
+
+        protected override async Task<FastTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default)
+        {
+            PalSocket newSocket = await ListeningSocket.AcceptAsync();
+            try
+            {
+                var newStub = new FastPalTcpProtocolStub(null, null, cancelForNewSocket);
+
+                newStub.InitSocketWrapperFromSocket(newSocket);
+
+                return newStub;
+            }
+            catch
+            {
+                newSocket.DisposeSafe();
                 throw;
             }
         }
 
-        protected override async Task<FastTcpProtocolStubBase> AcceptImplAsync(AsyncCleanuperLady ladyForNewTcpStub, CancellationToken cancelForNewSocket = default)
+        protected override void CancelImpl(Exception ex)
         {
-            PalSocket newSocket = await ListeningSocket.AcceptAsync();
+            this.ConnectedSocket.DisposeSafe();
+            this.ListeningSocket.DisposeSafe();
 
-            var newStub = new FastPalTcpProtocolStub(ladyForNewTcpStub, null, null, cancelForNewSocket);
+            this.SocketWrapper.CancelSafe(ex);
 
-            newStub.FromSocket(newSocket);
+            base.CancelImpl(ex);
+        }
 
-            return newStub;
+        protected override async Task CleanupImplAsync()
+        {
+            await this.SocketWrapper.CleanupSafeAsync();
+
+            await base.CleanupImplAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            this.ConnectedSocket.DisposeSafe();
+            this.ListeningSocket.DisposeSafe();
+            this.SocketWrapper.DisposeSafe();
         }
     }
 
-    class NetworkSock : AsyncCleanupable
+    class NetworkSock : AsyncService
     {
         FastAppStub AppStub = null;
 
@@ -403,50 +436,21 @@ namespace IPA.Cores.Basic
         public FastPipeEnd LowerEnd { get; }
         public FastPipeEnd UpperEnd { get; }
         public LayerInfo Info { get => this.LowerEnd.LayerInfo; }
-        public CancelWatcher CancelWatcher => Stack.CancelWatcher;
 
-        public NetworkSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack)
-            : base(lady)
+        public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
-            try
-            {
-                Stack = protocolStack;
-                LowerEnd = Stack._InternalUpper;
-                Pipe = LowerEnd.Pipe;
-                UpperEnd = LowerEnd.CounterPart;
-
-                Lady.Add(Stack);
-                Lady.Add(Pipe);
-
-                Pipe.OnDisconnected.Add(() => this.Disconnect());
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            Stack = protocolStack;
+            LowerEnd = Stack._InternalUpper;
+            Pipe = LowerEnd.Pipe;
+            UpperEnd = LowerEnd.CounterPart;
         }
 
         public FastAppStub GetFastAppProtocolStub()
         {
-            FastAppStub ret = UpperEnd.GetFastAppProtocolStub(this.Lady);
+            FastAppStub ret = UpperEnd.GetFastAppProtocolStub();
 
             return ret;
         }
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Pipe.Disconnect();
-            }
-            finally { base.Dispose(disposing); }
-        }
-
-        public void Disconnect(Exception ex = null)
-            => this.Dispose();
 
         public FastPipeEndStream GetStream(bool autoFlush = true)
         {
@@ -459,11 +463,35 @@ namespace IPA.Cores.Basic
         public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
 
         public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
+
+        protected override void CancelImpl(Exception ex)
+        {
+            this.Stack.CancelSafe(ex);
+            this.Pipe.CancelSafe(ex);
+            this.LowerEnd.CancelSafe(ex);
+            this.UpperEnd.CancelSafe(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await this.Stack.CleanupSafeAsync();
+            await this.Pipe.CleanupSafeAsync();
+            await this.LowerEnd.CleanupSafeAsync();
+            await this.UpperEnd.CleanupSafeAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            this.Stack.DisposeSafe();
+            this.Pipe.DisposeSafe();
+            this.LowerEnd.DisposeSafe();
+            this.UpperEnd.DisposeSafe();
+        }
     }
 
     class ConnSock : NetworkSock
     {
-        public ConnSock(AsyncCleanuperLady lady, FastProtocolBase protocolStack) : base(lady, protocolStack) { }
+        public ConnSock(FastProtocolBase protocolStack) : base(protocolStack) { }
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }
@@ -472,7 +500,7 @@ namespace IPA.Cores.Basic
     {
         public const int DefaultDnsResolveTimeout = 5 * 1000;
 
-        public FastDnsClientStub(AsyncCleanuperLady lady, FastDnsClientOptions options, CancellationToken cancel = default) : base(lady, options, cancel)
+        public FastDnsClientStub(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
         }
 
@@ -486,10 +514,10 @@ namespace IPA.Cores.Basic
 
         static FastPalDnsClient()
         {
-            Shared = new FastPalDnsClient(LeakChecker.SuperGrandLady, new FastDnsClientOptions());
+            Shared = new FastPalDnsClient(new FastDnsClientOptions());
         }
 
-        public FastPalDnsClient(AsyncCleanuperLady lady, FastDnsClientOptions options, CancellationToken cancel = default) : base(lady, options, cancel)
+        public FastPalDnsClient(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
         }
 
@@ -528,38 +556,47 @@ namespace IPA.Cores.Basic
         CriticalSection LockObj = new CriticalSection();
         protected FastAttachHandle LowerAttach { get; private set; }
 
-        public FastMiddleProtocolOptionsBase MiddleOptions { get; }
+        public new FastMiddleProtocolOptionsBase Options => (FastMiddleProtocolOptionsBase)base.Options;
 
-        public FastMiddleProtocolStackBase(AsyncCleanuperLady lady, FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
-            : base(lady, upper, options, cancel)
+        public FastMiddleProtocolStackBase(FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
+            : base(upper, options, cancel)
         {
-            try
-            {
-                MiddleOptions = options;
-                Lower = lower;
+            Lower = lower;
 
-                LowerAttach = Lower.Attach(this.Lady, FastPipeEndAttachDirection.B_UpperSide);
+            LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
 
-                Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
-                Lower.LayerInfo.Encounter(Upper.LayerInfo);
+            Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
+            Lower.LayerInfo.Encounter(Upper.LayerInfo);
 
-                Lower.AddOnDisconnected(() => Upper.Disconnect());
-                Upper.AddOnDisconnected(() => Lower.Disconnect());
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            Lower.AddOnDisconnected(() => Upper.Cancel(new DisconnectedException()));
+            Upper.AddOnDisconnected(() => Lower.Cancel(new DisconnectedException()));
         }
 
-        public override void Disconnect(Exception ex = null)
+
+        protected override void CancelImpl(Exception ex)
         {
-            try
-            {
-                Lower.Disconnect(ex);
-            }
-            finally { base.Disconnect(ex); }
+            LowerAttach.Cancel(ex);
+            LowerAttach.DisposeSafe();
+
+            Lower.Cancel(ex);
+
+            base.CancelImpl(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await LowerAttach.CleanupAsync();
+            await Lower.CleanupAsync();
+
+            await base.CleanupImplAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            LowerAttach.DisposeSafe();
+            Lower.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -581,19 +618,24 @@ namespace IPA.Cores.Basic
             public PalX509Certificate RemoteCertificate { get; internal set; }
         }
 
-        public FastSslProtocolStack(AsyncCleanuperLady lady, FastPipeEnd lower, FastPipeEnd upper, FastSslProtocolOptions options,
-            CancellationToken cancel = default) : base(lady, lower, upper, options ?? new FastSslProtocolOptions(), cancel) { }
+        public FastSslProtocolStack(FastPipeEnd lower, FastPipeEnd upper, FastSslProtocolOptions options,
+            CancellationToken cancel = default) : base(lower, upper, options ?? new FastSslProtocolOptions(), cancel) { }
+
+        PalSslStream SslStream = null;
+        FastPipeEndStreamWrapper Wrapper = null;
 
         public async Task SslStartClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
         {
-            try
+            if (Wrapper != null)
+                throw new ApplicationException("SSL is already established.");
+
+            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
             {
-                using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
+                FastPipeEndStream lowerStream = LowerAttach.GetStream(autoFlush: false);
+
+                PalSslStream ssl = new PalSslStream(lowerStream);
+                try
                 {
-                    var lowerStream = LowerAttach.GetStream(autoFlush: false);
-
-                    var ssl = new PalSslStream(lowerStream).AddToLady(this);
-
                     await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, opCancel);
 
                     LowerAttach.SetLayerInfo(new LayerInfo()
@@ -610,14 +652,38 @@ namespace IPA.Cores.Basic
                         RemoteCertificate = ssl.RemoteCertificate,
                     }, this);
 
-                    FastPipeEndStreamWrapper upperStreamWrapper = new FastPipeEndStreamWrapper(this.Lady, UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                    this.SslStream = ssl;
+                    this.Wrapper = new FastPipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                }
+                catch
+                {
+                    ssl.DisposeSafe();
+                    throw;
                 }
             }
-            catch
-            {
-                await Lady;
-                throw;
-            }
+        }
+
+        protected override void CancelImpl(Exception ex)
+        {
+            this.SslStream.DisposeSafe();
+            this.Wrapper.CancelSafe(ex);
+
+            base.CancelImpl(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await this.Wrapper.CleanupSafeAsync();
+
+            await base.CleanupImplAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            this.SslStream.DisposeSafe();
+            this.Wrapper.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -636,7 +702,7 @@ namespace IPA.Cores.Basic
 
     delegate Task FastTcpListenerAcceptedProcCallback(FastTcpListenerBase.Listener listener, ConnSock newSock);
 
-    abstract class FastTcpListenerBase : IAsyncCleanupable
+    abstract class FastTcpListenerBase : AsyncService
     {
         public class Listener
         {
@@ -711,12 +777,10 @@ namespace IPA.Cores.Basic
 
                         _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                        AsyncCleanuperLady listenLady = new AsyncCleanuperLady();
+                        FastTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
 
                         try
                         {
-                            var listenTcp = TcpListener.CreateNewTcpStubForListenImpl(listenLady, _InternalSelfCancelToken);
-
                             listenTcp.Listen(new IPEndPoint(IPAddress, Port));
 
                             reportError = true;
@@ -728,11 +792,9 @@ namespace IPA.Cores.Basic
                             {
                                 _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                                AsyncCleanuperLady ladyForNewTcpStub = new AsyncCleanuperLady();
+                                ConnSock sock = await listenTcp.AcceptAsync();
 
-                                ConnSock sock = await listenTcp.AcceptAsync(ladyForNewTcpStub);
-
-                                TcpListener.InternalSocketAccepted(this, sock, ladyForNewTcpStub);
+                                TcpListener.InternalSocketAccepted(this, sock);
                             }
                         }
                         catch (Exception ex)
@@ -750,7 +812,7 @@ namespace IPA.Cores.Basic
                         }
                         finally
                         {
-                            await listenLady;
+                            listenTcp.DisposeSafe();
                         }
                     }
                 }
@@ -778,8 +840,6 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<Task, ConnSock> RunningAcceptedTasks = new Dictionary<Task, ConnSock>();
 
-        readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
-
         FastTcpListenerAcceptedProcCallback AcceptedProc { get; }
 
         public int CurrentConnections
@@ -791,16 +851,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastTcpListenerBase(AsyncCleanuperLady lady, FastTcpListenerAcceptedProcCallback acceptedProc)
+        public FastTcpListenerBase(FastTcpListenerAcceptedProcCallback acceptedProc)
         {
             AcceptedProc = acceptedProc;
-
-            AsyncCleanuper = new AsyncCleanuper(this);
-
-            lady.Add(this);
         }
 
-        internal protected abstract FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(AsyncCleanuperLady lady, CancellationToken cancel);
+        internal protected abstract FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
 
         public Listener Add(int port, IPVersion? ipVer = null, IPAddress addr = null)
         {
@@ -819,7 +875,7 @@ namespace IPA.Cores.Basic
 
             lock (LockObj)
             {
-                if (DisposeFlag.IsSet) throw new ObjectDisposedException("TcpListenManager");
+                CheckNotCanceled();
 
                 var s = Search(Listener.MakeHashKey((IPVersion)ipVer, addr, port));
                 if (s != null)
@@ -852,7 +908,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        async Task InternalSocketAcceptedAsync(Listener listener, ConnSock sock, AsyncCleanuperLady lady)
+        async Task InternalSocketAcceptedAsync(Listener listener, ConnSock sock)
         {
             try
             {
@@ -860,27 +916,25 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                await lady;
+                sock.CancelSafe(new DisconnectedException());
+                await sock.CleanupSafeAsync();
+                sock.DisposeSafe();
             }
         }
 
-        void InternalSocketAccepted(Listener listener, ConnSock sock, AsyncCleanuperLady lady)
+        void InternalSocketAccepted(Listener listener, ConnSock sock)
         {
             try
             {
-                Task t = InternalSocketAcceptedAsync(listener, sock, lady);
+                Task t = InternalSocketAcceptedAsync(listener, sock);
 
-                if (t.IsCompleted)
-                {
-                    lady.DisposeAllSafe();
-                }
-                else
+                if (t.IsCompleted == false)
                 {
                     lock (LockObj)
                         RunningAcceptedTasks.Add(t, sock);
+
                     t.ContinueWith(x =>
                     {
-                        sock.DisposeSafe();
                         lock (LockObj)
                             RunningAcceptedTasks.Remove(t);
                     });
@@ -901,15 +955,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Once DisposeFlag;
-        public void Dispose()
+        protected override void CancelImpl(Exception ex)
         {
-            if (DisposeFlag.IsFirstCall())
-            {
-            }
         }
 
-        public async Task _CleanupInternalAsync()
+        protected override async Task CleanupImplAsync()
         {
             List<Listener> o = new List<Listener>();
             lock (LockObj)
@@ -922,23 +972,23 @@ namespace IPA.Cores.Basic
                 await s._InternalStopAsync().TryWaitAsync();
 
             List<Task> waitTasks = new List<Task>();
-            List<ConnSock> disconnectStubs = new List<ConnSock>();
+            List<ConnSock> allConnectedSocks = new List<ConnSock>();
 
             lock (LockObj)
             {
                 foreach (var v in RunningAcceptedTasks)
                 {
-                    disconnectStubs.Add(v.Value);
+                    allConnectedSocks.Add(v.Value);
                     waitTasks.Add(v.Key);
                 }
                 RunningAcceptedTasks.Clear();
             }
 
-            foreach (var sock in disconnectStubs)
+            foreach (var sock in allConnectedSocks)
             {
                 try
                 {
-                    await sock.AsyncCleanuper;
+                    await sock.CleanupSafeAsync();
                 }
                 catch { }
             }
@@ -949,14 +999,14 @@ namespace IPA.Cores.Basic
             Debug.Assert(CurrentConnections == 0);
         }
 
-        public AsyncCleanuper AsyncCleanuper { get; }
+        protected override void DisposeImpl() { }
     }
 
     class FastPalTcpListener : FastTcpListenerBase
     {
-        public FastPalTcpListener(AsyncCleanuperLady lady, FastTcpListenerAcceptedProcCallback acceptedProc) : base(lady, acceptedProc) { }
+        public FastPalTcpListener(FastTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
 
-        protected internal override FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(AsyncCleanuperLady lady, CancellationToken cancel)
-            => new FastPalTcpProtocolStub(lady, null, null, cancel);
+        protected internal override FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel)
+            => new FastPalTcpProtocolStub(null, null, cancel);
     }
 }

@@ -114,114 +114,97 @@ namespace IPA.Cores.Basic
                     Dbg.Where($"Delete session: {key}");
                 }))
             {
-                AsyncCleanuperLady glady = new AsyncCleanuperLady();
-
-                var listener = System.CreateListener(glady, new TcpListenParam(async (lx, sock) =>
+                var listener = System.CreateListener(new TcpListenParam(async (lx, sock) =>
                 {
-                    AsyncCleanuperLady lady = new AsyncCleanuperLady();
+                    Con.WriteLine($"Connected {sock.Info.Tcp.RemoteIPAddress}:{sock.Info.Tcp.RemotePort} -> {sock.Info.Tcp.LocalIPAddress}:{sock.Info.Tcp.LocalPort}");
+
+                    var app = sock.GetFastAppProtocolStub();
+
+                    var st = app.GetStream();
+
+                    var attachHandle = app.AttachHandle;
+
+                    attachHandle.SetStreamReceiveTimeout(RecvTimeout);
+
+                    await st.SendAsync("TrafficServer\r\n\0".GetBytes_Ascii());
+
+                    ReadOnlyMemoryBuffer<byte> buf = await st.ReceiveAsync(17);
+
+                    SpeedTestDirection dir = buf.ReadBool8() ? SpeedTestDirection.Send : SpeedTestDirection.Recv;
+                    ulong sessionId = 0;
+                    long timespan = 0;
 
                     try
                     {
-                        Con.WriteLine($"Connected {sock.Info.Tcp.RemoteIPAddress}:{sock.Info.Tcp.RemotePort} -> {sock.Info.Tcp.LocalIPAddress}:{sock.Info.Tcp.LocalPort}");
+                        sessionId = buf.ReadUInt64();
+                        timespan = buf.ReadSInt64();
+                    }
+                    catch { }
 
-                        var app = sock.GetFastAppProtocolStub();
+                    long recvEndTick = FastTick64.Now + timespan;
+                    if (timespan == 0) recvEndTick = long.MaxValue;
 
-                        var st = app.GetStream();
-
-                        var attachHandle = app.AttachHandle;
-
-                        attachHandle.SetStreamReceiveTimeout(RecvTimeout);
-
-                        await st.SendAsync("TrafficServer\r\n\0".GetBytes_Ascii());
-
-                        ReadOnlyMemoryBuffer<byte> buf = await st.ReceiveAsync(17);
-
-                        SpeedTestDirection dir = buf.ReadBool8() ? SpeedTestDirection.Send : SpeedTestDirection.Recv;
-                        ulong sessionId = 0;
-                        long timespan = 0;
-
-                        try
+                    using (var session = sessions.Enter(sessionId))
+                    {
+                        using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app.CancelSafe(new TimeoutException())))
                         {
-                            sessionId = buf.ReadUInt64();
-                            timespan = buf.ReadSInt64();
-                        }
-                        catch { }
-
-                        long recvEndTick = FastTick64.Now + timespan;
-                        if (timespan == 0) recvEndTick = long.MaxValue;
-
-                        using (var session = sessions.Enter(sessionId))
-                        {
-                            using (var delay = new DelayAction(lady, (int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app.Disconnect(new TimeoutException())))
+                            if (dir == SpeedTestDirection.Recv)
                             {
-                                if (dir == SpeedTestDirection.Recv)
+                                RefInt refTmp = new RefInt();
+                                long totalSize = 0;
+
+                                while (true)
                                 {
-                                    RefInt refTmp = new RefInt();
-                                    long totalSize = 0;
-
-                                    while (true)
+                                    var ret = await st.FastReceiveAsync(totalRecvSize: refTmp);
+                                    if (ret.Count == 0)
                                     {
-                                        var ret = await st.FastReceiveAsync(totalRecvSize: refTmp);
-                                        if (ret.Count == 0)
-                                        {
-                                            break;
-                                        }
-                                        totalSize += refTmp;
-
-                                        if (ret[0].Span[0] == (byte)'!')
-                                            break;
-
-                                        if (FastTick64.Now >= recvEndTick)
-                                            break;
+                                        break;
                                     }
+                                    totalSize += refTmp;
 
-                                    attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
-                                    attachHandle.SetStreamSendTimeout(60 * 5 * 1000);
+                                    if (ret[0].Span[0] == (byte)'!')
+                                        break;
 
-                                    session.Context.NoMoreData = true;
-
-                                    while (true)
-                                    {
-                                        MemoryBuffer<byte> sendBuf = new MemoryBuffer<byte>();
-                                        sendBuf.WriteSInt64(totalSize);
-
-                                        await st.SendAsync(sendBuf);
-
-                                        await Task.Delay(100);
-                                    }
+                                    if (FastTick64.Now >= recvEndTick)
+                                        break;
                                 }
-                                else
+
+                                attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
+                                attachHandle.SetStreamSendTimeout(60 * 5 * 1000);
+
+                                session.Context.NoMoreData = true;
+
+                                while (true)
                                 {
-                                    attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
-                                    attachHandle.SetStreamSendTimeout(Timeout.Infinite);
+                                    MemoryBuffer<byte> sendBuf = new MemoryBuffer<byte>();
+                                    sendBuf.WriteSInt64(totalSize);
 
-                                    while (true)
+                                    await st.SendAsync(sendBuf);
+
+                                    await Task.Delay(100);
+                                }
+                            }
+                            else
+                            {
+                                attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
+                                attachHandle.SetStreamSendTimeout(Timeout.Infinite);
+
+                                while (true)
+                                {
+                                    if (sessionId == 0 || session.Context.NoMoreData == false)
                                     {
-                                        if (sessionId == 0 || session.Context.NoMoreData == false)
-                                        {
-                                            await st.SendAsync(SendData);
-                                        }
-                                        else
-                                        {
-                                            var recvMemory = await st.ReceiveAsync();
+                                        await st.SendAsync(SendData);
+                                    }
+                                    else
+                                    {
+                                        var recvMemory = await st.ReceiveAsync();
 
-                                            if (recvMemory.Length == 0)
-                                                break;
-                                        }
+                                        if (recvMemory.Length == 0)
+                                            break;
                                     }
                                 }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Con.WriteLine(ex.GetSingleException().Message);
-                    }
-                    finally
-                    {
-                        Dbg.Where();
-                        await lady;
-                        Dbg.Where();
                     }
                 },
                 this.ServerPorts));
@@ -234,7 +217,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    await glady;
+
                 }
             }
         }
@@ -313,107 +296,96 @@ namespace IPA.Cores.Basic
             List<Task<Result>> tasks = new List<Task<Result>>();
             List<AsyncManualResetEvent> readyEvents = new List<AsyncManualResetEvent>();
 
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
-            try
+            using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
             {
-
-                using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
+                for (int i = 0; i < NumConnection; i++)
                 {
-                    for (int i = 0; i < NumConnection; i++)
-                    {
-                        SpeedTestDirection dir;
-                        if (Mode == SpeedTestModeFlag.Download)
-                            dir = SpeedTestDirection.Recv;
-                        else if (Mode == SpeedTestModeFlag.Upload)
-                            dir = SpeedTestDirection.Send;
-                        else
-                            dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
+                    SpeedTestDirection dir;
+                    if (Mode == SpeedTestModeFlag.Download)
+                        dir = SpeedTestDirection.Recv;
+                    else if (Mode == SpeedTestModeFlag.Upload)
+                        dir = SpeedTestDirection.Send;
+                    else
+                        dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
 
-                        AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
-                        var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
-                        ExceptionQueue.RegisterWatchedTask(t);
-                        tasks.Add(t);
-                        readyEvents.Add(readyEvent);
+                    AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
+                    var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
+                    ExceptionQueue.RegisterWatchedTask(t);
+                    tasks.Add(t);
+                    readyEvents.Add(readyEvent);
+                }
+
+                try
+                {
+                    using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
+                    {
+                        await TaskUtil.WaitObjectsAsync(
+                            tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
+                            cancels: cancelWatcher.CancelToken.SingleArray(),
+                            manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
                     }
 
-                    try
-                    {
-                        using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
-                        {
-                            await TaskUtil.WaitObjectsAsync(
-                                tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
-                                cancels: cancelWatcher.CancelToken.SingleArray(),
-                                manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
-                        }
+                    Cancel.ThrowIfCancellationRequested();
+                    ExceptionQueue.ThrowFirstExceptionIfExists();
 
-                        Cancel.ThrowIfCancellationRequested();
-                        ExceptionQueue.ThrowFirstExceptionIfExists();
-
-                        ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
-                        {
-                            cancelWatcher.Cancel();
-                        });
-
-                        using (new DelayAction(lady, TimeSpan * 3 + 180 * 1000, x =>
-                        {
-                            cancelWatcher.Cancel();
-                        }))
-                        {
-                            ClientStartEvent.Set(true);
-
-                            using (var whenAllCompleted = new WhenAll(tasks))
-                            {
-                                await TaskUtil.WaitObjectsAsync(
-                                    tasks: whenAllCompleted.WaitMe.SingleArray(),
-                                    cancels: cancelWatcher.CancelToken.SingleArray()
-                                    );
-
-                                await whenAllCompleted.WaitMe;
-                            }
-                        }
-
-                        Result ret = new Result();
-
-                        ret.Span = TimeSpan;
-
-                        foreach (var r in tasks.Select(x => x.GetResult()))
-                        {
-                            ret.NumBytesDownload += r.NumBytesDownload;
-                            ret.NumBytesUpload += r.NumBytesUpload;
-                        }
-
-                        ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
-
-                        ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                        ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                        ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
-
-                        return ret;
-                    }
-                    catch (Exception ex)
-                    {
-                        await Task.Yield();
-                        ExceptionQueue.Add(ex);
-                    }
-                    finally
+                    ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
                     {
                         cancelWatcher.Cancel();
-                        try
+                    });
+
+                    using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
+                    {
+                        cancelWatcher.Cancel();
+                    }))
+                    {
+                        ClientStartEvent.Set(true);
+
+                        using (var whenAllCompleted = new WhenAll(tasks))
                         {
-                            await Task.WhenAll(tasks);
+                            await TaskUtil.WaitObjectsAsync(
+                                tasks: whenAllCompleted.WaitMe.SingleArray(),
+                                cancels: cancelWatcher.CancelToken.SingleArray()
+                                );
+
+                            await whenAllCompleted.WaitMe;
                         }
-                        catch { }
                     }
 
-                    ExceptionQueue.ThrowFirstExceptionIfExists();
-                }
-            }
-            finally
-            {
-                await lady;
-            }
+                    Result ret = new Result();
 
-            Dbg.Where();
+                    ret.Span = TimeSpan;
+
+                    foreach (var r in tasks.Select(x => x.GetResult()))
+                    {
+                        ret.NumBytesDownload += r.NumBytesDownload;
+                        ret.NumBytesUpload += r.NumBytesUpload;
+                    }
+
+                    ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
+
+                    ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                    ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                    ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
+
+                    return ret;
+                }
+                catch (Exception ex)
+                {
+                    await Task.Yield();
+                    ExceptionQueue.Add(ex);
+                }
+                finally
+                {
+                    cancelWatcher.Cancel();
+                    try
+                    {
+                        await Task.WhenAll(tasks);
+                    }
+                    catch { }
+                }
+
+                ExceptionQueue.ThrowFirstExceptionIfExists();
+            }
 
             return null;
         }
@@ -421,130 +393,125 @@ namespace IPA.Cores.Basic
         async Task<Result> ClientSingleConnectionAsync(SpeedTestDirection dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
         {
             Result ret = new Result();
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
-            try
-            {
-                FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
 
+            using (FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(cancel: cancel))
+            {
                 await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                NetworkSock sock = new NetworkSock(lady, tcp);
-
-                FastAppStub app = sock.GetFastAppProtocolStub();
-
-                FastAttachHandle attachHandle = app.AttachHandle;
-
-                FastPipeEndStream st = app.GetStream();
-
-                if (dir == SpeedTestDirection.Recv)
-                    app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
-
-                try
+                using (NetworkSock sock = new NetworkSock(tcp))
                 {
-                    var hello = await st.ReceiveAllAsync(16);
+                    FastAppStub app = sock.GetFastAppProtocolStub();
 
-                    if (hello.Span.ToArray().GetString_Ascii().StartsWith("TrafficServer\r\n") == false)
-                        throw new ApplicationException("Target server is not a Traffic Server.");
+                    FastAttachHandle attachHandle = app.AttachHandle;
 
-                    //throw new ApplicationException("aaaa" + dir.ToString());
-
-                    fireMeWhenReady.Set();
-
-                    cancel.ThrowIfCancellationRequested();
-
-                    await TaskUtil.WaitObjectsAsync(
-                        manualEvents: ClientStartEvent.SingleArray(),
-                        cancels: cancel.SingleArray()
-                        );
-
-                    long tickStart = FastTick64.Now;
-                    long tickEnd = tickStart + this.TimeSpan;
-
-                    var sendData = new MemoryBuffer<byte>();
-                    sendData.WriteBool8(dir == SpeedTestDirection.Recv);
-                    sendData.WriteUInt64(SessionId);
-                    sendData.WriteSInt64(TimeSpan);
-
-                    await st.SendAsync(sendData);
+                    FastPipeEndStream st = app.GetStream();
 
                     if (dir == SpeedTestDirection.Recv)
+                        app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
+
+                    try
                     {
-                        RefInt totalRecvSize = new RefInt();
-                        while (true)
+                        var hello = await st.ReceiveAllAsync(16);
+
+                        if (hello.Span.ToArray().GetString_Ascii().StartsWith("TrafficServer\r\n") == false)
+                            throw new ApplicationException("Target server is not a Traffic Server.");
+
+                        //throw new ApplicationException("aaaa" + dir.ToString());
+
+                        fireMeWhenReady.Set();
+
+                        cancel.ThrowIfCancellationRequested();
+
+                        await TaskUtil.WaitObjectsAsync(
+                            manualEvents: ClientStartEvent.SingleArray(),
+                            cancels: cancel.SingleArray()
+                            );
+
+                        long tickStart = FastTick64.Now;
+                        long tickEnd = tickStart + this.TimeSpan;
+
+                        var sendData = new MemoryBuffer<byte>();
+                        sendData.WriteBool8(dir == SpeedTestDirection.Recv);
+                        sendData.WriteUInt64(SessionId);
+                        sendData.WriteSInt64(TimeSpan);
+
+                        await st.SendAsync(sendData);
+
+                        if (dir == SpeedTestDirection.Recv)
                         {
-                            long now = FastTick64.Now;
-
-                            if (now >= tickEnd)
-                                break;
-
-                            await TaskUtil.WaitObjectsAsync(
-                                tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize).SingleArray(),
-                                timeout: (int)(tickEnd - now),
-                                exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);
-
-                            ret.NumBytesDownload += totalRecvSize;
-                        }
-                    }
-                    else
-                    {
-                        attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
-
-                        while (true)
-                        {
-                            long now = FastTick64.Now;
-
-                            if (now >= tickEnd)
-                                break;
-
-                            /*await WebSocketHelper.WaitObjectsAsync(
-                                tasks: st.FastSendAsync(SendData, flush: true).ToSingleArray(),
-                                timeout: (int)(tick_end - now),
-                                exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);*/
-
-                            await st.FastSendAsync(SendData, flush: true);
-                        }
-
-                        Task recvResult = Task.Run(async () =>
-                        {
-                            var recvMemory = await st.ReceiveAllAsync(8);
-
-                            MemoryBuffer<byte> recvMemoryBuf = recvMemory;
-                            ret.NumBytesUpload = recvMemoryBuf.ReadSInt64();
-
-                            st.Disconnect();
-                        });
-
-                        Task sendSurprise = Task.Run(async () =>
-                        {
-                            byte[] surprise = new byte[260];
-                            surprise.AsSpan().Fill((byte)'!');
+                            RefInt totalRecvSize = new RefInt();
                             while (true)
                             {
-                                await st.SendAsync(surprise);
+                                long now = FastTick64.Now;
+
+                                if (now >= tickEnd)
+                                    break;
 
                                 await TaskUtil.WaitObjectsAsync(
-                                    manualEvents: sock.Pipe.OnDisconnectedEvent.SingleArray(),
-                                    timeout: 200);
+                                    tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize).SingleArray(),
+                                    timeout: (int)(tickEnd - now),
+                                    exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);
+
+                                ret.NumBytesDownload += totalRecvSize;
                             }
-                        });
+                        }
+                        else
+                        {
+                            attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
 
-                        await WhenAll.Await(false, recvResult, sendSurprise);
+                            while (true)
+                            {
+                                long now = FastTick64.Now;
 
-                        await recvResult;
+                                if (now >= tickEnd)
+                                    break;
+
+                                /*await WebSocketHelper.WaitObjectsAsync(
+                                    tasks: st.FastSendAsync(SendData, flush: true).ToSingleArray(),
+                                    timeout: (int)(tick_end - now),
+                                    exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);*/
+
+                                await st.FastSendAsync(SendData, flush: true);
+                            }
+
+                            Task recvResult = Task.Run(async () =>
+                            {
+                                var recvMemory = await st.ReceiveAllAsync(8);
+
+                                MemoryBuffer<byte> recvMemoryBuf = recvMemory;
+                                ret.NumBytesUpload = recvMemoryBuf.ReadSInt64();
+
+                                st.Disconnect();
+                            });
+
+                            Task sendSurprise = Task.Run(async () =>
+                            {
+                                byte[] surprise = new byte[260];
+                                surprise.AsSpan().Fill((byte)'!');
+                                while (true)
+                                {
+                                    await st.SendAsync(surprise);
+
+                                    await TaskUtil.WaitObjectsAsync(
+                                        manualEvents: sock.Pipe.OnDisconnectedEvent.SingleArray(),
+                                        timeout: 200);
+                                }
+                            });
+
+                            await WhenAll.Await(false, recvResult, sendSurprise);
+
+                            await recvResult;
+                        }
+
+                        st.Disconnect();
+                        return ret;
                     }
-
-                    st.Disconnect();
-                    return ret;
+                    catch (Exception ex)
+                    {
+                        ExceptionQueue.Add(ex);
+                        throw;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    ExceptionQueue.Add(ex);
-                    throw;
-                }
-            }
-            finally
-            {
-                await lady;
             }
         }
     }

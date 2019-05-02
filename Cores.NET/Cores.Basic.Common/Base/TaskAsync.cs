@@ -1194,23 +1194,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class AsyncCleanuperLadyHelper
-    {
-        public static T AddToLady<T>(this T obj, AsyncCleanuperLady lady) where T : IDisposable
-        {
-            if (obj == null || lady == null) return obj;
-            lady.Add(obj);
-            return obj;
-        }
-
-        public static T AddToLady<T>(this T obj, AsyncCleanupable cleanupable) where T : IDisposable
-        {
-            if (obj == null || cleanupable == null) return obj;
-            cleanupable.Lady.Add(obj);
-            return obj;
-        }
-    }
-
     class AsyncCleanuperLady : IDisposable
     {
         static volatile int IdSeed;
@@ -1345,112 +1328,169 @@ namespace IPA.Cores.Basic
         Task _CleanupInternalAsync();
     }
 
-    abstract class AsyncCleanupableCancellable : AsyncCleanupable
+    interface IAsyncService : IDisposable
     {
-        public CancelWatcher CancelWatcher { get; }
+        Task CleanupAsync(Exception ex = null);
+        Task DisposeWithCleanupAsync(Exception ex = null);
+        void Cancel(Exception ex = null);
+        void Dispose(Exception ex = null);
+    }
 
+    abstract class AsyncService : IAsyncService
+    {
+        static GlobalInitializer gInit = new GlobalInitializer();
+
+        public CancelWatcher CancelWatcher { get; }
         public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
 
-        protected readonly RefInt CriticalCounter = new RefInt();
+        readonly RefInt CriticalCounter = new RefInt();
 
-        public AsyncCleanupableCancellable(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady)
+        readonly List<Action> OnDisposeList = new List<Action>();
+
+        CriticalSection LockObj = new CriticalSection();
+
+        public AsyncService(CancellationToken cancel = default)
         {
-            try
+            this.CancelWatcher = new CancelWatcher(cancel);
+
+            this.CancelWatcher.EventList.RegisterCallback(CanceledCallback);
+        }
+
+        public void AddOnDispose(Action proc)
+        {
+            if (proc != null)
             {
-                CancelWatcher = new CancelWatcher(cancel);
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
+                lock (LockObj)
+                    this.OnDisposeList.Add(proc);
             }
         }
 
         protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
             => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel.SingleArray().Concat(cancels).ToArray());
 
-        public Holder EnterCriticalCounter()
+        protected Holder EnterCriticalCounter()
         {
             Holder ret = TaskUtil.EnterCriticalCounter(CriticalCounter);
-            if (DisposeFlag)
-            {
-                ret.DisposeSafe();
-                throw new ObjectDisposedException($"The instance \"{this.ToString()}\" is already disposed.");
-            }
-            return ret;
-        }
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
             try
             {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.CancelWatcher.DisposeSafe();
+                CheckNotCanceled();
+
+                return ret;
             }
-            finally { base.Dispose(disposing); }
+            catch
+            {
+                ret.DisposeSafe();
+                throw;
+            }
         }
-    }
 
-    abstract class AsyncCleanupable : IAsyncCleanupable
-    {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        bool IsCanceledPrivateFlag = false;
+        public bool IsCanceled => (IsCanceledPrivateFlag || this.GrandCancel.IsCancellationRequested);
 
-        public AsyncCleanuper AsyncCleanuper { get; }
-        protected internal AsyncCleanuperLady Lady;
-
-        CriticalSection LockObj = new CriticalSection();
-
-        Stack<Action> OnDisposeStack = new Stack<Action>();
-
-        public AsyncCleanupable(AsyncCleanuperLady lady)
+        protected void CheckNotCanceled()
         {
-            if (lady == null)
-                throw new ArgumentNullException("lady == null");
+            if (this.IsCanceled)
+                throw CancelReason;
+        }
 
-            Lady = lady;
-            this.AsyncCleanuper = new AsyncCleanuper(this);
-            Lady.Add(this);
+        Exception CancelReason = new OperationCanceledException();
+
+        Once Canceled;
+        public void Cancel(Exception ex = null)
+        {
+            if (Canceled.IsFirstCall() == false) return;
+
+            if (ex != null)
+                CancelReason = ex;
+
+            this.CancelWatcher.Cancel();
+
+            CancelInternalMain();
+        }
+
+        protected abstract void CancelImpl(Exception ex);
+        protected abstract Task CleanupImplAsync();
+        protected abstract void DisposeImpl();
+
+        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object userState)
+            => CancelInternalMain();
+
+        Once CanceledInternal;
+        void CancelInternalMain()
+        {
+            IsCanceledPrivateFlag = true;
+
+            if (CanceledInternal.IsFirstCall())
+            {
+                try
+                {
+                    CancelImpl(CancelReason);
+                }
+                catch (Exception ex)
+                {
+                    Dbg.WriteLine("CancelInternal exception: " + ex.GetSingleException().ToString());
+                }
+            }
+        }
+
+        Once Cleanuped;
+        public async Task CleanupAsync(Exception ex = null)
+        {
+            IsCanceledPrivateFlag = true;
+
+            Cancel(ex);
+
+            if (Cleanuped.IsFirstCall())
+            {
+                while (CriticalCounter.Value >= 1)
+                    await Task.Delay(10);
+
+                await CleanupImplAsync().TryWaitAsync();
+            }
         }
 
         Once DisposeFlag;
-        public void Dispose() => Dispose(true);
-        protected virtual void Dispose(bool disposing)
+        public void Dispose() => Dispose(null);
+        public void Dispose(Exception ex)
         {
-            if (disposing && DisposeFlag.IsFirstCall())
+            IsCanceledPrivateFlag = true;
+
+            if (DisposeFlag.IsFirstCall())
             {
-                Action[] actions;
+                CleanupAsync(ex).TryGetResult();
+                try
+                {
+                    DisposeImpl();
+                }
+                catch (Exception ex2)
+                {
+                    Dbg.WriteLine("Dispose exception: " + ex2.GetSingleException().ToString());
+                }
+
+                Action[] procList = null;
 
                 lock (LockObj)
                 {
-                    actions = OnDisposeStack.ToArray();
+                    procList = OnDisposeList.ToArray();
+                    OnDisposeList.Clear();
                 }
 
-                foreach (var action in actions)
+                foreach (Action proc in procList)
                 {
                     try
                     {
-                        action();
+                        proc();
                     }
                     catch { }
                 }
-
-                Lady.DisposeAllSafe();
             }
         }
 
-        public virtual async Task _CleanupInternalAsync()
+        public async Task DisposeWithCleanupAsync(Exception ex = null)
         {
-            this.DisposeSafe();
-
-            await Lady;
-        }
-
-        public void AddOnDispose(Action action)
-        {
-            if (action != null)
-                lock (LockObj)
-                    OnDisposeStack.Push(action);
+            this.CancelSafe(ex);
+            await this.CleanupSafeAsync(ex);
+            this.DisposeSafe(ex);
         }
     }
 
@@ -1860,7 +1900,7 @@ namespace IPA.Cores.Basic
         public void Cancel()
         {
             if (CancelFlag.IsFirstCall())
-                this.GrandCancelTokenSource.TryCancelNoBlock();
+                this.GrandCancelTokenSource.TryCancel();
         }
 
         public void Dispose() => Dispose(true);
@@ -1879,9 +1919,9 @@ namespace IPA.Cores.Basic
 
     delegate bool TimeoutDetectorCallback(TimeoutDetector detector);
 
-    class TimeoutDetector : AsyncCleanupable
+    class TimeoutDetector : AsyncService
     {
-        Task mainLoop;
+        Task MainTask;
 
         CriticalSection LockObj = new CriticalSection();
 
@@ -1894,38 +1934,31 @@ namespace IPA.Cores.Basic
         AsyncAutoResetEvent eventAuto;
         AsyncManualResetEvent eventManual;
 
-        CancellationTokenSource halt = new CancellationTokenSource();
-
-        CancelWatcher cancelWatcher;
-
-        CancellationTokenSource cts = new CancellationTokenSource();
-        public CancellationToken Cancel { get => cts.Token; }
-        public Task TaskWaitMe { get => this.mainLoop; }
-
         public object UserState { get; }
 
         public bool TimedOut { get; private set; } = false;
 
+        CancelWatcher cancelWatcherToCancel;
+
         TimeoutDetectorCallback Callback;
 
-        public TimeoutDetector(AsyncCleanuperLady lady, int timeout, CancelWatcher watcher = null, AsyncAutoResetEvent eventAuto = null, AsyncManualResetEvent eventManual = null,
+        public TimeoutDetector(int timeout, CancelWatcher watcher = null, AsyncAutoResetEvent eventAuto = null, AsyncManualResetEvent eventManual = null,
             TimeoutDetectorCallback callback = null, object userState = null)
-            : base(lady)
         {
             if (timeout == System.Threading.Timeout.Infinite || timeout == int.MaxValue)
             {
                 return;
             }
 
+            this.cancelWatcherToCancel = watcher;
             this.Timeout = timeout;
-            this.cancelWatcher = watcher.AddToLady(this);
             this.eventAuto = eventAuto;
             this.eventManual = eventManual;
             this.Callback = callback;
             this.UserState = userState;
 
             NextTimeout = FastTick64.Now + this.Timeout;
-            mainLoop = TimeoutDetectorMainLoop().AddToLady(this);
+            MainTask = TimeoutDetectorMainLoop();
         }
 
         public void Keep()
@@ -1957,11 +1990,9 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    if (this.TimedOut || halt.IsCancellationRequested)
+                    if (this.TimedOut || this.GrandCancel.IsCancellationRequested)
                     {
-                        cts.TryCancelAsync().LaissezFaire();
-
-                        if (this.cancelWatcher != null) this.cancelWatcher.Cancel();
+                        if (this.cancelWatcherToCancel != null) this.cancelWatcherToCancel.Cancel();
                         if (this.eventAuto != null) this.eventAuto.Set();
                         if (this.eventManual != null) this.eventManual.Set();
 
@@ -1971,24 +2002,21 @@ namespace IPA.Cores.Basic
                     {
                         await TaskUtil.WaitObjectsAsync(
                             events: new AsyncAutoResetEvent[] { ev },
-                            cancels: new CancellationToken[] { halt.Token },
+                            cancels: new CancellationToken[] { this.GrandCancel },
                             timeout: (int)remainTime);
                     }
                 }
             }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                cancelWatcher.DisposeSafe();
-                halt.TryCancelAsync().LaissezFaire();
-            }
-            finally { base.Dispose(disposing); }
+            await MainTask;
         }
+
+        protected override void DisposeImpl() { }
     }
 
     [Flags]
@@ -2341,7 +2369,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DelayAction : AsyncCleanupable
+    class DelayAction : AsyncService
     {
         public Action<object> Action { get; }
         public object UserState { get; }
@@ -2351,14 +2379,10 @@ namespace IPA.Cores.Basic
 
         public bool IsCompleted = false;
         public bool IsCompletedSuccessfully = false;
-        public bool IsCanceled = false;
 
         public Exception Exception { get; private set; } = null;
 
-        CancellationTokenSource CancelSource = new CancellationTokenSource();
-
-        public DelayAction(AsyncCleanuperLady lady, int timeout, Action<object> action, object userState = null)
-            : base(lady)
+        public DelayAction(int timeout, Action<object> action, object userState = null)
         {
             if (timeout < 0 || timeout == int.MaxValue) timeout = System.Threading.Timeout.Infinite;
 
@@ -2366,7 +2390,7 @@ namespace IPA.Cores.Basic
             this.Action = action;
             this.UserState = userState;
 
-            this.MainTask = MainTaskProc().AddToLady(this);
+            this.MainTask = MainTaskProc();
         }
 
         void InternalInvokeAction()
@@ -2394,7 +2418,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     await TaskUtil.WaitObjectsAsync(timeout: this.Timeout,
-                        cancels: CancelSource.Token.SingleArray(),
+                        cancels: this.GrandCancel.SingleArray(),
                         exceptions: ExceptionWhen.CancelException);
 
                     InternalInvokeAction();
@@ -2402,7 +2426,6 @@ namespace IPA.Cores.Basic
                 catch
                 {
                     IsCompleted = true;
-                    IsCanceled = true;
                     IsCompletedSuccessfully = false;
                 }
             }
@@ -2410,16 +2433,14 @@ namespace IPA.Cores.Basic
 
         public void Cancel() => Dispose();
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                CancelSource.Cancel();
-            }
-            finally { base.Dispose(disposing); }
+            await this.MainTask;
         }
+
+        protected override void DisposeImpl() { }
     }
 
     struct ValueOrClosed<T>
@@ -3455,23 +3476,23 @@ namespace IPA.Cores.Basic
         public static void Set(string name, object obj) => AsyncLocalObj.Value.Set(name, obj);
     }
 
-    class AsyncOneShotTester : AsyncCleanupable
+    class AsyncOneShotTester : AsyncService
     {
         Task t = null;
-        public AsyncOneShotTester(AsyncCleanuperLady lady, Func<Task> Proc) : base(lady)
+        public AsyncOneShotTester(Func<Task> Proc)
         {
             t = Proc();
             t.TryWaitAsync(false).LaissezFaire();
         }
 
-        public override async Task _CleanupInternalAsync()
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                await t;
-            }
-            finally { await base._CleanupInternalAsync(); }
+            await t;
         }
+
+        protected override void DisposeImpl() { }
     }
 
     class AsyncTester : IDisposable

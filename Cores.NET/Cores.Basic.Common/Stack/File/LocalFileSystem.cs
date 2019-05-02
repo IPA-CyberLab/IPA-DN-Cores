@@ -70,7 +70,7 @@ namespace IPA.Cores.Basic
         static LocalFileSystem CreateFirstLocalInstance()
         {
             if (_LocalSingletonInstance == null)
-                _LocalSingletonInstance = new LocalFileSystem(LeakChecker.SuperGrandLady);
+                _LocalSingletonInstance = new LocalFileSystem();
 
             return _LocalSingletonInstance;
         }
@@ -79,12 +79,12 @@ namespace IPA.Cores.Basic
         static AutoUtf8BomViewFileSystem CreateFirstAutoUtf8Instance()
         {
             if (_AutoUtf8SingletonInstance == null)
-                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(LeakChecker.SuperGrandLady, new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
+                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
 
             return _AutoUtf8SingletonInstance;
         }
 
-        private LocalFileSystem(AsyncCleanuperLady lady) : base(lady, new FileSystemParams(Env.LocalFileSystemPathInterpreter))
+        private LocalFileSystem() : base(new FileSystemParams(Env.LocalFileSystemPathInterpreter))
         {
         }
 

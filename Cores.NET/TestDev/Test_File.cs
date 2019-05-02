@@ -67,8 +67,7 @@ namespace IPA.TestDev
             string dst4 = @"D:\tmp\190428\test3\";
             for (int i = 0; i < 1; i++)
             {
-                var lady = new AsyncCleanuperLady();
-                using (var ramfs = new VirtualFileSystem(lady, new VirtualFileSystemParams()))
+                using (var ramfs = new VirtualFileSystem(new VirtualFileSystemParams()))
                 {
                     //Lfs.CopyDir(src1, dst1);
 
@@ -78,7 +77,6 @@ namespace IPA.TestDev
 
                     ramfs.CopyDir(dst3, dst4, Lfs);
                 }
-                lady.CleanupAsync().GetResult();
             }
 
             return 0;

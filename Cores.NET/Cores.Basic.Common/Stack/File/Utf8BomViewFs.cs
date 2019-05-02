@@ -155,7 +155,7 @@ namespace IPA.Cores.Basic
     {
         public static readonly ReadOnlyMemory<byte> Utf8Bom = Str.BOM_UTF_8;
 
-        public AutoUtf8BomViewFileSystem(AsyncCleanuperLady lady, AutoUtf8BomViewFileSystemParam param) : base(lady, param)
+        public AutoUtf8BomViewFileSystem(AutoUtf8BomViewFileSystemParam param) : base(param)
         {
         }
 

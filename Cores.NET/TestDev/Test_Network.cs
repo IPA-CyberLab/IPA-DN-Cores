@@ -102,11 +102,9 @@ namespace IPA.TestDev
 
         static void Net_Test9_WebServer()
         {
-            using (var lady = new AsyncCleanuperLady())
+            var cfg = new HttpServerBuilderConfig();
+            using (HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello"))
             {
-                var cfg = new HttpServerBuilderConfig();
-                HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello", lady);
-
                 Con.ReadLine(">");
             }
         }
@@ -251,9 +249,7 @@ namespace IPA.TestDev
 
         static void Net_Test3_PlainTcp_Server()
         {
-            using (AsyncCleanuperLady lady = new AsyncCleanuperLady())
-            {
-                var listener = LocalNet.CreateListener(lady, new TcpListenParam(
+            using (var listener = LocalNet.CreateListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
                         var stream = sock.GetStream().NetworkStream;
@@ -265,8 +261,8 @@ namespace IPA.TestDev
                             await Task.Delay(100);
                         }
                     },
-                    9821));
-
+                    9821)))
+            {
                 Con.ReadLine(">");
             }
         }
@@ -308,8 +304,6 @@ namespace IPA.TestDev
 
                         Con.WriteLine(s);
                     }
-
-                    sock.Disconnect();
                 }
             }
         }
@@ -341,8 +335,6 @@ namespace IPA.TestDev
 
                         Con.WriteLine(s);
                     }
-
-                    sock.Disconnect();
                 }
             }
         }

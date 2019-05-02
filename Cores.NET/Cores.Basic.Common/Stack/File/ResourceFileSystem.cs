@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
 
         public new ResourceFileSystemParam Params => (ResourceFileSystemParam)base.Params;
 
-        public ResourceFileSystem(ResourceFileSystemParam param) : base(new AsyncCleanuperLady(), param)
+        public ResourceFileSystem(ResourceFileSystemParam param) : base(param)
         {
             this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
 

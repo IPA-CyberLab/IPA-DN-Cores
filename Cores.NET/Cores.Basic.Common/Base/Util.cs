@@ -3795,7 +3795,7 @@ namespace IPA.Cores.Basic
         All = 0x7fffffff,
     }
 
-    class StatisticsReporter<T> : AsyncCleanupableCancellable
+    class StatisticsReporter<T> : AsyncService
         where T: class
     {
         public readonly T CurrentValues;
@@ -3814,7 +3814,7 @@ namespace IPA.Cores.Basic
 
         readonly StatisticsReporterLogTypes LogTypes;
 
-        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, AsyncCleanuperLady lady, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(lady, default)
+        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(default)
         {
             this.Interval = interval;
             this.LogTypes = logTypes;
@@ -3851,7 +3851,6 @@ namespace IPA.Cores.Basic
                 double timeDiff = nowTime - prevTime;
                 prevTime = nowTime;
 
-
                 try
                 {
                     T snapshot = this.ReaderWriter.CreateClone(this.CurrentValues);
@@ -3883,17 +3882,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.CancelWatcher.Cancel();
-                this.MainLoopTask.TryWait(true);
-            }
-            finally { base.Dispose(disposing); }
+            await this.MainLoopTask;
         }
+
+        protected override void DisposeImpl() { }
     }
 
 

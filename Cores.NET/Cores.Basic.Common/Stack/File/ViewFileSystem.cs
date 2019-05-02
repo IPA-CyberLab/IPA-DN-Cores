@@ -101,7 +101,7 @@ namespace IPA.Cores.Basic
         public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
         protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
 
-        public ViewFileSystem(AsyncCleanuperLady lady, ViewFileSystemParams param) : base(lady, param)
+        public ViewFileSystem(ViewFileSystemParams param) : base(param)
         {
         }
 

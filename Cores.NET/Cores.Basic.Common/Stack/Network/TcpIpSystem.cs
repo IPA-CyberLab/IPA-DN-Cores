@@ -264,21 +264,11 @@ namespace IPA.Cores.Basic
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
-        protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel);
+        protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
-        protected abstract FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param);
+        protected abstract FastTcpListenerBase CreateListenerImpl(TcpListenParam param);
 
-        public TcpIpSystem(AsyncCleanuperLady lady, TcpIpSystemParam param) : base(lady, param)
-        {
-            try
-            {
-            }
-            catch
-            {
-                Lady.DisposeSafe();
-                throw;
-            }
-        }
+        public TcpIpSystem(TcpIpSystemParam param) : base(param) { }
 
         public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
 
@@ -294,11 +284,11 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(lady, param, this.GrandCancel);
+                        FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel);
 
                         await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout, opCancel);
 
-                        ConnSock sock = new ConnSock(lady, tcp);
+                        ConnSock sock = new ConnSock(tcp);
 
                         this.AddToOpenedSockList(sock);
 
@@ -317,13 +307,13 @@ namespace IPA.Cores.Basic
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel).GetResult();
 
-        public FastTcpListenerBase CreateListener(AsyncCleanuperLady lady, TcpListenParam param)
+        public FastTcpListenerBase CreateListener(TcpListenParam param)
         {
             var hostInfo = GetHostInfo();
 
             using (EnterCriticalCounter())
             {
-                FastTcpListenerBase ret = CreateListenerImpl(lady, param);
+                FastTcpListenerBase ret = CreateListenerImpl(param);
 
                 foreach (int port in param.PortsList)
                 {

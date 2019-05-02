@@ -101,7 +101,6 @@ namespace IPA.Cores.Basic
             this.Server = server;
         }
 
-        AsyncCleanuperLady ListenerCleanupLady = null;
         FastTcpListenerBase Listener = null;
 
         public Task BindAsync()
@@ -111,9 +110,7 @@ namespace IPA.Cores.Basic
                 if (Listener != null)
                     throw new ApplicationException("Listener is already bound.");
 
-                ListenerCleanupLady = new AsyncCleanuperLady();
-
-                this.Listener = this.Server.Options.TcpIpSystem.CreateListener(ListenerCleanupLady, new TcpListenParam(ListenerAcceptProcAsync, _endPointInformation.IPEndPoint.Port));
+                this.Listener = this.Server.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerAcceptProcAsync, _endPointInformation.IPEndPoint.Port));
 
                 return Task.CompletedTask;
             }
@@ -135,7 +132,7 @@ namespace IPA.Cores.Basic
             {
                 if (Listener != null)
                 {
-                    await ListenerCleanupLady;
+                    await Listener.CleanupSafeAsync();
                     Listener.DisposeSafe();
                     Listener = null;
                 }
@@ -152,6 +149,7 @@ namespace IPA.Cores.Basic
             try
             {
                 var connection = new KestrelStackConnection(newSock, this.PipeScheduler);
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
@@ -254,7 +252,8 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HttpServerWithStackListener : AsyncCleanupableCancellable
+#if false
+    class HttpServerWithStackListener : AsyncService
     {
         // Type builders
         static readonly InternalOverrideClassTypeBuilder listenOptionsBuilder = new InternalOverrideClassTypeBuilder(typeof(ListenOptions));
@@ -375,4 +374,6 @@ namespace IPA.Cores.Basic
             });
         }
     }
+#endif
+
 }

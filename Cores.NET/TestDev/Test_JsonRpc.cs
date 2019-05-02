@@ -22,9 +22,6 @@ namespace IPA.TestDev
 
         public static void jsonrpc_client_server_both_test()
         {
-            AsyncCleanuperLady lady = new AsyncCleanuperLady();
-            try
-            {
                 //jsonrpc_server_invoke_test().Wait();return;
 
                 // start server
@@ -35,9 +32,10 @@ namespace IPA.TestDev
                 JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
                 {
                 };
-                rpc_server_api_test h = new rpc_server_api_test(lady);
-                var s = JsonRpcHttpServerBuilder.StartServer(http_cfg, rpc_cfg, h, lady);
 
+            using (RpcServerApiTest h = new RpcServerApiTest())
+            using (var s = JsonRpcHttpServerBuilder.StartServer(http_cfg, rpc_cfg, h))
+            {
                 Ref<bool> client_stop_flag = new Ref<bool>();
 
                 // start client
@@ -98,11 +96,6 @@ namespace IPA.TestDev
                 client_stop_flag.Set(true);
 
                 client_thread.WaitForEnd();
-
-            }
-            finally
-            {
-                lady.CleanupAsync().GetResult();
             }
         }
     }
@@ -130,9 +123,9 @@ namespace IPA.TestDev
         Task<string> Test7(string[] p);
     }
 
-    class rpc_server_api_test : JsonRpcServerApi, rpc_server_api_interface_test
+    class RpcServerApiTest : JsonRpcServerApi, rpc_server_api_interface_test
     {
-        public rpc_server_api_test(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public RpcServerApiTest(CancellationToken cancel = default) : base(cancel)
         {
         }
 

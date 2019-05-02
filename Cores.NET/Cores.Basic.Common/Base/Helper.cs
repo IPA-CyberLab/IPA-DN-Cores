@@ -491,6 +491,15 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static void DisposeSafe(this IAsyncService obj, Exception ex = null)
+        {
+            try
+            {
+                if (obj != null) obj.Dispose(ex);
+            }
+            catch { }
+        }
+
         public static void DisposeSafe(this IDisposable obj)
         {
             try
@@ -498,6 +507,41 @@ namespace IPA.Cores.Helper.Basic
                 if (obj != null) obj.Dispose();
             }
             catch { }
+        }
+
+        public static void CancelSafe(this IAsyncService obj, Exception ex = null)
+        {
+            try
+            {
+                if (obj != null) obj.Cancel(ex);
+            }
+            catch { }
+        }
+        
+        public static Task DisposeWithCleanupSafeAsync(this IAsyncService obj, Exception ex = null)
+        {
+            try
+            {
+                if (obj != null)
+                {
+                    return obj.DisposeWithCleanupAsync(ex);
+                }
+            }
+            catch { }
+            return Task.CompletedTask;
+        }
+
+        public static Task CleanupSafeAsync(this IAsyncService obj, Exception ex = null)
+        {
+            try
+            {
+                if (obj != null)
+                {
+                    return obj.CleanupAsync(ex);
+                }
+            }
+            catch { }
+            return Task.CompletedTask;
         }
 
         public static IAsyncResult AsApm<T>(this Task<T> task,

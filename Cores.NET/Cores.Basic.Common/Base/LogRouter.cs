@@ -49,10 +49,6 @@ namespace IPA.Cores.Basic
     {
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
 
-        public override void OnInstalled() { }
-
-        public override Task OnUninstallingAsync() => Task.CompletedTask;
-
         public override void ReceiveLog(LogRecord record)
         {
             if (record.Flags.Bit(LogFlags.NoOutputToConsole) == false)
@@ -60,6 +56,12 @@ namespace IPA.Cores.Basic
                 Console.WriteLine(record.ConsolePrintableString);
             }
         }
+
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override Task CleanupImplAsync() => Task.CompletedTask;
+
+        protected override void DisposeImpl() { }
     }
 
     class LoggerLogRoute : LogRouteBase
@@ -72,38 +74,13 @@ namespace IPA.Cores.Basic
             if (minimalPriority == LogPriority.None)
                 return;
 
-            Log = new Logger(new AsyncCleanuperLady(), dir, kind, prefix,
+            Log = new Logger(dir, kind, prefix,
                 switchType: switchType,
                 infoOptions: infoOptions,
                 maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
                 autoDeleteTotalMinSize: autoDeleteTotalMaxSize ?? CoresConfig.Logger.DefaultAutoDeleteTotalMinSize);
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                if (Log != null)
-                {
-                    Log.DisposeSafe();
-                }
-            }
-            finally { base.Dispose(disposing); }
-        }
-
-        public override void OnInstalled() { }
-
-        public async override Task OnUninstallingAsync()
-        {
-            if (Log != null)
-            {
-                Log.DisposeSafe();
-
-                await Log.Lady;
-            }
-        }
 
         public override void ReceiveLog(LogRecord record)
         {
@@ -112,9 +89,25 @@ namespace IPA.Cores.Basic
                 Log.Add(record);
             }
         }
+
+        protected override void CancelImpl(Exception ex)
+        {
+            Log.CancelSafe(ex);
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await Log.CleanupSafeAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            Log.DisposeSafe();
+        }
+
     }
 
-    abstract class LogRouteBase : IDisposable
+    abstract class LogRouteBase : AsyncService
     {
         public string Kind { get; }
         public LogPriority MinimalPriority { get; }
@@ -125,66 +118,41 @@ namespace IPA.Cores.Basic
             this.Kind = kind;
         }
 
-        public abstract void OnInstalled();
-
-        public abstract Task OnUninstallingAsync();
-
         public abstract void ReceiveLog(LogRecord record);
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-        }
     }
 
-    class LogRouter : AsyncCleanupable
+    class LogRouter : AsyncService
     {
         CriticalSection LockObj = new CriticalSection();
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 
-        public LogRouter(AsyncCleanuperLady lady) : base(lady)
+        protected override void CancelImpl(Exception ex)
         {
+            var routeList = this.RouteList;
+            foreach (LogRouteBase route in routeList)
+            {
+                route.CancelSafe();
+            }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override async Task CleanupImplAsync()
         {
-            try
+            var routeList = this.RouteList;
+            foreach (LogRouteBase route in routeList)
             {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                var routeList = this.RouteList;
-                foreach (LogRouteBase route in routeList)
-                {
-                    route.DisposeSafe();
-                }
+                await UninstallLogRouteAsync(route);
             }
-            finally { base.Dispose(disposing); }
         }
 
-        public override async Task _CleanupInternalAsync()
-        {
-            try
-            {
-                var routeList = this.RouteList;
-                foreach (LogRouteBase route in routeList)
-                {
-                    await UninstallLogRouteAsync(route);
-                }
-            }
-            finally { await base._CleanupInternalAsync(); }
-        }
+        protected override void DisposeImpl() { }
 
         public LogRouteBase InstallLogRoute(LogRouteBase route)
         {
-            if (DisposeFlag.IsSet) throw new ObjectDisposedException("LogRouteMachine");
-
-            route.OnInstalled();
-
             lock (LockObj)
             {
+                CheckNotCanceled();
+
                 this.RouteList = this.RouteList.Add(route);
             }
 
@@ -198,7 +166,9 @@ namespace IPA.Cores.Basic
                 this.RouteList = this.RouteList.Remove(route);
             }
 
-            await route.OnUninstallingAsync();
+            route.CancelSafe();
+            await route.CleanupSafeAsync();
+            route.DisposeSafe();
         }
 
         public void PostLog(LogRecord record, string kind)
@@ -229,7 +199,7 @@ namespace IPA.Cores.Basic
 
     static class LocalLogRouter
     {
-        public static readonly LogRouter Router = new LogRouter(LeakChecker.SuperGrandLady);
+        public static readonly LogRouter Router = new LogRouter();
 
         static LocalLogRouter()
         {

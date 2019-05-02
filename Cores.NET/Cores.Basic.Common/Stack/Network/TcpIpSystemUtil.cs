@@ -214,14 +214,14 @@ namespace IPA.Cores.Basic
 
     class MiddleSock : NetworkSock
     {
-        public MiddleSock(NetworkSock LowerSock, FastProtocolBase protocolStack) : base(LowerSock.Lady, protocolStack) { }
+        public MiddleSock(NetworkSock LowerSock, FastProtocolBase protocolStack) : base(protocolStack) { }
     }
 
     class SslSock : MiddleSock
     {
         protected new FastSslProtocolStack Stack => (FastSslProtocolStack)base.Stack;
 
-        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.Lady, lowerStreamSock.UpperEnd, null, null))
+        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.UpperEnd, null, null))
         {
         }
 

@@ -137,10 +137,8 @@ namespace IPA.Cores.Basic
             => ProtocolStack = protocolStack;
     }
 
-    class FastPipe : AsyncCleanupable
+    class FastPipe : AsyncService
     {
-        public CancelWatcher CancelWatcher { get; }
-
         FastStreamBuffer StreamAtoB;
         FastStreamBuffer StreamBtoA;
         FastDatagramBuffer DatagramAtoB;
@@ -169,59 +167,40 @@ namespace IPA.Cores.Basic
 
         public AsyncManualResetEvent OnDisconnectedEvent { get; } = new AsyncManualResetEvent();
 
-        Once internalDisconnectedFlag;
-        public bool IsDisconnected { get => internalDisconnectedFlag.IsSet; }
-
-        public FastPipe(AsyncCleanuperLady lady, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
-            : base(lady)
+        public FastPipe(CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null) : base(cancel)
         {
-            try
-            {
-                CancelWatcher = new CancelWatcher(cancel);
+            if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+            if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
 
-                if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
-                if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
+            StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
+            StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
 
-                StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
-                StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
+            DatagramAtoB = new FastDatagramBuffer(true, thresholdLengthDatagram);
+            DatagramBtoA = new FastDatagramBuffer(true, thresholdLengthDatagram);
 
-                DatagramAtoB = new FastDatagramBuffer(true, thresholdLengthDatagram);
-                DatagramBtoA = new FastDatagramBuffer(true, thresholdLengthDatagram);
+            StreamAtoB.ExceptionQueue.Encounter(ExceptionQueue);
+            StreamBtoA.ExceptionQueue.Encounter(ExceptionQueue);
 
-                StreamAtoB.ExceptionQueue.Encounter(ExceptionQueue);
-                StreamBtoA.ExceptionQueue.Encounter(ExceptionQueue);
+            DatagramAtoB.ExceptionQueue.Encounter(ExceptionQueue);
+            DatagramBtoA.ExceptionQueue.Encounter(ExceptionQueue);
 
-                DatagramAtoB.ExceptionQueue.Encounter(ExceptionQueue);
-                DatagramBtoA.ExceptionQueue.Encounter(ExceptionQueue);
+            StreamAtoB.Info.Encounter(Info);
+            StreamBtoA.Info.Encounter(Info);
 
-                StreamAtoB.Info.Encounter(Info);
-                StreamBtoA.Info.Encounter(Info);
+            DatagramAtoB.Info.Encounter(Info);
+            DatagramBtoA.Info.Encounter(Info);
 
-                DatagramAtoB.Info.Encounter(Info);
-                DatagramBtoA.Info.Encounter(Info);
+            StreamAtoB.OnDisconnected.Add(() => this.Cancel());
+            StreamBtoA.OnDisconnected.Add(() => this.Cancel());
 
-                StreamAtoB.OnDisconnected.Add(() => Disconnect());
-                StreamBtoA.OnDisconnected.Add(() => Disconnect());
+            DatagramAtoB.OnDisconnected.Add(() => this.Cancel());
+            DatagramBtoA.OnDisconnected.Add(() => this.Cancel());
 
-                DatagramAtoB.OnDisconnected.Add(() => Disconnect());
-                DatagramBtoA.OnDisconnected.Add(() => Disconnect());
+            A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
+            B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
 
-                A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
-                B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
-
-                A_LowerSide._InternalSetCounterPart(B_UpperSide);
-                B_UpperSide._InternalSetCounterPart(A_LowerSide);
-
-                CancelWatcher.CancelToken.Register(() =>
-                {
-                    Disconnect(new OperationCanceledException());
-                });
-            }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+            A_LowerSide._InternalSetCounterPart(B_UpperSide);
+            B_UpperSide._InternalSetCounterPart(A_LowerSide);
         }
 
         CriticalSection LayerInfoLock = new CriticalSection();
@@ -276,49 +255,39 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Disconnect(Exception ex = null)
+        protected override void CancelImpl(Exception ex)
         {
-            if (internalDisconnectedFlag.IsFirstCall())
+            if (ex != null)
             {
-                if (ex != null)
-                {
-                    ExceptionQueue.Add(ex);
-                }
-
-                Action[] evList;
-                lock (OnDisconnected)
-                    evList = OnDisconnected.ToArray();
-
-                foreach (var ev in evList)
-                {
-                    try
-                    {
-                        ev();
-                    }
-                    catch { }
-                }
-
-                StreamAtoB.Disconnect();
-                StreamBtoA.Disconnect();
-
-                DatagramAtoB.Disconnect();
-                DatagramBtoA.Disconnect();
-
-                OnDisconnectedEvent.Set(true);
+                ExceptionQueue.Add(ex);
             }
+
+            Action[] evList;
+            lock (OnDisconnected)
+                evList = OnDisconnected.ToArray();
+
+            foreach (var ev in evList)
+            {
+                try
+                {
+                    ev();
+                }
+                catch { }
+            }
+
+            StreamAtoB.Disconnect();
+            StreamBtoA.Disconnect();
+
+            DatagramAtoB.Disconnect();
+            DatagramBtoA.Disconnect();
+
+            OnDisconnectedEvent.Set(true);
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Disconnect();
-                CancelWatcher.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
-        }
+        protected override Task CleanupImplAsync()
+            => Task.CompletedTask;
+
+        protected override void DisposeImpl() { }
 
         public void CheckDisconnected()
         {
@@ -326,6 +295,7 @@ namespace IPA.Cores.Basic
             StreamBtoA.CheckDisconnected();
             DatagramAtoB.CheckDisconnected();
             DatagramBtoA.CheckDisconnected();
+            this.GrandCancel.ThrowIfCancellationRequested();
         }
     }
 
@@ -344,13 +314,12 @@ namespace IPA.Cores.Basic
         B_UpperSide,
     }
 
-    class FastPipeEnd
+    class FastPipeEnd : IAsyncService
     {
         public FastPipe Pipe { get; }
 
         public FastPipeEndSide Side { get; }
 
-        public CancelWatcher CancelWatcher { get; }
         public FastStreamBuffer StreamWriter { get; }
         public FastStreamBuffer StreamReader { get; }
         public FastDatagramBuffer DatagramWriter { get; }
@@ -363,17 +332,16 @@ namespace IPA.Cores.Basic
         public ExceptionQueue ExceptionQueue { get => Pipe.ExceptionQueue; }
         public LayerInfo LayerInfo { get => Pipe.Info; }
 
-        public bool IsDisconnected { get => this.Pipe.IsDisconnected; }
-        public void Disconnect(Exception ex = null) { this.Pipe.Disconnect(ex); }
+        public bool IsCanceled { get => this.Pipe.IsCanceled; }
         public void AddOnDisconnected(Action action)
         {
             lock (Pipe.OnDisconnected)
                 Pipe.OnDisconnected.Add(action);
         }
 
-        public static FastPipeEnd NewFastPipeAndGetOneSide(FastPipeEndSide createNewPipeAndReturnThisSide, AsyncCleanuperLady lady, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
+        public static FastPipeEnd NewFastPipeAndGetOneSide(FastPipeEndSide createNewPipeAndReturnThisSide, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
         {
-            var pipe = new FastPipe(lady, cancel, thresholdLengthStream, thresholdLengthDatagram);
+            var pipe = new FastPipe(cancel, thresholdLengthStream, thresholdLengthDatagram);
             return pipe[createNewPipeAndReturnThisSide];
         }
 
@@ -384,7 +352,6 @@ namespace IPA.Cores.Basic
         {
             this.Side = side;
             this.Pipe = pipe;
-            this.CancelWatcher = cancelWatcher;
             this.StreamWriter = streamToWrite;
             this.StreamReader = streamToRead;
             this.DatagramWriter = datagramToWrite;
@@ -397,18 +364,32 @@ namespace IPA.Cores.Basic
         internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
         internal FastAttachHandle _InternalCurrentAttachHandle = null;
 
-        public FastAttachHandle Attach(AsyncCleanuperLady lady, FastPipeEndAttachDirection attachDirection, object userState = null) => new FastAttachHandle(lady, this, attachDirection, userState);
+        public FastAttachHandle Attach(FastPipeEndAttachDirection attachDirection, object userState = null) => new FastAttachHandle(this, attachDirection, userState);
 
-        internal FastPipeEndStream _InternalGetStream(AsyncCleanuperLady lady, bool autoFlush = true)
+        internal FastPipeEndStream _InternalGetStream(bool autoFlush = true)
             => new FastPipeEndStream(this, autoFlush);
 
-        public FastAppStub GetFastAppProtocolStub(AsyncCleanuperLady lady, CancellationToken cancel = default)
-            => new FastAppStub(lady, this, cancel);
+        public FastAppStub GetFastAppProtocolStub(CancellationToken cancel = default)
+            => new FastAppStub(this, cancel);
 
-        public void CheckDisconnected() => Pipe.CheckDisconnected();
+        public void CheckCanceled() => Pipe.CheckDisconnected();
+
+        public void Cancel(Exception ex = null) { this.Pipe.Cancel(ex); }
+
+        public Task CleanupAsync(Exception ex = null) => this.Pipe.CleanupAsync(ex);
+
+        public void Dispose() => Dispose(null);
+        public void Dispose(Exception ex = null) => this.Pipe.DisposeSafe(ex);
+
+        public async Task DisposeWithCleanupAsync(Exception ex = null)
+        {
+            this.CancelSafe(ex);
+            await this.CleanupSafeAsync(ex);
+            this.DisposeSafe(ex);
+        }
     }
 
-    class FastAttachHandle : AsyncCleanupable
+    class FastAttachHandle : AsyncService
     {
         public FastPipeEnd PipeEnd { get; }
         public object UserState { get; }
@@ -419,52 +400,43 @@ namespace IPA.Cores.Basic
         IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
-        public FastAttachHandle(AsyncCleanuperLady lady, FastPipeEnd end, FastPipeEndAttachDirection attachDirection, object userState = null)
-            : base(lady)
+        public FastAttachHandle(FastPipeEnd end, FastPipeEndAttachDirection attachDirection, object userState = null) : base()
         {
-            try
+            if (end.Side == FastPipeEndSide.A_LowerSide)
+                Direction = FastPipeEndAttachDirection.A_LowerSide;
+            else
+                Direction = FastPipeEndAttachDirection.B_UpperSide;
+
+            if (attachDirection != Direction)
+                throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
+
+            end.CheckCanceled();
+
+            lock (end._InternalAttachHandleLock)
             {
-                if (end.Side == FastPipeEndSide.A_LowerSide)
-                    Direction = FastPipeEndAttachDirection.A_LowerSide;
-                else
-                    Direction = FastPipeEndAttachDirection.B_UpperSide;
+                if (end._InternalCurrentAttachHandle != null)
+                    throw new ApplicationException("The FastPipeEnd is already attached.");
 
-                if (attachDirection != Direction)
-                    throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
-
-                end.CheckDisconnected();
-
-                lock (end._InternalAttachHandleLock)
-                {
-                    if (end._InternalCurrentAttachHandle != null)
-                        throw new ApplicationException("The FastPipeEnd is already attached.");
-
-                    this.UserState = userState;
-                    this.PipeEnd = end;
-                    this.PipeEnd._InternalCurrentAttachHandle = this;
-                }
-
-                Leak = LeakChecker.Enter().AddToLady(this);
+                this.UserState = userState;
+                this.PipeEnd = end;
+                this.PipeEnd._InternalCurrentAttachHandle = this;
             }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+
+            Leak = LeakChecker.Enter();
         }
 
         public void SetLayerInfo(LayerInfoBase info, FastStackBase protocolStack = null)
         {
             lock (LockObj)
             {
-                if (DisposeFlag.IsSet) return;
+                if (this.IsCanceled) return;
 
                 if (InstalledLayerHolder != null)
                     throw new ApplicationException("LayerInfo is already set.");
 
                 info._InternalSetProtocolStack(protocolStack);
 
-                InstalledLayerHolder = PipeEnd.Pipe._InternalInstallLayerInfo(PipeEnd.Side, info).AddToLady(this);
+                InstalledLayerHolder = PipeEnd.Pipe._InternalInstallLayerInfo(PipeEnd.Side, info);
             }
         }
 
@@ -495,15 +467,15 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (DisposeFlag.IsSet) return;
+                    CheckNotCanceled();
 
                     SetStreamReceiveTimeout(Timeout.Infinite);
 
-                    receiveTimeoutDetector = new TimeoutDetector(new AsyncCleanuperLady(), timeout, callback: (x) =>
+                    receiveTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
                     {
                         if (PipeEnd.StreamReader.IsReadyToWrite == false)
                             return true;
-                        PipeEnd.Pipe.Disconnect(new TimeoutException("StreamReceiveTimeout"));
+                        PipeEnd.Pipe.Cancel(new TimeoutException("StreamReceiveTimeout"));
                         return false;
                     });
 
@@ -537,16 +509,16 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (DisposeFlag.IsSet) return;
+                    CheckNotCanceled();
 
                     SetStreamSendTimeout(Timeout.Infinite);
 
-                    sendTimeoutDetector = new TimeoutDetector(new AsyncCleanuperLady(), timeout, callback: (x) =>
+                    sendTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
                     {
                         if (PipeEnd.StreamWriter.IsReadyToRead == false)
                             return true;
 
-                        PipeEnd.Pipe.Disconnect(new TimeoutException("StreamSendTimeout"));
+                        PipeEnd.Pipe.Cancel(new TimeoutException("StreamSendTimeout"));
                         return false;
                     });
 
@@ -561,30 +533,32 @@ namespace IPA.Cores.Basic
         }
 
         public FastPipeEndStream GetStream(bool autoFlush = true)
-            => PipeEnd._InternalGetStream(this.Lady, autoFlush);
+            => PipeEnd._InternalGetStream(autoFlush);
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex)
         {
-            try
+            lock (LockObj)
             {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-                lock (LockObj)
+                if (Direction == FastPipeEndAttachDirection.B_UpperSide)
                 {
-                    if (Direction == FastPipeEndAttachDirection.B_UpperSide)
-                    {
-                        SetStreamReceiveTimeout(Timeout.Infinite);
-                        SetStreamSendTimeout(Timeout.Infinite);
-                    }
-                }
-
-                lock (PipeEnd._InternalAttachHandleLock)
-                {
-                    PipeEnd._InternalCurrentAttachHandle = null;
+                    SetStreamReceiveTimeout(Timeout.Infinite);
+                    SetStreamSendTimeout(Timeout.Infinite);
                 }
             }
-            finally { base.Dispose(disposing); }
+
+            lock (PipeEnd._InternalAttachHandleLock)
+            {
+                PipeEnd._InternalCurrentAttachHandle = null;
+            }
+        }
+
+        protected override Task CleanupImplAsync() => Task.CompletedTask;
+
+        protected override void DisposeImpl()
+        {
+            Leak.DisposeSafe();
+
+            InstalledLayerHolder.DisposeSafe();
         }
     }
 
@@ -595,7 +569,7 @@ namespace IPA.Cores.Basic
 
         public FastPipeEndStream(FastPipeEnd end, bool autoFlush = true)
         {
-            end.CheckDisconnected();
+            end.CheckCanceled();
 
             End = end;
             AutoFlush = autoFlush;
@@ -986,7 +960,7 @@ namespace IPA.Cores.Basic
                 End.DatagramWriter.CompleteWrite();
         }
 
-        public void Disconnect() => End.Disconnect();
+        public void Disconnect() => End.Cancel();
 
         public override int ReadTimeout { get; set; }
         public override int WriteTimeout { get; set; }
@@ -1130,9 +1104,8 @@ namespace IPA.Cores.Basic
         Datagram = 2,
     }
 
-    abstract class FastPipeEndAsyncObjectWrapperBase : AsyncCleanupable
+    abstract class FastPipeEndAsyncObjectWrapperBase : AsyncService
     {
-        public CancelWatcher CancelWatcher { get; }
         public FastPipeEnd PipeEnd { get; }
         public abstract PipeSupportedDataTypes SupportedDataTypes { get; }
         Task MainLoopTask = Task.CompletedTask;
@@ -1140,30 +1113,19 @@ namespace IPA.Cores.Basic
         public ExceptionQueue ExceptionQueue { get => PipeEnd.ExceptionQueue; }
         public LayerInfo LayerInfo { get => PipeEnd.LayerInfo; }
 
-        public FastPipeEndAsyncObjectWrapperBase(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, CancellationToken cancel = default)
-            : base(lady)
+        public FastPipeEndAsyncObjectWrapperBase(FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
         {
             PipeEnd = pipeEnd;
-            CancelWatcher = new CancelWatcher(cancel);
-        }
-
-        public override async Task _CleanupInternalAsync()
-        {
-            try
-            {
-                await MainLoopTask.TryWaitAsync(true);
-            }
-            finally { await base._CleanupInternalAsync(); }
         }
 
         Once ConnectedFlag;
-        protected void StartBaseTasks()
+        protected void StartBaseAsyncLoops()
         {
             if (ConnectedFlag.IsFirstCall())
-                MainLoopTask = MainLoopAsync();
+                MainLoopTask = MainLoopsAsync();
         }
 
-        async Task MainLoopAsync()
+        async Task MainLoopsAsync()
         {
             try
             {
@@ -1185,16 +1147,13 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                Disconnect(ex);
+                this.Cancel(ex);
             }
             finally
             {
-                Disconnect();
+                this.Cancel();
             }
         }
-
-        List<Action> OnDisconnectedList = new List<Action>();
-        public void AddOnDisconnected(Action proc) => OnDisconnectedList.Add(proc);
 
         protected abstract Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel);
         protected abstract Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel);
@@ -1238,11 +1197,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
+                    this.Cancel(ex);
                 }
                 finally
                 {
-                    PipeEnd.Disconnect();
-                    Disconnect();
+                    this.Cancel();
                 }
             }
         }
@@ -1286,10 +1245,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
+                    this.Cancel(ex);
                 }
                 finally
                 {
-                    PipeEnd.Disconnect();
+                    this.Cancel();
                 }
             }
         }
@@ -1328,11 +1288,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
+                    this.Cancel(ex);
                 }
                 finally
                 {
-                    PipeEnd.Disconnect();
-                    Disconnect();
+                    this.Cancel();
                 }
             }
         }
@@ -1376,37 +1336,30 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
+                    this.Cancel(ex);
                 }
                 finally
                 {
-                    PipeEnd.Disconnect();
+                    PipeEnd.Cancel();
                 }
             }
         }
 
-        Once DisconnectedFlag;
-        public void Disconnect(Exception ex = null)
+        protected override void CancelImpl(Exception ex)
         {
-            if (DisconnectedFlag.IsFirstCall())
-            {
-                this.PipeEnd.Disconnect(ex);
-                CancelWatcher.Cancel();
-
-                foreach (var proc in OnDisconnectedList) try { proc(); } catch { };
-            }
+            this.PipeEnd.Cancel(ex);
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            await MainLoopTask.TryWaitAsync(true);
 
-                Disconnect();
-                CancelWatcher.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
+            await this.PipeEnd.CleanupAsync();
+        }
+
+        protected override void DisposeImpl()
+        {
+            this.PipeEnd.DisposeSafe();
         }
     }
 
@@ -1416,7 +1369,7 @@ namespace IPA.Cores.Basic
         public int RecvTmpBufferSize { get; private set; }
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public FastPipeEndSocketWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, PalSocket socket, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
+        public FastPipeEndSocketWrapper(FastPipeEnd pipeEnd, PalSocket socket, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.Socket = socket;
             SupportedDataTypes = (Socket.SocketType == SocketType.Stream) ? PipeSupportedDataTypes.Stream : PipeSupportedDataTypes.Datagram;
@@ -1425,9 +1378,8 @@ namespace IPA.Cores.Basic
                 Socket.LingerTime.Value = 0;
                 Socket.NoDelay.Value = false;
             }
-            this.AddOnDisconnected(() => Socket.DisposeSafe());
 
-            this.StartBaseTasks();
+            this.StartBaseAsyncLoops();
         }
 
         protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
@@ -1532,15 +1484,18 @@ namespace IPA.Cores.Basic
             fifo.CompleteWrite();
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex)
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Socket.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
+            Socket.DisposeSafe();
+
+            base.CancelImpl(ex);
+        }
+
+        protected override void DisposeImpl()
+        {
+            Socket.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -1551,15 +1506,14 @@ namespace IPA.Cores.Basic
         public const int SendTmpBufferSize = 65536;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public FastPipeEndStreamWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, FastStream stream, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
+        public FastPipeEndStreamWrapper(FastPipeEnd pipeEnd, FastStream stream, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.Stream = stream;
             SupportedDataTypes = PipeSupportedDataTypes.Stream;
 
             Stream.ReadTimeout = Stream.WriteTimeout = Timeout.Infinite;
-            this.AddOnDisconnected(() => Stream.DisposeSafe());
 
-            this.StartBaseTasks();
+            this.StartBaseAsyncLoops();
         }
 
         protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
@@ -1636,15 +1590,19 @@ namespace IPA.Cores.Basic
         protected override Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel)
             => throw new NotSupportedException();
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+
+        protected override void CancelImpl(Exception ex)
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Stream.DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
+            Stream.DisposeSafe();
+
+            base.CancelImpl(ex);
+        }
+
+        protected override void DisposeImpl()
+        {
+            Stream.DisposeSafe();
+
+            base.DisposeImpl();
         }
     }
 
@@ -1658,16 +1616,14 @@ namespace IPA.Cores.Basic
         readonly PipeWriter PipeToWrite;
         readonly PipeReader PipeToRead;
 
-        public FastPipeEndDuplexPipeWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
+        public FastPipeEndDuplexPipeWrapper(FastPipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.SupportedDataTypes = PipeSupportedDataTypes.Stream;
 
             this.PipeToWrite = duplexPipe.Output;
             this.PipeToRead = duplexPipe.Input;
 
-            this.AddOnDisconnected(() => InternalDisconnect());
-
-            this.StartBaseTasks();
+            this.StartBaseAsyncLoops();
         }
 
         protected override async Task StreamWriteToObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
@@ -1754,20 +1710,21 @@ namespace IPA.Cores.Basic
             {
                 PipeToRead.Complete();
                 PipeToWrite.Complete();
-                this.Disconnect();
             }
         }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected override void CancelImpl(Exception ex)
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            InternalDisconnect();
 
-                InternalDisconnect();
-            }
-            finally { base.Dispose(disposing); }
+            base.CancelImpl(ex);
+        }
+
+        protected override void DisposeImpl()
+        {
+            InternalDisconnect();
+
+            base.DisposeImpl();
         }
     }
 

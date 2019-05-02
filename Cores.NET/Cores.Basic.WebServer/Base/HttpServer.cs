@@ -109,21 +109,20 @@ namespace IPA.Cores.Basic
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
     }
 
-    sealed class HttpServer<THttpServerBuilder> : AsyncCleanupableCancellable
+    sealed class HttpServer<THttpServerBuilder> : AsyncService
         where THttpServerBuilder : HttpServerBuilderBase
     {
         readonly HttpServerBuilderConfig Config;
         readonly Task HostTask;
-        readonly AsyncCleanuperLady StackListenerCleanupLady = new AsyncCleanuperLady();
 
-        public HttpServer(HttpServerBuilderConfig cfg, object param, AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public HttpServer(HttpServerBuilderConfig cfg, object param, CancellationToken cancel = default) : base(cancel)
         {
             this.Config = cfg;
 
             IO.MakeDirIfNotExists(Config.ContentsRoot);
 
             string paramToken = GlobalObjectExchange.Deposit(param);
-            string cancelToken = GlobalObjectExchange.Deposit(this.CancelWatcher.CancelToken);
+            string cancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);
             try
             {
                 var dict = new Dictionary<string, string>
@@ -138,7 +137,7 @@ namespace IPA.Cores.Basic
                     .Build();
 
                 var h = new WebHostBuilder()
-                    .UseKestrelWithStack(opt =>
+                    .UseKestrel(opt =>
                     {
                         if (Config.LocalHostOnly)
                         {
@@ -236,14 +235,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async Task _CleanupInternalAsync()
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
         {
-            try
-            {
-                await StackListenerCleanupLady;
-                await HostTask;
-            }
-            finally { await base._CleanupInternalAsync(); }
+            await HostTask;
         }
+
+        protected override void DisposeImpl() { }
     }
 }

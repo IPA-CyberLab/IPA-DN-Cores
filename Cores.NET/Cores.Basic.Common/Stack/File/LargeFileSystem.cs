@@ -642,7 +642,7 @@ namespace IPA.Cores.Basic
         {
             if (_LocalSingletonInstance == null)
             {
-                _LocalSingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, new LargeFileSystemParams(LocalFileSystem.Local));
+                _LocalSingletonInstance = new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.Local));
             }
 
             return _LocalSingletonInstance;
@@ -652,14 +652,11 @@ namespace IPA.Cores.Basic
         {
             if (_AutoUtf8SingletonInstance == null)
             {
-                _AutoUtf8SingletonInstance = new LargeFileSystem(LeakChecker.SuperGrandLady, new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8));
+                _AutoUtf8SingletonInstance = new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8));
             }
 
             return _AutoUtf8SingletonInstance;
         }
-
-        CancellationTokenSource CancelSource = new CancellationTokenSource();
-        CancellationToken CancelToken => CancelSource.Token;
 
         public FileSystem UnderlayFileSystem { get; }
         public new LargeFileSystemParams Params => (LargeFileSystemParams)base.Params;
@@ -669,7 +666,7 @@ namespace IPA.Cores.Basic
         public FileSystemObjectPool UnderlayFileSystemPoolForRead { get; }
         public FileSystemObjectPool UnderlayFileSystemPoolForWrite { get; }
 
-        public LargeFileSystem(AsyncCleanuperLady lady, LargeFileSystemParams param) : base(lady, param)
+        public LargeFileSystem(LargeFileSystemParams param) : base(param)
         {
             this.UnderlayFileSystem = param.UnderlayFileSystem;
 
@@ -686,7 +683,7 @@ namespace IPA.Cores.Basic
             if (fileName.IndexOf(Params.SplitStr) != -1)
                 throw new ApplicationException($"The original filename '{fileName}' contains '{Params.SplitStr}'.");
 
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+            using (CreatePerTaskCancellationToken(out CancellationToken operationCancel, cancel))
             {
                 using (await AsyncLockObj.LockWithAwait(operationCancel))
                 {
@@ -821,26 +818,6 @@ namespace IPA.Cores.Basic
                 parsed = null;
                 return false;
             }
-        }
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                CancelSource.TryCancelNoBlock();
-            }
-            finally { base.Dispose(disposing); }
-        }
-
-        public override async Task _CleanupInternalAsync()
-        {
-            try
-            {
-                // Here
-            }
-            finally { await base._CleanupInternalAsync(); }
         }
 
         protected override async Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)

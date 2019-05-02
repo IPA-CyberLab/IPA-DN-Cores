@@ -286,7 +286,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Logger : AsyncCleanupable
+    class Logger : AsyncService
     {
         public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;
@@ -304,13 +304,12 @@ namespace IPA.Cores.Basic
         readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
         readonly AsyncAutoResetEvent WaitPendingEvent = new AsyncAutoResetEvent();
         public string Extension { get; }
-        public bool DiscardPendingDataOnDispose { get; set; }
+        public bool DiscardPendingDataOnDispose { get; set; } = false;
 
         public int MaxPendingRecords { get; set; } = CoresConfig.Logger.DefaultMaxPendingRecords;
 
         LogInfoOptions InfoOptions { get; }
 
-        readonly CancellationTokenSource Cancel = new CancellationTokenSource();
         long LastTick = 0;
         LogSwitchType LastSwitchType = LogSwitchType.None;
         long CurrentFilePointer = 0;
@@ -322,61 +321,54 @@ namespace IPA.Cores.Basic
 
         public bool NoFlush { get; set; } = false;
 
-        public Logger(AsyncCleanuperLady lady, string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
+        Task LogTask = null;
+
+        public Logger(string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
             long maxLogSize = 0, string extension = DefaultExtension,
             long? autoDeleteTotalMinSize = null,
             bool keepFileHandleWhenIdle = true)
-            : base(lady)
+            : base()
         {
-            try
+            this.DirName = dir.NonNullTrim();
+            this.Kind = kind.NonNullTrim().FilledOrDefault(LogKind.Default);
+            this.Prefix = prefix.NonNullTrim().FilledOrDefault("log").ReplaceStr("\\", "_").Replace("/", "_");
+            this.SwitchType = switchType;
+            this.Extension = extension.FilledOrDefault(DefaultExtension);
+            this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
+            if (this.MaxLogSize <= 0)
+                this.MaxLogSize = CoresConfig.Logger.DefaultMaxLogSize;
+            this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
+            if (this.Extension.StartsWith(".") == false)
+                this.Extension = "." + this.Extension;
+
+            this.InfoOptions = infoOptions.CloneDeep();
+            this.InfoOptions.Normalize(this.Kind);
+
+
+            if (autoDeleteTotalMinSize != null)
             {
-                this.DirName = dir.NonNullTrim();
-                this.Kind = kind.NonNullTrim().FilledOrDefault(LogKind.Default);
-                this.Prefix = prefix.NonNullTrim().FilledOrDefault("log").ReplaceStr("\\", "_").Replace("/", "_");
-                this.SwitchType = switchType;
-                this.Extension = extension.FilledOrDefault(DefaultExtension);
-                this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
-                if (this.MaxLogSize <= 0)
-                    this.MaxLogSize = CoresConfig.Logger.DefaultMaxLogSize;
-                this.MaxLogSize = Math.Max(maxLogSize, BufferCacheMaxSize * 10L);
-                if (this.Extension.StartsWith(".") == false)
-                    this.Extension = "." + this.Extension;
-
-                this.InfoOptions = infoOptions.CloneDeep();
-                this.InfoOptions.Normalize(this.Kind);
-
-
-                if (autoDeleteTotalMinSize != null)
-                {
-                    autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
-                    OldFileEraser eraser = new OldFileEraser(this.Lady, autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
-                }
-
-                this.Lady.Add(LogThreadAsync().LeakCheck());
+                autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
+                OldFileEraser eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
             }
-            catch
-            {
-                Lady.DisposeAllSafe();
-                throw;
-            }
+
+            LogTask = LogThreadAsync().LeakCheck();
         }
+
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await LogTask;
+        }
+
+        protected override void DisposeImpl() { }
 
         public void Stop(bool abandonUnwritenData)
         {
             this.DiscardPendingDataOnDispose = abandonUnwritenData;
-            this.Dispose();
-        }
 
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Cancel.Cancel();
-            }
-            finally { base.Dispose(disposing); }
+            this.Cancel();
         }
 
         async Task LogThreadAsync()
@@ -661,7 +653,7 @@ namespace IPA.Cores.Basic
                     if (io == null)
                         break;
 
-                    if (this.Cancel.IsCancellationRequested)
+                    if (this.GrandCancel.IsCancellationRequested)
                         break;
                 }
 
@@ -673,7 +665,7 @@ namespace IPA.Cores.Basic
                     num2 = this.RecordQueue.Count;
                 }
 
-                if (this.Cancel.IsCancellationRequested)
+                if (this.GrandCancel.IsCancellationRequested)
                 {
                     if ((num2 == 0 && b.Length == 0) || io == null || DiscardPendingDataOnDispose)
                     {
@@ -709,7 +701,7 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        await this.Event.WaitOneAsync(nextWaitInterval, this.Cancel.Token);
+                        await this.Event.WaitOneAsync(nextWaitInterval, this.GrandCancel);
                     }
                 }
             }
@@ -729,7 +721,7 @@ namespace IPA.Cores.Basic
                 return true;
             }
 
-            if (this.Cancel.IsCancellationRequested)
+            if (this.GrandCancel.IsCancellationRequested)
             {
                 return false;
             }
@@ -742,7 +734,7 @@ namespace IPA.Cores.Basic
                 }
                 else if (pendingTreatment == LogPendingTreatment.Wait)
                 {
-                    await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.Cancel.Token }, events: this.WaitPendingEvent.SingleArray());
+                    await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.GrandCancel }, events: this.WaitPendingEvent.SingleArray());
                 }
                 else
                 {
@@ -767,7 +759,7 @@ namespace IPA.Cores.Basic
                 return true;
             }
 
-            if (this.Cancel.IsCancellationRequested)
+            if (this.GrandCancel.IsCancellationRequested)
             {
                 return false;
             }
@@ -789,16 +781,16 @@ namespace IPA.Cores.Basic
 
         public async Task<bool> WaitAllLogFlush()
         {
-            while (this.Cancel.IsCancellationRequested == false)
+            while (this.GrandCancel.IsCancellationRequested == false)
             {
                 int num;
                 lock (this.RecordQueue)
                     num = this.RecordQueue.Count;
 
                 if (num == 0) return true;
-                if (this.Cancel.IsCancellationRequested) return false;
+                if (this.GrandCancel.IsCancellationRequested) return false;
 
-                await this.FlushEvent.WaitOneAsync(100, this.Cancel.Token);
+                await this.FlushEvent.WaitOneAsync(100, this.GrandCancel);
             }
             return false;
         }

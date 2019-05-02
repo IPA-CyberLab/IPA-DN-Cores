@@ -67,29 +67,29 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static Singleton<LocalTcpIpSystem> _Singleton = new Singleton<LocalTcpIpSystem>(() => new LocalTcpIpSystem(LeakChecker.SuperGrandLady, new LocalTcpIpSystemParam()),
+        static Singleton<LocalTcpIpSystem> _Singleton = new Singleton<LocalTcpIpSystem>(() => new LocalTcpIpSystem(new LocalTcpIpSystemParam()),
             leakKind: LeakCounterKind.DoNotTrack);
 
         public static LocalTcpIpSystem Local => _Singleton;
 
         protected new LocalTcpIpSystemParam Param => (LocalTcpIpSystemParam)base.Param;
 
-        private LocalTcpIpSystem(AsyncCleanuperLady lady, LocalTcpIpSystemParam param) : base(lady, param)
+        private LocalTcpIpSystem(LocalTcpIpSystemParam param) : base(param)
         {
         }
 
         protected override TcpIpSystemHostInfo GetHostInfoImpl() => new HostInfo();
 
-        protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel)
+        protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
         {
-            FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(lady, cancel: cancel);
+            FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(cancel: cancel);
 
             return tcp;
         }
 
-        protected override FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param)
+        protected override FastTcpListenerBase CreateListenerImpl(TcpListenParam param)
         {
-            FastPalTcpListener ret = new FastPalTcpListener(lady, param.AcceptCallback);
+            FastPalTcpListener ret = new FastPalTcpListener(param.AcceptCallback);
 
             return ret;
         }

@@ -263,18 +263,16 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class JsonRpcServerApi : AsyncCleanupableCancellable
+    abstract class JsonRpcServerApi : AsyncService
     {
         public Type RpcInterface { get; }
 
-        public JsonRpcServerApi(AsyncCleanuperLady lady, CancellationToken cancel = default) : base(lady, cancel)
+        public JsonRpcServerApi(CancellationToken cancel = default) : base(cancel)
         {
             this.RpcInterface = GetRpcInterface();
         }
 
         protected JsonRpcClientInfo ClientInfo { get => TaskVar<JsonRpcClientInfo>.Value; }
-
-        public CancellationToken CancelToken { get => this.CancelWatcher.CancelToken; }
 
         Dictionary<string, RpcMethodInfo> MethodInfoCache = new Dictionary<string, RpcMethodInfo>();
         public RpcMethodInfo GetMethodInfo(string methodName)
@@ -332,13 +330,19 @@ namespace IPA.Cores.Basic
         public virtual void FinishCall(object param) { }
 
         public virtual async Task FinishCallAsync(object param) => await Task.CompletedTask;
+
+        protected override void CancelImpl(Exception ex) { }
+
+        protected override Task CleanupImplAsync() => Task.CompletedTask;
+
+        protected override void DisposeImpl() { }
     }
 
     abstract class JsonRpcServer
     {
         public JsonRpcServerApi Api { get; }
         public JsonRpcServerConfig Config { get; }
-        public CancellationToken CancelToken { get => this.Api.CancelToken; }
+        public CancellationToken CancelToken { get => this.Api.GrandCancel; }
 
         public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg)
         {

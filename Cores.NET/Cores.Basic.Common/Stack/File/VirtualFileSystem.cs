@@ -617,7 +617,7 @@ namespace IPA.Cores.Basic
 
         readonly VfsDirectory Root;
 
-        public VirtualFileSystem(AsyncCleanuperLady lady, VirtualFileSystemParams param) : base(lady, param)
+        public VirtualFileSystem(VirtualFileSystemParams param) : base(param)
         {
             var rootDir = new VfsRamDirectory(this, "/", true);
             rootDir.AddLinkRef();
