@@ -232,6 +232,52 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class SingleInstance : IDisposable
+    {
+        readonly string NameOfMutant;
+        readonly Mutant Mutant;
+
+        public static SingleInstance TryGet(string name, bool ignoreCase = true)
+        {
+            try
+            {
+                return new SingleInstance(name, ignoreCase);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public SingleInstance(string name, bool ignoreCase = true)
+        {
+            NameOfMutant = $"SingleInstance_" + name.NonNullTrim();
+
+            if (ignoreCase)
+                NameOfMutant = NameOfMutant.ToUpper();
+
+            this.Mutant = Mutant.Create(NameOfMutant);
+            try
+            {
+                this.Mutant.Lock(true);
+            }
+            catch
+            {
+                this.Mutant.DisposeSafe();
+                throw;
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.Mutant.Unlock();
+            this.Mutant.DisposeSafe();
+        }
+    }
+
     class MutantUnix : Mutant
     {
         string Filename;
@@ -244,7 +290,7 @@ namespace IPA.Cores.Basic
             IO.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
-        public override void Lock()
+        public override void Lock(bool nonBlock = false)
         {
             if (LockedCount == 0)
             {
@@ -258,7 +304,7 @@ namespace IPA.Cores.Basic
                     throw new IOException("Open failed.");
                 }
 
-                if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX) == -1)
+                if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX | (nonBlock ? UnixApi.LockOperations.LOCK_NB : 0)) == -1)
                 {
                     throw new IOException("FLock failed.");
                 }
@@ -293,7 +339,7 @@ namespace IPA.Cores.Basic
             MutexObj = new Mutex(false, Mutant.GenerateInternalName(name), out f);
         }
 
-        public override void Lock()
+        public override void Lock(bool nonBlock = false)
         {
             if (LockedCount == 0)
             {
@@ -302,7 +348,10 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    MutexObj.WaitOne();
+                    if (MutexObj.WaitOne(nonBlock ? 0 : Timeout.Infinite) == false)
+                    {
+                        throw new ApplicationException("Cannot obtain the mutex object.");
+                    }
                 }
                 catch (AbandonedMutexException)
                 {
@@ -323,9 +372,20 @@ namespace IPA.Cores.Basic
             }
             LockedCount--;
         }
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                MutexObj.DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
     }
 
-    abstract class Mutant
+    abstract class Mutant : IDisposable
     {
         public static string GenerateInternalName(string name)
         {
@@ -333,7 +393,7 @@ namespace IPA.Cores.Basic
             return "dnmutant_" + Str.ByteToStr(Str.HashStr(name)).ToLowerInvariant();
         }
 
-        public abstract void Lock();
+        public abstract void Lock(bool nonBlock = false);
         public abstract void Unlock();
 
         public static Mutant Create(string name)
@@ -346,6 +406,14 @@ namespace IPA.Cores.Basic
             {
                 return new MutantUnix(name);
             }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            // Here
         }
     }
 

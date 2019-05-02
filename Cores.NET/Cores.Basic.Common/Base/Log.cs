@@ -299,6 +299,7 @@ namespace IPA.Cores.Basic
         public string Prefix { get; }
         public LogSwitchType SwitchType { get; set; }
         public long MaxLogSize { get; }
+        public int UniqueProcessId { get; }
         readonly Queue<LogRecord> RecordQueue = new Queue<LogRecord>();
         readonly AsyncAutoResetEvent Event = new AsyncAutoResetEvent();
         readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
@@ -324,13 +325,14 @@ namespace IPA.Cores.Basic
         Task LogTask = null;
         OldFileEraser Eraser = null;
 
-        public Logger(string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
+        public Logger(string dir, string kind, string prefix, int uniqueProcessId, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
             long maxLogSize = 0, string extension = DefaultExtension,
             long? autoDeleteTotalMinSize = null,
             bool keepFileHandleWhenIdle = true)
             : base()
         {
+            this.UniqueProcessId = uniqueProcessId;
             this.DirName = dir.NonNullTrim();
             this.Kind = kind.NonNullTrim().FilledOrDefault(LogKind.Default);
             this.Prefix = prefix.NonNullTrim().FilledOrDefault("log").ReplaceStr("\\", "_").Replace("/", "_");
@@ -493,7 +495,7 @@ namespace IPA.Cores.Basic
                     // Generate a log file name
                     lock (this.Lock)
                     {
-                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                        logDateChanged = MakeLogFileName(out fileName, this.DirName, this.Prefix, this.UniqueProcessId,
                             rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
 
                         if (logDateChanged)
@@ -525,17 +527,17 @@ namespace IPA.Cores.Basic
                             if (existingMaxLogNumber != 0)
                             {
                                 this.CurrentLogNumber = existingMaxLogNumber;
-                                MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                                MakeLogFileName(out fileName, this.DirName, this.Prefix, this.UniqueProcessId,
                                     rec.TimeStamp, this.SwitchType, this.CurrentLogNumber, ref currentLogFileDateName);
                             }
                             else
                             {
                                 this.CurrentLogNumber = 0;
-                                MakeLogFileName(out fileName, this.DirName, this.Prefix,
+                                MakeLogFileName(out fileName, this.DirName, this.Prefix, this.UniqueProcessId,
                                     rec.TimeStamp, this.SwitchType, 0, ref currentLogFileDateName);
                                 for (int i = 0; ; i++)
                                 {
-                                    MakeLogFileName(out string tmp, this.DirName, this.Prefix,
+                                    MakeLogFileName(out string tmp, this.DirName, this.Prefix, this.UniqueProcessId,
                                         rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
                                     if (IO.IsFileExists(tmp) == false)
@@ -804,11 +806,12 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        bool MakeLogFileName(out string name, string dir, string prefix, DateTimeOffset dateTime, LogSwitchType switchType, int num, ref string oldDateStr)
+        bool MakeLogFileName(out string name, string dir, string prefix, int uniqueProcessId, DateTimeOffset dateTime, LogSwitchType switchType, int num, ref string oldDateStr)
         {
             prefix = prefix.TrimNonNull();
-            string tmp = MakeLogFileNameStringFromTick(dateTime, switchType);
-            string tmp2 = "";
+            string dateTimePart = MakeLogFileNameStringFromTick(dateTime, switchType);
+            string numberStr = "";
+            string uniqueProcessIdStr = ("@" + uniqueProcessId.ToString("D3"));
             bool ret = false;
 
             if (num != 0)
@@ -827,16 +830,16 @@ namespace IPA.Cores.Basic
                     digits = 7;
                 else if (maxLogSize >= 10000L)
                     digits = 8;
-                tmp2 = "~" + num.ToString($"D" + digits);
+                numberStr = "~" + num.ToString($"D" + digits);
             }
 
-            if (oldDateStr != tmp)
+            if (oldDateStr != dateTimePart)
             {
                 ret = true;
-                oldDateStr = tmp;
+                oldDateStr = dateTimePart;
             }
 
-            name = Path.Combine(dir, prefix + tmp + tmp2 + this.Extension);
+            name = Path.Combine(dir, prefix + dateTimePart + uniqueProcessIdStr + numberStr + this.Extension);
 
             return ret;
         }

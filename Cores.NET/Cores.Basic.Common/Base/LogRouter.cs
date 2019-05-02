@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
             if (minimalPriority == LogPriority.None)
                 return;
 
-            Log = new Logger(dir, kind, prefix,
+            Log = new Logger(dir, kind, prefix, Env.UniqueLogProcessId,
                 switchType: switchType,
                 infoOptions: infoOptions,
                 maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
