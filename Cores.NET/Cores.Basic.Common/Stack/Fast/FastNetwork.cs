@@ -177,7 +177,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                CancelWatcher = new CancelWatcher(lady, cancel);
+                CancelWatcher = new CancelWatcher(cancel);
 
                 if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
                 if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
@@ -315,6 +315,7 @@ namespace IPA.Cores.Basic
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
                 Disconnect();
+                CancelWatcher.DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -1143,7 +1144,7 @@ namespace IPA.Cores.Basic
             : base(lady)
         {
             PipeEnd = pipeEnd;
-            CancelWatcher = new CancelWatcher(Lady, cancel);
+            CancelWatcher = new CancelWatcher(cancel);
         }
 
         public override async Task _CleanupAsyncInternal()
@@ -1151,8 +1152,6 @@ namespace IPA.Cores.Basic
             try
             {
                 await MainLoopTask.TryWaitAsync(true);
-
-                await CancelWatcher.AsyncCleanuper;
             }
             finally { await base._CleanupAsyncInternal(); }
         }

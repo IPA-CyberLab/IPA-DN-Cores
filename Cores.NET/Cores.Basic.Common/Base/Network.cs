@@ -3160,6 +3160,7 @@ namespace IPA.Cores.Basic
             return hostName.Trim().ToLower();
         }
     }
+
     class NonBlockSocket : IDisposable
     {
         public PalSocket Sock { get; }

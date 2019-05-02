@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
 {
     class JsonRpcHttpServer : JsonRpcServer
     {
-        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg, CancellationToken cancelToken) : base(api, cfg, cancelToken) { }
+        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg) : base(api, cfg) { }
 
         public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
@@ -173,7 +173,7 @@ namespace IPA.Cores.Basic
         {
             (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param;
 
-            JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg, this.CancelToken);
+            JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg);
         }
 
         public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerBuilderConfig httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, AsyncCleanuperLady lady, CancellationToken cancel = default)

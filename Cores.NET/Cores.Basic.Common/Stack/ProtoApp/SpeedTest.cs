@@ -317,7 +317,7 @@ namespace IPA.Cores.Basic
             try
             {
 
-                CancelWatcher cancelWatcher = new CancelWatcher(lady, this.Cancel);
+                CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel);
                 for (int i = 0; i < NumConnection; i++)
                 {
                     SpeedTestDirection dir;

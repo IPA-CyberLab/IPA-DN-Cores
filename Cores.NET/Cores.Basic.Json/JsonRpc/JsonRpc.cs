@@ -340,10 +340,9 @@ namespace IPA.Cores.Basic
         public JsonRpcServerConfig Config { get; }
         public CancellationToken CancelToken { get => this.Api.CancelToken; }
 
-        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg, CancellationToken cancelToken)
+        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg)
         {
             this.Api = api;
-            this.Api.CancelWatcher.Add(cancelToken);
             this.Config = cfg;
         }
 

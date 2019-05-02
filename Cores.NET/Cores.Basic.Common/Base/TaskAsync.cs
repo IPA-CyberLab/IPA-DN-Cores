@@ -1362,7 +1362,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                CancelWatcher = new CancelWatcher(Lady, cancel);
+                CancelWatcher = new CancelWatcher(cancel);
             }
             catch
             {
@@ -1932,144 +1932,53 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-    enum CancelWatcherCallbackEventType
-    {
-        Canceled,
-    }
-
-    class CancelWatcher : AsyncCleanupable
+    class CancelWatcher : IDisposable
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        CancellationTokenSource cts = new CancellationTokenSource();
-        public CancellationToken CancelToken { get => cts.Token; }
-        public AsyncManualResetEvent EventWaitMe { get; } = new AsyncManualResetEvent();
-        public bool Canceled { get; private set; } = false;
+        readonly CancellationTokenSource GrandCancelTokenSource;
+        readonly IDisposable LeakHolder;
+        readonly IDisposable ObjectHolder;
+        readonly IDisposable RegisterHolder;
 
-        public FastEventListenerList<CancelWatcher, CancelWatcherCallbackEventType> EventList { get; } = new FastEventListenerList<CancelWatcher, CancelWatcherCallbackEventType>();
+        public FastEventListenerList<CancelWatcher, NonsenseEventType> EventList { get; } = new FastEventListenerList<CancelWatcher, NonsenseEventType>();
 
-        Task mainLoop;
+        public CancellationToken CancelToken { get; }
 
-        CancellationTokenSource canceller = new CancellationTokenSource();
+        public bool Canceled => this.CancelToken.IsCancellationRequested;
 
-        AsyncAutoResetEvent ev = new AsyncAutoResetEvent();
-        volatile bool halt = false;
-
-        HashSet<CancellationToken> targetList = new HashSet<CancellationToken>();
-        List<Task> taskList = new List<Task>();
-
-        object LockObj = new object();
-
-        public CancelWatcher(params CancellationToken[] cancels) : this(null, cancels) { }
-
-        public CancelWatcher(AsyncCleanuperLady parentLady, params CancellationToken[] cancels)
-            : base(new AsyncCleanuperLady())
+        public CancelWatcher(params CancellationToken[] cancels)
         {
-            Add(canceller.Token);
-            Add(cancels);
+            this.GrandCancelTokenSource = new CancellationTokenSource();
 
-            if (parentLady != null)
-                parentLady.Add(this);
+            this.RegisterHolder = this.GrandCancelTokenSource.Token.Register(() => this.EventList.Fire(this, NonsenseEventType.Nonsense));
 
-            this.mainLoop = CancelWatcherMainLoop().AddToLady(this);
+            CancellationToken[] tokens = this.GrandCancelTokenSource.Token.SingleArray().Concat(cancels).ToArray();
+
+            this.ObjectHolder = TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelToken, tokens);
+            this.CancelToken = cancelToken;
+
+            this.LeakHolder = LeakChecker.Enter(LeakCounterKind.CreateCancelWatcher);
         }
 
+        Once CancelFlag;
         public void Cancel()
         {
-            canceller.TryCancelAsync().LaissezFaire();
-            this.Canceled = true;
+            if (CancelFlag.IsFirstCall())
+                this.GrandCancelTokenSource.TryCancelAsync().LaissezFaire();
         }
 
-        async Task CancelWatcherMainLoop()
-        {
-            using (LeakChecker.Enter())
-            {
-                while (true)
-                {
-                    List<CancellationToken> cancels = new List<CancellationToken>();
-
-                    lock (LockObj)
-                    {
-                        foreach (CancellationToken c in targetList)
-                            cancels.Add(c);
-                    }
-
-                    await TaskUtil.WaitObjectsAsync(
-                        cancels: cancels.ToArray(),
-                        events: new AsyncAutoResetEvent[] { ev });
-
-                    bool canceled = false;
-
-                    lock (LockObj)
-                    {
-                        foreach (CancellationToken c in targetList)
-                        {
-                            if (c.IsCancellationRequested)
-                            {
-                                canceled = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (halt)
-                    {
-                        canceled = true;
-                    }
-
-                    if (canceled)
-                    {
-                        this.cts.TryCancelAsync().LaissezFaire();
-                        this.EventWaitMe.Set(true);
-                        this.Canceled = true;
-                        EventList.Fire(this, CancelWatcherCallbackEventType.Canceled);
-                        break;
-                    }
-                }
-            }
-        }
-
-        public bool Add(params CancellationToken[] cancels)
-        {
-            bool ret = false;
-
-            lock (LockObj)
-            {
-                foreach (CancellationToken cancel in cancels)
-                {
-                    if (cancel != CancellationToken.None)
-                    {
-                        if (this.targetList.Contains(cancel) == false)
-                        {
-                            this.targetList.Add(cancel);
-                            ret = true;
-                        }
-                    }
-                }
-            }
-
-            if (ret)
-            {
-                this.ev.Set();
-            }
-
-            return ret;
-        }
-
+        public void Dispose() => Dispose(true);
         Once DisposeFlag;
-        protected override void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.halt = true;
-                this.Canceled = true;
-                this.ev.Set();
-                this.cts.TryCancelAsync().LaissezFaire();
-                this.EventWaitMe.Set(true);
-            }
-            finally { base.Dispose(disposing); }
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            Cancel();
+
+            this.RegisterHolder.DisposeSafe();
+            this.ObjectHolder.DisposeSafe();
+            this.LeakHolder.DisposeSafe();
         }
     }
 
@@ -2199,6 +2108,7 @@ namespace IPA.Cores.Basic
         FastAllocMemoryWithUsing,
         VfsOpenEntity,
         WaitObjectsAsync,
+        CreateCancelWatcher,
     }
 
     static class LeakChecker
