@@ -77,8 +77,6 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            hostInfo.PrintObject();
-
             //Net_Test1_PlainTcp_Client();
 
             //Net_Test2_Ssl_Client();
@@ -89,7 +87,7 @@ namespace IPA.TestDev
 
             //Net_Test4_SpeedTest_Client();
 
-            //Net_Test5_SpeedTest_Server();
+            Net_Test5_SpeedTest_Server();
 
             //Net_Test6_DualStack_Client();
 

@@ -1147,13 +1147,13 @@ namespace IPA.Cores.Basic
             CancelWatcher = new CancelWatcher(cancel);
         }
 
-        public override async Task _CleanupAsyncInternal()
+        public override async Task _CleanupInternalAsync()
         {
             try
             {
                 await MainLoopTask.TryWaitAsync(true);
             }
-            finally { await base._CleanupAsyncInternal(); }
+            finally { await base._CleanupInternalAsync(); }
         }
 
         Once ConnectedFlag;

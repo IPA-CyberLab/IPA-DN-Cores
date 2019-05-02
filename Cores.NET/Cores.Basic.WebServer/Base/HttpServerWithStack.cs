@@ -176,11 +176,6 @@ namespace IPA.Cores.Basic
 
             RemoteAddress = sock.Info.Ip.RemoteIPAddress;
             RemotePort = sock.Info.Tcp.RemotePort;
-
-            // On *nix platforms, Sockets already dispatches to the ThreadPool.
-            // Yes, the IOQueues are still used for the PipeSchedulers. This is intentional.
-            // https://github.com/aspnet/KestrelHttpServer/issues/2573
-            var awaiterScheduler = Env.IsWindows ? this.Scheduler : PipeScheduler.Inline;
         }
 
         public void Dispose() => Dispose(true);

@@ -236,14 +236,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async Task _CleanupAsyncInternal()
+        public override async Task _CleanupInternalAsync()
         {
             try
             {
                 await StackListenerCleanupLady;
                 await HostTask;
             }
-            finally { await base._CleanupAsyncInternal(); }
+            finally { await base._CleanupInternalAsync(); }
         }
     }
 }

@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
             finally { base.Dispose(disposing); }
         }
 
-        public override async Task _CleanupAsyncInternal()
+        public override async Task _CleanupInternalAsync()
         {
             try
             {
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
                     await s.Lady.CleanupAsync();
                 }
             }
-            finally { await base._CleanupAsyncInternal(); }
+            finally { await base._CleanupInternalAsync(); }
         }
     }
 }

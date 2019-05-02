@@ -263,11 +263,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<ConnSock> AcceptAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
+        public async Task<ConnSock> AcceptAsync(AsyncCleanuperLady ladyForNewTcpStub, CancellationToken cancelForNewSocket = default)
         {
             if (IsListening == false) throw new ApplicationException("Not listening.");
 
-            return new ConnSock(lady, await AcceptImplAsync(lady, cancelForNewSocket));
+            return new ConnSock(ladyForNewTcpStub, await AcceptImplAsync(ladyForNewTcpStub, cancelForNewSocket));
         }
     }
 
@@ -330,6 +330,8 @@ namespace IPA.Cores.Basic
 
                 PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp).AddToLady(lady);
 
+                this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
+
                 await TaskUtil.DoAsyncWithTimeout(async localCancel =>
                 {
                     await s.ConnectAsync(remoteEndPoint);
@@ -363,6 +365,8 @@ namespace IPA.Cores.Basic
 
                 PalSocket s = new PalSocket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp).AddToLady(lady);
 
+                this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
+
                 s.Bind(localEndPoint);
 
                 s.Listen(int.MaxValue);
@@ -378,18 +382,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task<FastTcpProtocolStubBase> AcceptImplAsync(AsyncCleanuperLady lady, CancellationToken cancelForNewSocket = default)
+        protected override async Task<FastTcpProtocolStubBase> AcceptImplAsync(AsyncCleanuperLady ladyForNewTcpStub, CancellationToken cancelForNewSocket = default)
         {
-            using (CancelWatcher.EventList.RegisterCallbackWithUsing((caller, type, state) => ListeningSocket.DisposeSafe()))
-            {
-                PalSocket newSocket = await ListeningSocket.AcceptAsync();
+            PalSocket newSocket = await ListeningSocket.AcceptAsync();
 
-                var newStub = new FastPalTcpProtocolStub(lady, null, null, cancelForNewSocket);
+            var newStub = new FastPalTcpProtocolStub(ladyForNewTcpStub, null, null, cancelForNewSocket);
 
-                newStub.FromSocket(newSocket);
+            newStub.FromSocket(newSocket);
 
-                return newStub;
-            }
+            return newStub;
         }
     }
 
@@ -908,7 +909,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task _CleanupAsyncInternal()
+        public async Task _CleanupInternalAsync()
         {
             List<Listener> o = new List<Listener>();
             lock (LockObj)

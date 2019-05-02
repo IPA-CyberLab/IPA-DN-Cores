@@ -1342,7 +1342,7 @@ namespace IPA.Cores.Basic
     interface IAsyncCleanupable : IDisposable
     {
         AsyncCleanuper AsyncCleanuper { get; }
-        Task _CleanupAsyncInternal();
+        Task _CleanupInternalAsync();
     }
 
     abstract class AsyncCleanupableCancellable : AsyncCleanupable
@@ -1369,8 +1369,16 @@ namespace IPA.Cores.Basic
         protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
             => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel.SingleArray().Concat(cancels).ToArray());
 
-        public Holder EnterCriticalCounter(RefInt counter)
-            => TaskUtil.EnterCriticalCounter(counter);
+        public Holder EnterCriticalCounter()
+        {
+            Holder ret = TaskUtil.EnterCriticalCounter(CriticalCounter);
+            if (DisposeFlag)
+            {
+                ret.DisposeSafe();
+                throw new ObjectDisposedException($"The instance \"{this.ToString()}\" is already disposed.");
+            }
+            return ret;
+        }
 
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
@@ -1431,7 +1439,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public virtual async Task _CleanupAsyncInternal()
+        public virtual async Task _CleanupInternalAsync()
         {
             this.DisposeSafe();
 
@@ -1446,7 +1454,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncCleanuper : IDisposable
+    sealed class AsyncCleanuper
     {
         IAsyncCleanupable Target { get; }
 
@@ -1465,7 +1473,7 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 if (internalCleanupTask == null)
-                    internalCleanupTask = Target._CleanupAsyncInternal().TryWaitAsync(true);
+                    internalCleanupTask = Target._CleanupInternalAsync().TryWaitAsync(true);
             }
 
             return internalCleanupTask;
@@ -1473,8 +1481,6 @@ namespace IPA.Cores.Basic
 
         public TaskAwaiter GetAwaiter()
             => CleanupAsync().GetAwaiter();
-
-        public void Dispose() { }
     }
 
     struct FastReadList<T>
@@ -1633,7 +1639,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    _CleanupAsyncInternal().TryGetResult();
+                    _CleanupInternalAsync().TryGetResult();
 
                     if (DisposeProc != null)
                         DisposeProc(UserData);
@@ -1650,7 +1656,7 @@ namespace IPA.Cores.Basic
 
         Once CleanupFlag;
 
-        public async Task _CleanupAsyncInternal()
+        public async Task _CleanupInternalAsync()
         {
             if (CleanupFlag.IsFirstCall())
             {
@@ -3458,13 +3464,13 @@ namespace IPA.Cores.Basic
             t.TryWaitAsync(false).LaissezFaire();
         }
 
-        public override async Task _CleanupAsyncInternal()
+        public override async Task _CleanupInternalAsync()
         {
             try
             {
                 await t;
             }
-            finally { await base._CleanupAsyncInternal(); }
+            finally { await base._CleanupInternalAsync(); }
         }
     }
 

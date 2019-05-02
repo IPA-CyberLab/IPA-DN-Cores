@@ -834,13 +834,13 @@ namespace IPA.Cores.Basic
             finally { base.Dispose(disposing); }
         }
 
-        public override async Task _CleanupAsyncInternal()
+        public override async Task _CleanupInternalAsync()
         {
             try
             {
                 // Here
             }
-            finally { await base._CleanupAsyncInternal(); }
+            finally { await base._CleanupInternalAsync(); }
         }
 
         protected override async Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)

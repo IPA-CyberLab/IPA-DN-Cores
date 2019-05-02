@@ -288,10 +288,8 @@ namespace IPA.Cores.Basic
             {
                 await param.ResolveDestHostnameIfNecessaryAsync(this, opCancel);
 
-                using (EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     AsyncCleanuperLady lady = new AsyncCleanuperLady();
 
                     try
@@ -323,10 +321,8 @@ namespace IPA.Cores.Basic
         {
             var hostInfo = GetHostInfo();
 
-            using (EnterCriticalCounter(CriticalCounter))
+            using (EnterCriticalCounter())
             {
-                CheckNotDisposed();
-
                 FastTcpListenerBase ret = CreateListenerImpl(lady, param);
 
                 foreach (int port in param.PortsList)
@@ -343,10 +339,8 @@ namespace IPA.Cores.Basic
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                using (EnterCriticalCounter(CriticalCounter))
+                using (EnterCriticalCounter())
                 {
-                    CheckNotDisposed();
-
                     return await QueryDnsImplAsync(param, opCancel);
                 }
             }
