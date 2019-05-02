@@ -1194,140 +1194,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncCleanuperLady : IDisposable
-    {
-        static volatile int IdSeed;
-
-        public int Id { get; }
-
-        public AsyncCleanuperLady()
-        {
-            Id = Interlocked.Increment(ref IdSeed);
-        }
-
-        Queue<AsyncCleanuper> CleanuperQueue = new Queue<AsyncCleanuper>();
-        Queue<Task> TaskQueue = new Queue<Task>();
-        Queue<IDisposable> DisposableQueue = new Queue<IDisposable>();
-
-        void InternalCollectMain(object obj)
-        {
-            IAsyncCleanupable cleanupable = obj as IAsyncCleanupable;
-            AsyncCleanuper cleanuper = obj as AsyncCleanuper;
-            Task task = obj as Task;
-            IDisposable disposable = obj as IDisposable;
-
-            lock (LockObj)
-            {
-                if (cleanupable != null) CleanuperQueue.Enqueue(cleanupable.AsyncCleanuper);
-                if (cleanuper != null) CleanuperQueue.Enqueue(cleanuper);
-                if (task != null) TaskQueue.Enqueue(task);
-                if (disposable != null) DisposableQueue.Enqueue(disposable);
-            }
-
-            if (IsDisposed)
-                DisposeAllSafe();
-        }
-
-        public void Add(IAsyncCleanupable cleanupable) => InternalCollectMain(cleanupable);
-        public void Add(AsyncCleanuper cleanuper) => InternalCollectMain(cleanuper);
-        public void Add(Task task) => InternalCollectMain(task);
-        public void Add(IDisposable disposable) => InternalCollectMain(disposable);
-
-        public void MergeFrom(AsyncCleanuperLady fromLady)
-        {
-            lock (LockObj)
-            {
-                lock (fromLady.LockObj)
-                {
-                    fromLady.CleanuperQueue.ToList().ForEach(x => this.CleanuperQueue.Enqueue(x));
-                    fromLady.TaskQueue.ToList().ForEach(x => this.TaskQueue.Enqueue(x));
-                    fromLady.DisposableQueue.ToList().ForEach(x => this.DisposableQueue.Enqueue(x));
-
-                    fromLady.CleanuperQueue.Clear();
-                    fromLady.TaskQueue.Clear();
-                    fromLady.DisposableQueue.Clear();
-                }
-            }
-        }
-
-        public void MergeTo(AsyncCleanuperLady toLady)
-            => toLady.MergeFrom(this);
-
-        CriticalSection LockObj = new CriticalSection();
-        volatile bool _disposed = false;
-        public bool IsDisposed { get => _disposed; }
-
-        public void DisposeAllSafe()
-        {
-            _disposed = true;
-
-            IDisposable[] disposableList;
-            lock (LockObj)
-            {
-                disposableList = DisposableQueue.Reverse().ToArray();
-            }
-
-            foreach (var disposable in disposableList)
-                disposable.DisposeSafe();
-        }
-
-        volatile bool _cleanuped = false;
-        public bool IsCleanuped { get => _cleanuped; }
-
-        public async Task CleanupAsync()
-        {
-            _disposed = true;
-            _cleanuped = true;
-
-            AsyncCleanuper[] cleanuperList;
-            Task[] taskList;
-            IDisposable[] disposableList;
-
-            lock (LockObj)
-            {
-                cleanuperList = CleanuperQueue.Reverse().ToArray();
-                taskList = TaskQueue.Reverse().ToArray();
-                disposableList = DisposableQueue.Reverse().ToArray();
-
-                CleanuperQueue.Clear();
-                TaskQueue.Clear();
-                DisposableQueue.Clear();
-            }
-
-            foreach (var disposable in disposableList)
-                disposable.DisposeSafe();
-
-            foreach (var cleanuper in cleanuperList)
-                await cleanuper;
-
-            foreach (var task in taskList)
-            {
-                try
-                {
-                    await task;
-                }
-                catch { }
-            }
-        }
-
-        public TaskAwaiter GetAwaiter()
-            => CleanupAsync().GetAwaiter();
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            CleanupAsync().TryGetResult();
-        }
-    }
-
-    interface IAsyncCleanupable : IDisposable
-    {
-        AsyncCleanuper AsyncCleanuper { get; }
-        Task _CleanupInternalAsync();
-    }
-
     interface IAsyncService : IDisposable
     {
         Task CleanupAsync(Exception ex = null);
@@ -1408,9 +1274,9 @@ namespace IPA.Cores.Basic
             CancelInternalMain();
         }
 
-        protected abstract void CancelImpl(Exception ex);
-        protected abstract Task CleanupImplAsync();
-        protected abstract void DisposeImpl();
+        protected virtual void CancelImpl(Exception ex) { }
+        protected virtual Task CleanupImplAsync() => Task.CompletedTask;
+        protected virtual void DisposeImpl() { }
 
         void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object userState)
             => CancelInternalMain();
@@ -1492,35 +1358,6 @@ namespace IPA.Cores.Basic
             await this.CleanupSafeAsync(ex);
             this.DisposeSafe(ex);
         }
-    }
-
-    sealed class AsyncCleanuper
-    {
-        IAsyncCleanupable Target { get; }
-
-        public AsyncCleanuper(IAsyncCleanupable targetObject)
-        {
-            Target = targetObject;
-        }
-
-        Task internalCleanupTask = null;
-        CriticalSection LockObj = new CriticalSection();
-
-        public Task CleanupAsync()
-        {
-            Target.DisposeSafe();
-
-            lock (LockObj)
-            {
-                if (internalCleanupTask == null)
-                    internalCleanupTask = Target._CleanupInternalAsync().TryWaitAsync(true);
-            }
-
-            return internalCleanupTask;
-        }
-
-        public TaskAwaiter GetAwaiter()
-            => CleanupAsync().GetAwaiter();
     }
 
     struct FastReadList<T>
@@ -1628,98 +1465,6 @@ namespace IPA.Cores.Basic
     }
 
     interface IHolder : IDisposable { }
-
-    class AsyncHolder : AsyncHolder<int>
-    {
-        public AsyncHolder(Func<Task> asyncCleanupProc, Action<int> disposeProc = null, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
-            : base(_ => asyncCleanupProc(), disposeProc, default, leakCheckKind) { }
-    }
-
-    class AsyncHolder<T> : IAsyncCleanupable
-    {
-        public AsyncCleanuper AsyncCleanuper { get; }
-
-        public T UserData { get; }
-        Action<T> DisposeProc;
-        Func<T, Task> AsyncCleanupProc;
-        IHolder Leak = null;
-        IHolder Leak2 = null;
-        LeakCounterKind LeakCheckKind;
-
-        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
-
-        public AsyncHolder(Func<T, Task> asyncCleanupProc, Action<T> disposeProc = null, T userData = default(T),
-            LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
-        {
-            this.UserData = userData;
-            this.DisposeProc = disposeProc;
-            this.AsyncCleanupProc = asyncCleanupProc;
-            this.LeakCheckKind = leakCheckKind;
-
-            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
-            {
-                Leak = LeakChecker.Enter(LeakCheckKind);
-                Leak2 = LeakChecker.Enter(LeakCheckKind);
-            }
-            else
-            {
-                LeakChecker.IncrementLeakCounter(LeakCheckKind);
-                LeakChecker.IncrementLeakCounter(LeakCheckKind);
-            }
-
-            AsyncCleanuper = new AsyncCleanuper(this);
-        }
-
-        Once DisposeFlag;
-
-        public void Dispose() => Dispose(true);
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && DisposeFlag.IsFirstCall())
-            {
-                try
-                {
-                    _CleanupInternalAsync().TryGetResult();
-
-                    if (DisposeProc != null)
-                        DisposeProc(UserData);
-                }
-                finally
-                {
-                    if (Leak != null)
-                        Leak.DisposeSafe();
-                    else
-                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                }
-            }
-        }
-
-        Once CleanupFlag;
-
-        public async Task _CleanupInternalAsync()
-        {
-            if (CleanupFlag.IsFirstCall())
-            {
-                try
-                {
-                    await AsyncCleanupProc(UserData);
-
-                    this.DisposeSafe();
-                }
-                finally
-                {
-                    if (Leak2 != null)
-                        Leak2.DisposeSafe();
-                    else
-                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                }
-            }
-        }
-
-        public TaskAwaiter GetAwaiter()
-            => AsyncCleanuper.GetAwaiter();
-    }
-
 
     delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
 
@@ -2075,8 +1820,6 @@ namespace IPA.Cores.Basic
 
         static int[] LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];
 
-        static public AsyncCleanuperLady SuperGrandLady { get; } = new AsyncCleanuperLady();
-
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
         public static IHolder Enter(LeakCounterKind leakKind = LeakCounterKind.OthersCounter, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
@@ -2137,7 +1880,7 @@ namespace IPA.Cores.Basic
 
         public static void Print()
         {
-            SuperGrandLady.CleanupAsync().TryWait();
+            //////////////SuperGrandLady.CleanupAsync().TryWait();
 
             lock (_InternalList)
             {
@@ -3493,76 +3236,6 @@ namespace IPA.Cores.Basic
         }
 
         protected override void DisposeImpl() { }
-    }
-
-    class AsyncTester : IDisposable
-    {
-        List<AsyncCleanuperLady> LadyList = new List<AsyncCleanuperLady>();
-
-        public AsyncCleanuperLady SingleLady { get; } = null;
-
-        CancellationTokenSource CancelSource = new CancellationTokenSource();
-        public CancellationToken CancelToken => CancelSource.Token;
-
-        public AsyncTester(bool createSingleLady) : this()
-        {
-            if (createSingleLady)
-            {
-                AddLady(SingleLady = new AsyncCleanuperLady());
-            }
-        }
-        public AsyncTester(params AsyncCleanuperLady[] ladyList)
-        {
-            foreach (AsyncCleanuperLady lady in ladyList)
-                AddLady(lady);
-        }
-
-        public void AddLady(params AsyncCleanuperLady[] ladyList)
-        {
-            if (OnceFlag.IsSet || DisposeFlag.IsSet)
-                throw new ApplicationException("Already exiting.");
-
-            lock (LadyList)
-            {
-                foreach (AsyncCleanuperLady lady in ladyList)
-                    LadyList.Add(lady);
-            }
-        }
-
-        Once OnceFlag;
-
-        public void EnterKeyPrompt(string message = "Enter to quit :")
-        {
-            if (OnceFlag.IsFirstCall())
-            {
-                Console.Write(message);
-                Console.ReadLine();
-                Console.WriteLine();
-
-                Dispose();
-            }
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            CancelSource.Cancel();
-
-            AsyncCleanuperLady[] ladyListCopy;
-
-            lock (LadyList)
-            {
-                ladyListCopy = LadyList.ToArray();
-            }
-
-            foreach (var lady in ladyListCopy)
-            {
-                lady.CleanupAsync().TryWait();
-            }
-        }
     }
 
     class RefCounterHolder : IDisposable

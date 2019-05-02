@@ -280,12 +280,8 @@ namespace IPA.Cores.Basic
 
                 using (EnterCriticalCounter())
                 {
-                    AsyncCleanuperLady lady = new AsyncCleanuperLady();
-
-                    try
+                    using (FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel))
                     {
-                        FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel);
-
                         await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout, opCancel);
 
                         ConnSock sock = new ConnSock(tcp);
@@ -295,11 +291,6 @@ namespace IPA.Cores.Basic
                         sock.AddOnDispose(() => this.RemoveFromOpenedSockList(sock));
 
                         return sock;
-                    }
-                    catch
-                    {
-                        await lady;
-                        throw;
                     }
                 }
             }

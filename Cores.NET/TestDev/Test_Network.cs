@@ -219,15 +219,10 @@ namespace IPA.TestDev
 
         static void Net_Test5_SpeedTest_Server()
         {
-            AsyncTester tester = new AsyncTester(true);
-
-            var server = new SpeedTestServer(LocalNet, tester.CancelToken, 9821);
-
-            Task t = server.RunServerAsync();
-
-            tester.EnterKeyPrompt();
-
-            t.GetResult();
+            using (var server = new SpeedTestServer(LocalNet, default, 9821))
+            {
+                Con.ReadLine("Enter to stop>");
+            }
         }
 
         static void Net_Test4_SpeedTest_Client()

@@ -60,23 +60,26 @@ namespace IPA.Cores.Basic
         Both,
     }
 
-    class SpeedTestServer
+    class SpeedTestServer : AsyncService
     {
         Memory<byte> SendData;
 
         int[] ServerPorts;
-        CancellationToken Cancel;
 
         int RecvTimeout = 5000;
 
         TcpIpSystem System;
 
-        public SpeedTestServer(TcpIpSystem system, CancellationToken cancel, params int[] ports)
+        Task MainTask;
+
+        public SpeedTestServer(TcpIpSystem system, params int[] ports)
         {
             this.System = system;
-            this.Cancel = cancel;
             this.ServerPorts = ports;
+
             InitSendData();
+
+            this.MainTask = RunServerAsync();
         }
 
         void InitSendData()
@@ -98,7 +101,7 @@ namespace IPA.Cores.Basic
             public bool NoMoreData = false;
         }
 
-        public async Task RunServerAsync()
+        async Task RunServerAsync()
         {
             if (Once.IsFirstCall() == false)
                 throw new ApplicationException("You cannot reuse the object.");
@@ -213,13 +216,18 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteLine("Listening.");
 
-                    await TaskUtil.WaitObjectsAsync(cancels: this.Cancel.SingleArray());
+                    await TaskUtil.WaitObjectsAsync(cancels: this.GrandCancel.SingleArray());
                 }
                 finally
                 {
 
                 }
             }
+        }
+
+        protected override async Task CleanupImplAsync()
+        {
+            await this.MainTask;
         }
     }
 
