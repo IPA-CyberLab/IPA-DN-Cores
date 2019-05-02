@@ -1317,7 +1317,7 @@ namespace IPA.Cores.Basic
                                     GC.Collect();
                                     return true;
                                 }
-                                catch (Exception ex2) when (execCommandOrNull.IsEmpty())
+                                catch (Exception ex2) when (Env.IsDebuggerAttached == false)
                                 {
                                     ex2 = ex2.GetSingleException();
 

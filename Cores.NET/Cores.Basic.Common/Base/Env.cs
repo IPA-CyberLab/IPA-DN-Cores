@@ -130,6 +130,8 @@ namespace IPA.Cores.Basic
         public static StrComparer FilePathStringComparer { get; }
         public static FileSystemPathParser LocalFileSystemPathInterpreter { get; }
 
+        public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
+
         static IO lockFile;
 
         public static bool Is64BitProcess => (IntPtr.Size == 8);
