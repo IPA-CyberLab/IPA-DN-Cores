@@ -1641,6 +1641,35 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class FastPipeEndPipelineWrapper : FastPipeEndAsyncObjectWrapperBase
+    {
+        public FastPipeEndPipelineWrapper(AsyncCleanuperLady lady, FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(lady, pipeEnd, cancel)
+        {
+        }
+
+        public override PipeSupportedDataTypes SupportedDataTypes => throw new NotImplementedException();
+
+        protected override Task DatagramReadFromObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task DatagramWriteToObject(FastDatagramBuffer fifo, CancellationToken cancel)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task StreamReadFromObject(FastStreamBuffer fifo, CancellationToken cancel)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task StreamWriteToObject(FastStreamBuffer fifo, CancellationToken cancel)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     interface IFastStream
     {
         ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default);

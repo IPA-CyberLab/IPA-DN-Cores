@@ -51,10 +51,13 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class HttpClientSettings
+        public static partial class DefaultHttpClientSettings
         {
             public static readonly Copenhagen<int> MaxConnectionPerServer = 512;
-            public static readonly Copenhagen<int> PooledConnectionLifeTime = 3 * 1000;
+            public static readonly Copenhagen<int> PooledConnectionLifeTime = 60 * 1000;
+            public static readonly Copenhagen<int> Timeout = 60 * 1000;
+            public static readonly Copenhagen<int> MaxRecvSize = 100 * 1024 * 1024;
+            public static readonly Copenhagen<bool> UseProxy = true;
         }
     }
 
@@ -194,21 +197,49 @@ namespace IPA.Cores.Basic
         PUT,
     }
 
+    [Serializable]
+    class WebApiSettings
+    {
+        public int Timeout = CoresConfig.DefaultHttpClientSettings.Timeout;
+        public int MaxRecvSize = CoresConfig.DefaultHttpClientSettings.MaxRecvSize;
+        public int MaxConnectionPerServer = CoresConfig.DefaultHttpClientSettings.MaxConnectionPerServer;
+        public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
+        public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
+
+        public bool AllowAutoRedirect = true;
+        public int MaxAutomaticRedirections = 10;
+
+        public bool SslAcceptAnyCerts = false;
+        public List<string> SslAcceptCertSHA1HashList = new List<string>();
+
+        public bool DebugPrintResponse = false;
+    }
+
+    class WebApiOptions
+    {
+        public WebApiSettings Settings { get; }
+        public TcpIpSystem TcpIpSystem { get; }
+
+        public WebApiOptions(WebApiSettings settings = null, TcpIpSystem tcpIpSystem = null)
+        {
+            if (settings == null) settings = new WebApiSettings();
+            if (tcpIpSystem == null) tcpIpSystem = LocalNet;
+
+            this.Settings = settings;
+            this.TcpIpSystem = tcpIpSystem;
+        }
+    }
+
     partial class WebApi : IDisposable
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public const int DefaultTimeoutMsecs = 60 * 1000;
+        WebApiSettings Settings;
+
         public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
-
-        public const long DefaultMaxRecvSize = 100 * 1024 * 1024;
         public long MaxRecvSize { get => this.Client.MaxResponseContentBufferSize; set => this.Client.MaxResponseContentBufferSize = value; }
-        public bool SslAcceptAnyCerts { get; set; } = false;
-        public bool UseProxy { get; set; } = true;
-        public List<string> SslAcceptCertSHA1HashList { get; set; } = new List<string>();
-        public Encoding RequestEncoding { get; set; } = Str.Utf8Encoding;
 
-        public bool DebugPrintResponse { get; set; } = false;
+        public Encoding RequestEncoding { get; set; } = Encoding.UTF8;
 
         public SortedList<string, string> RequestHeaders = new SortedList<string, string>();
 
@@ -218,18 +249,24 @@ namespace IPA.Cores.Basic
 
         public HttpClient Client { get; private set; }
 
-        public WebApi()
-        {
-            this.ClientHandler = new SocketsHttpHandler(LocalNet);
+        public bool DebugPrintResponse => this.Settings.DebugPrintResponse;
 
-            this.ClientHandler.AllowAutoRedirect = true;
-            this.ClientHandler.MaxAutomaticRedirections = 10;
-            this.ClientHandler.MaxConnectionsPerServer = CoresConfig.HttpClientSettings.MaxConnectionPerServer;
-            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan((ulong)CoresConfig.HttpClientSettings.PooledConnectionLifeTime.Value);
+        public WebApi(WebApiOptions options = null)
+        {
+            if (options == null) options = new WebApiOptions();
+
+            this.Settings = options.Settings.CloneDeep();
+
+            this.ClientHandler = new SocketsHttpHandler(options.TcpIpSystem);
+
+            this.ClientHandler.AllowAutoRedirect = this.Settings.AllowAutoRedirect;
+            this.ClientHandler.MaxAutomaticRedirections = this.Settings.MaxAutomaticRedirections;
+            this.ClientHandler.MaxConnectionsPerServer = this.Settings.MaxConnectionPerServer;
+            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan((ulong)this.Settings.PooledConnectionLifeTime);
 
             this.Client = new HttpClient(this.ClientHandler, true);
-            this.MaxRecvSize = WebApi.DefaultMaxRecvSize;
-            this.TimeoutMsecs = WebApi.DefaultTimeoutMsecs;
+            this.MaxRecvSize = this.Settings.MaxRecvSize;
+            this.TimeoutMsecs = this.Settings.Timeout;
         }
 
         public void Dispose() => Dispose(true);
@@ -303,15 +340,15 @@ namespace IPA.Cores.Basic
 
             try
             {
-                if (this.SslAcceptAnyCerts)
+                if (this.Settings.SslAcceptAnyCerts)
                 {
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
                 }
-                else if (this.SslAcceptCertSHA1HashList != null && SslAcceptCertSHA1HashList.Count >= 1)
+                else if (this.Settings.SslAcceptCertSHA1HashList != null && this.Settings.SslAcceptCertSHA1HashList.Count >= 1)
                 {
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
                     {
-                        foreach (var s in this.SslAcceptCertSHA1HashList)
+                        foreach (var s in this.Settings.SslAcceptCertSHA1HashList)
                             if (cert.GetCertHashString().IsSamei(s)) return true;
                         return false;
                     };
@@ -321,7 +358,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                this.ClientHandler.UseProxy = this.UseProxy;
+                this.ClientHandler.UseProxy = this.Settings.UseProxy;
             }
             catch { }
 

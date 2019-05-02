@@ -800,15 +800,16 @@ namespace IPA.Cores.Basic
 
     class JsonRpcHttpClient : JsonRpcClient, IDisposable
     {
-        public WebApi WebApi { get; private set; } = new WebApi();
+        public WebApi WebApi { get; private set; }
         public string ApiBaseUrl { get; set; }
 
         public override int TimeoutMsecs { get => WebApi.TimeoutMsecs; set => WebApi.TimeoutMsecs = value; }
         public override void AddHeader(string name, string value) => WebApi.AddHeader(name, value);
 
-        public JsonRpcHttpClient(string apiUrl)
+        public JsonRpcHttpClient(string apiUrl, WebApiOptions webApiOptions = null)
         {
             this.ApiBaseUrl = apiUrl;
+            this.WebApi = new WebApi(webApiOptions);
         }
 
         public override async Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default)
@@ -833,7 +834,7 @@ namespace IPA.Cores.Basic
         where TRpcInterface : class
     {
         public TRpcInterface Call { get; }
-        public JsonRpcHttpClient(string apiUrl) : base(apiUrl)
+        public JsonRpcHttpClient(string apiUrl, WebApiOptions webApiOptions = null) : base(apiUrl, webApiOptions)
         {
             this.Call = this.GenerateRpcInterface<TRpcInterface>();
         }

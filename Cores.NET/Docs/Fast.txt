@@ -95,9 +95,9 @@ FastPipeNonblockStateHelper - 1 つのルーチン内で、1 つまたは多数�
 
 FastPipeEndAsyncObjectWrapperBase - 何らかの他ライブラリのオブジェクト (例: .NET の Stream) を下位レイヤの通信源とし、下位通信源オブジェクトから届いた受信データを Upper の FastPipeEnd に対して渡し、Upper の FastPipeEnd から届いた送信データを下位通信源オブジェクトに渡すループ処理を実施する抽象クラス。このクラス本体はループを定義しているのみであり、実際の動作は派生クラスで実装する。
 
-FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Socket オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。
+FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Socket オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(上位 / 下位は逆でもよい)
 
-FastPipeEndStreamWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Stream オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(※ すなわち、FastStreamToPalNetworkStream の逆。)
+FastPipeEndStreamWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の Stream オブジェクトを下位レイヤの通信源とし、Upper の FastPipeEnd との間でデータを受け渡しするラッパー。(※ すなわち、FastStreamToPalNetworkStream の逆。) (上位 / 下位は逆でもよい)
 
 
 
