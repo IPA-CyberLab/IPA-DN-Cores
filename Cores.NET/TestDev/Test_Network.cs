@@ -83,9 +83,9 @@ namespace IPA.TestDev
 
             //Net_Test3_PlainTcp_Server();
 
-            //Net_Test4_SpeedTest_Client();
+            Net_Test4_SpeedTest_Client();
 
-            Net_Test5_SpeedTest_Server();
+            //Net_Test5_SpeedTest_Server();
 
             //Net_Test6_DualStack_Client();
 
@@ -234,9 +234,17 @@ namespace IPA.TestDev
         {
             string hostname = "speed.coe.ad.jp";
 
-            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 15000, SpeedTestModeFlag.Upload);
+            CancellationTokenSource cts = new CancellationTokenSource();
 
-            client.RunClientAsync().GetResult().PrintAsJson();
+            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 5000, SpeedTestModeFlag.Upload, cts.Token);
+
+            var task = client.RunClientAsync();
+
+            Con.ReadLine("Enter to stop>");
+
+            cts.TryCancelNoBlock();
+
+            task.GetResult().PrintAsJson();
         }
 
         static void Net_Test3_PlainTcp_Server()

@@ -1293,6 +1293,7 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
+                                    GC.Collect();
                                     //object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
                                     object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
 
@@ -1312,15 +1313,21 @@ namespace IPA.Cores.Basic
                                     this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
                                     this.write("", LogPriority.Error);
                                     this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
+
+                                    GC.Collect();
                                     return true;
                                 }
                                 catch (Exception ex2) when (execCommandOrNull.IsEmpty())
                                 {
+                                    ex2 = ex2.GetSingleException();
+
                                     this.write(ex2.ToString(), LogPriority.Error);
                                     this.write("", LogPriority.Error);
 
                                     this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                     this.retErrorMessage = ex2.Message;
+
+                                    GC.Collect();
                                     return true;
                                 }
 

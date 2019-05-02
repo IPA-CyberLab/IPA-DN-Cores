@@ -317,94 +317,96 @@ namespace IPA.Cores.Basic
             try
             {
 
-                CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel);
-                for (int i = 0; i < NumConnection; i++)
+                using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
                 {
-                    SpeedTestDirection dir;
-                    if (Mode == SpeedTestModeFlag.Download)
-                        dir = SpeedTestDirection.Recv;
-                    else if (Mode == SpeedTestModeFlag.Upload)
-                        dir = SpeedTestDirection.Send;
-                    else
-                        dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
-
-                    AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
-                    var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
-                    ExceptionQueue.RegisterWatchedTask(t);
-                    tasks.Add(t);
-                    readyEvents.Add(readyEvent);
-                }
-
-                try
-                {
-                    using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
+                    for (int i = 0; i < NumConnection; i++)
                     {
-                        await TaskUtil.WaitObjectsAsync(
-                            tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
-                            cancels: cancelWatcher.CancelToken.SingleArray(),
-                            manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
+                        SpeedTestDirection dir;
+                        if (Mode == SpeedTestModeFlag.Download)
+                            dir = SpeedTestDirection.Recv;
+                        else if (Mode == SpeedTestModeFlag.Upload)
+                            dir = SpeedTestDirection.Send;
+                        else
+                            dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
+
+                        AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
+                        var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
+                        ExceptionQueue.RegisterWatchedTask(t);
+                        tasks.Add(t);
+                        readyEvents.Add(readyEvent);
                     }
 
-                    Cancel.ThrowIfCancellationRequested();
-                    ExceptionQueue.ThrowFirstExceptionIfExists();
-
-                    ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
-                    {
-                        cancelWatcher.Cancel();
-                    });
-
-                    using (new DelayAction(lady, TimeSpan * 3 + 180 * 1000, x =>
-                    {
-                        cancelWatcher.Cancel();
-                    }))
-                    {
-                        ClientStartEvent.Set(true);
-
-                        using (var whenAllCompleted = new WhenAll(tasks))
-                        {
-                            await TaskUtil.WaitObjectsAsync(
-                                tasks: whenAllCompleted.WaitMe.SingleArray(),
-                                cancels: cancelWatcher.CancelToken.SingleArray()
-                                );
-
-                            await whenAllCompleted.WaitMe;
-                        }
-                    }
-
-                    Result ret = new Result();
-
-                    ret.Span = TimeSpan;
-
-                    foreach (var r in tasks.Select(x => x.GetResult()))
-                    {
-                        ret.NumBytesDownload += r.NumBytesDownload;
-                        ret.NumBytesUpload += r.NumBytesUpload;
-                    }
-
-                    ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
-
-                    ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                    ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                    ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
-
-                    return ret;
-                }
-                catch (Exception ex)
-                {
-                    await Task.Yield();
-                    ExceptionQueue.Add(ex);
-                }
-                finally
-                {
-                    cancelWatcher.Cancel();
                     try
                     {
-                        await Task.WhenAll(tasks);
-                    }
-                    catch { }
-                }
+                        using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
+                        {
+                            await TaskUtil.WaitObjectsAsync(
+                                tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
+                                cancels: cancelWatcher.CancelToken.SingleArray(),
+                                manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
+                        }
 
-                ExceptionQueue.ThrowFirstExceptionIfExists();
+                        Cancel.ThrowIfCancellationRequested();
+                        ExceptionQueue.ThrowFirstExceptionIfExists();
+
+                        ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
+                        {
+                            cancelWatcher.Cancel();
+                        });
+
+                        using (new DelayAction(lady, TimeSpan * 3 + 180 * 1000, x =>
+                        {
+                            cancelWatcher.Cancel();
+                        }))
+                        {
+                            ClientStartEvent.Set(true);
+
+                            using (var whenAllCompleted = new WhenAll(tasks))
+                            {
+                                await TaskUtil.WaitObjectsAsync(
+                                    tasks: whenAllCompleted.WaitMe.SingleArray(),
+                                    cancels: cancelWatcher.CancelToken.SingleArray()
+                                    );
+
+                                await whenAllCompleted.WaitMe;
+                            }
+                        }
+
+                        Result ret = new Result();
+
+                        ret.Span = TimeSpan;
+
+                        foreach (var r in tasks.Select(x => x.GetResult()))
+                        {
+                            ret.NumBytesDownload += r.NumBytesDownload;
+                            ret.NumBytesUpload += r.NumBytesUpload;
+                        }
+
+                        ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
+
+                        ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                        ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                        ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
+
+                        return ret;
+                    }
+                    catch (Exception ex)
+                    {
+                        await Task.Yield();
+                        ExceptionQueue.Add(ex);
+                    }
+                    finally
+                    {
+                        cancelWatcher.Cancel();
+                        try
+                        {
+                            await Task.WhenAll(tasks);
+                        }
+                        catch { }
+                    }
+
+                    ExceptionQueue.ThrowFirstExceptionIfExists();
+                }
             }
             finally
             {
@@ -441,10 +443,8 @@ namespace IPA.Cores.Basic
                 {
                     var hello = await st.ReceiveAllAsync(16);
 
-                    Dbg.Where();
                     if (hello.Span.ToArray().GetString_Ascii().StartsWith("TrafficServer\r\n") == false)
                         throw new ApplicationException("Target server is not a Traffic Server.");
-                    Dbg.Where();
 
                     //throw new ApplicationException("aaaa" + dir.ToString());
 
@@ -534,13 +534,10 @@ namespace IPA.Cores.Basic
                     }
 
                     st.Disconnect();
-
-                    Dbg.Where();
                     return ret;
                 }
                 catch (Exception ex)
                 {
-                    Dbg.Where(ex.Message);
                     ExceptionQueue.Add(ex);
                     throw;
                 }

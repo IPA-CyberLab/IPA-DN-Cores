@@ -938,8 +938,6 @@ namespace IPA.Cores.Basic
                 {
                     reg.DisposeSafe();
                 }
-
-                x.Cts.DisposeSafe();
             },
             ctx, LeakCounterKind.CreateCombinedCancellationToken);
         }
@@ -1376,6 +1374,17 @@ namespace IPA.Cores.Basic
 
         public Holder EnterCriticalCounter(RefInt counter)
             => TaskUtil.EnterCriticalCounter(counter);
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                this.CancelWatcher.DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
     }
 
     abstract class AsyncCleanupable : IAsyncCleanupable
@@ -1848,7 +1857,7 @@ namespace IPA.Cores.Basic
         public void Cancel()
         {
             if (CancelFlag.IsFirstCall())
-                this.GrandCancelTokenSource.TryCancelAsync().LaissezFaire();
+                this.GrandCancelTokenSource.TryCancelNoBlock();
         }
 
         public void Dispose() => Dispose(true);

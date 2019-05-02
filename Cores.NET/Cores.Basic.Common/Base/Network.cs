@@ -3165,14 +3165,14 @@ namespace IPA.Cores.Basic
     {
         public PalSocket Sock { get; }
         public bool IsStream { get; }
-        public bool IsDisconnected { get => Watcher.Canceled; }
-        public CancellationToken CancelToken { get => Watcher.CancelToken; }
+        public bool IsDisconnected { get => CancelWatcher.Canceled; }
+        public CancellationToken CancelToken { get => CancelWatcher.CancelToken; }
 
         public AsyncAutoResetEvent EventSendReady { get; } = new AsyncAutoResetEvent();
         public AsyncAutoResetEvent EventRecvReady { get; } = new AsyncAutoResetEvent();
         public AsyncAutoResetEvent EventSendNow { get; } = new AsyncAutoResetEvent();
 
-        CancelWatcher Watcher;
+        CancelWatcher CancelWatcher;
         byte[] TmpRecvBuffer;
 
         public Fifo RecvTcpFifo { get; } = new Fifo();
@@ -3201,7 +3201,7 @@ namespace IPA.Cores.Basic
 
             Sock = s;
             IsStream = (s.SocketType == SocketType.Stream);
-            Watcher = new CancelWatcher(cancel);
+            CancelWatcher = new CancelWatcher(cancel);
 
             if (IsStream)
             {
@@ -3252,12 +3252,12 @@ namespace IPA.Cores.Basic
 
                     return 0;
                 },
-                cancel: Watcher.CancelToken
+                cancel: CancelWatcher.CancelToken
                 );
             }
             finally
             {
-                this.Watcher.Cancel();
+                this.CancelWatcher.Cancel();
                 EventSendReady.Set();
                 EventRecvReady.Set();
             }
@@ -3307,12 +3307,12 @@ namespace IPA.Cores.Basic
 
                     return 0;
                 },
-                cancel: Watcher.CancelToken
+                cancel: CancelWatcher.CancelToken
                 );
             }
             finally
             {
-                this.Watcher.Cancel();
+                this.CancelWatcher.Cancel();
                 EventSendReady.Set();
                 EventRecvReady.Set();
             }
@@ -3352,12 +3352,12 @@ namespace IPA.Cores.Basic
 
                     return 0;
                 },
-                cancel: Watcher.CancelToken
+                cancel: CancelWatcher.CancelToken
                 );
             }
             finally
             {
-                this.Watcher.Cancel();
+                this.CancelWatcher.Cancel();
                 EventSendReady.Set();
                 EventRecvReady.Set();
             }
@@ -3400,7 +3400,7 @@ namespace IPA.Cores.Basic
 
                     return 0;
                 },
-                cancel: Watcher.CancelToken
+                cancel: CancelWatcher.CancelToken
                 );
             }
             catch (Exception ex)
@@ -3409,7 +3409,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                this.Watcher.Cancel();
+                this.CancelWatcher.Cancel();
                 EventSendReady.Set();
                 EventRecvReady.Set();
             }
@@ -3433,7 +3433,7 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            Watcher.DisposeSafe();
+            CancelWatcher.DisposeSafe();
             Sock.DisposeSafe();
         }
     }

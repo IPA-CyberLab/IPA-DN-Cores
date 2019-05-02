@@ -644,7 +644,8 @@ namespace IPA.Cores.Helper.Basic
             if (ex == null) return null;
 
             var tex = ex as TargetInvocationException;
-            if (tex != null) ex = tex.InnerException;
+            if (tex != null)
+                ex = tex.InnerException;
 
             var aex = ex as AggregateException;
             if (aex != null) ex = aex.Flatten().InnerExceptions[0];

@@ -1013,7 +1013,7 @@ namespace IPA.Cores.Basic
         public int Task;
         public int P;
         public int Q;
-        public int Leak;
+        public int Obj;
         public int IO;
         public long Mem;
         public int FreeTask;
@@ -1032,7 +1032,7 @@ namespace IPA.Cores.Basic
             this.FreeTask = avail_workers;
             this.P = num_queued;
             this.Q = num_timered;
-            this.Leak = LeakChecker.Count;
+            this.Obj = LeakChecker.Count;
             this.IO = max_ports - avail_ports;
             this.Mem = mem / 1024;
         }
