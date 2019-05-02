@@ -1666,7 +1666,7 @@ namespace IPA.Cores.Basic
             this.PipeToWrite = duplexPipe.Output;
             this.PipeToRead = duplexPipe.Input;
 
-            //this.AddOnDisconnected(() => Stream.DisposeSafe());
+            this.AddOnDisconnected(() => InternalDisconnect());
 
             this.StartBaseTasks();
         }
@@ -1735,7 +1735,12 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            fifo.EnqueueAllWithLock(recvList);
+            List<ReadOnlyMemory<byte>> memoryList = new List<ReadOnlyMemory<byte>>();
+
+            foreach (ReadOnlyMemory<byte> memory in r.Buffer)
+                memoryList.Add(memory);
+
+            fifo.EnqueueAllWithLock(memoryList.ToArray());
 
             fifo.CompleteWrite();
         }
@@ -1743,12 +1748,25 @@ namespace IPA.Cores.Basic
         protected override Task DatagramReadFromObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
         protected override Task DatagramWriteToObjectAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
 
+        Once DisconnectFlag;
+        void InternalDisconnect()
+        {
+            if (DisconnectFlag.IsFirstCall())
+            {
+                PipeToRead.Complete();
+                PipeToWrite.Complete();
+                this.Disconnect();
+            }
+        }
+
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
         {
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+                InternalDisconnect();
             }
             finally { base.Dispose(disposing); }
         }
