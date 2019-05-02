@@ -135,8 +135,8 @@ namespace IPA.Cores.Basic
     {
         void Clear();
         void Enqueue(T item);
-        void EnqueueAll(Span<T> itemList);
-        void EnqueueAllWithLock(Span<T> itemList);
+        void EnqueueAll(ReadOnlySpan<T> itemList);
+        void EnqueueAllWithLock(ReadOnlySpan<T> itemList);
         IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueAll(out long totalReadSize);
@@ -164,9 +164,9 @@ namespace IPA.Cores.Basic
         public static long NewId() => Interlocked.Increment(ref Id);
     }
 
-    class FastStreamBuffer<T> : IFastBuffer<Memory<T>>
+    class FastStreamBuffer<T> : IFastBuffer<ReadOnlyMemory<T>>
     {
-        FastLinkedList<Memory<T>> List = new FastLinkedList<Memory<T>>();
+        FastLinkedList<ReadOnlyMemory<T>> List = new FastLinkedList<ReadOnlyMemory<T>>();
         public long PinHead { get; private set; } = 0;
         public long PinTail { get; private set; } = 0;
         public long Length { get { long ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
@@ -333,7 +333,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void InsertBefore(Memory<T> item)
+        public void InsertBefore(ReadOnlyMemory<T> item)
         {
             CheckDisconnected();
             checked
@@ -344,7 +344,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void InsertHead(Memory<T> item)
+        public void InsertHead(ReadOnlyMemory<T> item)
         {
             CheckDisconnected();
             checked
@@ -355,7 +355,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void InsertTail(Memory<T> item)
+        public void InsertTail(ReadOnlyMemory<T> item)
         {
             CheckDisconnected();
             checked
@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Insert(long pin, Memory<T> item, bool appendIfOverrun = false)
+        public void Insert(long pin, ReadOnlyMemory<T> item, bool appendIfOverrun = false)
         {
             CheckDisconnected();
             checked
@@ -408,8 +408,8 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    Memory<T> sliceBefore = node.Value.Slice(0, offsetInSegment);
-                    Memory<T> sliceAfter = node.Value.Slice(offsetInSegment);
+                    ReadOnlyMemory<T> sliceBefore = node.Value.Slice(0, offsetInSegment);
+                    ReadOnlyMemory<T> sliceAfter = node.Value.Slice(offsetInSegment);
 
                     node.Value = sliceBefore;
                     var newNode = List.AddAfter(node, item);
@@ -419,7 +419,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        FastLinkedListNode<Memory<T>> GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
+        FastLinkedListNode<ReadOnlyMemory<T>> GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
         {
             checked
             {
@@ -452,7 +452,7 @@ namespace IPA.Cores.Basic
                     return last;
                 }
                 long currentPin = PinHead;
-                FastLinkedListNode<Memory<T>> node = List.First;
+                FastLinkedListNode<ReadOnlyMemory<T>> node = List.First;
                 while (node != null)
                 {
                     if (pin >= currentPin && pin < (currentPin + node.Value.Length))
@@ -469,8 +469,8 @@ namespace IPA.Cores.Basic
         }
 
         void GetOverlappedNodes(long pinStart, long pinEnd,
-            out FastLinkedListNode<Memory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-            out FastLinkedListNode<Memory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+            out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
+            out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
             out int nodeCounts, out int lackRemainLength)
         {
             checked
@@ -485,7 +485,7 @@ namespace IPA.Cores.Basic
                     pinEnd = PinTail;
                 }
 
-                FastLinkedListNode<Memory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
                 long currentPin = pinStart - firstNodeOffsetInSegment;
                 nodeCounts = 0;
                 while (true)
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastBufferSegment<Memory<T>>[] GetSegmentsFast(long pin, long size, out long readSize, bool allowPartial = false)
+        public FastBufferSegment<ReadOnlyMemory<T>>[] GetSegmentsFast(long pin, long size, out long readSize, bool allowPartial = false)
         {
             checked
             {
@@ -519,7 +519,7 @@ namespace IPA.Cores.Basic
                 if (size == 0)
                 {
                     readSize = 0;
-                    return new FastBufferSegment<Memory<T>>[0];
+                    return new FastBufferSegment<ReadOnlyMemory<T>>[0];
                 }
                 if (pin > PinTail)
                 {
@@ -532,30 +532,30 @@ namespace IPA.Cores.Basic
                     size = PinTail - pin;
                 }
 
-                FastBufferSegment<Memory<T>>[] ret = GetUncontiguousSegments(pin, pin + size, false);
+                FastBufferSegment<ReadOnlyMemory<T>>[] ret = GetUncontiguousSegments(pin, pin + size, false);
                 readSize = size;
                 return ret;
             }
         }
 
-        public FastBufferSegment<Memory<T>>[] ReadForwardFast(ref long pin, long size, out long readSize, bool allowPartial = false)
+        public FastBufferSegment<ReadOnlyMemory<T>>[] ReadForwardFast(ref long pin, long size, out long readSize, bool allowPartial = false)
         {
             checked
             {
-                FastBufferSegment<Memory<T>>[] ret = GetSegmentsFast(pin, size, out readSize, allowPartial);
+                FastBufferSegment<ReadOnlyMemory<T>>[] ret = GetSegmentsFast(pin, size, out readSize, allowPartial);
                 pin += readSize;
                 return ret;
             }
         }
 
-        public Memory<T> GetContiguous(long pin, long size, bool allowPartial = false)
+        public ReadOnlyMemory<T> GetContiguous(long pin, long size, bool allowPartial = false)
         {
             checked
             {
                 if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
                 if (size == 0)
                 {
-                    return new Memory<T>();
+                    return new ReadOnlyMemory<T>();
                 }
                 if (pin > PinTail)
                 {
@@ -567,46 +567,46 @@ namespace IPA.Cores.Basic
                         throw new ArgumentOutOfRangeException("(pin + size) > PinTail");
                     size = PinTail - pin;
                 }
-                Memory<T> ret = GetContiguousMemory(pin, pin + size, false, false);
+                ReadOnlyMemory<T> ret = GetContiguousMemory(pin, pin + size, false, false);
                 return ret;
             }
         }
 
-        public Memory<T> ReadForwardContiguous(ref long pin, long size, bool allowPartial = false)
+        public ReadOnlyMemory<T> ReadForwardContiguous(ref long pin, long size, bool allowPartial = false)
         {
             checked
             {
-                Memory<T> ret = GetContiguous(pin, size, allowPartial);
+                ReadOnlyMemory<T> ret = GetContiguous(pin, size, allowPartial);
                 pin += ret.Length;
                 return ret;
             }
         }
 
-        public Memory<T> PutContiguous(long pin, long size, bool appendIfOverrun = false)
+        public ReadOnlyMemory<T> PutContiguous(long pin, long size, bool appendIfOverrun = false)
         {
             checked
             {
                 if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
                 if (size == 0)
                 {
-                    return new Memory<T>();
+                    return new ReadOnlyMemory<T>();
                 }
-                Memory<T> ret = GetContiguousMemory(pin, pin + size, appendIfOverrun, false);
+                ReadOnlyMemory<T> ret = GetContiguousMemory(pin, pin + size, appendIfOverrun, false);
                 return ret;
             }
         }
 
-        public Memory<T> WriteForwardContiguous(ref long pin, long size, bool appendIfOverrun = false)
+        public ReadOnlyMemory<T> WriteForwardContiguous(ref long pin, long size, bool appendIfOverrun = false)
         {
             checked
             {
-                Memory<T> ret = PutContiguous(pin, size, appendIfOverrun);
+                ReadOnlyMemory<T> ret = PutContiguous(pin, size, appendIfOverrun);
                 pin += ret.Length;
                 return ret;
             }
         }
 
-        public void Enqueue(Memory<T> item)
+        public void Enqueue(ReadOnlyMemory<T> item)
         {
             CheckDisconnected();
             long oldLen = Length;
@@ -617,20 +617,20 @@ namespace IPA.Cores.Basic
                 EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
         }
 
-        public void EnqueueAllWithLock(Span<Memory<T>> itemList)
+        public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
         {
             lock (LockObj)
                 EnqueueAll(itemList);
         }
 
-        public void EnqueueAll(Span<Memory<T>> itemList)
+        public void EnqueueAll(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
         {
             CheckDisconnected();
             checked
             {
                 int num = 0;
                 long oldLen = Length;
-                foreach (Memory<T> t in itemList)
+                foreach (ReadOnlyMemory<T> t in itemList)
                 {
                     if (t.Length != 0)
                     {
@@ -683,20 +683,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Memory<T> DequeueContiguousSlowWithLock(int size = int.MaxValue)
+        public ReadOnlyMemory<T> DequeueContiguousSlowWithLock(int size = int.MaxValue)
         {
             lock (this.LockObj)
                 return DequeueContiguousSlow(size);
         }
 
-        public Memory<T> DequeueContiguousSlow(int size = int.MaxValue)
+        public ReadOnlyMemory<T> DequeueContiguousSlow(int size = int.MaxValue)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
             checked
             {
                 long oldLen = Length;
                 if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
-                if (size == 0) return Memory<T>.Empty;
+                if (size == 0) return ReadOnlyMemory<T>.Empty;
                 int readSize = (int)Math.Min(size, Length);
                 Memory<T> ret = new T[readSize];
                 int r = DequeueContiguousSlow(ret, readSize);
@@ -709,20 +709,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public IReadOnlyList<Memory<T>> DequeueAllWithLock(out long totalReadSize)
+        public IReadOnlyList<ReadOnlyMemory<T>> DequeueAllWithLock(out long totalReadSize)
         {
             lock (this.LockObj)
                 return DequeueAll(out totalReadSize);
         }
-        public IReadOnlyList<Memory<T>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
+        public IReadOnlyList<ReadOnlyMemory<T>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
 
-        public IReadOnlyList<Memory<T>> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        public IReadOnlyList<ReadOnlyMemory<T>> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
         {
             lock (this.LockObj)
                 return Dequeue(minReadSize, out totalReadSize, allowSplitSegments);
         }
 
-        public IReadOnlyList<Memory<T>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
+        public IReadOnlyList<ReadOnlyMemory<T>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
         {
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
             checked
@@ -732,13 +732,13 @@ namespace IPA.Cores.Basic
                 totalReadSize = 0;
                 if (List.First == null)
                 {
-                    return new List<Memory<T>>();
+                    return new List<ReadOnlyMemory<T>>();
                 }
 
                 long oldLen = Length;
 
-                FastLinkedListNode<Memory<T>> node = List.First;
-                List<Memory<T>> ret = new List<Memory<T>>();
+                FastLinkedListNode<ReadOnlyMemory<T>> node = List.First;
+                List<ReadOnlyMemory<T>> ret = new List<ReadOnlyMemory<T>>();
                 while (true)
                 {
                     if ((totalReadSize + node.Value.Length) >= minReadSize)
@@ -778,7 +778,7 @@ namespace IPA.Cores.Basic
                         ret.Add(node.Value);
                         totalReadSize += node.Value.Length;
 
-                        FastLinkedListNode<Memory<T>> deleteNode = node;
+                        FastLinkedListNode<ReadOnlyMemory<T>> deleteNode = node;
                         node = node.Next;
 
                         List.Remove(deleteNode);
@@ -796,7 +796,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public long DequeueAllAndEnqueueToOther(IFastBuffer<Memory<T>> other) => DequeueAllAndEnqueueToOther((FastStreamBuffer<T>)other);
+        public long DequeueAllAndEnqueueToOther(IFastBuffer<ReadOnlyMemory<T>> other) => DequeueAllAndEnqueueToOther((FastStreamBuffer<T>)other);
 
         public long DequeueAllAndEnqueueToOther(FastStreamBuffer<T> other)
         {
@@ -819,7 +819,7 @@ namespace IPA.Cores.Basic
                     long oldLen = Length;
                     Debug.Assert(other.List.Count == 0);
                     other.List = this.List;
-                    this.List = new FastLinkedList<Memory<T>>();
+                    this.List = new FastLinkedList<ReadOnlyMemory<T>>();
                     this.PinHead = this.PinTail;
                     other.PinTail += length;
                     EventListeners.Fire(this, FastBufferCallbackEventType.Read);
@@ -852,11 +852,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        FastBufferSegment<Memory<T>>[] GetUncontiguousSegments(long pinStart, long pinEnd, bool appendIfOverrun)
+        FastBufferSegment<ReadOnlyMemory<T>>[] GetUncontiguousSegments(long pinStart, long pinEnd, bool appendIfOverrun)
         {
             checked
             {
-                if (pinStart == pinEnd) return new FastBufferSegment<Memory<T>>[0];
+                if (pinStart == pinEnd) return new FastBufferSegment<ReadOnlyMemory<T>>[0];
                 if (pinStart > pinEnd) throw new ArgumentOutOfRangeException("pinStart > pinEnd");
 
                 if (appendIfOverrun)
@@ -882,22 +882,22 @@ namespace IPA.Cores.Basic
                 }
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out FastLinkedListNode<Memory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out FastLinkedListNode<Memory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
 
                 if (firstNode == lastNode)
-                    return new FastBufferSegment<Memory<T>>[1]{ new FastBufferSegment<Memory<T>>(
+                    return new FastBufferSegment<ReadOnlyMemory<T>>[1]{ new FastBufferSegment<ReadOnlyMemory<T>>(
                     firstNode.Value.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment), pinStart, 0) };
 
-                FastBufferSegment<Memory<T>>[] ret = new FastBufferSegment<Memory<T>>[nodeCounts];
+                FastBufferSegment<ReadOnlyMemory<T>>[] ret = new FastBufferSegment<ReadOnlyMemory<T>>[nodeCounts];
 
-                FastLinkedListNode<Memory<T>> prevNode = firstNode.Previous;
-                FastLinkedListNode<Memory<T>> nextNode = lastNode.Next;
+                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
 
-                FastLinkedListNode<Memory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
                 int count = 0;
                 long currentOffset = 0;
 
@@ -908,7 +908,7 @@ namespace IPA.Cores.Basic
                     int sliceStart = (node == firstNode) ? firstNodeOffsetInSegment : 0;
                     int sliceLength = (node == lastNode) ? lastNodeOffsetInSegment : node.Value.Length - sliceStart;
 
-                    ret[count] = new FastBufferSegment<Memory<T>>(node.Value.Slice(sliceStart, sliceLength), currentOffset + pinStart, currentOffset);
+                    ret[count] = new FastBufferSegment<ReadOnlyMemory<T>>(node.Value.Slice(sliceStart, sliceLength), currentOffset + pinStart, currentOffset);
                     count++;
 
                     Debug.Assert(count <= nodeCounts, "count > nodeCounts");
@@ -940,8 +940,8 @@ namespace IPA.Cores.Basic
                 if (pinEnd > PinTail) throw new ArgumentOutOfRangeException("pinEnd > PinTail");
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out FastLinkedListNode<Memory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out FastLinkedListNode<Memory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
@@ -959,8 +959,8 @@ namespace IPA.Cores.Basic
                     else
                     {
                         Debug.Assert((lastNodeOffsetInSegment - firstNodeOffsetInSegment) == length);
-                        Memory<T> slice1 = firstNode.Value.Slice(0, firstNodeOffsetInSegment);
-                        Memory<T> slice2 = firstNode.Value.Slice(lastNodeOffsetInSegment);
+                        ReadOnlyMemory<T> slice1 = firstNode.Value.Slice(0, firstNodeOffsetInSegment);
+                        ReadOnlyMemory<T> slice2 = firstNode.Value.Slice(lastNodeOffsetInSegment);
                         Debug.Assert(slice1.Length != 0 || slice2.Length != 0);
                         if (slice1.Length == 0)
                         {
@@ -1011,11 +1011,11 @@ namespace IPA.Cores.Basic
 
         public T[] ItemsSlow { get => ToArray(); }
 
-        Memory<T> GetContiguousMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
+        ReadOnlyMemory<T> GetContiguousMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
         {
             checked
             {
-                if (pinStart == pinEnd) return new Memory<T>();
+                if (pinStart == pinEnd) return new ReadOnlyMemory<T>();
                 if (pinStart > pinEnd) throw new ArgumentOutOfRangeException("pinStart > pinEnd");
 
                 if (appendIfOverrun)
@@ -1041,8 +1041,8 @@ namespace IPA.Cores.Basic
                 }
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out FastLinkedListNode<Memory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out FastLinkedListNode<Memory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
@@ -1050,11 +1050,11 @@ namespace IPA.Cores.Basic
                 if (firstNode == lastNode)
                     return firstNode.Value.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment);
 
-                FastLinkedListNode<Memory<T>> prevNode = firstNode.Previous;
-                FastLinkedListNode<Memory<T>> nextNode = lastNode.Next;
+                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
 
                 Memory<T> newMemory = new T[lastNodePin + lastNode.Value.Length - firstNodePin];
-                FastLinkedListNode<Memory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
                 int currentWritePointer = 0;
 
                 while (true)
@@ -1066,7 +1066,7 @@ namespace IPA.Cores.Basic
 
                     if (node == lastNode) finish = true;
 
-                    FastLinkedListNode<Memory<T>> nodeToDelete = node;
+                    FastLinkedListNode<ReadOnlyMemory<T>> nodeToDelete = node;
                     currentWritePointer += node.Value.Length;
 
                     node = node.Next;
@@ -1093,15 +1093,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static implicit operator FastStreamBuffer<T>(Memory<T> memory)
+        public static implicit operator FastStreamBuffer<T>(ReadOnlyMemory<T> memory)
         {
             FastStreamBuffer<T> ret = new FastStreamBuffer<T>(false, null);
             ret.Enqueue(memory);
             return ret;
         }
 
-        public static implicit operator FastStreamBuffer<T>(Span<T> span) => span.ToArray().AsMemory();
-        public static implicit operator FastStreamBuffer<T>(T[] data) => data.AsMemory();
+        public static implicit operator FastStreamBuffer<T>(Span<T> span) => span.ToArray().AsReadOnlyMemory();
+        public static implicit operator FastStreamBuffer<T>(ReadOnlySpan<T> span) => span.ToArray().AsReadOnlyMemory();
+        public static implicit operator FastStreamBuffer<T>(T[] data) => data.AsReadOnlyMemory();
     }
 
     class FastDatagramBuffer<T> : IFastBuffer<T>
@@ -1286,13 +1287,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void EnqueueAllWithLock(Span<T> itemList)
+        public void EnqueueAllWithLock(ReadOnlySpan<T> itemList)
         {
             lock (LockObj)
                 EnqueueAll(itemList);
         }
 
-        public void EnqueueAll(Span<T> itemList)
+        public void EnqueueAll(ReadOnlySpan<T> itemList)
         {
             CheckDisconnected();
             checked

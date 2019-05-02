@@ -134,7 +134,7 @@ namespace IPA.Cores.Basic
 
                         await st.SendAsync("TrafficServer\r\n\0".GetBytes_Ascii());
 
-                        MemoryBuffer<byte> buf = await st.ReceiveAsync(17);
+                        ReadOnlyMemoryBuffer<byte> buf = await st.ReceiveAsync(17);
 
                         SpeedTestDirection dir = buf.ReadBool8() ? SpeedTestDirection.Send : SpeedTestDirection.Recv;
                         ulong sessionId = 0;

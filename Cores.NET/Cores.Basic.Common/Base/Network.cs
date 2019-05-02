@@ -3209,7 +3209,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                UdpBulkReader = new AsyncBulkReceiver<Datagram, int>(async x =>
+                UdpBulkReader = new AsyncBulkReceiver<Datagram, int>(async (x, cancel2) =>
                 {
                     PalSocketReceiveFromResult ret = await Sock.ReceiveFromAsync(TmpRecvBuffer);
                     return new ValueOrClosed<Datagram>(new Datagram(TmpRecvBuffer.AsSpan().Slice(0, ret.ReceivedBytes).ToArray(), (IPEndPoint)ret.RemoteEndPoint));

@@ -169,10 +169,10 @@ namespace IPA.Cores.Basic
             return new PalSocket(newSocket);
         }
 
-        public Task<int> SendAsync(IEnumerable<Memory<byte>> buffers)
+        public Task<int> SendAsync(IEnumerable<ReadOnlyMemory<byte>> buffers)
         {
             List<ArraySegment<byte>> sendArraySegmentsList = new List<ArraySegment<byte>>();
-            foreach (Memory<byte> mem in buffers)
+            foreach (ReadOnlyMemory<byte> mem in buffers)
                 sendArraySegmentsList.Add(mem.AsSegment());
 
             return _Socket.SendAsync(sendArraySegmentsList, SocketFlags.None);

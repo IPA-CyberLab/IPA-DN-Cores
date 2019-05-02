@@ -243,13 +243,13 @@ namespace IPA.Cores.Basic
             Size = Position = 0;
         }
 
-        public void Write(Span<T> data) => WriteInternal(data, data.Length);
+        public void Write(ReadOnlySpan<T> data) => WriteInternal(data, data.Length);
 
         public void Write(T data) => WriteInternal(data);
 
         public void WriteSkip(int length) => WriteInternal(null, length);
 
-        void WriteInternal(Span<T> src, int size)
+        void WriteInternal(ReadOnlySpan<T> src, int size)
         {
             checked
             {

@@ -634,7 +634,7 @@ namespace IPA.Cores.Basic
             return End.StreamReader.WaitForReadyToReadAsync(cancel, timeout);
         }
 
-        public async Task FastSendAsync(Memory<Memory<byte>> items, CancellationToken cancel = default, bool flush = true)
+        public async Task FastSendAsync(Memory<ReadOnlyMemory<byte>> items, CancellationToken cancel = default, bool flush = true)
         {
             await WaitReadyToSendAsync(cancel, WriteTimeout);
 
@@ -728,14 +728,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<Memory<byte>> ReceiveAsync(int maxSize = int.MaxValue, CancellationToken cancel = default)
+        public async Task<ReadOnlyMemory<byte>> ReceiveAsync(int maxSize = int.MaxValue, CancellationToken cancel = default)
         {
             try
             {
                 LABEL_RETRY:
                 await WaitReadyToReceiveAsync(cancel, ReadTimeout);
 
-                Memory<byte> ret;
+                ReadOnlyMemory<byte> ret;
 
                 lock (End.StreamReader.LockObj)
                     ret = End.StreamReader.DequeueContiguousSlow(maxSize);
@@ -765,10 +765,10 @@ namespace IPA.Cores.Basic
         public int Receive(Memory<byte> buffer, CancellationToken cancel = default)
             => ReceiveAsync(buffer, cancel).GetResult();
 
-        public Memory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
+        public ReadOnlyMemory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
             => ReceiveAsync(maxSize, cancel).GetResult();
 
-        public async Task<IReadOnlyList<Memory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
+        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
             try
             {
@@ -792,11 +792,11 @@ namespace IPA.Cores.Basic
             }
             catch (DisconnectedException)
             {
-                return new List<Memory<byte>>();
+                return new List<ReadOnlyMemory<byte>>();
             }
         }
 
-        public async Task<List<Memory<byte>>> FastPeekAsync(int maxSize = int.MaxValue, CancellationToken cancel = default, RefInt totalRecvSize = null)
+        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastPeekAsync(int maxSize = int.MaxValue, CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
             LABEL_RETRY:
             CheckDisconnect();
@@ -804,7 +804,7 @@ namespace IPA.Cores.Basic
             CheckDisconnect();
 
             long totalReadSize;
-            FastBufferSegment<Memory<byte>>[] tmp;
+            FastBufferSegment<ReadOnlyMemory<byte>>[] tmp;
             lock (End.StreamReader.LockObj)
             {
                 tmp = End.StreamReader.GetSegmentsFast(End.StreamReader.PinHead, maxSize, out totalReadSize, true);
@@ -819,21 +819,21 @@ namespace IPA.Cores.Basic
                 goto LABEL_RETRY;
             }
 
-            List<Memory<byte>> ret = new List<Memory<byte>>();
-            foreach (FastBufferSegment<Memory<byte>> item in tmp)
+            List<ReadOnlyMemory<byte>> ret = new List<ReadOnlyMemory<byte>>();
+            foreach (FastBufferSegment<ReadOnlyMemory<byte>> item in tmp)
                 ret.Add(item.Item);
 
             return ret;
         }
 
-        public async Task<Memory<byte>> FastPeekContiguousAsync(int maxSize = int.MaxValue, CancellationToken cancel = default)
+        public async Task<ReadOnlyMemory<byte>> FastPeekContiguousAsync(int maxSize = int.MaxValue, CancellationToken cancel = default)
         {
             LABEL_RETRY:
             CheckDisconnect();
             await WaitReadyToReceiveAsync(cancel, ReadTimeout);
             CheckDisconnect();
 
-            Memory<byte> ret;
+            ReadOnlyMemory<byte> ret;
 
             lock (End.StreamReader.LockObj)
             {
@@ -1435,9 +1435,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            IReadOnlyList<Memory<byte>> sendArray;
-
-            sendArray = fifo.DequeueAllWithLock(out long totalReadSize);
+            IReadOnlyList<ReadOnlyMemory<byte>> sendArray = fifo.DequeueAllWithLock(out long totalReadSize);
             fifo.CompleteRead();
 
             await TaskUtil.DoAsyncWithTimeout(
@@ -1453,7 +1451,7 @@ namespace IPA.Cores.Basic
 
         static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndSocketWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndSocketWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1466,15 +1464,15 @@ namespace IPA.Cores.Basic
             int r = await me.Socket.ReceiveAsync(tmp);
             if (r < 0) throw new SocketDisconnectedException();
             me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
-            if (r == 0) return new ValueOrClosed<Memory<byte>>();
-            return new ValueOrClosed<Memory<byte>>(tmp);
+            if (r == 0) return new ValueOrClosed<ReadOnlyMemory<byte>>();
+            return new ValueOrClosed<ReadOnlyMemory<byte>>(tmp);
         });
 
         protected override async Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            Memory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
 
             if (recvList == null)
             {
@@ -1599,7 +1597,7 @@ namespace IPA.Cores.Basic
 
         static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<Memory<byte>, FastPipeEndStreamWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndStreamWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1611,15 +1609,15 @@ namespace IPA.Cores.Basic
             int r = await me.Stream.ReadAsync(tmp, cancel);
             if (r < 0) throw new BaseStreamDisconnectedException();
             me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
-            if (r == 0) return new ValueOrClosed<Memory<byte>>();
-            return new ValueOrClosed<Memory<byte>>(tmp);
+            if (r == 0) return new ValueOrClosed<ReadOnlyMemory<byte>>();
+            return new ValueOrClosed<ReadOnlyMemory<byte>>(tmp);
         });
 
         protected override async Task StreamReadFromObjectAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            Memory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
 
             if (recvList == null)
             {
