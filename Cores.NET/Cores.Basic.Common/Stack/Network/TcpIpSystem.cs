@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class TcpIpSystemHostInfoBase
+    abstract class TcpIpSystemHostInfo
     {
         public virtual int InfoVersion { get; protected set; }
         public virtual string HostName { get; protected set; }
@@ -263,7 +263,7 @@ namespace IPA.Cores.Basic
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
-        protected abstract TcpIpSystemHostInfoBase GetHostInfoImpl();
+        protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
         protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
         protected abstract FastTcpListenerBase CreateListenerImpl(AsyncCleanuperLady lady, TcpListenParam param);
@@ -280,7 +280,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public TcpIpSystemHostInfoBase GetHostInfo() => GetHostInfoImpl();
+        public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
 
         public async Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {

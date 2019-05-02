@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
 
     class LocalTcpIpSystem : TcpIpSystem
     {
-        class HostInfo : TcpIpSystemHostInfoBase
+        class HostInfo : TcpIpSystemHostInfo
         {
             public HostInfo()
             {
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override TcpIpSystemHostInfoBase GetHostInfoImpl() => new HostInfo();
+        protected override TcpIpSystemHostInfo GetHostInfoImpl() => new HostInfo();
 
         protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(AsyncCleanuperLady lady, TcpConnectParam param, CancellationToken cancel)
         {

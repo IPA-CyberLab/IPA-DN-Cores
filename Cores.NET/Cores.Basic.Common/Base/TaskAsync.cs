@@ -560,9 +560,9 @@ namespace IPA.Cores.Basic
 
         public static async Task<ExceptionWhen> WaitObjectsAsync(Task[] tasks = null, CancellationToken[] cancels = null, AsyncAutoResetEvent[] events = null,
             AsyncManualResetEvent[] manualEvents = null, int timeout = Timeout.Infinite,
-            ExceptionWhen exceptions = ExceptionWhen.None)
+            ExceptionWhen exceptions = ExceptionWhen.None, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
-            LeakChecker.IncrementLeakCounter(LeakCounterKind.WaitObjectsAsync);
+            LeakChecker.IncrementLeakCounter(leakCounterKind);
             try
             {
                 if (tasks == null) tasks = new Task[0];
@@ -729,7 +729,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                LeakChecker.DecrementLeakCounter(LeakCounterKind.WaitObjectsAsync);
+                LeakChecker.DecrementLeakCounter(leakCounterKind);
             }
         }
 
@@ -1009,14 +1009,15 @@ namespace IPA.Cores.Basic
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
 
-        public async Task<bool> WaitOneAsync(int timeout, CancellationToken cancel = default)
+        public async Task<bool> WaitOneAsync(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             try
             {
                 var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
                     events: this.SingleArray(),
                     timeout: timeout,
-                    exceptions: ExceptionWhen.None);
+                    exceptions: ExceptionWhen.None,
+                    leakCounterKind: leakCounterKind);
 
                 return (reason != ExceptionWhen.None);
             }
@@ -1124,13 +1125,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<bool> WaitAsync(int timeout, CancellationToken cancel = default)
+        public async Task<bool> WaitAsync(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             try
             {
                 var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
                     manualEvents: this.SingleArray(),
-                    timeout: timeout);
+                    timeout: timeout,
+                    leakCounterKind: leakCounterKind);
 
                 return (reason != ExceptionWhen.None);
             }
@@ -3208,8 +3210,8 @@ namespace IPA.Cores.Basic
         static bool CallbackIsRegistered = false;
 
         static CriticalSection LockObj = new CriticalSection();
-        static Thread thread = null;
-        static AutoResetEvent threadSignal = new AutoResetEvent(false);
+        static Task task = null;
+        static AsyncAutoResetEvent threadSignal = new AsyncAutoResetEvent();
         static bool callbackIsCalled = false;
 
         public static FastEventListenerList<TData, int> EventListener { get; } = new FastEventListenerList<TData, int>();
@@ -3250,9 +3252,9 @@ namespace IPA.Cores.Basic
 
             if (CacheData != null)
             {
-                if (thread == null)
+                if (task == null)
                 {
-                    EnsureStartThreadIfStopped(CacheData.DataUpdatePolicy);
+                    EnsureStartTaskIfStopped(CacheData.DataUpdatePolicy);
                 }
 
                 return CacheData;
@@ -3284,30 +3286,26 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                EnsureStartThreadIfStopped(updatePolicy);
+                EnsureStartTaskIfStopped(updatePolicy);
 
                 return CacheData;
             }
         }
 
-        static void EnsureStartThreadIfStopped(BackgroundStateDataUpdatePolicy updatePolicy)
+        static void EnsureStartTaskIfStopped(BackgroundStateDataUpdatePolicy updatePolicy)
         {
             lock (LockObj)
             {
-                if (thread == null)
+                if (task == null)
                 {
-                    thread = new Thread(MaintainThread);
-                    thread.IsBackground = true;
-                    thread.Priority = ThreadPriority.BelowNormal;
-                    thread.Name = $"MaintainThread for BackgroundState<{typeof(TData).ToString()}>";
-                    thread.Start(updatePolicy);
+                    task = TaskUtil.StartAsyncTaskAsync(MaintainTaskProcAsync, updatePolicy);
                 }
             }
         }
 
         static int nextInterval = 0;
 
-        static void MaintainThread(object param)
+        static async Task MaintainTaskProcAsync(object param)
         {
             BackgroundStateDataUpdatePolicy policy = (BackgroundStateDataUpdatePolicy)param;
             policy = policy.SafeValue;
@@ -3374,7 +3372,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        thread = null;
+                        task = null;
                         return;
                     }
                 }
@@ -3383,7 +3381,7 @@ namespace IPA.Cores.Basic
 
                 i = Math.Max(i, 100);
 
-                threadSignal.WaitOne(i);
+                await threadSignal.WaitOneAsync(i, leakCounterKind: LeakCounterKind.DoNotTrack);
             }
         }
     }

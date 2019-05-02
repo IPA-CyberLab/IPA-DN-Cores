@@ -75,7 +75,9 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            var hostInfo = LocalNet.GetHostInfo();
+            TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
+
+            hostInfo.PrintObject();
 
             //Net_Test1_PlainTcp_Client();
 
@@ -83,9 +85,9 @@ namespace IPA.TestDev
 
             //Net_Test3_PlainTcp_Server();
 
-            throw new ApplicationException("Neko");
+            //throw new ApplicationException("Neko");
 
-            Net_Test4_SpeedTest_Client();
+            //Net_Test4_SpeedTest_Client();
 
             //Net_Test5_SpeedTest_Server();
 
