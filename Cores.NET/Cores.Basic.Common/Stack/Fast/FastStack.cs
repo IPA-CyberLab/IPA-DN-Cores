@@ -70,10 +70,10 @@ namespace IPA.Cores.Basic
             : base(options, cancel)
         {
             Lower = lower;
-            AddChild(Lower);
-
             LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
-            AddChild(LowerAttach);
+
+            AddIndirectDisposeLink(Lower);
+            AddIndirectDisposeLink(LowerAttach);
         }
     }
 
@@ -153,10 +153,10 @@ namespace IPA.Cores.Basic
             }
 
             Upper = upper;
-            AddChild(Upper);
-
             UpperAttach = Upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
-            AddChild(UpperAttach);
+
+            AddIndirectDisposeLink(Upper);
+            AddIndirectDisposeLink(UpperAttach);
         }
     }
 
@@ -277,7 +277,7 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket = s;
             this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
-            AddChild(this.SocketWrapper);
+            AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It makes cyclic reference.
 
             UpperAttach.SetLayerInfo(new LayerInfo()
             {
@@ -365,6 +365,8 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket.DisposeSafe();
             this.ListeningSocket.DisposeSafe();
+
+            base.DisposeImpl(ex);
         }
     }
 
@@ -374,21 +376,19 @@ namespace IPA.Cores.Basic
 
         public FastProtocolBase Stack { get; }
         public FastPipe Pipe { get; }
-        public FastPipeEnd LowerEnd { get; }
         public FastPipeEnd UpperEnd { get; }
-        public LayerInfo Info { get => this.LowerEnd.LayerInfo; }
+        public LayerInfo Info { get => this.Pipe.LayerInfo; }
 
         public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
-            Stack = AddChild(protocolStack);
-            LowerEnd = AddChild(Stack._InternalUpper);
-            Pipe = AddChild(LowerEnd.Pipe);
-            UpperEnd = AddChild(LowerEnd.CounterPart);
+            Stack = AddDirectDisposeLink(protocolStack);
+            UpperEnd = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
+            Pipe = AddDirectDisposeLink(UpperEnd.Pipe);
         }
 
         public FastAppStub GetFastAppProtocolStub()
         {
-            FastAppStub ret = UpperEnd.GetFastAppProtocolStub();
+            FastAppStub ret = AddDirectDisposeLink(UpperEnd.GetFastAppProtocolStub());
 
             return ret;
         }
@@ -427,12 +427,7 @@ namespace IPA.Cores.Basic
 
     class FastPalDnsClient : FastDnsClientStub
     {
-        public static FastPalDnsClient Shared { get; }
-
-        static FastPalDnsClient()
-        {
-            Shared = new FastPalDnsClient(new FastDnsClientOptions());
-        }
+        public static FastPalDnsClient Shared { get; } = new FastPalDnsClient(new FastDnsClientOptions()).AsGlobalService();
 
         public FastPalDnsClient(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
@@ -478,9 +473,9 @@ namespace IPA.Cores.Basic
         public FastMiddleProtocolStackBase(FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
-            Lower = AddChild(lower);
+            Lower = AddIndirectDisposeLink(lower);
 
-            LowerAttach = AddChild(Lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
+            LowerAttach = AddIndirectDisposeLink(Lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
 
             Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
             Lower.LayerInfo.Encounter(Upper.LayerInfo);
@@ -511,6 +506,7 @@ namespace IPA.Cores.Basic
         public FastSslProtocolStack(FastPipeEnd lower, FastPipeEnd upper, FastSslProtocolOptions options,
             CancellationToken cancel = default) : base(lower, upper, options ?? new FastSslProtocolOptions(), cancel) { }
 
+        FastPipeEndStream LowerStream = null;
         PalSslStream SslStream = null;
         FastPipeEndStreamWrapper Wrapper = null;
 
@@ -522,33 +518,43 @@ namespace IPA.Cores.Basic
             using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
             {
                 FastPipeEndStream lowerStream = LowerAttach.GetStream(autoFlush: false);
-
-                PalSslStream ssl = new PalSslStream(lowerStream);
                 try
                 {
-                    await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, opCancel);
-
-                    LowerAttach.SetLayerInfo(new LayerInfo()
+                    PalSslStream ssl = new PalSslStream(lowerStream);
+                    try
                     {
-                        IsServerMode = false,
-                        SslProtocol = ssl.SslProtocol.ToString(),
-                        CipherAlgorithm = ssl.CipherAlgorithm.ToString(),
-                        CipherStrength = ssl.CipherStrength,
-                        HashAlgorithm = ssl.HashAlgorithm.ToString(),
-                        HashStrength = ssl.HashStrength,
-                        KeyExchangeAlgorithm = ssl.KeyExchangeAlgorithm.ToString(),
-                        KeyExchangeStrength = ssl.KeyExchangeStrength,
-                        LocalCertificate = ssl.LocalCertificate,
-                        RemoteCertificate = ssl.RemoteCertificate,
-                    }, this);
+                        await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, opCancel);
 
-                    this.SslStream = ssl;
-                    this.Wrapper = new FastPipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
-                    AddChild(this.Wrapper);
+                        LowerAttach.SetLayerInfo(new LayerInfo()
+                        {
+                            IsServerMode = false,
+                            SslProtocol = ssl.SslProtocol.ToString(),
+                            CipherAlgorithm = ssl.CipherAlgorithm.ToString(),
+                            CipherStrength = ssl.CipherStrength,
+                            HashAlgorithm = ssl.HashAlgorithm.ToString(),
+                            HashStrength = ssl.HashStrength,
+                            KeyExchangeAlgorithm = ssl.KeyExchangeAlgorithm.ToString(),
+                            KeyExchangeStrength = ssl.KeyExchangeStrength,
+                            LocalCertificate = ssl.LocalCertificate,
+                            RemoteCertificate = ssl.RemoteCertificate,
+                        }, this);
+
+                        this.SslStream = ssl;
+                        this.LowerStream = lowerStream;
+
+                        this.Wrapper = new FastPipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+
+                        AddIndirectDisposeLink(this.Wrapper); // Do not add Wrapper with AddChild(). It makes cyclic reference.
+                    }
+                    catch
+                    {
+                        ssl.DisposeSafe();
+                        throw;
+                    }
                 }
                 catch
                 {
-                    ssl.DisposeSafe();
+                    lowerStream.DisposeSafe();
                     throw;
                 }
             }
@@ -557,6 +563,7 @@ namespace IPA.Cores.Basic
         protected override void CancelImpl(Exception ex)
         {
             this.SslStream.DisposeSafe();
+            this.LowerStream.DisposeSafe();
 
             base.CancelImpl(ex);
         }
@@ -564,6 +571,7 @@ namespace IPA.Cores.Basic
         protected override void DisposeImpl(Exception ex)
         {
             this.SslStream.DisposeSafe();
+            this.LowerStream.DisposeSafe();
 
             base.DisposeImpl(ex);
         }

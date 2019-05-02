@@ -48,7 +48,7 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
+            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
 
             try
             {

@@ -280,17 +280,31 @@ namespace IPA.Cores.Basic
 
                 using (EnterCriticalCounter())
                 {
-                    using (FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel))
+                    FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel);
+
+                    try
                     {
                         await tcp.ConnectAsync(new IPEndPoint(param.DestIp, param.DestPort), param.ConnectTimeout, opCancel);
 
                         ConnSock sock = new ConnSock(tcp);
+                        try
+                        {
+                            this.AddToOpenedSockList(sock);
 
-                        this.AddToOpenedSockList(sock);
+                            sock.AddOnDisposeAction(() => this.RemoveFromOpenedSockList(sock));
 
-                        sock.AddOnDispose(() => this.RemoveFromOpenedSockList(sock));
-
-                        return sock;
+                            return sock;
+                        }
+                        catch
+                        {
+                            await sock.DisposeWithCleanupSafeAsync();
+                            throw;
+                        }
+                    }
+                    catch
+                    {
+                        await tcp.DisposeWithCleanupSafeAsync();
+                        throw;
                     }
                 }
             }
@@ -308,8 +322,17 @@ namespace IPA.Cores.Basic
 
                 foreach (int port in param.PortsList)
                 {
-                    if (hostInfo.IsIPv4Supported) ret.Add(port, IPVersion.IPv4);
-                    if (hostInfo.IsIPv6Supported) ret.Add(port, IPVersion.IPv6);
+                    try
+                    {
+                        if (hostInfo.IsIPv4Supported) ret.Add(port, IPVersion.IPv4);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (hostInfo.IsIPv6Supported) ret.Add(port, IPVersion.IPv6);
+                    }
+                    catch { }
                 }
 
                 return ret;

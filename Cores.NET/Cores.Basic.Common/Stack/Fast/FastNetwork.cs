@@ -145,7 +145,7 @@ namespace IPA.Cores.Basic
         FastDatagramBuffer DatagramBtoA;
 
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
-        public LayerInfo Info { get; } = new LayerInfo();
+        public LayerInfo LayerInfo { get; } = new LayerInfo();
 
         public FastPipeEnd A_LowerSide { get; }
         public FastPipeEnd B_UpperSide { get; }
@@ -184,17 +184,17 @@ namespace IPA.Cores.Basic
             DatagramAtoB.ExceptionQueue.Encounter(ExceptionQueue);
             DatagramBtoA.ExceptionQueue.Encounter(ExceptionQueue);
 
-            StreamAtoB.Info.Encounter(Info);
-            StreamBtoA.Info.Encounter(Info);
+            StreamAtoB.Info.Encounter(LayerInfo);
+            StreamBtoA.Info.Encounter(LayerInfo);
 
-            DatagramAtoB.Info.Encounter(Info);
-            DatagramBtoA.Info.Encounter(Info);
+            DatagramAtoB.Info.Encounter(LayerInfo);
+            DatagramBtoA.Info.Encounter(LayerInfo);
 
-            StreamAtoB.OnDisconnected.Add(() => this.Cancel());
-            StreamBtoA.OnDisconnected.Add(() => this.Cancel());
+            StreamAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+            StreamBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
-            DatagramAtoB.OnDisconnected.Add(() => this.Cancel());
-            DatagramBtoA.OnDisconnected.Add(() => this.Cancel());
+            DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+            DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
             A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
             B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
@@ -223,13 +223,13 @@ namespace IPA.Cores.Basic
                 if (side == FastPipeEndSide.A_LowerSide)
                 {
                     if (LayerInfo_A_LowerSide != null) throw new ApplicationException("LayerInfo_A_LowerSide is already installed.");
-                    Info.Install(info, LayerInfo_B_UpperSide, false);
+                    LayerInfo.Install(info, LayerInfo_B_UpperSide, false);
                     LayerInfo_A_LowerSide = info;
                 }
                 else
                 {
                     if (LayerInfo_B_UpperSide != null) throw new ApplicationException("LayerInfo_B_UpperSide is already installed.");
-                    Info.Install(info, LayerInfo_A_LowerSide, true);
+                    LayerInfo.Install(info, LayerInfo_A_LowerSide, true);
                     LayerInfo_B_UpperSide = info;
                 }
 
@@ -240,13 +240,13 @@ namespace IPA.Cores.Basic
                         if (side == FastPipeEndSide.A_LowerSide)
                         {
                             Debug.Assert(LayerInfo_A_LowerSide != null);
-                            Info.Uninstall(LayerInfo_A_LowerSide);
+                            LayerInfo.Uninstall(LayerInfo_A_LowerSide);
                             LayerInfo_A_LowerSide = null;
                         }
                         else
                         {
                             Debug.Assert(LayerInfo_B_UpperSide != null);
-                            Info.Uninstall(LayerInfo_B_UpperSide);
+                            LayerInfo.Uninstall(LayerInfo_B_UpperSide);
                             LayerInfo_B_UpperSide = null;
                         }
                     }
@@ -328,7 +328,7 @@ namespace IPA.Cores.Basic
         public AsyncManualResetEvent OnDisconnectedEvent { get => Pipe.OnDisconnectedEvent; }
 
         public ExceptionQueue ExceptionQueue { get => Pipe.ExceptionQueue; }
-        public LayerInfo LayerInfo { get => Pipe.Info; }
+        public LayerInfo LayerInfo { get => Pipe.LayerInfo; }
 
         public bool IsCanceled { get => this.Pipe.IsCanceled; }
         public void AddOnDisconnected(Action action)
@@ -952,7 +952,7 @@ namespace IPA.Cores.Basic
                 End.DatagramWriter.CompleteWrite();
         }
 
-        public void Disconnect() => End.Cancel();
+        public void Disconnect() => End.Cancel(new DisconnectedException());
 
         public override int ReadTimeout { get; set; }
         public override int WriteTimeout { get; set; }
@@ -1106,7 +1106,7 @@ namespace IPA.Cores.Basic
 
         public FastPipeEndAsyncObjectWrapperBase(FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
         {
-            PipeEnd = AddChild(pipeEnd);
+            PipeEnd = AddDirectDisposeLink(pipeEnd);
         }
 
         Once ConnectedFlag;
@@ -1718,6 +1718,13 @@ namespace IPA.Cores.Basic
         public abstract int WriteTimeout { get; set; }
         public abstract bool DataAvailable { get; }
 
+        IHolder Leak;
+
+        public FastStream()
+        {
+            this.Leak = LeakChecker.Enter(LeakCounterKind.FastStream);
+        }
+
         public abstract ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default);
         public abstract ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
         public abstract Task FlushAsync(CancellationToken cancel = default);
@@ -1735,7 +1742,16 @@ namespace IPA.Cores.Basic
         }
 
         public void Dispose() => Dispose(true);
-        protected virtual void Dispose(bool disposing) { }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            _NetworkStream.DisposeSafe();
+
+            Leak.DisposeSafe();
+        }
+
     }
 }
 

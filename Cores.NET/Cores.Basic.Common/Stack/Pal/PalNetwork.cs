@@ -290,6 +290,8 @@ namespace IPA.Cores.Basic
 
         public bool DisposeParentObjectAutomatically = false;
 
+        IHolder LeakHolder = null;
+
         private void _InternalInit(FastStream fastStream, bool disposeParentObject)
         {
             FastStream = fastStream;
@@ -297,6 +299,8 @@ namespace IPA.Cores.Basic
 
             ReadTimeout = Timeout.Infinite;
             WriteTimeout = Timeout.Infinite;
+
+            this.LeakHolder = LeakChecker.Enter(LeakCounterKind.FastStreamToPalNetworkStream);
         }
 
         public static FastStreamToPalNetworkStream CreateFromFastStream(FastStream fastStream, bool disposeObject = false)
@@ -317,6 +321,8 @@ namespace IPA.Cores.Basic
                 {
                     FastStream.DisposeSafe();
                 }
+
+                this.LeakHolder.DisposeSafe();
             }
             base.Dispose(disposing);
         }
@@ -533,24 +539,35 @@ namespace IPA.Cores.Basic
 
     class PalSslStream : PalStream
     {
-        SslStream ssl;
+        SslStream Ssl;
         public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream.NetworkStream, true))
         {
-            ssl = (SslStream)NativeStream;
+            this.Ssl = (SslStream)NativeStream;
         }
 
         public Task AuthenticateAsClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken)
-            => ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions.GetNativeOptions(), cancellationToken);
+            => Ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions.GetNativeOptions(), cancellationToken);
 
-        public string SslProtocol => ssl.SslProtocol.ToString();
-        public string CipherAlgorithm => ssl.CipherAlgorithm.ToString();
-        public int CipherStrength => ssl.CipherStrength;
-        public string HashAlgorithm => ssl.HashAlgorithm.ToString();
-        public int HashStrength => ssl.HashStrength;
-        public string KeyExchangeAlgorithm => ssl.KeyExchangeAlgorithm.ToString();
-        public int KeyExchangeStrength => ssl.KeyExchangeStrength;
-        public PalX509Certificate LocalCertificate => new PalX509Certificate(ssl.LocalCertificate);
-        public PalX509Certificate RemoteCertificate => new PalX509Certificate(ssl.RemoteCertificate);
+        public string SslProtocol => Ssl.SslProtocol.ToString();
+        public string CipherAlgorithm => Ssl.CipherAlgorithm.ToString();
+        public int CipherStrength => Ssl.CipherStrength;
+        public string HashAlgorithm => Ssl.HashAlgorithm.ToString();
+        public int HashStrength => Ssl.HashStrength;
+        public string KeyExchangeAlgorithm => Ssl.KeyExchangeAlgorithm.ToString();
+        public int KeyExchangeStrength => Ssl.KeyExchangeStrength;
+        public PalX509Certificate LocalCertificate => new PalX509Certificate(Ssl.LocalCertificate);
+        public PalX509Certificate RemoteCertificate => new PalX509Certificate(Ssl.RemoteCertificate);
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                this.Ssl.DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
     }
 
     static class PalDns

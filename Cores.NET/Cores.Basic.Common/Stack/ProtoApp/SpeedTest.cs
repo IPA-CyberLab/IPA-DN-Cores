@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-
+                    await listener.DisposeWithCleanupSafeAsync();
                 }
             }
         }

@@ -2257,6 +2257,8 @@ namespace IPA.Cores.Basic
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
         public bool IsSet => (this.flag != 0);
         public static implicit operator bool(Once once) => once.flag != 0;
+
+        public override string ToString() => IsSet.ToString();
     }
 
     // 再試行ヘルパー

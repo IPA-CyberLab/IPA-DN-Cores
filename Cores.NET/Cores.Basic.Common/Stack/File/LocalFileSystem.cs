@@ -63,26 +63,11 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        public static LocalFileSystem Local { get; } = LocalFileSystem.CreateFirstLocalInstance();
-        public static AutoUtf8BomViewFileSystem LocalAutoUtf8 { get; } = LocalFileSystem.CreateFirstAutoUtf8Instance();
+        static Singleton<LocalFileSystem> _LocalSingleton = new Singleton<LocalFileSystem>(() => new LocalFileSystem().AsGlobalService(), leakKind: LeakCounterKind.DoNotTrack);
+        public static LocalFileSystem Local { get; } = _LocalSingleton;
 
-        static LocalFileSystem _LocalSingletonInstance = null;
-        static LocalFileSystem CreateFirstLocalInstance()
-        {
-            if (_LocalSingletonInstance == null)
-                _LocalSingletonInstance = new LocalFileSystem();
-
-            return _LocalSingletonInstance;
-        }
-
-        static AutoUtf8BomViewFileSystem _AutoUtf8SingletonInstance = null;
-        static AutoUtf8BomViewFileSystem CreateFirstAutoUtf8Instance()
-        {
-            if (_AutoUtf8SingletonInstance == null)
-                _AutoUtf8SingletonInstance = new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local));
-
-            return _AutoUtf8SingletonInstance;
-        }
+        static Singleton<AutoUtf8BomViewFileSystem> _LocalAutoUtf8Singleton = new Singleton<AutoUtf8BomViewFileSystem>(() => new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(LocalFileSystem.Local)).AsGlobalService(), leakKind: LeakCounterKind.DoNotTrack);
+        public static AutoUtf8BomViewFileSystem LocalAutoUtf8 { get; } = _LocalAutoUtf8Singleton;
 
         private LocalFileSystem() : base(new FileSystemParams(Env.LocalFileSystemPathInterpreter))
         {

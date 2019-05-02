@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
                 maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
                 autoDeleteTotalMinSize: autoDeleteTotalMaxSize ?? CoresConfig.Logger.DefaultAutoDeleteTotalMinSize);
 
-            AddChild(Log);
+            AddDirectDisposeLink(Log);
         }
 
 

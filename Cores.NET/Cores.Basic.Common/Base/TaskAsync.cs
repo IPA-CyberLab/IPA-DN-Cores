@@ -1204,6 +1204,7 @@ namespace IPA.Cores.Basic
 
     abstract class AsyncService : IAsyncService
     {
+        static long IdSeed = 0;
         static GlobalInitializer gInit = new GlobalInitializer();
 
         public CancelWatcher CancelWatcher { get; }
@@ -1213,18 +1214,25 @@ namespace IPA.Cores.Basic
 
         readonly List<Action> OnDisposeList = new List<Action>();
 
-        readonly List<IAsyncService> ChildrenObjectList = new List<IAsyncService>();
+        readonly List<IAsyncService> DirectDisposeList = new List<IAsyncService>();
+        readonly List<IAsyncService> IndirectDisposeList = new List<IAsyncService>();
 
         CriticalSection LockObj = new CriticalSection();
 
+        public long Id { get; }
+        public string ObjectName { get; }
+
         public AsyncService(CancellationToken cancel = default)
         {
+            this.Id = Interlocked.Increment(ref IdSeed);
+            this.ObjectName = this.ToString();
+
             this.CancelWatcher = new CancelWatcher(cancel);
 
             this.CancelWatcher.EventList.RegisterCallback(CanceledCallback);
         }
 
-        public void AddOnDispose(Action proc)
+        public void AddOnDisposeAction(Action proc)
         {
             if (proc != null)
             {
@@ -1233,38 +1241,69 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T AddChild<T>(T childService) where T : IAsyncService
+        public T AddDirectDisposeLink<T>(T service) where T : IAsyncService
         {
-            if (childService != default)
+            if (service != default)
             {
-                lock (ChildrenObjectList)
-                    ChildrenObjectList.Add(childService);
+                lock (DirectDisposeList)
+                    DirectDisposeList.Add(service);
             }
-            return childService;
+            return service;
         }
 
-        IAsyncService[] GetChildren()
+        public T AddIndirectDisposeLink<T>(T service) where T : IAsyncService
         {
-            lock (ChildrenObjectList)
-                return ChildrenObjectList.ToArray();
+            if (service != default)
+            {
+                lock (IndirectDisposeList)
+                    IndirectDisposeList.Add(service);
+            }
+            return service;
         }
 
-        void CancelChildren(Exception ex)
+        IAsyncService[] GetDirectDisposeLinkList()
         {
-            foreach (var child in GetChildren())
-                child.CancelSafe(ex);
+            lock (DirectDisposeList)
+                return DirectDisposeList.ToArray();
         }
 
-        async Task CleanupChildrenAsync(Exception ex)
+        IAsyncService[] GetIndirectDisposeLinkList()
         {
-            foreach (var child in GetChildren())
-                await child.CleanupSafeAsync(ex);
+            lock (IndirectDisposeList)
+                return IndirectDisposeList.ToArray();
         }
 
-        void DisposeChildrenAsync(Exception ex)
+        void CancelDisposeLinks(Exception ex)
         {
-            foreach (var child in GetChildren())
-                child.DisposeSafe(ex);
+            // Direct
+            foreach (var obj in GetDirectDisposeLinkList())
+                obj.CancelSafe(ex);
+
+            // Indirect
+            foreach (var obj in GetIndirectDisposeLinkList())
+                TaskUtil.StartSyncTaskAsync(() => obj.CancelSafe(ex), true, false).LaissezFaire();
+        }
+
+        async Task CleanupDisposeLinksAsync(Exception ex)
+        {
+            // Direct
+            foreach (var obj in GetDirectDisposeLinkList())
+                await obj.CleanupSafeAsync(ex);
+
+            // Indirect
+            foreach (var obj in GetIndirectDisposeLinkList())
+                TaskUtil.StartAsyncTaskAsync(() => obj.CleanupSafeAsync(ex), true, false).LaissezFaire();
+        }
+
+        void DisposeLinks(Exception ex)
+        {
+            // Direct
+            foreach (var obj in GetDirectDisposeLinkList())
+                obj.DisposeSafe(ex);
+
+            // Indirect
+            foreach (var obj in GetIndirectDisposeLinkList())
+                TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex), true, false).LaissezFaire();
         }
 
         protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
@@ -1324,7 +1363,7 @@ namespace IPA.Cores.Basic
 
             if (CanceledInternal.IsFirstCall())
             {
-                CancelChildren(CancelReason);
+                CancelDisposeLinks(CancelReason);
 
                 try
                 {
@@ -1342,14 +1381,14 @@ namespace IPA.Cores.Basic
         {
             IsCanceledPrivateFlag = true;
 
-            Cancel(ex);
-
             if (Cleanuped.IsFirstCall())
             {
+                Cancel(ex);
+
                 while (CriticalCounter.Value >= 1)
                     await Task.Delay(10);
 
-                await CleanupChildrenAsync(ex);
+                await CleanupDisposeLinksAsync(ex);
 
                 await CleanupImplAsync(ex).TryWaitAsync();
             }
@@ -1361,11 +1400,11 @@ namespace IPA.Cores.Basic
         {
             IsCanceledPrivateFlag = true;
 
-            CleanupAsync(ex).TryGetResult();
-
             if (DisposeFlag.IsFirstCall())
             {
-                DisposeChildrenAsync(ex);
+                CleanupAsync(ex).TryGetResult();
+
+                DisposeLinks(ex);
 
                 try
                 {
@@ -1850,6 +1889,8 @@ namespace IPA.Cores.Basic
         CancelWatcher,
         PalSocket,
         TaskLeak,
+        FastStreamToPalNetworkStream,
+        FastStream,
     }
 
     static class LeakChecker

@@ -82,12 +82,21 @@ namespace IPA.TestDev
             //Net_Test2_Ssl_Client();
 
             //Net_Test3_PlainTcp_Server();
+            //return 0;
 
-            //throw new ApplicationException("Neko");
+            while (true)
+            {
+                try
+                {
+                    Net_Test4_SpeedTest_Client();
+                }
+                catch (Exception ex)
+                {
+                    ex.ToString().Print();
+                }
+            }
 
-            //Net_Test4_SpeedTest_Client();
-
-            Net_Test5_SpeedTest_Server();
+            //Net_Test5_SpeedTest_Server();
 
             //Net_Test6_DualStack_Client();
 
@@ -219,7 +228,7 @@ namespace IPA.TestDev
 
         static void Net_Test5_SpeedTest_Server()
         {
-            using (var server = new SpeedTestServer(LocalNet, default, 9821))
+            using (var server = new SpeedTestServer(LocalNet, 9821))
             {
                 Con.ReadLine("Enter to stop>");
             }
@@ -231,15 +240,22 @@ namespace IPA.TestDev
 
             CancellationTokenSource cts = new CancellationTokenSource();
 
-            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 5000, SpeedTestModeFlag.Upload, cts.Token);
+            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 2000, SpeedTestModeFlag.Upload, cts.Token);
 
             var task = client.RunClientAsync();
 
-            Con.ReadLine("Enter to stop>");
+            //Con.ReadLine("Enter to stop>");
 
+            int wait = 2000 + Util.RandSInt32() % 1000;
+            Con.WriteLine("Waiting for " + wait);
+            ThreadObj.Sleep(wait);
+
+            Con.WriteLine("Stopping...");
             cts.TryCancelNoBlock();
 
             task.GetResult().PrintAsJson();
+
+            Con.WriteLine("Stopped.");
         }
 
         static void Net_Test3_PlainTcp_Server()
@@ -305,18 +321,16 @@ namespace IPA.TestDev
 
         static void Net_Test1_PlainTcp_Client()
         {
-            while (true)
+            for (int i = 0;i < 20;i++)
             {
-                ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+                using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80)))
                 {
                     var st = sock.GetStream().NetworkStream;
-
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);
 
                     w.WriteLine("GET / HTTP/1.0");
                     w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
-                    w.WriteLine();
                     w.WriteLine();
                     w.Flush();
 
