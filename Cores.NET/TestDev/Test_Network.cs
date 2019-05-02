@@ -85,7 +85,7 @@ namespace IPA.TestDev
 
             //Net_Test4_SpeedTest_Client();
 
-            //Net_Test5_SpeedTest_Server();
+            Net_Test5_SpeedTest_Server();
 
             //Net_Test6_DualStack_Client();
 
@@ -93,7 +93,7 @@ namespace IPA.TestDev
 
             //Net_Test8_Http_Upload_Async().GetResult();
 
-            Net_Test9_WebServer();
+            //Net_Test9_WebServer();
 
             return 0;
         }

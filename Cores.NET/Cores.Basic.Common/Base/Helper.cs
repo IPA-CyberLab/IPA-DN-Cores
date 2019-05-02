@@ -703,7 +703,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static DateTimeOffset AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt.OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
 
-        public static async Task LeakCheck(this Task t, bool noCheck = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static async Task LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
         {
             if (noCheck)
             {
@@ -711,20 +711,20 @@ namespace IPA.Cores.Helper.Basic
                 return;
             }
 
-            using (LeakChecker.Enter(filename, line, caller))
+            using (LeakChecker.Enter(kind, filename, line, caller))
             {
                 await t;
             }
         }
 
-        public static async Task<T> LeakCheck<T>(this Task<T> t, bool noCheck = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static async Task<T> LeakCheck<T>(this Task<T> t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
         {
             if (noCheck)
             {
                 return await t;
             }
 
-            using (LeakChecker.Enter(filename, line, caller))
+            using (LeakChecker.Enter(kind, filename, line, caller))
             {
                 return await t;
             }

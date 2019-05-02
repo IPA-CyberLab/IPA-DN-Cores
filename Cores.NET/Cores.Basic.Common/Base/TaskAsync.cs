@@ -887,7 +887,7 @@ namespace IPA.Cores.Basic
             if (cancels == null)
             {
                 combinedToken = default;
-                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             cancels = cancels.Where(x => x.CanBeCanceled).ToArray();
@@ -895,13 +895,13 @@ namespace IPA.Cores.Basic
             if (cancels.Length == 0)
             {
                 combinedToken = default;
-                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             if (cancels.Length == 1)
             {
                 combinedToken = cancels[0];
-                return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             foreach (CancellationToken c in cancels)
@@ -909,7 +909,7 @@ namespace IPA.Cores.Basic
                 if (c.IsCancellationRequested)
                 {
                     combinedToken = new CancellationToken(true);
-                    return new Holder<object>(null, LeakCounterKind.CreateCombinedCancellationToken);
+                    return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
                 }
             }
 
@@ -1521,24 +1521,36 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Holder<T> : IDisposable
+    class Holder : Holder<int>
+    {
+        public Holder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+            : base(_ => disposeProc(), default, leakCheckKind) { }
+    }
+
+    class Holder<T> : IHolder
     {
         public T Value { get; }
         Action<T> DisposeProc;
-        LeakCheckerHolder Leak = null;
+        IHolder Leak = null;
         LeakCounterKind LeakKind;
 
-        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
+        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
 
-            if (leakCheckKind == LeakCounterKind.FullStackTracked)
-                Leak = LeakChecker.Enter();
-
             this.LeakKind = leakCheckKind;
 
-            LeakChecker.IncrementLeakCounter(this.LeakKind);
+            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
+            {
+                Leak = LeakChecker.Enter(leakCheckKind);
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(this.LeakKind);
+            }
         }
 
         Once DisposeFlag;
@@ -1556,8 +1568,8 @@ namespace IPA.Cores.Basic
                 {
                     if (Leak != null)
                         Leak.DisposeSafe();
-
-                    LeakChecker.DecrementLeakCounter(this.LeakKind);
+                    else
+                        LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
             }
         }
@@ -1565,43 +1577,10 @@ namespace IPA.Cores.Basic
 
     interface IHolder : IDisposable { }
 
-    class Holder : IHolder
+    class AsyncHolder : AsyncHolder<int>
     {
-        Action DisposeProc;
-        LeakCheckerHolder Leak = null;
-        LeakCounterKind LeakKind;
-
-        public Holder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
-        {
-            this.DisposeProc = disposeProc;
-
-            if (leakCheckKind == LeakCounterKind.FullStackTracked)
-                Leak = LeakChecker.Enter();
-
-            this.LeakKind = leakCheckKind;
-
-            LeakChecker.IncrementLeakCounter(this.LeakKind);
-        }
-
-        Once DisposeFlag;
-        public void Dispose() => Dispose(true);
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && DisposeFlag.IsFirstCall())
-            {
-                try
-                {
-                    DisposeProc();
-                }
-                finally
-                {
-                    if (Leak != null)
-                        Leak.DisposeSafe();
-
-                    LeakChecker.DecrementLeakCounter(this.LeakKind);
-                }
-            }
-        }
+        public AsyncHolder(Func<Task> asyncCleanupProc, Action<int> disposeProc = null, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+            : base(_ => asyncCleanupProc(), disposeProc, default, leakCheckKind) { }
     }
 
     class AsyncHolder<T> : IAsyncCleanupable
@@ -1611,22 +1590,24 @@ namespace IPA.Cores.Basic
         public T UserData { get; }
         Action<T> DisposeProc;
         Func<T, Task> AsyncCleanupProc;
-        LeakCheckerHolder Leak;
-        LeakCheckerHolder Leak2;
+        IHolder Leak = null;
+        IHolder Leak2 = null;
         LeakCounterKind LeakCheckKind;
 
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
         public AsyncHolder(Func<T, Task> asyncCleanupProc, Action<T> disposeProc = null, T userData = default(T),
-            LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
+            LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.UserData = userData;
             this.DisposeProc = disposeProc;
             this.AsyncCleanupProc = asyncCleanupProc;
             this.LeakCheckKind = leakCheckKind;
 
-            if (LeakCheckKind == LeakCounterKind.FullStackTracked)
+            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
             {
-                Leak = LeakChecker.Enter();
-                Leak2 = LeakChecker.Enter();
+                Leak = LeakChecker.Enter(LeakCheckKind);
+                Leak2 = LeakChecker.Enter(LeakCheckKind);
             }
             else
             {
@@ -1653,14 +1634,10 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
-                    {
+                    if (Leak != null)
                         Leak.DisposeSafe();
-                    }
                     else
-                    {
                         LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                    }
                 }
             }
         }
@@ -1679,103 +1656,10 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
-                    {
+                    if (Leak2 != null)
                         Leak2.DisposeSafe();
-                    }
                     else
-                    {
                         LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                    }
-                }
-            }
-        }
-
-        public TaskAwaiter GetAwaiter()
-            => AsyncCleanuper.GetAwaiter();
-    }
-
-    class AsyncHolder : IAsyncCleanupable
-    {
-        public AsyncCleanuper AsyncCleanuper { get; }
-
-        Action DisposeProc;
-        Func<Task> AsyncCleanupProc;
-        LeakCheckerHolder Leak;
-        LeakCheckerHolder Leak2;
-        LeakCounterKind LeakCheckKind;
-
-        public AsyncHolder(Func<Task> asyncCleanupProc, Action disposeProc = null,
-            LeakCounterKind leakCheckKind = LeakCounterKind.FullStackTracked)
-        {
-            this.DisposeProc = disposeProc;
-            this.AsyncCleanupProc = asyncCleanupProc;
-            this.LeakCheckKind = leakCheckKind;
-
-            if (LeakCheckKind == LeakCounterKind.FullStackTracked)
-            {
-                Leak = LeakChecker.Enter();
-                Leak2 = LeakChecker.Enter();
-            }
-            else
-            {
-                LeakChecker.IncrementLeakCounter(LeakCheckKind);
-                LeakChecker.IncrementLeakCounter(LeakCheckKind);
-            }
-
-            AsyncCleanuper = new AsyncCleanuper(this);
-        }
-
-        Once DisposeFlag;
-
-        public void Dispose() => Dispose(true);
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && DisposeFlag.IsFirstCall())
-            {
-                try
-                {
-                    _CleanupAsyncInternal().TryGetResult();
-
-                    if (DisposeProc != null)
-                        DisposeProc();
-                }
-                finally
-                {
-                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
-                    {
-                        Leak.DisposeSafe();
-                    }
-                    else
-                    {
-                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                    }
-                }
-            }
-        }
-
-        Once CleanupFlag;
-
-        public async Task _CleanupAsyncInternal()
-        {
-            if (CleanupFlag.IsFirstCall())
-            {
-                try
-                {
-                    await AsyncCleanupProc();
-
-                    this.DisposeSafe();
-                }
-                finally
-                {
-                    if (LeakCheckKind == LeakCounterKind.FullStackTracked)
-                    {
-                        Leak2.DisposeSafe();
-                    }
-                    else
-                    {
-                        LeakChecker.DecrementLeakCounter(LeakCheckKind);
-                    }
                 }
             }
         }
@@ -1951,14 +1835,13 @@ namespace IPA.Cores.Basic
         {
             this.GrandCancelTokenSource = new CancellationTokenSource();
 
-            this.RegisterHolder = this.GrandCancelTokenSource.Token.Register(() => this.EventList.Fire(this, NonsenseEventType.Nonsense));
-
             CancellationToken[] tokens = this.GrandCancelTokenSource.Token.SingleArray().Concat(cancels).ToArray();
 
             this.ObjectHolder = TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelToken, tokens);
+            this.RegisterHolder = cancelToken.Register(() => this.EventList.Fire(this, NonsenseEventType.Nonsense));
             this.CancelToken = cancelToken;
 
-            this.LeakHolder = LeakChecker.Enter(LeakCounterKind.CreateCancelWatcher);
+            this.LeakHolder = LeakChecker.Enter(LeakCounterKind.CancelWatcher);
         }
 
         Once CancelFlag;
@@ -2100,7 +1983,6 @@ namespace IPA.Cores.Basic
     enum LeakCounterKind
     {
         DoNotTrack,
-        FullStackTracked,
         OthersCounter,
         PinnedMemory,
         EnterCriticalCounter,
@@ -2108,15 +1990,48 @@ namespace IPA.Cores.Basic
         FastAllocMemoryWithUsing,
         VfsOpenEntity,
         WaitObjectsAsync,
-        CreateCancelWatcher,
+        CancelWatcher,
+        PalSocket,
+        TaskLeak,
     }
 
     static class LeakChecker
     {
+        class LeakCheckerHolder : IHolder
+        {
+            long Id;
+            public string Name { get; }
+            public string StackTrace { get; }
+
+            internal LeakCheckerHolder(string name, string stackTrace)
+            {
+                if (string.IsNullOrEmpty(name)) name = "<untitled>";
+
+                Id = Interlocked.Increment(ref LeakChecker._InternalCurrentId);
+                Name = name;
+                StackTrace = string.IsNullOrEmpty(stackTrace) ? "" : stackTrace;
+
+                lock (LeakChecker._InternalList)
+                    LeakChecker._InternalList.Add(Id, this);
+            }
+
+            public void Dispose() => Dispose(true);
+            Once DisposeFlag;
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                lock (LeakChecker._InternalList)
+                {
+                    Debug.Assert(LeakChecker._InternalList.ContainsKey(Id));
+                    LeakChecker._InternalList.Remove(Id);
+                }
+            }
+        }
+
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        internal static Dictionary<long, LeakCheckerHolder> _InternalList = new Dictionary<long, LeakCheckerHolder>();
-        internal static long _InternalCurrentId = 0;
+        static Dictionary<long, LeakCheckerHolder> _InternalList = new Dictionary<long, LeakCheckerHolder>();
+        static long _InternalCurrentId = 0;
 
         static int[] LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];
 
@@ -2124,14 +2039,11 @@ namespace IPA.Cores.Basic
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
-        public static LeakCheckerHolder Enter([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
-            => new LeakCheckerHolder($"{caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
-
-        public static IHolder Enter(LeakCounterKind leakKind, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static IHolder Enter(LeakCounterKind leakKind = LeakCounterKind.OthersCounter, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
         {
-            if (leakKind == LeakCounterKind.FullStackTracked)
+            if (FullStackTrace && leakKind != LeakCounterKind.DoNotTrack)
             {
-                return Enter(filename, line, caller);
+                return new LeakCheckerHolder($"{leakKind.ToString()}: {caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
             }
             else
             {
@@ -2146,15 +2058,21 @@ namespace IPA.Cores.Basic
                 lock (_InternalList)
                 {
                     int ret = 0;
-                    ret += _InternalList.Count;
 
-                    for (int k = 0; k < LeakCounters.Length; k++)
+                    if (FullStackTrace)
                     {
-                        LeakCounterKind kind = (LeakCounterKind)k;
-                        if (kind != LeakCounterKind.FullStackTracked)
+                        ret += _InternalList.Count;
+                    }
+                    else
+                    {
+                        for (int k = 0; k < LeakCounters.Length; k++)
                         {
-                            int counter = LeakCounters[k];
-                            ret += Math.Abs(counter);
+                            LeakCounterKind kind = (LeakCounterKind)k;
+                            if (kind != LeakCounterKind.OthersCounter)
+                            {
+                                int counter = LeakCounters[k];
+                                ret += Math.Abs(counter);
+                            }
                         }
                     }
 
@@ -2228,37 +2146,6 @@ namespace IPA.Cores.Basic
                 }
             }
             return w.ToString();
-        }
-    }
-
-    class LeakCheckerHolder : IHolder
-    {
-        long Id;
-        public string Name { get; }
-        public string StackTrace { get; }
-
-        internal LeakCheckerHolder(string name, string stackTrace)
-        {
-            if (string.IsNullOrEmpty(name)) name = "<untitled>";
-
-            Id = Interlocked.Increment(ref LeakChecker._InternalCurrentId);
-            Name = name;
-            StackTrace = string.IsNullOrEmpty(stackTrace) ? "" : stackTrace;
-
-            lock (LeakChecker._InternalList)
-                LeakChecker._InternalList.Add(Id, this);
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            lock (LeakChecker._InternalList)
-            {
-                Debug.Assert(LeakChecker._InternalList.ContainsKey(Id));
-                LeakChecker._InternalList.Remove(Id);
-            }
         }
     }
 

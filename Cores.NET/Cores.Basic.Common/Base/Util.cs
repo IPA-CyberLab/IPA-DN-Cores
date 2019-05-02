@@ -339,11 +339,12 @@ namespace IPA.Cores.Basic
         public virtual object Clone() => this.MemberwiseClone();
     }
 
-    // Readonly values manager
+    // Readonly values holder
     // See https://en.wikipedia.org/wiki/Copenhagen_interpretation
     class Copenhagen<T>
     {
         T _Value;
+        T _InitialValue;
         CriticalSection LockObj;
         volatile bool Determined;
         bool IsValueType;
@@ -351,12 +352,15 @@ namespace IPA.Cores.Basic
         public Copenhagen(T initialValue)
         {
             this._Value = initialValue;
+            this._InitialValue = initialValue;
             this.LockObj = new CriticalSection();
             this.Determined = false;
             IsValueType = !(typeof(T).IsClass);
         }
 
         public T Value { get => GetValue(); set => SetValue(value); }
+
+        public void RestoreToDefault() => this.Set(this._InitialValue);
 
         public T Get() => GetValue();
         public T GetValue()
@@ -2306,10 +2310,10 @@ namespace IPA.Cores.Basic
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TObject> CreateProc;
         TObject Object = null;
-        readonly LeakCounterKind LeakKind = LeakCounterKind.FullStackTracked;
+        readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
         IHolder LeakHolder = null;
 
-        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.FullStackTracked)
+        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.OthersCounter)
         {
             this.CreateProc = createProc;
             this.LeakKind = leakKind;

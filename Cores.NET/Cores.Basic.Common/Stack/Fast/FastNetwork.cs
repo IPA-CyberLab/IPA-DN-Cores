@@ -416,7 +416,7 @@ namespace IPA.Cores.Basic
 
         FastPipe.InstalledLayerHolder InstalledLayerHolder = null;
 
-        LeakCheckerHolder Leak;
+        IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
         public FastAttachHandle(AsyncCleanuperLady lady, FastPipeEnd end, FastPipeEndAttachDirection attachDirection, object userState = null)

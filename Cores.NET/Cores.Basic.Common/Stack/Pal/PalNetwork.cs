@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
         public CachedProperty<EndPoint> LocalEndPoint { get; }
         public CachedProperty<EndPoint> RemoteEndPoint { get; }
 
-        LeakCheckerHolder Leak;
+        IHolder Leak;
 
         public PalSocket(Socket s)
         {
@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
             LocalEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.LocalEndPoint);
             RemoteEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.RemoteEndPoint);
 
-            Leak = LeakChecker.Enter();
+            Leak = LeakChecker.Enter(LeakCounterKind.PalSocket);
         }
 
         public PalSocket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType)
