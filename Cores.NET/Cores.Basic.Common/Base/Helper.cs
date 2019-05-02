@@ -517,7 +517,14 @@ namespace IPA.Cores.Helper.Basic
             }
             catch { }
         }
-        
+
+        public static T AsGlobalService<T>(this T obj) where T: IAsyncService
+        {
+            if (obj == default) return default;
+            LeakChecker.AddAsGlobalAsyncService(obj);
+            return obj;
+        }
+
         public static Task DisposeWithCleanupSafeAsync(this IAsyncService obj, Exception ex = null)
         {
             try

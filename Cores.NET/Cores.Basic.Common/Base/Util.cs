@@ -3795,14 +3795,12 @@ namespace IPA.Cores.Basic
         All = 0x7fffffff,
     }
 
-    class StatisticsReporter<T> : AsyncService
+    class StatisticsReporter<T> : AsyncServiceWithMainLoop
         where T: class
     {
         public readonly T CurrentValues;
 
         public int Interval { get; }
-
-        readonly Task MainLoopTask;
 
         readonly CriticalSection LockObj = new CriticalSection();
 
@@ -3827,7 +3825,7 @@ namespace IPA.Cores.Basic
                 ListenerList.RegisterCallback(proc);
             }
 
-            this.MainLoopTask = TaskUtil.StartAsyncTaskAsync(MainLoopAsync, true);
+            StartMainLoop(MainLoopAsync);
         }
 
         async Task FireEventAsync()
@@ -3835,7 +3833,7 @@ namespace IPA.Cores.Basic
             await ListenerList.FireAsync(this.CurrentValues, NonsenseEventType.Nonsense);
         }
 
-        async Task MainLoopAsync()
+        async Task MainLoopAsync(CancellationToken cancel)
         {
             T prevValues = Util.NewWithoutConstructor<T>();
             double prevTime = Time.NowHighResDouble;
@@ -3876,20 +3874,11 @@ namespace IPA.Cores.Basic
                     ex.Debug();
                 }
 
-                await TaskUtil.WaitObjectsAsync(cancels: this.GrandCancel.SingleArray(), timeout: this.Interval);
+                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: this.Interval);
 
                 num++;
             }
         }
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await this.MainLoopTask;
-        }
-
-        protected override void DisposeImpl() { }
     }
 
 

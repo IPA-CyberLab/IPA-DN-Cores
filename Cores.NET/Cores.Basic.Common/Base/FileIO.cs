@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // 古いファイルから順番に削除する
-    class OldFileEraser : AsyncService
+    class OldFileEraser : AsyncServiceWithMainLoop
     {
         string[] DirList;
         string ExtensionList;
@@ -54,8 +54,6 @@ namespace IPA.Cores.Basic
 
         public const int DefaultInterval = 60 * 1000;
         public int Interval { get; }
-
-        Task MainTask;
 
         public OldFileEraser(long totalMinSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
             : base()
@@ -68,24 +66,15 @@ namespace IPA.Cores.Basic
             this.ExtensionList = extensions;
             this.TotalMinSize = totalMinSize;
 
-            this.MainTask = IntervalThreadAsync().LeakCheck();
+            StartMainLoop(MainLoopAsync);
         }
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await this.MainTask;
-        }
-
-        protected override void DisposeImpl() { }
 
         // 定期的に削除を実行するスレッド
-        public async Task IntervalThreadAsync()
+        public async Task MainLoopAsync(CancellationToken cancel)
         {
-            while (await this.GrandCancel.WaitUntilCanceledAsync(this.Interval) == false)
+            while (await cancel.WaitUntilCanceledAsync(this.Interval) == false)
             {
-                ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, this.GrandCancel);
+                ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, cancel);
             }
         }
 

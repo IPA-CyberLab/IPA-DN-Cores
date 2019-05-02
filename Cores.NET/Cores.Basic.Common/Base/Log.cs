@@ -322,6 +322,7 @@ namespace IPA.Cores.Basic
         public bool NoFlush { get; set; } = false;
 
         Task LogTask = null;
+        OldFileEraser Eraser = null;
 
         public Logger(string dir, string kind, string prefix, LogSwitchType switchType = LogSwitchType.Day,
             LogInfoOptions infoOptions = default,
@@ -349,20 +350,28 @@ namespace IPA.Cores.Basic
             if (autoDeleteTotalMinSize != null)
             {
                 autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
-                OldFileEraser eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
+                this.Eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
             }
 
             LogTask = LogThreadAsync().LeakCheck();
         }
 
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
+        protected override void CancelImpl(Exception ex)
         {
+            this.Eraser.CancelSafe(ex);
+        }
+
+        protected override async Task CleanupImplAsync(Exception ex)
+        {
+            await this.Eraser.CleanupSafeAsync(ex);
+
             await LogTask;
         }
 
-        protected override void DisposeImpl() { }
+        protected override void DisposeImpl(Exception ex)
+        {
+            this.Eraser.DisposeSafe(ex);
+        }
 
         public void Stop(bool abandonUnwritenData)
         {

@@ -84,7 +84,7 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex) { }
 
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             NetworkSock[] openedSockets;
 
@@ -102,7 +102,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl() { }
+        protected override void DisposeImpl(Exception ex) { }
     }
 }
 

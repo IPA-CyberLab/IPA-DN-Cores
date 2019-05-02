@@ -1213,6 +1213,8 @@ namespace IPA.Cores.Basic
 
         readonly List<Action> OnDisposeList = new List<Action>();
 
+        readonly List<IAsyncService> ChildrenObjectList = new List<IAsyncService>();
+
         CriticalSection LockObj = new CriticalSection();
 
         public AsyncService(CancellationToken cancel = default)
@@ -1229,6 +1231,40 @@ namespace IPA.Cores.Basic
                 lock (LockObj)
                     this.OnDisposeList.Add(proc);
             }
+        }
+
+        public T AddChild<T>(T childService) where T : IAsyncService
+        {
+            if (childService != default)
+            {
+                lock (ChildrenObjectList)
+                    ChildrenObjectList.Add(childService);
+            }
+            return childService;
+        }
+
+        IAsyncService[] GetChildren()
+        {
+            lock (ChildrenObjectList)
+                return ChildrenObjectList.ToArray();
+        }
+
+        void CancelChildren(Exception ex)
+        {
+            foreach (var child in GetChildren())
+                child.CancelSafe(ex);
+        }
+
+        async Task CleanupChildrenAsync(Exception ex)
+        {
+            foreach (var child in GetChildren())
+                await child.CleanupSafeAsync(ex);
+        }
+
+        void DisposeChildrenAsync(Exception ex)
+        {
+            foreach (var child in GetChildren())
+                child.DisposeSafe(ex);
         }
 
         protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
@@ -1275,8 +1311,8 @@ namespace IPA.Cores.Basic
         }
 
         protected virtual void CancelImpl(Exception ex) { }
-        protected virtual Task CleanupImplAsync() => Task.CompletedTask;
-        protected virtual void DisposeImpl() { }
+        protected virtual Task CleanupImplAsync(Exception ex) => Task.CompletedTask;
+        protected virtual void DisposeImpl(Exception ex) { }
 
         void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object userState)
             => CancelInternalMain();
@@ -1288,6 +1324,8 @@ namespace IPA.Cores.Basic
 
             if (CanceledInternal.IsFirstCall())
             {
+                CancelChildren(CancelReason);
+
                 try
                 {
                     CancelImpl(CancelReason);
@@ -1311,7 +1349,9 @@ namespace IPA.Cores.Basic
                 while (CriticalCounter.Value >= 1)
                     await Task.Delay(10);
 
-                await CleanupImplAsync().TryWaitAsync();
+                await CleanupChildrenAsync(ex);
+
+                await CleanupImplAsync(ex).TryWaitAsync();
             }
         }
 
@@ -1321,12 +1361,15 @@ namespace IPA.Cores.Basic
         {
             IsCanceledPrivateFlag = true;
 
+            CleanupAsync(ex).TryGetResult();
+
             if (DisposeFlag.IsFirstCall())
             {
-                CleanupAsync(ex).TryGetResult();
+                DisposeChildrenAsync(ex);
+
                 try
                 {
-                    DisposeImpl();
+                    DisposeImpl(ex);
                 }
                 catch (Exception ex2)
                 {
@@ -1349,6 +1392,8 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
                 }
+
+                this.CancelWatcher.DisposeSafe();
             }
         }
 
@@ -1357,6 +1402,37 @@ namespace IPA.Cores.Basic
             this.CancelSafe(ex);
             await this.CleanupSafeAsync(ex);
             this.DisposeSafe(ex);
+        }
+    }
+
+    abstract class AsyncServiceWithMainLoop : AsyncService
+    {
+        public AsyncServiceWithMainLoop(CancellationToken cancel = default) : base(cancel)
+        {
+        }
+
+        Task MainLoopTask = null;
+
+        protected void StartMainLoop(Func<CancellationToken, Task> mainLoopProc)
+        {
+            if (MainLoopTask != null)
+            {
+                Debug.Assert(false, "MainLoopTask != null");
+                return;
+            }
+
+            MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o), this.GrandCancel, true, true);
+        }
+
+        protected override async Task CleanupImplAsync(Exception ex)
+        {
+            try
+            {
+                if (MainLoopTask != null)
+                    await MainLoopTask;
+            }
+            catch (TaskCanceledException) { }
+            catch (OperationCanceledException) { }
         }
     }
 
@@ -1754,14 +1830,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             await MainTask;
         }
-
-        protected override void DisposeImpl() { }
     }
 
     [Flags]
@@ -1878,9 +1950,36 @@ namespace IPA.Cores.Basic
             Debug.Assert(r >= 0);
         }
 
+        static readonly List<IAsyncService> GlobalAsyncServiceList = new List<IAsyncService>();
+
+        public static IAsyncService AddAsGlobalAsyncService(IAsyncService svc)
+        {
+            if (svc == null) return null;
+
+            lock (GlobalAsyncServiceList)
+                GlobalAsyncServiceList.Add(svc);
+
+            return svc;
+        }
+
+        static void DisposeAllGlobalAsyncServices()
+        {
+            IAsyncService[] list = null;
+            lock (GlobalAsyncServiceList)
+            {
+                list = GlobalAsyncServiceList.ToArray();
+                GlobalAsyncServiceList.Clear();
+            }
+
+            foreach (var svc in list)
+            {
+                svc.DisposeSafe(new ApplicationException("Shutdowning the process."));
+            }
+        }
+
         public static void Print()
         {
-            //////////////SuperGrandLady.CleanupAsync().TryWait();
+            DisposeAllGlobalAsyncServices();
 
             lock (_InternalList)
             {
@@ -2174,16 +2273,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Cancel() => Dispose();
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             await this.MainTask;
         }
-
-        protected override void DisposeImpl() { }
     }
 
     struct ValueOrClosed<T>
@@ -3228,14 +3321,10 @@ namespace IPA.Cores.Basic
             t.TryWaitAsync(false).LaissezFaire();
         }
 
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             await t;
         }
-
-        protected override void DisposeImpl() { }
     }
 
     class RefCounterHolder : IDisposable

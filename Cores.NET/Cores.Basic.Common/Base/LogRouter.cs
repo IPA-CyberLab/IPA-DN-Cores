@@ -56,12 +56,6 @@ namespace IPA.Cores.Basic
                 Console.WriteLine(record.ConsolePrintableString);
             }
         }
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override Task CleanupImplAsync() => Task.CompletedTask;
-
-        protected override void DisposeImpl() { }
     }
 
     class LoggerLogRoute : LogRouteBase
@@ -79,6 +73,8 @@ namespace IPA.Cores.Basic
                 infoOptions: infoOptions,
                 maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
                 autoDeleteTotalMinSize: autoDeleteTotalMaxSize ?? CoresConfig.Logger.DefaultAutoDeleteTotalMinSize);
+
+            AddChild(Log);
         }
 
 
@@ -89,22 +85,6 @@ namespace IPA.Cores.Basic
                 Log.Add(record);
             }
         }
-
-        protected override void CancelImpl(Exception ex)
-        {
-            Log.CancelSafe(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await Log.CleanupSafeAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            Log.DisposeSafe();
-        }
-
     }
 
     abstract class LogRouteBase : AsyncService
@@ -136,7 +116,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
@@ -145,7 +125,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl() { }
+        protected override void DisposeImpl(Exception ex) { }
 
         public LogRouteBase InstallLogRoute(LogRouteBase route)
         {
@@ -199,7 +179,7 @@ namespace IPA.Cores.Basic
 
     static class LocalLogRouter
     {
-        public static readonly LogRouter Router = new LogRouter();
+        public static readonly LogRouter Router = new LogRouter().AsGlobalService();
 
         static LocalLogRouter()
         {

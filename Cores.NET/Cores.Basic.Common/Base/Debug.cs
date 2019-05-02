@@ -1055,7 +1055,7 @@ namespace IPA.Cores.Basic
             {
                 current.Refresh();
                 return Task.CompletedTask;
-            });
+            }).AsGlobalService();
     }
 }
 

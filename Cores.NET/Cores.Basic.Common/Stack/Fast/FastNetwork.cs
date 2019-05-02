@@ -284,10 +284,8 @@ namespace IPA.Cores.Basic
             OnDisconnectedEvent.Set(true);
         }
 
-        protected override Task CleanupImplAsync()
+        protected override Task CleanupImplAsync(Exception ex)
             => Task.CompletedTask;
-
-        protected override void DisposeImpl() { }
 
         public void CheckDisconnected()
         {
@@ -378,15 +376,9 @@ namespace IPA.Cores.Basic
 
         public Task CleanupAsync(Exception ex = null) => this.Pipe.CleanupAsync(ex);
 
-        public void Dispose() => Dispose(null);
-        public void Dispose(Exception ex = null) => this.Pipe.DisposeSafe(ex);
-
-        public async Task DisposeWithCleanupAsync(Exception ex = null)
-        {
-            this.CancelSafe(ex);
-            await this.CleanupSafeAsync(ex);
-            this.DisposeSafe(ex);
-        }
+        public void Dispose() => this.Pipe.Dispose();
+        public void Dispose(Exception ex = null) => this.Pipe.Dispose(ex);
+        public Task DisposeWithCleanupAsync(Exception ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
     }
 
     class FastAttachHandle : AsyncService
@@ -552,9 +544,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task CleanupImplAsync() => Task.CompletedTask;
+        protected override Task CleanupImplAsync(Exception ex) => Task.CompletedTask;
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             Leak.DisposeSafe();
 
@@ -1104,28 +1096,27 @@ namespace IPA.Cores.Basic
         Datagram = 2,
     }
 
-    abstract class FastPipeEndAsyncObjectWrapperBase : AsyncService
+    abstract class FastPipeEndAsyncObjectWrapperBase : AsyncServiceWithMainLoop
     {
         public FastPipeEnd PipeEnd { get; }
         public abstract PipeSupportedDataTypes SupportedDataTypes { get; }
-        Task MainLoopTask = Task.CompletedTask;
 
         public ExceptionQueue ExceptionQueue { get => PipeEnd.ExceptionQueue; }
         public LayerInfo LayerInfo { get => PipeEnd.LayerInfo; }
 
         public FastPipeEndAsyncObjectWrapperBase(FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
         {
-            PipeEnd = pipeEnd;
+            PipeEnd = AddChild(pipeEnd);
         }
 
         Once ConnectedFlag;
         protected void StartBaseAsyncLoops()
         {
             if (ConnectedFlag.IsFirstCall())
-                MainLoopTask = MainLoopsAsync();
+                StartMainLoop(MainLoopsAsync);
         }
 
-        async Task MainLoopsAsync()
+        async Task MainLoopsAsync(CancellationToken cancel)
         {
             try
             {
@@ -1344,23 +1335,6 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-
-        protected override void CancelImpl(Exception ex)
-        {
-            this.PipeEnd.Cancel(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await MainLoopTask.TryWaitAsync(true);
-
-            await this.PipeEnd.CleanupAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            this.PipeEnd.DisposeSafe();
-        }
     }
 
     class FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase
@@ -1491,11 +1465,11 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             Socket.DisposeSafe();
 
-            base.DisposeImpl();
+            base.DisposeImpl(ex);
         }
     }
 
@@ -1598,11 +1572,11 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             Stream.DisposeSafe();
 
-            base.DisposeImpl();
+            base.DisposeImpl(ex);
         }
     }
 
@@ -1720,11 +1694,11 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             InternalDisconnect();
 
-            base.DisposeImpl();
+            base.DisposeImpl(ex);
         }
     }
 

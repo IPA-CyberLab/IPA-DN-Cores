@@ -235,13 +235,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             await HostTask;
         }
-
-        protected override void DisposeImpl() { }
     }
 }

@@ -55,12 +55,6 @@ namespace IPA.Cores.Basic
         {
             Options = options;
         }
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override Task CleanupImplAsync() => Task.CompletedTask;
-
-        protected override void DisposeImpl() { }
     }
 
     abstract class FastAppStubOptionsBase : FastStackOptionsBase { }
@@ -76,34 +70,10 @@ namespace IPA.Cores.Basic
             : base(options, cancel)
         {
             Lower = lower;
+            AddChild(Lower);
 
             LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
-        }
-
-        protected override void CancelImpl(Exception ex)
-        {
-            LowerAttach.Cancel(ex);
-            LowerAttach.DisposeSafe();
-
-            Lower.Cancel(ex);
-
-            base.CancelImpl(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await LowerAttach.CleanupAsync();
-            await Lower.CleanupAsync();
-
-            await base.CleanupImplAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            LowerAttach.DisposeSafe();
-            Lower.DisposeSafe();
-
-            base.DisposeImpl();
+            AddChild(LowerAttach);
         }
     }
 
@@ -155,10 +125,10 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             StreamCache.DisposeSafe();
-            base.DisposeImpl();
+            base.DisposeImpl(ex);
         }
     }
 
@@ -183,35 +153,10 @@ namespace IPA.Cores.Basic
             }
 
             Upper = upper;
+            AddChild(Upper);
 
             UpperAttach = Upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
-        }
-
-
-        protected override void CancelImpl(Exception ex)
-        {
-            UpperAttach.Cancel(ex);
-            UpperAttach.DisposeSafe();
-
-            Upper.Cancel(ex);
-
-            base.CancelImpl(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await UpperAttach.CleanupAsync();
-            await Upper.CleanupAsync();
-
-            await base.CleanupImplAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            UpperAttach.DisposeSafe();
-            Upper.DisposeSafe();
-
-            base.DisposeImpl();
+            AddChild(UpperAttach);
         }
     }
 
@@ -332,6 +277,7 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket = s;
             this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
+            AddChild(this.SocketWrapper);
 
             UpperAttach.SetLayerInfo(new LayerInfo()
             {
@@ -407,23 +353,18 @@ namespace IPA.Cores.Basic
             this.ConnectedSocket.DisposeSafe();
             this.ListeningSocket.DisposeSafe();
 
-            this.SocketWrapper.CancelSafe(ex);
-
             base.CancelImpl(ex);
         }
 
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
-            await this.SocketWrapper.CleanupSafeAsync();
-
-            await base.CleanupImplAsync();
+            await base.CleanupImplAsync(ex);
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             this.ConnectedSocket.DisposeSafe();
             this.ListeningSocket.DisposeSafe();
-            this.SocketWrapper.DisposeSafe();
         }
     }
 
@@ -439,10 +380,10 @@ namespace IPA.Cores.Basic
 
         public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
-            Stack = protocolStack;
-            LowerEnd = Stack._InternalUpper;
-            Pipe = LowerEnd.Pipe;
-            UpperEnd = LowerEnd.CounterPart;
+            Stack = AddChild(protocolStack);
+            LowerEnd = AddChild(Stack._InternalUpper);
+            Pipe = AddChild(LowerEnd.Pipe);
+            UpperEnd = AddChild(LowerEnd.CounterPart);
         }
 
         public FastAppStub GetFastAppProtocolStub()
@@ -463,30 +404,6 @@ namespace IPA.Cores.Basic
         public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
 
         public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
-
-        protected override void CancelImpl(Exception ex)
-        {
-            this.Stack.CancelSafe(ex);
-            this.Pipe.CancelSafe(ex);
-            this.LowerEnd.CancelSafe(ex);
-            this.UpperEnd.CancelSafe(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await this.Stack.CleanupSafeAsync();
-            await this.Pipe.CleanupSafeAsync();
-            await this.LowerEnd.CleanupSafeAsync();
-            await this.UpperEnd.CleanupSafeAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            this.Stack.DisposeSafe();
-            this.Pipe.DisposeSafe();
-            this.LowerEnd.DisposeSafe();
-            this.UpperEnd.DisposeSafe();
-        }
     }
 
     class ConnSock : NetworkSock
@@ -561,42 +478,15 @@ namespace IPA.Cores.Basic
         public FastMiddleProtocolStackBase(FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
-            Lower = lower;
+            Lower = AddChild(lower);
 
-            LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
+            LowerAttach = AddChild(Lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
 
             Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
             Lower.LayerInfo.Encounter(Upper.LayerInfo);
 
             Lower.AddOnDisconnected(() => Upper.Cancel(new DisconnectedException()));
             Upper.AddOnDisconnected(() => Lower.Cancel(new DisconnectedException()));
-        }
-
-
-        protected override void CancelImpl(Exception ex)
-        {
-            LowerAttach.Cancel(ex);
-            LowerAttach.DisposeSafe();
-
-            Lower.Cancel(ex);
-
-            base.CancelImpl(ex);
-        }
-
-        protected override async Task CleanupImplAsync()
-        {
-            await LowerAttach.CleanupAsync();
-            await Lower.CleanupAsync();
-
-            await base.CleanupImplAsync();
-        }
-
-        protected override void DisposeImpl()
-        {
-            LowerAttach.DisposeSafe();
-            Lower.DisposeSafe();
-
-            base.DisposeImpl();
         }
     }
 
@@ -654,6 +544,7 @@ namespace IPA.Cores.Basic
 
                     this.SslStream = ssl;
                     this.Wrapper = new FastPipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                    AddChild(this.Wrapper);
                 }
                 catch
                 {
@@ -666,24 +557,15 @@ namespace IPA.Cores.Basic
         protected override void CancelImpl(Exception ex)
         {
             this.SslStream.DisposeSafe();
-            this.Wrapper.CancelSafe(ex);
 
             base.CancelImpl(ex);
         }
 
-        protected override async Task CleanupImplAsync()
-        {
-            await this.Wrapper.CleanupSafeAsync();
-
-            await base.CleanupImplAsync();
-        }
-
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             this.SslStream.DisposeSafe();
-            this.Wrapper.DisposeSafe();
 
-            base.DisposeImpl();
+            base.DisposeImpl(ex);
         }
     }
 
@@ -959,7 +841,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             List<Listener> o = new List<Listener>();
             lock (LockObj)
@@ -999,7 +881,7 @@ namespace IPA.Cores.Basic
             Debug.Assert(CurrentConnections == 0);
         }
 
-        protected override void DisposeImpl() { }
+        protected override void DisposeImpl(Exception ex) { }
     }
 
     class FastPalTcpListener : FastTcpListenerBase

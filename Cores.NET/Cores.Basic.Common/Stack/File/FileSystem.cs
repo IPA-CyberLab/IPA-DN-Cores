@@ -1119,7 +1119,7 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex) { }
 
-        protected override async Task CleanupImplAsync()
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             FileBase[] fileHandles;
 
@@ -1135,7 +1135,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl()
+        protected override void DisposeImpl(Exception ex)
         {
             ObjectPoolForRead.DisposeSafe();
             ObjectPoolForWrite.DisposeSafe();

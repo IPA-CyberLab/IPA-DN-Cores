@@ -330,12 +330,6 @@ namespace IPA.Cores.Basic
         public virtual void FinishCall(object param) { }
 
         public virtual async Task FinishCallAsync(object param) => await Task.CompletedTask;
-
-        protected override void CancelImpl(Exception ex) { }
-
-        protected override Task CleanupImplAsync() => Task.CompletedTask;
-
-        protected override void DisposeImpl() { }
     }
 
     abstract class JsonRpcServer
