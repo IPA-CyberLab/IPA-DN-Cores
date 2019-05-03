@@ -636,7 +636,7 @@ namespace IPA.Cores.Basic
         public static LargeFileSystem Local { get; } = _LocalSingleton;
 
         static Singleton<LargeFileSystem> _LocalAutoUtf8Singleton = new Singleton<LargeFileSystem>(() => new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8)).AsGlobalService(), leakKind: LeakCounterKind.DoNotTrack);
-        public static LargeFileSystem LocalAutoUtf8 { get; } = _LocalSingleton;
+        public static LargeFileSystem LocalAutoUtf8 { get; } = _LocalAutoUtf8Singleton;
 
         public FileSystem UnderlayFileSystem { get; }
         public new LargeFileSystemParams Params => (LargeFileSystemParams)base.Params;

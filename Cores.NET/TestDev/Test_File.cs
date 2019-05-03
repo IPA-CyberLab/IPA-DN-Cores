@@ -60,8 +60,8 @@ namespace IPA.TestDev
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
             string src1 = @"C:\git\IPA-DNP-LabUtil";
-            string dst1 = @"D:\tmp\190428\test2\";
-            //string dst1 = @"D:\TMP\190428\test2\LabUtil.NET\LabUtil.Basic\Base";
+            //string dst1 = @"D:\tmp\190428\test2\";
+            string dst1 = @"D:\TMP\190428\test2\LabUtil.NET\LabUtil.Basic\Base";
             string dst2 = "/test1/";
             string dst3 = "/test2/";
             string dst4 = @"D:\tmp\190428\test3\";
@@ -119,16 +119,16 @@ namespace IPA.TestDev
             {
                 //AppConfig.LargeFileSystemSettings.LocalLargeFileSystemParams.Set(new LargeFileSystemParams(10_000));
 
-                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET";
+                string srcDir1 = @"C:\git\IPA-DN-Cores\Cores.NET\DepTest";
                 string dstDir1 = @"d:\tmp\copy_test2\01";
                 string dstDir2 = @"d:\tmp\copy_test2\02";
                 string dstDir3 = @"d:\tmp\copy_test2\03";
 
-                if (false)
+                if (true)
                 {
                     try
                     {
-                        Lfs.DeleteDirectory(dstDir1);
+                        Lfs.DeleteDirectory(dstDir1, true);
                     }
                     catch { }
 
@@ -148,7 +148,7 @@ namespace IPA.TestDev
                 {
                     try
                     {
-                        Lfs.DeleteDirectory(dstDir2);
+                        Lfs.DeleteDirectory(dstDir2, true);
                     }
                     catch { }
 
@@ -168,7 +168,7 @@ namespace IPA.TestDev
                 {
                     try
                     {
-                        Lfs.DeleteDirectory(dstDir3);
+                        Lfs.DeleteDirectory(dstDir3, true);
                     }
                     catch { }
 
