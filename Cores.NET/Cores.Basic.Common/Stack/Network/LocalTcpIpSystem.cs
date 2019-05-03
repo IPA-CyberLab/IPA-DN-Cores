@@ -67,9 +67,21 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static Singleton<LocalTcpIpSystem> _Singleton = new Singleton<LocalTcpIpSystem>(() => new LocalTcpIpSystem(new LocalTcpIpSystemParam()).AsGlobalService(),
-            leakKind: LeakCounterKind.DoNotTrack);
-        public static LocalTcpIpSystem Local { get; } = _Singleton;
+        public static LocalTcpIpSystem Local { get; private set; }
+
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            Local = new LocalTcpIpSystem(new LocalTcpIpSystemParam());
+        }
+
+        static void ModuleFree()
+        {
+            Local.DisposeSafe();
+            Local = null;
+        }
+
 
         protected new LocalTcpIpSystemParam Param => (LocalTcpIpSystemParam)base.Param;
 

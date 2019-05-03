@@ -179,17 +179,21 @@ namespace IPA.Cores.Basic
 
     static class LocalLogRouter
     {
-        public static readonly LogRouter Router = new LogRouter().AsGlobalService();
+        public static LogRouter Router { get; private set; }
 
-        static LocalLogRouter()
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
         {
+            Router = new LogRouter();
+
             // Console log
             Router.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
                 CoresConfig.DebugSettings.ConsoleMinimalLevel));
 
             // Debug log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
-                CoresConfig.DebugSettings.LogMinimalDebugLevel, 
+                CoresConfig.DebugSettings.LogMinimalDebugLevel,
                 "debug",
                 CoresConfig.LocalLogRouterSettings.LogDebugDir.Value(),
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForDebug,
@@ -197,7 +201,7 @@ namespace IPA.Cores.Basic
 
             // Info log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
-                CoresConfig.DebugSettings.LogMinimalInfoLevel, 
+                CoresConfig.DebugSettings.LogMinimalInfoLevel,
                 "info",
                 CoresConfig.LocalLogRouterSettings.LogInfoDir.Value(),
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForInfo,
@@ -235,9 +239,15 @@ namespace IPA.Cores.Basic
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForAccess,
                 CoresConfig.LocalLogRouterSettings.InfoOptionsForAccess));
 
-            var snapshot = new EnvInfoSnapshot("--- Process boottime log ---");
+            EnvInfoSnapshot snapshot = new EnvInfoSnapshot("--- Process boottime log ---");
 
             Router.PostLog(new LogRecord(snapshot, LogPriority.Info, LogFlags.NoOutputToConsole, "boottime"), LogKind.Default);
+        }
+
+        static void ModuleFree()
+        {
+            Router.DisposeSafe(new CoresLibraryShutdowningException());
+            Router = null;
         }
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);

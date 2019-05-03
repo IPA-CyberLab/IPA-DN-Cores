@@ -77,7 +77,22 @@ namespace IPA.Cores.Basic
 
     class ResourceFileSystem : VirtualFileSystem
     {
-        public static Singleton<Assembly, ResourceFileSystem> Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(new ResourceFileSystemParam(asm)));
+        public static Singleton<Assembly, ResourceFileSystem> Singleton { get; private set; }
+
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(new ResourceFileSystemParam(asm)));
+        }
+
+        static void ModuleFree()
+        {
+            Singleton.DisposeSafe();
+
+            Singleton = null;
+        }
+
 
         public new ResourceFileSystemParam Params => (ResourceFileSystemParam)base.Params;
 

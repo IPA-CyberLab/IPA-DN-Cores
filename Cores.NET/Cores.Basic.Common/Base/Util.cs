@@ -2307,6 +2307,69 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class StaticModule : StaticModule<int, int>
+    {
+        public StaticModule(Action initProc, Action freeProc)
+            : base(_ => initProc(), () => { freeProc(); return default; } )
+        {
+        }
+
+        public void Init() => base.Init(0);
+    }
+
+    class StaticModule<TResult> : StaticModule<int, TResult>
+    {
+        public StaticModule(Action initProc, Func<TResult> freeProc)
+            : base(_ => initProc(), freeProc)
+        {
+        }
+
+        public void Init() => base.Init(0);
+    }
+
+    class StaticModule<TOptions, TResult>
+    {
+        readonly Action<TOptions> InitProc;
+        readonly Func<TResult> FreeProc;
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        public bool Initialized { get; private set; } = false;
+
+        public StaticModule(Action<TOptions> initProc, Func<TResult> freeProc)
+        {
+            this.InitProc = initProc;
+            this.FreeProc = freeProc;
+        }
+
+        public void Init(TOptions options)
+        {
+            lock (LockObj)
+            {
+                if (Initialized)
+                    throw new ApplicationException("The InitFree object is already initialized.");
+
+                this.InitProc(options);
+
+                Initialized = true;
+            }
+        }
+
+        public TResult Free()
+        {
+            lock (LockObj)
+            {
+                if (Initialized == false)
+                    throw new ApplicationException("The InitFree object is not initialized.");
+
+                TResult ret = this.FreeProc();
+
+                Initialized = false;
+
+                return ret;
+            }
+        }
+    }
+
     class Singleton<TObject> : IDisposable where TObject: class
     {
         readonly CriticalSection LockObj = new CriticalSection();
@@ -2315,7 +2378,7 @@ namespace IPA.Cores.Basic
         readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
         IHolder LeakHolder = null;
 
-        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.OthersCounter)
+        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton2)
         {
             this.CreateProc = createProc;
             this.LeakKind = leakKind;
@@ -2362,31 +2425,62 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Singleton<TKey, TObject>
+    class Singleton<TKey, TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
+        readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
+        IHolder LeakHolder = null;
 
-        public Singleton(Func<TKey, TObject> createProc)
+        public Singleton(Func<TKey, TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton1)
         {
             this.CreateProc = createProc;
             this.Table = new Dictionary<TKey, TObject>();
+            this.LeakKind = leakKind;
         }
 
         public TObject this [TKey key] => CreateOrGet(key);
 
         public TObject CreateOrGet(TKey key)
         {
+            if (DisposeFlag) throw new ObjectDisposedException("Singleton");
+
             lock (LockObj)
             {
+                if (DisposeFlag) throw new ObjectDisposedException("Singleton");
+
                 if (this.Table.TryGetValue(key, out TObject obj) == false)
                 {
+                    LeakHolder = LeakChecker.Enter(this.LeakKind);
+
                     obj = this.CreateProc(key);
                     this.Table.Add(key, obj);
                 }
                 return obj;
             }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            TObject[] list;
+
+            lock (LockObj)
+            {
+                list = this.Table.Values.ToArray();
+            }
+
+            foreach (var obj in list)
+            {
+                if (obj is IDisposable disposeTarget)
+                    disposeTarget.DisposeSafe();
+            }
+
+            LeakHolder.DisposeSafe();
         }
     }
 
@@ -3619,8 +3713,8 @@ namespace IPA.Cores.Basic
         public IReadOnlyList<string> FieldOrPropertyNamesList { get; }
         public IReadOnlyList<string> MethodNamesList { get; }
 
-        static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false));
-        static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true));
+        static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false), LeakCounterKind.DoNotTrack);
+        static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true), LeakCounterKind.DoNotTrack);
 
         public FieldReaderWriter(Type targetType, bool includePrivate = false)
         {

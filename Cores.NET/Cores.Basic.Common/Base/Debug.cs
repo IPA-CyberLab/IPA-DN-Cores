@@ -1045,22 +1045,249 @@ namespace IPA.Cores.Basic
 
     static class CoresRuntimeStatReporter
     {
-        public readonly static StatisticsReporter<CoresRuntimeStat> Reporter = new StatisticsReporter<CoresRuntimeStat>(1000,
-            CoresConfig.DebugSettings.CoresStatLogType,
-            async (snapshot, diff, velocity)
-            =>
-            {
-                if (CoresConfig.DebugSettings.CoresStatPrintToConsole)
+        public static StatisticsReporter<CoresRuntimeStat> Reporter { get; private set; } = null;
+
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            Reporter = new StatisticsReporter<CoresRuntimeStat>(1000,
+                CoresConfig.DebugSettings.CoresStatLogType,
+                async (snapshot, diff, velocity)
+                =>
                 {
-                    snapshot.Debug();
-                }
-                await Task.CompletedTask;
-            },
-            (current, nonsense, userState) =>
+                    if (CoresConfig.DebugSettings.CoresStatPrintToConsole)
+                    {
+                        snapshot.Debug();
+                    }
+                    await Task.CompletedTask;
+                },
+                (current, nonsense, userState) =>
+                {
+                    current.Refresh();
+                    return Task.CompletedTask;
+                });
+        }
+
+        static void ModuleFree()
+        {
+            Reporter.DisposeSafe(new CoresLibraryShutdowningException());
+            Reporter = null;
+        }
+    }
+
+
+
+    [Flags]
+    enum LeakCounterKind
+    {
+        DoNotTrack,
+        OthersCounter,
+        PinnedMemory,
+        EnterCriticalCounter,
+        CreateCombinedCancellationToken,
+        FastAllocMemoryWithUsing,
+        VfsOpenEntity,
+        WaitObjectsAsync,
+        CancelWatcher,
+        PalSocket,
+        TaskLeak,
+        FastStreamToPalNetworkStream,
+        FastStream,
+        AsyncServiceWithMainLoop,
+        Singleton1,
+        Singleton2,
+    }
+
+    class LeakCheckerResult
+    {
+        public bool HasLeak { get; }
+        public string Information { get; }
+
+        public LeakCheckerResult(bool hasLeak, string information)
+        {
+            this.HasLeak = hasLeak;
+            this.Information = information;
+        }
+
+        public void Print()
+        {
+            Console.WriteLine(this.Information);
+        }
+    }
+
+    static class LeakChecker
+    {
+        class LeakCheckerHolder : IHolder
+        {
+            long Id;
+            public string Name { get; }
+            public string StackTrace { get; }
+
+            internal LeakCheckerHolder(string name, string stackTrace)
             {
-                current.Refresh();
-                return Task.CompletedTask;
-            }).AsGlobalService();
+                if (string.IsNullOrEmpty(name)) name = "<untitled>";
+
+                Id = Interlocked.Increment(ref LeakChecker._InternalCurrentId);
+                Name = name;
+                StackTrace = string.IsNullOrEmpty(stackTrace) ? "" : stackTrace;
+
+                lock (LeakChecker._InternalList)
+                    LeakChecker._InternalList.Add(Id, this);
+            }
+
+            public void Dispose() => Dispose(true);
+            Once DisposeFlag;
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                lock (LeakChecker._InternalList)
+                {
+                    Debug.Assert(LeakChecker._InternalList.ContainsKey(Id));
+                    LeakChecker._InternalList.Remove(Id);
+                }
+            }
+        }
+
+        static Dictionary<long, LeakCheckerHolder> _InternalList;
+        static long _InternalCurrentId = 0;
+        static int[] LeakCounters;
+        static bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
+        public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            _InternalList = new Dictionary<long, LeakCheckerHolder>();
+            LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];
+        }
+
+        static LeakCheckerResult ModuleFree()
+        {
+            StringWriter w = new StringWriter();
+
+            bool ok = FinalizeAndGetLeakResultsInternal(w);
+
+            return new LeakCheckerResult(!ok, w.ToString());
+        }
+
+
+        public static IHolder Enter(LeakCounterKind leakKind = LeakCounterKind.OthersCounter, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        {
+            if (FullStackTrace && leakKind != LeakCounterKind.DoNotTrack)
+            {
+                return new LeakCheckerHolder($"{leakKind.ToString()}: {caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
+            }
+            else
+            {
+                return new Holder(() => { }, leakKind);
+            }
+        }
+
+        public static int Count
+        {
+            get
+            {
+                lock (_InternalList)
+                {
+                    int ret = 0;
+
+                    if (FullStackTrace)
+                    {
+                        ret += _InternalList.Count;
+                    }
+                    else
+                    {
+                        for (int k = 0; k < LeakCounters.Length; k++)
+                        {
+                            LeakCounterKind kind = (LeakCounterKind)k;
+                            int counter = LeakCounters[k];
+                            ret += Math.Abs(counter);
+                        }
+                    }
+
+                    return ret;
+                }
+            }
+        }
+
+        public static void IncrementLeakCounter(LeakCounterKind kind)
+        {
+            if (kind == LeakCounterKind.DoNotTrack) return;
+            int r = Interlocked.Increment(ref LeakCounters[(int)kind]);
+            Debug.Assert(r >= 1);
+        }
+
+        public static void DecrementLeakCounter(LeakCounterKind kind)
+        {
+            if (kind == LeakCounterKind.DoNotTrack) return;
+            int r = Interlocked.Decrement(ref LeakCounters[(int)kind]);
+            Debug.Assert(r >= 0);
+        }
+
+        static bool FinalizeAndGetLeakResultsInternal(StringWriter writer)
+        {
+            bool ret = true;
+
+            int pendingCount = TaskUtil.WaitUntilAllPendingAsyncTasksFinish();
+
+            if (pendingCount >= 1)
+            {
+                writer.WriteLine($"*** Pending queues counter: {pendingCount} > 0 !!! ***");
+                ret = false;
+            }
+
+            lock (_InternalList)
+            {
+                if (Dbg.IsConsoleDebugMode)
+                {
+                    if (Count == 0)
+                    {
+                        writer.WriteLine("@@@ No leaks @@@");
+                    }
+                    else
+                    {
+                        writer.WriteLine($"*** Leaked !!! count = {Count} ***");
+                        writer.WriteLine($"--- Leaked list  count = {Count} ---");
+                        writer.Write(GetStringInternal());
+                        writer.WriteLine($"--- End of leaked list  count = {Count} --");
+                        ret = false;
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+        static string GetStringInternal()
+        {
+            StringWriter w = new StringWriter();
+            int num = 0;
+            lock (_InternalList)
+            {
+                foreach (var v in _InternalList.OrderBy(x => x.Key))
+                {
+                    num++;
+                    w.WriteLine($"#{num}: {v.Key}: {v.Value.Name}");
+                    if (string.IsNullOrEmpty(v.Value.StackTrace) == false)
+                    {
+                        w.WriteLine(v.Value.StackTrace);
+                        w.WriteLine("---");
+                    }
+                }
+
+                for (int k = 0; k < LeakCounters.Length; k++)
+                {
+                    LeakCounterKind kind = (LeakCounterKind)k;
+                    int c = LeakCounters[k];
+                    if (c != 0)
+                    {
+                        w.WriteLine($"LeakCounters [{kind.ToString()}] = {c};");
+                    }
+                }
+            }
+            return w.ToString();
+        }
     }
 }
 

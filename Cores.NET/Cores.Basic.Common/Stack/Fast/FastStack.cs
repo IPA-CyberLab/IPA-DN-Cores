@@ -436,7 +436,21 @@ namespace IPA.Cores.Basic
 
     class FastPalDnsClient : FastDnsClientStub
     {
-        public static FastPalDnsClient Shared { get; } = new FastPalDnsClient(new FastDnsClientOptions()).AsGlobalService();
+        public static FastPalDnsClient Shared { get; private set; }
+
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            Shared = new FastPalDnsClient(new FastDnsClientOptions());
+        }
+
+        static void ModuleFree()
+        {
+            Shared.DisposeSafe();
+            Shared = null;
+        }
+
 
         public FastPalDnsClient(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {

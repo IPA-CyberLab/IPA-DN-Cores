@@ -632,11 +632,28 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static Singleton<LargeFileSystem> _LocalSingleton = new Singleton<LargeFileSystem>(() => new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.Local)).AsGlobalService(), leakKind: LeakCounterKind.DoNotTrack);
-        public static LargeFileSystem Local { get; } = _LocalSingleton;
+        public static LargeFileSystem Local { get; private set; }
+        public static LargeFileSystem LocalAutoUtf8 { get; private set; }
 
-        static Singleton<LargeFileSystem> _LocalAutoUtf8Singleton = new Singleton<LargeFileSystem>(() => new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8)).AsGlobalService(), leakKind: LeakCounterKind.DoNotTrack);
-        public static LargeFileSystem LocalAutoUtf8 { get; } = _LocalAutoUtf8Singleton;
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static void ModuleInit()
+        {
+            Local = new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.Local));
+
+            LocalAutoUtf8 = new LargeFileSystem(new LargeFileSystemParams(LocalFileSystem.LocalAutoUtf8));
+        }
+
+        static void ModuleFree()
+        {
+            LocalAutoUtf8.DisposeSafe();
+            LocalAutoUtf8 = null;
+
+            Local.DisposeSafe();
+            Local = null;
+        }
+
+
 
         public FileSystem UnderlayFileSystem { get; }
         public new LargeFileSystemParams Params => (LargeFileSystemParams)base.Params;

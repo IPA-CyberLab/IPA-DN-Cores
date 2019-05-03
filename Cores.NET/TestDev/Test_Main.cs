@@ -51,18 +51,18 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
+            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: true, leakFullStack: true);
+
+            CoresLibrary.Main.Init();
 
             Con.WriteLine("A");
-            //try
-            //{
-            //    ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
-            //}
-            //finally
+            try
             {
-                Console.WriteLine();
-                LeakChecker.Print();
-                Console.WriteLine();
+                ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
+            }
+            finally
+            {
+                CoresLibrary.Main.Free();
             }
         }
 

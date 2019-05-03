@@ -56,12 +56,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            string str = "Hello";
-
-            using (SingleInstance s = new SingleInstance(str))
-            {
-                Con.ReadLine();
-            }
+            ResourceFileSystem fs = ResourceFileSystem.Singleton.CreateOrGet(typeof(TestClass).Assembly);
         }
     }
 }

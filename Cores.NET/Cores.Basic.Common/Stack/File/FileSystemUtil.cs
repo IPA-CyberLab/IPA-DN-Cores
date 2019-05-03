@@ -294,8 +294,8 @@ namespace IPA.Cores.Basic
         Singleton<string, string> EasyAccessFileNameCache;
         void InitEasyFileAccessSingleton()
         {
-            EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath));
-            EasyAccessFileNameCache = new Singleton<string, string>(name => FindEasyAccessFilePathFromNameImpl(name));
+            EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath), LeakCounterKind.DoNotTrack);
+            EasyAccessFileNameCache = new Singleton<string, string>(name => FindEasyAccessFilePathFromNameImpl(name), LeakCounterKind.DoNotTrack);
         }
 
         protected virtual string FindEasyAccessFilePathFromNameImpl(string name)
@@ -485,7 +485,7 @@ namespace IPA.Cores.Basic
         {
             this.FileSystem = fileSystem;
             this.FilePath = filePath;
-            this.CachedData = new Singleton<EasyFileAccessType, object>(type => this.InternalReadData(type));
+            this.CachedData = new Singleton<EasyFileAccessType, object>(type => this.InternalReadData(type), LeakCounterKind.DoNotTrack);
         }
 
         public object GetData(EasyFileAccessType type) => this.CachedData[type];
