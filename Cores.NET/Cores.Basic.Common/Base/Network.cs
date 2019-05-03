@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     static class IPUtil
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         // ユーザーが利用できるホストアドレスかどうか確認
         public static bool IsIPv4UserHostAddress(IPAddress ip, IPAddress subnet)

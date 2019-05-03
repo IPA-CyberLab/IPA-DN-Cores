@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
 
     static partial class TaskUtil
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         static int NumPendingAsyncTasks = 0;
 
@@ -1270,7 +1270,7 @@ namespace IPA.Cores.Basic
     abstract class AsyncService : IAsyncService
     {
         static long IdSeed = 0;
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         public CancelWatcher CancelWatcher { get; }
         public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
@@ -1805,7 +1805,7 @@ namespace IPA.Cores.Basic
 
     class CancelWatcher : IDisposable
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         readonly CancellationTokenSource GrandCancelTokenSource;
         readonly IDisposable LeakHolder;
@@ -2002,7 +2002,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         static Dictionary<long, LeakCheckerHolder> _InternalList = new Dictionary<long, LeakCheckerHolder>();
         static long _InternalCurrentId = 0;
@@ -2040,11 +2040,8 @@ namespace IPA.Cores.Basic
                         for (int k = 0; k < LeakCounters.Length; k++)
                         {
                             LeakCounterKind kind = (LeakCounterKind)k;
-                            if (kind != LeakCounterKind.OthersCounter)
-                            {
-                                int counter = LeakCounters[k];
-                                ret += Math.Abs(counter);
-                            }
+                            int counter = LeakCounters[k];
+                            ret += Math.Abs(counter);
                         }
                     }
 
@@ -2094,15 +2091,29 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void Print()
+        public static bool Print()
         {
+            StringWriter w = new StringWriter();
+
+            bool ret = FinalizeAndGetLeakResults(w);
+
+            Console.WriteLine(w.ToString());
+
+            return ret;
+        }
+
+        public static bool FinalizeAndGetLeakResults(StringWriter writer)
+        {
+            bool ret = true;
+
             DisposeAllGlobalAsyncServices();
 
             int pendingCount = TaskUtil.WaitUntilAllPendingAsyncTasksFinish();
 
             if (pendingCount >= 1)
             {
-                Console.WriteLine($"*** Pending queues counter: {pendingCount} > 0 !!! ***");
+                writer.WriteLine($"*** Pending queues counter: {pendingCount} > 0 !!! ***");
+                ret = false;
             }
 
             lock (_InternalList)
@@ -2111,17 +2122,20 @@ namespace IPA.Cores.Basic
                 {
                     if (Count == 0)
                     {
-                        Console.WriteLine("@@@ No leaks @@@");
+                        writer.WriteLine("@@@ No leaks @@@");
                     }
                     else
                     {
-                        Console.WriteLine($"*** Leaked !!! count = {Count} ***");
-                        Console.WriteLine($"--- Leaked list  count = {Count} ---");
-                        Console.Write(GetString());
-                        Console.WriteLine($"--- End of leaked list  count = {Count} --");
+                        writer.WriteLine($"*** Leaked !!! count = {Count} ***");
+                        writer.WriteLine($"--- Leaked list  count = {Count} ---");
+                        writer.Write(GetString());
+                        writer.WriteLine($"--- End of leaked list  count = {Count} --");
+                        ret = false;
                     }
                 }
             }
+
+            return ret;
         }
 
         public static string GetString()

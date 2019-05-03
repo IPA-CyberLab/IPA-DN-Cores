@@ -80,8 +80,6 @@ namespace IPA.Cores.Basic
 
     static class Env
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
-
         static object lockObj = new object();
 
         // 初期化の必要のあるプロパティ値

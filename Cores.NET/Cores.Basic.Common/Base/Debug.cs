@@ -203,7 +203,11 @@ namespace IPA.Cores.Basic
         }
 
         public static void SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
-            => CoresConfig.DebugSettings.SetDebugMode(mode, printStatToConsole, leakFullStack);
+        {
+            CoresConfig.DebugSettings.SetDebugMode(mode, printStatToConsole, leakFullStack);
+
+            GlobalInitializer.Ensure();
+        }
 
         public static bool IsDebugMode => CoresConfig.DebugSettings.IsDebugMode();
 

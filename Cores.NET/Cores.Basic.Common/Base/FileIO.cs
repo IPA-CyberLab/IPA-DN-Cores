@@ -558,7 +558,7 @@ namespace IPA.Cores.Basic
     // ファイル操作
     class IO : IDisposable
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         // ディレクトリのコピー
         public delegate bool CopyDirPreCopyDelegate(FileInfo srcFileInfo);

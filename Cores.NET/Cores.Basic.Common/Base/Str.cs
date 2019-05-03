@@ -680,7 +680,7 @@ namespace IPA.Cores.Basic
     // 文字列操作
     static class Str
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         public static Encoding AsciiEncoding { get; }
         public static Encoding ShiftJisEncoding { get; }

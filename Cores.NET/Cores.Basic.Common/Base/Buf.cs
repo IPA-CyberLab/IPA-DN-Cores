@@ -43,7 +43,7 @@ namespace IPA.Cores.Basic
     // FIFO
     class Fifo
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         byte[] InternalBuffer;
         int Position;
@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
     // バッファ
     class Buf
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         MemoryStream InternalBuffer;
 

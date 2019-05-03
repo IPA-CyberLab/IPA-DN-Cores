@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    public enum SpeedTestModeFlag
+    enum SpeedTestModeFlag
     {
         Upload,
         Download,

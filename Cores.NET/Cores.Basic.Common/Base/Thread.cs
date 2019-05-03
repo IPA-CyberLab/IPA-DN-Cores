@@ -531,7 +531,7 @@ namespace IPA.Cores.Basic
 
     static class BackgroundWorker
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         static volatile int NumBusyWorkerThreads = 0;
         static volatile int NumWorkerThreads = 0;
@@ -912,7 +912,7 @@ namespace IPA.Cores.Basic
 
     class ThreadObj
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         public readonly static RefInt NumCurrentThreads = new RefInt();
 

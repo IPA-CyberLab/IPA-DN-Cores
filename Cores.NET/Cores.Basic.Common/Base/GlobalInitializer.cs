@@ -9,19 +9,24 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class GlobalInitializer
+    static class GlobalInitializer
     {
-        static GlobalInitializer()
+        public static void Ensure()
         {
-            Limbo.SInt = Time.Tick64;
-            Limbo.ObjectSlow = Env.AppRootDir;
-
-            var ensureReporter = CoresRuntimeStatReporter.Reporter;
+            try
+            {
+                NormalInitializeOnce();
+            }
+            catch { }
         }
 
-        public GlobalInitializer() => Ensure();
-        public static int Ensure() => 0;
+        static readonly Once once;
+        static void NormalInitializeOnce()
+        {
+            if (once.IsFirstCall() == false) return;
 
-
+            // Start the global reporter
+            var reporter = CoresRuntimeStatReporter.Reporter;
+        }
     }
 }

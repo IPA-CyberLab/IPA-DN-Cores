@@ -37,10 +37,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+
+[assembly: InternalsVisibleTo("UnitTest")]
 
 namespace IPA.TestDev
 {
@@ -48,13 +51,14 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: true, leakFullStack: false);
+            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
 
-            try
-            {
-                ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
-            }
-            finally
+            Con.WriteLine("A");
+            //try
+            //{
+            //    ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
+            //}
+            //finally
             {
                 Console.WriteLine();
                 LeakChecker.Print();

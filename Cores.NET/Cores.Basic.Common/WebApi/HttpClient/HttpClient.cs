@@ -13189,7 +13189,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             internal bool _preservedForObservation;
 
             // Token: 0x04000121 RID: 289
-            internal bool _frozenForEnqueues;
+            internal bool _frozenForEnqueues = false;
 
             // Token: 0x02000049 RID: 73
             internal struct Slot
@@ -15400,7 +15400,7 @@ namespace IPA.Cores.Basic.HttpClientCore
     ///         クライアント証明書の提供方法を指定します。
     ///       </summary>
     // Token: 0x02000070 RID: 112
-    public enum ClientCertificateOption
+    enum ClientCertificateOption
     {
         /// <summary>
         ///         アプリケーション手動でクライアント証明書を提供する、 <see cref="T:System.Net.Http.WebRequestHandler" />です。
@@ -17789,7 +17789,7 @@ namespace IPA.Cores.Basic.HttpClientCore
     ///         かどうか示す <see cref="T:System.Net.Http.HttpClient" /> 応答が利用可能なまたは、コンテンツを含む全体の応答メッセージを読んだ後に完了した操作を考慮する必要があります。
     ///       </summary>
     // Token: 0x0200007B RID: 123
-    public enum HttpCompletionOption
+    enum HttpCompletionOption
     {
         /// <summary>
         ///         内容を含む応答全体を読んだ後、操作が完了する必要があります。

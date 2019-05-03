@@ -429,7 +429,7 @@ namespace IPA.Cores.Basic
     // ユーティリティクラス
     static partial class Util
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
 

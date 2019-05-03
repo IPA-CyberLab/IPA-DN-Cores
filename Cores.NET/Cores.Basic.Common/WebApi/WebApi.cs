@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
 
     partial class WebApi : IDisposable
     {
-        static GlobalInitializer gInit = new GlobalInitializer();
+        
 
         WebApiSettings Settings;
 
