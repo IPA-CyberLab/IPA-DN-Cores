@@ -98,9 +98,7 @@ namespace IPA.Cores.Basic
 
             foreach (var s in openedSockets)
             {
-                s.CancelSafe();
-                await s.CleanupSafeAsync();
-                s.DisposeSafe();
+                await s.DisposeWithCleanupSafeAsync();
             }
         }
 

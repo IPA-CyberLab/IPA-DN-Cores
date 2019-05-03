@@ -1102,17 +1102,17 @@ namespace IPA.Cores.Basic
     class LeakCheckerResult
     {
         public bool HasLeak { get; }
-        public string Information { get; }
+        public string InformationString { get; }
 
         public LeakCheckerResult(bool hasLeak, string information)
         {
             this.HasLeak = hasLeak;
-            this.Information = information;
+            this.InformationString = information;
         }
 
         public void Print()
         {
-            Console.WriteLine(this.Information);
+            Console.WriteLine(this.InformationString);
         }
     }
 

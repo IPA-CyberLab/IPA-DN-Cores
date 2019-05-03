@@ -45,39 +45,54 @@ using static IPA.Cores.Globals.Basic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Diagnostics;
 
-namespace UnitTest
+[TestClass]
+public class CoresTest
 {
-    [TestClass]
-    public class UnitTest1
+    [ClassInitialize]
+    public static void ClassInitialize(TestContext context)
     {
-        [TestInitialize]
-        public void TestInitialize()
+        Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
+    }
+
+    [TestInitialize]
+    public void TestInitialize()
+    {
+        CoresLibrary.Main.Init();
+    }
+
+    [TestCleanup]
+    public void TestCleanup()
+    {
+        var libResult = CoresLibrary.Main.Free();
+        var leak = libResult.LeakCheckerResult;
+        if (leak.HasLeak)
         {
-            Trace.WriteLine("TestInitialize");
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
+            Trace.WriteLine(leak.InformationString);
+            throw new ApplicationException(leak.InformationString);
         }
+    }
 
-        [TestCleanup]
-        public void TestCleanup()
-        {
-            Trace.WriteLine("TestCleanup");
-        }
+    [TestMethod]
+    public void TestMethod1()
+    {
 
-        [TestMethod]
-        public void TestMethod1()
-        {
-            //Trace.WriteLine("TestMethod1");
-            //StringWriter writer = new StringWriter();
-            //if (LeakChecker.FinalizeAndGetLeakResultsInternal(writer) == false)
-            //{
-            //    throw new ApplicationException(writer.ToString());
-            //}
-        }
+    }
 
-        //[TestMethod]
-        //public void TestMethod2()
-        //{
+    [TestMethod]
+    public void TestMethod2()
+    {
 
-        //}
+    }
+
+    [TestMethod]
+    public void TestMethod3()
+    {
+
+    }
+
+    [TestMethod]
+    public void TestMethod4()
+    {
+
     }
 }

@@ -2346,7 +2346,7 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 if (Initialized)
-                    throw new ApplicationException("The InitFree object is already initialized.");
+                    throw new ApplicationException("The StaticModule object is already initialized.");
 
                 this.InitProc(options);
 
@@ -2359,7 +2359,7 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 if (Initialized == false)
-                    throw new ApplicationException("The InitFree object is not initialized.");
+                    throw new ApplicationException("The StaticModule object is not initialized.");
 
                 TResult ret = this.FreeProc();
 
