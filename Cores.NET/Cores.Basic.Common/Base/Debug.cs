@@ -1012,12 +1012,12 @@ namespace IPA.Cores.Basic
     {
         public int Task;
         public int P;
+        public int P2;
         public int Q;
         public int Obj;
         public int IO;
         public long Mem;
-        public int FreeTask;
-        public string Str;
+        public int Task2;
 
         public void Refresh()
         {
@@ -1029,8 +1029,9 @@ namespace IPA.Cores.Basic
             int num_timered = TaskUtil.GetScheduledTimersCount();
 
             this.Task = max_workers - avail_workers;
-            this.FreeTask = avail_workers;
+            this.Task2 = avail_workers;
             this.P = num_queued;
+            this.P2 = TaskUtil.GetNumPendingAsyncTasks();
             this.Q = num_timered;
             this.Obj = LeakChecker.Count;
             this.IO = max_ports - avail_ports;

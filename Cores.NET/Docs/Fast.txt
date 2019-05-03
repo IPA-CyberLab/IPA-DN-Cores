@@ -129,6 +129,10 @@ FastPipeEndDuplexPipeWrapper : FastPipeEndAsyncObjectWrapperBase - .NET の IDup
             FastPipeEndSocketWrapper - Socket を Wrap して上にサービス
             FastPipeEndStreamWrapper - Stream を Wrap して上にサービス
             ※ 将来: 独自実装 TCP スタック
+            
+    上下のスタック間における解放処理を連結することは可能である。
+    ただし、デッドロックが発生する可能性があるため、必ず非同期ワーカースレッド
+    経由で連結をすること。
 
 NetworkSock - 抽象ソケット。上位レイヤから下位の中間プロトコルスタック
        (FastProtocolBase) を表現し保持するためのデータ型である。

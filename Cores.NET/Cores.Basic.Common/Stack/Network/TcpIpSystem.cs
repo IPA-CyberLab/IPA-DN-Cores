@@ -291,7 +291,10 @@ namespace IPA.Cores.Basic
                         {
                             this.AddToOpenedSockList(sock);
 
-                            sock.AddOnDisposeAction(() => this.RemoveFromOpenedSockList(sock));
+                            sock.AddOnDisposeAction(() =>
+                            {
+                                this.RemoveFromOpenedSockList(sock);
+                            });
 
                             return sock;
                         }

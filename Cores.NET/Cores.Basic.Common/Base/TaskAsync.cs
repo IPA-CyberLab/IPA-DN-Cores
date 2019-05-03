@@ -46,6 +46,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class TaskAsyncSettings
+        {
+            public static readonly Copenhagen<int> WaitTimeoutUntilPendingTaskFinish = 1 * 1000;
+        }
+    }
+
     class AsyncLock : IDisposable
     {
         public class LockHolder : IDisposable
@@ -335,28 +343,85 @@ namespace IPA.Cores.Basic
     {
         static GlobalInitializer gInit = new GlobalInitializer();
 
-        public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action).LeakCheck(!leakCheck); }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action).LeakCheck(!leakCheck); }
+        static int NumPendingAsyncTasks = 0;
 
-        public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); await action().LeakCheck(!leakCheck); }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); return await action().LeakCheck(!leakCheck); }
+        public static int GetNumPendingAsyncTasks() => NumPendingAsyncTasks;
+
+        public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+
+        public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action().LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action().LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
 
 
-        public static async Task StartSyncTaskAsync(Action<object> action, object param, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<object, T> action, object param, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); }
+        public static async Task StartSyncTaskAsync(Action<object> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        public static async Task<T> StartSyncTaskAsync<T>(Func<object, T> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        public static async Task StartAsyncTaskAsync(Func<object, Task> action, object param, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); await action(param).LeakCheck(!leakCheck); }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = false)
-        { if (yieldOnStart) await Task.Yield(); return await action(param).LeakCheck(!leakCheck); }
+        public static async Task StartAsyncTaskAsync(Func<object, Task> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action(param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
+        public static int WaitUntilAllPendingAsyncTasksFinish(int? timeout = null, CancellationToken cancel = default, int targetCount = 0)
+        {
+            int timeout2 = timeout ?? CoresConfig.TaskAsyncSettings.WaitTimeoutUntilPendingTaskFinish;
+
+            WaitWithPoll(timeout2, 10, () => GetNumPendingAsyncTasks() <= targetCount, cancel);
+
+            return GetNumPendingAsyncTasks();
+        }
+
+        public static bool WaitWithPoll(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default)
+        {
+            return WaitWithPoll(timeout, pollInterval, pollProc,
+                interval => cancel.WaitHandle.WaitOne(interval));
+        }
+
+        public static bool WaitWithPoll(int timeout, int pollInterval, Func<bool> pollProc, Func<int, bool> waitProc)
+        {
+            long end_tick = Time.Tick64 + (long)timeout;
+
+            if (timeout == Timeout.Infinite)
+            {
+                end_tick = long.MaxValue;
+            }
+
+            while (true)
+            {
+                long now = Time.Tick64;
+                if (timeout != Timeout.Infinite)
+                {
+                    if (now >= end_tick)
+                    {
+                        return false;
+                    }
+                }
+
+                long next_wait = (end_tick - now);
+                next_wait = Math.Min(next_wait, (long)pollInterval);
+                next_wait = Math.Max(next_wait, 1);
+
+                if (pollProc != null)
+                {
+                    if (pollProc())
+                    {
+                        return true;
+                    }
+                }
+
+                if (waitProc((int)next_wait))
+                {
+                    return true;
+                }
+            }
+        }
 
         public static int GetMinTimeout(params int[] values)
         {
@@ -1281,7 +1346,7 @@ namespace IPA.Cores.Basic
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartSyncTaskAsync(() => obj.CancelSafe(ex), true, false).LaissezFaire();
+                TaskUtil.StartSyncTaskAsync(() => obj.CancelSafe(ex)).LaissezFaire();
         }
 
         async Task CleanupDisposeLinksAsync(Exception ex)
@@ -1292,7 +1357,7 @@ namespace IPA.Cores.Basic
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartAsyncTaskAsync(() => obj.CleanupSafeAsync(ex), true, false).LaissezFaire();
+                TaskUtil.StartAsyncTaskAsync(() => obj.CleanupSafeAsync(ex)).LaissezFaire();
         }
 
         void DisposeLinks(Exception ex)
@@ -1303,7 +1368,7 @@ namespace IPA.Cores.Basic
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex), true, false).LaissezFaire();
+                TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex)).LaissezFaire();
         }
 
         protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
@@ -1394,13 +1459,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Once DisposeFlag;
+        Once Disposed;
         public void Dispose() => Dispose(null);
         public void Dispose(Exception ex)
         {
             IsCanceledPrivateFlag = true;
 
-            if (DisposeFlag.IsFirstCall())
+            if (Disposed.IsFirstCall())
             {
                 CleanupAsync(ex).TryGetResult();
 
@@ -1446,13 +1511,15 @@ namespace IPA.Cores.Basic
 
     abstract class AsyncServiceWithMainLoop : AsyncService
     {
+        IHolder Leak = null;
+
         public AsyncServiceWithMainLoop(CancellationToken cancel = default) : base(cancel)
         {
         }
 
         Task MainLoopTask = null;
 
-        protected void StartMainLoop(Func<CancellationToken, Task> mainLoopProc)
+        protected void StartMainLoop(Func<CancellationToken, Task> mainLoopProc, bool noLeakCheck = false)
         {
             if (MainLoopTask != null)
             {
@@ -1460,7 +1527,10 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o), this.GrandCancel, true, true);
+            MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o), this.GrandCancel, leakCheck: !noLeakCheck);
+
+            if (noLeakCheck == false)
+                Leak = LeakChecker.Enter(LeakCounterKind.AsyncServiceWithMainLoop);
         }
 
         protected override async Task CleanupImplAsync(Exception ex)
@@ -1468,7 +1538,12 @@ namespace IPA.Cores.Basic
             try
             {
                 if (MainLoopTask != null)
+                {
                     await MainLoopTask;
+                    MainLoopTask = null;
+                }
+
+                Leak.DisposeSafe();
             }
             catch (TaskCanceledException) { }
             catch (OperationCanceledException) { }
@@ -1891,6 +1966,7 @@ namespace IPA.Cores.Basic
         TaskLeak,
         FastStreamToPalNetworkStream,
         FastStream,
+        AsyncServiceWithMainLoop,
     }
 
     static class LeakChecker
@@ -2021,6 +2097,13 @@ namespace IPA.Cores.Basic
         public static void Print()
         {
             DisposeAllGlobalAsyncServices();
+
+            int pendingCount = TaskUtil.WaitUntilAllPendingAsyncTasksFinish();
+
+            if (pendingCount >= 1)
+            {
+                Console.WriteLine($"*** Pending queues counter: {pendingCount} > 0 !!! ***");
+            }
 
             lock (_InternalList)
             {
@@ -3202,7 +3285,7 @@ namespace IPA.Cores.Basic
             {
                 if (task == null)
                 {
-                    task = TaskUtil.StartAsyncTaskAsync(MaintainTaskProcAsync, updatePolicy);
+                    task = TaskUtil.StartAsyncTaskAsync(MaintainTaskProcAsync, updatePolicy, leakCheck: false);
                 }
             }
         }

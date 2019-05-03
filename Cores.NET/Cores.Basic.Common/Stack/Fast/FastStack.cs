@@ -97,7 +97,9 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 if (StreamCache == null)
+                {
                     StreamCache = AttachHandle.GetStream(autoFlash);
+                }
 
                 return StreamCache;
             }
@@ -384,11 +386,18 @@ namespace IPA.Cores.Basic
             Stack = AddDirectDisposeLink(protocolStack);
             UpperEnd = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
             Pipe = AddDirectDisposeLink(UpperEnd.Pipe);
+
+            this.Pipe.OnDisconnected.Add(() =>
+            {
+                this.DisposeSafe();
+            });
         }
 
         public FastAppStub GetFastAppProtocolStub()
         {
             FastAppStub ret = AddDirectDisposeLink(UpperEnd.GetFastAppProtocolStub());
+
+            ret.AddIndirectDisposeLink(this);
 
             return ret;
         }

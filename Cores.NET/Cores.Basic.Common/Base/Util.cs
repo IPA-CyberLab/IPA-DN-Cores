@@ -3814,7 +3814,8 @@ namespace IPA.Cores.Basic
 
         readonly StatisticsReporterLogTypes LogTypes;
 
-        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs) : base(default)
+        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs)
+            : base(default)
         {
             this.Interval = interval;
             this.LogTypes = logTypes;
@@ -3827,7 +3828,7 @@ namespace IPA.Cores.Basic
                 ListenerList.RegisterCallback(proc);
             }
 
-            StartMainLoop(MainLoopAsync);
+            StartMainLoop(MainLoopAsync, true);
         }
 
         async Task FireEventAsync()

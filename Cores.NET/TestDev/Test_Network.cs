@@ -84,7 +84,7 @@ namespace IPA.TestDev
             //Net_Test3_PlainTcp_Server();
             //return 0;
 
-            while (true)
+            /*while (true)
             {
                 try
                 {
@@ -94,7 +94,7 @@ namespace IPA.TestDev
                 {
                     ex.ToString().Print();
                 }
-            }
+            }*/
 
             //Net_Test5_SpeedTest_Server();
 
@@ -181,6 +181,8 @@ namespace IPA.TestDev
                     }
                 }
             }
+
+            await Task.Delay(100);
         }
 
         static void Net_Test6_DualStack_Client()
@@ -321,11 +323,12 @@ namespace IPA.TestDev
 
         static void Net_Test1_PlainTcp_Client()
         {
-            for (int i = 0;i < 20;i++)
+            for (int i = 0;i < 1;i++)
             {
-                using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80)))
+                ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {
                     var st = sock.GetStream().NetworkStream;
+                    //sock.DisposeSafe();
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);
 
@@ -344,6 +347,8 @@ namespace IPA.TestDev
 
                         Con.WriteLine(s);
                     }
+
+                    st.Dispose();
                 }
             }
         }

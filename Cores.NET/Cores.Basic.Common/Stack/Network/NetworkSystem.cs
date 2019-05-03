@@ -69,17 +69,19 @@ namespace IPA.Cores.Basic
         protected void AddToOpenedSockList(NetworkSock sock)
         {
             lock (LockObj)
-            {
                 OpenedSockList.Add(sock);
-            }
         }
 
         protected void RemoveFromOpenedSockList(NetworkSock sock)
         {
             lock (LockObj)
-            {
                 OpenedSockList.Remove(sock);
-            }
+        }
+
+        public int GetOpenedSockCount()
+        {
+            lock (LockObj)
+                return OpenedSockList.Count;
         }
 
         protected override void CancelImpl(Exception ex) { }
