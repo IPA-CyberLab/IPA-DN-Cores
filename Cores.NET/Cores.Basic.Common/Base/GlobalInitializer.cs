@@ -54,6 +54,10 @@ namespace IPA.Cores.Basic
 
             LocalFileSystem.Module.Free();
 
+            int openSockets = LocalTcpIpSystem.Local.GetOpenedSockCount();
+            if (openSockets > 0)
+                LeakChecker.Enter(LeakCounterKind.StillOpeningSockets);
+
             LocalTcpIpSystem.Module.Free();
 
             FastPalDnsClient.Module.Free();

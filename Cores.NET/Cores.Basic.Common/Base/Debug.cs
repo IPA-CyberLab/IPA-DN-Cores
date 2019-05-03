@@ -1097,6 +1097,7 @@ namespace IPA.Cores.Basic
         AsyncServiceWithMainLoop,
         Singleton1,
         Singleton2,
+        StillOpeningSockets,
     }
 
     class LeakCheckerResult
@@ -1176,7 +1177,7 @@ namespace IPA.Cores.Basic
         {
             if (FullStackTrace && leakKind != LeakCounterKind.DoNotTrack)
             {
-                return new LeakCheckerHolder($"{leakKind.ToString()}: {caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
+                return new LeakCheckerHolder($"[{leakKind.ToString()}]: {caller}() - {Path.GetFileName(filename)}:{line}", FullStackTrace ? Environment.StackTrace : "");
             }
             else
             {
