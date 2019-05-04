@@ -160,6 +160,8 @@ namespace IPA.Cores.Basic
 
             string ret = PathParser.Combine(Options.RootDirectoryName, SafePathParser.MakeSafePathName(dataName), true);
 
+            ret = PathParser.RemoveDangerousDirectoryTraversal(ret);
+
             ret = PathParser.NormalizeDirectorySeparatorIncludeWindowsBackslash(ret);
 
             return ret;
@@ -234,10 +236,25 @@ namespace IPA.Cores.Basic
         }
     }
 
+    static partial class CoresConfig
+    {
+        public static partial class DefaultHiveOptions
+        {
+            public static readonly Copenhagen<int> ReadPollingIntervalMsec = 2 * 1000;
+            public static readonly Copenhagen<int> WritePollingIntervalMsec = 1 * 1000;
+        }
+    }
+
     class HiveOptions
     {
+        const int MinReadPollingIntervalMsec = 2 * 1000;
+        const int MinWritePollingIntervalMsec = 1 * 1000;
+
         public HiveSerializer Serializer { get; }
         public HiveStorageProvider StorageProvider { get; }
+
+        public Copenhagen<int> ReadPollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.ReadPollingIntervalMsec;
+        public Copenhagen<int> WritePollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.WritePollingIntervalMsec;
 
         public HiveOptions(string rootDirectoryName, HiveSerializer serializer = null)
             : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryName))) { }
@@ -264,10 +281,25 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum HiveDataPolicy
+    {
+        None = 0,
+        AutoReadFromFile = 1,
+        AutoWriteToFile = 2,
+
+        Default = AutoReadFromFile | AutoWriteToFile,
+    }
+
     class HiveData<T> where T: class, new()
     {
-        public HiveData(Hive hive, string dataName)
+        public HiveData(Hive hive, string dataName, HiveDataPolicy policy)
         {
+            dataName = Hive.NormalizeDataName(dataName);
+
+            if (policy.BitAny(HiveDataPolicy.AutoReadFromFile | HiveDataPolicy.AutoWriteToFile))
+            {
+            }
         }
     }
 }

@@ -717,6 +717,24 @@ namespace IPA.Cores.Basic
             this.InvalidFileNameChars = GetInvalidFileNameChars();
         }
 
+        static readonly char[] PossibleDirectorySeparatorsForAllPlatform = new char[] { '\\', '/'};
+        public string RemoveDangerousDirectoryTraversal(string path)
+        {
+            path = path.NonNull();
+
+            string[] tokens = path.Split(PossibleDirectorySeparatorsForAllPlatform, StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                string s = tokens[i].NonNullTrim();
+
+                if (s == "." || s == "..")
+                    tokens[i] = "";
+            }
+
+            return BuildAbsolutePathStringFromElements(tokens);
+        }
+
         public string[] SplitAbsolutePathToElements(string path)
         {
             path = path.NonNull();
