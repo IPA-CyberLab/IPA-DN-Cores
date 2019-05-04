@@ -25,7 +25,7 @@ namespace IPA.TestDev
                 //jsonrpc_server_invoke_test().Wait();return;
 
                 // start server
-                HttpServerBuilderConfig http_cfg = new HttpServerBuilderConfig()
+                HttpServerOptions http_cfg = new HttpServerOptions()
                 {
                     DebugKestrelToConsole = false,
                 };

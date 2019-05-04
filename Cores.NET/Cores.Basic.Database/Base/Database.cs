@@ -286,16 +286,16 @@ namespace IPA.Cores.Basic
     }
 
     // Using トランザクション
-    class UsingTran : IDisposable
+    struct UsingTran : IDisposable
     {
         Database db;
+        Once Once;
 
-        internal UsingTran(Database db)
+        public UsingTran(Database db)
         {
             this.db = db;
+            this.Once = new Once();
         }
-
-        CriticalSection LockObj = new CriticalSection();
 
         public void Commit()
         {
@@ -304,19 +304,12 @@ namespace IPA.Cores.Basic
 
         public void Dispose()
         {
-            Database db = null;
-            lock (LockObj)
-            {
-                if (this.db != null)
-                {
-                    db = this.db;
-                    this.db = null;
-                }
-            }
+            if (Once.IsFirstCall() == false) return;
 
             if (db != null)
             {
                 db.Cancel();
+                db = null;
             }
         }
     }

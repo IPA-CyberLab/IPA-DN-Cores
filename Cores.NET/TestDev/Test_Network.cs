@@ -84,17 +84,17 @@ namespace IPA.TestDev
             //Net_Test3_PlainTcp_Server();
             //return 0;
 
-            /*while (true)
-            {
-                try
-                {
-                    Net_Test4_SpeedTest_Client();
-                }
-                catch (Exception ex)
-                {
-                    ex.ToString().Print();
-                }
-            }*/
+            //while (true)
+            //{
+            //    try
+            //    {
+            //        Net_Test4_SpeedTest_Client();
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        ex.ToString().Print();
+            //    }
+            //}
 
             //Net_Test5_SpeedTest_Server();
 
@@ -111,7 +111,7 @@ namespace IPA.TestDev
 
         static void Net_Test9_WebServer()
         {
-            var cfg = new HttpServerBuilderConfig();
+            var cfg = new HttpServerOptions();
             using (HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello"))
             {
                 Con.ReadLine(">");

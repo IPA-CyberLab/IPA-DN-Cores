@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
             JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg);
         }
 
-        public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerBuilderConfig httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, CancellationToken cancel = default)
+        public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerOptions httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, CancellationToken cancel = default)
             => new HttpServer<JsonRpcHttpServerBuilder>(httpCfg, (rpcServerCfg, rpcApi), cancel);
 
         protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)

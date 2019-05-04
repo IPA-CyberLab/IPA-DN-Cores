@@ -69,11 +69,19 @@ namespace IPA.Cores.Basic
         public FastAppStubBase(FastPipeEnd lower, FastAppStubOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
-            Lower = lower;
-            LowerAttach = Lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
+            try
+            {
+                LowerAttach = lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
+                Lower = lower;
 
-            AddIndirectDisposeLink(Lower);
-            AddIndirectDisposeLink(LowerAttach);
+                AddIndirectDisposeLink(Lower);
+                AddIndirectDisposeLink(LowerAttach);
+            }
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
         }
     }
 
@@ -149,16 +157,24 @@ namespace IPA.Cores.Basic
         public FastProtocolBase(FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
-            if (upper == null)
+            try
             {
-                upper = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancel);
+                if (upper == null)
+                {
+                    upper = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancel);
+                }
+
+                UpperAttach = upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
+                Upper = upper;
+
+                AddIndirectDisposeLink(Upper);
+                AddIndirectDisposeLink(UpperAttach);
             }
-
-            Upper = upper;
-            UpperAttach = Upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
-
-            AddIndirectDisposeLink(Upper);
-            AddIndirectDisposeLink(UpperAttach);
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
         }
     }
 
@@ -383,14 +399,22 @@ namespace IPA.Cores.Basic
 
         public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
-            Stack = AddDirectDisposeLink(protocolStack);
-            UpperEnd = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
-            Pipe = AddDirectDisposeLink(UpperEnd.Pipe);
+            try
+            {
+                Stack = AddDirectDisposeLink(protocolStack);
+                UpperEnd = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
+                Pipe = AddDirectDisposeLink(UpperEnd.Pipe);
 
-            this.Pipe.OnDisconnected.Add(() =>
+                this.Pipe.OnDisconnected.Add(() =>
+                {
+                    this.DisposeSafe();
+                });
+            }
+            catch
             {
                 this.DisposeSafe();
-            });
+                throw;
+            }
         }
 
         public FastAppStub GetFastAppProtocolStub()
@@ -496,15 +520,22 @@ namespace IPA.Cores.Basic
         public FastMiddleProtocolStackBase(FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
-            Lower = AddIndirectDisposeLink(lower);
+            try
+            {
+                LowerAttach = AddIndirectDisposeLink(lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
+                Lower = AddIndirectDisposeLink(lower);
 
-            LowerAttach = AddIndirectDisposeLink(Lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
+                Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
+                Lower.LayerInfo.Encounter(Upper.LayerInfo);
 
-            Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
-            Lower.LayerInfo.Encounter(Upper.LayerInfo);
-
-            Lower.AddOnDisconnected(() => Upper.Cancel(new DisconnectedException()));
-            Upper.AddOnDisconnected(() => Lower.Cancel(new DisconnectedException()));
+                Lower.AddOnDisconnected(() => Upper.Cancel(new DisconnectedException()));
+                Upper.AddOnDisconnected(() => Lower.Cancel(new DisconnectedException()));
+            }
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
         }
     }
 

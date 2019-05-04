@@ -169,38 +169,46 @@ namespace IPA.Cores.Basic
 
         public FastPipe(CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null) : base(cancel)
         {
-            if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
-            if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
+            try
+            {
+                if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+                if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
 
-            StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
-            StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
+                StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
+                StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
 
-            DatagramAtoB = new FastDatagramBuffer(true, thresholdLengthDatagram);
-            DatagramBtoA = new FastDatagramBuffer(true, thresholdLengthDatagram);
+                DatagramAtoB = new FastDatagramBuffer(true, thresholdLengthDatagram);
+                DatagramBtoA = new FastDatagramBuffer(true, thresholdLengthDatagram);
 
-            StreamAtoB.ExceptionQueue.Encounter(ExceptionQueue);
-            StreamBtoA.ExceptionQueue.Encounter(ExceptionQueue);
+                StreamAtoB.ExceptionQueue.Encounter(ExceptionQueue);
+                StreamBtoA.ExceptionQueue.Encounter(ExceptionQueue);
 
-            DatagramAtoB.ExceptionQueue.Encounter(ExceptionQueue);
-            DatagramBtoA.ExceptionQueue.Encounter(ExceptionQueue);
+                DatagramAtoB.ExceptionQueue.Encounter(ExceptionQueue);
+                DatagramBtoA.ExceptionQueue.Encounter(ExceptionQueue);
 
-            StreamAtoB.Info.Encounter(LayerInfo);
-            StreamBtoA.Info.Encounter(LayerInfo);
+                StreamAtoB.Info.Encounter(LayerInfo);
+                StreamBtoA.Info.Encounter(LayerInfo);
 
-            DatagramAtoB.Info.Encounter(LayerInfo);
-            DatagramBtoA.Info.Encounter(LayerInfo);
+                DatagramAtoB.Info.Encounter(LayerInfo);
+                DatagramBtoA.Info.Encounter(LayerInfo);
 
-            StreamAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
-            StreamBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                StreamAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                StreamBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
-            DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
-            DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
-            A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
-            B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
+                A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
+                B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
 
-            A_LowerSide._InternalSetCounterPart(B_UpperSide);
-            B_UpperSide._InternalSetCounterPart(A_LowerSide);
+                A_LowerSide._InternalSetCounterPart(B_UpperSide);
+                B_UpperSide._InternalSetCounterPart(A_LowerSide);
+            }
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
         }
 
         CriticalSection LayerInfoLock = new CriticalSection();
@@ -394,27 +402,35 @@ namespace IPA.Cores.Basic
 
         public FastAttachHandle(FastPipeEnd end, FastPipeEndAttachDirection attachDirection, object userState = null) : base()
         {
-            if (end.Side == FastPipeEndSide.A_LowerSide)
-                Direction = FastPipeEndAttachDirection.A_LowerSide;
-            else
-                Direction = FastPipeEndAttachDirection.B_UpperSide;
-
-            if (attachDirection != Direction)
-                throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
-
-            end.CheckCanceled();
-
-            lock (end._InternalAttachHandleLock)
+            try
             {
-                if (end._InternalCurrentAttachHandle != null)
-                    throw new ApplicationException("The FastPipeEnd is already attached.");
+                if (end.Side == FastPipeEndSide.A_LowerSide)
+                    Direction = FastPipeEndAttachDirection.A_LowerSide;
+                else
+                    Direction = FastPipeEndAttachDirection.B_UpperSide;
 
-                this.UserState = userState;
-                this.PipeEnd = end;
-                this.PipeEnd._InternalCurrentAttachHandle = this;
+                if (attachDirection != Direction)
+                    throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
+
+                end.CheckCanceled();
+
+                lock (end._InternalAttachHandleLock)
+                {
+                    if (end._InternalCurrentAttachHandle != null)
+                        throw new ApplicationException("The FastPipeEnd is already attached.");
+
+                    this.UserState = userState;
+                    this.PipeEnd = end;
+                    this.PipeEnd._InternalCurrentAttachHandle = this;
+                }
+
+                Leak = LeakChecker.Enter();
             }
-
-            Leak = LeakChecker.Enter();
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
         }
 
         public void SetLayerInfo(LayerInfoBase info, FastStackBase protocolStack = null)

@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
     abstract class HttpServerBuilderBase
     {
         public IConfiguration Configuration { get; }
-        HttpServerBuilderConfig BuilderConfig;
+        HttpServerOptions BuilderConfig;
         HttpServerStartupConfig StartupConfig;
         protected object Param;
         public CancellationToken CancelToken { get; }
@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
             this.Param = GlobalObjectExchange.Withdraw(this.Configuration["coreutil_param_token"]);
             this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"]);
 
-            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"].JsonToObject<HttpServerBuilderConfig>();
+            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"].JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
         }
 
@@ -92,7 +92,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HttpServerBuilderConfig
+    class HttpServerOptions
     {
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
@@ -107,130 +107,106 @@ namespace IPA.Cores.Basic
 
         [JsonIgnore]
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
+        [JsonIgnore]
+        public TcpIpSystem TcpIpSystem { get; set; } = LocalNet;
     }
 
     sealed class HttpServer<THttpServerBuilder> : AsyncService
         where THttpServerBuilder : HttpServerBuilderBase
     {
-        readonly HttpServerBuilderConfig Config;
+        readonly HttpServerOptions Options;
         readonly Task HostTask;
 
-        public HttpServer(HttpServerBuilderConfig cfg, object param, CancellationToken cancel = default) : base(cancel)
+        public HttpServer(HttpServerOptions options, object param, CancellationToken cancel = default) : base(cancel)
         {
-            this.Config = cfg;
-
-            IO.MakeDirIfNotExists(Config.ContentsRoot);
-
-            string paramToken = GlobalObjectExchange.Deposit(param);
-            string cancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);
             try
             {
-                var dict = new Dictionary<string, string>
+                this.Options = options;
+
+                IO.MakeDirIfNotExists(Options.ContentsRoot);
+
+                string paramToken = GlobalObjectExchange.Deposit(param);
+                string cancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);
+                try
                 {
-                    {"coreutil_ServerBuilderConfig", this.Config.ObjectToJson() },
+                    var dict = new Dictionary<string, string>
+                {
+                    {"coreutil_ServerBuilderConfig", this.Options.ObjectToJson() },
                     {"coreutil_param_token", paramToken },
                     {"coreutil_cancel_token", cancelToken },
                 };
 
-                IConfiguration iconf = new ConfigurationBuilder()
-                    .AddInMemoryCollection(dict)
-                    .Build();
+                    IConfiguration iconf = new ConfigurationBuilder()
+                        .AddInMemoryCollection(dict)
+                        .Build();
 
-                var h = new WebHostBuilder()
-                    .UseKestrelWithStack(opt =>
-                    {
-                        if (Config.LocalHostOnly)
+                    var h = new WebHostBuilder()
+                        .UseKestrelWithStack(opt =>
                         {
-                            foreach (int port in Config.HttpPortsList) opt.ListenLocalhost(port);
-                            foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
-                        }
-                        else if (Config.IPv4Only)
-                        {
-                            foreach (int port in Config.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                            foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
-                        }
-                        else
-                        {
-                            foreach (int port in Config.HttpPortsList) opt.ListenAnyIP(port);
-                            foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
-                        }
+                            opt.TcpIpSystem = options.TcpIpSystem;
 
-                        //HttpServerWithStackListener stackListener = new HttpServerWithStackListener(StackListenerCleanupLady, LocalNet, default, 8081, 8082, 8083);
-                        //opt.ListenWithStack(stackListener);
-
-                        void EnableHttps(ListenOptions listenOptions)
-                        {
-                            listenOptions.UseHttps(httpsOptions =>
+                            if (Options.LocalHostOnly)
                             {
-                                httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                if (Config.ServerCertSelector != null)
+                                foreach (int port in Options.HttpPortsList) opt.ListenLocalhost(port);
+                                foreach (int port in Options.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
+                            }
+                            else if (Options.IPv4Only)
+                            {
+                                foreach (int port in Options.HttpPortsList) opt.Listen(IPAddress.Any, port);
+                                foreach (int port in Options.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
+                            }
+                            else
+                            {
+                                foreach (int port in Options.HttpPortsList) opt.ListenAnyIP(port);
+                                foreach (int port in Options.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
+                            }
+
+                            void EnableHttps(ListenOptions listenOptions)
+                            {
+                                listenOptions.UseHttps(httpsOptions =>
                                 {
-                                    httpsOptions.ServerCertificateSelector = ((ctx, sni) => Config.ServerCertSelector(param, sni));
-                                }
-                            });
-                        }
-                    })
-                    //.UseKestrel(opt =>
-                    //{
-                    //    if (Config.LocalHostOnly)
-                    //    {
-                    //        foreach (int port in Config.HttpPortsList) opt.ListenLocalhost(port);
-                    //        foreach (int port in Config.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
-                    //    }
-                    //    else if (Config.IPv4Only)
-                    //    {
-                    //        foreach (int port in Config.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                    //        foreach (int port in Config.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
-                    //    }
-                    //    else
-                    //    {
-                    //        foreach (int port in Config.HttpPortsList) opt.ListenAnyIP(port);
-                    //        foreach (int port in Config.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
-                    //    }
-
-                    //    HttpServerWithStackListener stackListener = new HttpServerWithStackListener(StackListenerCleanupLady, LocalNet, default, 8081, 8082, 8083);
-                    //    opt.ListenWithStack(stackListener);
-
-                    //    void EnableHttps(ListenOptions listenOptions)
-                    //    {
-                    //        listenOptions.UseHttps(httpsOptions =>
-                    //        {
-                    //            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                    //            if (Config.ServerCertSelector != null)
-                    //            {
-                    //                httpsOptions.ServerCertificateSelector = ((ctx, sni) => Config.ServerCertSelector(param, sni));
-                    //            }
-                    //        });
-                    //    }
-                    //})
-                    .UseWebRoot(Config.ContentsRoot)
-                    .UseContentRoot(Config.ContentsRoot)
-                    .ConfigureAppConfiguration((hostingContext, config) =>
-                    {
-
-                    })
-                    .ConfigureLogging((hostingContext, logging) =>
-                    {
-                        if (Config.DebugKestrelToConsole)
+                                    httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+                                    if (Options.ServerCertSelector != null)
+                                    {
+                                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => Options.ServerCertSelector(param, sni));
+                                    }
+                                });
+                            }
+                        })
+                        .UseWebRoot(Options.ContentsRoot)
+                        .UseContentRoot(Options.ContentsRoot)
+                        .ConfigureAppConfiguration((hostingContext, config) =>
                         {
-                            logging.AddConsole();
-                        }
 
-                        if (Config.DebugKestrelToLog)
+                        })
+                        .ConfigureLogging((hostingContext, logging) =>
                         {
-                            logging.AddProvider(new MsLoggerProvider());
-                        }
-                    })
-                    .UseConfiguration(iconf)
-                    .UseStartup<THttpServerBuilder>()
-                    .Build();
+                            if (Options.DebugKestrelToConsole)
+                            {
+                                logging.AddConsole();
+                            }
 
-                HostTask = h.RunAsync(this.CancelWatcher.CancelToken);
+                            if (Options.DebugKestrelToLog)
+                            {
+                                logging.AddProvider(new MsLoggerProvider());
+                            }
+                        })
+                        .UseConfiguration(iconf)
+                        .UseStartup<THttpServerBuilder>()
+                        .Build();
+
+                    HostTask = h.RunAsync(this.CancelWatcher.CancelToken);
+                }
+                catch
+                {
+                    GlobalObjectExchange.TryWithdraw(paramToken);
+                    GlobalObjectExchange.TryWithdraw(cancelToken);
+                    throw;
+                }
             }
             catch
             {
-                GlobalObjectExchange.TryWithdraw(paramToken);
-                GlobalObjectExchange.TryWithdraw(cancelToken);
+                this.DisposeSafe();
                 throw;
             }
         }
