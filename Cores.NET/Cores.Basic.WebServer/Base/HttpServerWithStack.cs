@@ -141,12 +141,18 @@ namespace IPA.Cores.Basic
         {
             using (var connection = new KestrelStackConnection(newSock, this.PipeScheduler))
             {
-                /*var middlewareTask = */ Dispatcher.OnConnection(connection);
-                // TODO: for .NET >= 2.2
-                var transportTask = connection.StartAsync();
+                // Note:
+                // In ASP.NET Core 2.2 or higher, Dispatcher.OnConnection() will return Task.
+                // Otherwise, Dispatcher.OnConnection() will return void.
+                // Then we need to use the reflection to call the OnConnection() method indirectly.
+                Task middlewareTask = Dispatcher.PrivateInvoke("OnConnection", connection) as Task;
 
-                await transportTask;
-                //await middlewareTask;
+                // Wait for transport to end
+                await connection.StartAsync();
+
+                // Wait for middleware to end
+                if (middlewareTask != null)
+                    await middlewareTask;
 
                 connection.DisposeSafe();
             }
