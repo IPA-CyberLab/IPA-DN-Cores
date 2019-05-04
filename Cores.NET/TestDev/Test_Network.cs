@@ -77,7 +77,7 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            Net_Test1_PlainTcp_Client();
+            //Net_Test1_PlainTcp_Client();
 
             //Net_Test2_Ssl_Client();
 
@@ -104,7 +104,7 @@ namespace IPA.TestDev
 
             //Net_Test8_Http_Upload_Async().GetResult();
 
-            //Net_Test9_WebServer();
+            Net_Test9_WebServer();
 
             return 0;
         }

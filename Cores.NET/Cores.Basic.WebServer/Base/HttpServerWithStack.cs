@@ -63,6 +63,7 @@ using System.IO.Pipelines;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.AspNetCore.Connections;
 
 namespace IPA.Cores.Basic
 {
@@ -70,12 +71,12 @@ namespace IPA.Cores.Basic
     {
         // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransport
 
-        private readonly IEndPointInformation _endPointInformation;
-        private readonly IConnectionDispatcher _dispatcher;
-        private readonly IApplicationLifetime _appLifetime;
-        private readonly ISocketsTrace _trace;
+        readonly IEndPointInformation EndPointInformation;
+        readonly IConnectionDispatcher Dispatcher;
+        readonly IApplicationLifetime AppLifetime;
+        readonly ISocketsTrace Trace;
 
-        private readonly PipeScheduler PipeScheduler = PipeScheduler.ThreadPool;
+        readonly PipeScheduler PipeScheduler = PipeScheduler.ThreadPool;
 
         public KestrelServerWithStack Server { get; }
 
@@ -93,10 +94,10 @@ namespace IPA.Cores.Basic
             Debug.Assert(applicationLifetime != null);
             Debug.Assert(trace != null);
 
-            _endPointInformation = endPointInformation;
-            _dispatcher = dispatcher;
-            _appLifetime = applicationLifetime;
-            _trace = trace;
+            EndPointInformation = endPointInformation;
+            Dispatcher = dispatcher;
+            AppLifetime = applicationLifetime;
+            Trace = trace;
 
             this.Server = server;
         }
@@ -105,20 +106,12 @@ namespace IPA.Cores.Basic
 
         public Task BindAsync()
         {
-            try
-            {
-                if (Listener != null)
-                    throw new ApplicationException("Listener is already bound.");
+            if (Listener != null)
+                throw new ApplicationException("Listener is already bound.");
 
-                this.Listener = this.Server.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerAcceptProcAsync, _endPointInformation.IPEndPoint.Port));
+            this.Listener = this.Server.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint.Port));
 
-                return Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                ex.Debug();
-                throw;
-            }
+            return Task.CompletedTask;
         }
 
         public Task StopAsync()
@@ -144,16 +137,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task ListenerAcceptProcAsync(FastTcpListenerBase.Listener listener, ConnSock newSock)
+        async Task ListenerAcceptNewSocketCallback(FastTcpListenerBase.Listener listener, ConnSock newSock)
         {
-            try
+            using (var connection = new KestrelStackConnection(newSock, this.PipeScheduler))
             {
-                var connection = new KestrelStackConnection(newSock, this.PipeScheduler);
-                await Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                ex.Debug();
+                var middlewareTask = Dispatcher.OnConnection(connection);
+                var transportTask = connection.StartAsync();
+
+                await transportTask;
+                await middlewareTask;
+
+                connection.DisposeSafe();
             }
         }
     }
@@ -163,6 +157,8 @@ namespace IPA.Cores.Basic
     {
         readonly ConnSock Sock;
         readonly PipeScheduler Scheduler;
+
+        //FastPipeEndDuplexPipeWrapper Wrapper = null;
 
         public KestrelStackConnection(ConnSock sock, PipeScheduler scheduler)
         {
@@ -174,6 +170,27 @@ namespace IPA.Cores.Basic
 
             RemoteAddress = sock.Info.Ip.RemoteIPAddress;
             RemotePort = sock.Info.Tcp.RemotePort;
+
+            this.ConnectionClosed = this.Sock.GrandCancel;
+        }
+
+        public async Task StartAsync()
+        {
+            try
+            {
+                using (var wrapper = new FastPipeEndDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
+                {
+                    // Now wait for complete
+                    await wrapper.MainLoopToWaitComplete;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Stop the socket (for just in case)
+                Sock.CancelSafe(new DisconnectedException());
+
+                ex.Debug();
+            }
         }
 
         public void Dispose() => Dispose(true);
@@ -182,6 +199,18 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             // Here
+        }
+
+        public override void Abort()
+        {
+            this.Sock.CancelSafe();
+            base.Abort();
+        }
+
+        public override void Abort(ConnectionAbortedException abortReason)
+        {
+            this.Sock.CancelSafe(abortReason);
+            base.Abort(abortReason);
         }
     }
 
@@ -251,6 +280,36 @@ namespace IPA.Cores.Basic
             factory.SetServer(this);
         }
     }
+
+    static class HttpServerWithStackHelper
+    {
+        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
+        {
+            return hostBuilder.UseKestrelWithStack().ConfigureKestrelWithStack(options);
+        }
+
+        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder)
+        {
+            // From Microsoft.AspNetCore.Hosting.WebHostBuilderKestrelExtensions
+            return hostBuilder.ConfigureServices(services =>
+            {
+                // Don't override an already-configured transport
+                services.TryAddSingleton<ITransportFactory, KestrelStackTransportFactory>();
+
+                services.AddTransient<IConfigureOptions<KestrelServerWithStackOptions>, KestrelServerOptionsSetup>();
+                services.AddSingleton<IServer, KestrelServerWithStack>();
+            });
+        }
+
+        public static IWebHostBuilder ConfigureKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
+        {
+            return hostBuilder.ConfigureServices(services =>
+            {
+                services.Configure(options);
+            });
+        }
+    }
+
 
 #if false
     class HttpServerWithStackListener : AsyncService

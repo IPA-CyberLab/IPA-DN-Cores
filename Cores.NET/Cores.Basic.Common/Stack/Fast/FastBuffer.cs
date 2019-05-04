@@ -187,6 +187,16 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public long SizeWantToBeWritten
+        {
+            get
+            {
+                long ret = 0;
+                if (IsDisconnected == false) ret = Threshold - Length;
+                return Math.Max(ret, 0);
+            }
+        }
+
         public bool IsReadyToRead
         {
             get
@@ -727,7 +737,7 @@ namespace IPA.Cores.Basic
             if (IsDisconnected && this.Length == 0) CheckDisconnected();
             checked
             {
-                if (minReadSize < 1) throw new ArgumentOutOfRangeException("size < 1");
+                if (minReadSize < 1) throw new ArgumentOutOfRangeException("minReadSize < 1");
 
                 totalReadSize = 0;
                 if (List.First == null)

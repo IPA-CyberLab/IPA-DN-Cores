@@ -51,11 +51,10 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: true, leakFullStack: true);
+            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: true, leakFullStack: false);
 
             CoresLibrary.Main.Init();
 
-            Con.WriteLine("A");
             try
             {
                 ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));

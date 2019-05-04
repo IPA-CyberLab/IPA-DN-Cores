@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket = s;
             this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
-            AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It makes cyclic reference.
+            AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock by cyclic reference.
 
             UpperAttach.SetLayerInfo(new LayerInfo()
             {

@@ -2368,6 +2368,12 @@ namespace IPA.Cores.Basic
                 return ret;
             }
         }
+
+        public void CheckInitalized()
+        {
+            if (this.Initialized == false)
+                throw new ApplicationException("The StaticModule object is not initialized.");
+        }
     }
 
     class Singleton<TObject> : IDisposable where TObject: class

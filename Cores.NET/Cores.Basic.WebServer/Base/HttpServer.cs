@@ -137,7 +137,7 @@ namespace IPA.Cores.Basic
                     .Build();
 
                 var h = new WebHostBuilder()
-                    .UseKestrel(opt =>
+                    .UseKestrelWithStack(opt =>
                     {
                         if (Config.LocalHostOnly)
                         {

@@ -1519,18 +1519,23 @@ namespace IPA.Cores.Basic
 
         Task MainLoopTask = null;
 
-        protected void StartMainLoop(Func<CancellationToken, Task> mainLoopProc, bool noLeakCheck = false)
+        public Task MainLoopToWaitComplete { get; private set; } = null;
+
+        Once once;
+
+        protected Task StartMainLoop(Func<CancellationToken, Task> mainLoopProc, bool noLeakCheck = false)
         {
-            if (MainLoopTask != null)
-            {
-                Debug.Assert(false, "MainLoopTask != null");
-                return;
-            }
+            if (once.IsFirstCall() == false)
+                throw new Exception("StartMainLoop is already called.");
 
             MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o), this.GrandCancel, leakCheck: !noLeakCheck);
 
             if (noLeakCheck == false)
                 Leak = LeakChecker.Enter(LeakCounterKind.AsyncServiceWithMainLoop);
+
+            this.MainLoopToWaitComplete = MainLoopTask;
+
+            return MainLoopTask; // For reference. Not needed for most of all applications.
         }
 
         protected override async Task CleanupImplAsync(Exception ex)
