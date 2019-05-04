@@ -871,10 +871,10 @@ namespace IPA.Cores.Basic
 
         public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"];
 
-        public static Holder EnterCriticalCounter(RefInt counter)
+        public static ValueHolder EnterCriticalCounter(RefInt counter)
         {
             counter.Increment();
-            return new Holder(() =>
+            return new ValueHolder(() =>
             {
                 counter.Decrement();
             },
@@ -942,12 +942,12 @@ namespace IPA.Cores.Basic
             public List<CancellationTokenRegistration> RegList = new List<CancellationTokenRegistration>();
         }
 
-        public static Holder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+        public static ValueHolder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
         {
             if (cancels == null)
             {
                 combinedToken = default;
-                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             cancels = cancels.Where(x => x.CanBeCanceled).ToArray();
@@ -955,13 +955,13 @@ namespace IPA.Cores.Basic
             if (cancels.Length == 0)
             {
                 combinedToken = default;
-                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             if (cancels.Length == 1)
             {
                 combinedToken = cancels[0];
-                return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             foreach (CancellationToken c in cancels)
@@ -969,7 +969,7 @@ namespace IPA.Cores.Basic
                 if (c.IsCancellationRequested)
                 {
                     combinedToken = new CancellationToken(true);
-                    return new Holder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                    return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
                 }
             }
 
@@ -990,7 +990,7 @@ namespace IPA.Cores.Basic
 
             combinedToken = ctx.Cts.Token;
 
-            return new Holder<object>(obj =>
+            return new ValueHolder<object>(obj =>
             {
                 CombinedCancelContext x = (CombinedCancelContext)obj;
 
@@ -1371,12 +1371,12 @@ namespace IPA.Cores.Basic
                 TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex)).LaissezFaire();
         }
 
-        protected Holder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+        protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
             => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel.SingleArray().Concat(cancels).ToArray());
 
-        protected Holder EnterCriticalCounter()
+        protected ValueHolder EnterCriticalCounter()
         {
-            Holder ret = TaskUtil.EnterCriticalCounter(CriticalCounter);
+            ValueHolder ret = TaskUtil.EnterCriticalCounter(CriticalCounter);
             try
             {
                 CheckNotCanceled();
@@ -1605,6 +1605,54 @@ namespace IPA.Cores.Basic
         }
     }
 
+    struct ValueHolder : IHolder
+    {
+        Action DisposeProc;
+        IHolder Leak;
+        LeakCounterKind LeakKind;
+
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
+        public ValueHolder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        {
+            this.DisposeProc = disposeProc;
+
+            this.LeakKind = leakCheckKind;
+
+            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
+            {
+                Leak = LeakChecker.Enter(leakCheckKind);
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(this.LeakKind);
+                Leak = null;
+            }
+
+            DisposeFlag = new Once();
+        }
+
+        Once DisposeFlag;
+        public void Dispose()
+        {
+            if (DisposeFlag.IsFirstCall())
+            {
+                try
+                {
+                    if (DisposeProc != null)
+                        DisposeProc();
+                }
+                finally
+                {
+                    if (Leak != null)
+                        Leak.DisposeSafe();
+                    else
+                        LeakChecker.DecrementLeakCounter(this.LeakKind);
+                }
+            }
+        }
+    }
+
     class Holder : Holder<int>
     {
         public Holder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
@@ -1642,6 +1690,56 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (disposing && DisposeFlag.IsFirstCall())
+            {
+                try
+                {
+                    if (DisposeProc != null)
+                        DisposeProc(Value);
+                }
+                finally
+                {
+                    if (Leak != null)
+                        Leak.DisposeSafe();
+                    else
+                        LeakChecker.DecrementLeakCounter(this.LeakKind);
+                }
+            }
+        }
+    }
+
+    struct ValueHolder<T> : IHolder
+    {
+        public T Value { get; }
+        Action<T> DisposeProc;
+        IHolder Leak;
+        LeakCounterKind LeakKind;
+
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
+        public ValueHolder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        {
+            this.Value = value;
+            this.DisposeProc = disposeProc;
+
+            this.LeakKind = leakCheckKind;
+
+            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
+            {
+                Leak = LeakChecker.Enter(leakCheckKind);
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(this.LeakKind);
+                Leak = null;
+            }
+
+            DisposeFlag = new Once();
+        }
+
+        Once DisposeFlag;
+        public void Dispose()
+        {
+            if (DisposeFlag.IsFirstCall())
             {
                 try
                 {
@@ -1706,8 +1804,8 @@ namespace IPA.Cores.Basic
             return ListenerList.Delete(id);
         }
 
-        public Holder<int> RegisterCallbackWithUsing(FastEventCallback<TCaller, TEventType> proc, object userState = null)
-            => new Holder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
+        public ValueHolder<int> RegisterCallbackWithUsing(FastEventCallback<TCaller, TEventType> proc, object userState = null)
+            => new ValueHolder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
 
         public int RegisterAsyncEvent(AsyncAutoResetEvent ev)
         {
@@ -1720,8 +1818,8 @@ namespace IPA.Cores.Basic
             return AsyncEventList.Delete(id);
         }
 
-        public Holder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
-            => new Holder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
+        public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
+            => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
         public void Fire(TCaller caller, TEventType type)
         {
@@ -1777,8 +1875,8 @@ namespace IPA.Cores.Basic
             return ListenerList.Delete(id);
         }
 
-        public Holder<int> RegisterCallbackWithUsing(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
-            => new Holder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
+        public ValueHolder<int> RegisterCallbackWithUsing(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
+            => new ValueHolder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
 
         public int RegisterAsyncEvent(AsyncAutoResetEvent ev)
         {
@@ -1791,8 +1889,8 @@ namespace IPA.Cores.Basic
             return AsyncEventList.Delete(id);
         }
 
-        public Holder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
-            => new Holder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
+        public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
+            => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
         public async Task FireAsync(TCaller caller, TEventType type)
         {

@@ -1118,7 +1118,7 @@ namespace IPA.Cores.Basic
         int PinLockedCounter = 0;
         MemoryHandle PinHandle;
         public bool IsPinLocked() => (PinLockedCounter != 0);
-        public Holder PinLock()
+        public ValueHolder PinLock()
         {
             lock (PinLockObj)
             {
@@ -1127,7 +1127,7 @@ namespace IPA.Cores.Basic
                 PinLockedCounter++;
             }
 
-            return new Holder(() =>
+            return new ValueHolder(() =>
             {
                 lock (PinLockObj)
                 {
@@ -1477,7 +1477,7 @@ namespace IPA.Cores.Basic
         int PinLockedCounter = 0;
         MemoryHandle PinHandle;
         public bool IsPinLocked() => (PinLockedCounter != 0);
-        public Holder PinLock()
+        public ValueHolder PinLock()
         {
             lock (PinLockObj)
             {
@@ -1486,7 +1486,7 @@ namespace IPA.Cores.Basic
                 PinLockedCounter++;
             }
 
-            return new Holder(() =>
+            return new ValueHolder(() =>
             {
                 lock (PinLockObj)
                 {
@@ -2491,7 +2491,7 @@ namespace IPA.Cores.Basic
 
         public static void FastFree<T>(Memory<T> memory) => memory.GetInternalArray().FastFree();
 
-        public static Holder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
+        public static ValueHolder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
         {
             T[] allocatedArray = FastAllocMoreThan<T>(size);
 
@@ -2500,7 +2500,7 @@ namespace IPA.Cores.Basic
             else
                 memory = allocatedArray.AsMemory(0, size);
 
-            return new Holder(() =>
+            return new ValueHolder(() =>
             {
                 FastFree(allocatedArray);
             },

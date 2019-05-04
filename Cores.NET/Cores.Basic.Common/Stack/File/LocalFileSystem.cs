@@ -736,7 +736,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Holder<IDisposable> EnterDisableMediaInsertionPrompt()
+        public ValueHolder<IDisposable> EnterDisableMediaInsertionPrompt()
         {
             IDisposable token = new EmptyDisposable();
 
@@ -745,7 +745,7 @@ namespace IPA.Cores.Basic
                  token = Win32Api.Win32DisableMediaInsertionPrompt.Create();
             }
 
-            return new Holder<IDisposable>(x => x.DisposeSafe(), token);
+            return new ValueHolder<IDisposable>(x => x.DisposeSafe(), token);
         }
     }
 

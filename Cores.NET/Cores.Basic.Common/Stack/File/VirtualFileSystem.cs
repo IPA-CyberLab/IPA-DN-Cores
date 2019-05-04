@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
 
         public virtual bool IsRoot { get; protected set; }
         public abstract Task<VfsEntity[]> EnumEntitiesAsync(EnumDirectoryFlags flags, CancellationToken cancel = default);
-        public abstract Task<Holder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default);
+        public abstract Task<ValueHolder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default);
         public abstract Task AddDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
         public abstract Task RemoveDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
         public abstract Task AddFileAsync(VfsFile file, CancellationToken cancel = default);
@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async Task<Holder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default)
+        public override async Task<ValueHolder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default)
         {
             using (await AsyncLock.LockWithAwait(cancel))
             {
@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
 
                 entity.AddHandleRef();
 
-                return new Holder<VfsEntity>(
+                return new ValueHolder<VfsEntity>(
                     (e) =>
                     {
                         e.ReleaseHandleRef();

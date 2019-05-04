@@ -323,7 +323,7 @@ namespace IPA.TestDev
 
         static void Net_Test1_PlainTcp_Client()
         {
-            for (int i = 0;i < 300;i++)
+            for (int i = 0;i < 10;i++)
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {

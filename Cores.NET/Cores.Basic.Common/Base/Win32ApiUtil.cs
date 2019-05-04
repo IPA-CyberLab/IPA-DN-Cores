@@ -449,10 +449,10 @@ namespace IPA.Cores.Basic
             public CriticalSection LockObj = new CriticalSection();
 
             public ReadOnlyMemoryBuffer<byte> InBuffer = null;
-            public Holder InBufferPinHolder = null;
+            public ValueHolder InBufferPinHolder;
 
             public MemoryBuffer<byte> OutBuffer = null;
-            public Holder OutBufferPinHolder = null;
+            public ValueHolder OutBufferPinHolder;
 
             public Overlapped Overlapped = null;
             public NativeOverlapped* NativeOverlapped = null;
@@ -515,10 +515,8 @@ namespace IPA.Cores.Basic
                         CancelRegistration.DisposeSafe();
 
                         InBufferPinHolder.DisposeSafe();
-                        InBufferPinHolder = null;
 
                         OutBufferPinHolder.DisposeSafe();
-                        OutBufferPinHolder = null;
 
                         lock (LockObj)
                         {

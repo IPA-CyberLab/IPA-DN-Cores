@@ -1081,7 +1081,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum LeakCounterKind
     {
-        DoNotTrack,
+        DoNotTrack = 0, // Must be zero
         OthersCounter,
         PinnedMemory,
         EnterCriticalCounter,
@@ -1119,9 +1119,9 @@ namespace IPA.Cores.Basic
 
     static class LeakChecker
     {
-        class LeakCheckerHolder : IHolder
+        struct LeakCheckerHolder : IHolder
         {
-            long Id;
+            long Id { get; }
             public string Name { get; }
             public string StackTrace { get; }
 
@@ -1133,15 +1133,17 @@ namespace IPA.Cores.Basic
                 Name = name;
                 StackTrace = string.IsNullOrEmpty(stackTrace) ? "" : stackTrace;
 
+                DisposeFlag = new Once();
+
                 lock (LeakChecker._InternalList)
                     LeakChecker._InternalList.Add(Id, this);
             }
 
-            public void Dispose() => Dispose(true);
             Once DisposeFlag;
-            protected virtual void Dispose(bool disposing)
+            public void Dispose()
             {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                if (Id == 0) return;
+                if (DisposeFlag.IsFirstCall() == false) return;
                 lock (LeakChecker._InternalList)
                 {
                     Debug.Assert(LeakChecker._InternalList.ContainsKey(Id));
@@ -1181,7 +1183,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return new Holder(() => { }, leakKind);
+                return new ValueHolder(() => { }, leakKind);
             }
         }
 

@@ -217,9 +217,9 @@ namespace IPA.Cores.Basic
     class KestrelStackTransportFactory : ITransportFactory
     {
         // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory
-        private readonly SocketTransportOptions _options;
-        private readonly IApplicationLifetime _appLifetime;
-        private readonly SocketsTrace _trace;
+        readonly SocketTransportOptions Options;
+        readonly IApplicationLifetime AppLifeTime;
+        readonly SocketsTrace Trace;
 
         public KestrelServerWithStack Server { get; private set; }
 
@@ -237,10 +237,10 @@ namespace IPA.Cores.Basic
             if (loggerFactory == null)
                 throw new ArgumentNullException(nameof(loggerFactory));
 
-            _options = options.Value;
-            _appLifetime = applicationLifetime;
+            Options = options.Value;
+            AppLifeTime = applicationLifetime;
             var logger = loggerFactory.CreateLogger("Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets");
-            _trace = new SocketsTrace(logger);
+            Trace = new SocketsTrace(logger);
         }
 
         public ITransport Create(IEndPointInformation endPointInformation, IConnectionDispatcher dispatcher)
@@ -254,7 +254,7 @@ namespace IPA.Cores.Basic
             if (dispatcher == null)
                 throw new ArgumentNullException(nameof(dispatcher));
 
-            return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, _appLifetime, _options.IOQueueCount, _trace);
+            return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
         }
 
         public void SetServer(KestrelServerWithStack server)
@@ -309,130 +309,4 @@ namespace IPA.Cores.Basic
             });
         }
     }
-
-
-#if false
-    class HttpServerWithStackListener : AsyncService
-    {
-        // Type builders
-        static readonly InternalOverrideClassTypeBuilder listenOptionsBuilder = new InternalOverrideClassTypeBuilder(typeof(ListenOptions));
-
-        static readonly IPEndPoint DummyEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1);
-
-        // Type initializer
-        static HttpServerWithStackListener()
-        {
-            listenOptionsBuilder.AddOverloadMethod("BindAsync",
-                typeof(HttpServerWithStackListener).GetMethod(nameof(ListenerOverride_BindAsync), BindingFlags.Static | BindingFlags.NonPublic),
-                typeof(Task),
-                typeof(ListenOptions).Assembly.GetType("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBindContext"));
-
-            listenOptionsBuilder.AddOverloadMethod("GetDisplayName",
-                typeof(HttpServerWithStackListener).GetMethod(nameof(ListenerOverride_GetDisplayName), BindingFlags.Static | BindingFlags.NonPublic),
-                typeof(string));
-        }
-
-        public ListenOptions ListenOptions { get; }
-        public TcpIpSystem TcpIpSystem { get; }
-        public FastTcpListenerBase FastTcpListener { get; }
-
-        public HttpServerWithStackListener(AsyncCleanuperLady lady, TcpIpSystem system, CancellationToken cancel, params int[] ports) : base(lady, cancel)
-        {
-            this.TcpIpSystem = system;
-
-            this.ListenOptions = (ListenOptions)listenOptionsBuilder.CreateInstance(this, DummyEndPoint);
-
-            this.FastTcpListener = this.TcpIpSystem.CreateListener(this.Lady, new TcpListenParam(ListenerAcceptProc, ports));
-        }
-
-        async Task ListenerAcceptProc(FastTcpListenerBase.Listener listener, ConnSock newSock)
-        {
-            Dbg.Where();
-        }
-
-        static async Task ListenerOverride_BindAsync(ListenOptions target, object context)
-        {
-            try
-            {
-                HttpServerWithStackListener listener = (HttpServerWithStackListener)InternalOverrideClassTypeBuilder.GetAppState(target);
-                Con.WriteLine("Hello " + target.ToString());
-
-                // From KestrelServer.StartAsync -> OnBind()
-                // Add the HTTP middleware as the terminal connection middleware
-                //target.UseHttpServer(target.ConnectionAdapters);
-                //HttpConnectionBuilderExtensions.UseHttpServer(target);
-                Func<ListenOptions, Task> OnBind = (Func<ListenOptions, Task>)context.PrivateGet("CreateBinding");
-
-                await OnBind(target);
-
-                // From AddressBinder.BindEndpointAsync
-                ((List<ListenOptions>)context.PrivateGet("ListenOptions")).Add(target);
-
-                // from KestrelHttpServer's LocalhostListenOptions.BindAsync()
-                ((ICollection<string>)context.PrivateGet("Addresses")).Add((string)target.PrivateInvoke("GetDisplayName"));
-
-                await Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                Con.WriteDebug(ex);
-                throw;
-            }
-        }
-
-        static string ListenerOverride_GetDisplayName(ListenOptions target)
-        {
-            HttpServerWithStackListener listener = (HttpServerWithStackListener)InternalOverrideClassTypeBuilder.GetAppState(target);
-
-            return "HttpServerWithStackListener (" + Str.CombineStringArray(listener.FastTcpListener.Listeners.Select(x => x.Port.ToString()).Distinct().ToArray(), ", ") + ")";
-        }
-    }
-
-    static class HttpServerWithStackHelper
-    {
-        public static void ListenWithStack(this KestrelServerOptions serverOptions, HttpServerWithStackListener listener, Action<ListenOptions> configure)
-        {
-            // Copy behavior from
-            // https://github.com/aspnet/KestrelHttpServer/blob/5c1fcd664d39db8fe5c8e38052a3cc29f90322f6/src/Kestrel.Core/KestrelServerOptions.cs#L219
-
-            List<ListenOptions> internalListenerList = (List<ListenOptions>)serverOptions.PrivateGet("ListenOptions");
-
-            serverOptions.PrivateInvoke("ApplyEndpointDefaults", listener.ListenOptions);
-
-            configure(listener.ListenOptions);
-            
-            internalListenerList.Add(listener.ListenOptions);
-        }
-
-        public static void ListenWithStack(this KestrelServerWithStackOptions serverOptions, HttpServerWithStackListener listener)
-            => ListenWithStack(serverOptions, listener, _ => { });
-
-        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder)
-        {
-            // From Microsoft.AspNetCore.Hosting.WebHostBuilderKestrelExtensions
-            return hostBuilder.ConfigureServices(services =>
-            {
-                // Don't override an already-configured transport
-                services.TryAddSingleton<ITransportFactory, KestrelStackTransportFactory>();
-
-                services.AddTransient<IConfigureOptions<KestrelServerWithStackOptions>, KestrelServerOptionsSetup>();
-                services.AddSingleton<IServer, KestrelServerWithStack>();
-            });
-        }
-
-        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
-        {
-            return hostBuilder.UseKestrelWithStack().ConfigureKestrelWithStack(options);
-        }
-
-        public static IWebHostBuilder ConfigureKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
-        {
-            return hostBuilder.ConfigureServices(services =>
-            {
-                services.Configure(options);
-            });
-        }
-    }
-#endif
-
 }
