@@ -53,7 +53,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace IPA.TestDev
 {
-    class TestHttpServerBuilder : HttpServerBuilderBase
+    class TestHttpServerBuilder : HttpServerStartupBase
     {
         public TestHttpServerBuilder(IConfiguration configuration) : base(configuration)
         {
