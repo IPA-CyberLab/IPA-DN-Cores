@@ -47,6 +47,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Collections;
 using System.Reflection.Emit;
+using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -1283,31 +1284,75 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
-        public static void ObjectToXml(object obj, MemoryBuffer<byte> dst)
+        public static DataContractJsonSerializerSettings NewDefaultRuntimeJsonSerializerSettings()
         {
-            DataContractSerializerSettings settings = new DataContractSerializerSettings();
-            settings.PreserveObjectReferences = true;
-            DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
-            d.WriteObject(dst.AsDirectStream(), obj);
+            return new DataContractJsonSerializerSettings()
+            {
+                DateTimeFormat = new DateTimeFormat("yyyy'-'MM'-'dd'T'HH':'mm':'ss.FFFFFFFK"),
+                UseSimpleDictionaryFormat = true,
+            };
         }
-        public static byte[] ObjectToXml(object obj)
+
+        public static void ObjectToRuntimeJson(object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings settings = null)
+        {
+            if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
+            DataContractJsonSerializer d = new DataContractJsonSerializer(obj.GetType(), settings);
+            using (var writer = JsonReaderWriterFactory.CreateJsonWriter(dst.AsDirectStream(), Str.Utf8Encoding, false, true, "  "))
+            {
+                d.WriteObject(writer, obj);
+            }
+        }
+        public static byte[] ObjectToRuntimeJson(object obj, DataContractJsonSerializerSettings settings = null)
         {
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-            ObjectToXml(obj, buf);
+            ObjectToRuntimeJson(obj, buf, settings);
             return buf.Span.ToArray();
         }
 
-        public static object XmlToObject(MemoryBuffer<byte> src, Type type)
+        public static object RuntimeJsonToObject(MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings settings = null)
         {
-            DataContractSerializerSettings settings = new DataContractSerializerSettings();
-            settings.PreserveObjectReferences = true;
+            if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
+            DataContractJsonSerializer d = new DataContractJsonSerializer(type, settings);
+            return d.ReadObject(src.AsDirectStream());
+        }
+        public static T RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings settings = null) => (T)RuntimeJsonToObject(src, typeof(T), settings);
+
+        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject(src.AsMemoryBuffer(), type, settings);
+        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject<T>(src.AsMemoryBuffer(), settings);
+
+
+
+        public static void ObjectToXml(object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings settings = null)
+        {
+            if (settings == null)
+            {
+                settings = new DataContractSerializerSettings();
+                settings.PreserveObjectReferences = true;
+            }
+            DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
+            d.WriteObject(dst.AsDirectStream(), obj);
+        }
+        public static byte[] ObjectToXml(object obj, DataContractSerializerSettings settings = null)
+        {
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            ObjectToXml(obj, buf, settings);
+            return buf.Span.ToArray();
+        }
+
+        public static object XmlToObject(MemoryBuffer<byte> src, Type type, DataContractSerializerSettings settings = null)
+        {
+            if (settings == null)
+            {
+                settings = new DataContractSerializerSettings();
+                settings.PreserveObjectReferences = true;
+            }
             DataContractSerializer d = new DataContractSerializer(type, settings);
             return d.ReadObject(src.AsDirectStream());
         }
-        public static T XmlToObject<T>(MemoryBuffer<byte> src) => (T)XmlToObject(src, typeof(T));
+        public static T XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings settings = null) => (T)XmlToObject(src, typeof(T), settings);
 
-        public static object XmlToObject(byte[] src, Type type) => XmlToObject(src.AsMemoryBuffer(), type);
-        public static T XmlToObject<T>(byte[] src) => XmlToObject<T>(src.AsMemoryBuffer());
+        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings settings = null) => XmlToObject(src.AsMemoryBuffer(), type, settings);
+        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings settings = null) => XmlToObject<T>(src.AsMemoryBuffer(), settings);
 
         // オブジェクトをクローンする
         public static object CloneObject_UsingBinary(object o)

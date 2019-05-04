@@ -39,6 +39,8 @@ using System.IO;
 using System.Xml.Serialization;
 using System.Reflection;
 using System.Linq;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -5314,9 +5316,13 @@ namespace IPA.Cores.Basic
             return xs.Deserialize(ms);
         }
 
-        public static string ObjectToXmlStr(object obj) => Util.ObjectToXml(obj).GetString_UTF8();
-        public static object XmlStrToObject(string src, Type type) => Util.XmlToObject(src.GetBytes_UTF8(), type);
-        public static T XmlStrToObject<T>(string src) => Util.XmlToObject<T>(src.GetBytes_UTF8());
+        public static string ObjectToXmlStr(object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings).GetString_UTF8();
+        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src.GetBytes_UTF8(), type, settings);
+        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src.GetBytes_UTF8(), settings);
+
+        public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings).GetString_UTF8();
+        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src.GetBytes_UTF8(), type, settings);
+        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src.GetBytes_UTF8(), settings);
 
         public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
         {

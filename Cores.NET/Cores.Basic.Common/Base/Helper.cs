@@ -45,12 +45,14 @@ using System.Runtime.ExceptionServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
 using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -242,16 +244,28 @@ namespace IPA.Cores.Helper.Basic
         public static object BinaryToObject(this ReadOnlySpan<byte> b) => Util.BinaryToObject(b);
         public static object BinaryToObject(this Span<byte> b) => Util.BinaryToObject(b);
         public static object BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
-        public static void ObjectToXml(this object obj, MemoryBuffer<byte> dst) => Util.ObjectToXml(obj, dst);
-        public static byte[] ObjectToXml(this object obj) => Util.ObjectToXml(obj);
-        public static object XmlToObject(this MemoryBuffer<byte> src, Type type) => Util.XmlToObject(src, type);
-        public static T XmlToObject<T>(this MemoryBuffer<byte> src) => Util.XmlToObject<T>(src);
-        public static object XmlToObject(this byte[] src, Type type) => Util.XmlToObject(src, type);
-        public static T XmlToObject<T>(this byte[] src) => Util.XmlToObject<T>(src);
 
-        public static string ObjectToXmlStr(this object obj) => Str.ObjectToXmlStr(obj);
-        public static object XmlStrToObject(this string src, Type type) => Str.XmlStrToObject(src, type);
-        public static T XmlStrToObject<T>(this string src) => Str.XmlStrToObject<T>(src);
+        public static void ObjectToXml(this object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, dst, settings);
+        public static byte[] ObjectToXml(this object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings);
+        public static object XmlToObject(this MemoryBuffer<byte> src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src, type, settings);
+        public static T XmlToObject<T>(this MemoryBuffer<byte> src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src, settings);
+        public static object XmlToObject(this byte[] src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src, type, settings);
+        public static T XmlToObject<T>(this byte[] src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src, settings);
+
+        public static string ObjectToXmlStr(this object obj, DataContractSerializerSettings settings = null) => Str.ObjectToXmlStr(obj, settings);
+        public static object XmlStrToObject(this string src, Type type, DataContractSerializerSettings settings = null) => Str.XmlStrToObject(src, type, settings);
+        public static T XmlStrToObject<T>(this string src, DataContractSerializerSettings settings = null) => Str.XmlStrToObject<T>(src, settings);
+
+        public static void ObjectToRuntimeJson(this object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, dst, settings);
+        public static byte[] ObjectToRuntimeJson(this object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings);
+        public static object RuntimeJsonToObject(this MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T RuntimeJsonToObject<T>(this MemoryBuffer<byte> src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+        public static object RuntimeJsonToObject(this byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T RuntimeJsonToObject<T>(this byte[] src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+
+        public static string ObjectToRuntimeJsonStr(this object obj, DataContractJsonSerializerSettings settings = null) => Str.ObjectToRuntimeJsonStr(obj, settings);
+        public static object RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
+        public static T RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
 
         public static object Print(this object o)
         {

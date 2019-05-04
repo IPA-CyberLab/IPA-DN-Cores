@@ -39,12 +39,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Security.AccessControl;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 
 #pragma warning disable CS0219
 #pragma warning disable CS0162
@@ -56,7 +58,6 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            ResourceFileSystem fs = ResourceFileSystem.Singleton.CreateOrGet(typeof(TestClass).Assembly);
         }
     }
 }

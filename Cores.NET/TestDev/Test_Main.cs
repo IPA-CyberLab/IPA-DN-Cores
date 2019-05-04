@@ -51,7 +51,7 @@ namespace IPA.TestDev
     {
         static void Main(string[] args)
         {
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: true, leakFullStack: true);
+            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: true);
 
             CoresLibrary.Main.Init();
 
