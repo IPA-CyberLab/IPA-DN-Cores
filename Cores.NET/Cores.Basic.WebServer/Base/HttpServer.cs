@@ -37,6 +37,7 @@ using System.Collections.Generic;
 using System.Security.Authentication;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -56,7 +57,7 @@ namespace IPA.Cores.Basic
     {
     }
 
-    abstract class HttpServerBuilderBase
+    abstract class HttpServerStartupBase
     {
         public IConfiguration Configuration { get; }
         HttpServerOptions BuilderConfig;
@@ -64,7 +65,7 @@ namespace IPA.Cores.Basic
         protected object Param;
         public CancellationToken CancelToken { get; }
 
-        public HttpServerBuilderBase(IConfiguration configuration)
+        public HttpServerStartupBase(IConfiguration configuration)
         {
             this.Configuration = configuration;
 
@@ -97,7 +98,8 @@ namespace IPA.Cores.Basic
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
 
-        public string ContentsRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
+        public string ContentsRoot { get; set; } = Env.AppRootDir;
+        public string WebRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
         public bool DebugKestrelToConsole { get; set; } = false;
@@ -109,15 +111,74 @@ namespace IPA.Cores.Basic
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
         [JsonIgnore]
         public TcpIpSystem TcpIpSystem { get; set; } = LocalNet;
+
+        public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup: class
+        {
+            return WebHost.CreateDefaultBuilder()
+                .UseKestrelWithStack(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam))
+                .UseWebRoot(WebRoot)
+                .UseContentRoot(ContentsRoot)
+                .ConfigureAppConfiguration((hostingContext, config) =>
+                {
+
+                })
+                .ConfigureLogging((hostingContext, logging) =>
+                {
+                    if (this.DebugKestrelToConsole)
+                    {
+                        logging.AddConsole();
+                    }
+
+                    if (this.DebugKestrelToLog)
+                    {
+                        logging.AddProvider(new MsLoggerProvider());
+                    }
+                })
+                .UseStartup<TStartup>();
+        }
+
+        public void ConfigureKestrelServerOptions(KestrelServerOptions opt, object sslCertSelectorParam)
+        {
+            if (this.LocalHostOnly)
+            {
+                foreach (int port in this.HttpPortsList) opt.ListenLocalhost(port);
+                foreach (int port in this.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
+            }
+            else if (this.IPv4Only)
+            {
+                foreach (int port in this.HttpPortsList) opt.Listen(IPAddress.Any, port);
+                foreach (int port in this.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
+            }
+            else
+            {
+                foreach (int port in this.HttpPortsList) opt.ListenAnyIP(port);
+                foreach (int port in this.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
+            }
+
+            void EnableHttps(ListenOptions listenOptions)
+            {
+                listenOptions.UseHttps(httpsOptions =>
+                {
+                    httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+                    if (this.ServerCertSelector != null)
+                    {
+                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => this.ServerCertSelector(sslCertSelectorParam, sni));
+                    }
+                });
+            }
+        }
     }
 
     sealed class HttpServer<THttpServerBuilder> : AsyncService
-        where THttpServerBuilder : HttpServerBuilderBase
+        where THttpServerBuilder : class
     {
         readonly HttpServerOptions Options;
         readonly Task HostTask;
 
-        public HttpServer(HttpServerOptions options, object param, CancellationToken cancel = default) : base(cancel)
+        readonly string ParamToken;
+        readonly string CancelToken;
+
+        public HttpServer(HttpServerOptions options, object param = null, CancellationToken cancel = default) : base(cancel)
         {
             try
             {
@@ -125,82 +186,35 @@ namespace IPA.Cores.Basic
 
                 IO.MakeDirIfNotExists(Options.ContentsRoot);
 
-                string paramToken = GlobalObjectExchange.Deposit(param);
-                string cancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);
+                ParamToken = GlobalObjectExchange.Deposit(param);
+                CancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);
+
                 try
                 {
                     var dict = new Dictionary<string, string>
-                {
-                    {"coreutil_ServerBuilderConfig", this.Options.ObjectToJson() },
-                    {"coreutil_param_token", paramToken },
-                    {"coreutil_cancel_token", cancelToken },
-                };
+                    {
+                        {"coreutil_ServerBuilderConfig", this.Options.ObjectToJson() },
+                        {"coreutil_param_token", ParamToken },
+                        {"coreutil_cancel_token", CancelToken },
+                    };
 
                     IConfiguration iconf = new ConfigurationBuilder()
                         .AddInMemoryCollection(dict)
                         .Build();
 
-                    var h = new WebHostBuilder()
-                        .UseKestrelWithStack(opt =>
-                        {
-                            opt.TcpIpSystem = options.TcpIpSystem;
-
-                            if (Options.LocalHostOnly)
-                            {
-                                foreach (int port in Options.HttpPortsList) opt.ListenLocalhost(port);
-                                foreach (int port in Options.HttpsPortsList) opt.ListenLocalhost(port, lo => EnableHttps(lo));
-                            }
-                            else if (Options.IPv4Only)
-                            {
-                                foreach (int port in Options.HttpPortsList) opt.Listen(IPAddress.Any, port);
-                                foreach (int port in Options.HttpsPortsList) opt.Listen(IPAddress.Any, port, lo => EnableHttps(lo));
-                            }
-                            else
-                            {
-                                foreach (int port in Options.HttpPortsList) opt.ListenAnyIP(port);
-                                foreach (int port in Options.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
-                            }
-
-                            void EnableHttps(ListenOptions listenOptions)
-                            {
-                                listenOptions.UseHttps(httpsOptions =>
-                                {
-                                    httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                                    if (Options.ServerCertSelector != null)
-                                    {
-                                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => Options.ServerCertSelector(param, sni));
-                                    }
-                                });
-                            }
-                        })
-                        .UseWebRoot(Options.ContentsRoot)
-                        .UseContentRoot(Options.ContentsRoot)
-                        .ConfigureAppConfiguration((hostingContext, config) =>
-                        {
-
-                        })
-                        .ConfigureLogging((hostingContext, logging) =>
-                        {
-                            if (Options.DebugKestrelToConsole)
-                            {
-                                logging.AddConsole();
-                            }
-
-                            if (Options.DebugKestrelToLog)
-                            {
-                                logging.AddProvider(new MsLoggerProvider());
-                            }
-                        })
+                    var host = Options.GetWebHostBuilder<THttpServerBuilder>(param)
                         .UseConfiguration(iconf)
-                        .UseStartup<THttpServerBuilder>()
                         .Build();
 
-                    HostTask = h.RunAsync(this.CancelWatcher.CancelToken);
+                    HostTask = host.RunAsync(this.CancelWatcher.CancelToken);
                 }
                 catch
                 {
-                    GlobalObjectExchange.TryWithdraw(paramToken);
-                    GlobalObjectExchange.TryWithdraw(cancelToken);
+                    GlobalObjectExchange.TryWithdraw(ParamToken);
+                    ParamToken = null;
+
+                    GlobalObjectExchange.TryWithdraw(CancelToken);
+                    CancelToken = null;
                     throw;
                 }
             }
@@ -214,6 +228,9 @@ namespace IPA.Cores.Basic
         protected override async Task CleanupImplAsync(Exception ex)
         {
             await HostTask;
+
+            GlobalObjectExchange.TryWithdraw(ParamToken);
+            GlobalObjectExchange.TryWithdraw(CancelToken);
         }
     }
 }

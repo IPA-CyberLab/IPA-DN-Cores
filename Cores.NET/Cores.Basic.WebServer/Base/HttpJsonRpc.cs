@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcHttpServerBuilder : HttpServerBuilderBase
+    class JsonRpcHttpServerBuilder : HttpServerStartupBase
     {
         public JsonRpcHttpServer JsonServer { get; }
 
