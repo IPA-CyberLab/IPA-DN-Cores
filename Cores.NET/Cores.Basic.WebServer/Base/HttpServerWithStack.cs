@@ -141,11 +141,12 @@ namespace IPA.Cores.Basic
         {
             using (var connection = new KestrelStackConnection(newSock, this.PipeScheduler))
             {
-                var middlewareTask = Dispatcher.OnConnection(connection);
+                /*var middlewareTask = */ Dispatcher.OnConnection(connection);
+                // TODO: for .NET >= 2.2
                 var transportTask = connection.StartAsync();
 
                 await transportTask;
-                await middlewareTask;
+                //await middlewareTask;
 
                 connection.DisposeSafe();
             }
