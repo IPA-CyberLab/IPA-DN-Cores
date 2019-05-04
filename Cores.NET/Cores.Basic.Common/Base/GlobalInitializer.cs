@@ -43,11 +43,15 @@ namespace IPA.Cores.Basic
             LargeFileSystem.Module.Init();
 
             ResourceFileSystem.Module.Init();
+
+            Hive.Module.Init();
         }
 
         static CoresLibraryResult GlobalFree()
         {
             // Finalize
+            Hive.Module.Free();
+
             ResourceFileSystem.Module.Free();
 
             LargeFileSystem.Module.Free();

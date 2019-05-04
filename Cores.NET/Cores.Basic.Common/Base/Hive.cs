@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -247,11 +248,12 @@ namespace IPA.Cores.Basic
 
     class HiveOptions
     {
-        const int MinReadPollingIntervalMsec = 2 * 1000;
-        const int MinWritePollingIntervalMsec = 1 * 1000;
+        public const int MinReadPollingIntervalMsec = 2 * 1000;
+        public const int MinWritePollingIntervalMsec = 1 * 1000;
 
         public HiveSerializer Serializer { get; }
         public HiveStorageProvider StorageProvider { get; }
+        public bool IsPollingEnabled { get; }
 
         public Copenhagen<int> ReadPollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.ReadPollingIntervalMsec;
         public Copenhagen<int> WritePollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.WritePollingIntervalMsec;
@@ -259,25 +261,120 @@ namespace IPA.Cores.Basic
         public HiveOptions(string rootDirectoryName, HiveSerializer serializer = null)
             : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryName))) { }
 
-        public HiveOptions(HiveStorageProvider provider, HiveSerializer serializer = null)
+        public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? readPollingInterval = null, int? writePollingInterval = null, HiveSerializer serializer = null)
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
             if (serializer == null) serializer = new JsonHiveSerializer();
 
             this.Serializer = serializer;
             this.StorageProvider = provider;
+
+            if (enablePolling == false)
+            {
+                if (readPollingInterval.HasValue || writePollingInterval.HasValue)
+                {
+                    throw new ApplicationException("enablePolling is false while either readPollingInterval or writePollingInterval is specified.");
+                }
+            }
+
+            if (readPollingInterval != null)
+                this.ReadPollingIntervalMsec.SetValue(readPollingInterval.Value);
+
+            if (writePollingInterval != null)
+                this.WritePollingIntervalMsec.SetValue(writePollingInterval.Value);
+
+            this.IsPollingEnabled = enablePolling;
         }
     }
 
-    class Hive
+    class Hive : AsyncServiceWithMainLoop
     {
+        // Static states and methods
+        public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
+
+        static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
+        static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
+
+        static void InitModule()
+        {
+        }
+
+        static void FreeModule()
+        {
+            Hive[] runningHives;
+            lock (RunningHivesListLockObj)
+            {
+                runningHives = RunningHivesList.ToArrayList();
+            }
+            foreach (Hive hive in runningHives)
+            {
+                hive.DisposeSafe(new CoresLibraryShutdowningException());
+            }
+            lock (RunningHivesListLockObj)
+            {
+                RunningHivesList.Clear();
+            }
+        }
+
         public static string NormalizeDataName(string name) => name.NonNullTrim().ToLower();
 
+        // Instance states and methods
         public HiveOptions Options { get; }
 
         public Hive(HiveOptions options)
         {
-            this.Options = options;
+            try
+            {
+                this.Options = options;
+
+                lock (RunningHivesListLockObj)
+                {
+                    Module.CheckInitalized();
+                    RunningHivesList.Add(this);
+                }
+
+                if (this.Options.IsPollingEnabled)
+                {
+                    this.StartMainLoop(MainLoopProcAsync);
+                }
+            }
+            catch
+            {
+                this.DisposeSafe();
+                throw;
+            }
+        }
+
+        async Task MainLoopProcAsync(CancellationToken cancel)
+        {
+            int readPollingInterval = Math.Max(HiveOptions.MinReadPollingIntervalMsec, Options.ReadPollingIntervalMsec);
+            int writePollingInterval = Math.Max(HiveOptions.MinWritePollingIntervalMsec, Options.ReadPollingIntervalMsec);
+
+            AsyncLocalTimer timer = new AsyncLocalTimer();
+
+            long nextReadTick = 0;
+            long nextWriteTick = 0;
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                if (timer.RepeatIntervalTimer(readPollingInterval, ref nextReadTick))
+                {
+                }
+
+                if (timer.RepeatIntervalTimer(writePollingInterval, ref nextWriteTick))
+                {
+                }
+
+                await timer.WaitUntilNextTickAsync(cancel);
+            }
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            lock (RunningHivesListLockObj)
+            {
+                RunningHivesList.Remove(this);
+            }
         }
     }
 
@@ -293,12 +390,25 @@ namespace IPA.Cores.Basic
 
     class HiveData<T> where T: class, new()
     {
+        public HiveDataPolicy Policy { get; }
+        public string DataName { get; }
+        public Hive Hive { get; }
+        public bool IsManaged { get; } = false;
+
         public HiveData(Hive hive, string dataName, HiveDataPolicy policy)
         {
-            dataName = Hive.NormalizeDataName(dataName);
+            this.Hive = hive;
+            this.Policy = policy;
+            this.DataName = Hive.NormalizeDataName(dataName);
 
             if (policy.BitAny(HiveDataPolicy.AutoReadFromFile | HiveDataPolicy.AutoWriteToFile))
             {
+                this.IsManaged = true;
+            }
+
+            if (hive.Options.IsPollingEnabled == false && this.IsManaged)
+            {
+                throw new ArgumentException($"policy = {policy.ToString()} while the Hive object doesn't support polling.");
             }
         }
     }

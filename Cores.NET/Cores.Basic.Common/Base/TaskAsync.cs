@@ -1956,8 +1956,6 @@ namespace IPA.Cores.Basic
 
     class CancelWatcher : IDisposable
     {
-        
-
         readonly CancellationTokenSource GrandCancelTokenSource;
         readonly IDisposable LeakHolder;
         readonly IDisposable ObjectHolder;
@@ -3039,6 +3037,34 @@ namespace IPA.Cores.Basic
             TimerChangedEvent.Set();
 
             return ret;
+        }
+
+        public bool RepeatIntervalTimer(int interval, ref long nextFireTick, bool beginNow = true)
+        {
+            long now = Now;
+
+            if (nextFireTick == 0 || now >= nextFireTick)
+            {
+                if (nextFireTick == 0)
+                    nextFireTick = now;
+
+                if (beginNow)
+                    nextFireTick = now + interval;
+                else
+                    nextFireTick = Math.Max(nextFireTick + interval, now);
+
+                if (interval < 0)
+                    nextFireTick = long.MaxValue;
+
+                if (nextFireTick != long.MaxValue)
+                {
+                    AddTick(nextFireTick);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         public int GetNextInterval()

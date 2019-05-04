@@ -2379,6 +2379,7 @@ namespace IPA.Cores.Basic
         readonly CriticalSection LockObj = new CriticalSection();
 
         public bool Initialized { get; private set; } = false;
+        public bool Freeing { get; private set; } = false;
 
         public StaticModule(Action<TOptions> initProc, Func<TResult> freeProc)
         {
@@ -2403,20 +2404,35 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                if (Initialized == false)
-                    throw new ApplicationException("The StaticModule object is not initialized.");
+                Freeing = true;
 
-                TResult ret = this.FreeProc();
+                Interlocked.MemoryBarrierProcessWide();
 
-                Initialized = false;
+                try
+                {
+                    Interlocked.MemoryBarrierProcessWide();
+                    if (Initialized == false)
+                        throw new ApplicationException("The StaticModule object is not initialized.");
 
-                return ret;
+                    TResult ret = this.FreeProc();
+
+                    Interlocked.MemoryBarrierProcessWide();
+
+                    Initialized = false;
+
+                    Interlocked.MemoryBarrierProcessWide();
+                    return ret;
+                }
+                finally
+                {
+                    Freeing = false;
+                }
             }
         }
 
         public void CheckInitalized()
         {
-            if (this.Initialized == false)
+            if (this.Initialized == false || Freeing)
                 throw new ApplicationException("The StaticModule object is not initialized.");
         }
     }
