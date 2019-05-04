@@ -30,6 +30,7 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
@@ -55,6 +56,35 @@ namespace IPA.Cores.Helper.Basic
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             return (await h.Body.ReadToEndAsync(maxRequestBodyLen, cancel)).GetString_UTF8();
+        }
+    }
+
+    static partial class StandardMainFunctions
+    {
+        public static class AspNet
+        {
+            public static void DoMain<TStartup>(HttpServerOptions httpServerOptions = null) where TStartup : class
+            {
+                if (httpServerOptions == null)
+                    httpServerOptions = new HttpServerOptions();
+
+                CoresLibrary.Main.Init();
+
+                try
+                {
+                    using (HttpServer<TStartup> httpServer = new HttpServer<TStartup>(httpServerOptions))
+                    {
+                        Con.ReadLine("Enter to exit>");
+                    }
+                }
+                finally
+                {
+                    if (CoresLibrary.Main.Free().LeakCheckerResult.HasLeak && Dbg.IsConsoleDebugMode)
+                    {
+                        Console.ReadKey();
+                    }
+                }
+            }
         }
     }
 }

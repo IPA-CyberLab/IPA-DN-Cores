@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
 
         public string ContentsRoot { get; set; } = Env.AppRootDir;
-        public string WebRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
+        public string WwwRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
         public bool DebugKestrelToConsole { get; set; } = false;
@@ -114,9 +114,10 @@ namespace IPA.Cores.Basic
 
         public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup: class
         {
-            return WebHost.CreateDefaultBuilder()
+            return new WebHostBuilder()
                 .UseKestrelWithStack(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam))
-                .UseWebRoot(WebRoot)
+                //.UseKestrel(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam))
+                .UseWebRoot(WwwRoot)
                 .UseContentRoot(ContentsRoot)
                 .ConfigureAppConfiguration((hostingContext, config) =>
                 {
@@ -184,6 +185,7 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
+                IO.MakeDirIfNotExists(Options.WwwRoot);
                 IO.MakeDirIfNotExists(Options.ContentsRoot);
 
                 ParamToken = GlobalObjectExchange.Deposit(param);
