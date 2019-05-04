@@ -119,6 +119,7 @@ namespace IPA.Cores.Basic
         public static long ProcessId { get; }
         public static string MyTempDir { get; }
         public static string PathSeparator { get; }
+        public static char PathSeparatorChar { get; }
         public static string StartupCurrentDir { get; }
         public static bool IsDotNetCore { get; }
         public static Assembly ExeAssembly { get; }
@@ -176,6 +177,7 @@ namespace IPA.Cores.Basic
                 PathSeparator = "/";
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT) PathSeparator = "\\";
             }
+            PathSeparatorChar = PathSeparator[0];
             ExeFileName = IO.RemoveLastEnMark(getMyExeFileName());
             if (Str.IsEmptyStr(ExeFileName) == false)
             {

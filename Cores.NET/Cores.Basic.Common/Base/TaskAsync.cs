@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         public class LockHolder : IDisposable
         {
             AsyncLock Parent;
-            internal LockHolder(AsyncLock parent)
+            public LockHolder(AsyncLock parent)
             {
                 this.Parent = parent;
             }
@@ -1369,6 +1369,54 @@ namespace IPA.Cores.Basic
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
                 TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex)).LaissezFaire();
+        }
+
+        readonly AsyncLock CriticalProcessAsyncLock = new AsyncLock();
+        protected async Task<TResult> RunCriticalProcessAsync<TResult>(bool obtainLock, CancellationToken cancel, Func<CancellationToken, Task<TResult>> func)
+        {
+            using (EnterCriticalCounter())
+            {
+                AsyncLock.LockHolder lockHolder = null;
+
+                if (obtainLock)
+                    lockHolder = await CriticalProcessAsyncLock.LockWithAwait(cancel);
+
+                try
+                {
+                    using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+                    {
+                        return await func(opCancel);
+                    }
+                }
+                finally
+                {
+                    if (lockHolder != null)
+                        lockHolder.Dispose();
+                }
+            }
+        }
+        protected async Task RunCriticalProcessAsync(bool obtainLock, CancellationToken cancel, Func<CancellationToken, Task> func)
+        {
+            using (EnterCriticalCounter())
+            {
+                AsyncLock.LockHolder lockHolder = null;
+
+                if (obtainLock)
+                    lockHolder = await CriticalProcessAsyncLock.LockWithAwait(cancel);
+
+                try
+                {
+                    using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+                    {
+                        await func(opCancel);
+                    }
+                }
+                finally
+                {
+                    if (lockHolder != null)
+                        lockHolder.Dispose();
+                }
+            }
         }
 
         protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)

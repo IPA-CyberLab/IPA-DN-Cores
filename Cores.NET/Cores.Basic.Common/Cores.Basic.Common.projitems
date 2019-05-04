@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Base\Hive.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\DevTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\GlobalInitializer.cs" />

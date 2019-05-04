@@ -657,6 +657,7 @@ namespace IPA.Cores.Basic
     class FileSystemPathParser
     {
         public static FileSystemStyle LocalSystemStyle { get; } = Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux);
+
         readonly static FileSystemPathParser[] Cached = new FileSystemPathParser[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
 
         public FileSystemStyle Style { get; }
@@ -664,6 +665,9 @@ namespace IPA.Cores.Basic
         public char[] PossibleDirectorySeparators { get; }
         public StringComparison PathStringComparison { get; }
         public StrComparer PathStringComparer { get; }
+
+        readonly char[] InvalidPathChars;
+        readonly char[] InvalidFileNameChars;
 
         public static FileSystemPathParser GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
         {
@@ -707,8 +711,10 @@ namespace IPA.Cores.Basic
                     break;
             }
 
-
             this.PathStringComparer = new StrComparer(this.PathStringComparison);
+
+            this.InvalidPathChars = GetInvalidPathChars();
+            this.InvalidFileNameChars = GetInvalidFileNameChars();
         }
 
         public string[] SplitAbsolutePathToElements(string path)
@@ -771,12 +777,26 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
+        public string NormalizeDirectorySeparatorIncludeWindowsBackslash(string srcPath)
         {
             srcPath = srcPath.NonNull();
 
-            if (this == destPathParser)
-                return srcPath;
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in srcPath)
+            {
+                char d = c;
+                if (d == '\\' || d == '/')
+                {
+                    d = this.DirectorySeparator;
+                }
+                sb.Append(d);
+            }
+            return sb.ToString();
+        }
+
+        public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
+        {
+            srcPath = srcPath.NonNull();
 
             StringBuilder sb = new StringBuilder();
             foreach (char c in srcPath)
@@ -865,6 +885,8 @@ namespace IPA.Cores.Basic
         }
 
         public string Combine(string path1, string path2)
+            => Combine(path1, path2, false);
+        public string Combine(string path1, string path2, bool path2NeverAbsolutePath = false)
         {
             if (path1 == null && path2 == null) return null;
 
@@ -872,15 +894,23 @@ namespace IPA.Cores.Basic
             path2 = path2.NonNull();
 
             if (path1.IsEmpty())
-                return path2;
+            {
+                if (path2NeverAbsolutePath == false)
+                    return path2;
+                else
+                    return "";
+            }
 
             if (path2.IsEmpty())
                 return path1;
 
             if (path2.Length >= 1)
             {
-                if (PossibleDirectorySeparators.Where(x => x == path2[0]).Any())
-                    return path2;
+                if (path2NeverAbsolutePath == false)
+                {
+                    if (PossibleDirectorySeparators.Where(x => x == path2[0]).Any())
+                        return path2;
+                }
             }
 
             path1 = RemoveLastSeparatorChar(path1);
@@ -1044,6 +1074,91 @@ namespace IPA.Cores.Basic
                 return Win32PathInternal.GetInvalidPathChars();
             else
                 return UnixPathInternal.GetInvalidPathChars();
+        }
+
+        public string MakeSafePathName(string name)
+        {
+            char[] a = name.ToCharArray();
+            StringBuilder sb = new StringBuilder();
+
+            int i;
+            for (i = 0; i < a.Length; i++)
+            {
+                int j;
+                bool ok = true;
+
+                for (j = 0; j < InvalidPathChars.Length; j++)
+                {
+                    if (InvalidPathChars[j] == a[i])
+                    {
+                        ok = false;
+                        break;
+                    }
+                }
+
+                if (a[i] == '\\' || a[i] == '/')
+                {
+                    ok = true;
+                    a[i] = this.DirectorySeparator;
+                }
+
+                if (i == 1 && a[i] == ':')
+                {
+                    ok = true;
+                }
+
+                string s;
+
+                if (ok == false)
+                {
+                    s = "_" + ((int)a[i]).ToString() + "_";
+                }
+                else
+                {
+                    s = "" + a[i];
+                }
+
+                sb.Append(s);
+            }
+
+            return sb.ToString();
+        }
+
+        public string MakeSafeFileName(string name)
+        {
+            char[] a = name.ToCharArray();
+            StringBuilder sb = new StringBuilder();
+
+            int i;
+            for (i = 0; i < a.Length; i++)
+            {
+                int j;
+                bool ok = true;
+
+                for (j = 0; j < InvalidFileNameChars.Length; j++)
+                {
+                    if (InvalidFileNameChars[j] == a[i])
+                    {
+                        ok = false;
+                        break;
+                    }
+                }
+
+                string s;
+
+                if (ok == false)
+                {
+                    s = "_" + ((int)a[i]).ToString() + "_";
+                }
+                else
+                {
+                    s = "" + a[i];
+                }
+
+                sb.Append(s);
+            }
+
+            return sb.ToString();
         }
     }
 

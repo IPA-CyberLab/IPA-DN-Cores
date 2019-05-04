@@ -3277,9 +3277,7 @@ namespace IPA.Cores.Basic
         // 文字が安全かどうか検査する
         public static bool IsSafe(char c, bool pathCharsAreNotGood = false)
         {
-            char[] b = Path.GetInvalidFileNameChars();
-
-            foreach (char bb in b)
+            foreach (char bb in InvalidFileNameChars)
             {
                 if (bb == c)
                 {
@@ -3327,7 +3325,7 @@ namespace IPA.Cores.Basic
                 if (a[i] == '\\' || a[i] == '/')
                 {
                     ok = true;
-                    a[i] = '\\';
+                    a[i] = Env.PathSeparatorChar;
                 }
 
                 if (i == 1 && a[i] == ':')
@@ -3353,10 +3351,10 @@ namespace IPA.Cores.Basic
         }
 
         // パスを安全にする
+        static readonly char[] InvalidPathChars = Win32PathInternal.GetInvalidPathChars();
         public static string MakeSafePathName(string name)
         {
             char[] a = name.ToCharArray();
-            char[] b = Path.GetInvalidFileNameChars();
             StringBuilder sb = new StringBuilder();
 
             int i;
@@ -3365,9 +3363,9 @@ namespace IPA.Cores.Basic
                 int j;
                 bool ok = true;
 
-                for (j = 0; j < b.Length; j++)
+                for (j = 0; j < InvalidPathChars.Length; j++)
                 {
-                    if (b[j] == a[i])
+                    if (InvalidPathChars[j] == a[i])
                     {
                         ok = false;
                         break;
@@ -3377,7 +3375,7 @@ namespace IPA.Cores.Basic
                 if (a[i] == '\\' || a[i] == '/')
                 {
                     ok = true;
-                    a[i] = '\\';
+                    a[i] = Env.PathSeparatorChar;
                 }
 
                 if (i == 1 && a[i] == ':')
@@ -3403,10 +3401,10 @@ namespace IPA.Cores.Basic
         }
 
         // ファイル名を安全にする
+        static readonly char[] InvalidFileNameChars = Win32PathInternal.GetInvalidFileNameChars();
         public static string MakeSafeFileName(string name)
         {
             char[] a = name.ToCharArray();
-            char[] b = Path.GetInvalidFileNameChars();
             StringBuilder sb = new StringBuilder();
 
             int i;
@@ -3415,9 +3413,9 @@ namespace IPA.Cores.Basic
                 int j;
                 bool ok = true;
 
-                for (j = 0; j < b.Length; j++)
+                for (j = 0; j < InvalidFileNameChars.Length; j++)
                 {
-                    if (b[j] == a[i])
+                    if (InvalidFileNameChars[j] == a[i])
                     {
                         ok = false;
                         break;

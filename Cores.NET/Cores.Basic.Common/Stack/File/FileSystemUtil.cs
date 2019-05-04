@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public async Task<int> WriteDataToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         {
             if (flags.Bit(FileOperationFlags.WriteOnlyIfChanged))
             {
@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public int WriteDataToFile(string path, Memory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
 
         public Task<int> WriteStringToFileAsync(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
