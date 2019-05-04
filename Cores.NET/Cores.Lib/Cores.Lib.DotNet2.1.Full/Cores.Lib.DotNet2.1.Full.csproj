@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>7.3</LangVersion>
     <PackageId>TestDev</PackageId>
@@ -17,12 +17,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Log\**" />
-    <EmbeddedResource Remove="Log\**" />
-    <None Remove="Log\**" />
-  </ItemGroup>
   
   <ItemGroup>
     <!-- Cores.Basic.Common -->
@@ -55,19 +49,19 @@
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.*" />
 
   </ItemGroup>
-  
-  <Import Project="..\Cores.Basic.Common\Cores.Basic.Common.projitems" Label="Shared" />
 
-  <Import Project="..\Cores.Basic.Config\Cores.Basic.Config.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic.Common\Cores.Basic.Common.projitems" Label="Shared" />
 
-  <Import Project="..\Cores.Basic.Database\Cores.Basic.Database.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic.Config\Cores.Basic.Config.projitems" Label="Shared" />
 
-  <Import Project="..\Cores.Basic.Html\Cores.Basic.Html.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic.Database\Cores.Basic.Database.projitems" Label="Shared" />
 
-  <Import Project="..\Cores.Basic.Json\Cores.Basic.Json.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic.Html\Cores.Basic.Html.projitems" Label="Shared" />
 
-  <Import Project="..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
-  
-  <Import Project="..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic.Json\Cores.Basic.Json.projitems" Label="Shared" />
+
+  <Import Project="..\..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
+
+  <Import Project="..\..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems" Label="Shared" />
 
 </Project>
