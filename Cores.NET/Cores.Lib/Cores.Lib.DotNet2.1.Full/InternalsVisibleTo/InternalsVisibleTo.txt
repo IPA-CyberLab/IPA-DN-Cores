@@ -1,0 +1,14 @@
+﻿Filename
+--------
+InternalsVisibleTo.cs
+
+
+Example
+-------
+
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("WebApplication25")]
+[assembly: InternalsVisibleTo("WebApplication25.Views")]
+
+
