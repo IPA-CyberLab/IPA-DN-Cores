@@ -81,7 +81,14 @@ namespace IPA.Cores.Basic
 
         public T GetValue<T>(int index = 0) where T : class
         {
-            return GetValues<T>()[index];
+            try
+            {
+                return GetValues<T>()[index];
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public void Encounter(LayerInfo other) => this.Hierarchy.Encounter(other.Hierarchy);
@@ -90,8 +97,10 @@ namespace IPA.Cores.Basic
         public ILayerInfoIpEndPoint Ip => GetValue<ILayerInfoIpEndPoint>();
         public ILayerInfoTcpEndPoint Tcp => GetValue<ILayerInfoTcpEndPoint>();
 
-        public void FillSocketLogDef(LogDefSocket log)
+        public LogDefSocket CreateSocketLogDef()
         {
+            LogDefSocket log = new LogDefSocket();
+
             ILayerInfoIpEndPoint ip = this.Ip;
             ILayerInfoTcpEndPoint tcp = this.Tcp;
 
@@ -102,6 +111,8 @@ namespace IPA.Cores.Basic
             log.Direction = tcp?.Direction.ToString() ?? null;
             log.LocalPort = tcp?.LocalPort;
             log.RemotePort = tcp?.RemotePort;
+
+            return log;
         }
     }
 

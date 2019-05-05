@@ -1278,6 +1278,7 @@ namespace IPA.Cores.Basic
         readonly RefInt CriticalCounter = new RefInt();
 
         readonly List<Action> OnDisposeList = new List<Action>();
+        readonly List<Action> OnCancelList = new List<Action>();
 
         readonly List<IAsyncService> DirectDisposeList = new List<IAsyncService>();
         readonly List<IAsyncService> IndirectDisposeList = new List<IAsyncService>();
@@ -1295,6 +1296,15 @@ namespace IPA.Cores.Basic
             this.CancelWatcher = new CancelWatcher(cancel);
 
             this.CancelWatcher.EventList.RegisterCallback(CanceledCallback);
+        }
+
+        public void AddOnCancelAction(Action proc)
+        {
+            if (proc != null)
+            {
+                lock (LockObj)
+                    this.OnCancelList.Add(proc);
+            }
         }
 
         public void AddOnDisposeAction(Action proc)
@@ -1485,6 +1495,23 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     Dbg.WriteLine("CancelInternal exception: " + ex.GetSingleException().ToString());
+                }
+
+                Action[] procList = null;
+
+                lock (LockObj)
+                {
+                    procList = OnCancelList.ToArray();
+                    OnCancelList.Clear();
+                }
+
+                foreach (Action proc in procList)
+                {
+                    try
+                    {
+                        proc();
+                    }
+                    catch { }
                 }
             }
         }

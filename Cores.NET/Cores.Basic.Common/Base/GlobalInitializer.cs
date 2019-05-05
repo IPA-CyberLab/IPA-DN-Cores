@@ -64,7 +64,10 @@ namespace IPA.Cores.Basic
 
             int openSockets = LocalTcpIpSystem.Local.GetOpenedSockCount();
             if (openSockets > 0)
+            {
+                Con.WriteDebug($"Still opening sockets: {openSockets}");
                 LeakChecker.Enter(LeakCounterKind.StillOpeningSockets);
+            }
 
             LocalTcpIpSystem.Module.Free();
 

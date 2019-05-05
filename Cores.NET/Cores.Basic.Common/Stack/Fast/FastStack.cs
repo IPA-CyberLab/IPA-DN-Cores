@@ -399,6 +399,7 @@ namespace IPA.Cores.Basic
         public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
         public DateTimeOffset? Disconnected { get; private set; }
 
+
         public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
             try
@@ -420,11 +421,14 @@ namespace IPA.Cores.Basic
             }
         }
 
+        LogDefSocket SocketLogDefBasicInfoCache = null;
+
         public LogDefSocket GenerateLogDef()
         {
-            LogDefSocket ret = new LogDefSocket();
+            if (SocketLogDefBasicInfoCache == null)
+                SocketLogDefBasicInfoCache = this.Info.CreateSocketLogDef();
 
-            this.Info.FillSocketLogDef(ret);
+            LogDefSocket ret = (LogDefSocket)SocketLogDefBasicInfoCache.CloneDeep();
 
             ret.SockGuid = this.Guid;
             ret.SockType = this.GetType().ToString();

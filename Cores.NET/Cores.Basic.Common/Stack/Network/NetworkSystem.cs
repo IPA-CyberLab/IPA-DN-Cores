@@ -78,22 +78,36 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
                 OpenedSockList.Add(sock);
-
-            sock.AddOnDisposeAction(() =>
+           
+            sock.AddOnCancelAction(() =>
             {
                 this.RemoveFromOpenedSockList(sock);
             });
 
-            LogDefSocket log = sock.GenerateLogDef();
-            log.NetworkSystem = this.ToString();
-            LocalLogRouter.PostSocketLog(log, logTag);
+            try
+            {
+                LogDefSocket log = sock.GenerateLogDef();
+                log.NetworkSystem = this.ToString();
+                LocalLogRouter.PostSocketLog(log, logTag);
+            }
+            catch (Exception ex)
+            {
+                ex.Debug();
+            }
         }
 
         protected void RemoveFromOpenedSockList(NetworkSock sock)
         {
-            LogDefSocket log = sock.GenerateLogDef();
-            log.NetworkSystem = this.ToString();
-            LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
+            try
+            {
+                LogDefSocket log = sock.GenerateLogDef();
+                log.NetworkSystem = this.ToString();
+                LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
+            }
+            catch (Exception ex)
+            {
+                ex.Debug();
+            }
 
             lock (LockObj)
                 OpenedSockList.Remove(sock);

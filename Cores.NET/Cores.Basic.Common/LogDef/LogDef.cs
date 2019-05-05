@@ -67,6 +67,7 @@ namespace IPA.Cores.Basic
         public int RemotePort = 0;
     }
 
+    [Serializable]
     class LogDefSocket
     {
         public string NetworkSystem;
