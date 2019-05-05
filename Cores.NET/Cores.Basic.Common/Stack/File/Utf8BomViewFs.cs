@@ -45,12 +45,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class AutoUtf8BomFileObject : ViewFileObject
+    class Utf8BomFileObject : ViewFileObject
     {
         public bool HasBom { get; private set; } = false;
         public long HeaderOffset { get; private set; } = 0;
 
-        public AutoUtf8BomFileObject(AutoUtf8BomViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public Utf8BomFileObject(Utf8BomViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {
         }
 
@@ -146,22 +146,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AutoUtf8BomViewFileSystemParam : ViewFileSystemParams
+    class Utf8BomViewFileSystemParam : ViewFileSystemParams
     {
-        public AutoUtf8BomViewFileSystemParam(FileSystem underlayFileSystem) : base(underlayFileSystem) { }
+        public Utf8BomViewFileSystemParam(FileSystem underlayFileSystem) : base(underlayFileSystem) { }
     }
 
-    class AutoUtf8BomViewFileSystem : ViewFileSystem
+    class Utf8BomViewFileSystem : ViewFileSystem
     {
         public static readonly ReadOnlyMemory<byte> Utf8Bom = Str.BOM_UTF_8;
 
-        public AutoUtf8BomViewFileSystem(AutoUtf8BomViewFileSystemParam param) : base(param)
+        public Utf8BomViewFileSystem(Utf8BomViewFileSystemParam param) : base(param)
         {
         }
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            AutoUtf8BomFileObject fileObj = new AutoUtf8BomFileObject(this, option);
+            Utf8BomFileObject fileObj = new Utf8BomFileObject(this, option);
 
             await fileObj._InternalCreateFileAsync(cancel);
 

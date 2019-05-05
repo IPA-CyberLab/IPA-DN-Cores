@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
 
         public static LocalFileSystem Local { get; private set; }
 
-        public static AutoUtf8BomViewFileSystem LocalAutoUtf8 { get; private set; }
+        public static Utf8BomViewFileSystem LocalUtf8 { get; private set; }
 
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
@@ -76,13 +76,13 @@ namespace IPA.Cores.Basic
         {
             Local = new LocalFileSystem();
 
-            LocalAutoUtf8 = new AutoUtf8BomViewFileSystem(new AutoUtf8BomViewFileSystemParam(Local));
+            LocalUtf8 = new Utf8BomViewFileSystem(new Utf8BomViewFileSystemParam(Local));
         }
 
         static void ModuleFree()
         {
-            LocalAutoUtf8.DisposeSafe();
-            LocalAutoUtf8 = null;
+            LocalUtf8.DisposeSafe();
+            LocalUtf8 = null;
 
             Local.DisposeSafe();
             Local = null;
