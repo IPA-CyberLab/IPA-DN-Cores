@@ -64,6 +64,9 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.Extensions.Primitives;
 
 namespace IPA.Cores.Basic
 {
@@ -313,6 +316,37 @@ namespace IPA.Cores.Basic
             return hostBuilder.ConfigureServices(services =>
             {
                 services.Configure(options);
+            });
+        }
+
+        public static IApplicationBuilder UseWebServerLogger(this IApplicationBuilder app)
+        {
+            return app.Use(async (context, next) =>
+            {
+                HttpRequest req = context.Request;
+                ConnectionInfo conn = context.Connection;
+
+                WebServerLogData log = new WebServerLogData()
+                {
+                    ConnectionId = conn.Id,
+                    LocalIP = conn.LocalIpAddress.ToString(),
+                    RemoteIP = conn.RemoteIpAddress.ToString(),
+                    LocalPort = conn.LocalPort,
+                    RemotePort = conn.RemotePort,
+
+                    Protocol = req.Protocol,
+                    Host = req.Host.ToString(),
+                    Path = req.Path.ToString(),
+                    QueryString = req.QueryString.ToString(),
+                    Url = req.GetDisplayUrl(),
+                };
+
+                if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
+                    log.UserAgent = userAgentValue.ToString();
+
+                log.PostAccessLog(LogTag.WebServer);
+
+                await next.Invoke();
             });
         }
     }

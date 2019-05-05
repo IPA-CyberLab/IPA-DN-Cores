@@ -40,12 +40,14 @@ using Newtonsoft.Json;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.AspNetCore.Http;
 
 namespace IPA.Cores.Basic
 {
     partial class LogTag
     {
         public const string Kestrel = "Kestrel";
+        public const string WebServer = "WebServer";
     }
 
     class MsLogData
@@ -54,5 +56,21 @@ namespace IPA.Cores.Basic
         public int EventId;
         public string Message;
         public object Data;
+    }
+
+    class WebServerLogData
+    {
+        public string ConnectionId;
+        public string LocalIP;
+        public string RemoteIP;
+        public int LocalPort;
+        public int RemotePort;
+
+        public string Url;
+        public string Protocol;
+        public string Host;
+        public string Path;
+        public string QueryString;
+        public string UserAgent;
     }
 }

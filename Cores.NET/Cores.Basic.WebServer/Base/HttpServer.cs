@@ -44,12 +44,15 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http.Extensions;
 using Newtonsoft.Json;
 
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 
 namespace IPA.Cores.Basic
 {
@@ -90,6 +93,7 @@ namespace IPA.Cores.Basic
             if (BuilderConfig.UseStaticFiles) app.UseStaticFiles();
             if (BuilderConfig.ShowDetailError) app.UseDeveloperExceptionPage();
             app.UseStatusCodePages();
+            app.UseWebServerLogger();
         }
     }
 
