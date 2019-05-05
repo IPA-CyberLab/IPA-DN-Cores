@@ -45,5 +45,95 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    class ChrootViewFileSystemParam : ViewFileSystemParams
+    {
+        public ChrootViewFileSystemParam(FileSystem underlayFileSystem)
+            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? FileSystemPathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser)
+            // Use the Mac OS X path parser if the underlay file system is Windows
+        {
+        }
+    }
 
+
+    class ChrootViewFileSystem : ViewFileSystem
+    {
+        public ChrootViewFileSystem(ViewFileSystemParams param) : base(param)
+        {
+        }
+
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            return base.CreateDirectoryImplAsync(directoryPath, flags, cancel);
+        }
+
+        protected override Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        {
+            return base.CreateFileImplAsync(option, cancel);
+        }
+
+        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
+        {
+            return base.DeleteDirectoryImplAsync(directoryPath, recursive, cancel);
+        }
+
+        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        {
+            return base.DeleteFileImplAsync(path, flags, cancel);
+        }
+
+        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+        {
+            return base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
+        }
+
+        protected override string FindEasyAccessFilePathFromNameImpl(string name)
+        {
+            return base.FindEasyAccessFilePathFromNameImpl(name);
+        }
+
+        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+        {
+            return base.GetDirectoryMetadataImplAsync(path, flags, cancel);
+        }
+
+        protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+        {
+            return base.GetFileMetadataImplAsync(path, flags, cancel);
+        }
+
+        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
+        {
+            return base.IsDirectoryExistsImplAsync(path, cancel);
+        }
+
+        protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
+        {
+            return base.IsFileExistsImplAsync(path, cancel);
+        }
+
+        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            return base.MoveDirectoryImplAsync(srcPath, destPath, cancel);
+        }
+
+        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        {
+            return base.MoveFileImplAsync(srcPath, destPath, cancel);
+        }
+
+        protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
+        {
+            return base.NormalizePathImplAsync(path, cancel);
+        }
+
+        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            return base.SetDirectoryMetadataImplAsync(path, metadata, cancel);
+        }
+
+        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        {
+            return base.SetFileMetadataImplAsync(path, metadata, cancel);
+        }
+    }
 }

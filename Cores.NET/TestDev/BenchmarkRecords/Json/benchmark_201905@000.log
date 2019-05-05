@@ -122,3 +122,25 @@
 {"TimeStamp":"2019-05-05T20:02:37.4354966+09:00","Tag":"text","Data":"Host: PC34"}
 {"TimeStamp":"2019-05-05T20:02:37.9603468+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":163.30631778284655,"PerSecond":6123461}}
 {"TimeStamp":"2019-05-05T20:02:38.4671073+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":453.74616153584878,"PerSecond":2203875}}
+{"TimeStamp":"2019-05-05T23:01:10.3345796+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T23:01:10.4167947+09:00","Tag":"text","Data":"Commit: d5bdcccaf4e7d2fb41b10088d99251ffd979e49f"}
+{"TimeStamp":"2019-05-05T23:01:10.416823+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T23:01:10.4168256+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T23:01:10.4168277+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T23:01:10.4168306+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T23:01:10.9428058+09:00","Tag":"result","Data":{"TestName":"CallAsyncWithAwait","Ret":30.0837816954523,"PerSecond":33240501}}
+{"TimeStamp":"2019-05-05T23:01:11.4452537+09:00","Tag":"result","Data":{"TestName":"CallAsyncWithNonAwait","Ret":11.211151040362441,"PerSecond":89196907}}
+{"TimeStamp":"2019-05-05T23:01:11.9482128+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":173.29813260730575,"PerSecond":5770402}}
+{"TimeStamp":"2019-05-05T23:01:12.4519288+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":234.66370294571314,"PerSecond":4261417}}
+{"TimeStamp":"2019-05-05T23:01:12.9744209+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.7993853475935826,"PerSecond":1250961132}}
+{"TimeStamp":"2019-05-05T23:01:13.4966391+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.84483347593582914,"PerSecond":1183665217}}
+{"TimeStamp":"2019-05-05T23:01:14.0214203+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.82086689839572213,"PerSecond":1218224296}}
+{"TimeStamp":"2019-05-05T23:01:14.5589709+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.73301210784313708,"PerSecond":1364233945}}
+{"TimeStamp":"2019-05-05T23:01:15.1712702+09:00","Tag":"result","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-05T23:01:15.7789247+09:00","Tag":"result","Data":{"TestName":"Read the Int_GetOnly value","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-05T23:01:16.2932929+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_ReadOnly value","Ret":0.76683240641711237,"PerSecond":1304065910}}
+{"TimeStamp":"2019-05-05T23:01:16.8287936+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_GetOnly value","Ret":0.74234666666666649,"PerSecond":1347079531}}
+{"TimeStamp":"2019-05-05T23:01:17.3313911+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromAsyncMethod","Ret":19.05761273519806,"PerSecond":52472469}}
+{"TimeStamp":"2019-05-05T23:01:17.8334036+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":18.909512536272853,"PerSecond":52883436}}
+{"TimeStamp":"2019-05-05T23:01:18.4663739+09:00","Tag":"result","Data":{"TestName":"Lock for readonly object","Ret":17.144622647058824,"PerSecond":58327326}}
+{"TimeStamp":"2019-05-05T23:01:19.0997224+09:00","Tag":"result","Data":{"TestName":"Lock for get property object","Ret":17.150829705882352,"PerSecond":58306217}}

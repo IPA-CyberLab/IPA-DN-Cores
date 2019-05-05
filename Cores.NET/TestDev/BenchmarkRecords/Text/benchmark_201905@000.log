@@ -122,3 +122,25 @@
 2019/05/05 20:02:37.435 +09:00 Host: PC34
 2019/05/05 20:02:37.960 +09:00 Rand[16]: 163.31 ns, 6,123,461 / sec
 2019/05/05 20:02:38.467 +09:00 Guid.NewGuid().ToString(): 453.75 ns, 2,203,875 / sec
+2019/05/05 23:01:10.334 +09:00 ----- Start new benchmark -----
+2019/05/05 23:01:10.416 +09:00 Commit: d5bdcccaf4e7d2fb41b10088d99251ffd979e49f
+2019/05/05 23:01:10.416 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 23:01:10.416 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 23:01:10.416 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 23:01:10.416 +09:00 Host: PC34
+2019/05/05 23:01:10.942 +09:00 CallAsyncWithAwait: 30.08 ns, 33,240,501 / sec
+2019/05/05 23:01:11.445 +09:00 CallAsyncWithNonAwait: 11.21 ns, 89,196,907 / sec
+2019/05/05 23:01:11.948 +09:00 Rand[16]: 173.30 ns, 5,770,402 / sec
+2019/05/05 23:01:12.451 +09:00 Guid.NewGuid().ToString(): 234.66 ns, 4,261,417 / sec
+2019/05/05 23:01:12.974 +09:00 Read the String_ReadOnly value: 0.80 ns, 1,250,961,132 / sec
+2019/05/05 23:01:13.496 +09:00 Read the String_GetOnly value: 0.84 ns, 1,183,665,217 / sec
+2019/05/05 23:01:14.021 +09:00 Read the String_Copenhagen_ReadOnly value: 0.82 ns, 1,218,224,296 / sec
+2019/05/05 23:01:14.559 +09:00 Read the String_Copenhagen_GetOnly value: 0.73 ns, 1,364,233,945 / sec
+2019/05/05 23:01:15.171 +09:00 Read the Int_ReadOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/05 23:01:15.778 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/05 23:01:16.293 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.77 ns, 1,304,065,910 / sec
+2019/05/05 23:01:16.828 +09:00 Read the Int_Copenhagen_GetOnly value: 0.74 ns, 1,347,079,531 / sec
+2019/05/05 23:01:17.331 +09:00 AsyncCallMethodFromAsyncMethod: 19.06 ns, 52,472,469 / sec
+2019/05/05 23:01:17.833 +09:00 AsyncCallMethodFromSyncMethod: 18.91 ns, 52,883,436 / sec
+2019/05/05 23:01:18.466 +09:00 Lock for readonly object: 17.14 ns, 58,327,326 / sec
+2019/05/05 23:01:19.099 +09:00 Lock for get property object: 17.15 ns, 58,306,217 / sec

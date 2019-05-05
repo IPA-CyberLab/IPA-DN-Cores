@@ -688,6 +688,8 @@ namespace IPA.Cores.Basic
 
         private FileSystemPathParser(FileSystemStyle style)
         {
+            Debug.Assert(style != FileSystemStyle.LocalSystem);
+
             this.Style = style;
 
             switch (this.Style)
@@ -812,6 +814,61 @@ namespace IPA.Cores.Basic
                 sb.Append(d);
             }
             return sb.ToString();
+        }
+
+        public string NormalizeDirectorySeparator(string srcPath)
+        {
+            srcPath = srcPath.NonNull();
+
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in srcPath)
+            {
+                char d = c;
+                foreach (char pos in PossibleDirectorySeparators)
+                {
+                    if (pos == c) d = this.DirectorySeparator;
+                }
+                sb.Append(d);
+            }
+            return sb.ToString();
+        }
+
+        public bool IsAbsolutePath(string path, bool normalizeDirectorySeparator = false)
+        {
+            if (normalizeDirectorySeparator)
+                path = NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
+
+            if (this.Style == FileSystemStyle.Windows)
+            {
+                // C:\path
+                if (path.Length >= 2 && ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) && path[1] == ':')
+                    return true;
+
+                // \\server\name
+                if (path.Length >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] != '\\')
+                    return true;
+
+                return false;
+            }
+            else
+            {
+                if (path.Length >= 1 && path[0] == '/')
+                    return true;
+
+                return false;
+            }
+        }
+
+        public string NormalizeDirectorySeparatorAndCheckIfAbsolutePath(string srcPath)
+        {
+            srcPath = NormalizeDirectorySeparator(srcPath);
+
+            if (IsAbsolutePath(srcPath) == false)
+            {
+                throw new ArgumentException($"The specified path \"{srcPath}\" is not an absolute path.");
+            }
+
+            return srcPath;
         }
 
         public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)

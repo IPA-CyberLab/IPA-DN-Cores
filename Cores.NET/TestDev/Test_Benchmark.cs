@@ -88,6 +88,33 @@ namespace IPA.TestDev
             for (int i = 0; i < count; i++)
                 SampleAsyncMethod().GetResult();
         }
+
+        public static async Task<int> SimpleAsyncMethod()
+        {
+            return Limbo.SInt32Volatile;
+        }
+
+        public static async Task<int> CallAsyncWithAwait()
+        {
+            return await SimpleAsyncMethod();
+        }
+
+        public static Task<int> CallAsyncWithNonAwait()
+        {
+            return SimpleAsyncMethod();
+        }
+
+        public static async Task CallAsyncWithAwaitLoop(int count)
+        {
+            for (int i = 0; i < count; i++)
+                await CallAsyncWithAwait();
+        }
+
+        public static async Task CallAsyncWithNonAwaitLoop(int count)
+        {
+            for (int i = 0; i < count; i++)
+                await SimpleAsyncMethod();
+        }
     }
 
     partial class TestDevCommands
@@ -99,6 +126,16 @@ namespace IPA.TestDev
         static void BenchMark_Test1()
         {
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark("CallAsyncWithAwait", Benchmark_CountForNormal, count =>
+            {
+                BenchmarkTestTarget1.CallAsyncWithAwaitLoop(count).GetResult();
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("CallAsyncWithNonAwait", Benchmark_CountForNormal, count =>
+            {
+                BenchmarkTestTarget1.CallAsyncWithNonAwaitLoop(count).GetResult();
+            }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Rand[16]", Benchmark_CountForNormal, count =>
             {
