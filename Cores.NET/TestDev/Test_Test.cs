@@ -84,6 +84,8 @@ namespace IPA.TestDev
             mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
             mem.WriteZero(10_000_000);
             mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
+            mem.WriteZero(10_000_000);
+            //mem.Write("\r\n\r\nHello World 2\r\n\r\n".GetBytes_Ascii());
             f.Write(mem);
 
 

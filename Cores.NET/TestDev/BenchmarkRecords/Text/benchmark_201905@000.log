@@ -630,3 +630,72 @@
 2019/05/06 03:52:27.131 +09:00 AsyncCallMethodFromSyncMethod: 21.37 ns, 46,790,033 / sec
 2019/05/06 03:52:27.780 +09:00 Lock for readonly object: 17.97 ns, 55,637,853 / sec
 2019/05/06 03:52:28.432 +09:00 Lock for get property object: 17.84 ns, 56,049,823 / sec
+2019/05/06 03:55:46.818 +09:00 ----- Start new benchmark -----
+2019/05/06 03:55:46.908 +09:00 Commit: cb176f93c1a5935a59566d527f88e1c12c26fb87
+2019/05/06 03:55:46.908 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/06 03:55:46.908 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/06 03:55:46.908 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/06 03:55:46.908 +09:00 Host: PC34
+2019/05/06 03:55:47.529 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,027,179.81 ns, 973 / sec
+2019/05/06 03:55:48.125 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,145,843.47 ns, 872 / sec
+2019/05/06 03:55:48.691 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,047,807.47 ns, 954 / sec
+2019/05/06 03:55:49.306 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 3,626,398.49 ns, 275 / sec
+2019/05/06 03:55:50.610 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,534,717.56 ns, 94 / sec
+2019/05/06 03:55:51.358 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 4,961,313.49 ns, 201 / sec
+2019/05/06 03:55:52.226 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 6,161,916.47 ns, 162 / sec
+2019/05/06 03:55:53.078 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,996,607.47 ns, 166 / sec
+2019/05/06 03:55:53.806 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,768,863.49 ns, 209 / sec
+2019/05/06 03:55:54.341 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 352,919.10 ns, 2,833 / sec
+2019/05/06 03:55:55.073 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 4,811,297.48 ns, 207 / sec
+2019/05/06 03:55:56.562 +09:00 GetSparseChunks: 12,370,047.49 ns, 80 / sec
+2019/05/06 03:55:57.065 +09:00 CallAsyncWithAwait: 30.34 ns, 32,962,640 / sec
+2019/05/06 03:55:57.567 +09:00 CallAsyncWithNonAwait: 11.76 ns, 85,047,584 / sec
+2019/05/06 03:55:58.069 +09:00 Rand[16]: 181.65 ns, 5,505,037 / sec
+2019/05/06 03:55:58.573 +09:00 Guid.NewGuid().ToString(): 225.35 ns, 4,437,592 / sec
+2019/05/06 03:55:59.084 +09:00 Read the String_ReadOnly value: 0.76 ns, 1,320,223,443 / sec
+2019/05/06 03:55:59.615 +09:00 Read the String_GetOnly value: 0.76 ns, 1,317,145,868 / sec
+2019/05/06 03:56:00.137 +09:00 Read the String_Copenhagen_ReadOnly value: 0.46 ns, 2,187,408,878 / sec
+2019/05/06 03:56:00.671 +09:00 Read the String_Copenhagen_GetOnly value: 0.74 ns, 1,356,227,517 / sec
+2019/05/06 03:56:01.284 +09:00 Read the Int_ReadOnly value: 0.00 ns, 720,980,533,525 / sec
+2019/05/06 03:56:01.857 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/06 03:56:02.371 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.74 ns, 1,354,101,729 / sec
+2019/05/06 03:56:02.906 +09:00 Read the Int_Copenhagen_GetOnly value: 0.74 ns, 1,346,749,777 / sec
+2019/05/06 03:56:03.413 +09:00 AsyncCallMethodFromAsyncMethod: 21.98 ns, 45,489,676 / sec
+2019/05/06 03:56:03.916 +09:00 AsyncCallMethodFromSyncMethod: 19.05 ns, 52,481,794 / sec
+2019/05/06 03:56:04.553 +09:00 Lock for readonly object: 17.32 ns, 57,746,080 / sec
+2019/05/06 03:56:05.190 +09:00 Lock for get property object: 17.32 ns, 57,744,558 / sec
+2019/05/06 03:57:21.973 +09:00 ----- Start new benchmark -----
+2019/05/06 03:57:22.064 +09:00 Commit: cb176f93c1a5935a59566d527f88e1c12c26fb87
+2019/05/06 03:57:22.064 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/06 03:57:22.064 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/06 03:57:22.064 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/06 03:57:22.064 +09:00 Host: PC34
+2019/05/06 03:57:22.695 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,050,280.15 ns, 952 / sec
+2019/05/06 03:57:23.290 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,142,180.71 ns, 875 / sec
+2019/05/06 03:57:35.912 +09:00 ----- Start new benchmark -----
+2019/05/06 03:57:35.994 +09:00 Commit: cb176f93c1a5935a59566d527f88e1c12c26fb87
+2019/05/06 03:57:35.994 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/06 03:57:35.994 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/06 03:57:35.994 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/06 03:57:35.994 +09:00 Host: PC34
+2019/05/06 03:57:37.599 +09:00 GetSparseChunks: 12,859,403.41 ns, 77 / sec
+2019/05/06 03:57:38.211 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,195,015.60 ns, 836 / sec
+2019/05/06 03:57:39.637 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,169,176.84 ns, 855 / sec
+2019/05/06 03:58:20.608 +09:00 ----- Start new benchmark -----
+2019/05/06 03:58:20.705 +09:00 Commit: cb176f93c1a5935a59566d527f88e1c12c26fb87
+2019/05/06 03:58:20.705 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/06 03:58:20.705 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/06 03:58:20.705 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/06 03:58:20.705 +09:00 Host: PC34
+2019/05/06 03:58:21.477 +09:00 GetSparseChunks: 2,293,046.97 ns, 436 / sec
+2019/05/06 03:58:22.066 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,126,174.16 ns, 887 / sec
+2019/05/06 04:00:01.214 +09:00 ----- Start new benchmark -----
+2019/05/06 04:00:01.296 +09:00 Commit: cb176f93c1a5935a59566d527f88e1c12c26fb87
+2019/05/06 04:00:01.296 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/06 04:00:01.296 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/06 04:00:01.296 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/06 04:00:01.296 +09:00 Host: PC34
+2019/05/06 04:00:02.034 +09:00 GetSparseChunks: 2,060,551.48 ns, 485 / sec
+2019/05/06 04:00:02.621 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,118,771.86 ns, 893 / sec
+2019/05/06 04:00:03.213 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,133,646.23 ns, 882 / sec
+2019/05/06 04:00:03.775 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,035,151.84 ns, 966 / sec

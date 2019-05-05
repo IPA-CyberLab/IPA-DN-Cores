@@ -173,6 +173,15 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
+            .Add(new MicroBenchmark($"Memory Copy by Span.ToArray {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    var span1 = memcopySrc.Span;
+                    span1.ToArray();
+                }
+            }), enabled: true, priority: 190505)
+
             .Add(new MicroBenchmark($"Memory Copy by Span loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
@@ -260,7 +269,7 @@ namespace IPA.TestDev
             {
                 for (int c = 0; c < count; c++)
                     Util.GetSparseChunks(sparseTest1.Memory.AsReadOnlyMemory(), 10_000);
-            }), enabled: true, priority: 190505)
+            }), enabled: true, priority: 190506)
 
             .Add(new MicroBenchmark("CallAsyncWithAwait", Benchmark_CountForNormal, count =>
             {

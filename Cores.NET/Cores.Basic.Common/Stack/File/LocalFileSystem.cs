@@ -896,6 +896,8 @@ namespace IPA.Cores.Basic
             await Win32ApiUtil.SetSparseFileAsync(BaseStream.SafeFileHandle, FileParams.Path, cancel);
 
             isSparseFile = true;
+
+            this.MicroOperationSize = int.MaxValue;
         }
 
         protected override async Task CloseImplAsync()
@@ -1089,6 +1091,7 @@ namespace IPA.Cores.Basic
                             Debug.Assert(this.BaseStream.Length <= newFileSize);
 
                             BaseStream.SetLength(newFileSize);
+                            this.CurrentPosition = BaseStream.Position;
                         }
                         else
                         {
