@@ -70,7 +70,24 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            Console.WriteLine(Guid.NewGuid().ToString());
+            MemoryBuffer<byte> mem2 = new MemoryBuffer<byte>();
+            mem2.Write("ABC".GetBytes_Ascii());
+            mem2.WriteZero(4);
+            mem2.Write("DEF".GetBytes_Ascii());
+            var x = Util.GetSparseChunks(mem2.Memory, 2);
+
+
+
+            var f = Lfs.Create(@"d:\tmp\190506\sparse1.txt", flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SparseFile);
+
+            MemoryBuffer<byte> mem = new MemoryBuffer<byte>();
+            mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
+            mem.WriteZero(10_000_000);
+            mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
+            f.Write(mem);
+
+
+            f.Close();
         }
     }
 }

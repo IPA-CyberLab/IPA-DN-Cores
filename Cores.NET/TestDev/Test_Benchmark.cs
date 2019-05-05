@@ -122,10 +122,145 @@ namespace IPA.TestDev
         const int Benchmark_CountForVeryFast = 200000000;
         const int Benchmark_CountForFast = 10000000;
         const int Benchmark_CountForNormal = 10000;
+        const int Benchmark_CountForSlow = 100;
 
         static void BenchMark_Test1()
         {
+            MemoryBuffer<byte> sparseTest1 = new MemoryBuffer<byte>();
+            for (int i = 0; i < 10; i++)
+            {
+                sparseTest1.Write("Hello World".GetBytes_Ascii());
+                sparseTest1.WriteZero(1_000_000);
+                sparseTest1.Write("Hello World2".GetBytes_Ascii());
+            }
+
+            int memcopyLength = 10_000_000;
+            MemoryBuffer<byte> memcopySrc = new MemoryBuffer<byte>(memcopyLength);
+            MemoryBuffer<byte> memcopyDst = new MemoryBuffer<byte>(memcopyLength);
+            Span<byte> memcopySrcSpan = memcopySrc.Span;
+            for (int i = 0; i < memcopyLength; i++)
+            {
+                memcopySrcSpan[i] = (byte)i;
+            }
+            byte[] byteArrayCopy = memcopySrcSpan.ToArray();
+            byte[] byteArrayCopy2 = memcopySrcSpan.ToArray();
+
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"Memory Copy by Array.CopyTo (Util.CopyByte) {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Util.CopyByte(byteArrayCopy2, 0, byteArrayCopy, 0, byteArrayCopy.Length);
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Copy by Buffer.BlockCopy {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Buffer.BlockCopy(byteArrayCopy2, 0, byteArrayCopy, 0, byteArrayCopy.Length);
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Copy by Span.CopyTo {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    var span1 = memcopySrc.Span;
+                    var span2 = memcopyDst.Span;
+                    span1.CopyTo(span2);
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Copy by Span loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    var span1 = memcopySrc.Span;
+                    var span2 = memcopyDst.Span;
+                    for (int i = 0; i < memcopyLength; i++)
+                    {
+                        span1[i] = span2[i];
+                    }
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by Array loop #1 {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    for (int i = 0; i < byteArrayCopy.Length; i++)
+                    {
+                        byteArrayCopy[i] = 0;
+                    }
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by Array loop #2 {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    int len = byteArrayCopy.Length;
+                    for (int i = 0; i < len; i++)
+                    {
+                        byteArrayCopy[i] = 0;
+                    }
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by Span Loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Span<byte> span = memcopySrc.Span;
+                    for (int i = 0; i < memcopyLength; i++)
+                    {
+                        span[i] = 0;
+                    }
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by unsafe pointer loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Span<byte> span = memcopySrc.Span;
+                    unsafe
+                    {
+                        fixed (byte* ptr = &span[0])
+                        {
+                            for (int i = 0; i < memcopyLength; i++)
+                            {
+                                ptr[i] = 0;
+                            }
+                        }
+                    }
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by Span.Fill {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Span<byte> span = memcopySrc.Span;
+                    span.Fill(0);
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark($"Memory Fill by Array.Fill {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Array.Fill<byte>(byteArrayCopy, 0);
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("GetSparseChunks", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Util.GetSparseChunks(sparseTest1.Memory.AsReadOnlyMemory(), 10_000);
+            }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("CallAsyncWithAwait", Benchmark_CountForNormal, count =>
             {

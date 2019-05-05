@@ -101,11 +101,11 @@ namespace IPA.TestDev
 
             //Net_Test6_DualStack_Client();
 
-            //Net_Test7_Http_Download_Async().GetResult();
+            Net_Test7_Http_Download_Async().GetResult();
 
             //Net_Test8_Http_Upload_Async().GetResult();
 
-            Net_Test9_WebServer();
+            //Net_Test9_WebServer();
 
             return 0;
         }
