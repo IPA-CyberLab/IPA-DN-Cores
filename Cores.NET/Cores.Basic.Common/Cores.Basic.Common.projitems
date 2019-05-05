@@ -56,6 +56,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\Fast\FastStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ChrootViewFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileCopy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ResourceFileSystem.cs" />

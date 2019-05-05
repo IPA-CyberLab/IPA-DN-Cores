@@ -45,12 +45,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class Utf8BomFileObject : ViewFileObject
+    class Utf8BomViewFileObject : ViewFileObject
     {
         public bool HasBom { get; private set; } = false;
         public long HeaderOffset { get; private set; } = 0;
 
-        public Utf8BomFileObject(Utf8BomViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public Utf8BomViewFileObject(Utf8BomViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {
         }
 
@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            Utf8BomFileObject fileObj = new Utf8BomFileObject(this, option);
+            Utf8BomViewFileObject fileObj = new Utf8BomViewFileObject(this, option);
 
             await fileObj._InternalCreateFileAsync(cancel);
 
