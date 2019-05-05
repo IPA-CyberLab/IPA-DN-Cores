@@ -2379,6 +2379,8 @@ namespace IPA.Cores.Basic
         readonly Func<TResult> FreeProc;
         readonly CriticalSection LockObj = new CriticalSection();
 
+        readonly List<Action> ActionListAfterInit = new List<Action>();
+
         public bool Initialized { get; private set; } = false;
         public bool Freeing { get; private set; } = false;
 
@@ -2398,7 +2400,24 @@ namespace IPA.Cores.Basic
                 this.InitProc(options);
 
                 Initialized = true;
+
+                foreach (Action action in ActionListAfterInit)
+                {
+                    try
+                    {
+                        action();
+                    }
+                    catch { }
+                }
+
+                ActionListAfterInit.Clear();
             }
+        }
+
+        public void AddAfterInitAction(Action action)
+        {
+            if (action != null)
+                ActionListAfterInit.Add(action);
         }
 
         public TResult Free()
@@ -2406,6 +2425,8 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 Freeing = true;
+
+                ActionListAfterInit.Clear();
 
                 Interlocked.MemoryBarrierProcessWide();
 
@@ -2422,6 +2443,7 @@ namespace IPA.Cores.Basic
                     Initialized = false;
 
                     Interlocked.MemoryBarrierProcessWide();
+
                     return ret;
                 }
                 finally

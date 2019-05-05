@@ -374,11 +374,6 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
-        {
-            await base.CleanupImplAsync(ex);
-        }
-
         protected override void DisposeImpl(Exception ex)
         {
             this.ConnectedSocket.DisposeSafe();

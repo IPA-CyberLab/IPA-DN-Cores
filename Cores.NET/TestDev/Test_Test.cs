@@ -62,22 +62,15 @@ namespace IPA.TestDev
         public int A;
         [DataMember]
         public string B;
+        [DataMember]
+        public int C;
     }
 
     static class TestClass
     {
         public static void Test()
         {
-            Hive hive = new Hive(new HiveOptions(Path.Combine(Env.AppRootDir, "Hive")));
-
-            HiveData<TestData> data = new HiveData<TestData>(hive, "Data1", () => new TestData());
-
-            data.Data.PrintObject();
-
-            data.Data.A++;
-            data.Data.B += (char)('A' + Util.RandSInt31() % 26);
-
-            data.SaveDataToStorageAsync().GetResult();
+            HiveData<TestData> hive = new HiveData<TestData>(Hive.ConfigHive, "test1", () => new TestData(), HiveSyncPolicy.AutoReadFromFile | HiveSyncPolicy.AutoWriteToFile);
         }
     }
 }

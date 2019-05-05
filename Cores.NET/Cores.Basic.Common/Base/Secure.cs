@@ -210,7 +210,9 @@ namespace IPA.Cores.Basic
         public static long HashSHA1AsLong(ReadOnlySpan<byte> src)
         {
             byte[] hash = Secure.HashSHA1(src);
-            return hash.GetSInt64();
+            long ret = hash.GetSInt64();
+            if (ret == 0) ret = 1;
+            return ret;
         }
 
         // PKCS パディング
