@@ -58,6 +58,16 @@ namespace IPA.TestDev
         public static readonly CriticalSection LockObj_ReadOnly = new CriticalSection();
         public static CriticalSection LockObj_Property { get; } = new CriticalSection();
 
+        public static readonly int Int_ReadOnly = 123;
+        public static int Int_GetOnly { get; private set; } = 123;
+        public static readonly Copenhagen<int> Int_Copenhagen_ReadOnly = 123;
+        public static Copenhagen<int> Int_Copenhagen_GetOnly { get; private set; } = 123;
+
+        public static readonly string String_ReadOnly = "Hello";
+        public static string String_GetOnly { get; private set; } = "Hello";
+        public static readonly Copenhagen<string> String_Copenhagen_ReadOnly = "Hello";
+        public static Copenhagen<string> String_Copenhagen_GetOnly { get; private set; } = "Hello";
+
         public static async Task<int> SampleAsyncMethod()
         {
             Limbo.SInt32Volatile++;
@@ -82,12 +92,61 @@ namespace IPA.TestDev
 
     partial class TestDevCommands
     {
+        const int Benchmark_CountForVeryFast = 200000000;
         const int Benchmark_CountForFast = 10000000;
         const int Benchmark_CountForNormal = 10000;
 
         static void BenchMark_Test1()
         {
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark("Read the String_ReadOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_ReadOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the String_GetOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_GetOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the String_Copenhagen_ReadOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_Copenhagen_ReadOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the String_Copenhagen_GetOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_Copenhagen_GetOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the Int_ReadOnly value", Benchmark_CountForVeryFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.SInt32Volatile += BenchmarkTestTarget1.Int_ReadOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the Int_GetOnly value", Benchmark_CountForVeryFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.SInt32Volatile += BenchmarkTestTarget1.Int_GetOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the Int_Copenhagen_ReadOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.SInt32Volatile += BenchmarkTestTarget1.Int_Copenhagen_ReadOnly;
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Read the Int_Copenhagen_GetOnly value", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Limbo.SInt32Volatile += BenchmarkTestTarget1.Int_Copenhagen_GetOnly;
+            }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("AsyncCallMethodFromAsyncMethod", Benchmark_CountForNormal, count =>
             {
@@ -133,7 +192,7 @@ namespace IPA.TestDev
 
             if (Env.IsCoresLibraryDebugBuild || IsDebugBuildChecker.IsDebugBuild || Env.IsDebuggerAttached)
             {
-                Con.WriteLine("*** Warning: The benchmark is under the debug mode.");
+                Con.WriteLine("*** Warning: The benchmark is under the debug mode. We do not record to files.");
                 Con.WriteLine();
 
                 enableRecords = false;

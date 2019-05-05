@@ -3031,6 +3031,8 @@ namespace IPA.Cores.Basic
     static class GlobalMicroBenchmark
     {
         const int DefaultOfDefaultDurationMSecs = 250;
+        const LogSwitchType SwitchType = LogSwitchType.Day;
+
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
         static void InitModule()
@@ -3065,7 +3067,7 @@ namespace IPA.Cores.Basic
                 var logRouter = new LogRouter();
 
                 logRouter.InstallLogRoute(new LoggerLogRoute("data", LogPriority.Trace, "benchmark", Path.Combine(Env.AppRootDir, "BenchmarkRecords/Json"),
-                    LogSwitchType.Hour,
+                    SwitchType,
                     new LogInfoOptions()
                     {
                         WithTypeName = false,
@@ -3075,7 +3077,7 @@ namespace IPA.Cores.Basic
                     long.MaxValue));
 
                 logRouter.InstallLogRoute(new LoggerLogRoute("text", LogPriority.Trace, "benchmark", Path.Combine(Env.AppRootDir, "BenchmarkRecords/Text"),
-                    LogSwitchType.Hour,
+                    SwitchType,
                     new LogInfoOptions()
                     {
                         WithTypeName = false,
@@ -3169,6 +3171,10 @@ namespace IPA.Cores.Basic
             double ret = Start(duration);
 
             double perSecond = 1000000000.0 / ret;
+            if (ret == 0.0)
+            {
+                perSecond = 9_9999_9999_9999.0;
+            }
 
             string str = $"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToString3()} / sec";
 
@@ -3223,6 +3229,9 @@ namespace IPA.Cores.Basic
 
             double nano = (double)ts.Ticks * 100.0;
             double nanoPerCall = nano / (double)count;
+
+            if (nanoPerCall < 0.001)
+                nanoPerCall = 0.0;
 
             return nanoPerCall;
         }

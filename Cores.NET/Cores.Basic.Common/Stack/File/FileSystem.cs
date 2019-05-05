@@ -771,7 +771,9 @@ namespace IPA.Cores.Basic
             {
                 if (name != null && name.Length >= 1)
                 {
-                    sb.Append(this.DirectorySeparator);
+                    if (this.Style != FileSystemStyle.Windows || sb.Length >= 1)
+                        sb.Append(this.DirectorySeparator);
+
                     sb.Append(name);
                 }
             }

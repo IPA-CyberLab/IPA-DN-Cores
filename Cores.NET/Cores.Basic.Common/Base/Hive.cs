@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,7 +84,16 @@ namespace IPA.Cores.Basic
             if (obj == null)
                 throw new ArgumentNullException("obj");
 
-            return obj.ObjectToRuntimeJson(Options.JsonSettings);
+            MemoryBuffer<byte> ret = new MemoryBuffer<byte>();
+
+            ret.Write(Str.NewLine_Bytes_Local);
+
+            obj.ObjectToRuntimeJson(ret, Options.JsonSettings);
+
+            ret.Write(Str.NewLine_Bytes_Local);
+            ret.Write(Str.NewLine_Bytes_Local);
+
+            return ret.Memory;
         }
 
         protected override T DeserializeImpl<T>(ReadOnlyMemory<byte> memory)
@@ -107,9 +117,10 @@ namespace IPA.Cores.Basic
         public FileSystem FileSystem { get; }
         public Copenhagen<string> RootDirectoryName { get; }
         public Copenhagen<FileOperationFlags> OperationFlags { get; }
-        public Copenhagen<string> FileExt { get; } = ".json";
+        public Copenhagen<string> FileExtension { get; } = ".json";
+        public Copenhagen<string> ErrorFileExtension { get; } = ".error.log";
         public Copenhagen<string> TmpFileExtension { get; } = ".tmp";
-        public Copenhagen<string> DefaultContainerName { get; } = "default";
+        public Copenhagen<string> DefaultDataName { get; } = "default";
 
         public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryName, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue)
             : base(maxDataSize)
@@ -129,11 +140,14 @@ namespace IPA.Cores.Basic
             this.Options = options;
         }
 
-        protected abstract Task SaveImplAsync(string dataName, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
+        protected abstract Task SaveImplAsync(string dataName, ReadOnlyMemory<byte> data, bool doNotOverwrite, CancellationToken cancel = default);
+        protected abstract Task ReportErrorImplAsync(string dataName, string error, CancellationToken cancel = default);
         protected abstract Task<Memory<byte>> LoadImplAsync(string dataName, CancellationToken cancel = default);
 
-        public Task SaveAsync(string dataName, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.RunCriticalProcessAsync(true, cancel, c => SaveImplAsync(dataName, data, c));
+        public Task SaveAsync(string dataName, ReadOnlyMemory<byte> data, bool doNotOverwrite, CancellationToken cancel = default)
+            => this.RunCriticalProcessAsync(true, cancel, c => SaveImplAsync(dataName, data, doNotOverwrite, c));
+        public Task ReportErrorAsync(string dataName, string error, CancellationToken cancel = default)
+            => this.RunCriticalProcessAsync(true, cancel, c => ReportErrorImplAsync(dataName, error, c));
         public Task<Memory<byte>> LoadAsync(string dataName, CancellationToken cancel = default)
             => this.RunCriticalProcessAsync(true, cancel, c => LoadImplAsync(dataName, c));
     }
@@ -152,12 +166,12 @@ namespace IPA.Cores.Basic
         {
         }
 
-        string MakeFileName(string dataName)
+        string MakeFileName(string dataName, string extension)
         {
             dataName = Hive.NormalizeDataName(dataName);
 
             if (dataName.IsEmpty())
-                dataName = Options.DefaultContainerName;
+                dataName = Options.DefaultDataName;
 
             string ret = PathParser.Combine(Options.RootDirectoryName, SafePathParser.MakeSafePathName(dataName), true);
 
@@ -165,20 +179,32 @@ namespace IPA.Cores.Basic
 
             ret = PathParser.NormalizeDirectorySeparatorIncludeWindowsBackslash(ret);
 
+            ret += extension;
+
             return ret;
         }
 
-        protected override async Task SaveImplAsync(string containerName, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        protected override async Task SaveImplAsync(string dataName, ReadOnlyMemory<byte> data, bool doNotOverwrite, CancellationToken cancel = default)
         {
-            string filename = MakeFileName(containerName);
+            string filename = MakeFileName(dataName, Options.FileExtension);
             string newFilename = filename + Options.TmpFileExtension;
             string directoryName = PathParser.GetDirectoryName(filename);
 
             if (data.IsEmpty == false)
             {
+                if (doNotOverwrite)
+                {
+                    if (await FileSystem.IsFileExistsAsync(filename, cancel))
+                    {
+                        throw new ApplicationException($"The file \"{filename}\" exists while doNotOverwrite flag is set.");
+                    }
+                }
+
                 try
                 {
                     await FileSystem.CreateDirectoryAsync(directoryName, Options.OperationFlags, cancel);
+
+                    await FileSystem.WriteDataToFileAsync(newFilename, data, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
 
                     try
                     {
@@ -195,6 +221,9 @@ namespace IPA.Cores.Basic
             }
             else
             {
+                if (doNotOverwrite)
+                    throw new ApplicationException($"The file {filename} exists while doNotOverwrite flag is set.");
+
                 try
                 {
                     await FileSystem.DeleteFileAsync(filename, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
@@ -206,18 +235,36 @@ namespace IPA.Cores.Basic
                     await FileSystem.DeleteFileAsync(newFilename, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
                 catch { }
-
-                try
-                {
-                    await FileSystem.DeleteDirectoryAsync(directoryName, false, cancel);
-                }
-                catch { }
             }
         }
 
-        protected override async Task<Memory<byte>> LoadImplAsync(string containerName, CancellationToken cancel = default)
+        protected override async Task ReportErrorImplAsync(string dataName, string error, CancellationToken cancel = default)
         {
-            string filename = MakeFileName(containerName);
+            string errFilename = MakeFileName(dataName, Options.ErrorFileExtension);
+            string realFilename = MakeFileName(dataName, Options.FileExtension);
+
+            StringWriter w = new StringWriter();
+            w.WriteLine($"--- The hive file \"{realFilename}\" load error log ---");
+            w.WriteLine($"Process ID: {Env.ProcessId}");
+            w.WriteLine($"Process Name: {Env.ExeFileName}");
+            w.WriteLine($"Timestamp: {DateTimeOffset.Now.ToDtStr(true)}");
+            w.WriteLine($"Path: {realFilename}");
+            w.WriteLine($"DataName: {dataName}");
+            w.WriteLine($"Error:");
+            w.WriteLine($"{error}");
+            w.WriteLine();
+            w.WriteLine($"Note: This log file \"{errFilename}\" is for only your reference. You may delete this file anytime.");
+            w.WriteLine();
+            w.WriteLine();
+
+            await FileSystem.AppendDataToFileAsync(errFilename, w.ToString().GetBytes_UTF8(),
+                Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed | FileOperationFlags.AutoCreateDirectory,
+                cancel);
+        }
+
+        protected override async Task<Memory<byte>> LoadImplAsync(string dataName, CancellationToken cancel = default)
+        {
+            string filename = MakeFileName(dataName, Options.FileExtension);
             string newFilename = filename + Options.TmpFileExtension;
 
             try
@@ -228,7 +275,7 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                return await FileSystem.ReadDataFromFileAsync(Options.RootDirectoryName, Options.MaxDataSize, Options.OperationFlags, cancel);
+                return await FileSystem.ReadDataFromFileAsync(filename, Options.MaxDataSize, Options.OperationFlags, cancel);
             }
             catch
             {
@@ -258,8 +305,8 @@ namespace IPA.Cores.Basic
         public Copenhagen<int> ReadPollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.ReadPollingIntervalMsec;
         public Copenhagen<int> WritePollingIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.WritePollingIntervalMsec;
 
-        public HiveOptions(string rootDirectoryName, HiveSerializer serializer = null)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryName))) { }
+        public HiveOptions(string rootDirectoryName, bool enablePolling = false, int? readPollingInterval = null, int? writePollingInterval = null, HiveSerializer serializer = null)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryName)), enablePolling, readPollingInterval, writePollingInterval, serializer) { }
 
         public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? readPollingInterval = null, int? writePollingInterval = null, HiveSerializer serializer = null)
         {
@@ -427,8 +474,9 @@ namespace IPA.Cores.Basic
     enum HiveDataPolicy
     {
         None = 0,
-        AutoReadFromFile = 1,
-        AutoWriteToFile = 2,
+        ReadOnly = 1,
+        AutoReadFromFile = 2,
+        AutoWriteToFile = 4,
     }
 
     interface IHiveData
@@ -441,13 +489,21 @@ namespace IPA.Cores.Basic
 
     class HiveData<T> : IHiveData where T: class, new()
     {
-        public HiveDataPolicy Policy { get; }
+        public HiveDataPolicy Policy { get; private set; }
         public string DataName { get; }
         public Hive Hive { get; }
         public bool IsManaged { get; } = false;
+        public bool IsReadOnly => this.Policy.Bit(HiveDataPolicy.ReadOnly);
         public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
 
-        T InternalData = null;
+        T DataInternal = null;
+        long DataInternalHash = 0;
+
+        public CriticalSection DataLock { get; } = new CriticalSection();
+
+        readonly AsyncLock StorageAsyncLock = new AsyncLock();
+
+        readonly Func<T> GetDefaultDataFunc;
 
         class HiveDataState
         {
@@ -456,40 +512,157 @@ namespace IPA.Cores.Basic
             public long Hash;
         }
 
-        public HiveData(Hive hive, string dataName, HiveDataPolicy policy = HiveDataPolicy.None)
+        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc, HiveDataPolicy policy = HiveDataPolicy.None)
         {
+            if (getDefaultDataFunc == null) throw new ArgumentNullException("getDefaultDataFunc");
+
             this.Hive = hive;
             this.Policy = policy;
             this.DataName = Hive.NormalizeDataName(dataName);
+            this.GetDefaultDataFunc = getDefaultDataFunc;
 
             if (policy.BitAny(HiveDataPolicy.AutoReadFromFile | HiveDataPolicy.AutoWriteToFile))
             {
                 this.IsManaged = true;
             }
 
+            if (policy.Bit(HiveDataPolicy.ReadOnly) && policy.Bit(HiveDataPolicy.AutoWriteToFile))
+            {
+                throw new ArgumentException("Invalid flags: ReadOnly is set while AutoWriteToFile is set.");
+            }
+
             if (this.IsManaged)
             {
                 if (hive.Options.IsPollingEnabled == false)
                     throw new ArgumentException($"policy = {policy.ToString()} while the Hive object doesn't support polling.");
+            }
 
+            // Ensure to load the initial data from the storage (or create empty one)
+            GetData();
+
+            // Initializing the managed hive
+            if (this.IsManaged)
+            {
                 this.Hive.RegisterInternal(this);
             }
         }
 
-        async Task<HiveDataState> LoadDataCoreAsync(CancellationToken cancel)
+        public T Data { get => GetData(); }
+
+        public T GetData()
+        {
+            lock (DataLock)
+            {
+                if (this.DataInternal == null)
+                {
+                    HiveDataState result;
+                    try
+                    {
+                        // If the data is empty, first try loading from the storage.
+                        result = LoadDataCoreAsync().GetResult();
+                    }
+                    catch
+                    {
+                        // If the loading failed, then try create an empty one.
+                        result = GetDefaultDataState();
+
+                        // Save the initial data to the storage, however prevent to overwrite if the file exists on the storage.
+                        try
+                        {
+                            SaveDataCoreAsync(result.SerializedData, true).GetResult();
+                        }
+                        catch
+                        {
+                            // Save to the storage. Perhaps there is a file on the storage, and must not be overwritten to prevent data loss.
+                            this.Policy |= HiveDataPolicy.ReadOnly;
+                        }
+                    }
+
+                    this.DataInternal = result.Data;
+                    this.DataInternalHash = result.Hash;
+                }
+
+                return this.DataInternal;
+            }
+        }
+
+        public T GetDataCloned()
+        {
+            lock (DataLock)
+            {
+                T currentData = GetData();
+
+                return currentData.CloneDeep();
+            }
+        }
+
+        public void SaveDataToStorage(CancellationToken cancel = default)
+            => SaveDataToStorageAsync(cancel).GetResult();
+
+        public async Task SaveDataToStorageAsync(CancellationToken cancel = default)
+        {
+            if (this.IsReadOnly)
+                throw new ApplicationException("IsReadOnly is set.");
+
+            T clonedData = GetDataCloned();
+            HiveDataState state = GetDataState(clonedData);
+
+            using (await StorageAsyncLock.LockWithAwait(cancel))
+            {
+                await SaveDataCoreAsync(state.SerializedData, false, cancel);
+            }
+        }
+
+        HiveDataState GetDataState(T data)
         {
             HiveDataState ret = new HiveDataState();
 
-            ret.SerializedData = await Hive.StorageProvider.LoadAsync(this.DataName, cancel);
+            ret.SerializedData = Hive.Serializer.Serialize(data);
             ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
-            ret.Data = Hive.Serializer.Deserialize<T>(ret.SerializedData);
+            ret.Data = data;
 
             return ret;
         }
 
-        async Task SaveDataCoreAsync(ReadOnlyMemory<byte> serializedData, CancellationToken cancel)
+        HiveDataState GetDefaultDataState()
         {
-            await Hive.StorageProvider.SaveAsync(this.DataName, serializedData, cancel);
+            HiveDataState ret = new HiveDataState();
+
+            T data = this.GetDefaultDataFunc();
+
+            ret.SerializedData = Hive.Serializer.Serialize(data);
+            ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
+            ret.Data = data;
+
+            return ret;
+        }
+
+        async Task<HiveDataState> LoadDataCoreAsync(CancellationToken cancel = default)
+        {
+            HiveDataState ret = new HiveDataState();
+
+            Memory<byte> loadBytes = await Hive.StorageProvider.LoadAsync(this.DataName, cancel);
+            try
+            {
+
+                T data = Hive.Serializer.Deserialize<T>(loadBytes);
+
+                ret.SerializedData = Hive.Serializer.Serialize(data);
+                ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
+                ret.Data = data;
+
+                return ret;
+            }
+            catch (Exception ex)
+            {
+                await Hive.StorageProvider.ReportErrorAsync(this.DataName, ex.ToString(), cancel);
+                throw;
+            }
+        }
+
+        async Task SaveDataCoreAsync(ReadOnlyMemory<byte> serializedData, bool doNotOverwrite, CancellationToken cancel = default)
+        {
+            await Hive.StorageProvider.SaveAsync(this.DataName, serializedData, doNotOverwrite, cancel);
         }
     }
 }

@@ -54,10 +54,30 @@ using System.Runtime.Serialization;
 
 namespace IPA.TestDev
 {
+    [Serializable]
+    [DataContract]
+    class TestData
+    {
+        [DataMember]
+        public int A;
+        [DataMember]
+        public string B;
+    }
+
     static class TestClass
     {
         public static void Test()
         {
+            Hive hive = new Hive(new HiveOptions(Path.Combine(Env.AppRootDir, "Hive")));
+
+            HiveData<TestData> data = new HiveData<TestData>(hive, "Data1", () => new TestData());
+
+            data.Data.PrintObject();
+
+            data.Data.A++;
+            data.Data.B += (char)('A' + Util.RandSInt31() % 26);
+
+            data.SaveDataToStorageAsync().GetResult();
         }
     }
 }
