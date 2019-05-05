@@ -342,7 +342,7 @@ namespace IPA.Cores.Basic
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
-        public static Hive ConfigHive { get; private set; } = null;
+        public static Hive SharedConfigHive { get; private set; } = null;
         const string ConfigHiveDirName = "Config";
 
         static void InitModule()
@@ -350,7 +350,7 @@ namespace IPA.Cores.Basic
             Module.AddAfterInitAction(() =>
             {
                 // Create shared config hive
-                ConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, ConfigHiveDirName), true,
+                SharedConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, ConfigHiveDirName), true,
                     CoresConfig.ConfigHiveOptions.SyncIntervalMsec,
                     null));
             });
@@ -424,7 +424,6 @@ namespace IPA.Cores.Basic
             {
                 if (timer.RepeatIntervalTimer(syncInterval, ref nextReadTick))
                 {
-                    Dbg.Where();
                     try
                     {
                         await SyncAllHiveDataAsync(cancel);
@@ -533,6 +532,18 @@ namespace IPA.Cores.Basic
                 base.DisposeImpl(ex);
             }
         }
+
+        public HiveData<T> CreateHive<T>(string dataName, Func<T> getDefaultDataFunc, HiveSyncPolicy policy = HiveSyncPolicy.None) where T : class, new()
+            => new HiveData<T>(this, dataName, getDefaultDataFunc, policy);
+
+        public HiveData<T> CreateReadOnlyHive<T>(string dataName, Func<T> getDefaultDataFunc) where T : class, new()
+            => CreateHive(dataName, getDefaultDataFunc, HiveSyncPolicy.ReadOnly);
+
+        public HiveData<T> CreateAutoReadHive<T>(string dataName, Func<T> getDefaultDataFunc) where T : class, new()
+            => CreateHive(dataName, getDefaultDataFunc, HiveSyncPolicy.AutoReadFromFile | HiveSyncPolicy.ReadOnly);
+
+        public HiveData<T> CreateAutoSyncHive<T>(string dataName, Func<T> getDefaultDataFunc) where T : class, new()
+            => CreateHive(dataName, getDefaultDataFunc, HiveSyncPolicy.AutoReadFromFile | HiveSyncPolicy.AutoWriteToFile);
     }
 
     [Flags]
