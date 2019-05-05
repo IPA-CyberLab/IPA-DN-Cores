@@ -3053,7 +3053,7 @@ namespace IPA.Cores.Basic
     static class GlobalMicroBenchmark
     {
         const int DefaultOfDefaultDurationMSecs = 250;
-        const LogSwitchType SwitchType = LogSwitchType.Day;
+        const LogSwitchType SwitchType = LogSwitchType.Month;
 
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
