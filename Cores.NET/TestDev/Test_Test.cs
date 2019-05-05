@@ -90,6 +90,13 @@ namespace IPA.TestDev
 
 
             f.Close();
+
+            f = Lfs.Create(@"d:\tmp\190506\win1.txt");
+            f.Write("Hello".GetBytes_Ascii());
+            f.SetFileSize(100);
+            f.Seek(80, SeekOrigin.Begin);
+            f.Write("World".GetBytes_Ascii());
+            f.Close();
         }
     }
 }

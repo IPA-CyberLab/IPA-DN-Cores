@@ -912,9 +912,25 @@ namespace IPA.Cores.Basic
         {
             return BaseStream.Length;
         }
+
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
+            long oldFileSize = BaseStream.Length;
+
             BaseStream.SetLength(size);
+
+            if (Env.IsWindows)
+            {
+                if (oldFileSize < size)
+                {
+                    // In Windows, Use the FSCTL_SET_ZERO_DATA ioctl to ensure zero-clear the region.
+                    // See https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setendoffile
+                    // "The SetEndOfFile function can be used to truncate or extend a file. If the file is extended,
+                    //  the contents of the file between the old end of the file and the new end of the file are not defined."
+                    await FileZeroClearDataAsync(oldFileSize, size - oldFileSize, cancel);
+                }
+            }
+
             this.CurrentPosition = BaseStream.Position;
         }
 
