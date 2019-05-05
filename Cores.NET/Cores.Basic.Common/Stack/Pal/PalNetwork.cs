@@ -82,19 +82,24 @@ namespace IPA.Cores.Basic
         public CachedProperty<int> LingerTime { get; }
         public CachedProperty<int> SendBufferSize { get; }
         public CachedProperty<int> ReceiveBufferSize { get; }
+        public long NativeHandle { get; }
 
         public CachedProperty<EndPoint> LocalEndPoint { get; }
         public CachedProperty<EndPoint> RemoteEndPoint { get; }
 
+        public TcpDirectionType Direction { get; }
+
         IHolder Leak;
 
-        public PalSocket(Socket s)
+        public PalSocket(Socket s, TcpDirectionType direction)
         {
             _Socket = s;
 
             AddressFamily = _Socket.AddressFamily;
             SocketType = _Socket.SocketType;
             ProtocolType = _Socket.ProtocolType;
+
+            Direction = direction;
 
             NoDelay = new CachedProperty<bool>(value => _Socket.NoDelay = value, () => _Socket.NoDelay);
             LingerTime = new CachedProperty<int>(value =>
@@ -128,11 +133,13 @@ namespace IPA.Cores.Basic
             LocalEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.LocalEndPoint);
             RemoteEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.RemoteEndPoint);
 
+            NativeHandle = _Socket.Handle.ToInt64();
+
             Leak = LeakChecker.Enter(LeakCounterKind.PalSocket);
         }
 
-        public PalSocket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType)
-            : this(new Socket(addressFamily, socketType, protocolType)) { }
+        public PalSocket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, TcpDirectionType direction)
+            : this(new Socket(addressFamily, socketType, protocolType), direction) { }
 
         public Task ConnectAsync(IPAddress address, int port) => ConnectAsync(new IPEndPoint(address, port));
 
@@ -166,7 +173,7 @@ namespace IPA.Cores.Basic
         public async Task<PalSocket> AcceptAsync()
         {
             Socket newSocket = await _Socket.AcceptAsync();
-            return new PalSocket(newSocket);
+            return new PalSocket(newSocket, TcpDirectionType.Server);
         }
 
         public Task<int> SendAsync(IEnumerable<ReadOnlyMemory<byte>> buffers)
@@ -714,7 +721,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.IP))
+                using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.IP, TcpDirectionType.Client))
                 {
                     sock.Connect(dest, 65530);
                     IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
@@ -723,7 +730,7 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
-            using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.Udp))
+            using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Unknown))
             {
                 sock.Connect(dest, 65531);
                 IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
@@ -741,7 +748,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (PalSocket sock = new PalSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                using (PalSocket sock = new PalSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Client))
                 {
                     var hostent = await PalDns.GetHostEntryAsync("www.msftncsi.com");
                     var addr = hostent.AddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork).First();
@@ -754,7 +761,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (PalSocket sock = new PalSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                using (PalSocket sock = new PalSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Client))
                 {
                     var hostent = await PalDns.GetHostEntryAsync("www.msftncsi.com");
                     var addr = hostent.AddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork).First();

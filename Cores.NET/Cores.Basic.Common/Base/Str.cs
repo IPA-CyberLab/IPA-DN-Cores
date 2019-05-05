@@ -3537,10 +3537,7 @@ namespace IPA.Cores.Basic
         }
 
         // 新しい GUID を生成
-        public static string NewGuid(bool brackets = false)
-        {
-            return (brackets ? "{" : "") + Guid.NewGuid().ToString().ToUpperInvariant() + (brackets ? "}" : "");
-        }
+        public static string NewGuid() => System.Guid.NewGuid().ToString("N");
 
         // 新しい乱数文字列を生成
         public static string GenRandStr()

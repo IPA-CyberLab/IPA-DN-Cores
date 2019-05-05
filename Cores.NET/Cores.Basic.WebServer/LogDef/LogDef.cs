@@ -48,7 +48,6 @@ namespace IPA.Cores.Basic
         public const string Kestrel = "Kestrel";
     }
 
-
     class MsLogData
     {
         public string TranscationId;

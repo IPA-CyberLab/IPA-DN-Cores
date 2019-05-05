@@ -89,6 +89,20 @@ namespace IPA.Cores.Basic
         public ILayerInfoSsl Ssl => GetValue<ILayerInfoSsl>();
         public ILayerInfoIpEndPoint Ip => GetValue<ILayerInfoIpEndPoint>();
         public ILayerInfoTcpEndPoint Tcp => GetValue<ILayerInfoTcpEndPoint>();
+
+        public void FillSocketLogDef(LogDefSocket log)
+        {
+            ILayerInfoIpEndPoint ip = this.Ip;
+            ILayerInfoTcpEndPoint tcp = this.Tcp;
+
+            log.LocalIP = ip?.LocalIPAddress?.ToString();
+            log.RemoteIP = ip?.RemoteIPAddress?.ToString();
+            log.NativeHandle = ip?.NativeHandle ?? 0;
+
+            log.Direction = tcp?.Direction.ToString() ?? null;
+            log.LocalPort = tcp?.LocalPort;
+            log.RemotePort = tcp?.RemotePort;
+        }
     }
 
     interface ILayerInfoSsl
@@ -107,12 +121,22 @@ namespace IPA.Cores.Basic
 
     interface ILayerInfoIpEndPoint
     {
+        long NativeHandle { get; }
         IPAddress LocalIPAddress { get; }
         IPAddress RemoteIPAddress { get; }
     }
 
+    [Flags]
+    enum TcpDirectionType
+    {
+        Unknown = 0, // Must be zero
+        Client,
+        Server,
+    }
+
     interface ILayerInfoTcpEndPoint : ILayerInfoIpEndPoint
     {
+        TcpDirectionType Direction { get; }
         int LocalPort { get; }
         int RemotePort { get; }
     }

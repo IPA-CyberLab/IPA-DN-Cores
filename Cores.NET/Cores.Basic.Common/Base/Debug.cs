@@ -70,6 +70,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<LogPriority> LogMinimalStatLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Debug;
+            public static readonly Copenhagen<LogPriority> LogMinimalSocketLevel = LogPriority.Debug;
 
             public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Debug;
 

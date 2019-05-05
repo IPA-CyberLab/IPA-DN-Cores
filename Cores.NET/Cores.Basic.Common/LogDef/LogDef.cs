@@ -45,6 +45,9 @@ namespace IPA.Cores.Basic
     partial class LogTag
     {
         public const string None = "None";
+        public const string SocketConnected = "SocketConnected";
+        public const string SocketAccepted = "SocketAccepted";
+        public const string SocketDisconnected = "SocketDisconnected";
     }
 
     partial class LogKind
@@ -52,6 +55,7 @@ namespace IPA.Cores.Basic
         public const string Default = "Default";
         public const string Data = "Data";
         public const string Access = "Access";
+        public const string Socket = "Socket";
         public const string Stat = "Stat";
     }
 
@@ -61,5 +65,27 @@ namespace IPA.Cores.Basic
         public int LocalPort = 0;
         public string RemoteIP = null;
         public int RemotePort = 0;
+    }
+
+    class LogDefSocket
+    {
+        public string NetworkSystem;
+        public string SockGuid;
+        public string SockType;
+        public string Direction;
+        public long NativeHandle;
+
+        public string LocalIP;
+        public string RemoteIP;
+        public int? LocalPort;
+        public int? RemotePort;
+
+        public DateTimeOffset ConnectedTime;
+        public DateTimeOffset? DisconnectedTime;
+
+        public long StreamSend;
+        public long StreamRecv;
+        public long DatagramSend;
+        public long DatagramRecv;
     }
 }

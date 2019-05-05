@@ -1,0 +1,124 @@
+﻿2019/05/05 19:49:18.457 +09:00 ----- Start new benchmark -----
+2019/05/05 19:49:18.562 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:49:18.562 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:49:18.562 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:49:18.562 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:49:18.562 +09:00 Host: PC34
+2019/05/05 19:49:19.088 +09:00 Guid.NewGuid().ToString(): 262.84 ns, 3,804,532 / sec
+2019/05/05 19:49:19.609 +09:00 Read the String_ReadOnly value: 0.94 ns, 1,064,712,605 / sec
+2019/05/05 19:49:20.130 +09:00 Read the String_GetOnly value: 0.82 ns, 1,213,921,380 / sec
+2019/05/05 19:49:20.657 +09:00 Read the String_Copenhagen_ReadOnly value: 0.77 ns, 1,295,336,952 / sec
+2019/05/05 19:49:21.187 +09:00 Read the String_Copenhagen_GetOnly value: 0.72 ns, 1,394,672,201 / sec
+2019/05/05 19:49:21.791 +09:00 Read the Int_ReadOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/05 19:49:50.106 +09:00 ----- Start new benchmark -----
+2019/05/05 19:49:50.209 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:49:50.209 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:49:50.209 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:49:50.209 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:49:50.209 +09:00 Host: PC34
+2019/05/05 19:49:50.732 +09:00 Rand[16]: 156.45 ns, 6,392,000 / sec
+2019/05/05 19:49:51.235 +09:00 Guid.NewGuid().ToString(): 234.14 ns, 4,270,895 / sec
+2019/05/05 19:49:51.751 +09:00 Read the String_ReadOnly value: 0.52 ns, 1,924,625,566 / sec
+2019/05/05 19:49:52.279 +09:00 Read the String_GetOnly value: 0.82 ns, 1,214,156,252 / sec
+2019/05/05 19:49:52.806 +09:00 Read the String_Copenhagen_ReadOnly value: 0.74 ns, 1,343,363,782 / sec
+2019/05/05 19:49:53.317 +09:00 Read the String_Copenhagen_GetOnly value: 0.44 ns, 2,278,574,144 / sec
+2019/05/05 19:52:10.119 +09:00 ----- Start new benchmark -----
+2019/05/05 19:52:10.222 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:52:10.222 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:52:10.222 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:52:10.222 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:52:10.222 +09:00 Host: PC34
+2019/05/05 19:52:10.746 +09:00 Rand[16]: 157.53 ns, 6,348,070 / sec
+2019/05/05 19:52:11.248 +09:00 Guid.NewGuid().ToString(): 235.05 ns, 4,254,361 / sec
+2019/05/05 19:52:23.756 +09:00 ----- Start new benchmark -----
+2019/05/05 19:52:23.858 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:52:23.858 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:52:23.858 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:52:23.858 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:52:23.858 +09:00 Host: PC34
+2019/05/05 19:52:24.383 +09:00 Rand[16]: 157.31 ns, 6,356,945 / sec
+2019/05/05 19:52:24.885 +09:00 Guid.NewGuid().ToString(): 239.42 ns, 4,176,783 / sec
+2019/05/05 19:56:03.061 +09:00 ----- Start new benchmark -----
+2019/05/05 19:56:03.169 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:56:03.169 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:56:03.169 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:56:03.169 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:56:03.169 +09:00 Host: PC34
+2019/05/05 19:56:03.695 +09:00 Rand[16]: 163.01 ns, 6,134,562 / sec
+2019/05/05 19:56:04.199 +09:00 Guid.NewGuid().ToString(): 230.11 ns, 4,345,763 / sec
+2019/05/05 19:56:10.407 +09:00 ----- Start new benchmark -----
+2019/05/05 19:56:10.512 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:56:10.512 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:56:10.512 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:56:10.512 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:56:10.512 +09:00 Host: PC34
+2019/05/05 19:56:11.037 +09:00 Rand[16]: 160.86 ns, 6,216,424 / sec
+2019/05/05 19:56:11.541 +09:00 Guid.NewGuid().ToString(): 241.12 ns, 4,147,328 / sec
+2019/05/05 19:56:12.072 +09:00 Read the String_ReadOnly value: 0.96 ns, 1,040,954,351 / sec
+2019/05/05 19:56:12.597 +09:00 Read the String_GetOnly value: 0.57 ns, 1,767,133,962 / sec
+2019/05/05 19:56:13.122 +09:00 Read the String_Copenhagen_ReadOnly value: 0.89 ns, 1,126,088,082 / sec
+2019/05/05 19:56:13.654 +09:00 Read the String_Copenhagen_GetOnly value: 0.73 ns, 1,370,109,397 / sec
+2019/05/05 19:56:14.262 +09:00 Read the Int_ReadOnly value: 0.03 ns, 38,864,382,736 / sec
+2019/05/05 19:56:14.868 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/05 19:56:15.402 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.76 ns, 1,321,126,897 / sec
+2019/05/05 19:56:15.917 +09:00 Read the Int_Copenhagen_GetOnly value: 0.85 ns, 1,178,819,624 / sec
+2019/05/05 19:56:16.419 +09:00 AsyncCallMethodFromAsyncMethod: 20.18 ns, 49,553,938 / sec
+2019/05/05 19:56:16.921 +09:00 AsyncCallMethodFromSyncMethod: 18.50 ns, 54,040,628 / sec
+2019/05/05 19:56:17.554 +09:00 Lock for readonly object: 17.15 ns, 58,314,954 / sec
+2019/05/05 19:56:18.188 +09:00 Lock for get property object: 17.22 ns, 58,080,299 / sec
+2019/05/05 19:58:55.096 +09:00 ----- Start new benchmark -----
+2019/05/05 19:58:55.197 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 19:58:55.197 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 19:58:55.197 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 19:58:55.197 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 19:58:55.197 +09:00 Host: PC34
+2019/05/05 19:58:55.720 +09:00 Rand[16]: 157.24 ns, 6,359,879 / sec
+2019/05/05 19:58:56.224 +09:00 Guid.NewGuid().ToString(): 381.13 ns, 2,623,760 / sec
+2019/05/05 19:58:56.754 +09:00 Read the String_ReadOnly value: 0.95 ns, 1,049,244,171 / sec
+2019/05/05 19:58:57.271 +09:00 Read the String_GetOnly value: 0.59 ns, 1,701,501,640 / sec
+2019/05/05 20:00:21.278 +09:00 ----- Start new benchmark -----
+2019/05/05 20:00:21.382 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 20:00:21.382 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 20:00:21.382 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 20:00:21.382 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 20:00:21.382 +09:00 Host: PC34
+2019/05/05 20:00:21.907 +09:00 Rand[16]: 162.81 ns, 6,142,064 / sec
+2019/05/05 20:00:22.411 +09:00 Guid.NewGuid().ToString(): 229.59 ns, 4,355,642 / sec
+2019/05/05 20:00:22.938 +09:00 Read the String_ReadOnly value: 1.16 ns, 859,876,715 / sec
+2019/05/05 20:00:23.442 +09:00 Read the String_GetOnly value: 0.96 ns, 1,040,824,316 / sec
+2019/05/05 20:00:23.959 +09:00 Read the String_Copenhagen_ReadOnly value: 0.46 ns, 2,187,949,624 / sec
+2019/05/05 20:00:24.491 +09:00 Read the String_Copenhagen_GetOnly value: 0.74 ns, 1,344,569,452 / sec
+2019/05/05 20:00:28.254 +09:00 ----- Start new benchmark -----
+2019/05/05 20:00:28.359 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 20:00:28.359 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 20:00:28.359 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 20:00:28.359 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 20:00:28.359 +09:00 Host: PC34
+2019/05/05 20:00:28.884 +09:00 Rand[16]: 159.09 ns, 6,285,761 / sec
+2019/05/05 20:00:29.388 +09:00 Guid.NewGuid().ToString(): 235.57 ns, 4,245,090 / sec
+2019/05/05 20:01:05.894 +09:00 ----- Start new benchmark -----
+2019/05/05 20:01:06.011 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 20:01:06.011 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 20:01:06.011 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 20:01:06.011 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 20:01:06.011 +09:00 Host: PC34
+2019/05/05 20:01:06.537 +09:00 Rand[16]: 186.09 ns, 5,373,624 / sec
+2019/05/05 20:01:07.040 +09:00 Guid.NewGuid().ToString(): 277.15 ns, 3,608,136 / sec
+2019/05/05 20:01:07.568 +09:00 Read the String_ReadOnly value: 1.03 ns, 972,498,097 / sec
+2019/05/05 20:01:08.075 +09:00 Read the String_GetOnly value: 1.02 ns, 985,142,258 / sec
+2019/05/05 20:01:08.621 +09:00 Read the String_Copenhagen_ReadOnly value: 1.53 ns, 651,692,643 / sec
+2019/05/05 20:01:09.149 +09:00 Read the String_Copenhagen_GetOnly value: 0.75 ns, 1,327,213,663 / sec
+2019/05/05 20:01:09.803 +09:00 Read the Int_ReadOnly value: 0.02 ns, 45,066,360,215 / sec
+2019/05/05 20:01:10.467 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/05 20:01:10.977 +09:00 Read the Int_Copenhagen_ReadOnly value: 1.60 ns, 623,806,725 / sec
+2019/05/05 20:01:11.497 +09:00 Read the Int_Copenhagen_GetOnly value: 0.73 ns, 1,378,842,230 / sec
+2019/05/05 20:01:11.999 +09:00 AsyncCallMethodFromAsyncMethod: 21.93 ns, 45,596,388 / sec
+2019/05/05 20:01:12.501 +09:00 AsyncCallMethodFromSyncMethod: 19.02 ns, 52,582,028 / sec
+2019/05/05 20:02:37.326 +09:00 ----- Start new benchmark -----
+2019/05/05 20:02:37.435 +09:00 Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d
+2019/05/05 20:02:37.435 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/05 20:02:37.435 +09:00 OS: Microsoft Windows 10.0.17763
+2019/05/05 20:02:37.435 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/05 20:02:37.435 +09:00 Host: PC34
+2019/05/05 20:02:37.960 +09:00 Rand[16]: 163.31 ns, 6,123,461 / sec
+2019/05/05 20:02:38.467 +09:00 Guid.NewGuid().ToString(): 453.75 ns, 2,203,875 / sec

@@ -100,6 +100,18 @@ namespace IPA.TestDev
         {
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark("Rand[16]", Benchmark_CountForNormal, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Util.Rand(16);
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Guid.NewGuid().ToString()", Benchmark_CountForNormal, count =>
+            {
+                for (int c = 0; c < count; c++)
+                    Guid.NewGuid().ToString();
+            }), enabled: true, priority: 190505)
+
             .Add(new MicroBenchmark("Read the String_ReadOnly value", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)

@@ -52,7 +52,15 @@ namespace IPA.Cores.Basic
 
     class NetworkStackShutdownException : DisconnectedException { }
 
-    class NetworkSystemParam { }
+    class NetworkSystemParam
+    {
+        public string Name { get; }
+
+        public NetworkSystemParam(string name)
+        {
+            this.Name = name;
+        }
+    }
 
     abstract class NetworkSystemBase : AsyncService
     {
@@ -66,14 +74,27 @@ namespace IPA.Cores.Basic
             this.Param = param;
         }
 
-        protected void AddToOpenedSockList(NetworkSock sock)
+        protected void AddToOpenedSockList(NetworkSock sock, string logTag)
         {
             lock (LockObj)
                 OpenedSockList.Add(sock);
+
+            sock.AddOnDisposeAction(() =>
+            {
+                this.RemoveFromOpenedSockList(sock);
+            });
+
+            LogDefSocket log = sock.GenerateLogDef();
+            log.NetworkSystem = this.ToString();
+            LocalLogRouter.PostSocketLog(log, logTag);
         }
 
         protected void RemoveFromOpenedSockList(NetworkSock sock)
         {
+            LogDefSocket log = sock.GenerateLogDef();
+            log.NetworkSystem = this.ToString();
+            LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
+
             lock (LockObj)
                 OpenedSockList.Remove(sock);
         }
@@ -83,6 +104,8 @@ namespace IPA.Cores.Basic
             lock (LockObj)
                 return OpenedSockList.Count;
         }
+
+        public override string ToString() => this.Param?.Name ?? "NetworkSystemBase";
 
         protected override void CancelImpl(Exception ex) { }
 

@@ -88,6 +88,7 @@ namespace IPA.Cores.Basic
     class LogInfoOptions
     {
         public bool WithTimeStamp = true;
+        public bool WithGuid = false;
         public bool WithMachineName = false;
         public bool WithAppName = false;
         public bool WithKind = false;
@@ -133,6 +134,7 @@ namespace IPA.Cores.Basic
         public LogPriority Priority { get; }
         public LogFlags Flags { get; }
         public string Tag { get; }
+        public string Guid { get; }
 
         public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null) : this(0, data, priority, flags, tag) { }
 
@@ -146,6 +148,7 @@ namespace IPA.Cores.Basic
             this.Priority = priority;
             this.Flags = flags;
             this.Tag = tag;
+            this.Guid = System.Guid.NewGuid().ToString("N");
         }
 
         LogInfoOptions ConsolePrintOptions = new LogInfoOptions() { };
@@ -191,6 +194,7 @@ namespace IPA.Cores.Basic
         class JsonContainer
         {
             public DateTimeOffset? TimeStamp;
+            public string Guid;
             public string MachineName;
             public string AppName;
             public string Kind;
@@ -209,6 +213,9 @@ namespace IPA.Cores.Basic
 
                 if (opt.WithTimeStamp)
                     jc.TimeStamp = this.TimeStamp;
+
+                if (opt.WithGuid)
+                    jc.Guid = this.Guid;
 
                 if (opt.WithMachineName)
                     jc.MachineName = opt.MachineName;
@@ -249,6 +256,9 @@ namespace IPA.Cores.Basic
 
                 // Additional strings
                 List<string> additionalList = new List<string>();
+
+                if (opt.WithGuid)
+                    additionalList.Add(this.Guid);
 
                 if (opt.WithMachineName)
                     additionalList.Add(opt.MachineName);

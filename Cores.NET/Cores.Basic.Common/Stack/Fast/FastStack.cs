@@ -273,10 +273,12 @@ namespace IPA.Cores.Basic
     {
         public class LayerInfo : LayerInfoBase, ILayerInfoTcpEndPoint
         {
+            public TcpDirectionType Direction { get; set; }
             public int LocalPort { get; set; }
             public int RemotePort { get; set; }
             public IPAddress LocalIPAddress { get; set; }
             public IPAddress RemoteIPAddress { get; set; }
+            public long NativeHandle { get; set; }
         }
 
         public new FastPalTcpProtocolOptions Options => (FastPalTcpProtocolOptions)base.Options;
@@ -303,6 +305,8 @@ namespace IPA.Cores.Basic
                 LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
                 RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
                 RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
+                Direction = s.Direction,
+                NativeHandle = s.NativeHandle,
             }, this);
         }
 
@@ -311,7 +315,7 @@ namespace IPA.Cores.Basic
             if (!(remoteEndPoint.AddressFamily == AddressFamily.InterNetwork || remoteEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
                 throw new ArgumentException("RemoteEndPoint.AddressFamily");
 
-            PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Client);
 
             this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
 
@@ -332,7 +336,7 @@ namespace IPA.Cores.Basic
             if (!(localEndPoint.AddressFamily == AddressFamily.InterNetwork || localEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
                 throw new ArgumentException("RemoteEndPoint.AddressFamily");
 
-            PalSocket s = new PalSocket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            PalSocket s = new PalSocket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Server);
             try
             {
                 s.Bind(localEndPoint);
@@ -391,6 +395,9 @@ namespace IPA.Cores.Basic
         public FastPipe Pipe { get; }
         public FastPipeEnd UpperEnd { get; }
         public LayerInfo Info { get => this.Pipe.LayerInfo; }
+        public string Guid { get; } = Str.NewGuid();
+        public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
+        public DateTimeOffset? Disconnected { get; private set; }
 
         public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
@@ -402,6 +409,7 @@ namespace IPA.Cores.Basic
 
                 this.Pipe.OnDisconnected.Add(() =>
                 {
+                    this.Disconnected = DateTimeOffset.Now;
                     this.DisposeSafe();
                 });
             }
@@ -410,6 +418,26 @@ namespace IPA.Cores.Basic
                 this.DisposeSafe();
                 throw;
             }
+        }
+
+        public LogDefSocket GenerateLogDef()
+        {
+            LogDefSocket ret = new LogDefSocket();
+
+            this.Info.FillSocketLogDef(ret);
+
+            ret.SockGuid = this.Guid;
+            ret.SockType = this.GetType().ToString();
+            ret.ConnectedTime = this.Connected;
+            ret.DisconnectedTime = this.Disconnected;
+
+            ret.StreamRecv = this.UpperEnd?.StreamReader?.PinTail ?? 0;
+            ret.StreamSend = this.UpperEnd?.StreamWriter?.PinTail ?? 0;
+
+            ret.DatagramRecv = this.UpperEnd?.DatagramReader?.PinTail ?? 0;
+            ret.DatagramSend = this.UpperEnd?.DatagramWriter?.PinTail ?? 0;
+
+            return ret;
         }
 
         public FastAppStub GetFastAppProtocolStub()

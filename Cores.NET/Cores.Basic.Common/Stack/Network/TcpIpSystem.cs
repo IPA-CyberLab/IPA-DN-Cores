@@ -250,7 +250,10 @@ namespace IPA.Cores.Basic
         public virtual IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
     }
 
-    class TcpIpSystemParam : NetworkSystemParam { }
+    class TcpIpSystemParam : NetworkSystemParam
+    {
+        public TcpIpSystemParam(string name) : base(name) { }
+    }
 
     delegate Task TcpIpAcceptCallbackAsync(Listener listener, ConnSock newSock);
 
@@ -266,7 +269,7 @@ namespace IPA.Cores.Basic
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
         protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
-        protected abstract FastTcpListenerBase CreateListenerImpl(TcpListenParam param);
+        protected abstract FastTcpListenerBase CreateListenerImpl(FastTcpListenerAcceptedProcCallback acceptedProc);
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param) { }
 
@@ -289,12 +292,7 @@ namespace IPA.Cores.Basic
                         ConnSock sock = new ConnSock(tcp);
                         try
                         {
-                            this.AddToOpenedSockList(sock);
-
-                            sock.AddOnDisposeAction(() =>
-                            {
-                                this.RemoveFromOpenedSockList(sock);
-                            });
+                            this.AddToOpenedSockList(sock, LogTag.SocketConnected);
 
                             return sock;
                         }
@@ -321,7 +319,12 @@ namespace IPA.Cores.Basic
 
             using (EnterCriticalCounter())
             {
-                FastTcpListenerBase ret = CreateListenerImpl(param);
+                FastTcpListenerBase ret = CreateListenerImpl((listener, sock) =>
+                {
+                    this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
+
+                    return param.AcceptCallback(listener, sock);
+                });
 
                 foreach (int port in param.PortsList)
                 {

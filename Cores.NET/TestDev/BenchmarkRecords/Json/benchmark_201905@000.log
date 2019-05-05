@@ -1,0 +1,124 @@
+﻿{"TimeStamp":"2019-05-05T19:49:18.4577489+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:49:18.5626806+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:49:18.5627091+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:49:18.5627109+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:49:18.5627132+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:49:18.5627148+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:49:19.0885853+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":262.8443502722323,"PerSecond":3804532}}
+{"TimeStamp":"2019-05-05T19:49:19.6098283+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.939220588235294,"PerSecond":1064712605}}
+{"TimeStamp":"2019-05-05T19:49:20.1300096+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.82377657754010669,"PerSecond":1213921380}}
+{"TimeStamp":"2019-05-05T19:49:20.6573318+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.77199990196078438,"PerSecond":1295336952}}
+{"TimeStamp":"2019-05-05T19:49:21.1876574+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.71701436274509822,"PerSecond":1394672201}}
+{"TimeStamp":"2019-05-05T19:49:21.7918485+09:00","Tag":"result","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-05T19:49:50.106316+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:49:50.2091709+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:49:50.2091997+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:49:50.2092024+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:49:50.2092041+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:49:50.2092057+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:49:50.7326044+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":156.44555126753428,"PerSecond":6392000}}
+{"TimeStamp":"2019-05-05T19:49:51.2359366+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":234.14294780280431,"PerSecond":4270895}}
+{"TimeStamp":"2019-05-05T19:49:51.7517958+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.51958158371040719,"PerSecond":1924625566}}
+{"TimeStamp":"2019-05-05T19:49:52.2795255+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.82361722222222222,"PerSecond":1214156252}}
+{"TimeStamp":"2019-05-05T19:49:52.8066595+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.74440000000000017,"PerSecond":1343363782}}
+{"TimeStamp":"2019-05-05T19:49:53.317925+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.43887095022624423,"PerSecond":2278574144}}
+{"TimeStamp":"2019-05-05T19:52:10.1194566+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:52:10.2223125+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:52:10.222349+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:52:10.2223516+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:52:10.2223547+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:52:10.2223569+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:52:10.7460792+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":157.52818488693549,"PerSecond":6348070}}
+{"TimeStamp":"2019-05-05T19:52:11.2488381+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":235.05290898148536,"PerSecond":4254361}}
+{"TimeStamp":"2019-05-05T19:52:23.7559919+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:52:23.8588424+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:52:23.8588766+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:52:23.8588791+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:52:23.8588972+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:52:23.8588993+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:52:24.3835487+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":157.30826509789111,"PerSecond":6356945}}
+{"TimeStamp":"2019-05-05T19:52:24.8857455+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":239.41870605182032,"PerSecond":4176783}}
+{"TimeStamp":"2019-05-05T19:56:03.0609901+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:56:03.1693067+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:56:03.1693541+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:56:03.1693569+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:56:03.1693623+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:56:03.1693695+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:56:03.6956387+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":163.01079713000536,"PerSecond":6134562}}
+{"TimeStamp":"2019-05-05T19:56:04.1996712+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":230.10915118294193,"PerSecond":4345763}}
+{"TimeStamp":"2019-05-05T19:56:10.407951+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:56:10.5128422+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:56:10.5128794+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:56:10.5128818+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:56:10.5128991+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:56:10.5129012+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:56:11.0378724+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":160.86418108025342,"PerSecond":6216424}}
+{"TimeStamp":"2019-05-05T19:56:11.541822+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":241.11906900007563,"PerSecond":4147328}}
+{"TimeStamp":"2019-05-05T19:56:12.0723722+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.96065691919191942,"PerSecond":1040954351}}
+{"TimeStamp":"2019-05-05T19:56:12.5971652+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.56588805429864264,"PerSecond":1767133962}}
+{"TimeStamp":"2019-05-05T19:56:13.1220843+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.8880300000000001,"PerSecond":1126088082}}
+{"TimeStamp":"2019-05-05T19:56:13.6549117+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.7298687254901961,"PerSecond":1370109397}}
+{"TimeStamp":"2019-05-05T19:56:14.262437+09:00","Tag":"result","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.0257305000000001,"PerSecond":38864382736}}
+{"TimeStamp":"2019-05-05T19:56:14.8687114+09:00","Tag":"result","Data":{"TestName":"Read the Int_GetOnly value","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-05T19:56:15.4019985+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_ReadOnly value","Ret":0.75692955882352964,"PerSecond":1321126897}}
+{"TimeStamp":"2019-05-05T19:56:15.9173545+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_GetOnly value","Ret":0.84830620320855621,"PerSecond":1178819624}}
+{"TimeStamp":"2019-05-05T19:56:16.4190984+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromAsyncMethod","Ret":20.180030798317926,"PerSecond":49553938}}
+{"TimeStamp":"2019-05-05T19:56:16.9210211+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":18.504596134602181,"PerSecond":54040628}}
+{"TimeStamp":"2019-05-05T19:56:17.5540922+09:00","Tag":"result","Data":{"TestName":"Lock for readonly object","Ret":17.14826,"PerSecond":58314954}}
+{"TimeStamp":"2019-05-05T19:56:18.1889053+09:00","Tag":"result","Data":{"TestName":"Lock for get property object","Ret":17.217542058823529,"PerSecond":58080299}}
+{"TimeStamp":"2019-05-05T19:58:55.0962227+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T19:58:55.1971473+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T19:58:55.1972096+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T19:58:55.1972122+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T19:58:55.1972142+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T19:58:55.197217+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T19:58:55.7206477+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":157.23569262434211,"PerSecond":6359879}}
+{"TimeStamp":"2019-05-05T19:58:56.2247176+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":381.13232835681828,"PerSecond":2623760}}
+{"TimeStamp":"2019-05-05T19:58:56.7549529+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.95306700534759359,"PerSecond":1049244171}}
+{"TimeStamp":"2019-05-05T19:58:57.2716518+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.58771615384615394,"PerSecond":1701501640}}
+{"TimeStamp":"2019-05-05T20:00:21.278751+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T20:00:21.3821359+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T20:00:21.3821931+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T20:00:21.3821972+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T20:00:21.3822158+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T20:00:21.3822188+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T20:00:21.9077862+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":162.81171280010503,"PerSecond":6142064}}
+{"TimeStamp":"2019-05-05T20:00:22.4116402+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":229.58723363415911,"PerSecond":4355642}}
+{"TimeStamp":"2019-05-05T20:00:22.9388409+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":1.1629574117647057,"PerSecond":859876715}}
+{"TimeStamp":"2019-05-05T20:00:23.4421851+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":0.96077693779904294,"PerSecond":1040824316}}
+{"TimeStamp":"2019-05-05T20:00:23.9595203+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.4570489140271492,"PerSecond":2187949624}}
+{"TimeStamp":"2019-05-05T20:00:24.4918567+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.74373250000000013,"PerSecond":1344569452}}
+{"TimeStamp":"2019-05-05T20:00:28.2543603+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T20:00:28.3598624+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T20:00:28.3599153+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T20:00:28.3599179+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T20:00:28.35992+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T20:00:28.359922+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T20:00:28.8848279+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":159.08970810179,"PerSecond":6285761}}
+{"TimeStamp":"2019-05-05T20:00:29.3880417+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":235.56624393311117,"PerSecond":4245090}}
+{"TimeStamp":"2019-05-05T20:01:05.8943421+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T20:01:06.0110159+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T20:01:06.011074+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T20:01:06.0110784+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T20:01:06.0110833+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T20:01:06.0110868+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T20:01:06.5378477+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":186.09413018215858,"PerSecond":5373624}}
+{"TimeStamp":"2019-05-05T20:01:07.040923+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":277.15141526851289,"PerSecond":3608136}}
+{"TimeStamp":"2019-05-05T20:01:07.5688025+09:00","Tag":"result","Data":{"TestName":"Read the String_ReadOnly value","Ret":1.0282796470588238,"PerSecond":972498097}}
+{"TimeStamp":"2019-05-05T20:01:08.0759304+09:00","Tag":"result","Data":{"TestName":"Read the String_GetOnly value","Ret":1.0150818235294117,"PerSecond":985142258}}
+{"TimeStamp":"2019-05-05T20:01:08.6213783+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":1.5344656862745099,"PerSecond":651692643}}
+{"TimeStamp":"2019-05-05T20:01:09.1491832+09:00","Tag":"result","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.75345818627451,"PerSecond":1327213663}}
+{"TimeStamp":"2019-05-05T20:01:09.8035755+09:00","Tag":"result","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.022189500000000084,"PerSecond":45066360215}}
+{"TimeStamp":"2019-05-05T20:01:10.467204+09:00","Tag":"result","Data":{"TestName":"Read the Int_GetOnly value","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-05T20:01:10.9778981+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_ReadOnly value","Ret":1.6030606250000001,"PerSecond":623806725}}
+{"TimeStamp":"2019-05-05T20:01:11.497298+09:00","Tag":"result","Data":{"TestName":"Read the Int_Copenhagen_GetOnly value","Ret":0.72524613636363644,"PerSecond":1378842230}}
+{"TimeStamp":"2019-05-05T20:01:11.9997794+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromAsyncMethod","Ret":21.931561652604668,"PerSecond":45596388}}
+{"TimeStamp":"2019-05-05T20:01:12.501829+09:00","Tag":"result","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":19.017904551552427,"PerSecond":52582028}}
+{"TimeStamp":"2019-05-05T20:02:37.3264134+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-05T20:02:37.4354295+09:00","Tag":"text","Data":"Commit: 6a6a9598d08916e5aa588ed7f93b482cd8d6655d"}
+{"TimeStamp":"2019-05-05T20:02:37.4354784+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-05T20:02:37.4354843+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.17763"}
+{"TimeStamp":"2019-05-05T20:02:37.4354923+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-05T20:02:37.4354966+09:00","Tag":"text","Data":"Host: PC34"}
+{"TimeStamp":"2019-05-05T20:02:37.9603468+09:00","Tag":"result","Data":{"TestName":"Rand[16]","Ret":163.30631778284655,"PerSecond":6123461}}
+{"TimeStamp":"2019-05-05T20:02:38.4671073+09:00","Tag":"result","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":453.74616153584878,"PerSecond":2203875}}

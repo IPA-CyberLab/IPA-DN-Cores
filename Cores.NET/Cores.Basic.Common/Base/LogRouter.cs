@@ -239,6 +239,14 @@ namespace IPA.Cores.Basic
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForAccess,
                 CoresConfig.LocalLogRouterSettings.InfoOptionsForAccess));
 
+            // Socket log (file)
+            Router.InstallLogRoute(new LoggerLogRoute(LogKind.Socket,
+                CoresConfig.DebugSettings.LogMinimalSocketLevel,
+                "socket",
+                CoresConfig.LocalLogRouterSettings.LogSocketDir.Value(),
+                CoresConfig.LocalLogRouterSettings.SwitchTypeForSocket,
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForSocket));
+
             EnvInfoSnapshot snapshot = new EnvInfoSnapshot("--- Process boottime log ---");
 
             Router.PostLog(new LogRecord(snapshot, LogPriority.Info, LogFlags.NoOutputToConsole, "boottime"), LogKind.Default);
@@ -285,6 +293,15 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static void PostSocketLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        {
+            Post(obj, priority, kind: LogKind.Socket, tag: tag);
+            if (copyToDebug)
+            {
+                Post(new PostedSocketLog() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
+            }
+        }
+
         class PostedData
         {
             public string Tag;
@@ -292,6 +309,12 @@ namespace IPA.Cores.Basic
         }
 
         class PostedAccessLog
+        {
+            public string Tag;
+            public object Data;
+        }
+
+        class PostedSocketLog
         {
             public string Tag;
             public object Data;
@@ -328,17 +351,22 @@ namespace IPA.Cores.Basic
             // Data
             public static readonly Copenhagen<Func<string>> LogDataDir = new Func<string>(() => Path.Combine(LogRootDir, "Data"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForData = LogSwitchType.Day;
-            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForData = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForData = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
 
             // Stat
             public static readonly Copenhagen<Func<string>> LogStatDir = new Func<string>(() => Path.Combine(LogRootDir, "Stat"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForStat = LogSwitchType.Day;
-            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForStat = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForStat = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
 
             // Access log
             public static readonly Copenhagen<Func<string>> LogAccessDir = new Func<string>(() => Path.Combine(LogRootDir, "Access"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForAccess = LogSwitchType.Day;
-            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForAccess = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true };
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForAccess = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
+
+            // Socket log
+            public static readonly Copenhagen<Func<string>> LogSocketDir = new Func<string>(() => Path.Combine(LogRootDir, "Socket"));
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForSocket = LogSwitchType.Day;
+            public static readonly Copenhagen<LogInfoOptions> InfoOptionsForSocket = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
         }
     }
 }

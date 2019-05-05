@@ -68,13 +68,9 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        static HiveData<TestData> dat = Hive.SharedConfigHive.CreateAutoSyncHive<TestData>("dat1", () => new TestData() { A = 3, B = "Nekosan", C = 931 });
-        static HiveData<TestData> dat2 = Hive.SharedConfigHive.CreateAutoSyncHive<TestData>("dat1", () => new TestData() { A = 3, B = "Nekosan", C = 931 });
-
         public static void Test()
         {
-            Console.WriteLine(dat.ToString());
-            //dat.Data.PrintObject();
+            Console.WriteLine(Guid.NewGuid().ToString());
         }
     }
 }

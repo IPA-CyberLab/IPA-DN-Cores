@@ -47,6 +47,7 @@ namespace IPA.Cores.Basic
 {
     class LocalTcpIpSystemParam : TcpIpSystemParam
     {
+        public LocalTcpIpSystemParam(string name) : base(name) { }
     }
 
     class LocalTcpIpSystem : TcpIpSystem
@@ -73,7 +74,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleInit()
         {
-            Local = new LocalTcpIpSystem(new LocalTcpIpSystemParam());
+            Local = new LocalTcpIpSystem(new LocalTcpIpSystemParam("LocalTcpIp"));
         }
 
         static void ModuleFree()
@@ -98,9 +99,9 @@ namespace IPA.Cores.Basic
             return tcp;
         }
 
-        protected override FastTcpListenerBase CreateListenerImpl(TcpListenParam param)
+        protected override FastTcpListenerBase CreateListenerImpl(FastTcpListenerAcceptedProcCallback acceptedProc)
         {
-            FastPalTcpListener ret = new FastPalTcpListener(param.AcceptCallback);
+            FastPalTcpListener ret = new FastPalTcpListener(acceptedProc);
 
             return ret;
         }
