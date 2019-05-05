@@ -1091,6 +1091,16 @@ namespace IPA.Cores.Basic
                             Debug.Assert(this.BaseStream.Length <= newFileSize);
 
                             BaseStream.SetLength(newFileSize);
+
+                            if (Env.IsWindows)
+                            {
+                                // In Windows, Use the FSCTL_SET_ZERO_DATA ioctl to ensure zero-clear the region.
+                                // See https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setendoffile
+                                // "The SetEndOfFile function can be used to truncate or extend a file. If the file is extended,
+                                //  the contents of the file between the old end of the file and the new end of the file are not defined."
+                                await FileZeroClearDataAsync(expandingDataRegionPosition + chunk.Offset, chunk.Size, cancel);
+                            }
+
                             this.CurrentPosition = BaseStream.Position;
                         }
                         else
