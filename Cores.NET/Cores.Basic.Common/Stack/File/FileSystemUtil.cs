@@ -215,6 +215,7 @@ namespace IPA.Cores.Basic
         public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, cancel).GetResult();
 
+#pragma warning disable CS1998
         public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
         {
             DirectoryWalker walk = new DirectoryWalker(this, false, EnumDirectoryFlags.NoGetPhysicalSize);
@@ -225,8 +226,6 @@ namespace IPA.Cores.Basic
             await walk.WalkDirectoryAsync(rootDir,
                 async (info, entities, c) =>
                 {
-                    await Task.CompletedTask;
-
                     foreach (var file in entities.Where(x => x.IsDirectory == false))
                     {
                         if (partOfFileName.IsSamei(file.Name))
@@ -271,6 +270,7 @@ namespace IPA.Cores.Basic
         }
         public string EasyFindSingleFile(string fileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
             => EasyFindSingleFileAsync(fileName, exact, rootDir, cancel).GetResult();
+#pragma warning restore CS1998
 
         protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
         {
@@ -454,11 +454,13 @@ namespace IPA.Cores.Basic
             return await WalkDirectoryInternalAsync(rootDirectory, "", callback, exceptionHandler, recursive, cancel, null);
         }
 
+#pragma warning disable CS1998
         public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
-                async (dirInfo, entity, c) => { await Task.CompletedTask; return callback(dirInfo, entity, c); },
-                async (dirInfo, exception, c) => { await Task.CompletedTask; return exceptionHandler(dirInfo, exception, c); },
+                async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
+                async (dirInfo, exception, c) => { return exceptionHandler(dirInfo, exception, c); },
                 recursive, cancel).GetResult();
+#pragma warning restore CS1998
     }
 
     enum EasyFileAccessType

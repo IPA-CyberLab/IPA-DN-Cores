@@ -129,7 +129,7 @@ namespace IPA.Cores.Basic
         public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
         public static StrComparer FilePathStringComparer { get; }
         public static FileSystemPathParser LocalFileSystemPathInterpreter { get; }
-        public static bool IsDebugBuild { get; }
+        public static bool IsCoresLibraryDebugBuild { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
         {
             int debugChecker = 0;
             Debug.Assert((++debugChecker) >= 1);
-            Env.IsDebugBuild = (debugChecker >= 1);
+            Env.IsCoresLibraryDebugBuild = (debugChecker >= 1);
 
             ExeAssembly = Assembly.GetExecutingAssembly();
             var asmName = ExeAssembly.GetName();

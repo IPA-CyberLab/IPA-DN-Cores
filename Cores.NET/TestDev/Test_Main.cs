@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -47,6 +48,17 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.TestDev
 {
+    static class IsDebugBuildChecker
+    {
+        public static readonly bool IsDebugBuild;
+        static IsDebugBuildChecker()
+        {
+            int debugChecker = 0;
+            Debug.Assert((++debugChecker) >= 1);
+            IsDebugBuild = (debugChecker >= 1);
+        }
+    }
+
     class TestDevAppMain
     {
         static void Main(string[] args)

@@ -48,6 +48,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Security.AccessControl;
 
+#pragma warning disable CS1998
+
 namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
@@ -122,8 +124,6 @@ namespace IPA.Cores.Basic
                 o.Add(entity);
             }
 
-            await Task.CompletedTask;
-
             return o.ToArray();
         }
 
@@ -159,8 +159,6 @@ namespace IPA.Cores.Basic
         protected override async Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
         {
             Directory.Delete(directoryPath, recursive);
-
-            await Task.CompletedTask;
         }
 
         protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
@@ -652,8 +650,6 @@ namespace IPA.Cores.Basic
                 ret.Security = GetFileOrDirectorySecurityMetadata(path, true);
             }
 
-            await Task.CompletedTask;
-
             return ret;
         }
 
@@ -706,22 +702,16 @@ namespace IPA.Cores.Basic
             }
 
             File.Delete(path);
-
-            await Task.CompletedTask;
         }
 
         protected override async Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
             File.Move(srcPath, destPath);
-
-            await Task.CompletedTask;
         }
 
         protected override async Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
             Directory.Move(srcPath, destPath);
-
-            await Task.CompletedTask;
         }
 
         public void EnableBackupPrivilege()
@@ -913,20 +903,16 @@ namespace IPA.Cores.Basic
             BaseStream = null;
 
             Con.WriteTrace($"CloseImplAsync '{FileParams.Path}'");
-
-            await Task.CompletedTask;
         }
 
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
             return BaseStream.Length;
         }
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
             BaseStream.SetLength(size);
             this.CurrentPosition = BaseStream.Position;
-            await Task.CompletedTask;
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)

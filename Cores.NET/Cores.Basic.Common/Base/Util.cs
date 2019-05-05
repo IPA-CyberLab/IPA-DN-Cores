@@ -2302,6 +2302,7 @@ namespace IPA.Cores.Basic
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
         public bool IsSet => (this.flag != 0);
         public static implicit operator bool(Once once) => once.flag != 0;
+        public void Reset() => this.flag = 0;
 
         public override string ToString() => IsSet.ToString();
     }
@@ -3027,9 +3028,105 @@ namespace IPA.Cores.Basic
         public volatile static object ObjectSlow = null;
     }
 
-    class MicroBenchmarkGlobalParam
+    static class GlobalMicroBenchmark
     {
-        public static int DefaultDurationMSecs = 250;
+        const int DefaultOfDefaultDurationMSecs = 250;
+        public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
+
+        static void InitModule()
+        {
+            DefaultDurationMSecs = DefaultOfDefaultDurationMSecs;
+        }
+
+        static void FreeModule()
+        {
+            if (LogRouter != null)
+            {
+                LogRouter.DisposeSafe();
+                LogRouter = null;
+                
+                OnceFlag.Reset();
+            }
+        }
+
+        public static int DefaultDurationMSecs { get; private set; }
+        static LogRouter LogRouter = null;
+        static Once OnceFlag;
+
+        public static void SetParameters(bool recordLog, int? defaultDurationMsecs = null)
+        {
+            if (OnceFlag.IsFirstCall() == false) return;
+
+            if (defaultDurationMsecs.HasValue)
+                DefaultDurationMSecs = defaultDurationMsecs.Value;
+
+            if (recordLog)
+            {
+                var logRouter = new LogRouter();
+
+                logRouter.InstallLogRoute(new LoggerLogRoute("data", LogPriority.Trace, "benchmark", Path.Combine(Env.AppRootDir, "BenchmarkRecords/Json"),
+                    LogSwitchType.Hour,
+                    new LogInfoOptions()
+                    {
+                        WithTypeName = false,
+                        WriteAsJsonFormat = true,
+                        WithTag = true
+                    },
+                    long.MaxValue));
+
+                logRouter.InstallLogRoute(new LoggerLogRoute("text", LogPriority.Trace, "benchmark", Path.Combine(Env.AppRootDir, "BenchmarkRecords/Text"),
+                    LogSwitchType.Hour,
+                    new LogInfoOptions()
+                    {
+                        WithTypeName = false,
+                        WriteAsJsonFormat = false,
+                        WithTag = false
+                    },
+                    long.MaxValue));
+
+                LogRouter = logRouter;
+            }
+        }
+
+        public static void RecordStart()
+        {
+            WriteTextLog($"----- Start new benchmark -----");
+            WriteTextLog($"Commit: {Dbg.GetCurrentGitCommitInfo()}");
+            WriteTextLog($"ExeFileName: {Env.ExeFileName}");
+            WriteTextLog($"OS: {Env.OsInfoString}");
+            WriteTextLog($"Framework: {Env.FrameworkInfoString}");
+            WriteTextLog($"Host: {Env.MachineName}");
+        }
+
+        public static void WriteTextLog(string text)
+        {
+            LogRouter?.PostLog(new LogRecord(text, tag: "text"), "data");
+            LogRouter?.PostLog(new LogRecord(text, tag: "text"), "text");
+        }
+
+        public static void WriteDataLog(object data, string text)
+        {
+            LogRouter?.PostLog(new LogRecord(data, tag: "result"), "data");
+            LogRouter?.PostLog(new LogRecord(text, tag: "result"), "text");
+        }
+    }
+
+    class MicroBenchmarkQueue
+    {
+        List<(IMicroBenchmark bm, int priority, int index)> List = new List<(IMicroBenchmark bm, int priority, int index)>();
+
+        public MicroBenchmarkQueue Add(IMicroBenchmark benchmark, bool enabled = true, int priority = 0)
+        {
+            if (enabled)
+                List.Add((benchmark, priority, List.Count));
+            return this;
+        }
+
+        public void Run()
+        {
+            foreach (var a in List.OrderBy(x => x.index).OrderBy(x => -x.priority).Select(x => x.bm))
+                a.StartAndPrint();
+        }
     }
 
     interface IMicroBenchmark
@@ -3073,7 +3170,11 @@ namespace IPA.Cores.Basic
 
             double perSecond = 1000000000.0 / ret;
 
-            Con.WriteLine($"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToString3()} / sec");
+            string str = $"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToString3()} / sec";
+
+            Con.WriteLine(str);
+
+            GlobalMicroBenchmark.WriteDataLog(new { TestName = Name, Ret = ret, PerSecond = (long)perSecond }, str);
 
             return ret;
         }
@@ -3130,7 +3231,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                if (duration <= 0) duration = MicroBenchmarkGlobalParam.DefaultDurationMSecs;
+                if (duration <= 0) duration =  GlobalMicroBenchmark.DefaultDurationMSecs;
 
                 TUserVariable state = default(TUserVariable);
 

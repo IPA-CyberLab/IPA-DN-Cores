@@ -45,11 +45,15 @@ namespace IPA.Cores.Basic
             ResourceFileSystem.Module.Init();
 
             Hive.Module.Init();
+
+            GlobalMicroBenchmark.Module.Init();
         }
 
         static CoresLibraryResult GlobalFree()
         {
             // Finalize
+            GlobalMicroBenchmark.Module.Free();
+
             Hive.Module.Free();
 
             ResourceFileSystem.Module.Free();
@@ -95,7 +99,7 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        static readonly Once once;
+        static Once once;
         static void NormalInitializeOnce()
         {
             if (once.IsFirstCall() == false) return;

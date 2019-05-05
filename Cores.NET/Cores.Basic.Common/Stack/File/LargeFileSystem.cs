@@ -245,12 +245,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+#pragma warning disable CS1998
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             return this.CurrentFileSize;
         }
+#pragma warning restore CS1998
 
         List<Cursor> GenerateCursorList(long position, long length, bool writeMode)
         {

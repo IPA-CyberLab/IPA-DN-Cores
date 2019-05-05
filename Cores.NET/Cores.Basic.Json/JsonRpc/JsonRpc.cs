@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
 
         public virtual void FinishCall(object param) { }
 
-        public virtual async Task FinishCallAsync(object param) => await Task.CompletedTask;
+        public virtual Task FinishCallAsync(object param) => Task.CompletedTask;
     }
 
     abstract class JsonRpcServer

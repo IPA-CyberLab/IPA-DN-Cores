@@ -223,7 +223,7 @@ namespace IPA.Cores.Basic
                     jc.Priority = this.Priority.ToString();
 
                 if (opt.WithTag)
-                    jc.Tag = this.Tag.FilledOrDefault(LogTag.NoTag);
+                    jc.Tag = this.Tag.FilledOrDefault(LogTag.None);
 
                 if (opt.WithTypeName)
                     jc.TypeName = this.Data?.GetType().Name ?? "null";
@@ -263,7 +263,7 @@ namespace IPA.Cores.Basic
                     additionalList.Add(this.Priority.ToString());
 
                 if (opt.WithTag)
-                    additionalList.Add(this.Tag.FilledOrDefault(LogTag.NoTag));
+                    additionalList.Add(this.Tag.FilledOrDefault(LogTag.None));
 
                 if (opt.WithTypeName)
                     additionalList.Add(this.Data?.GetType().Name ?? "null");
@@ -349,7 +349,7 @@ namespace IPA.Cores.Basic
             this.InfoOptions.Normalize(this.Kind);
 
 
-            if (autoDeleteTotalMinSize != null)
+            if (autoDeleteTotalMinSize != null && autoDeleteTotalMinSize.Value != long.MaxValue)
             {
                 autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
                 this.Eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);

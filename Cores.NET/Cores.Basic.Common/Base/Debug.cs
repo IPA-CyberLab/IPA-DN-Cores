@@ -321,6 +321,59 @@ namespace IPA.Cores.Basic
             }
         }
 
+        static string CurrentGitCommitInfoCache = null;
+        public static string GetCurrentGitCommitInfo()
+        {
+            if (CurrentGitCommitInfoCache == null)
+            {
+                try
+                {
+                    CurrentGitCommitInfoCache = GetCurrentGitCommitInfoCore().NonNullTrim();
+                }
+                catch
+                {
+                    CurrentGitCommitInfoCache = "";
+                }
+            }
+
+            return CurrentGitCommitInfoCache.NonNullTrim();
+        }
+
+        static string GetCurrentGitCommitInfoCore()
+        {
+            string tmpPath = Env.AppRootDir;
+
+            // Get the HEAD contents
+            while (true)
+            {
+                string headFilename = Lfs.PathParser.Combine(tmpPath, ".git/HEAD");
+
+                try
+                {
+                    string headContents = Lfs.ReadStringFromFile(headFilename);
+                    foreach (string line in headContents.GetLines())
+                    {
+                        if (line.GetKeyAndValue(out string key, out string value, ":"))
+                        {
+                            if (key.IsSamei("ref"))
+                            {
+                                string refFilename = value.Trim();
+                                string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
+
+                                return Lfs.ReadStringFromFile(refFullPath).GetLines().Where(x => x.IsFilled()).Single();
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                string parentPath = Lfs.PathParser.GetDirectoryName(tmpPath);
+                if (tmpPath.IsSamei(parentPath)) return "";
+
+                tmpPath = parentPath;
+            }
+        }
+
         public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
         {
             if (obj is Exception ex)

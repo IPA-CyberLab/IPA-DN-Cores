@@ -45,9 +45,11 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
+#pragma warning disable CS1998
 
 namespace IPA.TestDev
 {
@@ -55,10 +57,69 @@ namespace IPA.TestDev
     {
         public static readonly CriticalSection LockObj_ReadOnly = new CriticalSection();
         public static CriticalSection LockObj_Property { get; } = new CriticalSection();
+
+        public static async Task<int> SampleAsyncMethod()
+        {
+            Limbo.SInt32Volatile++;
+
+            return Limbo.SInt32Volatile;
+        }
+
+        public static async Task EmptyAsyncMethod() { }
+
+        public static async Task AsyncCallMethodFromAsyncMethod(int count)
+        {
+            for (int i = 0; i < count; i++)
+                await SampleAsyncMethod();
+        }
+
+        public static void AsyncCallMethodFromSyncMethod(int count)
+        {
+            for (int i = 0; i < count; i++)
+                SampleAsyncMethod().GetResult();
+        }
     }
 
     partial class TestDevCommands
     {
+        const int Benchmark_CountForFast = 10000000;
+        const int Benchmark_CountForNormal = 10000;
+
+        static void BenchMark_Test1()
+        {
+            var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark("AsyncCallMethodFromAsyncMethod", Benchmark_CountForNormal, count =>
+            {
+                BenchmarkTestTarget1.AsyncCallMethodFromAsyncMethod(count).GetResult();
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("AsyncCallMethodFromSyncMethod", Benchmark_CountForNormal, count =>
+            {
+                BenchmarkTestTarget1.AsyncCallMethodFromSyncMethod(count);
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Lock for readonly object", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    lock (BenchmarkTestTarget1.LockObj_ReadOnly)
+                        Limbo.SInt32Volatile++;
+                }
+            }), enabled: true, priority: 190505)
+
+            .Add(new MicroBenchmark("Lock for get property object", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    lock (BenchmarkTestTarget1.LockObj_Property)
+                        Limbo.SInt32Volatile++;
+                }
+            }), enabled: true, priority: 190505);
+
+            queue.Run();
+        }
+
         [ConsoleCommandMethod(
             "BenchMark command",
             "BenchMark [arg]",
@@ -68,34 +129,23 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Con.WriteLine(Env.IsDebugBuild);
+            bool enableRecords = true;
+
+            if (Env.IsCoresLibraryDebugBuild || IsDebugBuildChecker.IsDebugBuild || Env.IsDebuggerAttached)
+            {
+                Con.WriteLine("*** Warning: The benchmark is under the debug mode.");
+                Con.WriteLine();
+
+                enableRecords = false;
+            }
+
+            GlobalMicroBenchmark.SetParameters(enableRecords);
+
+            GlobalMicroBenchmark.RecordStart();
 
             BenchMark_Test1();
 
             return 0;
-        }
-
-        static void BenchMark_Test1()
-        {
-            int numForFast = 100_0000;
-            
-            new MicroBenchmark("Lock for readonly object", numForFast, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    lock (BenchmarkTestTarget1.LockObj_ReadOnly)
-                        Limbo.SInt32Volatile++;
-                }
-            }).StartAndPrint();
-
-            new MicroBenchmark("Lock for get property object", numForFast, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    lock (BenchmarkTestTarget1.LockObj_Property)
-                        Limbo.SInt32Volatile++;
-                }
-            }).StartAndPrint();
         }
     }
 }

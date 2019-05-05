@@ -44,7 +44,7 @@ namespace IPA.Cores.Basic
 {
     partial class LogTag
     {
-        public const string NoTag = "NoTag";
+        public const string None = "None";
     }
 
     partial class LogKind

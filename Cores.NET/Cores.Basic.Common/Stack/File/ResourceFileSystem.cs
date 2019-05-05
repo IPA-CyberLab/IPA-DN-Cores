@@ -106,14 +106,15 @@ namespace IPA.Cores.Basic
             {
                 string fullPath = this.PathParser.Combine("/", name);
 
+#pragma warning disable CS1998
                 using (this.AddFileAsync(new FileParameters(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
-                    async (newFilename, newFileOption, c) =>
+                async (newFilename, newFileOption, c) =>
                     {
-                        await Task.CompletedTask;
                         return new VfsResourceFile(this, name);
                     }).GetResult())
                 {
                 }
+#pragma warning restore CS1998
             }
         }
     }

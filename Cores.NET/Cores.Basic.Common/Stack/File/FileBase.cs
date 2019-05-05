@@ -613,6 +613,7 @@ namespace IPA.Cores.Basic
         Closed,
     }
 
+#pragma warning disable CS1998
     class StreamRandomAccessWrapper : IRandomAccess<byte>
     {
         public Stream BaseStream { get; }
@@ -670,8 +671,6 @@ namespace IPA.Cores.Basic
             if (refresh)
                 InternalFileSize = BaseStream.Length;
 
-            await Task.CompletedTask;
-
             return InternalFileSize;
         }
 
@@ -716,8 +715,6 @@ namespace IPA.Cores.Basic
 
             this.InternalFileSize = size;
             this.InternalPosition = BaseStream.Position;
-
-            await Task.CompletedTask;
         }
 
         public async Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
@@ -775,6 +772,7 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => WriteRandomAsync(position, data, cancel).GetResult();
     }
+#pragma warning restore CS1998
 
     class ConcurrentRandomAccess<T> : IRandomAccess<T>
     {

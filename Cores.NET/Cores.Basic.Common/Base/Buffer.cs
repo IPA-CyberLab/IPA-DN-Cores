@@ -997,6 +997,7 @@ namespace IPA.Cores.Basic
         void Clear();
     }
 
+#pragma warning disable CS1998
     class BufferDirectStream : Stream
     {
         public IBuffer<byte> BaseBuffer { get; }
@@ -1056,24 +1057,22 @@ namespace IPA.Cores.Basic
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Task.CompletedTask;
             return this.Read(buffer.Span);
         }
 
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             this.Write(buffer, offset, count);
-            return Task.CompletedTask;
         }
 
         public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Task.CompletedTask;
             this.Write(buffer.Span);
         }
     }
+#pragma warning restore CS1998
 
     class MemoryBuffer<T> : IBuffer<T>
     {

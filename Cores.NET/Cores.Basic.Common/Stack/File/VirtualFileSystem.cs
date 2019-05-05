@@ -44,6 +44,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 
+#pragma warning disable CS1998
+
 namespace IPA.Cores.Basic
 {
     class VfsException : Exception
@@ -175,8 +177,6 @@ namespace IPA.Cores.Basic
 
         public override async Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             lock (this.LockObj)
             {
                 return new FileMetadata(
@@ -260,8 +260,6 @@ namespace IPA.Cores.Basic
 
         public override async Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             lock (this.LockObj)
             {
                 return new FileMetadata(
@@ -341,8 +339,6 @@ namespace IPA.Cores.Basic
 
         public override async Task<VfsEntity[]> EnumEntitiesAsync(EnumDirectoryFlags flags, CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             using (await AsyncLock.LockWithAwait(cancel))
             {
                 var ret = this.EntityTable.Values.OrderBy(x => x.Name, this.FileSystem.PathParser.PathStringComparer).ToArray();
@@ -407,8 +403,6 @@ namespace IPA.Cores.Basic
 
         public override async Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             lock (this.LockObj)
             {
                 if (metadata.Attributes.HasValue)
@@ -513,8 +507,6 @@ namespace IPA.Cores.Basic
 
         public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             this.LastAccessTime = DateTimeOffset.Now;
 
             FileImpl impl = new FileImpl(this, GetSharedRandomAccessBaseImpl(), fullPath, this.FileSystem, option);
@@ -543,8 +535,6 @@ namespace IPA.Cores.Basic
 
         public override async Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             lock (this.LockObj)
             {
                 if (metadata.Attributes.HasValue)
@@ -696,7 +686,6 @@ namespace IPA.Cores.Basic
             return await this.AddFileAsync(option,
                 async (newFilename, newFileOption, c) =>
                 {
-                    await Task.CompletedTask;
                     return new VfsRamFile(this, newFilename);
                 },
                 cancel);
