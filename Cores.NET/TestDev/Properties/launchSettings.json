@@ -22,6 +22,10 @@
     "TestDev /Net": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:Net"
+    },
+    "TestDev /BenchMark": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:BenchMark"
     }
   }
 }

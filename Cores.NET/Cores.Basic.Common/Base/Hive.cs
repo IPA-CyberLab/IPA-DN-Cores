@@ -321,6 +321,12 @@ namespace IPA.Cores.Basic
         // Instance states and methods
         public HiveOptions Options { get; }
 
+        public HiveSerializer Serializer => Options.Serializer;
+        public HiveStorageProvider StorageProvider => Options.StorageProvider;
+
+        readonly HashSet<IHiveData> RegisteredHiveData = new HashSet<IHiveData>();
+        readonly CriticalSection LockObj = new CriticalSection();
+
         public Hive(HiveOptions options)
         {
             try
@@ -359,14 +365,51 @@ namespace IPA.Cores.Basic
             {
                 if (timer.RepeatIntervalTimer(readPollingInterval, ref nextReadTick))
                 {
+                    await PollReadAllManagedHiveDataAsync(cancel);
                 }
 
                 if (timer.RepeatIntervalTimer(writePollingInterval, ref nextWriteTick))
                 {
+                    await PollWriteAllManagedHiveDataAsync(cancel);
                 }
 
                 await timer.WaitUntilNextTickAsync(cancel);
             }
+        }
+
+        async Task PollReadAllManagedHiveDataAsync(CancellationToken cancel)
+        {
+        }
+
+        async Task PollWriteAllManagedHiveDataAsync(CancellationToken cancel, bool forceWriteAll = false)
+        {
+        }
+
+        internal void RegisterInternal(IHiveData hiveData)
+        {
+            if (hiveData.IsManaged == false)
+                throw new ArgumentException("hiveData.IsManaged == false");
+
+            lock (LockObj)
+            {
+                CheckNotCanceled();
+
+                RegisteredHiveData.Add(hiveData);
+            }
+        }
+
+        internal void UnregisterInternal(IHiveData hiveData)
+        {
+            lock (LockObj)
+            {
+                RegisteredHiveData.Remove(hiveData);
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception ex)
+        {
+            // Flush all managed hives
+            await PollWriteAllManagedHiveDataAsync(default, true);
         }
 
         protected override void DisposeImpl(Exception ex)
@@ -375,6 +418,8 @@ namespace IPA.Cores.Basic
             {
                 RunningHivesList.Remove(this);
             }
+
+            this.Options.StorageProvider.DisposeSafe();
         }
     }
 
@@ -384,18 +429,34 @@ namespace IPA.Cores.Basic
         None = 0,
         AutoReadFromFile = 1,
         AutoWriteToFile = 2,
-
-        Default = AutoReadFromFile | AutoWriteToFile,
     }
 
-    class HiveData<T> where T: class, new()
+    interface IHiveData
+    {
+        HiveDataPolicy Policy { get; }
+        string DataName { get; }
+        Hive Hive { get; }
+        bool IsManaged { get; }
+    }
+
+    class HiveData<T> : IHiveData where T: class, new()
     {
         public HiveDataPolicy Policy { get; }
         public string DataName { get; }
         public Hive Hive { get; }
         public bool IsManaged { get; } = false;
+        public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
 
-        public HiveData(Hive hive, string dataName, HiveDataPolicy policy)
+        T InternalData = null;
+
+        class HiveDataState
+        {
+            public T Data;
+            public Memory<byte> SerializedData;
+            public long Hash;
+        }
+
+        public HiveData(Hive hive, string dataName, HiveDataPolicy policy = HiveDataPolicy.None)
         {
             this.Hive = hive;
             this.Policy = policy;
@@ -406,10 +467,29 @@ namespace IPA.Cores.Basic
                 this.IsManaged = true;
             }
 
-            if (hive.Options.IsPollingEnabled == false && this.IsManaged)
+            if (this.IsManaged)
             {
-                throw new ArgumentException($"policy = {policy.ToString()} while the Hive object doesn't support polling.");
+                if (hive.Options.IsPollingEnabled == false)
+                    throw new ArgumentException($"policy = {policy.ToString()} while the Hive object doesn't support polling.");
+
+                this.Hive.RegisterInternal(this);
             }
+        }
+
+        async Task<HiveDataState> LoadDataCoreAsync(CancellationToken cancel)
+        {
+            HiveDataState ret = new HiveDataState();
+
+            ret.SerializedData = await Hive.StorageProvider.LoadAsync(this.DataName, cancel);
+            ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
+            ret.Data = Hive.Serializer.Deserialize<T>(ret.SerializedData);
+
+            return ret;
+        }
+
+        async Task SaveDataCoreAsync(ReadOnlyMemory<byte> serializedData, CancellationToken cancel)
+        {
+            await Hive.StorageProvider.SaveAsync(this.DataName, serializedData, cancel);
         }
     }
 }

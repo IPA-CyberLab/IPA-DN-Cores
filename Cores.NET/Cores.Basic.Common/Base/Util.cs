@@ -434,7 +434,7 @@ namespace IPA.Cores.Basic
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
 
-        static readonly Random random = new Random();
+        static readonly Random RandomShared = new Random();
 
         // サイズ定数
         public const int SizeOfInt32 = 4;
@@ -1554,9 +1554,9 @@ namespace IPA.Cores.Basic
 
         public static void Rand(Span<byte> dest)
         {
-            lock (random)
+            lock (RandomShared)
             {
-                random.NextBytes(dest);
+                RandomShared.NextBytes(dest);
             }
         }
 
@@ -3020,10 +3020,13 @@ namespace IPA.Cores.Basic
 
     static class Limbo
     {
-        public static long SInt = 0;
-        public static ulong UInt = 0;
+        public static long SInt64 = 0;
+        public static ulong UInt64 = 0;
+        public volatile static int SInt32Volatile = 0;
+        public volatile static uint UInt32Volatile = 0;
         public volatile static object ObjectSlow = null;
     }
+
     class MicroBenchmarkGlobalParam
     {
         public static int DefaultDurationMSecs = 250;
@@ -3033,6 +3036,12 @@ namespace IPA.Cores.Basic
     {
         double Start(int duration = 0);
         double StartAndPrint(int duration = 0);
+    }
+
+    class MicroBenchmark : MicroBenchmark<int>
+    {
+        public MicroBenchmark(string name, int iterations, Action<int> proc, Func<int> init = null)
+            : base(name, iterations, (_state, _iterations) => proc(_iterations), init) { }
     }
 
     class MicroBenchmark<TUserVariable> : IMicroBenchmark
@@ -3047,7 +3056,7 @@ namespace IPA.Cores.Basic
 
         readonly Action<TUserVariable, int> DummyLoopProc = (state, count) =>
         {
-            for (int i = 0; i < count; i++) Limbo.SInt++;
+            for (int i = 0; i < count; i++) Limbo.SInt64++;
         };
 
         public MicroBenchmark(string name, int iterations, Action<TUserVariable, int> proc, Func<TUserVariable> init = null)
@@ -3102,7 +3111,7 @@ namespace IPA.Cores.Basic
                     proc(state, interationsPassValue);
                     if (interationsPassValue == 0)
                     {
-                        for (int i = 0; i < Iterations; i++) Limbo.SInt++;
+                        for (int i = 0; i < Iterations; i++) Limbo.SInt64++;
                     }
                 }
                 count += Iterations;

@@ -566,7 +566,7 @@ namespace IPA.Cores.Basic
                 {
                     int size = 1_000_000 * i;
                     byte[] tmp = new byte[size];
-                    Limbo.SInt += tmp.Length;
+                    Limbo.SInt64 += tmp.Length;
                     if ((i % 2) == 0)
                         o1.Add(tmp);
                     else

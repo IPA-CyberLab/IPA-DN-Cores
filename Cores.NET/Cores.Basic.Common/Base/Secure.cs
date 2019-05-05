@@ -38,25 +38,29 @@ using System.Runtime.InteropServices;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
     // Secure クラス
     class Secure
     {
-        static RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
-        static MD5 md5 = new MD5CryptoServiceProvider();
-        public const uint SHA1Size = 20;
-        public const uint MD5Size = 16;
-        static object rand_lock = new object();
+        static readonly RNGCryptoServiceProvider RngShared = new RNGCryptoServiceProvider();
+        static readonly MD5 MD5Shared = new MD5CryptoServiceProvider();
+        public const int SHA1Size = 20;
+        public const int SHA256Size = 32;
+        public const int SHA512Size = 64;
+        public const int MD5Size = 16;
+        readonly static CriticalSection RandLock = new CriticalSection();
+        readonly static CriticalSection MD5Lock = new CriticalSection();
 
         // 乱数
         public static byte[] Rand(uint size)
         {
-            lock (rand_lock)
+            lock (RandLock)
             {
                 byte[] ret = new byte[size];
-                rng.GetBytes(ret);
+                RngShared.GetBytes(ret);
                 return ret;
             }
         }
@@ -127,29 +131,86 @@ namespace IPA.Cores.Basic
         }
 
         // MD5
-        public static byte[] HashMD5(byte[] data)
+        public static byte[] HashMD5(ReadOnlySpan<byte> src)
         {
-            byte[] ret;
+            Span<byte> dest = new byte[MD5Size];
+            int r = HashMD5(src, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
+        }
 
-            ret = md5.ComputeHash(data);
+        public static int HashMD5(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            lock (MD5Lock)
+            {
+                if (MD5Shared.TryComputeHash(src, dest, out int ret))
+                    return ret;
+            }
+
+            throw new ApplicationException("TryComputeHash error.");
+        }
+
+        // SHA1
+        public static byte[] HashSHA1(ReadOnlySpan<byte> src)
+        {
+            Span<byte> dest = new byte[SHA1Size];
+            int r = HashSHA1(src, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
+        }
+
+        public static int HashSHA1(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            SHA1 sha = new SHA1Managed();
+
+            if (sha.TryComputeHash(src, dest, out int ret) == false)
+                throw new ApplicationException("TryComputeHash error.");
 
             return ret;
         }
 
-        // SHA1
-        public static byte[] HashSHA1(byte[] data)
+        // SHA256
+        public static byte[] HashSHA256(ReadOnlySpan<byte> src)
         {
-            SHA1 sha1 = new SHA1Managed();
-
-            return sha1.ComputeHash(data);
+            Span<byte> dest = new byte[SHA256Size];
+            int r = HashSHA256(src, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
         }
 
-        // SHA256
-        public static byte[] HashSHA256(byte[] data)
+        public static int HashSHA256(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            SHA256 sha256 = new SHA256Managed();
+            SHA256 sha = new SHA256Managed();
 
-            return sha256.ComputeHash(data);
+            if (sha.TryComputeHash(src, dest, out int ret) == false)
+                throw new ApplicationException("TryComputeHash error.");
+
+            return ret;
+        }
+
+        // SHA512
+        public static byte[] HashSHA512(ReadOnlySpan<byte> src)
+        {
+            Span<byte> dest = new byte[SHA512Size];
+            int r = HashSHA512(src, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
+        }
+
+        public static int HashSHA512(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            SHA512 sha = new SHA512Managed();
+
+            if (sha.TryComputeHash(src, dest, out int ret) == false)
+                throw new ApplicationException("TryComputeHash error.");
+
+            return ret;
+        }
+
+        public static long HashSHA1AsLong(ReadOnlySpan<byte> src)
+        {
+            byte[] hash = Secure.HashSHA1(src);
+            return hash.GetSInt64();
         }
 
         // PKCS パディング

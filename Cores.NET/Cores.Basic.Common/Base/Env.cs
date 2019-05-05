@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -128,6 +129,7 @@ namespace IPA.Cores.Basic
         public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
         public static StrComparer FilePathStringComparer { get; }
         public static FileSystemPathParser LocalFileSystemPathInterpreter { get; }
+        public static bool IsDebugBuild { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
@@ -147,6 +149,10 @@ namespace IPA.Cores.Basic
         // 初期化
         static Env()
         {
+            int debugChecker = 0;
+            Debug.Assert((++debugChecker) >= 1);
+            Env.IsDebugBuild = (debugChecker >= 1);
+
             ExeAssembly = Assembly.GetExecutingAssembly();
             var asmName = ExeAssembly.GetName();
             ExeAssemblySimpleName = asmName.Name;
