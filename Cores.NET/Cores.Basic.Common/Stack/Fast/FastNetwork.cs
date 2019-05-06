@@ -81,14 +81,7 @@ namespace IPA.Cores.Basic
 
         public T GetValue<T>(int index = 0) where T : class
         {
-            try
-            {
-                return GetValues<T>()[index];
-            }
-            catch
-            {
-                return null;
-            }
+            return GetValues<T>()[index];
         }
 
         public void Encounter(LayerInfo other) => this.Hierarchy.Encounter(other.Hierarchy);
@@ -97,10 +90,8 @@ namespace IPA.Cores.Basic
         public ILayerInfoIpEndPoint Ip => GetValue<ILayerInfoIpEndPoint>();
         public ILayerInfoTcpEndPoint Tcp => GetValue<ILayerInfoTcpEndPoint>();
 
-        public LogDefSocket CreateSocketLogDef()
+        public LogDefSocket FillSocketLogDef(LogDefSocket log)
         {
-            LogDefSocket log = new LogDefSocket();
-
             ILayerInfoIpEndPoint ip = this.Ip;
             ILayerInfoTcpEndPoint tcp = this.Tcp;
 
@@ -256,7 +247,7 @@ namespace IPA.Cores.Basic
             internal InstalledLayerHolder(Action<LayerInfoBase> disposeProc, LayerInfoBase userData = null) : base(disposeProc, userData) { }
         }
 
-        internal InstalledLayerHolder _InternalInstallLayerInfo(FastPipeEndSide side, LayerInfoBase info)
+        internal InstalledLayerHolder _InternalInstallLayerInfo(FastPipeEndSide side, LayerInfoBase info, bool uninstallOnDispose)
         {
             if (info == null)
                 throw new ArgumentNullException("info");
@@ -283,13 +274,19 @@ namespace IPA.Cores.Basic
                         if (side == FastPipeEndSide.A_LowerSide)
                         {
                             Debug.Assert(LayerInfo_A_LowerSide != null);
-                            LayerInfo.Uninstall(LayerInfo_A_LowerSide);
+
+                            if (uninstallOnDispose)
+                                LayerInfo.Uninstall(LayerInfo_A_LowerSide);
+
                             LayerInfo_A_LowerSide = null;
                         }
                         else
                         {
                             Debug.Assert(LayerInfo_B_UpperSide != null);
-                            LayerInfo.Uninstall(LayerInfo_B_UpperSide);
+
+                            if (uninstallOnDispose)
+                                LayerInfo.Uninstall(LayerInfo_B_UpperSide);
+
                             LayerInfo_B_UpperSide = null;
                         }
                     }
@@ -468,7 +465,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SetLayerInfo(LayerInfoBase info, FastStackBase protocolStack = null)
+        public void SetLayerInfo(LayerInfoBase info, FastStackBase protocolStack, bool uninstallOnDetach)
         {
             lock (LockObj)
             {
@@ -479,7 +476,7 @@ namespace IPA.Cores.Basic
 
                 info._InternalSetProtocolStack(protocolStack);
 
-                InstalledLayerHolder = PipeEnd.Pipe._InternalInstallLayerInfo(PipeEnd.Side, info);
+                InstalledLayerHolder = PipeEnd.Pipe._InternalInstallLayerInfo(PipeEnd.Side, info, uninstallOnDetach);
             }
         }
 

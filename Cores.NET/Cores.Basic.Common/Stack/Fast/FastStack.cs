@@ -307,7 +307,7 @@ namespace IPA.Cores.Basic
                 RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
                 Direction = s.Direction,
                 NativeHandle = s.NativeHandle,
-            }, this);
+            }, this, false);
         }
 
         protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
@@ -421,14 +421,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        LogDefSocket SocketLogDefBasicInfoCache = null;
-
         public LogDefSocket GenerateLogDef()
         {
-            if (SocketLogDefBasicInfoCache == null)
-                SocketLogDefBasicInfoCache = this.Info.CreateSocketLogDef();
+            LogDefSocket ret = new LogDefSocket();
 
-            LogDefSocket ret = (LogDefSocket)SocketLogDefBasicInfoCache.CloneDeep();
+            try
+            {
+                this.Info.FillSocketLogDef(ret);
+            }
+            catch (Exception ex)
+            {
+                ex.Debug();
+            }
 
             ret.SockGuid = this.Guid;
             ret.SockType = this.GetType().ToString();
@@ -618,7 +622,7 @@ namespace IPA.Cores.Basic
                             KeyExchangeStrength = ssl.KeyExchangeStrength,
                             LocalCertificate = ssl.LocalCertificate,
                             RemoteCertificate = ssl.RemoteCertificate,
-                        }, this);
+                        }, this, false);
 
                         this.SslStream = ssl;
                         this.LowerStream = lowerStream;
