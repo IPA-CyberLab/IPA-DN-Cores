@@ -86,6 +86,7 @@ namespace IPA.Cores.Basic
             internal const string BCrypt = "BCrypt.dll";
             internal const string Crypt32 = "crypt32.dll";
             internal const string Kernel32 = "kernel32.dll";
+            internal const string NetApi32 = "Netapi32.dll";
             internal const string Ole32 = "ole32.dll";
             internal const string OleAut32 = "oleaut32.dll";
             internal const string User32 = "user32.dll";
@@ -336,6 +337,92 @@ namespace IPA.Cores.Basic
                     throw Win32ApiUtil.ThrowWin32Error(error, filename);
                 else
                     return ((ulong)high << 32) + low;
+            }
+        }
+
+        internal static partial class NetApi32
+        {
+            // From http://www.pinvoke.net/default.aspx/netapi32/netshareenum.html
+
+            #region External Calls
+            [DllImport(Libraries.NetApi32, SetLastError = true)]
+            static extern int NetApiBufferFree(IntPtr Buffer);
+            [DllImport(Libraries.NetApi32, CharSet = CharSet.Unicode)]
+            private static extern int NetShareEnum(
+                 StringBuilder ServerName,
+                 int level,
+                 ref IntPtr bufPtr,
+                 uint prefmaxlen,
+                 ref int entriesread,
+                 ref int totalentries,
+                 ref int resume_handle
+                 );
+            #endregion
+            #region External Structures
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct SHARE_INFO_1
+            {
+                public string shi1_netname;
+                public SHARE_TYPE shi1_type;
+                public string shi1_remark;
+                public SHARE_INFO_1(string sharename, uint sharetype, string remark)
+                {
+                    this.shi1_netname = sharename;
+                    this.shi1_type = (SHARE_TYPE)sharetype;
+                    this.shi1_remark = remark;
+                }
+                public override string ToString()
+                {
+                    return shi1_netname;
+                }
+            }
+            #endregion
+            const uint MAX_PREFERRED_LENGTH = 0xFFFFFFFF;
+            const int NERR_Success = 0;
+            private enum NetError : uint
+            {
+                NERR_Success = 0,
+                NERR_BASE = 2100,
+                NERR_UnknownDevDir = (NERR_BASE + 16),
+                NERR_DuplicateShare = (NERR_BASE + 18),
+                NERR_BufTooSmall = (NERR_BASE + 23),
+            }
+
+            [Flags]
+            public enum SHARE_TYPE : uint
+            {
+                STYPE_DISKTREE = 0,
+                STYPE_PRINTQ = 1,
+                STYPE_DEVICE = 2,
+                STYPE_IPC = 3,
+                STYPE_SPECIAL = 0x80000000,
+            }
+            public static SHARE_INFO_1[] EnumNetShares(string Server)
+            {
+                List<SHARE_INFO_1> ShareInfos = new List<SHARE_INFO_1>();
+                int entriesread = 0;
+                int totalentries = 0;
+                int resume_handle = 0;
+                int nStructSize = Marshal.SizeOf(typeof(SHARE_INFO_1));
+                IntPtr bufPtr = IntPtr.Zero;
+                StringBuilder server = new StringBuilder(Server);
+                int ret = NetShareEnum(server, 1, ref bufPtr, MAX_PREFERRED_LENGTH, ref entriesread, ref totalentries, ref resume_handle);
+                if (ret == NERR_Success)
+                {
+                    IntPtr currentPtr = bufPtr;
+                    for (int i = 0; i < entriesread; i++)
+                    {
+                        SHARE_INFO_1 shi1 = (SHARE_INFO_1)Marshal.PtrToStructure(currentPtr, typeof(SHARE_INFO_1));
+                        ShareInfos.Add(shi1);
+                        currentPtr += nStructSize;
+                    }
+                    NetApiBufferFree(bufPtr);
+                    return ShareInfos.ToArray();
+                }
+                else
+                {
+                    throw Win32ApiUtil.ThrowWin32Error(ret, Server);
+                }
             }
         }
 

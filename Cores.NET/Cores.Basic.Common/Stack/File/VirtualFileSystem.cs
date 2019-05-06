@@ -617,7 +617,7 @@ namespace IPA.Cores.Basic
 
         async Task<VfsPathParserContext> ParsePathInternalAsync(string path, CancellationToken cancel = default)
         {
-            string[] pathStack = this.PathParser.SplitAbsolutePathToElements(path);
+            string[] pathStack = this.PathParser.SplitAbsolutePathToElementsUnixStyle(path);
 
             VfsPathParserContext ctx = new VfsPathParserContext(this.PathParser, pathStack, Root);
             try

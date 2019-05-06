@@ -99,6 +99,8 @@ namespace IPA.Cores.Basic
     class ViewFileSystem : FileSystem
     {
         public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
+        protected FileSystemPathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;
+
         protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
 
         public ViewFileSystem(ViewFileSystemParams param) : base(param)

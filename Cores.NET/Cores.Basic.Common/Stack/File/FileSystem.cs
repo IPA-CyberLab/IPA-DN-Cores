@@ -737,8 +737,16 @@ namespace IPA.Cores.Basic
             return BuildAbsolutePathStringFromElements(tokens);
         }
 
-        public string[] SplitAbsolutePathToElements(string path)
+        public string NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(string path)
         {
+            Debug.Assert(this.Style != FileSystemStyle.Windows);
+
+            return BuildAbsolutePathStringFromElements(SplitAbsolutePathToElementsUnixStyle(path));
+        }
+
+        public string[] SplitAbsolutePathToElementsUnixStyle(string path)
+        {
+            Debug.Assert(this.Style != FileSystemStyle.Windows);
             path = path.NonNull();
 
             if (path.StartsWith("/") == false)
@@ -845,7 +853,7 @@ namespace IPA.Cores.Basic
                     return true;
 
                 // \\server\name
-                if (path.Length >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] != '\\')
+                if (path.Length >= 3 && path[0] == '\\' && path[1] == '\\' && path[2] != '\\')
                     return true;
 
                 return false;
@@ -871,7 +879,7 @@ namespace IPA.Cores.Basic
             return srcPath;
         }
 
-        public string ConvertPathToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
+        public string ConvertDirectorySeparatorToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
         {
             srcPath = srcPath.NonNull();
 

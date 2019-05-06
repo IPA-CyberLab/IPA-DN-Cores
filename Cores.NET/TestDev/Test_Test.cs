@@ -70,33 +70,20 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            MemoryBuffer<byte> mem2 = new MemoryBuffer<byte>();
-            mem2.Write("ABC".GetBytes_Ascii());
-            mem2.WriteZero(4);
-            mem2.Write("DEF".GetBytes_Ascii());
-            var x = Util.GetSparseChunks(mem2.Memory, 2);
-
-
-
-            var f = Lfs.Create(@"d:\tmp\190506\sparse1.txt", flags: FileOperationFlags.AutoCreateDirectory | FileOperationFlags.SparseFile);
-
-            MemoryBuffer<byte> mem = new MemoryBuffer<byte>();
-            mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
-            mem.WriteZero(10_000_000);
-            mem.Write("\r\n\r\nHello World\r\n\r\n".GetBytes_Ascii());
-            mem.WriteZero(10_000_000);
-            //mem.Write("\r\n\r\nHello World 2\r\n\r\n".GetBytes_Ascii());
-            f.Write(mem);
-
-
-            f.Close();
-
-            f = Lfs.Create(@"d:\tmp\190506\win1.txt");
-            f.Write("Hello".GetBytes_Ascii());
-            f.SetFileSize(100);
-            f.Seek(80, SeekOrigin.Begin);
-            f.Write("World".GetBytes_Ascii());
-            f.Close();
+            string path = @"\\server";
+            DirectoryWalker w = new DirectoryWalker(Lfs);
+            w.WalkDirectory(path, (pathinfo, entity, cancel) =>
+            {
+                Con.WriteLine(pathinfo.FullPath);
+                return true;
+            },
+            (path2, exception, cancel) =>
+            {
+                if (exception is UnauthorizedAccessException)
+                    return true;
+                throw exception;
+            }
+            );
         }
     }
 }

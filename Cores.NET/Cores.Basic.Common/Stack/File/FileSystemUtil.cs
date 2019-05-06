@@ -458,7 +458,7 @@ namespace IPA.Cores.Basic
         public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
                 async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
-                async (dirInfo, exception, c) => { return exceptionHandler(dirInfo, exception, c); },
+                async (dirInfo, exception, c) => { if (exceptionHandler == null) throw exception; return exceptionHandler(dirInfo, exception, c); },
                 recursive, cancel).GetResult();
 #pragma warning restore CS1998
     }

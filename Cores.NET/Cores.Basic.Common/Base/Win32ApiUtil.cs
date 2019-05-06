@@ -38,6 +38,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -79,6 +80,60 @@ namespace IPA.Cores.Basic
 {
     static partial class Win32ApiUtil
     {
+        static readonly FileSystemPathParser WindowsPathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Windows);
+
+        public static bool IsUncServerRootPath(string path, out string normalizedPath)
+        {
+            normalizedPath = null;
+
+            path = path.NonNullTrim();
+
+            path = WindowsPathParser.NormalizeDirectorySeparator(path);
+
+            path = WindowsPathParser.RemoveLastSeparatorChar(path);
+
+            if (path.StartsWith(@"\\"))
+            {
+                if (path.Length >= 3 && path[2] != '\\')
+                {
+                    int r = path.IndexOf(@"\", 2);
+                    if (r == -1)
+                    {
+                        normalizedPath = path;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static IReadOnlyList<string> EnumNetworkShareDirectories(string path)
+        {
+            path = path.NonNullTrim();
+
+            path = WindowsPathParser.NormalizeDirectorySeparator(path);
+
+            if (path.StartsWith(@"\\") == false)
+                throw new ArgumentException($"\"{path}\" is not an UNC path.");
+
+            int r = path.IndexOf(@"\", 2);
+            if (r != -1)
+                path = path.Substring(0, r);
+
+            var entries = Win32Api.NetApi32.EnumNetShares(path);
+            List<string> ret = new List<string>();
+
+            foreach (var item in entries
+                .Where(x => x.shi1_type.BitAny(Win32Api.NetApi32.SHARE_TYPE.STYPE_DEVICE | Win32Api.NetApi32.SHARE_TYPE.STYPE_IPC | Win32Api.NetApi32.SHARE_TYPE.STYPE_PRINTQ) == false)
+                .Where(x => x.shi1_netname.IsFilled() && x.shi1_netname.IsSamei("print$") == false))
+            {
+                ret.Add(item.shi1_netname.Trim());
+            }
+
+            return ret;
+        }
+
         public static int FillAttributeInfo(string path, ref Win32Api.Kernel32.WIN32_FILE_ATTRIBUTE_DATA data, bool returnErrorOnNotFound)
         {
             int errorCode = Win32Api.Errors.ERROR_SUCCESS;

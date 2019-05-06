@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
                                     entryName = "";
 
                                 string srcFullPath = srcFileSystem.PathParser.Combine(srcPath, dirInfo.RelativePath, entryName);
-                                string destFullPath = destFileSystem.PathParser.Combine(destPath, srcFileSystem.PathParser.ConvertPathToOtherSystem(dirInfo.RelativePath, destFileSystem.PathParser), entryName);
+                                string destFullPath = destFileSystem.PathParser.Combine(destPath, srcFileSystem.PathParser.ConvertDirectorySeparatorToOtherSystem(dirInfo.RelativePath, destFileSystem.PathParser), entryName);
 
                                 if (entity.IsDirectory == false)
                                 {

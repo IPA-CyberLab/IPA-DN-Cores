@@ -60,6 +60,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileCopy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\FileSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ResourceFileSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stack\File\RewriteViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\Utf8BomViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\ViewFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stack\File\VirtualFileSystem.cs" />

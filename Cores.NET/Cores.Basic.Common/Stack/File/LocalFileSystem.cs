@@ -96,8 +96,50 @@ namespace IPA.Cores.Basic
         protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
             => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
 
+        IReadOnlyList<FileSystemEntity> Win32EnumUncPathSpecialDirectory(string normalizedUncPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+        {
+            List<FileSystemEntity> ret = new List<FileSystemEntity>();
+
+            IReadOnlyList<string> shareNameList = Win32ApiUtil.EnumNetworkShareDirectories(normalizedUncPath);
+
+            DateTimeOffset now = DateTimeOffset.Now;
+
+            // root directory
+            FileSystemEntity root = new FileSystemEntity()
+            {
+                Name = ".",
+                FullPath = normalizedUncPath,
+                Size = 0,
+                Attributes = FileAttributes.Directory,
+                CreationTime = now,
+                LastWriteTime = now,
+                LastAccessTime = now,
+            };
+            ret.Add(root);
+
+            foreach (string shareName in shareNameList)
+            {
+                FileSystemEntity entity = new FileSystemEntity()
+                {
+                    Name = shareName,
+                    FullPath = normalizedUncPath + @"\" + shareName,
+                    Size = 0,
+                    Attributes = FileAttributes.Directory,
+                    CreationTime = now,
+                    LastWriteTime = now,
+                    LastAccessTime = now,
+                };
+                ret.Add(entity);
+            }
+
+            return ret;
+        }
+
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
         {
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(directoryPath, out string normalizedUncPath))
+                return Win32EnumUncPathSpecialDirectory(normalizedUncPath, flags, cancel).ToArray();
+
             DirectoryInfo di = new DirectoryInfo(directoryPath);
 
             List<FileSystemEntity> o = new List<FileSystemEntity>();
@@ -165,7 +207,19 @@ namespace IPA.Cores.Basic
             => Task.FromResult(File.Exists(path));
 
         protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
-            => Task.FromResult(Directory.Exists(path));
+        {
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string normalizedUncPath))
+            {
+                // UNC server root path
+                try
+                {
+                    return Task.FromResult(Win32EnumUncPathSpecialDirectory(normalizedUncPath, EnumDirectoryFlags.None, cancel).Where(x => x.FullPath.IsSamei(normalizedUncPath)).Any());
+                }
+                catch { return Task.FromResult(false); }
+            }
+
+            return Task.FromResult(Directory.Exists(path));
+        }
 
         static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
         {
@@ -639,6 +693,20 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string normalizedUncPath))
+            {
+                // UNC server root path
+                DateTimeOffset now = DateTimeOffset.Now;
+                return new FileMetadata()
+                {
+                    Attributes = FileAttributes.Directory,
+                    CreationTime = now,
+                    LastWriteTime = now,
+                    LastAccessTime = now,
+                    IsDirectory = true,
+                };
+            }
+
             DirectoryInfo dirInfo = new DirectoryInfo(path);
 
             if (dirInfo.Exists == false)
