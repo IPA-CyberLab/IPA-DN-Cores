@@ -48,6 +48,7 @@ using System.Security.AccessControl;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
+
 #pragma warning disable CS0219
 #pragma warning disable CS0162
 
@@ -87,5 +88,4 @@ namespace IPA.TestDev
         }
     }
 }
-
 
