@@ -11,12 +11,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>CORES_FEATURE_DATABASE;CORES_FEATURE_JSON;CORES_FEATURE_SECURITY;CORES_FEATURE_WEBSERVER;</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_FEATURE_DATABASE;CORES_FEATURE_JSON;CORES_FEATURE_SECURITY;CORES_FEATURE_WEBSERVER;</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,22 +33,22 @@
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
 
     <!-- Cores.Basic.Database -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.8" />
-    <PackageReference Include="Dapper" Version="1.60.1" />
-    <PackageReference Include="Dapper.Contrib" Version="1.60.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_FEATURE_DATABASE'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_FEATURE_DATABASE'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_FEATURE_DATABASE'))" />
+    <PackageReference Include="Dapper" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_FEATURE_DATABASE'))" />
+    <PackageReference Include="Dapper.Contrib" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_FEATURE_DATABASE'))" />
 
     <!-- Cores.Basic.Json -->
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
-    <PackageReference Include="Castle.Core" Version="4.3.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" Condition="$(DefineConstants.Contains('CORES_FEATURE_JSON'))" />
+    <PackageReference Include="Castle.Core" Version="4.3.1" Condition="$(DefineConstants.Contains('CORES_FEATURE_JSON'))" />
 
     <!-- Cores.Basic.Security -->
-    <PackageReference Include="BouncyCastle.NetCore" Version="1.8.3" />
+    <PackageReference Include="BouncyCastle.NetCore" Version="1.8.3" Condition="$(DefineConstants.Contains('CORES_FEATURE_SECURITY'))" />
 
     <!-- Cores.Basic.WebServer -->
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" />
-    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_FEATURE_WEBSERVER'))" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_FEATURE_WEBSERVER'))" />
 
   </ItemGroup>
 
