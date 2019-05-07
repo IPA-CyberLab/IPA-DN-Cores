@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_FEATURE_DATABASE
+
 using System;
 using System.Data;
 using System.Data.Common;
@@ -1125,3 +1127,6 @@ namespace IPA.Cores.Basic
         }
     }
 }
+
+#endif // CORES_FEATURE_DATABASE
+

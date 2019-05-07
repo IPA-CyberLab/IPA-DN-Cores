@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_FEATURE_WEBSERVER
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,3 +56,6 @@ namespace IPA.Cores.Basic
         }
     }
 }
+
+#endif // CORES_FEATURE_WEBSERVER
+

@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_FEATURE_JSON
+
 using System;
 
 using IPA.Cores.Basic;
@@ -92,3 +94,7 @@ namespace IPA.Cores.Basic
             => Con.WriteDebug(obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
     }
 }
+
+#endif // CORES_FEATURE_JSON
+
+

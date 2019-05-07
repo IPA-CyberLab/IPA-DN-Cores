@@ -30,6 +30,7 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_FEATURE_SECURITY
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -72,3 +73,6 @@ namespace IPA.Cores.Basic
 
     }
 }
+
+#endif // CORES_FEATURE_SECURITY
+
