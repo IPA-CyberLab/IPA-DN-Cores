@@ -52,14 +52,6 @@
 
   </ItemGroup>
 
-  <Import Project="..\Cores.Basic.Common\Cores.Basic.Common.projitems" Label="Shared" />
-
-  <Import Project="..\Cores.Basic.Database\Cores.Basic.Database.projitems" Label="Shared" />
-
-  <Import Project="..\Cores.Basic.Json\Cores.Basic.Json.projitems" Label="Shared" />
-
-  <Import Project="..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
-  
-  <Import Project="..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems" Label="Shared" />
+  <Import Project="..\Cores.Basic\Cores.Basic.projitems" Label="Shared" />
 
 </Project>
