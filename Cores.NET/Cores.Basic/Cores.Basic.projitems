@@ -88,7 +88,27 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\SpeedTest.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClientResource.cs" />
-  </ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Base\DebugJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Base\Json.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Base\JsonHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Base\TaskVmJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Base\UtilJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpcEasy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\LogDef\LogDef.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />      <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Security\Base\PackSecurity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Wpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpcEasy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\LogDef\LogDef.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\MsLogger.cs" />
+</ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\Test\HelloWorld.txt" />
   </ItemGroup>
