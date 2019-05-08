@@ -336,7 +336,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FileParameters
+    sealed class FileParameters
     {
         public string Path { get; private set; }
         public FileMode Mode { get; }
@@ -361,6 +361,18 @@ namespace IPA.Cores.Basic
 
         public void NormalizePath(FileSystem fileSystem, CancellationToken cancel = default)
             => NormalizePathAsync(fileSystem, cancel).GetResult();
+
+        public FileParameters MapPathVirtualToPhysical(IRewriteVirtualPhysicalPath rewriter)
+        {
+            this.Path = rewriter.MapPathVirtualToPhysical(this.Path);
+            return this;
+        }
+
+        public FileParameters MapPathPhysicalToVirtual(IRewriteVirtualPhysicalPath rewriter)
+        {
+            this.Path = rewriter.MapPathPhysicalToVirtual(this.Path);
+            return this;
+        }
 
         public FileParameters Clone()
             => (FileParameters)this.MemberwiseClone();

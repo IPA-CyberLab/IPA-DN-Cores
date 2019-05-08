@@ -45,95 +45,65 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class ChrootViewFileSystemParam : ViewFileSystemParams
+    class ChrootViewFileSystemParam : RewriteViewFileSystemParam
     {
-        public ChrootViewFileSystemParam(FileSystem underlayFileSystem)
-            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? FileSystemPathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser)
-            // Use the Mac OS X path parser if the underlay file system is Windows
+        public string PhysicalRootDirectory { get; }
+
+        public ChrootViewFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory) : base(underlayFileSystem)
         {
+            physicalRootDirectory = underlayFileSystem.NormalizePath(physicalRootDirectory);
+            physicalRootDirectory = underlayFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalRootDirectory);
+
+            this.PhysicalRootDirectory = physicalRootDirectory;
         }
     }
 
 
-    class ChrootViewFileSystem : ViewFileSystem
+    class ChrootViewFileSystem : RewriteViewFileSystem
     {
-        public ChrootViewFileSystem(ViewFileSystemParams param) : base(param)
+        protected new ChrootViewFileSystemParam Params => (ChrootViewFileSystemParam)base.Params;
+        protected string PhysicalRootDirectory => Params.PhysicalRootDirectory;
+
+        public ChrootViewFileSystem(ChrootViewFileSystemParam param) : base(param)
         {
         }
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override string MapPathPhysicalToVirtualImpl(string relativeSafeUnderlayFsStyleVirtualPath)
         {
-            return base.CreateDirectoryImplAsync(directoryPath, flags, cancel);
+            // From:
+            // the examples of physicalPath:
+            // c:\view_root
+            // c:\view_root\readme.txt
+            // c:\view_root\abc\def\
+            // c:\view_root\abc\def\readme.txt
+            // 
+            // To:
+            // the contents of virtualPath:
+            // '' (empty)  - representing the root directory
+            // readme.txt
+            // abc\def
+            // abc\def\readme.txt
+            return UnderlayPathParser.GetRelativeFileName(relativeSafeUnderlayFsStyleVirtualPath, this.PhysicalRootDirectory);
         }
 
-        protected override Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        protected override string MapPathVirtualToPhysicalImpl(string underlayFsStylePhysicalPath)
         {
-            return base.CreateFileImplAsync(option, cancel);
-        }
-
-        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
-        {
-            return base.DeleteDirectoryImplAsync(directoryPath, recursive, cancel);
-        }
-
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            return base.DeleteFileImplAsync(path, flags, cancel);
-        }
-
-        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
-        {
-            return base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
-        }
-
-        protected override string FindEasyAccessFilePathFromNameImpl(string name)
-        {
-            return base.FindEasyAccessFilePathFromNameImpl(name);
-        }
-
-        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-        {
-            return base.GetDirectoryMetadataImplAsync(path, flags, cancel);
-        }
-
-        protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-        {
-            return base.GetFileMetadataImplAsync(path, flags, cancel);
-        }
-
-        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
-        {
-            return base.IsDirectoryExistsImplAsync(path, cancel);
-        }
-
-        protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
-        {
-            return base.IsFileExistsImplAsync(path, cancel);
-        }
-
-        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-        {
-            return base.MoveDirectoryImplAsync(srcPath, destPath, cancel);
-        }
-
-        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-        {
-            return base.MoveFileImplAsync(srcPath, destPath, cancel);
-        }
-
-        protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
-        {
-            return base.NormalizePathImplAsync(path, cancel);
-        }
-
-        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-        {
-            return base.SetDirectoryMetadataImplAsync(path, metadata, cancel);
-        }
-
-        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-        {
-            return base.SetFileMetadataImplAsync(path, metadata, cancel);
+            // From:
+            // the contents of underlayFsStylePhysicalPath:
+            // '' (empty)  - representing the root directory
+            // readme.txt
+            // abc\def
+            // abc\def\readme.txt
+            // Note: underlayFsStylePhysicalPath never be absolute path.
+            //
+            // To:
+            // the contents of physicalPath:
+            // c:\view_root
+            // c:\view_root\readme.txt
+            // c:\view_root\abc\def
+            // c:\view_root\abc\def\readme.txt
+            return UnderlayPathParser.Combine(this.PhysicalRootDirectory, underlayFsStylePhysicalPath, true);
         }
     }
 }
+

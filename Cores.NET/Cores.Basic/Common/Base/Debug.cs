@@ -1209,14 +1209,21 @@ namespace IPA.Cores.Basic
         static Dictionary<long, LeakCheckerHolder> _InternalList;
         static long _InternalCurrentId = 0;
         static int[] LeakCounters;
-        static bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+        static bool FullStackTrace;
 
         public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
 
         static void ModuleInit()
         {
+            FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
             _InternalList = new Dictionary<long, LeakCheckerHolder>();
             LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];
+
+            if (FullStackTrace)
+            {
+                Console.WriteLine("** Warning: CoresConfig.DebugSettings.LeakCheckerFullStackLog is enabled.");
+                Console.WriteLine("** Performance will be degraded.");
+            }
         }
 
         static LeakCheckerResult ModuleFree()

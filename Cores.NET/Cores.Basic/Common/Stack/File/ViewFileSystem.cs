@@ -47,9 +47,11 @@ namespace IPA.Cores.Basic
 {
     class ViewFileObject : FileObject
     {
-        readonly ViewFileSystem ViewFileSystem;
+        protected ViewFileSystem ViewFileSystem { get; }
         FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
-        protected FileObject UnderlayFile { get; private set; }
+        public FileObject UnderlayFile { get; private set; }
+
+        public override string FinalPhysicalPath => UnderlayFile.FinalPhysicalPath;
 
         public ViewFileObject(ViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {

@@ -71,20 +71,38 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            string path = @"\\server";
-            DirectoryWalker w = new DirectoryWalker(Lfs);
-            w.WalkDirectory(path, (pathinfo, entity, cancel) =>
+            using (ChrootViewFileSystem fs = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"c:\tmp")))
             {
-                Con.WriteLine(pathinfo.FullPath);
-                return true;
-            },
-            (path2, exception, cancel) =>
-            {
-                if (exception is UnauthorizedAccessException)
-                    return true;
-                throw exception;
+                fs.DirectoryWalker.WalkDirectory("/./",
+                    (pathinfo, entitylist, cancel) =>
+                    {
+                        //Con.WriteLine(pathinfo.FullPath);
+
+                        //fs.GetDirectoryMetadata(pathinfo.FullPath).PrintAsJson();
+
+                        foreach (var e in entitylist)
+                        {
+                            if (e.IsDirectory == false)
+                            {
+                                //Con.WriteLine(e.FullPath);
+                                //fs.GetFileMetadata(e.FullPath).PrintAsJson();
+
+                                using (var file = fs.Open(e.FullPath))
+                                {
+                                    var file2 = (RewriteViewFileObject)file;
+                                    Con.WriteLine(file2.UnderlayFile.FileParams.Path);
+                                }
+                            }
+                        }
+                        return true;
+                    },
+                    (pathinfo, ex, cancel) =>
+                    {
+                        Con.WriteLine($"{pathinfo.FullPath}: {ex.Message}");
+                        return true;
+                    }
+                    );
             }
-            );
         }
     }
 }

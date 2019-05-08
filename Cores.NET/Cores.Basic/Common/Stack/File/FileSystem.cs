@@ -828,15 +828,46 @@ namespace IPA.Cores.Basic
         {
             srcPath = srcPath.NonNull();
 
+            if (this.Style == FileSystemStyle.Windows)
+                srcPath = srcPath.TrimStart();
+
+            int mode = -1;
+
             StringBuilder sb = new StringBuilder();
             foreach (char c in srcPath)
             {
-                char d = c;
+                bool isDirectorySeparatorChar = false;
                 foreach (char pos in PossibleDirectorySeparators)
+                    if (pos == c) isDirectorySeparatorChar = true;
+
+                char d = c;
+
+                if (isDirectorySeparatorChar)
+                    d = this.DirectorySeparator;
+
+                if (isDirectorySeparatorChar == false)
                 {
-                    if (pos == c) d = this.DirectorySeparator;
+                    sb.Append(d);
+                    mode = 0;
                 }
-                sb.Append(d);
+                else
+                {
+                    if (mode != 1)
+                    {
+                        sb.Append(d);
+                        mode = 1;
+                    }
+                    else
+                    {
+                        if (this.Style == FileSystemStyle.Windows)
+                        {
+                            if (sb.Length == 1)
+                            {
+                                sb.Append(d);
+                            }
+                        }
+                    }
+                }
             }
             return sb.ToString();
         }
@@ -844,7 +875,7 @@ namespace IPA.Cores.Basic
         public bool IsAbsolutePath(string path, bool normalizeDirectorySeparator = false)
         {
             if (normalizeDirectorySeparator)
-                path = NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
+                path = NormalizeDirectorySeparator(path);
 
             if (this.Style == FileSystemStyle.Windows)
             {
@@ -967,6 +998,39 @@ namespace IPA.Cores.Basic
             if (path == null) return null;
             SepareteDirectoryAndFileName(path, out _, out string fileName);
             return fileName;
+        }
+
+        public string GetRelativeFileName(string fileName, string baseDirName)
+        {
+            fileName = fileName.TrimNonNull();
+            baseDirName = baseDirName.TrimNonNull();
+
+            baseDirName = this.NormalizeDirectorySeparator(baseDirName);
+            baseDirName = this.RemoveLastSeparatorChar(baseDirName);
+
+            if (baseDirName.Length == 0) throw new ArgumentException("baseDirName is empty.");
+
+            fileName = this.NormalizeDirectorySeparator(fileName);
+            fileName = this.RemoveLastSeparatorChar(fileName);
+
+            if (fileName.Length < baseDirName.Length)
+            {
+                throw new ArgumentException("fileName.Length < baseDirName.Length");
+            }
+
+            if (fileName.StartsWith(baseDirName, this.PathStringComparison) == false)
+            {
+                throw new ArgumentException($"The fileName \"{fileName}\" does not include the baseDirName \"{baseDirName}\".");
+            }
+
+            string ret = fileName.Substring(baseDirName.Length);
+
+            if (ret.Length >= 1 && this.PossibleDirectorySeparators.Where(x => x == ret[0]).Any())
+            {
+                ret = ret.Substring(1);
+            }
+
+            return ret;
         }
 
         public string Combine(string path1, string path2)

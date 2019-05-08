@@ -349,7 +349,8 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return "*Error*";
+                // Currently this will return error in Windows
+                return "";
             }
         }
 
