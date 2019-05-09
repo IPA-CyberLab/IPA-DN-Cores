@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
 #pragma warning disable CS1998
         public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
         {
-            DirectoryWalker walk = new DirectoryWalker(this, false, EnumDirectoryFlags.NoGetPhysicalSize);
+            DirectoryWalker walk = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
             string exactFile = null;
 
             List<FindSingleFileData> candidates = new List<FindSingleFileData>();
@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
 
         protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
         {
-            DirectoryWalker walker = new DirectoryWalker(this, true, EnumDirectoryFlags.NoGetPhysicalSize);
+            DirectoryWalker walker = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
             await walker.WalkDirectoryAsync(directoryPath,
                 async (info, entities, c) =>
                 {
@@ -346,18 +346,17 @@ namespace IPA.Cores.Basic
     class DirectoryWalker
     {
         public FileSystem FileSystem { get; }
-        public bool DeeperFirstInRecursive { get; }
         public EnumDirectoryFlags Flags { get; }
 
-        public DirectoryWalker(FileSystem fileSystem, bool deeperFirstInRecursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
+        public DirectoryWalker(FileSystem fileSystem, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
         {
             this.FileSystem = fileSystem;
-            this.DeeperFirstInRecursive = deeperFirstInRecursive;
             this.Flags = flags;
         }
 
         async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
             Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callbackForDirectoryAgain,
             Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler,
             bool recursive, CancellationToken opCancel, FileSystemEntity dirEntity)
         {
@@ -407,13 +406,9 @@ namespace IPA.Cores.Basic
                 currentDirInfo = new DirectoryPathInfo(true, directoryFullPath, directoryRelativePath, rootDirEntry);
             }
 
-            if (this.DeeperFirstInRecursive == false)
+            if (await callback(currentDirInfo, entityList, opCancel) == false)
             {
-                // Deeper last
-                if (await callback(currentDirInfo, entityList, opCancel) == false)
-                {
-                    return false;
-                }
+                return false;
             }
 
             if (recursive)
@@ -425,7 +420,7 @@ namespace IPA.Cores.Basic
                     {
                         opCancel.ThrowIfCancellationRequested();
 
-                        if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, exceptionHandler, true, opCancel, entity) == false)
+                        if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, callbackForDirectoryAgain, exceptionHandler, true, opCancel, entity) == false)
                         {
                             return false;
                         }
@@ -433,10 +428,9 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            if (this.DeeperFirstInRecursive)
+            if (callbackForDirectoryAgain != null)
             {
-                // Deeper first
-                if (await callback(currentDirInfo, entityList, opCancel) == false)
+                if (await callbackForDirectoryAgain(currentDirInfo, entityList, opCancel) == false)
                 {
                     return false;
                 }
@@ -445,19 +439,20 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
             rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel);
 
-            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, exceptionHandler, recursive, cancel, null);
+            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel, null);
         }
 
 #pragma warning disable CS1998
-        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
                 async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
+                async (dirInfo, entity, c) => { return callbackForDirectoryAgain(dirInfo, entity, c); },
                 async (dirInfo, exception, c) => { if (exceptionHandler == null) throw exception; return exceptionHandler(dirInfo, exception, c); },
                 recursive, cancel).GetResult();
 #pragma warning restore CS1998

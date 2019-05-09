@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
 
             using (ProgressReporterBase dirReporter = param.EntireProgressReporterFactory.CreateNewReporter($"CopyDir '{srcFileSystem.PathParser.GetFileName(srcPath)}'", state))
             {
-                DirectoryWalker walker = new DirectoryWalker(srcFileSystem, deeperFirstInRecursive: false);
+                DirectoryWalker walker = new DirectoryWalker(srcFileSystem);
                 bool walkRet = await walker.WalkDirectoryAsync(srcPath,
                     async (dirInfo, entries, c) =>
                     {
@@ -375,6 +375,33 @@ namespace IPA.Cores.Basic
                             }
                         }
 
+                        return true;
+                    },
+                    async (dirInfo, entries, c) =>
+                    {
+                        c.ThrowIfCancellationRequested();
+                        foreach (FileSystemEntity entity in entries)
+                        {
+                            c.ThrowIfCancellationRequested();
+                            string entryName = entity.Name;
+                            if (entity.IsCurrentDirectory)
+                                entryName = "";
+
+                            string srcFullPath = srcFileSystem.PathParser.Combine(srcPath, dirInfo.RelativePath, entryName);
+                            string destFullPath = destFileSystem.PathParser.Combine(destPath, srcFileSystem.PathParser.ConvertDirectorySeparatorToOtherSystem(dirInfo.RelativePath, destFileSystem.PathParser), entryName);
+
+                            if (entity.IsDirectory)
+                            {
+                                // Update the directory LastWriteTime metadata after placing all inside files into the directory
+                                if (param.DirectoryMetadataCopier.Mode.BitAny(FileMetadataCopyMode.TimeAll))
+                                {
+                                    FileMetadataGetFlags metadataGetFlags = FileMetadataCopier.CalcOptimizedMetadataGetFlags(param.DirectoryMetadataCopier.Mode & (FileMetadataCopyMode.TimeAll));
+                                    FileMetadata srcDirMetadata = await srcFileSystem.GetDirectoryMetadataAsync(srcFullPath, metadataGetFlags, cancel);
+                                    FileMetadata dstDirMetadata = param.DirectoryMetadataCopier.Copy(srcDirMetadata);
+                                    await destFileSystem.SetDirectoryMetadataAsync(destFullPath, dstDirMetadata, cancel);
+                                }
+                            }
+                        }
                         return true;
                     },
                     async (dirInfo, exception, c) =>

@@ -71,37 +71,12 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            using (ChrootViewFileSystem fs = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"c:\tmp")))
+            using (ChrootViewFileSystem fs1 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"C:\git\commonlibs_private")))
             {
-                fs.DirectoryWalker.WalkDirectory("/./",
-                    (pathinfo, entitylist, cancel) =>
-                    {
-                        //Con.WriteLine(pathinfo.FullPath);
-
-                        //fs.GetDirectoryMetadata(pathinfo.FullPath).PrintAsJson();
-
-                        foreach (var e in entitylist)
-                        {
-                            if (e.IsDirectory == false)
-                            {
-                                //Con.WriteLine(e.FullPath);
-                                //fs.GetFileMetadata(e.FullPath).PrintAsJson();
-
-                                using (var file = fs.Open(e.FullPath))
-                                {
-                                    var file2 = (RewriteViewFileObject)file;
-                                    Con.WriteLine(file2.UnderlayFile.FileParams.Path);
-                                }
-                            }
-                        }
-                        return true;
-                    },
-                    (pathinfo, ex, cancel) =>
-                    {
-                        Con.WriteLine($"{pathinfo.FullPath}: {ex.Message}");
-                        return true;
-                    }
-                    );
+                using (ChrootViewFileSystem fs2 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"d:\tmp\190509")))
+                {
+                    fs1.CopyDir("/", "/", fs2);
+                }
             }
         }
     }
