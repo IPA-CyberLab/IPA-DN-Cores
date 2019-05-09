@@ -56,6 +56,58 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
+    static class FastHashHelper
+    {
+        public static int ComputeHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
+            => data.GetHashCode(cmp);
+
+        public static int ComputeHash32(this ReadOnlySpan<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        public static int ComputeHash32(this Span<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        public static int ComputeHash32(this byte[] data, int offset, int size)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan(offset, size));
+
+        public static int ComputeHash32(this byte[] data, int offset)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan(offset));
+
+        public static int ComputeHash32(this byte[] data)
+            => Marvin.ComputeHash32(data.AsReadOnlySpan());
+
+        public static int ComputeHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
+        {
+            unsafe
+            {
+                void* ptr = Unsafe.AsPointer(ref data);
+                Span<byte> span = new Span<byte>(ptr, sizeof(TStruct));
+                return ComputeHash32(span);
+            }
+        }
+
+        public static int ComputeHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
+        {
+            var span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return ComputeHash32(span);
+        }
+
+        public static int ComputeHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
+        {
+            var span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return ComputeHash32(span);
+        }
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan(offset, size));
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan(offset));
+
+        public static int ComputeHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
+            => ComputeHash32(data.AsReadOnlySpan());
+    }
+
     static class BasicHelper
     {
         public static byte[] GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));

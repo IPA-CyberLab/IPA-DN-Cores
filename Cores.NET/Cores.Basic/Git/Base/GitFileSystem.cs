@@ -5,6 +5,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using LibGit2Sharp;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
+
 namespace IPA.Cores.Basic
 {
     class GitFileObject : FileObject
@@ -80,7 +84,7 @@ namespace IPA.Cores.Basic
 
         public GitFileSystem(GitFileSystemParams param) : base(param)
         {
-            Repository.Tags
+            //Repository.Tags
         }
 
         protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
