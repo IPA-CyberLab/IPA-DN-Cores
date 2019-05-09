@@ -1330,14 +1330,25 @@ namespace IPA.Cores.Basic
         MostMatchExact,
     }
 
+    [Flags]
+    enum FileSystemMode
+    {
+        ReadOnly = 0,
+        Writeable = 1,
+
+        Default = Writeable,
+    }
+
     class FileSystemParams
     {
         public FileSystemPathParser PathParser { get; }
         public Copenhagen<EasyAccessPathFindMode> EasyAccessPathFindMode { get; } = new Copenhagen<EasyAccessPathFindMode>(Basic.EasyAccessPathFindMode.NotSupported);
+        public FileSystemMode Mode { get; }
 
-        public FileSystemParams(FileSystemPathParser pathParser)
+        public FileSystemParams(FileSystemPathParser pathParser, FileSystemMode mode = FileSystemMode.Default)
         {
             this.PathParser = pathParser;
+            this.Mode = mode;
         }
     }
 

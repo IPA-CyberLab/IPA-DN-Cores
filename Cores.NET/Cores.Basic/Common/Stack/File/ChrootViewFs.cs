@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
     {
         public string PhysicalRootDirectory { get; }
 
-        public ChrootViewFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory) : base(underlayFileSystem)
+        public ChrootViewFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory, FileSystemMode mode = FileSystemMode.Default) : base(underlayFileSystem, mode)
         {
             physicalRootDirectory = underlayFileSystem.NormalizePath(physicalRootDirectory);
             physicalRootDirectory = underlayFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalRootDirectory);

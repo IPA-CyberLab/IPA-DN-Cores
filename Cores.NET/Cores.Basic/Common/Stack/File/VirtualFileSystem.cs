@@ -598,7 +598,7 @@ namespace IPA.Cores.Basic
 
     class VirtualFileSystemParams : FileSystemParams
     {
-        public VirtualFileSystemParams() : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux)) { }
+        public VirtualFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux), mode) { }
     }
 
     class VirtualFileSystem : FileSystem

@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
     {
         public Assembly Assembly { get; }
 
-        public ResourceFileSystemParam(Assembly assembly)
+        public ResourceFileSystemParam(Assembly assembly) : base(FileSystemMode.ReadOnly)
         {
             this.Assembly = assembly;
         }

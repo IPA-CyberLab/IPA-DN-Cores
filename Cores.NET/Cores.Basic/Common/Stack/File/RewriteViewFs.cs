@@ -63,8 +63,8 @@ namespace IPA.Cores.Basic
 
     abstract class RewriteViewFileSystemParam : ViewFileSystemParams
     {
-        public RewriteViewFileSystemParam(FileSystem underlayFileSystem)
-            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? FileSystemPathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser)
+        public RewriteViewFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default)
+            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? FileSystemPathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser, mode)
         // Use the Mac OS X path parser if the underlay file system is Windows
         {
         }

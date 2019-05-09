@@ -493,8 +493,8 @@ namespace IPA.Cores.Basic
 
         public FileSystem UnderlayFileSystem { get; }
 
-        public LargeFileSystemParams(FileSystem underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null)
-            : base(underlayFileSystem.PathParser)
+        public LargeFileSystemParams(FileSystem underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null, FileSystemMode mode = FileSystemMode.Default)
+            : base(underlayFileSystem.PathParser, mode)
         {
             checked
             {

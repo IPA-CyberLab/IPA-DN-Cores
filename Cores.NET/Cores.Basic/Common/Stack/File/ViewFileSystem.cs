@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
     {
         public FileSystem UnderlayFileSystem { get; }
 
-        public ViewFileSystemParams(FileSystem underlayFileSystem, FileSystemPathParser pathParser) : base(pathParser)
+        public ViewFileSystemParams(FileSystem underlayFileSystem, FileSystemPathParser pathParser, FileSystemMode mode = FileSystemMode.Default) : base(pathParser, mode)
         {
             this.UnderlayFileSystem = underlayFileSystem;
         }
