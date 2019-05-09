@@ -37,11 +37,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Diagnostics;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219

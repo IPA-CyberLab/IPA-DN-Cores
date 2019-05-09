@@ -37,43 +37,43 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.Serialization.Json;
+using System.Diagnostics;
+using LibGit2Sharp;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Security.AccessControl;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-
-using LibGit2Sharp;
-
-
-#pragma warning disable CS0219
-#pragma warning disable CS0162
-
 
 namespace IPA.TestDev
 {
-    [Serializable]
-    [DataContract]
-    class TestData
+    partial class TestDevCommands
     {
-        [DataMember]
-        public int A;
-        [DataMember]
-        public string B;
-        [DataMember]
-        public int C;
-    }
+        const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
+        const string GitTestBaseDir = @"c:\tmp\git_test_base";
 
-    static class TestClass
-    {
-        public static void Test()
+        [ConsoleCommandMethod(
+            "Git command",
+            "Git [arg]",
+            "Git test")]
+        static int Git(ConsoleService c, string cmdName, string str)
         {
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            //Git_Test_Clone();
+
+            Git_Test_1();
+
+            return 0;
+        }
+
+        static void Git_Test_1()
+        {
+        }
+
+        static void Git_Test_Clone()
+        {
+            GitUtil.Clone(GitTestBaseDir, GitUrl);
         }
     }
 }
-

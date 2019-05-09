@@ -26,6 +26,10 @@
     "TestDev /BenchMark": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:BenchMark"
+    },
+    "TestDev /Git": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:Git"
     }
   }
 }
