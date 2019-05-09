@@ -1357,6 +1357,7 @@ namespace IPA.Cores.Basic
         public DirectoryWalker DirectoryWalker { get; }
         public FileSystemPathParser PathParser { get; }
         protected FileSystemParams Params { get; }
+        public bool CanWrite => Params.Mode.Bit(FileSystemMode.Writeable);
 
         CriticalSection LockObj = new CriticalSection();
         HashSet<FileBase> OpenedHandleList = new HashSet<FileBase>();
@@ -1382,9 +1383,17 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
+        protected void CheckWriteable(string path)
+        {
+            if (this.CanWrite == false)
+                throw new FileException(path, "This file system is read-only mode.");
+        }
+
         public async Task<RandomAccessHandle> GetRandomAccessHandleAsync(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
             CheckNotCanceled();
+
+            if (writeMode) CheckWriteable(fileName);
 
             FileSystemObjectPool pool = writeMode ? ObjectPoolForWrite : ObjectPoolForRead;
 
@@ -1461,6 +1470,9 @@ namespace IPA.Cores.Basic
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
+            if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew || option.Mode == FileMode.OpenOrCreate || option.Mode == FileMode.Truncate)
+                CheckWriteable(option.Path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1542,6 +1554,8 @@ namespace IPA.Cores.Basic
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
+            CheckWriteable(path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1560,6 +1574,8 @@ namespace IPA.Cores.Basic
 
         public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default)
         {
+            CheckWriteable(path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1715,6 +1731,8 @@ namespace IPA.Cores.Basic
 
         public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
+            CheckWriteable(path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1732,6 +1750,8 @@ namespace IPA.Cores.Basic
 
         public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
+            CheckWriteable(path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1749,6 +1769,8 @@ namespace IPA.Cores.Basic
 
         public async Task DeleteFileAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
+            CheckWriteable(path);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1767,6 +1789,8 @@ namespace IPA.Cores.Basic
 
         public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
+            CheckWriteable(srcPath);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
@@ -1785,6 +1809,8 @@ namespace IPA.Cores.Basic
 
         public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
+            CheckWriteable(srcPath);
+
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
