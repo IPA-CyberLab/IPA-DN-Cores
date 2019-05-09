@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override Task<FileObject> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        protected override Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             option = option.Clone().MapPathVirtualToPhysical(this.ViewFileSystem);
 

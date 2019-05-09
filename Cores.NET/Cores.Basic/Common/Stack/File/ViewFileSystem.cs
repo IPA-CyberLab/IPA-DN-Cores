@@ -45,6 +45,20 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    class ViewFileObjectInitUnderlayFileResultParam
+    {
+        public readonly FileObject FileObject;
+        public readonly long InitialPositon;
+        public readonly long InitialSize;
+
+        public ViewFileObjectInitUnderlayFileResultParam(FileObject fileObject, long initialPosition, long initialSize)
+        {
+            this.FileObject = fileObject;
+            this.InitialPositon = initialPosition;
+            this.InitialSize = initialSize;
+        }
+    }
+
     class ViewFileObject : FileObject
     {
         protected ViewFileSystem ViewFileSystem { get; }
@@ -63,11 +77,24 @@ namespace IPA.Cores.Basic
             if (UnderlayFile != null)
                 throw new ApplicationException("Already inited.");
 
-            this.UnderlayFile = await CreateUnderlayFileImplAsync(this.FileParams, cancel);
+            ViewFileObjectInitUnderlayFileResultParam createResult = await CreateUnderlayFileImplAsync(this.FileParams, cancel);
+
+            this.UnderlayFile = createResult.FileObject;
+
+            InitAndCheckFileSizeAndPosition(createResult.InitialPositon, createResult.InitialSize, cancel);
         }
 
-        protected virtual Task<FileObject> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
-            => UnderlayFileSystem.CreateFileAsync(option, cancel);
+        protected virtual async Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        {
+            FileObject obj = await UnderlayFileSystem.CreateFileAsync(option, cancel);
+
+            ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
+                obj,
+                obj.Position,
+                obj.Size);
+
+            return result;
+        }
 
         protected override Task CloseImplAsync()
             => this.UnderlayFile.CloseAsync();

@@ -138,7 +138,10 @@ namespace IPA.Cores.Basic
                             {
                                 await GetFileSizeInternalAsync(true, operationCancel);
                                 if (this.InternalFileSize < this.InternalPosition)
+                                {
+                                    await GetFileSizeInternalAsync(true, operationCancel);
                                     throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                                }
                             }
 
                             long newPosition = this.InternalPosition + data.Length;

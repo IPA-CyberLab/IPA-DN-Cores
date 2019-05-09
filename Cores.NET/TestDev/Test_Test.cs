@@ -71,11 +71,17 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            using (ChrootViewFileSystem fs1 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"C:\git\commonlibs_private")))
+            using (ChrootViewFileSystem fs1 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"C:\git\")))
             {
-                using (ChrootViewFileSystem fs2 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"d:\tmp\190509")))
+                using (ChrootViewFileSystem fs3 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(fs1, "/commonlibs_private")))
                 {
-                    fs1.CopyDir("/", "/", fs2);
+                    using (ChrootViewFileSystem fs2 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"d:\tmp\190509")))
+                    {
+                        using (Utf8BomViewFileSystem fs4 = new Utf8BomViewFileSystem(new Utf8BomViewFileSystemParam(fs2)))
+                        {
+                            fs3.CopyDir("/", "/", fs4);
+                        }
+                    }
                 }
             }
         }

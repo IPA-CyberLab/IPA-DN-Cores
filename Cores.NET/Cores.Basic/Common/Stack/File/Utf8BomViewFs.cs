@@ -54,21 +54,21 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override async Task<FileObject> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        protected override async Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             checked
             {
-                FileObject underlayFileObject = await base.CreateUnderlayFileImplAsync(option, cancel);
+                ViewFileObjectInitUnderlayFileResultParam underlayFileObjectResult = await base.CreateUnderlayFileImplAsync(option, cancel);
                 try
                 {
                     HasBom = false;
 
-                    long fileSize = await underlayFileObject.GetFileSizeAsync(cancel: cancel);
+                    long fileSize = underlayFileObjectResult.InitialSize;
                     if (fileSize == 0)
                     {
                         if (option.Access.Bit(FileAccess.Write))
                         {
-                            await underlayFileObject.WriteRandomAsync(0, Str.BOM_UTF_8, cancel);
+                            await underlayFileObjectResult.FileObject.WriteRandomAsync(0, Str.BOM_UTF_8, cancel);
                             HasBom = true;
                             fileSize = 3;
                         }
@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
                     else if (fileSize >= 3)
                     {
                         Memory<byte> tmp = new byte[3];
-                        if (await underlayFileObject.ReadRandomAsync(0, tmp, cancel) == tmp.Length)
+                        if (await underlayFileObjectResult.FileObject.ReadRandomAsync(0, tmp, cancel) == tmp.Length)
                         {
                             if (tmp.Span.SequenceEqual(Str.BOM_UTF_8.Span))
                             {
@@ -93,14 +93,12 @@ namespace IPA.Cores.Basic
                     if (FileParams.Mode == FileMode.Append)
                         currentPosition = fileSize;
 
-                    InitAndCheckFileSizeAndPosition(currentPosition, fileSize, cancel);
-
-                    return underlayFileObject;
+                    return new ViewFileObjectInitUnderlayFileResultParam(underlayFileObjectResult.FileObject, currentPosition, fileSize);
                 }
                 catch
                 {
-                    await underlayFileObject.CloseAsync();
-                    underlayFileObject.DisposeSafe();
+                    await underlayFileObjectResult.FileObject.CloseAsync();
+                    underlayFileObjectResult.FileObject.DisposeSafe();
                     throw;
                 }
             }
