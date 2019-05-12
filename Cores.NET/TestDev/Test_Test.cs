@@ -80,7 +80,6 @@ namespace IPA.TestDev
             while (true)
             {
                 GitFs(repoUrl).ReadStringFromFile("/Cores.NET/Test.txt")._Print();
-                GitGlobalFs.UpdateRepository(repoUrl);
                 Sleep(500);
             }
 

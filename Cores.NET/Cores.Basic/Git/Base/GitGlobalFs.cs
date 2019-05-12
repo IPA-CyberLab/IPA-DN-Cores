@@ -102,6 +102,11 @@ namespace IPA.Cores.Basic
 
         static Singleton<string, GitFileSystem> FileSystemSingleton;
 
+        static readonly CriticalSection RepositoryUpdateLock = new CriticalSection();
+
+        static Task UpdateMainLoopTask = null;
+        static CancellationTokenSource UpdateMainLoopTaskCancel = null;
+
         static void InitModule()
         {
             HiveSingleton = new Singleton<Hive>(() => new Hive(new HiveOptions(HiveDir, singleInstance: true)));
@@ -119,6 +124,8 @@ namespace IPA.Cores.Basic
 
         static void FreeModule()
         {
+            StopUpdateLoop();
+
             FileSystemSingleton._DisposeSafe();
             FileSystemSingleton = null;
 
@@ -138,6 +145,33 @@ namespace IPA.Cores.Basic
 
             HiveSingleton._DisposeSafe();
             HiveSingleton = null;
+        }
+
+        static void StartUpdateLoop()
+        {
+            UpdateMainLoopTaskCancel = new CancellationTokenSource();
+
+            UpdateMainLoopTask = TaskUtil.StartAsyncTaskAsync(UpdateRepositoryMainLoopAsync);
+        }
+
+        static void StopUpdateLoop()
+        {
+            UpdateMainLoopTaskCancel._TryCancel();
+
+            UpdateMainLoopTask._TryGetResult(true);
+
+            UpdateMainLoopTaskCancel = null;
+            UpdateMainLoopTask = null;
+        }
+
+        static async Task UpdateRepositoryMainLoopAsync()
+        {
+            while (UpdateMainLoopTaskCancel.IsCancellationRequested == false)
+            {
+                UpdateAllRepository(UpdateMainLoopTaskCancel.Token);
+
+                await UpdateMainLoopTaskCancel._WaitUntilCanceledAsync(CoresConfig.GitGlobalFsSettings.AutoFetchInterval);
+            }
         }
 
         static string GenerateNewRepositoryDirName(string repoUrl)
@@ -161,6 +195,8 @@ namespace IPA.Cores.Basic
 
         public static GitRepository GetRepository(string repoUrl)
         {
+            Module.CheckInitalized();
+
             lock (Data.DataLock)
             {
                 GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
@@ -174,6 +210,8 @@ namespace IPA.Cores.Basic
 
         public static GitFileSystem GetFileSystem(string repoUrl, string commitIdOrRefName)
         {
+            Module.CheckInitalized();
+
             if (commitIdOrRefName._IsEmpty()) commitIdOrRefName = "refs/remotes/origin/master";
 
             string commitId;
@@ -197,98 +235,131 @@ namespace IPA.Cores.Basic
 
         public static void StartRepository(string repoUrl)
         {
-            if (repoUrl.IndexOf("@") != -1) throw new ArgumentException($"The repository name \'{repoUrl}\' must not contain '@'.");
+            Module.CheckInitalized();
 
-            if (Data.IsReadOnly) throw new ApplicationException("Data.IsReadOnly");
-
-            lock (Data.DataLock)
+            lock (RepositoryUpdateLock)
             {
-                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                if (repoUrl.IndexOf("@") != -1) throw new ArgumentException($"The repository name \'{repoUrl}\' must not contain '@'.");
 
-                L_RETRY:
+                if (Data.IsReadOnly) throw new ApplicationException("Data.IsReadOnly");
 
-                if (repoData == null)
+                lock (Data.DataLock)
                 {
-                    string dirName = GenerateNewRepositoryDirName(repoUrl);
-                    string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
+                    GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
-                    Con.WriteDebug($"Clone the repository \"{repoUrl}\" to \"{dirFullPath}\" ...");
-                    try
-                    {
-                        GitUtil.Clone(dirFullPath, repoUrl);
-                    }
-                    catch (Exception ex)
-                    {
-                        Con.WriteError($"GitUtil.Clone error: {ex.ToString()}");
-                        throw;
-                    }
-                    Con.WriteDebug("Done.");
-                    GitRepository gitRepo = new GitRepository(dirFullPath);
-                    repoData = new GitGlobalFsRepository()
-                    {
-                        Url = repoUrl,
-                        LocalWorkDir = dirName,
-                        Repository = gitRepo,
-                        LastFetch = DateTime.UtcNow,
-                    };
+                    L_RETRY:
 
-                    Data.Data.RepositoryList.Add(repoData);
-                }
-                else
-                {
-                    repoData.Url = repoUrl;
-
-                    if (repoData.Repository == null)
+                    if (repoData == null)
                     {
-                        string dirName = repoData.LocalWorkDir;
+                        string dirName = GenerateNewRepositoryDirName(repoUrl);
                         string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
 
+                        Con.WriteDebug($"Clone the repository \"{repoUrl}\" to \"{dirFullPath}\" ...");
                         try
                         {
-                            GitRepository gitRepo = new GitRepository(dirFullPath);
-                            repoData.Repository = gitRepo;
+                            GitUtil.Clone(dirFullPath, repoUrl);
                         }
                         catch (Exception ex)
                         {
-                            Con.WriteDebug($"Repository local dir \"{dirFullPath}\" load error: {ex.ToString()}");
-                            Con.WriteDebug($"Trying to clone as a new local dir.");
+                            Con.WriteError($"GitUtil.Clone error: {ex.ToString()}");
+                            throw;
+                        }
+                        Con.WriteDebug("Done.");
+                        GitRepository gitRepo = new GitRepository(dirFullPath);
+                        repoData = new GitGlobalFsRepository()
+                        {
+                            Url = repoUrl,
+                            LocalWorkDir = dirName,
+                            Repository = gitRepo,
+                            LastFetch = DateTime.UtcNow,
+                        };
 
-                            Data.Data.RepositoryList.Remove(repoData);
-                            Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+                        Data.Data.RepositoryList.Add(repoData);
+                    }
+                    else
+                    {
+                        repoData.Url = repoUrl;
 
-                            repoData = null;
-                            goto L_RETRY;
+                        if (repoData.Repository == null)
+                        {
+                            string dirName = repoData.LocalWorkDir;
+                            string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
+
+                            try
+                            {
+                                GitRepository gitRepo = new GitRepository(dirFullPath);
+                                repoData.Repository = gitRepo;
+                            }
+                            catch (Exception ex)
+                            {
+                                Con.WriteDebug($"Repository local dir \"{dirFullPath}\" load error: {ex.ToString()}");
+                                Con.WriteDebug($"Trying to clone as a new local dir.");
+
+                                Data.Data.RepositoryList.Remove(repoData);
+                                Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+
+                                repoData = null;
+                                goto L_RETRY;
+                            }
                         }
                     }
                 }
+
+                Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+
+                StartUpdateLoop();
+            }
+        }
+
+        public static void UpdateAllRepository(CancellationToken cancel = default)
+        {
+            Module.CheckInitalized();
+
+            List<string> urlList;
+            lock (Data.DataLock)
+            {
+                urlList = Data.Data.RepositoryList.Select(x => x.Url).ToList();
             }
 
-            Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+            foreach (string url in urlList)
+            {
+                Module.CheckInitalized();
+
+                cancel.ThrowIfCancellationRequested();
+
+                try
+                {
+                    UpdateRepository(url);
+                }
+                catch { }
+            }
         }
 
         public static void UpdateRepository(string repoUrl)
         {
-            GitGlobalFsRepository repoData;
-            lock (Data.DataLock)
-            {
-                repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
-            }
-            if (repoData == null || repoData.Repository == null)
-                throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
+            Dbg.Where();
+            Module.CheckInitalized();
 
-            Con.WriteDebug($"Fetching the repository \"{repoUrl}\" ...");
-
-            try
+            lock (RepositoryUpdateLock)
             {
-                repoData.Repository.Fetch(repoData.Url);
-            }
-            catch (Exception ex)
-            {
-                Con.WriteError($"repoData.Repository.Fetch error: {ex.ToString()}");
-                throw;
-            }
+                GitGlobalFsRepository repoData;
+                lock (Data.DataLock)
+                {
+                    repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                }
+                if (repoData == null || repoData.Repository == null)
+                    throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
 
-            Con.WriteDebug("Done.");
+                try
+                {
+                    repoData.Repository.Fetch(repoData.Url);
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError($"repoData.Repository.Fetch error: {ex.ToString()}");
+                    throw;
+                }
+            }
         }
     }
 }
