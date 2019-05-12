@@ -76,7 +76,7 @@ namespace IPA.TestDev
 
                 //return;
 
-                using (var fs = new GitFileSystem(new GitFileSystemParams(rep, "8146f25e9b75b66911bd9f0da68e7f7b4db86448")))
+                using (var fs = new GitFileSystem(new GitFileSystemParams(rep, "3c091fe0958569aa5a9e55fe7c6d3610627bef01")))
                 {
                     var dirs = fs.EnumDirectory("/Cores.NET/Cores.Basic/Common/Base/");
                     dirs._PrintAsJson();

@@ -167,11 +167,11 @@ namespace IPA.Cores.Basic
             Commit commit = this.Commit;
             GitObject gitObj = commit[path].Target;
 
-            HashSet<string> commitUniqueHash = new HashSet<string>();
+            HashSet<string> commitUniqueHashSet = new HashSet<string>();
             Queue<Commit> queue = new Queue<Commit>();
 
             queue.Enqueue(commit);
-            commitUniqueHash.Add(commit.Sha);
+            commitUniqueHashSet.Add(commit.Sha);
 
             while (queue.Count > 0)
             {
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
                     if (tree == null)
                         continue;
                     bool isSameHash = tree.Target.Sha._IsSamei(gitObj.Sha);
-                    if (isSameHash && commitUniqueHash.Add(parent.Sha))
+                    if (isSameHash && commitUniqueHashSet.Add(parent.Sha))
                         queue.Enqueue(parent);
                     flag = flag || isSameHash;
                 }
