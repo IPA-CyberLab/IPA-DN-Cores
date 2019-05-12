@@ -66,9 +66,6 @@ namespace IPA.Cores.Basic
         [DataMember]
         public string LocalWorkDir;
 
-        [DataMember]
-        public DateTime LastFetch;
-
         [NonSerialized]
         public GitRepository Repository;
     }
@@ -92,7 +89,7 @@ namespace IPA.Cores.Basic
 
         static readonly FileSystemPathParser LinuxParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
 
-        public const string HiveDataName = "State";
+        public const string HiveDataName = "RepositoryList";
 
         static Singleton<Hive> HiveSingleton;
         static Hive Hive => HiveSingleton;
@@ -271,7 +268,6 @@ namespace IPA.Cores.Basic
                             Url = repoUrl,
                             LocalWorkDir = dirName,
                             Repository = gitRepo,
-                            LastFetch = DateTime.UtcNow,
                         };
 
                         Data.Data.RepositoryList.Add(repoData);
@@ -337,7 +333,6 @@ namespace IPA.Cores.Basic
 
         public static void UpdateRepository(string repoUrl)
         {
-            Dbg.Where();
             Module.CheckInitalized();
 
             lock (RepositoryUpdateLock)
