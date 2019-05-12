@@ -2687,16 +2687,22 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
+            Clear();
+
+            LeakHolder._DisposeSafe();
+        }
+
+        public void Clear()
+        {
             TObject obj = null;
             lock (LockObj)
             {
                 obj = this.Object;
+                this.Object = null;
             }
 
             if (obj is IDisposable disposeTarget)
                 disposeTarget._DisposeSafe();
-
-            LeakHolder._DisposeSafe();
         }
     }
 
@@ -2747,11 +2753,19 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
+            Clear();
+
+            LeakHolder._DisposeSafe();
+        }
+
+        public void Clear()
+        {
             TObject[] list;
 
             lock (LockObj)
             {
                 list = this.Table.Values.ToArray();
+                this.Table.Clear();
             }
 
             foreach (var obj in list)
@@ -2759,8 +2773,6 @@ namespace IPA.Cores.Basic
                 if (obj is IDisposable disposeTarget)
                     disposeTarget._DisposeSafe();
             }
-
-            LeakHolder._DisposeSafe();
         }
     }
 

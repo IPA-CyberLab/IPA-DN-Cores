@@ -45,6 +45,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
@@ -52,6 +53,16 @@ namespace IPA.Cores.Basic
     {
         public static void Clone(string destDir, string srcUrl, CloneOptions options = null)
         {
+            if (options == null) options = new CloneOptions()
+            {
+                RecurseSubmodules = true,
+                FetchOptions = new FetchOptions()
+                {
+                    Prune = true,
+                    TagFetchMode = TagFetchMode.All,
+                },
+            };
+
             Repository.Clone(srcUrl, destDir, options);
         }
     }
@@ -64,18 +75,27 @@ namespace IPA.Cores.Basic
         public Tree RootTree => Commit.Tree;
 
         readonly Singleton<string, Tree> DirectoryTreeCache;
-        readonly Singleton<string, FileSystemEntity[]> DirectoryItemCache;
+        readonly Singleton<string, Blob> FileTreeCache;
+        readonly Singleton<string, FileSystemEntity[]> DirectoryItemsCache;
+        readonly Singleton<string, FileMetadata> DirectoryMetadataCache;
+        readonly Singleton<string, FileMetadata> FileMetadataCache;
 
         public GitCommit(GitRepository repository, Commit commit)
         {
             this.Repository = repository;
             this.Commit = commit;
+
             this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
-            this.DirectoryItemCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.DirectoryItemsCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+
+            this.FileTreeCache = new Singleton<string, Blob>(path => GetFileInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+
+            this.DirectoryMetadataCache = new Singleton<string, FileMetadata>(path => GetDirectoryMetadataInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.FileMetadataCache = new Singleton<string, FileMetadata>(path => GetFileMetadataInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
         }
 
         public FileSystemEntity[] GetDirectoryItems(string dirPath)
-            => this.DirectoryItemCache[dirPath];
+            => this.DirectoryItemsCache[dirPath];
 
         FileSystemEntity[] GetDirectoryItemsInternal(string dirPath)
         {
@@ -90,31 +110,37 @@ namespace IPA.Cores.Basic
 
             List<FileSystemEntity> ret = new List<FileSystemEntity>();
 
+            var curLastCommit = GetLastCommitForObject(dirPath);
+
             FileSystemEntity cur = new FileSystemEntity()
             {
                 FullPath = dirPath,
                 Name = ".",
                 Attributes = FileAttributes.Directory,
-                CreationTime = this.TimeStamp,
-                LastWriteTime = this.TimeStamp,
-                LastAccessTime = this.TimeStamp,
+                CreationTime = curLastCommit.Author.When,
+                LastWriteTime = curLastCommit.Author.When,
+                LastAccessTime = curLastCommit.Author.When,
             };
 
             ret.Add(cur);
 
             foreach (var item in tree)
             {
+                string fullPath = GitRepository.PathParser.Combine(dirPath, item.Name);
+
+                var lastCommit = GetLastCommitForObject(fullPath);
+
                 if (item.TargetType == TreeEntryTargetType.Tree)
                 {
                     Tree subTree = (Tree)item.Target;
                     FileSystemEntity e = new FileSystemEntity()
                     {
-                        FullPath = GitRepository.PathParser.Combine(dirPath, item.Name),
+                        FullPath = fullPath,
                         Name = item.Name,
                         Attributes = FileAttributes.Directory,
-                        CreationTime = this.TimeStamp,
-                        LastWriteTime = this.TimeStamp,
-                        LastAccessTime = this.TimeStamp,
+                        CreationTime = lastCommit.Author.When,
+                        LastWriteTime = lastCommit.Author.When,
+                        LastAccessTime = lastCommit.Author.When,
                     };
                     ret.Add(e);
                 }
@@ -123,14 +149,14 @@ namespace IPA.Cores.Basic
                     Blob blob = (Blob)item.Target;
                     FileSystemEntity e = new FileSystemEntity()
                     {
-                        FullPath = GitRepository.PathParser.Combine(dirPath, item.Name),
+                        FullPath = fullPath,
                         Name = item.Name,
                         Attributes = FileAttributes.Normal,
                         Size = blob.Size,
                         PhysicalSize = blob.Size,
-                        CreationTime = this.TimeStamp,
-                        LastWriteTime = this.TimeStamp,
-                        LastAccessTime = this.TimeStamp,
+                        CreationTime = lastCommit.Author.When,
+                        LastWriteTime = lastCommit.Author.When,
+                        LastAccessTime = lastCommit.Author.When,
                     };
                     ret.Add(e);
                 }
@@ -139,33 +165,120 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public Tree GetDirectory(string dirPath)
-            => DirectoryTreeCache[dirPath];
+        public FileMetadata GetDirectoryMetadata(string path) => this.DirectoryMetadataCache[path];
 
-        Tree GetDirectoryInternal(string dirPath)
+        FileMetadata GetDirectoryMetadataInternal(string path)
         {
-            dirPath = GitRepository.NormalizePathToGit(dirPath);
+            Tree tree = GetDirectory(path);
 
-            TreeEntry entry = this.RootTree[dirPath];
+            Commit commit = GetLastCommitForObject(path);
+
+            return new FileMetadata(true,
+                attributes: FileAttributes.Directory,
+                creationTime: commit.Author.When,
+                lastWriteTime: commit.Author.When,
+                lastAccessTime: commit.Author.When,
+                author: new FileAuthorMetadata()
+                {
+                    AuthorEmail = commit.Author.Email._NonNull(),
+                    AuthorName = commit.Author.Name._NonNull(),
+                    AuthorTimeStamp = commit.Author.When,
+                    CommitterEmail = commit.Committer.Email._NonNull(),
+                    CommitterName = commit.Committer.Name._NonNull(),
+                    CommitterTimeStamp = commit.Committer.When,
+                    Message = commit.Message._NonNull(),
+                    CommitId = commit.Id.Sha,
+                },
+                size: 0,
+                physicalSize: 0);
+        }
+
+        public FileMetadata GetFileMetadata(string path) => this.FileMetadataCache[path];
+
+        FileMetadata GetFileMetadataInternal(string path)
+        {
+            Blob blob = GetFile(path);
+
+            Commit commit = GetLastCommitForObject(path);
+
+            return new FileMetadata(true,
+                attributes: FileAttributes.Directory,
+                creationTime: commit.Author.When,
+                lastWriteTime: commit.Author.When,
+                lastAccessTime: commit.Author.When,
+                author: new FileAuthorMetadata()
+                {
+                    AuthorEmail = commit.Author.Email._NonNull(),
+                    AuthorName = commit.Author.Name._NonNull(),
+                    AuthorTimeStamp = commit.Author.When,
+                    CommitterEmail = commit.Committer.Email._NonNull(),
+                    CommitterName = commit.Committer.Name._NonNull(),
+                    CommitterTimeStamp = commit.Committer.When,
+                    Message = commit.Message._NonNull(),
+                    CommitId = commit.Id.Sha,
+                },
+                size: blob.Size,
+                physicalSize: blob.Size);
+        }
+
+        public Tree GetDirectory(string path)
+            => DirectoryTreeCache[path];
+
+        Tree GetDirectoryInternal(string path)
+        {
+            string path2 = GitRepository.NormalizePathToGit(path);
+
+            if (path2 == "") return this.RootTree;
+
+            TreeEntry entry = this.RootTree[path2];
 
             if (entry == null)
-                throw new ArgumentException($"The path \"{dirPath}\" not found.");
+                throw new ArgumentException($"The path \"{path}\" not found.");
 
             if (entry.TargetType != TreeEntryTargetType.Tree)
             {
-                throw new ArgumentException($"The path \"{dirPath}\" is not a directory.");
+                throw new ArgumentException($"The path \"{path}\" is not a directory.");
             }
 
             return (Tree)entry.Target;
         }
 
-        public void Test1(string path)
+        public Blob GetFile(string path)
+            => FileTreeCache[path];
+
+        Blob GetFileInternal(string path)
+        {
+            string path2 = GitRepository.NormalizePathToGit(path);
+
+            TreeEntry entry = this.RootTree[path2];
+
+            if (entry == null)
+                throw new ArgumentException($"The path \"{path}\" not found.");
+
+            if (entry.TargetType != TreeEntryTargetType.Blob)
+            {
+                throw new ArgumentException($"The path \"{path}\" is not a file.");
+            }
+
+            return (Blob)entry.Target;
+        }
+
+        public Commit GetLastCommitForObject(string path)
         {
             path = GitRepository.NormalizePathToGit(path);
 
             // The below code was written by refering to: https://github.com/libgit2/libgit2sharp/issues/89#issuecomment-38380873
             Commit commit = this.Commit;
-            GitObject gitObj = commit[path].Target;
+            GitObject gitObj;
+
+            if (path != "")
+            {
+                gitObj = commit[path].Target;
+            }
+            else
+            {
+                gitObj = commit.Tree;
+            }
 
             HashSet<string> commitUniqueHashSet = new HashSet<string>();
             Queue<Commit> queue = new Queue<Commit>();
@@ -191,11 +304,35 @@ namespace IPA.Cores.Basic
 
                 if (flag == false)
                 {
-                    //break;
+                    break;
                 }
             }
 
-            Con.WriteLine($"{commit.Sha} {commit.Author.When} {commit.Message}");
+            return commit;
+        }
+    }
+
+    [Flags]
+    enum GitRefType
+    {
+        LocalBranch,
+        RemoteBranch,
+        Tag,
+    }
+
+    class GitRef
+    {
+        public string Name { get; }
+        public string CommitId { get; }
+        public DateTimeOffset TimeStamp {get;}
+        public GitRefType Type { get; }
+
+        public GitRef(string name, string commitId, DateTimeOffset timeStamp, GitRefType type)
+        {
+            this.Name = name;
+            this.CommitId = commitId;
+            this.TimeStamp = timeStamp;
+            this.Type = type;
         }
     }
 
@@ -206,6 +343,10 @@ namespace IPA.Cores.Basic
 
         public static readonly FileSystemPathParser PathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
 
+        public string OriginMasterBranchCommitId => this.EnumRef()._GetOriginMasterBranch().CommitId;
+
+        readonly Singleton<GitRef[]> RefCache;
+
         public GitRepository(string workDir, CancellationToken cancel = default) : base(cancel)
         {
             try
@@ -213,48 +354,31 @@ namespace IPA.Cores.Basic
                 this.WorkDir = Env.LocalFileSystemPathInterpreter.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(workDir);
 
                 this.Repository = new Repository(this.WorkDir);
+
+                this.RefCache = new Singleton<GitRef[]>(() =>
+                {
+                    List<GitRef> ret = new List<GitRef>();
+
+                    foreach (var e in this.Repository.Refs)
+                    {
+                        Commit commit = this.Repository.Lookup<Commit>(e.TargetIdentifier);
+                        if (commit != null)
+                        {
+                            GitRefType type = GitRefType.LocalBranch;
+                            if (e.IsRemoteTrackingBranch) type = GitRefType.RemoteBranch;
+                            if (e.IsTag) type = GitRefType.Tag;
+                            ret.Add(new GitRef(e.CanonicalName, e.TargetIdentifier, commit.Author.When, type));
+                        }
+                    }
+
+                    return ret.ToArray();
+                }, LeakCounterKind.DoNotTrack);
             }
             catch (Exception ex)
             {
                 this._DisposeSafe(ex);
                 throw;
             }
-        }
-
-        public FileMetadata GetMetadata(string path, bool isDirectory, DateTimeOffset baseTimeStamp)
-        {
-            path = PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
-
-            if (path.StartsWith("/")) path = path.Substring(1);
-
-            IEnumerable<LogEntry> logEntryList = this.Repository.Commits.QueryBy(path, new CommitFilter() { SortBy = CommitSortStrategies.Topological });
-
-            var sortForFirst = logEntryList.OrderBy(x => x.Commit.Author.When);
-            var sortForLast = logEntryList.OrderByDescending(x => x.Commit.Author.When);
-
-            var first = sortForFirst.First().Commit;
-
-            var last = sortForLast.Where(x => x.Commit.Author.When <= baseTimeStamp).First().Commit;
-
-            FileAuthorMetadata author = new FileAuthorMetadata()
-            {
-                AuthorEmail = last.Author.Email,
-                AuthorName = last.Author.Name,
-                AuthorTimeStamp = last.Author.When,
-
-                CommitterEmail = last.Committer.Email,
-                CommitterName = last.Committer.Name,
-                CommitterTimeStamp = last.Committer.When,
-
-                Message = last.Message,
-                CommitId = last.Id.ToString(),
-            };
-
-            return new FileMetadata(isDirectory: isDirectory,
-                creationTime: first.Author.When,
-                lastWriteTime: last.Author.When,
-                lastAccessTime: last.Author.When,
-                author: author);
         }
 
         public Task<GitCommit> FindCommitAsync(string commitId, CancellationToken cancel = default)
@@ -279,9 +403,26 @@ namespace IPA.Cores.Basic
             return this.RunCriticalProcessAsync(true, cancel, c =>
             {
                 this.Repository.Network.Fetch(url, new string[0]);
+
+                this.RefCache.Clear();
+
                 return Task.CompletedTask;
             });
         }
+
+        public void Fetch(string url, CancellationToken cancel = default)
+            => FetchAsync(url, cancel)._GetResult();
+
+        public Task<GitRef[]> EnumRefAsync(CancellationToken cancel = default)
+        {
+            return this.RunCriticalProcessAsync(true, cancel, c =>
+            {
+                return Task.FromResult<GitRef[]>(this.RefCache);
+            });
+        }
+
+        public GitRef[] EnumRef(CancellationToken cancel = default)
+            => EnumRefAsync(cancel)._GetResult();
 
         protected override void DisposeImpl(Exception ex)
         {

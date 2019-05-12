@@ -91,6 +91,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\Git.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitFileSystem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Base\DebugJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Base\Json.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Base\JsonHelper.cs" />

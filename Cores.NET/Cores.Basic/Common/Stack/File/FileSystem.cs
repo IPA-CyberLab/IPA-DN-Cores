@@ -60,6 +60,42 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class RandomAccessFileObject : FileObject
+    {
+        readonly IRandomAccess<byte> Access;
+
+        public RandomAccessFileObject(FileSystem fileSystem, FileParameters fileParams, IRandomAccess<byte> baseRandomAccess) : base(fileSystem, fileParams)
+        {
+            this.Access = baseRandomAccess;
+        }
+
+        Once Once;
+        protected override Task CloseImplAsync()
+        {
+            if (Once.IsFirstCall())
+            {
+                this.Access._DisposeSafe();
+            }
+
+            return Task.CompletedTask;
+        }
+
+        protected override Task FlushImplAsync(CancellationToken cancel = default)
+            => Access.FlushAsync(cancel);
+
+        protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+            => Access.GetFileSizeAsync(cancel: cancel);
+
+        protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+            => Access.ReadRandomAsync(position, data, cancel);
+
+        protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => Access.WriteRandomAsync(position, data, cancel);
+
+        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+            => Access.SetFileSizeAsync(size, cancel);
+    }
+
     class FileSystemException : Exception
     {
         public FileSystemException(string message) : base(message) { }

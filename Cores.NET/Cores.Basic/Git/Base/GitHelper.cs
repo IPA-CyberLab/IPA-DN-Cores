@@ -30,64 +30,34 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_BASIC_GIT
+
 using System;
-using System.IO;
-using System.IO.Enumeration;
+using System.Collections.Generic;
+using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
-using System.Diagnostics;
+using System.IO;
 using LibGit2Sharp;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 
-namespace IPA.TestDev
+namespace IPA.Cores.Basic
 {
-    partial class TestDevCommands
+    static class GitHelper
     {
-        const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
-        //const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-TestIDS.git";
-        const string GitTestBaseDir = @"c:\tmp\git_test_root\4";
+        public static GitRef _GetOriginRef(this IEnumerable<GitRef> branchList, string name)
+            => branchList.Where(x => x.Type == GitRefType.RemoteBranch && x.Name._IsSamei($"refs/remotes/origin/{name}")).Single();
 
-        [ConsoleCommandMethod(
-            "Git command",
-            "Git [arg]",
-            "Git test")]
-        static int Git(ConsoleService c, string cmdName, string str)
-        {
-            ConsoleParam[] args = { };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-
-            if (Lfs.IsDirectoryExists(GitTestBaseDir) == false)
-            {
-                Git_Test_Clone();
-            }
-
-            Git_Test_1();
-
-            return 0;
-        }
-
-        static void Git_Test_1()
-        {
-            using (var rep = new GitRepository(GitTestBaseDir))
-            {
-                using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
-                {
-                    using (var fs2 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"c:\tmp\chroot_test1")))
-                    {
-                        fs.CopyDir("/", "/", fs2);
-                    }
-                }
-            }
-        }
-
-        static void Git_Test_Clone()
-        {
-            GitUtil.Clone(GitTestBaseDir, GitUrl);
-        }
+        public static GitRef _GetOriginMasterBranch(this IEnumerable<GitRef> branchList)
+            => _GetOriginRef(branchList, "master");
     }
 }
+
+#endif // CORES_BASIC_GIT
+

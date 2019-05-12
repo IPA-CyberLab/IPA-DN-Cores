@@ -46,56 +46,40 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class GitFileObject : FileObject
+    class GitFileObject : RandomAccessFileObject
     {
-        protected GitFileObject(GitFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
+        public new GitFileSystem FileSystem => (GitFileSystem)base.FileSystem;
+        public GitRepository Repository => FileSystem.Repository;
+        public GitCommit Commit => FileSystem.Commit;
+        public DateTimeOffset TimeStamp => FileSystem.TimeStamp;
 
-        public static async Task<GitFileObject> CreateFileAsync(GitFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
+        protected GitFileObject(GitFileSystem fileSystem, FileParameters fileParams, IRandomAccess<byte> baseRandomAccess) : base(fileSystem, fileParams, baseRandomAccess) { }
+
+        public static async Task<FileObject> CreateFileAsync(GitFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
+            if (fileParams.Access.Bit(FileAccess.Write)) throw new FileException(fileParams.Path, "The git filesystem is read-only.");
+            if (fileParams.Mode != FileMode.Open) throw new FileException(fileParams.Path, "The git filesystem is read-only.");
+
             cancel.ThrowIfCancellationRequested();
 
-            GitFileObject f = new GitFileObject(fileSystem, fileParams);
+            Blob blob = fileSystem.Commit.GetFile(fileParams.Path);
 
-            await f.InternalInitAsync(cancel);
+            Stream stream = blob.GetContentStream();
+            IRandomAccess<byte> randomAccess = new StreamRandomAccessWrapper(stream, true);
+            try
+            {
+                GitFileObject f = new GitFileObject(fileSystem, fileParams, randomAccess);
 
-            return f;
-        }
+                await Task.CompletedTask;
 
-        protected async Task InternalInitAsync(CancellationToken cancel = default)
-        {
-            cancel.ThrowIfCancellationRequested();
-
-            await Task.CompletedTask;
-        }
-
-        protected override Task CloseImplAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task FlushImplAsync(CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
+                return f;
+            }
+            catch
+            {
+                randomAccess._DisposeSafe();
+                stream._DisposeSafe();
+                throw;
+            }
         }
     }
 
@@ -104,11 +88,11 @@ namespace IPA.Cores.Basic
         public GitRepository Repository { get; }
         public string CommitId { get; }
 
-        public GitFileSystemParams(GitRepository repository, string commitId)
+        public GitFileSystemParams(GitRepository repository, string commitId = null)
             : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux), FileSystemMode.ReadOnly)
         {
             this.Repository = repository;
-            this.CommitId = commitId;
+            this.CommitId = commitId ?? repository.OriginMasterBranchCommitId;
         }
     }
 
@@ -141,22 +125,38 @@ namespace IPA.Cores.Basic
 
         protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(this.Commit.GetDirectoryMetadata(path));
         }
 
         protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(this.Commit.GetFileMetadata(path));
         }
 
         protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            try
+            {
+                this.Commit.GetDirectoryMetadata(path);
+                return Task.FromResult(true);
+            }
+            catch
+            {
+                return Task.FromResult(false);
+            }
         }
 
         protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
         {
-            throw new NotImplementedException();
+            try
+            {
+                this.Commit.GetFileMetadata(path);
+                return Task.FromResult(true);
+            }
+            catch
+            {
+                return Task.FromResult(false);
+            }
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
@@ -164,45 +164,16 @@ namespace IPA.Cores.Basic
             return Task.FromResult(Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path));
         }
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
         protected override Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
+            => GitFileObject.CreateFileAsync(this, option, cancel);
 
-        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-        {
-            throw new NotImplementedException();
-        }
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default) => throw new NotImplementedException();
     }
 }
 
