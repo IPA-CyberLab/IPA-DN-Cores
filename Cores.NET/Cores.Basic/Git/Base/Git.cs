@@ -65,6 +65,22 @@ namespace IPA.Cores.Basic
 
             Repository.Clone(srcUrl, destDir, options);
         }
+
+        public static bool IsCommitId(string str)
+        {
+            try
+            {
+                if (str.Length == 40)
+                {
+                    if (str._GetHexBytes().Length == 20)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
     }
 
     class GitCommit

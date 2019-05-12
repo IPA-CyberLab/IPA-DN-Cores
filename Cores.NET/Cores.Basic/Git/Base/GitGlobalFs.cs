@@ -172,14 +172,32 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static GitFileSystem GetFileSystem(string repoUrl, string commitId)
+        public static GitFileSystem GetFileSystem(string repoUrl, string commitIdOrRefName)
         {
+            if (commitIdOrRefName._IsEmpty()) commitIdOrRefName = "refs/remotes/origin/master";
+
+            string commitId;
+            if (GitUtil.IsCommitId(commitIdOrRefName))
+            {
+                commitId = commitIdOrRefName;
+            }
+            else
+            {
+                GitRepository repository = GetRepository(repoUrl);
+                GitRef reference = repository.EnumRef().Where(x => x.Name._IsSamei(commitIdOrRefName)).SingleOrDefault();
+                if (reference == null)
+                {
+                    throw new ArgumentException($"The reference name \"{commitIdOrRefName}\" not found.");
+                }
+                commitId = reference.CommitId;
+            }
+
             return FileSystemSingleton[$"{repoUrl}@{commitId}"];
         }
 
         public static void StartRepository(string repoUrl)
         {
-            if (repoUrl.IndexOf("@") != -1) throw new ArgumentException($"The repository name \'{repoUrl}\' must not contain '/'.");
+            if (repoUrl.IndexOf("@") != -1) throw new ArgumentException($"The repository name \'{repoUrl}\' must not contain '@'.");
 
             if (Data.IsReadOnly) throw new ApplicationException("Data.IsReadOnly");
 
