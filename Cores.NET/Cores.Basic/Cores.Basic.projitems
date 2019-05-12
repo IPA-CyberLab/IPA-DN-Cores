@@ -89,7 +89,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClientResource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Git\Base\Git.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Base\DebugJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Base\Json.cs" />

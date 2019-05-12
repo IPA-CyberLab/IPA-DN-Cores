@@ -69,6 +69,19 @@ namespace IPA.TestDev
 
         static void Git_Test_1()
         {
+            using (var rep = new GitRepository(GitTestBaseDir))
+            {
+                var meta = rep.GetMetadata(@"/Cores.NET/Cores.Basic/Common/Base/TaskVm.cs", false, DateTimeOffset.MaxValue);
+                meta._PrintAsJson();
+
+                return;
+
+                using (var fs = new GitFileSystem(new GitFileSystemParams(rep, "0b3732968c00bdd72876ce5811b7d714659ff29f")))
+                {
+                    var dirs = fs.EnumDirectory("/");
+                    dirs._PrintAsJson();
+                }
+            }
         }
 
         static void Git_Test_Clone()

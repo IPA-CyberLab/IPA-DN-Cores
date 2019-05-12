@@ -2708,10 +2708,15 @@ namespace IPA.Cores.Basic
         readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
         IHolder LeakHolder = null;
 
-        public Singleton(Func<TKey, TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton1)
+        public Singleton(Func<TKey, TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton1, IEqualityComparer<TKey> keyComparer = null)
         {
             this.CreateProc = createProc;
-            this.Table = new Dictionary<TKey, TObject>();
+
+            if (keyComparer == null)
+                this.Table = new Dictionary<TKey, TObject>();
+            else
+                this.Table = new Dictionary<TKey, TObject>(keyComparer);
+
             this.LeakKind = leakKind;
         }
 

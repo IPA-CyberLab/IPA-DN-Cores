@@ -68,6 +68,7 @@ namespace IPA.Cores.Basic
         NoSecurity = 8,
         NoAlternateStream = 16,
         NoPhysicalFileSize = 32,
+        NoAuthor = 64,
     }
 
     [Flags]
@@ -91,7 +92,9 @@ namespace IPA.Cores.Basic
 
         AlternateStream = 1024,
 
-        Default = Attributes | TimeAll | AlternateStream,
+        Author = 2048,
+
+        Default = Attributes | TimeAll | AlternateStream | Author,
     }
 
     [Serializable]
@@ -178,6 +181,24 @@ namespace IPA.Cores.Basic
         public bool IsThisEmpty() => (Items == null);
     }
 
+    [Serializable]
+    class FileAuthorMetadata : IEmptyChecker
+    {
+        public string CommitId;
+
+        public string AuthorEmail;
+        public string AuthorName;
+        public DateTimeOffset AuthorTimeStamp;
+
+        public string CommitterEmail;
+        public string CommitterName;
+        public DateTimeOffset CommitterTimeStamp;
+
+        public string Message;
+
+        public bool IsThisEmpty() => (CommitId._IsEmpty() && AuthorName._IsEmpty() && CommitterName._IsEmpty() && Message._IsEmpty());
+    }
+
     class FileMetadata
     {
         public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive
@@ -198,11 +219,13 @@ namespace IPA.Cores.Basic
 
         public FileSpecialOperationFlags SpecialOperationFlags;
 
+        public FileAuthorMetadata Author;
+
         public FileMetadata() { }
 
         public FileMetadata(bool isDirectory = false, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
-            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null,
+            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null, FileAuthorMetadata author = null,
             long size = 0, long? physicalSize = null)
         {
             this.IsDirectory = isDirectory;
@@ -212,6 +235,7 @@ namespace IPA.Cores.Basic
             this.LastAccessTime = lastAccessTime;
             this.Security = securityData._CloneDeep();
             this.AlternateStream = alternateStream._CloneDeep();
+            this.Author = author._CloneDeep();
             this.SpecialOperationFlags = specialOperation;
             this.Size = size;
             this.PhysicalSize = physicalSize ?? size;
@@ -282,12 +306,15 @@ namespace IPA.Cores.Basic
                 if (this.LastAccessTime != null)
                     dest.LastAccessTime = this.LastAccessTime;
 
-            if (this.Security._IsFilled())
+            if (mode.BitAny(FileMetadataCopyMode.SecurityAll))
             {
-                var cloned = this.Security.Clone(mode);
-                if (cloned._IsFilled())
+                if (this.Security._IsFilled())
                 {
-                    dest.Security = cloned;
+                    var cloned = this.Security.Clone(mode);
+                    if (cloned._IsFilled())
+                    {
+                        dest.Security = cloned;
+                    }
                 }
             }
 
@@ -296,6 +323,14 @@ namespace IPA.Cores.Basic
                 if (this.AlternateStream._IsFilled())
                 {
                     dest.AlternateStream = this.AlternateStream._CloneDeep();
+                }
+            }
+
+            if (mode.Bit(FileMetadataCopyMode.Author))
+            {
+                if (this.Author._IsFilled())
+                {
+                    dest.Author = this.Author._CloneDeep();
                 }
             }
         }
@@ -330,6 +365,8 @@ namespace IPA.Cores.Basic
                 if (mode.BitAny(FileMetadataCopyMode.SecurityAll) == false) ret |= FileMetadataGetFlags.NoSecurity;
 
                 if (mode.Bit(FileMetadataCopyMode.AlternateStream) == false) ret |= FileMetadataGetFlags.NoAlternateStream;
+
+                if (mode.Bit(FileMetadataCopyMode.Author) == false) ret |= FileMetadataGetFlags.NoAuthor;
             }
 
             return ret;

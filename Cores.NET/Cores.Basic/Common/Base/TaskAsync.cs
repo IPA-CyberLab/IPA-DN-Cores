@@ -1429,6 +1429,9 @@ namespace IPA.Cores.Basic
             }
         }
 
+        protected Task<AsyncLock.LockHolder> CriticalProcessLockWithAsync(CancellationToken cancel = default)
+            => CriticalProcessAsyncLock.LockWithAwait(cancel);
+
         protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
             => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel._SingleArray().Concat(cancels).ToArray());
 
