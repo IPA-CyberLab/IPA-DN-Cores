@@ -4527,6 +4527,8 @@ namespace IPA.Cores.Basic
                         string msg = $"Error! The StopImplAsync() routine of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") has been timed out ({Options.StopTimeout} msecs). Terminating the process forcefully.";
                         Kernel.SelfKill(msg);
                     }
+
+                    this.Param = null;
                 }
                 catch (Exception ex)
                 {
