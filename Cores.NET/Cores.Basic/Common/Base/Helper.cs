@@ -242,12 +242,12 @@ namespace IPA.Cores.Helper.Basic
         public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);
         public static string _CombinePath(this string str, string p1, string p2) => Path.Combine(str, p1, p2);
         public static string _CombinePath(this string str, string p1, string p2, string p3) => Path.Combine(str, p1, p2, p3);
-        public static string _NormalizePath(this string str) => IO.NormalizePath(str);
-        public static string _InnerFilePath(this string str) => IO.InnerFilePath(str);
-        public static string _RemoteLastEnMark(this string str) => IO.RemoteLastEnMark(str);
+        public static string _NormalizePath(this string str) => BasicFile.NormalizePath(str);
+        public static string _InnerFilePath(this string str) => BasicFile.InnerFilePath(str);
+        public static string _RemoteLastEnMark(this string str) => BasicFile.RemoteLastEnMark(str);
         public static string _GetDirectoryName(this string str) => Path.GetDirectoryName(str);
         public static string _GetFileName(this string str) => Path.GetFileName(str);
-        public static bool _IsExtensionMatch(this string str, string extensionsList) => IO.IsExtensionsMatch(str, extensionsList);
+        public static bool _IsExtensionMatch(this string str, string extensionsList) => BasicFile.IsExtensionsMatch(str, extensionsList);
         public static string _ReplaceStrWithReplaceClass(this string str, object replaceClass, bool caseSensitive = false) => Str.ReplaceStrWithReplaceClass(str, replaceClass, caseSensitive);
 
         public static byte[] _NonNull(this byte[] b) { if (b == null) return new byte[0]; else return b; }
@@ -284,7 +284,7 @@ namespace IPA.Cores.Helper.Basic
         public static int _MemCmp(this byte[] a, byte[] b) => Util.CompareByteRetInt(a, b);
 
         public static void _SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
-            => IO.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);
+            => BasicFile.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);
 
         public static void _DebugObject(this object o) => Dbg.DebugObject(o);
         public static void _PrintObject(this object o) => Dbg.PrintObject(o);
@@ -348,8 +348,8 @@ namespace IPA.Cores.Helper.Basic
         public static DateTime _NormalizeDateTime(this DateTime dt) => Util.NormalizeDateTime(dt);
         public static DateTimeOffset _NormalizeDateTimeOffset(this DateTimeOffset dt) => Util.NormalizeDateTime(dt);
 
-        public static byte[] _ReadToEnd(this Stream s, int maxSize = 0) => IO.ReadStreamToEnd(s, maxSize);
-        public static async Task<byte[]> _ReadToEndAsync(this Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken)) => await IO.ReadStreamToEndAsync(s, maxSize, cancel);
+        public static byte[] _ReadToEnd(this Stream s, int maxSize = 0) => BasicFile.ReadStreamToEnd(s, maxSize);
+        public static async Task<byte[]> _ReadToEndAsync(this Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken)) => await BasicFile.ReadStreamToEndAsync(s, maxSize, cancel);
 
         public static long _SeekToBegin(this Stream s) => s.Seek(0, SeekOrigin.Begin);
         public static long _SeekToEnd(this Stream s) => s.Seek(0, SeekOrigin.End);

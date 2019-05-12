@@ -547,9 +547,9 @@ namespace IPA.Cores.Basic
     // コンソールサービス
     class ConsoleService
     {
-        IO inFile;                      // 入力ファイル
+        BasicFile inFile;                      // 入力ファイル
         Buf inBuf;                      // 入力バッファ
-        IO outFile;                     // 出力ファイル
+        BasicFile outFile;                     // 出力ファイル
         int win32_OldConsoleWidth;      // 以前のコンソールサイズ
 
         // 定数
@@ -732,7 +732,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            if (IO.IsFileExists(tmp) == false)
+            if (BasicFile.IsFileExists(tmp) == false)
             {
                 c.write(Str.FormatC((CoreStr.CMD_FILE_NOT_FOUND), tmp), LogPriority.Error);
 
@@ -2201,7 +2201,7 @@ namespace IPA.Cores.Basic
         }
         public static ConsoleService NewLocalConsoleService(string inFileName, string outFileName)
         {
-            IO in_io = null, out_io = null;
+            BasicFile in_io = null, out_io = null;
 
             ConsoleService c = new ConsoleService();
             int old_size = 0;
@@ -2218,7 +2218,7 @@ namespace IPA.Cores.Basic
                 // 入力ファイルが指定されている
                 try
                 {
-                    in_io = IO.FileOpen(inFileName, false);
+                    in_io = BasicFile.FileOpen(inFileName, false);
                 }
                 catch
                 {
@@ -2233,7 +2233,7 @@ namespace IPA.Cores.Basic
                 // 出力ファイルが指定されている
                 try
                 {
-                    out_io = IO.FileCreate(outFileName);
+                    out_io = BasicFile.FileCreate(outFileName);
                 }
                 catch
                 {

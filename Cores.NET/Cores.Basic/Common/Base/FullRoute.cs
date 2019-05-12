@@ -1430,7 +1430,7 @@ namespace IPA.Cores.Basic
 
             this.url = url;
 
-            IO.MakeDirIfNotExists(Path.GetDirectoryName(CacheFileName));
+            BasicFile.MakeDirIfNotExists(Path.GetDirectoryName(CacheFileName));
 
             halt_event = new Event();
             halt_flag = false;
@@ -1516,11 +1516,11 @@ namespace IPA.Cores.Basic
 
         void make_dirs()
         {
-            IO.MakeDirIfNotExists(BaseDir);
-            IO.MakeDirIfNotExists(MasterDir);
-            IO.MakeDirIfNotExists(OutputDir);
-            IO.MakeDirIfNotExists(TmpDir);
-            IO.MakeDirIfNotExists(LogDir);
+            BasicFile.MakeDirIfNotExists(BaseDir);
+            BasicFile.MakeDirIfNotExists(MasterDir);
+            BasicFile.MakeDirIfNotExists(OutputDir);
+            BasicFile.MakeDirIfNotExists(TmpDir);
+            BasicFile.MakeDirIfNotExists(LogDir);
         }
 
         public void Generate()
@@ -1608,31 +1608,31 @@ namespace IPA.Cores.Basic
                 Con.WriteLine("Writing the IPv4 full route data...");
                 byte[] ipv4_data;
                 ipv4_data = Str.AsciiEncoding.GetBytes(ipv4.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "fullroute_ipv4.csv"), ipv4_data);
-                IO.SaveFile(Path.Combine(OutputDir, "fullroute_ipv4.csv.gz"), GZipUtil.Compress(ipv4_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "fullroute_ipv4.csv"), ipv4_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "fullroute_ipv4.csv.gz"), GZipUtil.Compress(ipv4_data));
 
                 Con.WriteLine("Writing the IPv6 full route data...");
                 byte[] ipv6_data;
                 ipv6_data = Str.AsciiEncoding.GetBytes(ipv6.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "fullroute_ipv6.csv"), ipv6_data);
-                IO.SaveFile(Path.Combine(OutputDir, "fullroute_ipv6.csv.gz"), GZipUtil.Compress(ipv6_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "fullroute_ipv6.csv"), ipv6_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "fullroute_ipv6.csv.gz"), GZipUtil.Compress(ipv6_data));
 
                 // マッピングファイルの書き込み
                 Con.WriteLine("Writing the IPv4 mapping files...");
                 byte[] fs_ipv4_as_data = Str.AsciiEncoding.GetBytes(fs_ipv4_as.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_isp.csv"), fs_ipv4_as_data);
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_isp.csv.gz"), GZipUtil.Compress(fs_ipv4_as_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_isp.csv"), fs_ipv4_as_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_isp.csv.gz"), GZipUtil.Compress(fs_ipv4_as_data));
                 byte[] fs_ipv4_country_data = Str.AsciiEncoding.GetBytes(fs_ipv4_country.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_country.csv"), fs_ipv4_country_data);
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_country.csv.gz"), GZipUtil.Compress(fs_ipv4_country_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_country.csv"), fs_ipv4_country_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv4_to_country.csv.gz"), GZipUtil.Compress(fs_ipv4_country_data));
 
                 Con.WriteLine("Writing the IPv6 mapping files...");
                 byte[] fs_ipv6_as_data = Str.AsciiEncoding.GetBytes(fs_ipv6_as.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_isp.csv"), fs_ipv6_as_data);
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_isp.csv.gz"), GZipUtil.Compress(fs_ipv6_as_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_isp.csv"), fs_ipv6_as_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_isp.csv.gz"), GZipUtil.Compress(fs_ipv6_as_data));
                 byte[] fs_ipv6_country_data = Str.AsciiEncoding.GetBytes(fs_ipv6_country.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_country.csv"), fs_ipv6_country_data);
-                IO.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_country.csv.gz"), GZipUtil.Compress(fs_ipv6_country_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_country.csv"), fs_ipv6_country_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "mapping_ipv6_to_country.csv.gz"), GZipUtil.Compress(fs_ipv6_country_data));
 
                 // 国ごとの IP アドレスリストを生成
                 Con.WriteLine("Writing the IP address filter list by country list...");
@@ -1648,15 +1648,15 @@ namespace IPA.Cores.Basic
                 Con.WriteLine("Writing the country data...");
                 byte[] country_list_data;
                 country_list_data = Str.AsciiEncoding.GetBytes(country_list.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "country_list.csv"), country_list_data);
-                IO.SaveFile(Path.Combine(OutputDir, "country_list.csv.gz"), GZipUtil.Compress(country_list_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "country_list.csv"), country_list_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "country_list.csv.gz"), GZipUtil.Compress(country_list_data));
 
                 // AS データの書き込み
                 Con.WriteLine("Writing the AS data...");
                 byte[] as_list_data;
                 as_list_data = Str.AsciiEncoding.GetBytes(as_list.ToCsv());
-                IO.SaveFile(Path.Combine(OutputDir, "as_list.csv"), as_list_data);
-                IO.SaveFile(Path.Combine(OutputDir, "as_list.csv.gz"), GZipUtil.Compress(as_list_data));
+                BasicFile.SaveFile(Path.Combine(OutputDir, "as_list.csv"), as_list_data);
+                BasicFile.SaveFile(Path.Combine(OutputDir, "as_list.csv.gz"), GZipUtil.Compress(as_list_data));
 
                 log.Write("OK " + string.Format("country={0} ipv4={1} ipv6={2} as={3}", country_list.List.Count, ipv4.Trie.Count, ipv6.Trie.Count, as_list.List.Count));
             }
@@ -1948,7 +1948,7 @@ namespace IPA.Cores.Basic
 
         public void SaveIPListCsv(string outputDir, string allTxtFile)
         {
-            IO.MakeDirIfNotExists(outputDir);
+            BasicFile.MakeDirIfNotExists(outputDir);
 
             FullRouteIPFilterList[] ip_list = GenerateIPFilterLists();
             List<FullRouteEntry> all_list = new List<FullRouteEntry>();
@@ -1996,8 +1996,8 @@ namespace IPA.Cores.Basic
                 }
 
                 byte[] data = Str.AsciiEncoding.GetBytes(p.ToCsv());
-                IO.SaveFile(fn, data);
-                IO.SaveFile(fn + ".gz", GZipUtil.Compress(data));
+                BasicFile.SaveFile(fn, data);
+                BasicFile.SaveFile(fn + ".gz", GZipUtil.Compress(data));
             }
 
             all_list.Sort();
@@ -2029,8 +2029,8 @@ namespace IPA.Cores.Basic
             }
 
             byte[] filedata = Str.AsciiEncoding.GetBytes(w.ToString());
-            IO.SaveFile(allTxtFile, filedata);
-            IO.SaveFile(allTxtFile + ".gz", GZipUtil.Compress(filedata));
+            BasicFile.SaveFile(allTxtFile, filedata);
+            BasicFile.SaveFile(allTxtFile + ".gz", GZipUtil.Compress(filedata));
         }
 
         public string ToCsv()

@@ -222,7 +222,7 @@ namespace IPA.Cores.Basic
 
         public void SaveToFile(string filename)
         {
-            IO.SaveFile(filename, ToBuf().ByteData);
+            BasicFile.SaveFile(filename, ToBuf().ByteData);
         }
 
         public void Add(CsvEntry e)

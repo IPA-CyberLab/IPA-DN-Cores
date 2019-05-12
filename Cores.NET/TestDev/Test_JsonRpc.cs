@@ -171,7 +171,7 @@ namespace IPA.TestDev
         public async Task<string[]> Test6()
         {
             List<string> ret = new List<string>();
-            foreach (var d in IO.EnumDirEx(Env.AppRootDir))
+            foreach (var d in BasicFile.EnumDirEx(Env.AppRootDir))
             {
                 ret.Add(d.FullPath);
             }

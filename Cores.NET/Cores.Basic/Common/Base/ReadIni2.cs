@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
 
                 if (filename != null)
                 {
-                    lastUpdate = IO.GetLastWriteTimeUtc(filename);
+                    lastUpdate = BasicFile.GetLastWriteTimeUtc(filename);
 
                     datas = IniCache.GetCache(filename, lastUpdate);
                 }

@@ -133,7 +133,7 @@ namespace IPA.Cores.Basic
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
-        static IO lockFile;
+        static BasicFile lockFile;
 
         public static bool Is64BitProcess => (IntPtr.Size == 8);
         public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
@@ -184,10 +184,10 @@ namespace IPA.Cores.Basic
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT) PathSeparator = "\\";
             }
             PathSeparatorChar = PathSeparator[0];
-            ExeFileName = IO.RemoveLastEnMark(getMyExeFileName());
+            ExeFileName = BasicFile.RemoveLastEnMark(getMyExeFileName());
             if (Str.IsEmptyStr(ExeFileName) == false)
             {
-                AppRootDir = ExeFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
+                AppRootDir = ExeFileDir = BasicFile.RemoveLastEnMark(System.AppContext.BaseDirectory);
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
                 string tmp = ExeFileDir;
                 while (true)
@@ -211,12 +211,12 @@ namespace IPA.Cores.Basic
             {
                 ExeFileName = "/tmp/dummyexe";
                 ExeFileDir = "/tmp";
-                AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
+                AppRootDir = BasicFile.RemoveLastEnMark(Environment.CurrentDirectory);
             }
-            HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
+            HomeDir = BasicFile.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
             if (Str.IsEmptyStr(HomeDir))
             {
-                HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOMEDRIVE") + Kernel.GetEnvStr("HOMEPATH"));
+                HomeDir = BasicFile.RemoveLastEnMark(Kernel.GetEnvStr("HOMEDRIVE") + Kernel.GetEnvStr("HOMEPATH"));
             }
             if (Str.IsEmptyStr(HomeDir) == false)
             {
@@ -233,16 +233,16 @@ namespace IPA.Cores.Basic
             if (IsWindows) UnixMutantDir = "";
             if (Str.IsEmptyStr(UnixMutantDir) == false)
             {
-                IO.MakeDirIfNotExists(UnixMutantDir);
+                BasicFile.MakeDirIfNotExists(UnixMutantDir);
             }
             if (IsWindows)
             {
                 // Windows
-                SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
-                WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(SystemDir));
-                TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
-                WinTempDir = IO.RemoveLastEnMark(Path.Combine(WindowsDir, "Temp"));
-                IO.MakeDir(WinTempDir);
+                SystemDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
+                WindowsDir = BasicFile.RemoveLastEnMark(Path.GetDirectoryName(SystemDir));
+                TempDir = BasicFile.RemoveLastEnMark(Path.GetTempPath());
+                WinTempDir = BasicFile.RemoveLastEnMark(Path.Combine(WindowsDir, "Temp"));
+                BasicFile.MakeDir(WinTempDir);
                 if (WindowsDir.Length >= 2 && WindowsDir[1] == ':')
                 {
                     WindowsDir = WindowsDir.Substring(0, 2).ToUpper();
@@ -270,14 +270,14 @@ namespace IPA.Cores.Basic
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
             LocalFileSystemPathInterpreter = FileSystemPathParser.GetInstance(FileSystemStyle.LocalSystem);
-            ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
-            PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
-            PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
-            PersonalStartupDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
-            PersonalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
-            PersonalDesktopDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-            MyDocumentsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-            LocalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+            ProgramFilesDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+            PersonalStartMenuDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
+            PersonalProgramsDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+            PersonalStartupDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
+            PersonalAppDataDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+            PersonalDesktopDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+            MyDocumentsDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+            LocalAppDataDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
             if (IsUnix)
             {
                 // ダミーディレクトリ
@@ -326,7 +326,7 @@ namespace IPA.Cores.Basic
 
                 string tmp = Path.Combine(Env.TempDir, "NET_" + tmp2);
 
-                if (IO.IsDirExists(tmp) == false && IO.MakeDir(tmp))
+                if (BasicFile.IsDirExists(tmp) == false && BasicFile.MakeDir(tmp))
                 {
                     Env.MyTempDir = tmp;
 
@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
 
             // ロックファイルの作成
             string lockFileName = Path.Combine(Env.MyTempDir, "LockFile.dat");
-            lockFile = IO.FileCreate(lockFileName, Env.IsUnix);
+            lockFile = BasicFile.FileCreate(lockFileName, Env.IsUnix);
 
             // Unique log process id
             UniqueLogProcessId = 0;
@@ -369,7 +369,7 @@ namespace IPA.Cores.Basic
         {
             DirEntry[] files;
 
-            files = IO.EnumDir(Env.TempDir);
+            files = BasicFile.EnumDir(Env.TempDir);
 
             foreach (DirEntry e in files)
             {
@@ -383,12 +383,12 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            IO io = IO.FileOpen(lockFileName);
+                            BasicFile io = BasicFile.FileOpen(lockFileName);
                             io.Close();
 
                             try
                             {
-                                io = IO.FileOpen(lockFileName, true);
+                                io = BasicFile.FileOpen(lockFileName, true);
                                 deleteNow = true;
                                 io.Close();
                             }
@@ -404,7 +404,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                files2 = IO.EnumDir(dirFullName);
+                                files2 = BasicFile.EnumDir(dirFullName);
 
                                 foreach (DirEntry e2 in files2)
                                 {
@@ -414,7 +414,7 @@ namespace IPA.Cores.Basic
 
                                         try
                                         {
-                                            IO io2 = IO.FileOpen(fullPath, true);
+                                            BasicFile io2 = BasicFile.FileOpen(fullPath, true);
                                             io2.Close();
                                         }
                                         catch
@@ -432,7 +432,7 @@ namespace IPA.Cores.Basic
 
                         if (deleteNow)
                         {
-                            IO.DeleteDir(dirFullName, true);
+                            BasicFile.DeleteDir(dirFullName, true);
                         }
                     }
                 }
@@ -490,7 +490,7 @@ namespace IPA.Cores.Basic
         }
 
         // 初期化の必要のないプロパティ値
-        static public string CurrentDir => IO.RemoveLastEnMark(Environment.CurrentDirectory);
+        static public string CurrentDir => BasicFile.RemoveLastEnMark(Environment.CurrentDirectory);
         static public string NewLine => Environment.NewLine;
     }
 }

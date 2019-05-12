@@ -64,11 +64,11 @@ namespace IPA.Cores.Basic
 
             foreach (string fileName in fileList)
             {
-                string relativePath = IO.GetRelativeFileName(fileName, topDirPath);
+                string relativePath = BasicFile.GetRelativeFileName(fileName, topDirPath);
 
                 if (Str.IsEmptyStr(appendPrefixDirName) == false)
                 {
-                    relativePath = IO.RemoveLastEnMark(appendPrefixDirName) + "\\" + relativePath;
+                    relativePath = BasicFile.RemoveLastEnMark(appendPrefixDirName) + "\\" + relativePath;
                 }
 
                 relativeFileList.Add(relativePath);
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                byte[] srcData = IO.ReadFile(srcFileNameList[i]);
+                byte[] srcData = BasicFile.ReadFile(srcFileNameList[i]);
                 DateTime date = File.GetLastWriteTime(srcFileNameList[i]);
 
                 switch (format)

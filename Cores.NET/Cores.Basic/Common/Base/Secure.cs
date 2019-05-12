@@ -285,11 +285,11 @@ namespace IPA.Cores.Basic
         }
         public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string filename, string password = null)
         {
-            return LoadPkcs12(IO.ReadFile(filename), password);
+            return LoadPkcs12(BasicFile.ReadFile(filename), password);
         }
         public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string embeddedResourceName, Type assemblyType)
         {
-            return LoadPkcs12(IO.ReadEmbeddedFileData(embeddedResourceName, assemblyType));
+            return LoadPkcs12(BasicFile.ReadEmbeddedFileData(embeddedResourceName, assemblyType));
         }
 
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
@@ -299,7 +299,7 @@ namespace IPA.Cores.Basic
     {
         public static bool IsKernelModeSignedFile(string fileName)
         {
-            return IsKernelModeSignedFile(IO.ReadFile(fileName));
+            return IsKernelModeSignedFile(BasicFile.ReadFile(fileName));
         }
 
         public static bool IsKernelModeSignedFile(byte[] data)

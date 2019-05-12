@@ -287,14 +287,14 @@ namespace IPA.Cores.Basic
         public MutantUnix(string name)
         {
             Filename = Path.Combine(Env.UnixMutantDir, Mutant.GenerateInternalName(name) + ".lock");
-            IO.MakeDirIfNotExists(Env.UnixMutantDir);
+            BasicFile.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
         public override void Lock(bool nonBlock = false)
         {
             if (LockedCount == 0)
             {
-                IO.MakeDirIfNotExists(Env.UnixMutantDir);
+                BasicFile.MakeDirIfNotExists(Env.UnixMutantDir);
 
                 UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
 

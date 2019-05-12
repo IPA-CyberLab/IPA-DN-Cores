@@ -191,8 +191,8 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
-                IO.MakeDirIfNotExists(Options.WwwRoot);
-                IO.MakeDirIfNotExists(Options.ContentsRoot);
+                BasicFile.MakeDirIfNotExists(Options.WwwRoot);
+                BasicFile.MakeDirIfNotExists(Options.ContentsRoot);
 
                 ParamToken = GlobalObjectExchange.Deposit(param);
                 CancelToken = GlobalObjectExchange.Deposit(this.GrandCancel);

@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
         }
         public static string GetTitleFromHtmlFile(string filename)
         {
-            string body = IO.ReadAllTextWithAutoGetEncoding(filename);
+            string body = BasicFile.ReadAllTextWithAutoGetEncoding(filename);
 
             return GetTitleFromHtml(body);
         }

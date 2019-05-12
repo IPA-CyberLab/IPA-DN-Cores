@@ -117,7 +117,7 @@ namespace IPA.Cores.Basic
         public static Process Run(string exeName, string args)
         {
             Process p = new Process();
-            p.StartInfo.FileName = IO.InnerFilePath(exeName);
+            p.StartInfo.FileName = BasicFile.InnerFilePath(exeName);
             p.StartInfo.Arguments = args;
 
             p.Start();
@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
 
             ProcessStartInfo info = new ProcessStartInfo()
             {
-                FileName = IO.InnerFilePath(exe),
+                FileName = BasicFile.InnerFilePath(exe),
                 Arguments = args,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

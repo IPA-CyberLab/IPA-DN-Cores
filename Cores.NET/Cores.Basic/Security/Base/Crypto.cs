@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic
         }
         public Cert(string filename)
         {
-            init(IO.ReadFile(filename));
+            init(BasicFile.ReadFile(filename));
         }
         public Cert(Buf buf)
         {

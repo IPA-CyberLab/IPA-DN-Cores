@@ -394,7 +394,7 @@ namespace IPA.Cores.Basic
 
         async Task LogThreadAsync()
         {
-            IO io = null;
+            BasicFile io = null;
             MemoryBuffer<byte> b = new MemoryBuffer<byte>();
             string currentFileName = "";
             string currentLogFileDateName = "";
@@ -514,7 +514,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
+                                string[] existingFiles = Directory.GetFiles(BasicFile.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
                                 string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
 
@@ -550,7 +550,7 @@ namespace IPA.Cores.Basic
                                     MakeLogFileName(out string tmp, this.DirName, this.Prefix, this.UniqueProcessId,
                                         rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
-                                    if (IO.IsFileExists(tmp) == false)
+                                    if (BasicFile.IsFileExists(tmp) == false)
                                         break;
 
                                     this.CurrentLogNumber = i;
@@ -599,7 +599,7 @@ namespace IPA.Cores.Basic
                             currentFileName = fileName;
                             try
                             {
-                                io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
+                                io = BasicFile.FileOpen(fileName, writeMode: true, useAsync: true);
                                 this.CurrentFilePointer = io.FileSize64;
                                 io.Seek(SeekOrigin.End, 0);
                             }
@@ -610,14 +610,14 @@ namespace IPA.Cores.Basic
                                 {
                                     try
                                     {
-                                        IO.MakeDirIfNotExists(this.DirName);
+                                        BasicFile.MakeDirIfNotExists(this.DirName);
                                         Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                     }
                                     catch { }
                                 }
                                 try
                                 {
-                                    io = IO.FileCreate(fileName, useAsync: true);
+                                    io = BasicFile.FileCreate(fileName, useAsync: true);
                                     await io.WriteAsync(NewFilePreamble);
                                 }
                                 catch (Exception ex)
@@ -635,7 +635,7 @@ namespace IPA.Cores.Basic
                         currentFileName = fileName;
                         try
                         {
-                            io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
+                            io = BasicFile.FileOpen(fileName, writeMode: true, useAsync: true);
                             this.CurrentFilePointer = io.FileSize64;
                             io.Seek(SeekOrigin.End, 0);
                         }
@@ -646,7 +646,7 @@ namespace IPA.Cores.Basic
                             {
                                 try
                                 {
-                                    IO.MakeDirIfNotExists(this.DirName);
+                                    BasicFile.MakeDirIfNotExists(this.DirName);
                                     Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                 }
                                 catch { }
@@ -654,7 +654,7 @@ namespace IPA.Cores.Basic
                             this.CurrentFilePointer = 0;
                             try
                             {
-                                io = IO.FileCreate(fileName, useAsync: true);
+                                io = BasicFile.FileCreate(fileName, useAsync: true);
                                 await io.WriteAsync(NewFilePreamble);
                             }
                             catch (Exception ex)

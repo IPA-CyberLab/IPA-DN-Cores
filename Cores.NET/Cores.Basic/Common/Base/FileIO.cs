@@ -84,7 +84,7 @@ namespace IPA.Cores.Basic
             try
             {
                 // 列挙
-                List<DirEntry> list = IO.EnumDirsWithCancel(dirList, extensionList, cancel);
+                List<DirEntry> list = BasicFile.EnumDirsWithCancel(dirList, extensionList, cancel);
 
                 // 更新日時でソート
                 list.Sort((x, y) => (x.UpdateDate.CompareTo(y.UpdateDate)));
@@ -208,9 +208,9 @@ namespace IPA.Cores.Basic
 
         public void AddDir(string dirName)
         {
-            dirName = IO.RemoveLastEnMark(dirName);
+            dirName = BasicFile.RemoveLastEnMark(dirName);
 
-            DirEntry[] ee = IO.EnumDirEx(dirName);
+            DirEntry[] ee = BasicFile.EnumDirEx(dirName);
 
             foreach (DirEntry e in ee)
             {
@@ -223,9 +223,9 @@ namespace IPA.Cores.Basic
 
         public void AddFile(string fileName, string baseDirFileName)
         {
-            string name = IO.GetRelativeFileName(fileName, baseDirFileName);
+            string name = BasicFile.GetRelativeFileName(fileName, baseDirFileName);
 
-            AddFile(name, IO.ReadFile(fileName));
+            AddFile(name, BasicFile.ReadFile(fileName));
         }
 
         public void AddFile(string name, byte[] data)
@@ -252,7 +252,7 @@ namespace IPA.Cores.Basic
         {
             Buf b = Build();
 
-            IO.SaveFile(dstFileName, b.ByteData);
+            BasicFile.SaveFile(dstFileName, b.ByteData);
         }
 
         public Buf Build()
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
 
         Dictionary<string, HamCoreEntry> list;
 
-        IO hamcore_io;
+        BasicFile hamcore_io;
 
         public HamCore(string filename)
         {
@@ -351,13 +351,13 @@ namespace IPA.Cores.Basic
 
         void init(string filename)
         {
-            filename = IO.InnerFilePath(filename);
+            filename = BasicFile.InnerFilePath(filename);
             string filenameOnly = Path.GetFileName(filename);
             string filenameAlt = Path.Combine(Path.GetDirectoryName(filename), "_" + filenameOnly);
 
             try
             {
-                IO.FileReplaceRename(filenameAlt, filename);
+                BasicFile.FileReplaceRename(filenameAlt, filename);
             }
             catch
             {
@@ -367,7 +367,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                hamcore_io = IO.FileOpen(filename);
+                hamcore_io = BasicFile.FileOpen(filename);
             }
             catch
             {
@@ -556,10 +556,8 @@ namespace IPA.Cores.Basic
     };
 
     // ファイル操作
-    class IO : IDisposable
+    class BasicFile : IDisposable
     {
-        
-
         // ディレクトリのコピー
         public delegate bool CopyDirPreCopyDelegate(FileInfo srcFileInfo);
         public static void CopyDir(string srcDirName, string destDirName, CopyDirPreCopyDelegate preCopy, bool ignoreError, bool printStatus)
@@ -581,7 +579,7 @@ namespace IPA.Cores.Basic
                 FileInfo info = new FileInfo(srcFile);
 
                 // 宛先ファイル名
-                string relativeFileName = IO.GetRelativeFileName(srcFile, srcDirName);
+                string relativeFileName = BasicFile.GetRelativeFileName(srcFile, srcDirName);
                 string destFileName = Path.Combine(destDirName, relativeFileName);
                 string destFileDirName = Path.GetDirectoryName(destFileName);
 
@@ -626,7 +624,7 @@ namespace IPA.Cores.Basic
         static string hamcoreFileName = DefaultHamcoreFileName;
         public static string HamcoreFileName
         {
-            get { return IO.hamcoreFileName; }
+            get { return BasicFile.hamcoreFileName; }
             set
             {
                 lock (hamLockObj)
@@ -636,7 +634,7 @@ namespace IPA.Cores.Basic
                         throw new ApplicationException();
                     }
 
-                    IO.hamcoreFileName = value;
+                    BasicFile.hamcoreFileName = value;
                     tryToUseHamcore = false;
                 }
             }
@@ -703,7 +701,7 @@ namespace IPA.Cores.Basic
         readonly AsyncLock AsyncLockObj = new AsyncLock();
 
         // コンストラクタ
-        private IO()
+        private BasicFile()
         {
             name = "";
             p = null;
@@ -713,7 +711,7 @@ namespace IPA.Cores.Basic
         }
 
         // デストラクタ
-        ~IO()
+        ~BasicFile()
         {
             Close();
         }
@@ -767,7 +765,7 @@ namespace IPA.Cores.Basic
 
             data = Util.CombineByteArray(bom, data);
 
-            IO.SaveFile(fileName, data, 0, data.Length, ifSameContentsDoNothing);
+            BasicFile.SaveFile(fileName, data, 0, data.Length, ifSameContentsDoNothing);
         }
 
         // ファイルを自動的に文字コードを認識して文字列を読み込む
@@ -776,7 +774,7 @@ namespace IPA.Cores.Basic
         {
             fileName = InnerFilePath(fileName);
 
-            byte[] data = IO.ReadFile(fileName);
+            byte[] data = BasicFile.ReadFile(fileName);
 
             int bomSize;
             Encoding enc = Str.GetEncoding(data, out bomSize);
@@ -795,9 +793,9 @@ namespace IPA.Cores.Basic
         }
 
         // 拡張子を元に一時ファイルを作成する
-        public static IO CreateTempFileByExt(string ext)
+        public static BasicFile CreateTempFileByExt(string ext)
         {
-            return IO.FileCreate(CreateTempFileNameByExt(ext));
+            return BasicFile.FileCreate(CreateTempFileNameByExt(ext));
         }
 
         // 拡張子を指定するとその拡張子を持つ一時ファイルを作成する
@@ -823,7 +821,7 @@ namespace IPA.Cores.Basic
 
                 fullPath = CreateTempFileName(newFilename);
 
-                if (IO.IsFileExists(fullPath) == false)
+                if (BasicFile.IsFileExists(fullPath) == false)
                 {
                     return fullPath;
                 }
@@ -831,9 +829,9 @@ namespace IPA.Cores.Basic
         }
 
         // 一時ファイルを作成する
-        public static IO CreateTempFile(string name)
+        public static BasicFile CreateTempFile(string name)
         {
-            return IO.FileCreate(CreateTempFileName(name));
+            return BasicFile.FileCreate(CreateTempFileName(name));
         }
 
         // 一時ファイル名を作成する
@@ -903,7 +901,7 @@ namespace IPA.Cores.Basic
         }
         static bool enumDirWithCallback(string dirName, string baseDirName, EnumDirCallbackProc callback, string fileExtensions, object cb_param)
         {
-            string tmp = IO.InnerFilePath(dirName);
+            string tmp = BasicFile.InnerFilePath(dirName);
 
             string[] dirs = null;
 
@@ -973,7 +971,7 @@ namespace IPA.Cores.Basic
 
                     bool ok = false;
 
-                    ok = IO.IsExtensionsMatch(fullPath, fileExtensions);
+                    ok = BasicFile.IsExtensionsMatch(fullPath, fileExtensions);
 
                     if (ok)
                     {
@@ -1022,7 +1020,7 @@ namespace IPA.Cores.Basic
         }
         static void enumDirEx(string dirName, string baseDirName, List<DirEntry> list)
         {
-            string tmp = IO.InnerFilePath(dirName);
+            string tmp = BasicFile.InnerFilePath(dirName);
 
             string[] dirs = Directory.GetDirectories(tmp);
             foreach (string name in dirs)
@@ -1069,7 +1067,7 @@ namespace IPA.Cores.Basic
         public static DirEntry[] EnumDir(string dirName)
         {
             List<DirEntry> list = new List<DirEntry>();
-            string tmp = IO.InnerFilePath(dirName);
+            string tmp = BasicFile.InnerFilePath(dirName);
 
             string[] dirs = Directory.GetDirectories(tmp);
             foreach (string name in dirs)
@@ -1164,7 +1162,7 @@ namespace IPA.Cores.Basic
 
             if (skipIfNoChange || deleteBom)
             {
-                byte[] srcData = IO.ReadFile(tmp1);
+                byte[] srcData = BasicFile.ReadFile(tmp1);
                 byte[] destData = new byte[0];
                 bool changed = true;
                 int bomSize;
@@ -1192,7 +1190,7 @@ namespace IPA.Cores.Basic
 
                         if (size == srcData.Length || srcData.Length == 0)
                         {
-                            destData = IO.ReadFile(tmp2);
+                            destData = BasicFile.ReadFile(tmp2);
                         }
                     }
                     catch
@@ -1207,7 +1205,7 @@ namespace IPA.Cores.Basic
 
                 if (changed)
                 {
-                    IO.SaveFile(tmp2, srcData);
+                    BasicFile.SaveFile(tmp2, srcData);
                     CopyFileTimestamp(tmp2, tmp1);
                 }
             }
@@ -1240,7 +1238,7 @@ namespace IPA.Cores.Basic
         // ファイルを読み込む
         static public byte[] ReadFile(string name)
         {
-            IO io = FileOpen(name);
+            BasicFile io = FileOpen(name);
             try
             {
                 int size = io.FileSize;
@@ -1264,7 +1262,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    byte[] current_data = IO.ReadFile(name);
+                    byte[] current_data = BasicFile.ReadFile(name);
                     if (Util.CompareByte(current_data, Util.ExtractByteArray(data, offset, size)))
                     {
                         return;
@@ -1275,7 +1273,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            IO io = FileCreate(name);
+            BasicFile io = FileCreate(name);
             try
             {
                 io.Write(data, offset, size);
@@ -1399,7 +1397,7 @@ namespace IPA.Cores.Basic
         }
         public static int GetFileSize(string name)
         {
-            IO io = IO.FileOpen(name, false);
+            BasicFile io = BasicFile.FileOpen(name, false);
             try
             {
                 return io.FileSize;
@@ -1714,15 +1712,15 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルを作成する
-        public static IO FileCreate(string name, bool noShare = false, bool useAsync = false)
+        public static BasicFile FileCreate(string name, bool noShare = false, bool useAsync = false)
         {
             name = InnerFilePath(name);
 
             return fileCreateInner(name, noShare, useAsync);
         }
-        static IO fileCreateInner(string name, bool noShare, bool useAsync)
+        static BasicFile fileCreateInner(string name, bool noShare, bool useAsync)
         {
-            IO o = new IO();
+            BasicFile o = new BasicFile();
 
             string name2 = ConvertPath(name);
 
@@ -1737,13 +1735,13 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルを開く
-        public static IO FileOpen(string name, bool writeMode = false, bool readLock = false, bool useAsync = false)
+        public static BasicFile FileOpen(string name, bool writeMode = false, bool readLock = false, bool useAsync = false)
         {
             name = InnerFilePath(name);
 
             if (name[0] == '|')
             {
-                HamCore hc = IO.HamCore;
+                HamCore hc = BasicFile.HamCore;
 
                 Buf b = hc.ReadHamcore(name);
                 if (b == null)
@@ -1751,7 +1749,7 @@ namespace IPA.Cores.Basic
                     throw new FileNotFoundException();
                 }
 
-                IO o = new IO();
+                BasicFile o = new BasicFile();
                 o.name = name.Substring(1);
                 o.hamMode = true;
                 o.hamBuf = b;
@@ -1763,9 +1761,9 @@ namespace IPA.Cores.Basic
                 return fileOpenInner(name, writeMode, readLock, useAsync);
             }
         }
-        static IO fileOpenInner(string name, bool writeMode, bool readLock, bool useAsync)
+        static BasicFile fileOpenInner(string name, bool writeMode, bool readLock, bool useAsync)
         {
-            IO o = new IO();
+            BasicFile o = new BasicFile();
 
             string name2 = ConvertPath(name);
 
@@ -1782,11 +1780,11 @@ namespace IPA.Cores.Basic
         }
 
         // ファイルを開くか作成する
-        public static IO FileCreateOrAppendOpen(string name)
+        public static BasicFile FileCreateOrAppendOpen(string name)
         {
             if (IsFileExists(name))
             {
-                IO io = FileOpen(name, true);
+                BasicFile io = FileOpen(name, true);
                 io.Seek(SeekOrigin.End, 0);
                 return io;
             }
@@ -1802,9 +1800,9 @@ namespace IPA.Cores.Basic
             baseDirName = baseDirName.Trim();
             fileName = fileName.Trim();
 
-            baseDirName = IO.NormalizePath(baseDirName);
+            baseDirName = BasicFile.NormalizePath(baseDirName);
             baseDirName = RemoveLastEnMark(baseDirName).Trim() + Env.PathSeparator;
-            fileName = IO.NormalizePath(fileName);
+            fileName = BasicFile.NormalizePath(fileName);
 
             if (fileName.Length <= baseDirName.Length)
             {
@@ -2233,7 +2231,7 @@ namespace IPA.Cores.Basic
 
         public static Stream ReadEmbeddedFileStream(string name, Type assemblyType = null)
         {
-            if (assemblyType == null) assemblyType = typeof(IO).GetType();
+            if (assemblyType == null) assemblyType = typeof(BasicFile).GetType();
             return assemblyType.Assembly.GetManifestResourceStream(name);
         }
 

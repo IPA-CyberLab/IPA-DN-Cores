@@ -73,13 +73,13 @@ namespace IPA.TestDev
 
         static void Git_Test_1()
         {
-            using (var rep = new GitRepository(GitTestBaseDir))
+            while (true)
             {
-                using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
+                using (var rep = new GitRepository(GitTestBaseDir))
                 {
-                    using (var fs2 = new ChrootViewFileSystem(new ChrootViewFileSystemParam(Lfs, @"c:\tmp\chroot_test1")))
+                    using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
                     {
-                        fs.CopyDir("/", "/", fs2);
+                        fs.ReadDataFromFile("/LICENSE");
                     }
                 }
             }

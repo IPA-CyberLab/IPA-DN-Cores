@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
 
         public Stb(string filename)
         {
-            init(IO.ReadFile(filename));
+            init(BasicFile.ReadFile(filename));
         }
 
         public Stb(byte[] data)
