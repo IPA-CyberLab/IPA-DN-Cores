@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
 
                     attachHandle.SetStreamReceiveTimeout(RecvTimeout);
 
-                    await st.SendAsync("TrafficServer\r\n\0".GetBytes_Ascii());
+                    await st.SendAsync("TrafficServer\r\n\0"._GetBytes_Ascii());
 
                     ReadOnlyMemoryBuffer<byte> buf = await st.ReceiveAsync(17);
 
@@ -147,7 +147,7 @@ namespace IPA.Cores.Basic
 
                     using (var session = sessions.Enter(sessionId))
                     {
-                        using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app.CancelSafe(new TimeoutException())))
+                        using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafe(new TimeoutException())))
                         {
                             if (dir == SpeedTestDirection.Recv)
                             {
@@ -214,11 +214,11 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteLine("Listening.");
 
-                    await TaskUtil.WaitObjectsAsync(cancels: mainLoopCancel.SingleArray());
+                    await TaskUtil.WaitObjectsAsync(cancels: mainLoopCancel._SingleArray());
                 }
                 finally
                 {
-                    await listener.DisposeWithCleanupSafeAsync();
+                    await listener._DisposeWithCleanupSafeAsync();
                 }
             }
         }
@@ -322,8 +322,8 @@ namespace IPA.Cores.Basic
                     {
                         await TaskUtil.WaitObjectsAsync(
                             tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
-                            cancels: cancelWatcher.CancelToken.SingleArray(),
-                            manualEvents: ExceptionQueue.WhenExceptionAdded.SingleArray());
+                            cancels: cancelWatcher.CancelToken._SingleArray(),
+                            manualEvents: ExceptionQueue.WhenExceptionAdded._SingleArray());
                     }
 
                     Cancel.ThrowIfCancellationRequested();
@@ -344,8 +344,8 @@ namespace IPA.Cores.Basic
                         using (var whenAllCompleted = new WhenAll(tasks))
                         {
                             await TaskUtil.WaitObjectsAsync(
-                                tasks: whenAllCompleted.WaitMe.SingleArray(),
-                                cancels: cancelWatcher.CancelToken.SingleArray()
+                                tasks: whenAllCompleted.WaitMe._SingleArray(),
+                                cancels: cancelWatcher.CancelToken._SingleArray()
                                 );
 
                             await whenAllCompleted.WaitMe;
@@ -356,7 +356,7 @@ namespace IPA.Cores.Basic
 
                     ret.Span = TimeSpan;
 
-                    foreach (var r in tasks.Select(x => x.GetResult()))
+                    foreach (var r in tasks.Select(x => x._GetResult()))
                     {
                         ret.NumBytesDownload += r.NumBytesDownload;
                         ret.NumBytesUpload += r.NumBytesUpload;
@@ -414,7 +414,7 @@ namespace IPA.Cores.Basic
                     {
                         var hello = await st.ReceiveAllAsync(16);
 
-                        if (hello.Span.ToArray().GetString_Ascii().StartsWith("TrafficServer\r\n") == false)
+                        if (hello.Span.ToArray()._GetString_Ascii().StartsWith("TrafficServer\r\n") == false)
                             throw new ApplicationException("Target server is not a Traffic Server.");
 
                         //throw new ApplicationException("aaaa" + dir.ToString());
@@ -424,8 +424,8 @@ namespace IPA.Cores.Basic
                         cancel.ThrowIfCancellationRequested();
 
                         await TaskUtil.WaitObjectsAsync(
-                            manualEvents: ClientStartEvent.SingleArray(),
-                            cancels: cancel.SingleArray()
+                            manualEvents: ClientStartEvent._SingleArray(),
+                            cancels: cancel._SingleArray()
                             );
 
                         long tickStart = FastTick64.Now;
@@ -449,7 +449,7 @@ namespace IPA.Cores.Basic
                                     break;
 
                                 await TaskUtil.WaitObjectsAsync(
-                                    tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize).SingleArray(),
+                                    tasks: st.FastReceiveAsync(totalRecvSize: totalRecvSize)._SingleArray(),
                                     timeout: (int)(tickEnd - now),
                                     exceptions: ExceptionWhen.TaskException | ExceptionWhen.CancelException);
 
@@ -494,7 +494,7 @@ namespace IPA.Cores.Basic
                                     await st.SendAsync(surprise);
 
                                     await TaskUtil.WaitObjectsAsync(
-                                        manualEvents: sock.Pipe.OnDisconnectedEvent.SingleArray(),
+                                        manualEvents: sock.Pipe.OnDisconnectedEvent._SingleArray(),
                                         timeout: 200);
                                 }
                             });

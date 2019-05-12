@@ -123,9 +123,9 @@ namespace IPA.TestDev
         {
             string url = "https://httpbin.org/anything";
 
-            MemoryBuffer<byte> uploadData = new MemoryBuffer<byte>("Hello World".GetBytes_Ascii());
-            var stream = uploadData.AsDirectStream();
-            stream.SeekToBegin();
+            MemoryBuffer<byte> uploadData = new MemoryBuffer<byte>("Hello World"._GetBytes_Ascii());
+            var stream = uploadData._AsDirectStream();
+            stream._SeekToBegin();
 
             using (WebApi api = new WebApi())
             {
@@ -144,10 +144,10 @@ namespace IPA.TestDev
 
                         downloadData.Write(tmp.Slice(0, r));
 
-                        Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                        Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
                     }
                 }
-                downloadData.Span.GetString_Ascii().Print();
+                downloadData.Span._GetString_Ascii()._Print();
                 Dbg.Where();
             }
         }
@@ -175,7 +175,7 @@ namespace IPA.TestDev
                                 if (r <= 0) break;
                                 total += r;
 
-                                Con.WriteLine($"{total.ToString3()} / {res.DownloadContentLength.GetValueOrDefault().ToString3()}");
+                                Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
                             }
                         }
                         Dbg.Where();
@@ -192,7 +192,7 @@ namespace IPA.TestDev
 
             using (var tcp = LocalNet.ConnectIPv4v6Dual(new TcpConnectParam(hostname, 443, connectTimeout: 5 * 1000)))
             {
-                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress.AddressFamily.ToString().Print();
+                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress.AddressFamily.ToString()._Print();
 
                 using (SslSock ssl = new SslSock(tcp))
                 {
@@ -254,9 +254,9 @@ namespace IPA.TestDev
             ThreadObj.Sleep(wait);
 
             Con.WriteLine("Stopping...");
-            cts.TryCancelNoBlock();
+            cts._TryCancelNoBlock();
 
-            task.GetResult().PrintAsJson();
+            task._GetResult()._PrintAsJson();
 
             Con.WriteLine("Stopped.");
         }
@@ -270,7 +270,7 @@ namespace IPA.TestDev
                         StreamWriter w = new StreamWriter(stream);
                         while (true)
                         {
-                            w.WriteLine(DateTimeOffset.Now.ToDtStr(true));
+                            w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
                             await w.FlushAsync();
                             await Task.Delay(100);
                         }

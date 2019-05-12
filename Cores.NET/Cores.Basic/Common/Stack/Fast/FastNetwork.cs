@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -460,7 +460,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -502,7 +502,7 @@ namespace IPA.Cores.Basic
                     {
                         PipeEnd.StreamReader.EventListeners.UnregisterCallback(receiveTimeoutProcId);
                         receiveTimeoutProcId = 0;
-                        receiveTimeoutDetector.DisposeSafe();
+                        receiveTimeoutDetector._DisposeSafe();
                     }
                 }
                 else
@@ -544,7 +544,7 @@ namespace IPA.Cores.Basic
                     {
                         PipeEnd.StreamWriter.EventListeners.UnregisterCallback(sendTimeoutProcId);
                         sendTimeoutProcId = 0;
-                        sendTimeoutDetector.DisposeSafe();
+                        sendTimeoutDetector._DisposeSafe();
                     }
                 }
                 else
@@ -596,9 +596,9 @@ namespace IPA.Cores.Basic
 
         protected override void DisposeImpl(Exception ex)
         {
-            Leak.DisposeSafe();
+            Leak._DisposeSafe();
 
-            InstalledLayerHolder.DisposeSafe();
+            InstalledLayerHolder._DisposeSafe();
         }
     }
 
@@ -680,7 +680,7 @@ namespace IPA.Cores.Basic
         }
 
         public void Send(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
-            => SendAsync(buffer, cancel).GetResult();
+            => SendAsync(buffer, cancel)._GetResult();
 
         Once receiveAllAsyncRaiseExceptionFlag;
 
@@ -703,7 +703,7 @@ namespace IPA.Cores.Basic
                         throw new FastBufferDisconnectedException();
                     }
                 }
-                buffer.Walk(r);
+                buffer._Walk(r);
             }
         }
 
@@ -772,16 +772,16 @@ namespace IPA.Cores.Basic
         }
 
         public void ReceiveAll(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAllAsync(buffer, cancel).GetResult();
+            => ReceiveAllAsync(buffer, cancel)._GetResult();
 
         public Memory<byte> ReceiveAll(int size, CancellationToken cancel = default)
-            => ReceiveAllAsync(size, cancel).GetResult();
+            => ReceiveAllAsync(size, cancel)._GetResult();
 
         public int Receive(Memory<byte> buffer, CancellationToken cancel = default)
-            => ReceiveAsync(buffer, cancel).GetResult();
+            => ReceiveAsync(buffer, cancel)._GetResult();
 
         public ReadOnlyMemory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
-            => ReceiveAsync(maxSize, cancel).GetResult();
+            => ReceiveAsync(maxSize, cancel)._GetResult();
 
         public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
         {
@@ -926,7 +926,7 @@ namespace IPA.Cores.Basic
         }
 
         public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
-            => SendToAsync(buffer, remoteEndPoint, cancel).GetResult();
+            => SendToAsync(buffer, remoteEndPoint, cancel)._GetResult();
 
         public async Task<IReadOnlyList<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
         {
@@ -982,7 +982,7 @@ namespace IPA.Cores.Basic
 
         public int ReceiveFrom(Memory<byte> buffer, out EndPoint remoteEndPoint, CancellationToken cancel = default)
         {
-            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel).GetResult();
+            PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel)._GetResult();
 
             remoteEndPoint = r.RemoteEndPoint;
 
@@ -1016,7 +1016,7 @@ namespace IPA.Cores.Basic
         }
 
         public virtual Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            => SendAsync(buffer.AsReadOnlyMemory(offset, count), cancellationToken);
+            => SendAsync(buffer._AsReadOnlyMemory(offset, count), cancellationToken);
 
         public virtual Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             => ReceiveAsync(buffer.AsMemory(offset, count), cancellationToken);
@@ -1472,7 +1472,7 @@ namespace IPA.Cores.Basic
                     foreach (Datagram data in sendList)
                     {
                         cancel.ThrowIfCancellationRequested();
-                        await Socket.SendToAsync(data.Data.AsSegment(), data.EndPoint);
+                        await Socket.SendToAsync(data.Data._AsSegment(), data.EndPoint);
                     }
                     return 0;
                 },
@@ -1506,14 +1506,14 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex)
         {
-            Socket.DisposeSafe();
+            Socket._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            Socket.DisposeSafe();
+            Socket._DisposeSafe();
 
             base.DisposeImpl(ex);
         }
@@ -1613,14 +1613,14 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex)
         {
-            Stream.DisposeSafe();
+            Stream._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            Stream.DisposeSafe();
+            Stream._DisposeSafe();
 
             base.DisposeImpl(ex);
         }
@@ -1759,9 +1759,9 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
-            _NetworkStream.DisposeSafe();
+            _NetworkStream._DisposeSafe();
 
-            Leak.DisposeSafe();
+            Leak._DisposeSafe();
         }
 
     }

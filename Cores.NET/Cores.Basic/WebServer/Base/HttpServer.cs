@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
             this.Param = GlobalObjectExchange.Withdraw(this.Configuration["coreutil_param_token"]);
             this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"]);
 
-            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"].JsonToObject<HttpServerOptions>();
+            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
         }
 
@@ -105,7 +105,7 @@ namespace IPA.Cores.Basic
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
 
         public string ContentsRoot { get; set; } = Env.AppRootDir;
-        public string WwwRoot { get; set; } = Env.AppRootDir.CombinePath("wwwroot");
+        public string WwwRoot { get; set; } = Env.AppRootDir._CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
         public bool DebugKestrelToConsole { get; set; } = false;
@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
                 {
                     var dict = new Dictionary<string, string>
                     {
-                        {"coreutil_ServerBuilderConfig", this.Options.ObjectToJson() },
+                        {"coreutil_ServerBuilderConfig", this.Options._ObjectToJson() },
                         {"coreutil_param_token", ParamToken },
                         {"coreutil_cancel_token", CancelToken },
                     };
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }

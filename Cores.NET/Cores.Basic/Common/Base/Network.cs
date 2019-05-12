@@ -3392,7 +3392,7 @@ namespace IPA.Cores.Basic
                                 events: new AsyncAutoResetEvent[] { EventSendNow });
                         }
 
-                        int r = await Sock.SendToAsync(pkt.Data.AsSegment(), pkt.IPEndPoint);
+                        int r = await Sock.SendToAsync(pkt.Data._AsSegment(), pkt.IPEndPoint);
                         if (r <= 0) break;
 
                         EventSendReady.Set();
@@ -3433,8 +3433,8 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            CancelWatcher.DisposeSafe();
-            Sock.DisposeSafe();
+            CancelWatcher._DisposeSafe();
+            Sock._DisposeSafe();
         }
     }
 }

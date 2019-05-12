@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32OwnerSddl;
 
-        public bool IsThisEmpty() => Win32OwnerSddl.IsEmpty();
+        public bool IsThisEmpty() => Win32OwnerSddl._IsEmpty();
     }
 
     [Serializable]
@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32GroupSddl;
 
-        public bool IsThisEmpty() => Win32GroupSddl.IsEmpty();
+        public bool IsThisEmpty() => Win32GroupSddl._IsEmpty();
     }
 
     [Serializable]
@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32AclSddl;
 
-        public bool IsThisEmpty() => Win32AclSddl.IsEmpty();
+        public bool IsThisEmpty() => Win32AclSddl._IsEmpty();
     }
 
     [Serializable]
@@ -123,7 +123,7 @@ namespace IPA.Cores.Basic
     {
         public string Win32AuditSddl;
 
-        public bool IsThisEmpty() => Win32AuditSddl.IsEmpty();
+        public bool IsThisEmpty() => Win32AuditSddl._IsEmpty();
     }
 
     [Serializable]
@@ -134,7 +134,7 @@ namespace IPA.Cores.Basic
         public FileSecurityAcl Acl;
         public FileSecurityAudit Audit;
 
-        public bool IsThisEmpty() => Owner.IsEmpty() && Group.IsEmpty() && Acl.IsEmpty() && Audit.IsEmpty();
+        public bool IsThisEmpty() => Owner._IsEmpty() && Group._IsEmpty() && Acl._IsEmpty() && Audit._IsEmpty();
 
         public FileSecurityMetadata Clone(FileMetadataCopyMode mode = FileMetadataCopyMode.All)
         {
@@ -148,16 +148,16 @@ namespace IPA.Cores.Basic
             if (mode.Bit(FileMetadataCopyMode.All)) mode |= FileMetadataCopyMode.SecurityAll;
 
             if (mode.Bit(FileMetadataCopyMode.SecurityOwner))
-                dest.Owner = src.Owner.FilledOrDefault().CloneDeep();
+                dest.Owner = src.Owner._FilledOrDefault()._CloneDeep();
 
             if (mode.Bit(FileMetadataCopyMode.SecurityGroup))
-                dest.Group = src.Group.FilledOrDefault().CloneDeep();
+                dest.Group = src.Group._FilledOrDefault()._CloneDeep();
 
             if (mode.Bit(FileMetadataCopyMode.SecurityAcl))
-                dest.Acl = src.Acl.FilledOrDefault().CloneDeep();
+                dest.Acl = src.Acl._FilledOrDefault()._CloneDeep();
 
             if (mode.Bit(FileMetadataCopyMode.SecurityAudit))
-                dest.Audit = src.Audit.FilledOrDefault().CloneDeep();
+                dest.Audit = src.Audit._FilledOrDefault()._CloneDeep();
         }
     }
 
@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
         public string Name;
         public byte[] Data;
 
-        public bool IsThisEmpty() => Name.IsEmpty() || Data.IsEmpty();
+        public bool IsThisEmpty() => Name._IsEmpty() || Data._IsEmpty();
     }
 
     [Serializable]
@@ -210,8 +210,8 @@ namespace IPA.Cores.Basic
             this.CreationTime = creationTime;
             this.LastWriteTime = lastWriteTime;
             this.LastAccessTime = lastAccessTime;
-            this.Security = securityData.CloneDeep();
-            this.AlternateStream = alternateStream.CloneDeep();
+            this.Security = securityData._CloneDeep();
+            this.AlternateStream = alternateStream._CloneDeep();
             this.SpecialOperationFlags = specialOperation;
             this.Size = size;
             this.PhysicalSize = physicalSize ?? size;
@@ -282,10 +282,10 @@ namespace IPA.Cores.Basic
                 if (this.LastAccessTime != null)
                     dest.LastAccessTime = this.LastAccessTime;
 
-            if (this.Security.IsFilled())
+            if (this.Security._IsFilled())
             {
                 var cloned = this.Security.Clone(mode);
-                if (cloned.IsFilled())
+                if (cloned._IsFilled())
                 {
                     dest.Security = cloned;
                 }
@@ -293,9 +293,9 @@ namespace IPA.Cores.Basic
 
             if (mode.Bit(FileMetadataCopyMode.AlternateStream))
             {
-                if (this.AlternateStream.IsFilled())
+                if (this.AlternateStream._IsFilled())
                 {
-                    dest.AlternateStream = this.AlternateStream.CloneDeep();
+                    dest.AlternateStream = this.AlternateStream._CloneDeep();
                 }
             }
         }
@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
         }
 
         public void NormalizePath(FileSystem fileSystem, CancellationToken cancel = default)
-            => NormalizePathAsync(fileSystem, cancel).GetResult();
+            => NormalizePathAsync(fileSystem, cancel)._GetResult();
 
         public FileParameters MapPathVirtualToPhysical(IRewriteVirtualPhysicalPath rewriter)
         {
@@ -424,7 +424,7 @@ namespace IPA.Cores.Basic
             if (DisposeFlag.IsFirstCall() && disposing)
             {
                 if (this.DisposeObject)
-                    File.DisposeSafe();
+                    File._DisposeSafe();
             }
             base.Dispose(disposing);
         }
@@ -450,7 +450,7 @@ namespace IPA.Cores.Basic
 
         public override SafeFileHandle SafeFileHandle => null;
 
-        public override void Flush() => File.FlushAsync().GetResult();
+        public override void Flush() => File.FlushAsync()._GetResult();
         public override async Task FlushAsync(CancellationToken cancellationToken = default)
         {
             using (cancellationToken.Register(() => File.Close()))
@@ -472,24 +472,24 @@ namespace IPA.Cores.Basic
             using (cancellationToken.Register(() => File.Close()))
             {
                 if (File.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
-                    await File.AppendAsync(buffer.AsReadOnlyMemory(offset, count));
+                    await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
                 else
-                    await File.WriteAsync(buffer.AsReadOnlyMemory(offset, count));
+                    await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
             }
         }
 
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None).GetResult();
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None)._GetResult();
 
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None).GetResult();
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None)._GetResult();
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => ReadAsync(buffer, offset, count, default).AsApm(callback, state);
+            => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
 
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => WriteAsync(buffer, offset, count, default).AsApm(callback, state);
+            => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
 
-        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).GetResult();
-        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).GetResult();
+        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
+        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
 
         public override bool Equals(object obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
@@ -653,7 +653,7 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             if (this.AutoDisposeBase)
             {
-                BaseStream.DisposeSafe();
+                BaseStream._DisposeSafe();
             }
         }
 
@@ -770,19 +770,19 @@ namespace IPA.Cores.Basic
         }
 
         public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => AppendAsync(data, cancel).GetResult();
+            => AppendAsync(data, cancel)._GetResult();
         public void Flush(CancellationToken cancel = default)
-            => FlushAsync(cancel).GetResult();
+            => FlushAsync(cancel)._GetResult();
         public long GetFileSize(bool refresh = false, CancellationToken cancel = default)
-            => GetFileSizeAsync(refresh, cancel).GetResult();
+            => GetFileSizeAsync(refresh, cancel)._GetResult();
         public long GetPhysicalSize(CancellationToken cancel = default)
-            => GetPhysicalSizeAsync(cancel).GetResult();
+            => GetPhysicalSizeAsync(cancel)._GetResult();
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
-            => ReadRandomAsync(position, data, cancel).GetResult();
+            => ReadRandomAsync(position, data, cancel)._GetResult();
         public void SetFileSize(long size, CancellationToken cancel = default)
-            => SetFileSizeAsync(size, cancel).GetResult();
+            => SetFileSizeAsync(size, cancel)._GetResult();
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => WriteRandomAsync(position, data, cancel).GetResult();
+            => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 #pragma warning restore CS1998
 
@@ -945,13 +945,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default) => AppendAsync(data, cancel).GetResult();
-        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
-        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
-        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
-        public int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default) => ReadRandomAsync(position, data, cancel).GetResult();
-        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
-        public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel).GetResult();
+        public void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default) => AppendAsync(data, cancel)._GetResult();
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel)._GetResult();
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel)._GetResult();
+        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
+        public int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default) => ReadRandomAsync(position, data, cancel)._GetResult();
+        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel)._GetResult();
+        public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
     interface IRandomAccess<T> : IDisposable
@@ -1008,10 +1008,10 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
             if (Ref != null)
-                this.Ref.DisposeSafe();
+                this.Ref._DisposeSafe();
 
             if (DisposeFile)
-                this.File.DisposeSafe();
+                this.File._DisposeSafe();
         }
 
         public FileStream GetStream() => this.File.GetStream();
@@ -1019,33 +1019,33 @@ namespace IPA.Cores.Basic
         public Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
             => this.File.ReadRandomAsync(position, data, cancel);
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
-            => ReadRandomAsync(position, data, cancel).GetResult();
+            => ReadRandomAsync(position, data, cancel)._GetResult();
 
         public Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.File.WriteRandomAsync(position, data, cancel);
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => WriteRandomAsync(position, data, cancel).GetResult();
+            => WriteRandomAsync(position, data, cancel)._GetResult();
 
         public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.File.AppendAsync(data, cancel);
         public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.AppendAsync(data, cancel).GetResult();
+            => this.AppendAsync(data, cancel)._GetResult();
 
         public Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
             => this.File.GetFileSizeAsync(refresh, cancel);
-        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel)._GetResult();
 
         public Task SetFileSizeAsync(long size, CancellationToken cancel = default)
             => this.File.SetFileSizeAsync(size, cancel);
-        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
+        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel)._GetResult();
 
         public Task FlushAsync(CancellationToken cancel = default)
             => this.File.FlushAsync(cancel);
-        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel)._GetResult();
 
         public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
             => this.File.GetPhysicalSizeAsync(cancel);
-        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
+        public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
     }
 
     abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte>
@@ -1079,9 +1079,9 @@ namespace IPA.Cores.Basic
         public abstract Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
 
         public virtual Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default) => GetFileSizeAsync(false, cancel);
-        public virtual long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel).GetResult();
+        public virtual long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
 
-        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel).GetResult();
+        public void Flush(CancellationToken cancel = default) => FlushAsync(cancel)._GetResult();
         public abstract Task CloseAsync();
 
 
@@ -1101,30 +1101,30 @@ namespace IPA.Cores.Basic
             get => GetFileSize();
         }
 
-        public int Read(Memory<byte> data) => ReadAsync(data).GetResult();
+        public int Read(Memory<byte> data) => ReadAsync(data)._GetResult();
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
-            => ReadRandomAsync(position, data, cancel).GetResult();
+            => ReadRandomAsync(position, data, cancel)._GetResult();
 
-        public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel).GetResult();
+        public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel)._GetResult();
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => WriteRandomAsync(position, data, cancel).GetResult();
+            => WriteRandomAsync(position, data, cancel)._GetResult();
 
         public Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.WriteRandomAsync(-1, data, cancel);
         public void Append(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.AppendAsync(data, cancel).GetResult();
+            => this.AppendAsync(data, cancel)._GetResult();
 
-        public long GetCurrentPosition(CancellationToken cancel = default) => GetCurrentPositionAsync().GetResult();
+        public long GetCurrentPosition(CancellationToken cancel = default) => GetCurrentPositionAsync()._GetResult();
         public long Seek(long offset, SeekOrigin origin, CancellationToken cancel = default)
-            => SeekAsync(offset, origin, cancel).GetResult();
+            => SeekAsync(offset, origin, cancel)._GetResult();
 
         public Task<long> SeekToBeginAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.Begin, cancel);
         public Task<long> SeekToEndAsync(CancellationToken cancel = default) => SeekAsync(0, SeekOrigin.End, cancel);
-        public long SeekToBegin(CancellationToken cancel = default) => SeekToBeginAsync(cancel).GetResult();
-        public long SeekToEnd(CancellationToken cancel = default) => SeekToEndAsync(cancel).GetResult();
+        public long SeekToBegin(CancellationToken cancel = default) => SeekToBeginAsync(cancel)._GetResult();
+        public long SeekToEnd(CancellationToken cancel = default) => SeekToEndAsync(cancel)._GetResult();
 
-        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel).GetResult();
-        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel).GetResult();
+        public long GetFileSize(bool refresh = false, CancellationToken cancel = default) => GetFileSizeAsync(refresh, cancel)._GetResult();
+        public void SetFileSize(long size, CancellationToken cancel = default) => SetFileSizeAsync(size, cancel)._GetResult();
 
         public abstract Task FlushAsync(CancellationToken cancel = default);
         public void Close() => Dispose();
@@ -1137,7 +1137,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                CloseAsync().GetResult();
+                CloseAsync()._GetResult();
             }
             catch { }
         }

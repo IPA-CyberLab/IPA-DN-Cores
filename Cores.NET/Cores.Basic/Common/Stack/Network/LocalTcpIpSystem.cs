@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            Local.DisposeSafe();
+            Local._DisposeSafe();
             Local = null;
         }
 
@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
             {
                 case DnsGetIpQueryParam getIpQuery:
                     if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress ip))
-                        return new DnsResponse(param, ip.SingleArray());
+                        return new DnsResponse(param, ip._SingleArray());
                     else
                         return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));
             }

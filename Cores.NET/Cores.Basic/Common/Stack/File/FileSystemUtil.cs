@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
             }
         }
         public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-            => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel).GetResult();
+            => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel)._GetResult();
 
         public Task<int> WriteStringToFileAsync(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
         {
@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
             }
         }
         public int WriteStringToFile(string path, string srcString, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
-            => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel).GetResult();
+            => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
         public async Task AppendDataToFileAsync(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -156,7 +156,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void AppendDataToFile(string path, Memory<byte> srcMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => AppendDataToFileAsync(path, srcMemory, flags, cancel).GetResult();
+            => AppendDataToFileAsync(path, srcMemory, flags, cancel)._GetResult();
 
         public async Task<int> ReadDataFromFileAsync(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -173,7 +173,7 @@ namespace IPA.Cores.Basic
             }
         }
         public int ReadDataFromFile(string path, Memory<byte> destMemory, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadDataFromFileAsync(path, destMemory, flags, cancel).GetResult();
+            => ReadDataFromFileAsync(path, destMemory, flags, cancel)._GetResult();
 
         public async Task<Memory<byte>> ReadDataFromFileAsync(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    return await file.GetStream().ReadToEndAsync(maxSize, cancel);
+                    return await file.GetStream()._ReadToEndAsync(maxSize, cancel);
                 }
                 finally
                 {
@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
             }
         }
         public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadDataFromFileAsync(path, maxSize, flags, cancel).GetResult();
+            => ReadDataFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
         public async Task<string> ReadStringFromFileAsync(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -202,7 +202,7 @@ namespace IPA.Cores.Basic
                 return Str.DecodeString(data.Span, encoding, out _);
         }
         public string ReadStringFromFile(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => ReadStringFromFileAsync(path, encoding, maxSize, flags, cancel).GetResult();
+            => ReadStringFromFileAsync(path, encoding, maxSize, flags, cancel)._GetResult();
 
         class FindSingleFileData
         {
@@ -213,7 +213,7 @@ namespace IPA.Cores.Basic
         public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => await ReadStringFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), encoding, maxSize, flags, cancel);
         public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, cancel).GetResult();
+            => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, cancel)._GetResult();
 
 #pragma warning disable CS1998
         public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
@@ -228,19 +228,19 @@ namespace IPA.Cores.Basic
                 {
                     foreach (var file in entities.Where(x => x.IsDirectory == false))
                     {
-                        if (partOfFileName.IsSamei(file.Name))
+                        if (partOfFileName._IsSamei(file.Name))
                         {
                             // Exact match
                             exactFile = file.FullPath;
                             return false;
                         }
 
-                        if (file.Name.Search(partOfFileName) != -1)
+                        if (file.Name._Search(partOfFileName) != -1)
                         {
                             int originalLen = file.Name.Length;
                             if (originalLen >= 1)
                             {
-                                int replacedLen = file.Name.ReplaceStr(partOfFileName, "").Length;
+                                int replacedLen = file.Name._ReplaceStr(partOfFileName, "").Length;
                                 int matchLen = originalLen - replacedLen;
                                 FindSingleFileData d = new FindSingleFileData()
                                 {
@@ -255,7 +255,7 @@ namespace IPA.Cores.Basic
                 },
                 cancel: cancel);
 
-            if (exactFile.IsFilled())
+            if (exactFile._IsFilled())
                 return exactFile;
 
             if (exact && candidates.Count >= 2)
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
             return match.FullPath;
         }
         public string EasyFindSingleFile(string fileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
-            => EasyFindSingleFileAsync(fileName, exact, rootDir, cancel).GetResult();
+            => EasyFindSingleFileAsync(fileName, exact, rootDir, cancel)._GetResult();
 #pragma warning restore CS1998
 
         protected async Task DeleteDirectoryRecursiveInternalAsync(string directoryPath, CancellationToken cancel = default)
@@ -454,7 +454,7 @@ namespace IPA.Cores.Basic
                 async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
                 async (dirInfo, entity, c) => { return callbackForDirectoryAgain(dirInfo, entity, c); },
                 async (dirInfo, exception, c) => { if (exceptionHandler == null) throw exception; return exceptionHandler(dirInfo, exception, c); },
-                recursive, cancel).GetResult();
+                recursive, cancel)._GetResult();
 #pragma warning restore CS1998
     }
 

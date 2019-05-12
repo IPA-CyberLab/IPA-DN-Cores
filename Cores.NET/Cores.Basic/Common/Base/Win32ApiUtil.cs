@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
         {
             normalizedPath = null;
 
-            path = path.NonNullTrim();
+            path = path._NonNullTrim();
 
             path = WindowsPathParser.NormalizeDirectorySeparator(path);
 
@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
 
         public static IReadOnlyList<string> EnumNetworkShareDirectories(string path)
         {
-            path = path.NonNullTrim();
+            path = path._NonNullTrim();
 
             path = WindowsPathParser.NormalizeDirectorySeparator(path);
 
@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic
 
             foreach (var item in entries
                 .Where(x => x.shi1_type.BitAny(Win32Api.NetApi32.SHARE_TYPE.STYPE_DEVICE | Win32Api.NetApi32.SHARE_TYPE.STYPE_IPC | Win32Api.NetApi32.SHARE_TYPE.STYPE_PRINTQ) == false)
-                .Where(x => x.shi1_netname.IsFilled() && x.shi1_netname.IsSamei("print$") == false))
+                .Where(x => x.shi1_netname._IsFilled() && x.shi1_netname._IsSamei("print$") == false))
             {
                 ret.Add(item.shi1_netname.Trim());
             }
@@ -301,12 +301,12 @@ namespace IPA.Cores.Basic
 
                 if (((FileOptions)additionalFlags).Bit(FileOptions.Asynchronous))
                 {
-                    handle.SetAsync(true);
+                    handle._SetAsync(true);
                     ThreadPool.BindHandle(handle);
                 }
                 else
                 {
-                    handle.SetAsync(false);
+                    handle._SetAsync(false);
                 }
 
                 return handle;
@@ -422,7 +422,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var info in list)
                 {
-                    if (info.StreamName.IsSamei("::$DATA") == false && info.StreamName.StartsWith(":") && info.StreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
+                    if (info.StreamName._IsSamei("::$DATA") == false && info.StreamName.StartsWith(":") && info.StreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
                            && info.StreamSize <= maxSize)
                     {
                         ret.Add(new Tuple<string, long>(info.StreamName, info.StreamSize));
@@ -456,7 +456,7 @@ namespace IPA.Cores.Basic
             {
                 while (true)
                 {
-                    if (data.cStreamName.IsSamei("::$DATA") == false && data.cStreamName.StartsWith(":") && data.cStreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
+                    if (data.cStreamName._IsSamei("::$DATA") == false && data.cStreamName.StartsWith(":") && data.cStreamName.EndsWith(":$DATA", StringComparison.OrdinalIgnoreCase)
                         && data.StreamSize.QuadPart <= maxSize)
                     {
                         ret.Add(new Tuple<string, long>(data.cStreamName, data.StreamSize.QuadPart));
@@ -567,11 +567,11 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        CancelRegistration.DisposeSafe();
+                        CancelRegistration._DisposeSafe();
 
-                        InBufferPinHolder.DisposeSafe();
+                        InBufferPinHolder._DisposeSafe();
 
-                        OutBufferPinHolder.DisposeSafe();
+                        OutBufferPinHolder._DisposeSafe();
 
                         lock (LockObj)
                         {
@@ -598,7 +598,7 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            bool isAsync = handle.IsAsync();
+            bool isAsync = handle._IsAsync();
 
             if (inBuffer == null) inBuffer = new ReadOnlyMemoryBuffer<byte>();
             if (outBuffer == null) outBuffer = new MemoryBuffer<byte>();
@@ -632,9 +632,9 @@ namespace IPA.Cores.Basic
                     {
                         RefInt returnedSize = new RefInt();
                         int err = mainProc(
-                            inBuffer.IsEmpty() ? IntPtr.Zero : (IntPtr)inPtr,
+                            inBuffer._IsEmpty() ? IntPtr.Zero : (IntPtr)inPtr,
                             inBuffer.Length,
-                            outBuffer.IsEmpty() ? IntPtr.Zero : (IntPtr)outPtr,
+                            outBuffer._IsEmpty() ? IntPtr.Zero : (IntPtr)outPtr,
                             outBuffer.Length,
                             returnedSize, (IntPtr)ctx.NativeOverlapped);
 

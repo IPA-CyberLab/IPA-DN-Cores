@@ -92,7 +92,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex.Debug();
+                ex._Debug();
             }
         }
 
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex.Debug();
+                ex._Debug();
             }
 
             lock (LockObj)
@@ -135,7 +135,7 @@ namespace IPA.Cores.Basic
 
             foreach (var s in openedSockets)
             {
-                await s.DisposeWithCleanupSafeAsync();
+                await s._DisposeWithCleanupSafeAsync();
             }
         }
 

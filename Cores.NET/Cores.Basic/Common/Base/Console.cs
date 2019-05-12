@@ -142,11 +142,11 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(arg.GetObjectDump(), LogPriority.Info);
+                cs.WriteLine(arg._GetObjectDump(), LogPriority.Info);
             }
             else
             {
-                Console.WriteLine(arg.GetObjectDump());
+                Console.WriteLine(arg._GetObjectDump());
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
             }
         }
@@ -205,11 +205,11 @@ namespace IPA.Cores.Basic
         {
             if (cs != null)
             {
-                cs.WriteLine(arg.GetObjectDump(), LogPriority.Error);
+                cs.WriteLine(arg._GetObjectDump(), LogPriority.Error);
             }
             else
             {
-                Console.WriteLine(arg.GetObjectDump());
+                Console.WriteLine(arg._GetObjectDump());
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Error);
             }
         }
@@ -1304,7 +1304,7 @@ namespace IPA.Cores.Basic
                                     else if (retobj is Task<int>)
                                     {
                                         Task<int> task = (Task<int>)retobj;
-                                        ret = task.GetResult();
+                                        ret = task._GetResult();
                                     }
                                 }
                                 catch (ConsoleUserCancelException)
@@ -1319,7 +1319,7 @@ namespace IPA.Cores.Basic
                                 }
                                 catch (Exception ex2) when (Env.IsDebuggerAttached == false)
                                 {
-                                    ex2 = ex2.GetSingleException();
+                                    ex2 = ex2._GetSingleException();
 
                                     this.write(ex2.ToString(), LogPriority.Error);
                                     this.write("", LogPriority.Error);

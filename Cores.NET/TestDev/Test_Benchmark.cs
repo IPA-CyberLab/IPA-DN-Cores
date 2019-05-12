@@ -86,7 +86,7 @@ namespace IPA.TestDev
         public static void AsyncCallMethodFromSyncMethod(int count)
         {
             for (int i = 0; i < count; i++)
-                SampleAsyncMethod().GetResult();
+                SampleAsyncMethod()._GetResult();
         }
 
         public static async Task<int> SimpleAsyncMethod()
@@ -129,9 +129,9 @@ namespace IPA.TestDev
             MemoryBuffer<byte> sparseTest1 = new MemoryBuffer<byte>();
             for (int i = 0; i < 10; i++)
             {
-                sparseTest1.Write("Hello World".GetBytes_Ascii());
+                sparseTest1.Write("Hello World"._GetBytes_Ascii());
                 sparseTest1.WriteZero(1_000_000);
-                sparseTest1.Write("Hello World2".GetBytes_Ascii());
+                sparseTest1.Write("Hello World2"._GetBytes_Ascii());
             }
 
             int memcopyLength = 10_000_000;
@@ -147,7 +147,7 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
-            .Add(new MicroBenchmark($"Memory Copy by Array.CopyTo (Util.CopyByte) {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Copy by Array.CopyTo (Util.CopyByte) {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -155,7 +155,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Copy by Buffer.BlockCopy {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Copy by Buffer.BlockCopy {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -163,7 +163,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Copy by Span.CopyTo {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Copy by Span.CopyTo {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -173,7 +173,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Copy by Span.ToArray {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Copy by Span.ToArray {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -182,7 +182,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Copy by Span loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Copy by Span loop {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -195,7 +195,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by Array loop #1 {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by Array loop #1 {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -206,7 +206,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by Array loop #2 {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by Array loop #2 {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -218,7 +218,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by Span Loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by Span Loop {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -230,7 +230,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by unsafe pointer loop {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by unsafe pointer loop {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -248,7 +248,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by Span.Fill {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by Span.Fill {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -257,7 +257,7 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190505)
 
-            .Add(new MicroBenchmark($"Memory Fill by Array.Fill {memcopyLength.ToString3()} bytes", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"Memory Fill by Array.Fill {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
@@ -268,17 +268,17 @@ namespace IPA.TestDev
             .Add(new MicroBenchmark("GetSparseChunks", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)
-                    Util.GetSparseChunks(sparseTest1.Memory.AsReadOnlyMemory(), 10_000);
+                    Util.GetSparseChunks(sparseTest1.Memory._AsReadOnlyMemory(), 10_000);
             }), enabled: true, priority: 190506)
 
             .Add(new MicroBenchmark("CallAsyncWithAwait", Benchmark_CountForNormal, count =>
             {
-                BenchmarkTestTarget1.CallAsyncWithAwaitLoop(count).GetResult();
+                BenchmarkTestTarget1.CallAsyncWithAwaitLoop(count)._GetResult();
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("CallAsyncWithNonAwait", Benchmark_CountForNormal, count =>
             {
-                BenchmarkTestTarget1.CallAsyncWithNonAwaitLoop(count).GetResult();
+                BenchmarkTestTarget1.CallAsyncWithNonAwaitLoop(count)._GetResult();
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Rand[16]", Benchmark_CountForNormal, count =>
@@ -343,7 +343,7 @@ namespace IPA.TestDev
 
             .Add(new MicroBenchmark("AsyncCallMethodFromAsyncMethod", Benchmark_CountForNormal, count =>
             {
-                BenchmarkTestTarget1.AsyncCallMethodFromAsyncMethod(count).GetResult();
+                BenchmarkTestTarget1.AsyncCallMethodFromAsyncMethod(count)._GetResult();
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("AsyncCallMethodFromSyncMethod", Benchmark_CountForNormal, count =>

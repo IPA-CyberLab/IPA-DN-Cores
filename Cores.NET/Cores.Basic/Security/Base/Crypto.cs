@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
         }
         void init(byte[] data)
         {
-            PemReader pem = new PemReader(new StringReader(data.GetString_Ascii()));
+            PemReader pem = new PemReader(new StringReader(data._GetString_Ascii()));
             object o = pem.ReadObject();
             if (o is AsymmetricCipherKeyPair)
             {
@@ -208,7 +208,7 @@ namespace IPA.Cores.Basic
         }
         void init(Cert cert)
         {
-            PemReader pem = new PemReader(new StringReader(cert.PublicKey.GetString_Ascii()));
+            PemReader pem = new PemReader(new StringReader(cert.PublicKey._GetString_Ascii()));
             key = (AsymmetricKeyParameter)pem.ReadObject();
         }
 
@@ -305,7 +305,7 @@ namespace IPA.Cores.Basic
         }
         void init(byte[] data)
         {
-            PemReader cert_pem = new PemReader(new StringReader(data.GetString_Ascii()));
+            PemReader cert_pem = new PemReader(new StringReader(data._GetString_Ascii()));
             x509 = (X509Certificate)cert_pem.ReadObject();
         }
 
@@ -324,7 +324,7 @@ namespace IPA.Cores.Basic
                 StringWriter w = new StringWriter();
                 PemWriter pw = new PemWriter(w);
                 pw.WriteObject(x509.GetPublicKey());
-                return w.ToString().GetBytes_Ascii();
+                return w.ToString()._GetBytes_Ascii();
             }
         }
 
@@ -335,7 +335,7 @@ namespace IPA.Cores.Basic
                 StringWriter w = new StringWriter();
                 PemWriter pw = new PemWriter(w);
                 pw.WriteObject(x509);
-                return w.ToString().GetBytes_Ascii();
+                return w.ToString()._GetBytes_Ascii();
             }
         }
         public Buf ToBuf()
@@ -363,11 +363,11 @@ namespace IPA.Cores.Basic
 
         static bool crypto_aead_chacha20poly1305_ietf_decrypt_detached(Memory<byte> m, ReadOnlyMemory<byte> c, ReadOnlyMemory<byte> mac, ReadOnlyMemory<byte> ad, ReadOnlyMemory<byte> npub, ReadOnlyMemory<byte> k)
         {
-            var kk = k.AsSegment();
-            var nn = npub.AsSegment();
-            var cc = c.AsSegment();
-            var aa = ad.AsSegment();
-            var mm = m.AsSegment();
+            var kk = k._AsSegment();
+            var nn = npub._AsSegment();
+            var cc = c._AsSegment();
+            var aa = ad._AsSegment();
+            var mm = m._AsSegment();
 
             byte[] block0 = new byte[64];
 
@@ -409,11 +409,11 @@ namespace IPA.Cores.Basic
 
         static void crypto_aead_chacha20poly1305_ietf_encrypt_detached(Memory<byte> c, ReadOnlyMemory<byte> mac, ReadOnlyMemory<byte> m, ReadOnlyMemory<byte> ad, ReadOnlyMemory<byte> npub, ReadOnlyMemory<byte> k)
         {
-            var kk = k.AsSegment();
-            var nn = npub.AsSegment();
-            var cc = c.AsSegment();
-            var aa = ad.AsSegment();
-            var mm = m.AsSegment();
+            var kk = k._AsSegment();
+            var nn = npub._AsSegment();
+            var cc = c._AsSegment();
+            var aa = ad._AsSegment();
+            var mm = m._AsSegment();
 
             byte[] block0 = new byte[64];
 
@@ -442,7 +442,7 @@ namespace IPA.Cores.Basic
             if (Env.IsBigEndian) Array.Reverse(mlen);
             state.BlockUpdate(mlen, 0, mlen.Length);
 
-            var macmac = mac.AsSegment();
+            var macmac = mac._AsSegment();
             state.DoFinal(macmac.Array, macmac.Offset);
         }
 
@@ -496,10 +496,10 @@ namespace IPA.Cores.Basic
                 "3f f4 de f0 8e 4b 7a 9d e5 76 d2 65 86 ce c6 4b " +
                 "61 16";
 
-            var nonce = nonce_hex.GetHexBytes().AsMemory();
-            var plaintext = plaintext_hex.GetHexBytes().AsMemory();
-            var aad = aad_hex.GetHexBytes().AsMemory();
-            var key = key_hex.GetHexBytes().AsMemory();
+            var nonce = nonce_hex._GetHexBytes().AsMemory();
+            var plaintext = plaintext_hex._GetHexBytes().AsMemory();
+            var aad = aad_hex._GetHexBytes().AsMemory();
+            var key = key_hex._GetHexBytes().AsMemory();
             var encrypted = new byte[plaintext.Length + AeadChaCha20Poly1305MacSize].AsMemory();
             var decrypted = new byte[plaintext.Length].AsMemory();
 
@@ -507,14 +507,14 @@ namespace IPA.Cores.Basic
 
             Aead_ChaCha20Poly1305_Ietf_Encrypt(encrypted, plaintext, key, nonce, aad);
 
-            string encrypted_hex = encrypted.Slice(0, plaintext.Length).ToArray().GetHexString(" ");
-            string mac_hex = encrypted.Slice(plaintext.Length, AeadChaCha20Poly1305MacSize).ToArray().GetHexString(" ");
+            string encrypted_hex = encrypted.Slice(0, plaintext.Length).ToArray()._GetHexString(" ");
+            string mac_hex = encrypted.Slice(plaintext.Length, AeadChaCha20Poly1305MacSize).ToArray()._GetHexString(" ");
 
             Con.WriteLine($"Encrypted:\n{encrypted_hex}\n");
 
             Con.WriteLine($"MAC:\n{mac_hex}\n");
 
-            var a = rfc_enc.GetHexBytes();
+            var a = rfc_enc._GetHexBytes();
             if (encrypted.Slice(0, plaintext.Length).Span.SequenceEqual(a) == false)
             {
                 throw new ApplicationException("encrypted != rfc_enc");

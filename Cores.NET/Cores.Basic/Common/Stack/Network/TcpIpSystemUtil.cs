@@ -130,12 +130,12 @@ namespace IPA.Cores.Basic
                 {
                     // OK
                     PostWaitEvent.Set();
-                    taskList.ForEach(x => x.TryWait(true));
-                    taskList.Where(x => x != okTask).Where(x => x.IsCompletedSuccessfully).DoForEach(x => x.Result.DisposeSafe());
-                    return okTask.GetResult();
+                    taskList.ForEach(x => x._TryWait(true));
+                    taskList.Where(x => x != okTask).Where(x => x.IsCompletedSuccessfully)._DoForEach(x => x.Result._DisposeSafe());
+                    return okTask._GetResult();
                 }
 
-                taskList.Where(x => x.IsCanceled || x.IsFaulted).ToArray().DoForEach(x => taskList.Remove(x));
+                taskList.Where(x => x.IsCanceled || x.IsFaulted).ToArray()._DoForEach(x => taskList.Remove(x));
 
                 if (taskList.Count == 0)
                 {
@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
     {
         public IPv4V6DualStackSpeculativeConnector(TcpConnectParam basicParam, TcpIpSystem system) : base(basicParam)
         {
-            if (basicParam.DestHostname.IsEmpty())
+            if (basicParam.DestHostname._IsEmpty())
             {
                 // IP address is specified
                 AddAttempt(new Attempt(system, basicParam, 0));
@@ -193,14 +193,14 @@ namespace IPA.Cores.Basic
 
             if (ret == null)
             {
-                throw new GetIpAddressFamilyMismatchException($"The hostname \"{hostname}\" has no {addressFamily.ToIPv4v6String()} address.");
+                throw new GetIpAddressFamilyMismatchException($"The hostname \"{hostname}\" has no {addressFamily._ToIPv4v6String()} address.");
             }
 
             return ret;
         }
 
         public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
-            => GetIpAsync(hostname, addressFamily, timeout, cancel).GetResult();
+            => GetIpAsync(hostname, addressFamily, timeout, cancel)._GetResult();
 
         public async Task<ConnSock> ConnectIPv4v6DualAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
             return await connector.ConnectAsync(cancel);
         }
         public ConnSock ConnectIPv4v6Dual(TcpConnectParam param, CancellationToken cancel = default)
-            => ConnectIPv4v6DualAsync(param, cancel).GetResult();
+            => ConnectIPv4v6DualAsync(param, cancel)._GetResult();
     }
 
     class MiddleSock : NetworkSock
@@ -231,7 +231,7 @@ namespace IPA.Cores.Basic
         }
 
         public void StartSslClient(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
-            => StartSslClientAsync(sslClientAuthenticationOptions, cancellationToken).GetResult();
+            => StartSslClientAsync(sslClientAuthenticationOptions, cancellationToken)._GetResult();
     }
 }
 

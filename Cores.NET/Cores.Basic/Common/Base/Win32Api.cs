@@ -1442,7 +1442,7 @@ namespace IPA.Cores.Basic
 
             FileStream ret = new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
 
-            _fileHandle.SetAsync(_useAsyncIO);
+            _fileHandle._SetAsync(_useAsyncIO);
 
             if (mode == FileMode.Append)
             {
@@ -1534,15 +1534,15 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
-            if (win32msg.IsFilled())
+            if (win32msg._IsFilled())
                 o.Add($"Message = '{win32msg}'");
 
             o.Add($"Code = {errorCode} (0x{MakeHRFromErrorCode(errorCode):X})");
 
-            if (argument.IsFilled())
+            if (argument._IsFilled())
                 o.Add($"Argument = '{argument}'");
 
-            string argumentStr = (argument.IsFilled() ? $", Argument = '{argument}'" : "");
+            string argumentStr = (argument._IsFilled() ? $", Argument = '{argument}'" : "");
 
             string msg = "Win32 Error " + Str.CombineStringArray(o, ", ");
 

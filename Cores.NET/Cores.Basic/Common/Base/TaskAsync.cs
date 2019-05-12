@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic
         {
             if (DisposeFlag.IsFirstCall())
             {
-                Semaphone.DisposeSafe();
+                Semaphone._DisposeSafe();
                 Semaphone = null;
             }
         }
@@ -348,26 +348,26 @@ namespace IPA.Cores.Basic
         public static int GetNumPendingAsyncTasks() => NumPendingAsyncTasks;
 
         public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
         public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
         public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action().LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
         public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action().LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
 
 
         public static async Task StartSyncTaskAsync(Action<object> action, object param, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
         public static async Task<T> StartSyncTaskAsync<T>(Func<object, T> action, object param, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
         public static async Task StartAsyncTaskAsync(Func<object, Task> action, object param, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action(param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
         public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = true)
-        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param).LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
         public static int WaitUntilAllPendingAsyncTasksFinish(int? timeout = null, CancellationToken cancel = default, int targetCount = 0)
         {
@@ -491,7 +491,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.GetResult();
+                    return procTask._GetResult();
                 }
 
                 waitTasks.Add(procTask);
@@ -507,7 +507,7 @@ namespace IPA.Cores.Basic
 
                 if (procTask.IsCompleted)
                 {
-                    return procTask.GetResult();
+                    return procTask._GetResult();
                 }
 
                 throw new TimeoutException();
@@ -542,7 +542,7 @@ namespace IPA.Cores.Basic
                 }
                 foreach (IDisposable i in disposes)
                 {
-                    i.DisposeSafe();
+                    i._DisposeSafe();
                 }
             }
         }
@@ -648,7 +648,7 @@ namespace IPA.Cores.Basic
                     {
                         if (t != null)
                         {
-                            if (t.IsFaulted) t.Exception.ReThrow();
+                            if (t.IsFaulted) t.Exception._ReThrow();
                             if (t.IsCanceled) throw new TaskCanceledException();
                         }
                     }
@@ -761,7 +761,7 @@ namespace IPA.Cores.Basic
                     {
                         if (t != null)
                         {
-                            if (t.IsFaulted) t.Exception.ReThrow();
+                            if (t.IsFaulted) t.Exception._ReThrow();
                             if (t.IsCanceled) throw new TaskCanceledException();
                         }
                     }
@@ -839,7 +839,7 @@ namespace IPA.Cores.Basic
         }
 
         public static void TryCancelNoBlock(CancellationTokenSource cts)
-            => cts.TryCancelAsync().LaissezFaire(true);
+            => cts._TryCancelAsync()._LaissezFaire(true);
 
         public static async Task TryWaitAsync(Task t, bool noDebugMessage = false)
         {
@@ -851,7 +851,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 if (noDebugMessage == false)
-                    Dbg.WriteLine("Task exception: " + ex.GetSingleException().ToString());
+                    Dbg.WriteLine("Task exception: " + ex._GetSingleException().ToString());
             }
         }
 
@@ -860,7 +860,7 @@ namespace IPA.Cores.Basic
             if (t == null) return;
             try
             {
-                t.GetResult();
+                t._GetResult();
             }
             catch (Exception ex)
             {
@@ -996,7 +996,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var reg in x.RegList)
                 {
-                    reg.DisposeSafe();
+                    reg._DisposeSafe();
                 }
             },
             ctx, LeakCounterKind.CreateCombinedCancellationToken);
@@ -1078,8 +1078,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
-                    events: this.SingleArray(),
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(),
+                    events: this._SingleArray(),
                     timeout: timeout,
                     exceptions: ExceptionWhen.None,
                     leakCounterKind: leakCounterKind);
@@ -1194,8 +1194,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(),
-                    manualEvents: this.SingleArray(),
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(),
+                    manualEvents: this._SingleArray(),
                     timeout: timeout,
                     leakCounterKind: leakCounterKind);
 
@@ -1352,33 +1352,33 @@ namespace IPA.Cores.Basic
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
-                obj.CancelSafe(ex);
+                obj._CancelSafe(ex);
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartSyncTaskAsync(() => obj.CancelSafe(ex)).LaissezFaire();
+                TaskUtil.StartSyncTaskAsync(() => obj._CancelSafe(ex))._LaissezFaire();
         }
 
         async Task CleanupDisposeLinksAsync(Exception ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
-                await obj.CleanupSafeAsync(ex);
+                await obj._CleanupSafeAsync(ex);
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartAsyncTaskAsync(() => obj.CleanupSafeAsync(ex)).LaissezFaire();
+                TaskUtil.StartAsyncTaskAsync(() => obj._CleanupSafeAsync(ex))._LaissezFaire();
         }
 
         void DisposeLinks(Exception ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
-                obj.DisposeSafe(ex);
+                obj._DisposeSafe(ex);
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartSyncTaskAsync(() => obj.DisposeSafe(ex)).LaissezFaire();
+                TaskUtil.StartSyncTaskAsync(() => obj._DisposeSafe(ex))._LaissezFaire();
         }
 
         readonly AsyncLock CriticalProcessAsyncLock = new AsyncLock();
@@ -1430,7 +1430,7 @@ namespace IPA.Cores.Basic
         }
 
         protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
-            => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel.SingleArray().Concat(cancels).ToArray());
+            => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel._SingleArray().Concat(cancels).ToArray());
 
         protected ValueHolder EnterCriticalCounter()
         {
@@ -1443,7 +1443,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                ret.DisposeSafe();
+                ret._DisposeSafe();
                 throw;
             }
         }
@@ -1494,7 +1494,7 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
-                    Dbg.WriteLine("CancelInternal exception: " + ex.GetSingleException().ToString());
+                    Dbg.WriteLine("CancelInternal exception: " + ex._GetSingleException().ToString());
                 }
 
                 Action[] procList = null;
@@ -1530,7 +1530,7 @@ namespace IPA.Cores.Basic
 
                 await CleanupDisposeLinksAsync(ex);
 
-                await CleanupImplAsync(ex).TryWaitAsync();
+                await CleanupImplAsync(ex)._TryWaitAsync();
             }
         }
 
@@ -1542,7 +1542,7 @@ namespace IPA.Cores.Basic
 
             if (Disposed.IsFirstCall())
             {
-                CleanupAsync(ex).TryGetResult();
+                CleanupAsync(ex)._TryGetResult();
 
                 DisposeLinks(ex);
 
@@ -1552,7 +1552,7 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex2)
                 {
-                    Dbg.WriteLine("Dispose exception: " + ex2.GetSingleException().ToString());
+                    Dbg.WriteLine("Dispose exception: " + ex2._GetSingleException().ToString());
                 }
 
                 Action[] procList = null;
@@ -1572,15 +1572,15 @@ namespace IPA.Cores.Basic
                     catch { }
                 }
 
-                this.CancelWatcher.DisposeSafe();
+                this.CancelWatcher._DisposeSafe();
             }
         }
 
         public async Task DisposeWithCleanupAsync(Exception ex = null)
         {
-            this.CancelSafe(ex);
-            await this.CleanupSafeAsync(ex);
-            this.DisposeSafe(ex);
+            this._CancelSafe(ex);
+            await this._CleanupSafeAsync(ex);
+            this._DisposeSafe(ex);
         }
     }
 
@@ -1623,7 +1623,7 @@ namespace IPA.Cores.Basic
                     MainLoopTask = null;
                 }
 
-                Leak.DisposeSafe();
+                Leak._DisposeSafe();
             }
             catch (TaskCanceledException) { }
             catch (OperationCanceledException) { }
@@ -1720,7 +1720,7 @@ namespace IPA.Cores.Basic
                 finally
                 {
                     if (Leak != null)
-                        Leak.DisposeSafe();
+                        Leak._DisposeSafe();
                     else
                         LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
@@ -1774,7 +1774,7 @@ namespace IPA.Cores.Basic
                 finally
                 {
                     if (Leak != null)
-                        Leak.DisposeSafe();
+                        Leak._DisposeSafe();
                     else
                         LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
@@ -1824,7 +1824,7 @@ namespace IPA.Cores.Basic
                 finally
                 {
                     if (Leak != null)
-                        Leak.DisposeSafe();
+                        Leak._DisposeSafe();
                     else
                         LeakChecker.DecrementLeakCounter(this.LeakKind);
                 }
@@ -1998,7 +1998,7 @@ namespace IPA.Cores.Basic
         {
             this.GrandCancelTokenSource = new CancellationTokenSource();
 
-            CancellationToken[] tokens = this.GrandCancelTokenSource.Token.SingleArray().Concat(cancels).ToArray();
+            CancellationToken[] tokens = this.GrandCancelTokenSource.Token._SingleArray().Concat(cancels).ToArray();
 
             this.ObjectHolder = TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelToken, tokens);
             this.RegisterHolder = cancelToken.Register(() => this.EventList.Fire(this, NonsenseEventType.Nonsense));
@@ -2011,7 +2011,7 @@ namespace IPA.Cores.Basic
         public void Cancel()
         {
             if (CancelFlag.IsFirstCall())
-                this.GrandCancelTokenSource.TryCancel();
+                this.GrandCancelTokenSource._TryCancel();
         }
 
         public void Dispose() => Dispose(true);
@@ -2022,9 +2022,9 @@ namespace IPA.Cores.Basic
 
             Cancel();
 
-            this.RegisterHolder.DisposeSafe();
-            this.ObjectHolder.DisposeSafe();
-            this.LeakHolder.DisposeSafe();
+            this.RegisterHolder._DisposeSafe();
+            this.ObjectHolder._DisposeSafe();
+            this.LeakHolder._DisposeSafe();
         }
     }
 
@@ -2138,13 +2138,13 @@ namespace IPA.Cores.Basic
 
         public WhenAll(IEnumerable<Task> tasks, bool throwException = false) : this(throwException, tasks.ToArray()) { }
 
-        public WhenAll(Task t, bool throwException = false) : this(throwException, t.SingleArray()) { }
+        public WhenAll(Task t, bool throwException = false) : this(throwException, t._SingleArray()) { }
 
         public static Task Await(IEnumerable<Task> tasks, bool throwException = false)
             => Await(throwException, tasks.ToArray());
 
         public static Task Await(Task t, bool throwException = false)
-            => Await(throwException, t.SingleArray());
+            => Await(throwException, t._SingleArray());
 
         public static async Task Await(bool throwException = false, params Task[] tasks)
         {
@@ -2176,7 +2176,7 @@ namespace IPA.Cores.Basic
                         if (throwException)
                         {
                             if (t.IsFaulted)
-                                t.Exception.ReThrow();
+                                t.Exception._ReThrow();
                             if (t.IsCanceled)
                                 throw new TaskCanceledException();
                         }
@@ -2355,7 +2355,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     await TaskUtil.WaitObjectsAsync(timeout: this.Timeout,
-                        cancels: this.GrandCancel.SingleArray(),
+                        cancels: this.GrandCancel._SingleArray(),
                         exceptions: ExceptionWhen.CancelException);
 
                     InternalInvokeAction();
@@ -2440,7 +2440,7 @@ namespace IPA.Cores.Basic
 
                         cancel.ThrowIfCancellationRequested();
 
-                        var result = userTask.GetResult();
+                        var result = userTask._GetResult();
 
                         if (result.IsOpen)
                         {
@@ -2455,7 +2455,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    var result = userTask.GetResult();
+                    var result = userTask._GetResult();
 
                     if (result.IsOpen)
                     {
@@ -2678,7 +2678,7 @@ namespace IPA.Cores.Basic
             WhenExceptionAdded.Set(true);
 
             if (throwingException != null)
-                throwingException.ReThrow();
+                throwingException._ReThrow();
         }
 
         public void Encounter(ExceptionQueue other) => this.Queue.Encounter(other.Queue);
@@ -2701,7 +2701,7 @@ namespace IPA.Cores.Basic
             }
 
             if (ex != null)
-                ex.ReThrow();
+                ex._ReThrow();
         }
 
         public bool HasError => Exceptions.Length != 0;
@@ -3109,7 +3109,7 @@ namespace IPA.Cores.Basic
                 if (nextInterval == 0)
                     return true;
 
-                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), events: this.TimerChangedEvent.SingleArray(), timeout: nextInterval);
+                var reason = await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), events: this.TimerChangedEvent._SingleArray(), timeout: nextInterval);
 
                 if (reason == ExceptionWhen.CancelException)
                     return false;
@@ -3441,7 +3441,7 @@ namespace IPA.Cores.Basic
         public AsyncOneShotTester(Func<Task> Proc)
         {
             t = Proc();
-            t.TryWaitAsync(false).LaissezFaire();
+            t._TryWaitAsync(false)._LaissezFaire();
         }
 
         protected override async Task CleanupImplAsync(Exception ex)
@@ -3617,7 +3617,7 @@ namespace IPA.Cores.Basic
             protected virtual void Dispose(bool disposing)
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.Object.DisposeSafe();
+                this.Object._DisposeSafe();
             }
         }
 
@@ -3670,7 +3670,7 @@ namespace IPA.Cores.Basic
                     if (ret == null)
                     {
                         ObjectList.Remove(key);
-                        await entry.CloseAsync().TryWaitAsync();
+                        await entry.CloseAsync()._TryWaitAsync();
                         numRetry++;
                         if (numRetry >= 100)
                             throw new ApplicationException("numRetry >= 100");
@@ -3739,7 +3739,7 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: Math.Max(DelayTimeout, 100));
+                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), timeout: Math.Max(DelayTimeout, 100));
 
                 cancel.ThrowIfCancellationRequested();
 
@@ -3784,13 +3784,13 @@ namespace IPA.Cores.Basic
 
             this.CancelSource.Cancel();
 
-            GcTask.TryGetResult(true);
+            GcTask._TryGetResult(true);
 
             using (LockAsyncObj.LockLegacy())
             {
                 foreach (ObjectEntry entry in this.ObjectList.Values)
                 {
-                    entry.DisposeSafe();
+                    entry._DisposeSafe();
                 }
                 this.ObjectList.Clear();
             }

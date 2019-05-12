@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
 
         public SingleInstance(string name, bool ignoreCase = true)
         {
-            NameOfMutant = $"SingleInstance_" + name.NonNullTrim();
+            NameOfMutant = $"SingleInstance_" + name._NonNullTrim();
 
             if (ignoreCase)
                 NameOfMutant = NameOfMutant.ToUpper();
@@ -263,7 +263,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.Mutant.DisposeSafe();
+                this.Mutant._DisposeSafe();
                 throw;
             }
         }
@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             this.Mutant.Unlock();
-            this.Mutant.DisposeSafe();
+            this.Mutant._DisposeSafe();
         }
     }
 
@@ -379,7 +379,7 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                MutexObj.DisposeSafe();
+                MutexObj._DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -948,7 +948,7 @@ namespace IPA.Cores.Basic
                 stacksize = DefaultStackSize;
             }
 
-            if (name.IsEmpty())
+            if (name._IsEmpty())
             {
                 try
                 {
@@ -977,7 +977,7 @@ namespace IPA.Cores.Basic
             WaitInitForUserAsync = new AsyncManualResetEvent();
             NumCurrentThreads.Increment();
             this.Thread = new Thread(new ParameterizedThreadStart(commonThreadProc), stacksize);
-            if (this.Name.IsFilled())
+            if (this.Name._IsFilled())
             {
                 this.Thread.Name = this.Name;
             }

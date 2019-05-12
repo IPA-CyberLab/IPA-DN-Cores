@@ -110,7 +110,7 @@ namespace IPA.TestDev
                 fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                 );
 
-                var ret1 = FileUtil.CopyDirAsync(Lfs, @"D:\TMP\copy_test2\c1", Lfs, @"D:\TMP\copy_test2\c2", copyParam, null, null).GetResult();
+                var ret1 = FileUtil.CopyDirAsync(Lfs, @"D:\TMP\copy_test2\c1", Lfs, @"D:\TMP\copy_test2\c2", copyParam, null, null)._GetResult();
 
                 return 0;
             }
@@ -138,10 +138,10 @@ namespace IPA.TestDev
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
 
-                    var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null).GetResult();
+                    var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null)._GetResult();
 
                     Con.WriteLine("Copy Test Completed.");
-                    ret1.PrintAsJson();
+                    ret1._PrintAsJson();
                 }
 
                 if (true)
@@ -158,10 +158,10 @@ namespace IPA.TestDev
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
 
-                    var ret1 = FileUtil.CopyDirAsync(Lfs, dstDir1, LLfsUtf8, dstDir2, copyParam, null, null).GetResult();
+                    var ret1 = FileUtil.CopyDirAsync(Lfs, dstDir1, LLfsUtf8, dstDir2, copyParam, null, null)._GetResult();
 
                     Con.WriteLine("Copy Test Completed.");
-                    ret1.PrintAsJson();
+                    ret1._PrintAsJson();
                 }
 
                 if (true)
@@ -178,10 +178,10 @@ namespace IPA.TestDev
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
 
-                    var ret1 = FileUtil.CopyDirAsync(LLfsUtf8, dstDir2, Lfs, dstDir3, copyParam, null, null).GetResult();
+                    var ret1 = FileUtil.CopyDirAsync(LLfsUtf8, dstDir2, Lfs, dstDir3, copyParam, null, null)._GetResult();
 
                     Con.WriteLine("Copy Test Completed.");
-                    ret1.PrintAsJson();
+                    ret1._PrintAsJson();
                 }
 
                 return 0;
@@ -193,8 +193,8 @@ namespace IPA.TestDev
 
                 string dstDir1 = @"D:\tmp\copy_test\dst2\a";
 
-                Lfs.GetDirectoryMetadata(srcDir1).PrintAsJson();
-                Lfs.GetDirectoryMetadata(dstDir1).PrintAsJson();
+                Lfs.GetDirectoryMetadata(srcDir1)._PrintAsJson();
+                Lfs.GetDirectoryMetadata(dstDir1)._PrintAsJson();
 
                 return 0;
             }
@@ -222,10 +222,10 @@ namespace IPA.TestDev
                     fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)
                     );
 
-                var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null).GetResult();
+                var ret1 = FileUtil.CopyDirAsync(Lfs, srcDir1, Lfs, dstDir1, copyParam, null, null)._GetResult();
 
                 Con.WriteLine("Copy Test Completed.");
-                ret1.PrintAsJson();
+                ret1._PrintAsJson();
 
                 return 0;
             }
@@ -268,25 +268,25 @@ namespace IPA.TestDev
                     {
                         string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                        fileSystem.AppendDataToFile(filePath, hello.GetBytes_Ascii());
+                        fileSystem.AppendDataToFile(filePath, hello._GetBytes_Ascii());
                     }
 
                     using (var file = fileSystem.Open(filePath, writeMode: true))
                     {
-                        file.WriteRandom(231, "<12345678>".GetBytes_Ascii());
+                        file.WriteRandom(231, "<12345678>"._GetBytes_Ascii());
                     }
                 }
 
                 var dirent = fileSystem.EnumDirectory(dirPath);
-                dirent.PrintAsJson();
+                dirent._PrintAsJson();
 
                 var meta = fileSystem.GetFileMetadata(dirent.Where(x => x.IsDirectory == false).First().FullPath);
-                meta.PrintAsJson();
+                meta._PrintAsJson();
 
                 fileSystem.CopyFile(@"C:\TMP\large_file_test\test00.txt", @"C:\TMP\large_file_test\plain.txt", destFileSystem: Lfs);
 
                 dirent = fileSystem.EnumDirectory(dirPath);
-                dirent.PrintAsJson();
+                dirent._PrintAsJson();
 
                 fileSystem.CopyFile(@"C:\TMP\large_file_test\plain.txt", @"C:\TMP\large_file_test\plain2.txt", destFileSystem: LfsUtf8);
 
@@ -305,7 +305,7 @@ namespace IPA.TestDev
                 {
                     string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                    LLfs.AppendDataToFile(filePath, hello.GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
+                    LLfs.AppendDataToFile(filePath, hello._GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
                 }
                 return 0;
             }
@@ -323,7 +323,7 @@ namespace IPA.TestDev
                     string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
                     long position = Secure.Rand63i() % (LLfs.Params.MaxLogicalFileSize - 100);
-                    handle.WriteRandom(position, hello.GetBytes_Ascii());
+                    handle.WriteRandom(position, hello._GetBytes_Ascii());
                 }
                 return 0;
             }
@@ -410,7 +410,7 @@ namespace IPA.TestDev
                                             data.Write(SparseFile_GenerateTestData(Util.RandSInt31() % 10000));
                                         }
 
-                                        data.Write("Hello World".GetBytes_Ascii());
+                                        data.Write("Hello World"._GetBytes_Ascii());
 
                                         if (Util.RandBool())
                                             data.WriteZero(Util.RandSInt31() % 10000);
@@ -443,13 +443,13 @@ namespace IPA.TestDev
 
                 Lfs.WriteDataToFile(@"D:\TMP\sparse_file_test\large_copied.txt", largebytes);
 
-                string hash0 = Secure.HashSHA1(Lfs.ReadDataFromFile(standardApi).Span.ToArray()).GetHexString();
-                string hash1 = Secure.HashSHA1(Lfs.ReadDataFromFile(normalFn).Span.ToArray()).GetHexString();
-                string hash2 = Secure.HashSHA1(Lfs.ReadDataFromFile(sparseFn).Span.ToArray()).GetHexString();
-                string hash3 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse2Fn).Span.ToArray()).GetHexString();
-                string hash4 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse3Fn).Span.ToArray()).GetHexString();
-                string hash5 = Secure.HashSHA1(ram.Span.ToArray()).GetHexString();
-                string hash6 = Secure.HashSHA1(largebytes.Span.ToArray()).GetHexString();
+                string hash0 = Secure.HashSHA1(Lfs.ReadDataFromFile(standardApi).Span.ToArray())._GetHexString();
+                string hash1 = Secure.HashSHA1(Lfs.ReadDataFromFile(normalFn).Span.ToArray())._GetHexString();
+                string hash2 = Secure.HashSHA1(Lfs.ReadDataFromFile(sparseFn).Span.ToArray())._GetHexString();
+                string hash3 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse2Fn).Span.ToArray())._GetHexString();
+                string hash4 = Secure.HashSHA1(Lfs.ReadDataFromFile(copySparse3Fn).Span.ToArray())._GetHexString();
+                string hash5 = Secure.HashSHA1(ram.Span.ToArray())._GetHexString();
+                string hash6 = Secure.HashSHA1(largebytes.Span.ToArray())._GetHexString();
 
                 if (hash0 != hash1 || hash1 != hash2 || hash1 != hash3 || hash1 != hash4 || hash1 != hash5 || hash1 != hash6)
                 {

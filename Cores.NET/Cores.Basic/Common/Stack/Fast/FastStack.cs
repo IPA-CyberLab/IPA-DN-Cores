@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -131,13 +131,13 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex)
         {
-            StreamCache.DisposeSafe();
+            StreamCache._DisposeSafe();
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            StreamCache.DisposeSafe();
+            StreamCache._DisposeSafe();
             base.DisposeImpl(ex);
         }
     }
@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -317,14 +317,14 @@ namespace IPA.Cores.Basic
 
             PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Client);
 
-            this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s.DisposeSafe());
+            this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s._DisposeSafe());
 
             await TaskUtil.DoAsyncWithTimeout(async localCancel =>
             {
                 await s.ConnectAsync(remoteEndPoint);
                 return 0;
             },
-            cancelProc: () => s.DisposeSafe(),
+            cancelProc: () => s._DisposeSafe(),
             timeout: connectTimeout,
             cancel: cancel);
 
@@ -345,7 +345,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                s.DisposeSafe();
+                s._DisposeSafe();
                 throw;
             }
 
@@ -365,23 +365,23 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                newSocket.DisposeSafe();
+                newSocket._DisposeSafe();
                 throw;
             }
         }
 
         protected override void CancelImpl(Exception ex)
         {
-            this.ConnectedSocket.DisposeSafe();
-            this.ListeningSocket.DisposeSafe();
+            this.ConnectedSocket._DisposeSafe();
+            this.ListeningSocket._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            this.ConnectedSocket.DisposeSafe();
-            this.ListeningSocket.DisposeSafe();
+            this.ConnectedSocket._DisposeSafe();
+            this.ListeningSocket._DisposeSafe();
 
             base.DisposeImpl(ex);
         }
@@ -411,12 +411,12 @@ namespace IPA.Cores.Basic
                 this.Pipe.OnDisconnected.Add(() =>
                 {
                     this.Disconnected = DateTimeOffset.Now;
-                    this.DisposeSafe();
+                    this._DisposeSafe();
                 });
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -431,7 +431,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex.Debug();
+                ex._Debug();
             }
 
             ret.SockGuid = this.Guid;
@@ -502,7 +502,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            Shared.DisposeSafe();
+            Shared._DisposeSafe();
             Shared = null;
         }
 
@@ -564,7 +564,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -633,13 +633,13 @@ namespace IPA.Cores.Basic
                     }
                     catch
                     {
-                        ssl.DisposeSafe();
+                        ssl._DisposeSafe();
                         throw;
                     }
                 }
                 catch
                 {
-                    lowerStream.DisposeSafe();
+                    lowerStream._DisposeSafe();
                     throw;
                 }
             }
@@ -647,16 +647,16 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception ex)
         {
-            this.SslStream.DisposeSafe();
-            this.LowerStream.DisposeSafe();
+            this.SslStream._DisposeSafe();
+            this.LowerStream._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            this.SslStream.DisposeSafe();
-            this.LowerStream.DisposeSafe();
+            this.SslStream._DisposeSafe();
+            this.LowerStream._DisposeSafe();
 
             base.DisposeImpl(ex);
         }
@@ -787,7 +787,7 @@ namespace IPA.Cores.Basic
                         }
                         finally
                         {
-                            listenTcp.DisposeSafe();
+                            listenTcp._DisposeSafe();
                         }
                     }
                 }
@@ -800,7 +800,7 @@ namespace IPA.Cores.Basic
 
             internal async Task _InternalStopAsync()
             {
-                await _InternalSelfCancelSource.TryCancelAsync();
+                await _InternalSelfCancelSource._TryCancelAsync();
                 try
                 {
                     await _InternalTask;
@@ -891,9 +891,9 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                sock.CancelSafe(new DisconnectedException());
-                await sock.CleanupSafeAsync();
-                sock.DisposeSafe();
+                sock._CancelSafe(new DisconnectedException());
+                await sock._CleanupSafeAsync();
+                sock._DisposeSafe();
             }
         }
 
@@ -944,7 +944,7 @@ namespace IPA.Cores.Basic
             }
 
             foreach (Listener s in o)
-                await s._InternalStopAsync().TryWaitAsync();
+                await s._InternalStopAsync()._TryWaitAsync();
 
             List<Task> waitTasks = new List<Task>();
             List<ConnSock> allConnectedSocks = new List<ConnSock>();
@@ -963,13 +963,13 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    await sock.CleanupSafeAsync();
+                    await sock._CleanupSafeAsync();
                 }
                 catch { }
             }
 
             foreach (var task in waitTasks)
-                await task.TryWaitAsync();
+                await task._TryWaitAsync();
 
             Debug.Assert(CurrentConnections == 0);
         }

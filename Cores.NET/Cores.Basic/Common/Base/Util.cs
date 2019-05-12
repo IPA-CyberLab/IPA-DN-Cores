@@ -370,14 +370,14 @@ namespace IPA.Cores.Basic
             {
                 if (IsValueType)
                     return this._Value;
-                return this._Value.CloneIfClonable();
+                return this._Value._CloneIfClonable();
             }
             lock (LockObj)
             {
                 Determined = true;
                 if (IsValueType)
                     return this._Value;
-                return this._Value.CloneIfClonable();
+                return this._Value._CloneIfClonable();
             }
         }
 
@@ -388,7 +388,7 @@ namespace IPA.Cores.Basic
             {
                 if (Determined == false)
                 {
-                    this._Value = value.CloneIfClonable();
+                    this._Value = value._CloneIfClonable();
                 }
                 else
                 {
@@ -982,7 +982,7 @@ namespace IPA.Cores.Basic
                         case bool b: return b == false;
                         case BigNumber bn: return bn == 0;
                         case BigInteger bi: return bi == 0;
-                        case Memory<byte> m: return m.IsZero();
+                        case Memory<byte> m: return m._IsZero();
                         case byte[] x: return Util.IsZero(x);
                     }
                 }
@@ -1297,7 +1297,7 @@ namespace IPA.Cores.Basic
         {
             if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
             DataContractJsonSerializer d = new DataContractJsonSerializer(obj.GetType(), settings);
-            using (var writer = JsonReaderWriterFactory.CreateJsonWriter(dst.AsDirectStream(), Str.Utf8Encoding, false, true, "  "))
+            using (var writer = JsonReaderWriterFactory.CreateJsonWriter(dst._AsDirectStream(), Str.Utf8Encoding, false, true, "  "))
             {
                 d.WriteObject(writer, obj);
             }
@@ -1313,12 +1313,12 @@ namespace IPA.Cores.Basic
         {
             if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
             DataContractJsonSerializer d = new DataContractJsonSerializer(type, settings);
-            return d.ReadObject(src.AsDirectStream());
+            return d.ReadObject(src._AsDirectStream());
         }
         public static T RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings settings = null) => (T)RuntimeJsonToObject(src, typeof(T), settings);
 
-        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject(src.AsMemoryBuffer(), type, settings);
-        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject<T>(src.AsMemoryBuffer(), settings);
+        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject(src._AsMemoryBuffer(), type, settings);
+        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject<T>(src._AsMemoryBuffer(), settings);
 
 
 
@@ -1330,7 +1330,7 @@ namespace IPA.Cores.Basic
                 settings.PreserveObjectReferences = true;
             }
             DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
-            d.WriteObject(dst.AsDirectStream(), obj);
+            d.WriteObject(dst._AsDirectStream(), obj);
         }
         public static byte[] ObjectToXml(object obj, DataContractSerializerSettings settings = null)
         {
@@ -1347,12 +1347,12 @@ namespace IPA.Cores.Basic
                 settings.PreserveObjectReferences = true;
             }
             DataContractSerializer d = new DataContractSerializer(type, settings);
-            return d.ReadObject(src.AsDirectStream());
+            return d.ReadObject(src._AsDirectStream());
         }
         public static T XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings settings = null) => (T)XmlToObject(src, typeof(T), settings);
 
-        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings settings = null) => XmlToObject(src.AsMemoryBuffer(), type, settings);
-        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings settings = null) => XmlToObject<T>(src.AsMemoryBuffer(), settings);
+        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings settings = null) => XmlToObject(src._AsMemoryBuffer(), type, settings);
+        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings settings = null) => XmlToObject<T>(src._AsMemoryBuffer(), settings);
 
         // オブジェクトをクローンする
         public static object CloneObject_UsingBinary(object o)
@@ -1564,28 +1564,28 @@ namespace IPA.Cores.Basic
         {
             Span<byte> mem = stackalloc byte[1];
             Rand(mem);
-            return mem.GetUInt8();
+            return mem._GetUInt8();
         }
 
         public static ushort RandUInt16()
         {
             Span<byte> mem = stackalloc byte[2];
             Rand(mem);
-            return mem.GetUInt16();
+            return mem._GetUInt16();
         }
 
         public static uint RandUInt32()
         {
             Span<byte> mem = stackalloc byte[4];
             Rand(mem);
-            return mem.GetUInt32();
+            return mem._GetUInt32();
         }
 
         public static ulong RandUInt64()
         {
             Span<byte> mem = stackalloc byte[8];
             Rand(mem);
-            return mem.GetUInt64();
+            return mem._GetUInt64();
         }
 
         public static byte RandUInt7()
@@ -1593,7 +1593,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[1];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetUInt8();
+            return mem._GetUInt8();
         }
 
         public static ushort RandUInt15()
@@ -1601,7 +1601,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[2];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetUInt16();
+            return mem._GetUInt16();
         }
 
         public static uint RandUInt31()
@@ -1609,7 +1609,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[4];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetUInt32();
+            return mem._GetUInt32();
         }
 
         public static ulong RandUInt63()
@@ -1617,35 +1617,35 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[8];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetUInt64();
+            return mem._GetUInt64();
         }
 
         public static sbyte RandSInt8()
         {
             Span<byte> mem = stackalloc byte[1];
             Rand(mem);
-            return mem.GetSInt8();
+            return mem._GetSInt8();
         }
 
         public static short RandSInt16()
         {
             Span<byte> mem = stackalloc byte[2];
             Rand(mem);
-            return mem.GetSInt16();
+            return mem._GetSInt16();
         }
 
         public static int RandSInt32()
         {
             Span<byte> mem = stackalloc byte[4];
             Rand(mem);
-            return mem.GetSInt32();
+            return mem._GetSInt32();
         }
 
         public static long RandSInt64()
         {
             Span<byte> mem = stackalloc byte[8];
             Rand(mem);
-            return mem.GetSInt64();
+            return mem._GetSInt64();
         }
 
         public static sbyte RandSInt7()
@@ -1653,7 +1653,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[1];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetSInt8();
+            return mem._GetSInt8();
         }
 
         public static short RandSInt15()
@@ -1661,7 +1661,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[2];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetSInt16();
+            return mem._GetSInt16();
         }
 
         public static int RandSInt31()
@@ -1669,7 +1669,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[4];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetSInt32();
+            return mem._GetSInt32();
         }
 
         public static long RandSInt63()
@@ -1677,7 +1677,7 @@ namespace IPA.Cores.Basic
             Span<byte> mem = stackalloc byte[8];
             Rand(mem);
             mem[0] &= 0x7F;
-            return mem.GetSInt64();
+            return mem._GetSInt64();
         }
 
         public static bool RandBool()
@@ -1715,7 +1715,7 @@ namespace IPA.Cores.Basic
             {
                 var propertyType = p.PropertyType;
                 object value = p.GetValue(overwriteData);
-                if (value.IsEmpty())
+                if (value._IsEmpty())
                 {
                     value = p.GetValue(baseData);
                 }
@@ -1737,7 +1737,7 @@ namespace IPA.Cores.Basic
             foreach (var p in props)
             {
                 var ptype = p.PropertyType;
-                if (ptype.IsNullable() == false)
+                if (ptype._IsNullable() == false)
                 {
                     if (ptype == typeof(string))
                     {
@@ -1747,12 +1747,12 @@ namespace IPA.Cores.Basic
                     else if (ptype == typeof(DateTime))
                     {
                         DateTime d = (DateTime)p.GetValue(obj);
-                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeValue);
+                        if (d._IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeValue);
                     }
                     else if (ptype == typeof(DateTimeOffset))
                     {
                         DateTimeOffset d = (DateTimeOffset)p.GetValue(obj);
-                        if (d.IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
+                        if (d._IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
                     }
                     else if (ptype == typeof(byte[]))
                     {
@@ -1832,14 +1832,14 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAll:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return firstRet;
 
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return lastRet;
 
@@ -1909,14 +1909,14 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAll:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return firstRet;
 
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return lastRet;
 
@@ -1967,7 +1967,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return true;
 
@@ -1976,7 +1976,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return allOk;
 
@@ -2028,7 +2028,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return true;
 
@@ -2037,7 +2037,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException.ReThrow();
+                        firstException._ReThrow();
                     }
                     return allOk;
 
@@ -2166,12 +2166,12 @@ namespace IPA.Cores.Basic
             {
                 if (chunk.IsSparse == false)
                 {
-                    pos.WalkWrite(chunk.Memory.Span);
+                    pos._WalkWrite(chunk.Memory.Span);
                     size += chunk.Memory.Span.Length;
                 }
                 else
                 {
-                    pos.Walk(chunk.Size).Fill(default);
+                    pos._Walk(chunk.Size).Fill(default);
                     size += chunk.Size;
                 }
             }
@@ -2694,9 +2694,9 @@ namespace IPA.Cores.Basic
             }
 
             if (obj is IDisposable disposeTarget)
-                disposeTarget.DisposeSafe();
+                disposeTarget._DisposeSafe();
 
-            LeakHolder.DisposeSafe();
+            LeakHolder._DisposeSafe();
         }
     }
 
@@ -2752,10 +2752,10 @@ namespace IPA.Cores.Basic
             foreach (var obj in list)
             {
                 if (obj is IDisposable disposeTarget)
-                    disposeTarget.DisposeSafe();
+                    disposeTarget._DisposeSafe();
             }
 
-            LeakHolder.DisposeSafe();
+            LeakHolder._DisposeSafe();
         }
     }
 
@@ -2865,7 +2865,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T[] Values { get => d.Keys.ToArrayList(); }
+        public T[] Values { get => d.Keys._ToArrayList(); }
     }
 
     class DelayLoader<T> : IDisposable
@@ -3045,7 +3045,7 @@ namespace IPA.Cores.Basic
         {
             if (LogRouter != null)
             {
-                LogRouter.DisposeSafe();
+                LogRouter._DisposeSafe();
                 LogRouter = null;
                 
                 OnceFlag.Reset();
@@ -3177,7 +3177,7 @@ namespace IPA.Cores.Basic
                 perSecond = 9_9999_9999_9999.0;
             }
 
-            string str = $"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond).ToString3()} / sec";
+            string str = $"{Name}: {ret.ToString("#,0.00")} ns, {((long)perSecond)._ToString3()} / sec";
 
             Con.WriteLine(str);
 
@@ -3425,8 +3425,8 @@ namespace IPA.Cores.Basic
                 return value == null ? "??" : Str.GetFileSizeStr((long)value);
             }
 
-            string s = value == null ? "??" : (tostr3 ? ((long)value).ToString3() : value.ToString());
-            if (unitString.IsFilled()) s += " " + unitString;
+            string s = value == null ? "??" : (tostr3 ? ((long)value)._ToString3() : value.ToString());
+            if (unitString._IsFilled()) s += " " + unitString;
             return s;
         }
 
@@ -3451,7 +3451,7 @@ namespace IPA.Cores.Basic
                 {
                     TimeSpan timeSpan = Util.ConvertTimeSpan((ulong)(report.Eta ?? 0));
 
-                    etaStr = $" ETA {timeSpan.ToTsStr()}";
+                    etaStr = $" ETA {timeSpan._ToTsStr()}";
                 }
             }
 
@@ -3512,8 +3512,8 @@ namespace IPA.Cores.Basic
             {
                 reportTimingSetting = new ProgressReportTimingSetting();
             }
-            this.Title = title.NonNullTrim();
-            this.Unit = unit.NonNullTrim();
+            this.Title = title._NonNullTrim();
+            this.Unit = unit._NonNullTrim();
             this.ToStr3 = toStr3;
             this.ShowEta = showEta;
             this.FileSizeStr = fileSizeStr;
@@ -3774,7 +3774,7 @@ namespace IPA.Cores.Basic
         {
             string str = report.Data.GenerateStatusStr(MySetting, report);
 
-            if (str.IsFilled())
+            if (str._IsFilled())
             {
                 var outputs = MySetting.AdditionalOutputs;
 
@@ -3937,7 +3937,7 @@ namespace IPA.Cores.Basic
         public object Invoke(object targetObject, string name, params object[] parameters)
         {
             if (parameters == null) parameters = new object[1] { null };
-            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
@@ -3951,7 +3951,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        throw ex.GetSingleException();
+                        throw ex._GetSingleException();
                     }
 
                 default:
@@ -3961,7 +3961,7 @@ namespace IPA.Cores.Basic
 
         public object GetValue(object targetObject, string name)
         {
-            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
@@ -3981,7 +3981,7 @@ namespace IPA.Cores.Basic
 
         public void SetValue(object targetObject, string name, object value)
         {
-            if (targetObject.GetType().IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
+            if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
             if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
             {
@@ -4155,10 +4155,10 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
-                    ex.Debug();
+                    ex._Debug();
                 }
 
-                await TaskUtil.WaitObjectsAsync(cancels: cancel.SingleArray(), timeout: this.Interval);
+                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), timeout: this.Interval);
 
                 num++;
             }
@@ -4331,12 +4331,12 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                throw ex.GetSingleException();
+                throw ex._GetSingleException();
             }
 
             foreach (var fieldEntry in this.DynamicFieldList)
             {
-                ret.PrivateSet(fieldEntry.Field.Name, fieldEntry.Value);
+                ret._PrivateSet(fieldEntry.Field.Name, fieldEntry.Value);
             }
 
             SetAppState(ret, appState);
@@ -4344,9 +4344,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static object GetAppState(object targetObject) => targetObject.PrivateGet(AppStateFieldName);
+        public static object GetAppState(object targetObject) => targetObject._PrivateGet(AppStateFieldName);
 
-        public static void SetAppState(object targetObject, object state) => targetObject.PrivateSet(AppStateFieldName, state);
+        public static void SetAppState(object targetObject, object state) => targetObject._PrivateSet(AppStateFieldName, state);
     }
 }
 

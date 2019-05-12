@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         {
             this.Interval = interval;
             List<string> tmp = new List<string>();
-            foreach (string dir in dirs) tmp.Add(dir.InnerFilePath());
+            foreach (string dir in dirs) tmp.Add(dir._InnerFilePath());
             this.DirList = tmp.ToArray();
 
             this.ExtensionList = extensions;
@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
         // 定期的に削除を実行するスレッド
         public async Task MainLoopAsync(CancellationToken cancel)
         {
-            while (await cancel.WaitUntilCanceledAsync(this.Interval) == false)
+            while (await cancel._WaitUntilCanceledAsync(this.Interval) == false)
             {
                 ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, cancel);
             }
@@ -113,11 +113,11 @@ namespace IPA.Cores.Basic
 
                             // 親ディレクトリが削除できる場合は削除する
                             // (検索した対象ディレクトリは削除しない)
-                            if (v.RelativePath.FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "\\", "/") != -1)
+                            if (v.RelativePath._FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "\\", "/") != -1)
                             {
-                                Directory.Delete(v.FullPath.GetDirectoryName());
+                                Directory.Delete(v.FullPath._GetDirectoryName());
 
-                                Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath.GetDirectoryName()}' deleted.");
+                                Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath._GetDirectoryName()}' deleted.");
                             }
                         }
                         catch
@@ -721,12 +721,12 @@ namespace IPA.Cores.Basic
         // ファイルの拡張子が一致するかどうかチェック
         static bool is_extension_match(string filename, string extension)
         {
-            if (extension.IsEmpty()) return true;
-            if (extension.IsSamei("*") || extension.IsSamei("*.*")) return true;
+            if (extension._IsEmpty()) return true;
+            if (extension._IsSamei("*") || extension._IsSamei("*.*")) return true;
 
-            extension = extension.TrimStartWith("*.");
-            if (extension.IsEmpty()) return true;
-            if (extension.IsSamei("*")) return true;
+            extension = extension._TrimStartWith("*.");
+            if (extension._IsEmpty()) return true;
+            if (extension._IsSamei("*")) return true;
             if (extension.StartsWith(".") == false) extension = "." + extension;
 
             filename = Path.GetFileName(filename);
@@ -875,7 +875,7 @@ namespace IPA.Cores.Basic
             p.cancel = cancel;
             p.DirList = new List<DirEntry>();
 
-            p.ExcludeDirectory = fileExtensions.IsFilled();
+            p.ExcludeDirectory = fileExtensions._IsFilled();
 
             bool ret = EnumDirsWithCallback(dirList, fileExtensions, EnumDirWithCancelCallback, p);
 
@@ -1579,7 +1579,7 @@ namespace IPA.Cores.Basic
 
         public Task<bool> WriteAsync(byte[] buf) => WriteAsync(buf, 0, buf.Length);
         public Task<bool> WriteAsync(byte[] buf, int size) => WriteAsync(buf, 0, size);
-        public Task<bool> WriteAsync(byte[] buf, int offset, int size) => WriteAsync(buf.AsReadOnlyMemory(offset, size));
+        public Task<bool> WriteAsync(byte[] buf, int offset, int size) => WriteAsync(buf._AsReadOnlyMemory(offset, size));
         public async Task<bool> WriteAsync(ReadOnlyMemory<byte> memory, bool flush = false)
         {
             if (writeMode == false)
@@ -2237,7 +2237,7 @@ namespace IPA.Cores.Basic
             return assemblyType.Assembly.GetManifestResourceStream(name);
         }
 
-        public static byte[] ReadEmbeddedFileData(string name, Type assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType).ReadToEnd();
+        public static byte[] ReadEmbeddedFileData(string name, Type assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType)._ReadToEnd();
     }
 
     // Win32 フォルダ圧縮操ユーティリティ
@@ -2250,7 +2250,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                path = path.InnerFilePath();
+                path = path._InnerFilePath();
                 Win32Api.Kernel32.SECURITY_ATTRIBUTES secAttrs = default;
 
                 using (SafeFileHandle h = Win32Api.Kernel32.CreateFile(path, (int)(FileAccess.Read | FileAccess.Write), FileShare.ReadWrite, ref secAttrs, FileMode.Open,

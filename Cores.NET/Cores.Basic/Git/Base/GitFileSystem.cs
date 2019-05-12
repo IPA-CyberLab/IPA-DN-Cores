@@ -84,7 +84,6 @@ namespace IPA.Cores.Basic
 
         public GitFileSystem(GitFileSystemParams param) : base(param)
         {
-            
         }
 
         protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)

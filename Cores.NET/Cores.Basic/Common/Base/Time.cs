@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             HaltFlag = true;
             HaltEvent.Set();
-            MainTask.GetResult();
+            MainTask._GetResult();
         }
 
         protected abstract void Init();
@@ -250,8 +250,8 @@ namespace IPA.Cores.Basic
 
         public static long Tick64ToTime64(long tick) => History.Tick64ToTime64(tick);
         public static DateTime Tick64ToDateTime(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick));
-        public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).AsDateTimeOffset(false);
-        public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).ToLocalTime().AsDateTimeOffset(true);
+        public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick))._AsDateTimeOffset(false);
+        public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).ToLocalTime()._AsDateTimeOffset(true);
     }
 
     static class Time

@@ -1110,9 +1110,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static implicit operator FastStreamBuffer<T>(Span<T> span) => span.ToArray().AsReadOnlyMemory();
-        public static implicit operator FastStreamBuffer<T>(ReadOnlySpan<T> span) => span.ToArray().AsReadOnlyMemory();
-        public static implicit operator FastStreamBuffer<T>(T[] data) => data.AsReadOnlyMemory();
+        public static implicit operator FastStreamBuffer<T>(Span<T> span) => span.ToArray()._AsReadOnlyMemory();
+        public static implicit operator FastStreamBuffer<T>(ReadOnlySpan<T> span) => span.ToArray()._AsReadOnlyMemory();
+        public static implicit operator FastStreamBuffer<T>(T[] data) => data._AsReadOnlyMemory();
     }
 
     class FastDatagramBuffer<T> : IFastBuffer<T>

@@ -213,8 +213,8 @@ namespace IPA.Cores.Basic
 
         public DnsGetIpQueryParam(string hostname, DnsQueryOptions options = DnsQueryOptions.None, int timeout = -1) : base(options, timeout)
         {
-            if (hostname.IsEmpty()) throw new ArgumentException("hostname is empty.");
-            this.Hostname = hostname.NonNullTrim();
+            if (hostname._IsEmpty()) throw new ArgumentException("hostname is empty.");
+            this.Hostname = hostname._NonNullTrim();
         }
     }
 
@@ -298,20 +298,20 @@ namespace IPA.Cores.Basic
                         }
                         catch
                         {
-                            await sock.DisposeWithCleanupSafeAsync();
+                            await sock._DisposeWithCleanupSafeAsync();
                             throw;
                         }
                     }
                     catch
                     {
-                        await tcp.DisposeWithCleanupSafeAsync();
+                        await tcp._DisposeWithCleanupSafeAsync();
                         throw;
                     }
                 }
             }
         }
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
-            => ConnectAsync(param, cancel).GetResult();
+            => ConnectAsync(param, cancel)._GetResult();
 
         public FastTcpListenerBase CreateListener(TcpListenParam param)
         {
@@ -356,7 +356,7 @@ namespace IPA.Cores.Basic
             }
         }
         public DnsResponse QueryDns(DnsQueryParam param, CancellationToken cancel = default)
-            => QueryDnsAsync(param, cancel).GetResult();
+            => QueryDnsAsync(param, cancel)._GetResult();
     }
 }
 

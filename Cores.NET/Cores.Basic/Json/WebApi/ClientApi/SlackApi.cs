@@ -52,9 +52,9 @@ namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper
     {
-        public static DateTime ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime((uint)value);
-        public static DateTime ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
-        public static long ToLongDateTimeOfSlack(this DateTime dt) => Util.DateTimeToUnixTime(dt);
+        public static DateTime _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime((uint)value);
+        public static DateTime _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
+        public static long _ToLongDateTimeOfSlack(this DateTime dt) => Util.DateTimeToUnixTime(dt);
     }
 
     class SlackApi : WebApi
@@ -83,9 +83,9 @@ namespace IPA.Cores.ClientApi.SlackApi
         {
             HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
 
-            if (this.AccessTokenStr.IsFilled())
+            if (this.AccessTokenStr._IsFilled())
             {
-                r.Headers.Add("Authorization", $"Bearer {this.AccessTokenStr.EncodeUrl(this.RequestEncoding)}");
+                r.Headers.Add("Authorization", $"Bearer {this.AccessTokenStr._EncodeUrl(this.RequestEncoding)}");
             }
 
             return r;

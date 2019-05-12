@@ -12941,7 +12941,7 @@ namespace IPA.Cores.Basic.HttpClientCore
     internal static class StringExtensions
     {
         // Token: 0x060000F3 RID: 243 RVA: 0x00035638 File Offset: 0x00015638
-        internal static string SubstringTrim(this string value, int startIndex, int length)
+        internal static string _SubstringTrim(this string value, int startIndex, int length)
         {
             if (length == 0)
             {
@@ -14774,23 +14774,23 @@ namespace IPA.Cores.Basic.HttpClientCore
                     string value;
                     if (digestResponse.Parameters.TryGetValue("userhash", out text2) && text2 == "true")
                     {
-                        sb.AppendKeyValue("username", AuthenticationHelper.ComputeHash(credential.UserName + ":" + text, algorithm), true, true);
-                        sb.AppendKeyValue("userhash", text2, false, true);
+                        sb._AppendKeyValue("username", AuthenticationHelper.ComputeHash(credential.UserName + ":" + text, algorithm), true, true);
+                        sb._AppendKeyValue("userhash", text2, false, true);
                     }
                     else if (HeaderUtilities.IsInputEncoded5987(credential.UserName, out value))
                     {
-                        sb.AppendKeyValue("username*", value, false, true);
+                        sb._AppendKeyValue("username*", value, false, true);
                     }
                     else
                     {
-                        sb.AppendKeyValue("username", credential.UserName, true, true);
+                        sb._AppendKeyValue("username", credential.UserName, true, true);
                     }
                     if (text != string.Empty)
                     {
-                        sb.AppendKeyValue("realm", text, true, true);
+                        sb._AppendKeyValue("realm", text, true, true);
                     }
-                    sb.AppendKeyValue("nonce", nonce, true, true);
-                    sb.AppendKeyValue("uri", request.RequestUri.PathAndQuery, true, true);
+                    sb._AppendKeyValue("nonce", nonce, true, true);
+                    sb._AppendKeyValue("uri", request.RequestUri.PathAndQuery, true, true);
                     string qop = "auth";
                     if (digestResponse.Parameters.ContainsKey("qop"))
                     {
@@ -14856,15 +14856,15 @@ namespace IPA.Cores.Basic.HttpClientCore
                         ":",
                         AuthenticationHelper.ComputeHash(a2, algorithm)
                     }), algorithm);
-                    sb.AppendKeyValue("response", value2, true, true);
-                    sb.AppendKeyValue("algorithm", algorithm, false, true);
+                    sb._AppendKeyValue("response", value2, true, true);
+                    sb._AppendKeyValue("algorithm", algorithm, false, true);
                     if (opaque != null)
                     {
-                        sb.AppendKeyValue("opaque", opaque, true, true);
+                        sb._AppendKeyValue("opaque", opaque, true, true);
                     }
-                    sb.AppendKeyValue("qop", qop, false, true);
-                    sb.AppendKeyValue("nc", "00000001", false, true);
-                    sb.AppendKeyValue("cnonce", cnonce, true, false);
+                    sb._AppendKeyValue("qop", qop, false, true);
+                    sb._AppendKeyValue("nc", "00000001", false, true);
+                    sb._AppendKeyValue("cnonce", cnonce, true, false);
                     result = StringBuilderCache.GetStringAndRelease(sb);
                 }
             }
@@ -15485,7 +15485,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             ConnectHelper.CertificateCallbackMapper certificateCallbackMapper;
             if (remoteCertificateValidationCallback != null && (certificateCallbackMapper = (remoteCertificateValidationCallback.Target as ConnectHelper.CertificateCallbackMapper)) != null)
             {
-                sslOptions = sslOptions.ShallowClone();
+                sslOptions = sslOptions._ShallowClone();
                 Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> localFromHttpClientHandler = certificateCallbackMapper.FromHttpClientHandler;
                 HttpRequestMessage localRequest = request;
                 sslOptions.RemoteCertificateValidationCallback = ((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => localFromHttpClientHandler(localRequest, certificate as X509Certificate2, chain, sslPolicyErrors));
@@ -20551,7 +20551,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         private static SslClientAuthenticationOptions ConstructSslOptions(HttpConnectionPoolManager poolManager, string sslHostName)
         {
             SslClientAuthenticationOptions sslOptions = poolManager.Settings._sslOptions;
-            SslClientAuthenticationOptions sslClientAuthenticationOptions = ((sslOptions != null) ? sslOptions.ShallowClone() : null) ?? new SslClientAuthenticationOptions();
+            SslClientAuthenticationOptions sslClientAuthenticationOptions = ((sslOptions != null) ? sslOptions._ShallowClone() : null) ?? new SslClientAuthenticationOptions();
             sslClientAuthenticationOptions.ApplicationProtocols = null;
             sslClientAuthenticationOptions.TargetHost = sslHostName;
             if (HttpConnectionPool.s_isWindows7Or2008R2 && sslClientAuthenticationOptions.EnabledSslProtocols == SslProtocols.None)
@@ -21707,7 +21707,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             httpConnectionSettings._properties = this._properties;
             httpConnectionSettings._proxy = this._proxy;
             SslClientAuthenticationOptions sslOptions = this._sslOptions;
-            httpConnectionSettings._sslOptions = ((sslOptions != null) ? sslOptions.ShallowClone() : null);
+            httpConnectionSettings._sslOptions = ((sslOptions != null) ? sslOptions._ShallowClone() : null);
             httpConnectionSettings._useCookies = this._useCookies;
             httpConnectionSettings._useProxy = this._useProxy;
             httpConnectionSettings._tcpIpSystem = this._tcpIpSystem;
@@ -24825,7 +24825,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x0600034D RID: 845 RVA: 0x0003D70D File Offset: 0x0001D70D
-        internal static Task ContinueWithStandard<T>(this Task<T> task, object state, Action<Task<T>, object> continuation)
+        internal static Task _ContinueWithStandard<T>(this Task<T> task, object state, Action<Task<T>, object> continuation)
         {
             return task.ContinueWith(continuation, state, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
@@ -24914,7 +24914,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             {
                 HttpRequestMessage request2 = this.ProcessRequest(request, cancellationToken);
                 Task<HttpResponseMessage> task2 = base.SendAsync(request2, cancellationToken);
-                task2.ContinueWithStandard(sendState, delegate (Task<HttpResponseMessage> task, object state)
+                task2._ContinueWithStandard(sendState, delegate (Task<HttpResponseMessage> task, object state)
                 {
                     MessageProcessingHandler.SendState sendState2 = (MessageProcessingHandler.SendState)state;
                     MessageProcessingHandler handler = sendState2._handler;
@@ -26912,7 +26912,7 @@ namespace IPA.Cores.Basic.HttpClientCore
     internal static class StringBuilderExtensions
     {
         // Token: 0x060003FD RID: 1021 RVA: 0x00040BF4 File Offset: 0x00020BF4
-        public static void AppendKeyValue(this StringBuilder sb, string key, string value, bool includeQuotes = true, bool includeComma = true)
+        public static void _AppendKeyValue(this StringBuilder sb, string key, string value, bool includeQuotes = true, bool includeComma = true)
         {
             sb.Append(key);
             sb.Append('=');
@@ -27090,7 +27090,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x060006BF RID: 1727 RVA: 0x00051DDC File Offset: 0x00031DDC
-        internal static bool TryFindClientCertificate(this X509Certificate2Collection certificates, ISet<string> allowedIssuers, out X509Certificate2 clientCertificate, out X509Chain clientCertChain)
+        internal static bool _TryFindClientCertificate(this X509Certificate2Collection certificates, ISet<string> allowedIssuers, out X509Certificate2 clientCertificate, out X509Chain clientCertChain)
         {
             clientCertificate = null;
             clientCertChain = null;
@@ -27145,7 +27145,7 @@ namespace IPA.Cores.Basic.HttpClientCore
     internal static class SslClientAuthenticationOptionsExtensions
     {
         // Token: 0x060001D6 RID: 470 RVA: 0x00038C48 File Offset: 0x00018C48
-        public static SslClientAuthenticationOptions ShallowClone(this SslClientAuthenticationOptions options)
+        public static SslClientAuthenticationOptions _ShallowClone(this SslClientAuthenticationOptions options)
         {
             return new SslClientAuthenticationOptions
             {

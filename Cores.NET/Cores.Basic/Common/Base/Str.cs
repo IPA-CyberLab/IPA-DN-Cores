@@ -2285,12 +2285,12 @@ namespace IPA.Cores.Basic
         // HTML デコード
         public static string FromHtml(string str, bool normalizeMultiSpaces = false)
         {
-            str = str.NonNull();
+            str = str._NonNull();
 
             if (normalizeMultiSpaces)
             {
                 string[] strs = str.Split(new char[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                str = strs.Combine(" ").Trim();
+                str = strs._Combine(" ").Trim();
             }
 
             str = Str.ReplaceStr(str, HtmlCrlf, "\r\n", false);
@@ -2668,7 +2668,7 @@ namespace IPA.Cores.Basic
         // 末尾の \r \n を削除
         public static string TrimCrlf(string str)
         {
-            return str.NonNull().TrimEnd('\r', '\n');
+            return str._NonNull().TrimEnd('\r', '\n');
         }
 
         // 指定した文字列がすべて大文字かどうかチェックする
@@ -2707,7 +2707,7 @@ namespace IPA.Cores.Basic
 
             foreach (string s in strArray)
             {
-                if (removeEmpty == false || s.IsEmpty() == false)
+                if (removeEmpty == false || s._IsEmpty() == false)
                 {
                     ret.Add(s);
                 }
@@ -2884,11 +2884,11 @@ namespace IPA.Cores.Basic
                 {
                     object value = (object)fi.GetValue(replaceClass);
                     string s = value?.ToString() ?? null;
-                    s = s.NonNull();
+                    s = s._NonNull();
 
                     string name = fi.Name;
 
-                    str = str.ReplaceStr(name, s, caseSensitive);
+                    str = str._ReplaceStr(name, s, caseSensitive);
                 }
             }
 
@@ -3479,7 +3479,7 @@ namespace IPA.Cores.Basic
 
             foreach (string s in strList)
             {
-                if (removeEmpty == false || s.IsFilled())
+                if (removeEmpty == false || s._IsFilled())
                 {
                     if (num >= 1)
                     {
@@ -3865,7 +3865,7 @@ namespace IPA.Cores.Basic
         }
         public static DateTime StrToDateTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
             DateTime ret = new DateTime(0);
             if (Str.IsEmptyStr(str)) return Util.ZeroDateTimeValue;
 
@@ -3956,7 +3956,7 @@ namespace IPA.Cores.Basic
         }
         public static DateTime StrToTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
 
             DateTime ret = new DateTime(0);
 
@@ -3988,7 +3988,7 @@ namespace IPA.Cores.Basic
                 int msecond = 0;
                 long add_ticks = 0;
 
-                int msec_index = secondStr.Search(".");
+                int msec_index = secondStr._Search(".");
                 if (msec_index != -1)
                 {
                     msecStr = secondStr.Substring(msec_index + 1);
@@ -3996,7 +3996,7 @@ namespace IPA.Cores.Basic
 
                     msecStr = "0." + msecStr;
 
-                    decimal tmp = msecStr.ToDecimal();
+                    decimal tmp = msecStr._ToDecimal();
                     msecond = (int)((tmp % 1.0m) * 1000.0m);
                     add_ticks = (int)((tmp % 0.001m) * 10000000.0m);
                 }
@@ -4113,7 +4113,7 @@ namespace IPA.Cores.Basic
         }
         public static DateTime StrToDate(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (emptyToZeroDateTime && str.IsEmpty()) return Util.ZeroDateTimeValue;
+            if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
 
             string[] sps =
                 {
@@ -4422,7 +4422,7 @@ namespace IPA.Cores.Basic
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
 
-            if (dt.IsZeroDateTime())
+            if (dt._IsZeroDateTime())
             {
                 return "";
             }
@@ -4441,11 +4441,11 @@ namespace IPA.Cores.Basic
 
             if (option == DtstrOption.DateOnly)
             {
-                ret = ret.ToToken(" ")[0];
+                ret = ret._ToToken(" ")[0];
             }
             else if (option == DtstrOption.TimeOnly)
             {
-                ret = ret.ToToken(" ")[1];
+                ret = ret._ToToken(" ")[1];
             }
 
             return ret;
@@ -4456,7 +4456,7 @@ namespace IPA.Cores.Basic
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
 
-            if (dt.IsZeroDateTime())
+            if (dt._IsZeroDateTime())
             {
                 return "";
             }
@@ -4475,11 +4475,11 @@ namespace IPA.Cores.Basic
 
             if (option == DtstrOption.DateOnly)
             {
-                ret = ret.ToToken(" ")[0];
+                ret = ret._ToToken(" ")[0];
             }
             else if (option == DtstrOption.TimeOnly)
             {
-                ret = ret.ToToken(" ")[1];
+                ret = ret._ToToken(" ")[1];
             }
 
             ret += " " + dt.ToString("%K");
@@ -5311,26 +5311,26 @@ namespace IPA.Cores.Basic
             return xs.Deserialize(ms);
         }
 
-        public static string ObjectToXmlStr(object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings).GetString_UTF8();
-        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src.GetBytes_UTF8(), type, settings);
-        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src.GetBytes_UTF8(), settings);
+        public static string ObjectToXmlStr(object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings)._GetString_UTF8();
+        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src._GetBytes_UTF8(), type, settings);
+        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src._GetBytes_UTF8(), settings);
 
-        public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings).GetString_UTF8();
-        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src.GetBytes_UTF8(), type, settings);
-        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src.GetBytes_UTF8(), settings);
+        public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings)._GetString_UTF8();
+        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
+        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
 
         public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
         {
-            if (url_string.IsEmpty()) throw new ApplicationException("url_string is empty.");
+            if (url_string._IsEmpty()) throw new ApplicationException("url_string is empty.");
             if (url_string.StartsWith("/")) url_string = "http://null" + url_string;
             uri = new Uri(url_string);
-            query_string = HttpUtility.ParseQueryString(uri.Query.NonNull());
+            query_string = HttpUtility.ParseQueryString(uri.Query._NonNull());
         }
 
         public static string GetSimpleHostnameFromFqdn(string fqdn)
         {
-            fqdn = fqdn.NonNullTrim();
-            if (fqdn.IsEmpty()) return "";
+            fqdn = fqdn._NonNullTrim();
+            if (fqdn._IsEmpty()) return "";
             return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)[0];
         }
     }

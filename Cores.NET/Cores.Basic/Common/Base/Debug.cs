@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
         public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
         {
             this.Msg = message;
-            if (filename.IsFilled())
+            if (filename._IsFilled())
                 this.Where = filename + ":" + lineNumber;
             this.ThreadID = threadId == 0 ? (int ?)null : threadId;
             this.Function = callerName;
@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic
         {
             if (Dbg.IsDebugMode)
             {
-                filename = filename.GetFileName();
+                filename = filename._GetFileName();
 
                 DebugWhereContainer c = new DebugWhereContainer(message, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
                 DebugObject(c);
@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    CurrentGitCommitInfoCache = GetCurrentGitCommitInfoCore().NonNullTrim();
+                    CurrentGitCommitInfoCache = GetCurrentGitCommitInfoCore()._NonNullTrim();
                 }
                 catch
                 {
@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            return CurrentGitCommitInfoCache.NonNullTrim();
+            return CurrentGitCommitInfoCache._NonNullTrim();
         }
 
         static string GetCurrentGitCommitInfoCore()
@@ -352,16 +352,16 @@ namespace IPA.Cores.Basic
                 try
                 {
                     string headContents = Lfs.ReadStringFromFile(headFilename);
-                    foreach (string line in headContents.GetLines())
+                    foreach (string line in headContents._GetLines())
                     {
-                        if (line.GetKeyAndValue(out string key, out string value, ":"))
+                        if (line._GetKeyAndValue(out string key, out string value, ":"))
                         {
-                            if (key.IsSamei("ref"))
+                            if (key._IsSamei("ref"))
                             {
                                 string refFilename = value.Trim();
                                 string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
 
-                                return Lfs.ReadStringFromFile(refFullPath).GetLines().Where(x => x.IsFilled()).Single();
+                                return Lfs.ReadStringFromFile(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
                             }
                         }
                     }
@@ -369,7 +369,7 @@ namespace IPA.Cores.Basic
                 catch { }
 
                 string parentPath = Lfs.PathParser.GetDirectoryName(tmpPath);
-                if (tmpPath.IsSamei(parentPath)) return "";
+                if (tmpPath._IsSamei(parentPath)) return "";
 
                 tmpPath = parentPath;
             }
@@ -398,7 +398,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                if (obj != null && obj.GetType().IsAnonymousType())
+                if (obj != null && obj.GetType()._IsAnonymousType())
                     return obj.ToString();
 
                 DebugVars v = GetVarsFromClass(obj.GetType(), separatorStr, hideEmpty, instanceBaseName, obj);
@@ -565,7 +565,7 @@ namespace IPA.Cores.Basic
                     a.UnionWith(t.GetMembers(BindingFlags.Instance | BindingFlags.NonPublic));
             }
 
-            return a.Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property).ToArrayList();
+            return a.Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property)._ToArrayList();
         }
 
         public static object GetValueOfFieldOrProperty(MemberInfo m, object obj)
@@ -592,8 +592,8 @@ namespace IPA.Cores.Basic
         public static bool IsPrimitiveType(Type t)
         {
             if (t == null) return true;
-            if (t.IsSubClassOfOrSame(typeof(System.Type))) return true;
-            if (t.IsSubClassOfOrSame(typeof(System.Delegate))) return true;
+            if (t._IsSubClassOfOrSame(typeof(System.Type))) return true;
+            if (t._IsSubClassOfOrSame(typeof(System.Delegate))) return true;
             if (t.IsEnum) return true;
             if (t.IsPrimitive) return true;
             if (t == typeof(System.Delegate)) return true;
@@ -686,15 +686,15 @@ namespace IPA.Cores.Basic
                 {
                     if (o is byte[] byteArray)
                     {
-                        printStr = byteArray.GetHexString();
+                        printStr = byteArray._GetHexString();
                     }
                     else
                     {
-                        printStr = $"{closure}{o.ToString().Unescape()}{closure}";
+                        printStr = $"{closure}{o.ToString()._Unescape()}{closure}";
                     }
                 }
 
-                if (o.IsEmpty(false))
+                if (o._IsEmpty(false))
                     hide = true;
 
                 if (HideEmpty == false || hide == false)
@@ -749,14 +749,14 @@ namespace IPA.Cores.Basic
                 strList[i] = str;
             }
 
-            return strList.ToArray().Combine(this.SeparatorStr);
+            return strList.ToArray()._Combine(this.SeparatorStr);
         }
     }
 
     class IntervalDebug
     {
         public string Name { get; }
-        public IntervalDebug(string name = "Interval") => this.Name = name.NonNullTrim();
+        public IntervalDebug(string name = "Interval") => this.Name = name._NonNullTrim();
         long StartTick = 0;
         public void Start() => this.StartTick = Time.Tick64;
         public int Elapsed => (int)(Time.Tick64 - this.StartTick);
@@ -882,7 +882,7 @@ namespace IPA.Cores.Basic
 
         public void ReportRefObject(string name, object refObj)
         {
-            name = name.NonNullTrim();
+            name = name._NonNullTrim();
             lock (table2)
             {
                 if (table2.ContainsKey(name))
@@ -901,18 +901,18 @@ namespace IPA.Cores.Basic
         public void Report(string name, string value)
         {
             if (Dbg.IsDebugMode == false) return;
-            name = name.NonNullTrim();
+            name = name._NonNullTrim();
             lock (table)
             {
                 Ref<(int ver, string value)> r;
                 if (table.ContainsKey(name))
                 {
-                    if (value.IsEmpty()) table.Remove(name);
+                    if (value._IsEmpty()) table.Remove(name);
                     r = table[name];
                 }
                 else
                 {
-                    if (value.IsEmpty()) return;
+                    if (value._IsEmpty()) return;
                     r = new Ref<(int ver, string value)>();
                     table.Add(name, r);
                 }
@@ -1016,7 +1016,7 @@ namespace IPA.Cores.Basic
             {
                 str = this.PrintProc();
             }
-            if (str.IsFilled())
+            if (str._IsFilled())
             {
                 Dbg.WriteLine($"{this.Name}: {str}");
             }
@@ -1058,7 +1058,7 @@ namespace IPA.Cores.Basic
 
                     o.Add($"I/O: {max_ports - avail_ports}");
 
-                    o.Add($"Mem: {(mem / 1024).ToString3()} kb");
+                    o.Add($"Mem: {(mem / 1024)._ToString3()} kb");
 
                     return Str.CombineStringArray(o.ToArray(), ", ");
                 });
@@ -1112,7 +1112,7 @@ namespace IPA.Cores.Basic
                 {
                     if (CoresConfig.DebugSettings.CoresStatPrintToConsole)
                     {
-                        snapshot.Debug();
+                        snapshot._Debug();
                     }
                     await Task.CompletedTask;
                 },
@@ -1125,7 +1125,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            Reporter.DisposeSafe(new CoresLibraryShutdowningException());
+            Reporter._DisposeSafe(new CoresLibraryShutdowningException());
             Reporter = null;
         }
     }

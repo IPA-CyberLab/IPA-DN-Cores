@@ -268,7 +268,7 @@ namespace IPA.Cores.Basic
                 }
 
                 if (reallocFlag)
-                    PhysicalData = PhysicalData.ReAlloc(newPhysicalSize);
+                    PhysicalData = PhysicalData._ReAlloc(newPhysicalSize);
 
                 if (src != null)
                     src.CopyTo(PhysicalData.AsSpan().Slice(Position + oldSize));
@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic
                 }
 
                 if (reallocFlag)
-                    PhysicalData = PhysicalData.ReAlloc(newPhysicalSize);
+                    PhysicalData = PhysicalData._ReAlloc(newPhysicalSize);
 
                 if (src != null)
                     PhysicalData[Position + oldSize] = src;

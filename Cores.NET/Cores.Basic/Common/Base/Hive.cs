@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
 
             ret.Write(Str.NewLine_Bytes_Local);
 
-            obj.ObjectToRuntimeJson(ret, Options.JsonSettings);
+            obj._ObjectToRuntimeJson(ret, Options.JsonSettings);
 
             ret.Write(Str.NewLine_Bytes_Local);
             ret.Write(Str.NewLine_Bytes_Local);
@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
 
         protected override T DeserializeImpl<T>(ReadOnlyMemory<byte> memory)
         {
-            return memory.ToArray().RuntimeJsonToObject<T>(Options.JsonSettings);
+            return memory.ToArray()._RuntimeJsonToObject<T>(Options.JsonSettings);
         }
     }
 
@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic
         {
             dataName = Hive.NormalizeDataName(dataName);
 
-            if (dataName.IsEmpty())
+            if (dataName._IsEmpty())
                 dataName = Options.DefaultDataName;
 
             string ret = PathParser.Combine(Options.RootDirectoryName, SafePathParser.MakeSafePathName(dataName), true);
@@ -248,7 +248,7 @@ namespace IPA.Cores.Basic
             w.WriteLine($"--- The hive file \"{realFilename}\" load error log ---");
             w.WriteLine($"Process ID: {Env.ProcessId}");
             w.WriteLine($"Process Name: {Env.ExeFileName}");
-            w.WriteLine($"Timestamp: {DateTimeOffset.Now.ToDtStr(true)}");
+            w.WriteLine($"Timestamp: {DateTimeOffset.Now._ToDtStr(true)}");
             w.WriteLine($"Path: {realFilename}");
             w.WriteLine($"DataName: {dataName}");
             w.WriteLine($"Error:");
@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
             w.WriteLine();
             w.WriteLine();
 
-            await FileSystem.AppendDataToFileAsync(errFilename, w.ToString().GetBytes_UTF8(),
+            await FileSystem.AppendDataToFileAsync(errFilename, w.ToString()._GetBytes_UTF8(),
                 Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed | FileOperationFlags.AutoCreateDirectory | FileOperationFlags.OnCreateSetCompressionFlag,
                 cancel);
         }
@@ -361,11 +361,11 @@ namespace IPA.Cores.Basic
             Hive[] runningHives;
             lock (RunningHivesListLockObj)
             {
-                runningHives = RunningHivesList.ToArrayList();
+                runningHives = RunningHivesList._ToArrayList();
             }
             foreach (Hive hive in runningHives)
             {
-                hive.DisposeSafe(new CoresLibraryShutdowningException());
+                hive._DisposeSafe(new CoresLibraryShutdowningException());
             }
             lock (RunningHivesListLockObj)
             {
@@ -373,7 +373,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string NormalizeDataName(string name) => name.NonNullTrim().ToLower();
+        public static string NormalizeDataName(string name) => name._NonNullTrim().ToLower();
 
         // Instance states and methods
         public HiveOptions Options { get; }
@@ -405,7 +405,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                this.DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -441,7 +441,7 @@ namespace IPA.Cores.Basic
 
             lock (LockObj)
             {
-                hiveArray = RegisteredHiveData.Values.ToArrayList();
+                hiveArray = RegisteredHiveData.Values._ToArrayList();
             }
 
             foreach (var hive in hiveArray)
@@ -525,7 +525,7 @@ namespace IPA.Cores.Basic
                     RunningHivesList.Remove(this);
                 }
 
-                this.Options.StorageProvider.DisposeSafe();
+                this.Options.StorageProvider._DisposeSafe();
             }
             finally
             {
@@ -647,7 +647,7 @@ namespace IPA.Cores.Basic
                     try
                     {
                         // If the data is empty, first try loading from the storage.
-                        result = LoadDataCoreAsync().GetResult();
+                        result = LoadDataCoreAsync()._GetResult();
                     }
                     catch
                     {
@@ -657,7 +657,7 @@ namespace IPA.Cores.Basic
                         // Save the initial data to the storage, however prevent to overwrite if the file exists on the storage.
                         try
                         {
-                            SaveDataCoreAsync(result.SerializedData, true).GetResult();
+                            SaveDataCoreAsync(result.SerializedData, true)._GetResult();
                         }
                         catch
                         {
@@ -680,12 +680,12 @@ namespace IPA.Cores.Basic
             {
                 T currentData = GetData();
 
-                return currentData.CloneDeep();
+                return currentData._CloneDeep();
             }
         }
 
         public void SyncWithStorage(HiveSyncFlags flag, CancellationToken cancel = default)
-            => SyncWithStorageAsync(flag, cancel).GetResult();
+            => SyncWithStorageAsync(flag, cancel)._GetResult();
 
         public async Task SyncWithStorageAsync(HiveSyncFlags flag, CancellationToken cancel = default)
         {
@@ -773,7 +773,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                if (cacheForSupressSameError.IsSame(ex.Message) == false)
+                if (cacheForSupressSameError._IsSame(ex.Message) == false)
                 {
                     cacheForSupressSameError = ex.Message;
                     await Hive.StorageProvider.ReportErrorAsync(this.DataName, ex.ToString(), cancel);

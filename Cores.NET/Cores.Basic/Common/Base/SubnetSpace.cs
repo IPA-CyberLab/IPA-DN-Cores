@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
         public int SubnetLength;
         public List<T> DataList;
 
-        public T GetDataFirst() => this.DataList.GetFirstOrNull();
+        public T GetDataFirst() => this.DataList._GetFirstOrNull();
 
         internal List<(int sortKey, T data)> TmpSortList = new List<(int sortKey, T data)>();
 

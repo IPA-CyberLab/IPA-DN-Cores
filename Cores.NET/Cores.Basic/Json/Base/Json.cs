@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
         public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
         {
             StringWriter w = new StringWriter();
-            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth).GetResult();
+            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth)._GetResult();
             return w.ToString();
         }
 
@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
                 {
                     return true;
                 }
-                if (line.IsFilled())
+                if (line._IsFilled())
                 {
                     object obj = null;
                     try
@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
     {
         static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
         {
-            ret = obj.ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+            ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
         }
 
         static partial void InternalIsJsonSupported(ref bool ret)

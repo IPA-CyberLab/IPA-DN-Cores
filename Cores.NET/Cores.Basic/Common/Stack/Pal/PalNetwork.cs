@@ -180,7 +180,7 @@ namespace IPA.Cores.Basic
         {
             List<ArraySegment<byte>> sendArraySegmentsList = new List<ArraySegment<byte>>();
             foreach (ReadOnlyMemory<byte> mem in buffers)
-                sendArraySegmentsList.Add(mem.AsSegment());
+                sendArraySegmentsList.Add(mem._AsSegment());
 
             return _Socket.SendAsync(sendArraySegmentsList, SocketFlags.None);
         }
@@ -199,10 +199,10 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                Task<int> t = _Socket.SendToAsync(buffer.AsSegment(), SocketFlags.None, remoteEP);
+                Task<int> t = _Socket.SendToAsync(buffer._AsSegment(), SocketFlags.None, remoteEP);
                 if (t.IsCompleted == false)
                     await t;
-                int ret = t.GetResult();
+                int ret = t._GetResult();
                 if (ret <= 0) throw new SocketDisconnectedException();
                 return ret;
             }
@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
         {
             int numRetry = 0;
 
-            var bufferSegment = buffer.AsSegment();
+            var bufferSegment = buffer._AsSegment();
 
             LABEL_RETRY:
 
@@ -233,7 +233,7 @@ namespace IPA.Cores.Basic
                     numRetry = 0;
                     await t;
                 }
-                SocketReceiveFromResult ret = t.GetResult();
+                SocketReceiveFromResult ret = t._GetResult();
                 if (ret.ReceivedBytes <= 0) throw new SocketDisconnectedException();
                 return new PalSocketReceiveFromResult()
                 {
@@ -259,9 +259,9 @@ namespace IPA.Cores.Basic
         {
             if (DisposeFlag.IsFirstCall() && disposing)
             {
-                _Socket.DisposeSafe();
+                _Socket._DisposeSafe();
 
-                Leak.DisposeSafe();
+                Leak._DisposeSafe();
             }
         }
 
@@ -326,10 +326,10 @@ namespace IPA.Cores.Basic
             {
                 if (this.DisposeParentObjectAutomatically)
                 {
-                    FastStream.DisposeSafe();
+                    FastStream._DisposeSafe();
                 }
 
-                this.LeakHolder.DisposeSafe();
+                this.LeakHolder._DisposeSafe();
             }
             base.Dispose(disposing);
         }
@@ -349,25 +349,25 @@ namespace IPA.Cores.Basic
 
         public override bool DataAvailable => FastStream.DataAvailable;
 
-        public override void Flush() => FastStream.FlushAsync().GetResult();
+        public override void Flush() => FastStream.FlushAsync()._GetResult();
 
         public override Task FlushAsync(CancellationToken cancellationToken = default) => FastStream.FlushAsync(cancellationToken);
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
-            => await FastStream.WriteAsync(buffer.AsReadOnlyMemory(offset, count), cancellationToken);
+            => await FastStream.WriteAsync(buffer._AsReadOnlyMemory(offset, count), cancellationToken);
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
             => await FastStream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
 
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default).GetResult();
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default).GetResult();
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default)._GetResult();
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default)._GetResult();
 
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => ReadAsync(buffer, offset, count, default).AsApm(callback, state);
+            => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => WriteAsync(buffer, offset, count, default).AsApm(callback, state);
-        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult).GetResult();
-        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult).GetResult();
+            => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
+        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
+        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
 
         public override bool Equals(object obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
@@ -508,7 +508,7 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                NativeStream.DisposeSafe();
+                NativeStream._DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -571,7 +571,7 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.Ssl.DisposeSafe();
+                this.Ssl._DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
@@ -602,7 +602,7 @@ namespace IPA.Cores.Basic
 
         public static bool IsUnix { get; } = (Environment.OSVersion.Platform != PlatformID.Win32NT);
 
-        static IPAddress[] GetLocalIPAddressBySocketApi() => PalDns.GetHostAddressesAsync(Dns.GetHostName()).GetResult();
+        static IPAddress[] GetLocalIPAddressBySocketApi() => PalDns.GetHostAddressesAsync(Dns.GetHostName())._GetResult();
 
         class ByteComparer : IComparer<byte[]>
         {

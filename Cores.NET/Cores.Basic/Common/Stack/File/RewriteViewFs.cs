@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
 
         public string MapPathVirtualToPhysical(string virtualPath)
         {
-            if (virtualPath.IsEmpty()) return "";
+            if (virtualPath._IsEmpty()) return "";
 
             // virtualPath must be UNIX-style absolute path
             // /
@@ -157,7 +157,7 @@ namespace IPA.Cores.Basic
 
         public string MapPathPhysicalToVirtual(string physicalPath)
         {
-            if (physicalPath.IsEmpty()) return "";
+            if (physicalPath._IsEmpty()) return "";
 
             physicalPath = UnderlayPathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalPath);
 

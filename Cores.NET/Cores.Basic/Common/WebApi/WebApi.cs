@@ -85,7 +85,7 @@ namespace IPA.Cores.Basic
             this.Method = method;
             this.Url = url;
             this.Cancel = cancel;
-            this.UploadContentType = uploadContentType.FilledOrDefault("application/octet-stream");
+            this.UploadContentType = uploadContentType._FilledOrDefault("application/octet-stream");
             this.UploadStream = uploadStream;
         }
 
@@ -94,7 +94,7 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.UploadStream.DisposeSafe();
+            this.UploadStream._DisposeSafe();
         }
     }
 
@@ -111,7 +111,7 @@ namespace IPA.Cores.Basic
             this.HttpResponseMessage = response;
             this.DownloadContent = response.Content;
 
-            this.DownloadContentType = this.DownloadContent.Headers.ContentType?.MediaType.NonNullTrim();
+            this.DownloadContentType = this.DownloadContent.Headers.ContentType?.MediaType._NonNullTrim();
 
             if (this.DownloadContent.TryComputeLength(out long length))
                 this.DownloadContentLength = length;
@@ -126,9 +126,9 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.HttpResponseMessage.DisposeSafe();
-            this.DownloadContent.DisposeSafe();
-            this.DownloadStream.DisposeSafe();
+            this.HttpResponseMessage._DisposeSafe();
+            this.DownloadContent._DisposeSafe();
+            this.DownloadStream._DisposeSafe();
         }
     }
 
@@ -145,14 +145,14 @@ namespace IPA.Cores.Basic
         public WebRet(WebApi api, string url, string contentType, byte[] data)
         {
             this.Api = api;
-            this.Url = url.NonNull();
-            this.ContentType = contentType.NonNull();
+            this.Url = url._NonNull();
+            this.ContentType = contentType._NonNull();
 
             try
             {
                 var ct = new System.Net.Mime.ContentType(this.ContentType);
-                this.MediaType = ct.MediaType.NonNull();
-                this.CharSet = ct.CharSet.NonNull();
+                this.MediaType = ct.MediaType._NonNull();
+                this.CharSet = ct.CharSet._NonNull();
             }
             catch
             {
@@ -162,7 +162,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                if (this.CharSet.IsFilled())
+                if (this.CharSet._IsFilled())
                 {
                     this.DefaultEncoding = Encoding.GetEncoding(this.CharSet);
                 }
@@ -176,16 +176,16 @@ namespace IPA.Cores.Basic
                 this.DefaultEncoding = api.RequestEncoding;
             }
 
-            this.Data = data.NonNull();
+            this.Data = data._NonNull();
 
             if (this.Api.DebugPrintResponse)
             {
-                this.DebugObject();
+                this._DebugObject();
             }
         }
 
-        public override string ToString() => this.Data.GetString(this.DefaultEncoding);
-        public string ToString(Encoding encoding) => this.Data.GetString(encoding);
+        public override string ToString() => this.Data._GetString(this.DefaultEncoding);
+        public string ToString(Encoding encoding) => this.Data._GetString(encoding);
     }
 
     [Flags]
@@ -255,7 +255,7 @@ namespace IPA.Cores.Basic
         {
             if (options == null) options = new WebApiOptions();
 
-            this.Settings = options.Settings.CloneDeep();
+            this.Settings = options.Settings._CloneDeep();
 
             this.ClientHandler = new SocketsHttpHandler(options.TcpIpSystem);
 
@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.Client.DisposeSafe();
+            this.Client._DisposeSafe();
             this.Client = null;
         }
 
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
                     {
                         w.Write("&");
                     }
-                    w.Write($"{t.name.EncodeUrl(this.RequestEncoding)}={t.value.EncodeUrl(this.RequestEncoding)}");
+                    w.Write($"{t.name._EncodeUrl(this.RequestEncoding)}={t.value._EncodeUrl(this.RequestEncoding)}");
                     count++;
                 }
             }
@@ -300,10 +300,10 @@ namespace IPA.Cores.Basic
 
         public void AddHeader(string name, string value)
         {
-            if (name.IsEmpty()) return;
+            if (name._IsEmpty()) return;
             lock (this.RequestHeaders)
             {
-                if (value.IsEmpty() == false)
+                if (value._IsEmpty() == false)
                 {
                     if (this.RequestHeaders.ContainsKey(name))
                         this.RequestHeaders[name] = value;
@@ -325,7 +325,7 @@ namespace IPA.Cores.Basic
             if (method == WebApiMethods.GET || method == WebApiMethods.DELETE)
             {
                 qs = BuildQueryString(queryList);
-                if (qs.IsEmpty() == false)
+                if (qs._IsEmpty() == false)
                 {
                     url = url + "?" + qs;
                 }
@@ -349,7 +349,7 @@ namespace IPA.Cores.Basic
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
                     {
                         foreach (var s in this.Settings.SslAcceptCertSHA1HashList)
-                            if (cert.GetCertHashString().IsSamei(s)) return true;
+                            if (cert.GetCertHashString()._IsSamei(s)) return true;
                         return false;
                     };
                 }
@@ -378,7 +378,7 @@ namespace IPA.Cores.Basic
 
         public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, CancellationToken cancel = default, string postContentType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
         {
-            if (postContentType.IsEmpty()) postContentType = "application/x-www-form-urlencoded";
+            if (postContentType._IsEmpty()) postContentType = "application/x-www-form-urlencoded";
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebApiMethods.POST || method == WebApiMethods.PUT)
@@ -392,14 +392,14 @@ namespace IPA.Cores.Basic
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
             }
         }
 
 
         public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = "application/json")
         {
-            if (postContentType.IsEmpty()) postContentType = "application/json";
+            if (postContentType._IsEmpty()) postContentType = "application/json";
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
@@ -409,8 +409,8 @@ namespace IPA.Cores.Basic
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                string type = res.Content.Headers.TryGetContentType();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
+                string type = res.Content.Headers._TryGetContentType();
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
             }
         }
 
@@ -421,7 +421,7 @@ namespace IPA.Cores.Basic
 
             HttpRequestMessage r = CreateWebRequest(method, url, null);
 
-            byte[] upload_data = jsonString.GetBytes(this.RequestEncoding);
+            byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 
             r.Content = new ByteArrayContent(upload_data);
             r.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -430,7 +430,7 @@ namespace IPA.Cores.Basic
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers.TryGetContentType(), data);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
             }
         }
 
@@ -461,7 +461,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                res.DisposeSafe();
+                res._DisposeSafe();
                 throw;
             }
         }

@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
         // 現在のプロセスを強制終了する
         static public void SelfKill(string msg = null)
         {
-            if (msg.IsFilled()) msg.Print();
+            if (msg._IsFilled()) msg._Print();
             System.Diagnostics.Process.GetCurrentProcess().Kill();
         }
 
@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
                 {
                     if (Str.IsEmptyStr(stderr))
                     {
-                        stderr = $"Process run timeout ({timeout.ToString3()} msecs).";
+                        stderr = $"Process run timeout ({timeout._ToString3()} msecs).";
                     }
                 }
 
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
                 {
                     if (exitcode != 0)
                     {
-                        throw new ApplicationException($"ChildProcess: '{exe}': exitcode = {exitcode}, errorstr = {stderr.OneLine()}");
+                        throw new ApplicationException($"ChildProcess: '{exe}': exitcode = {exitcode}, errorstr = {stderr._OneLine()}");
                     }
                 }
             }

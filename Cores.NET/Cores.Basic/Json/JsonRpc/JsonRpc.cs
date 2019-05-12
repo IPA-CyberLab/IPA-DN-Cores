@@ -57,8 +57,8 @@ namespace IPA.Cores.Basic
     {
         public JsonRpcError RpcError { get; }
         public JsonRpcException(JsonRpcError err)
-            : base($"Code={err.Code}, Message={err.Message.NonNull()}" +
-                  (err == null || err.Data == null ? "" : $", Data={err.Data.ObjectToJson(compact: true)}"))
+            : base($"Code={err.Code}, Message={err.Message._NonNull()}" +
+                  (err == null || err.Data == null ? "" : $", Data={err.Data._ObjectToJson(compact: true)}"))
         {
             this.RpcError = err;
         }
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         [JsonIgnore]
         public TResult ResultData
         {
-            get => Result == null ? null : base.Result.ConvertJsonObject<TResult>();
+            get => Result == null ? null : base.Result._ConvertJsonObject<TResult>();
             set => Result = value;
         }
     }
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString()
         {
-            return this.ObjectToJson(compact: true);
+            return this._ObjectToJson(compact: true);
         }
     }
 
@@ -153,8 +153,8 @@ namespace IPA.Cores.Basic
         public JsonRpcError(int code, string message, object data = null)
         {
             this.Code = code;
-            this.Message = message.NonNull();
-            if (this.Message.IsEmpty()) this.Message = $"JSON-RPC Error {code}";
+            this.Message = message._NonNull();
+            if (this.Message._IsEmpty()) this.Message = $"JSON-RPC Error {code}";
             this.Data = data;
         }
 
@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
 
             var r = methodInfo.ReturnParameter;
             bool isTask = false;
-            if (r.ParameterType.IsSubClassOfOrSame(typeof(Task))) isTask = true;
+            if (r.ParameterType._IsSubClassOfOrSame(typeof(Task))) isTask = true;
 
             if (isTask == false)
             {
@@ -391,7 +391,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex = ex.GetSingleException();
+                ex = ex._GetSingleException();
                 return new JsonRpcResponseError()
                 {
                     Id = req.Id,
@@ -410,12 +410,12 @@ namespace IPA.Cores.Basic
                 if (inStr.StartsWith("{"))
                 {
                     is_single = true;
-                    JsonRpcRequest r = inStr.JsonToObject<JsonRpcRequest>();
+                    JsonRpcRequest r = inStr._JsonToObject<JsonRpcRequest>();
                     requestList.Add(r);
                 }
                 else
                 {
-                    JsonRpcRequest[] rr = inStr.JsonToObject<JsonRpcRequest[]>();
+                    JsonRpcRequest[] rr = inStr._JsonToObject<JsonRpcRequest[]>();
                     requestList = new List<JsonRpcRequest>(rr);
                 }
             }
@@ -465,7 +465,7 @@ namespace IPA.Cores.Basic
                             {
                                 JsonRpcException jsonException;
                                 if (ex is JsonRpcException) jsonException = ex as JsonRpcException;
-                                else jsonException = new JsonRpcException(new JsonRpcError(-32603, ex.GetSingleException().Message, ex.ToString()));
+                                else jsonException = new JsonRpcException(new JsonRpcError(-32603, ex._GetSingleException().Message, ex.ToString()));
                                 JsonRpcResponseError res = new JsonRpcResponseError()
                                 {
                                     Id = req.Id,
@@ -478,7 +478,7 @@ namespace IPA.Cores.Basic
                                 log.RpcError = res.Error;
                             }
 
-                            log.PostAccessLog(LogTag.JsonRpcRequestProcessor, copyToDebug: log.RpcResultOk == false);
+                            log._PostAccessLog(LogTag.JsonRpcRequestProcessor, copyToDebug: log.RpcResultOk == false);
                         }
                     }
                     finally
@@ -499,12 +499,12 @@ namespace IPA.Cores.Basic
             if (is_single)
             {
                 if (response_list.Count >= 1)
-                    return response_list[0].ObjectToJson();
+                    return response_list[0]._ObjectToJson();
                 else
                     return "";
             }
             else
-                return response_list.ObjectToJson();
+                return response_list._ObjectToJson();
         }
     }
 
@@ -569,11 +569,11 @@ namespace IPA.Cores.Basic
 
                 if (requestsTable.Count == 1)
                 {
-                    req = requests[0].ObjectToJson(compact: true);
+                    req = requests[0]._ObjectToJson(compact: true);
                 }
                 else
                 {
-                    req = requests.ObjectToJson(compact: true);
+                    req = requests._ObjectToJson(compact: true);
                 }
 
                 //req.Debug();
@@ -586,18 +586,18 @@ namespace IPA.Cores.Basic
 
                 if (isSingle)
                 {
-                    JsonRpcResponse r = ret.JsonToObject<JsonRpcResponse>();
+                    JsonRpcResponse r = ret._JsonToObject<JsonRpcResponse>();
                     retList.Add(r);
                 }
                 else
                 {
-                    JsonRpcResponse[] r = ret.JsonToObject<JsonRpcResponse[]>();
+                    JsonRpcResponse[] r = ret._JsonToObject<JsonRpcResponse[]>();
                     retList = new List<JsonRpcResponse>(r);
                 }
 
                 foreach (var res in retList)
                 {
-                    if (res.Id.IsFilled())
+                    if (res.Id._IsFilled())
                     {
                         if (requestsTable.ContainsKey(res.Id))
                         {
@@ -617,7 +617,7 @@ namespace IPA.Cores.Basic
                     {
                         if (res.IsError)
                         {
-                            if (res.Id.IsEmpty())
+                            if (res.Id._IsEmpty())
                             {
                                 foreach (var q in requestsTable.Values)
                                 {
@@ -684,7 +684,7 @@ namespace IPA.Cores.Basic
                     item.Response = ST_CallAdd(item.Method, item.Param, item.ResultType);
                 }
 
-                ST_CallAll(false).GetResult();
+                ST_CallAll(false)._GetResult();
             }
             catch (Exception ex)
             {
@@ -692,7 +692,7 @@ namespace IPA.Cores.Basic
                 foreach (var q in items)
                 {
                     var item = q.UserItem;
-                    item.Response.Error = new JsonRpcError(-1, ex.GetSingleException().ToString());
+                    item.Response.Error = new JsonRpcError(-1, ex._GetSingleException().ToString());
                 }
             }
             finally
@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
             {
                 //Dbg.WhereThread();
                 await o;
-                var result = o.GetResult();
+                var result = o._GetResult();
                 result.ThrowIfError();
                 //Dbg.WhereThread();
                 return result.ResultData;
@@ -811,7 +811,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default)
         {
-            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req.GetBytes_UTF8(), cancel, "application/json");
+            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req._GetBytes_UTF8(), cancel, "application/json");
 
             return ret.ToString();
         }
@@ -854,9 +854,9 @@ namespace IPA.Cores.Basic
         {
             this.RpcServer = rpcServer;
             this.ConnectedDateTime = DateTimeOffset.Now;
-            this.LocalIP = localIp.NonNull();
+            this.LocalIP = localIp._NonNull();
             this.LocalPort = localPort;
-            this.RemoteIP = remoteIp.NonNull();
+            this.RemoteIP = remoteIp._NonNull();
             this.RemotePort = remotePort;
             this.Headers = headers;
         }

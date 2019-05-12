@@ -60,16 +60,16 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                string rpcMethod = routeData.Values.GetStrOrEmpty("rpc_method");
-                if (rpcMethod.IsEmpty())
+                string rpcMethod = routeData.Values._GetStrOrEmpty("rpc_method");
+                if (rpcMethod._IsEmpty())
                 {
-                    await response.SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now.ToDtStr(withNanoSecs: true)}", cancel: this.CancelToken);
+                    await response._SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: this.CancelToken);
                 }
                 else
                 {
-                    string args = routeData.Values.GetStrOrEmpty("rpc_param");
+                    string args = routeData.Values._GetStrOrEmpty("rpc_param");
 
-                    if (args.IsEmpty())
+                    if (args._IsEmpty())
                     {
                         JObject jObj = new JObject();
 
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
                             jObj.Add(key, JToken.FromObject(value));
                         }
 
-                        args = jObj.ObjectToJson(compact: true);
+                        args = jObj._ObjectToJson(compact: true);
                     }
 
                     string id = "GET-" + Str.NewGuid();
@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                await response.SendStringContents(ex.ToString(), cancel: this.CancelToken);
+                await response._SendStringContents(ex.ToString(), cancel: this.CancelToken);
             }
         }
 
@@ -99,13 +99,13 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                string in_str = await request.RecvStringContents(this.Config.MaxRequestBodyLen, cancel: this.CancelToken);
+                string in_str = await request._RecvStringContents(this.Config.MaxRequestBodyLen, cancel: this.CancelToken);
 
                 await process_http_request_main(request, response, in_str);
             }
             catch (Exception ex)
             {
-                await response.SendStringContents(ex.ToString(), cancel: this.CancelToken);
+                await response._SendStringContents(ex.ToString(), cancel: this.CancelToken);
             }
         }
 
@@ -124,8 +124,8 @@ namespace IPA.Cores.Basic
                 }
 
                 var conn = request.HttpContext.Connection;
-                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress.UnmapIPv4().ToString(), conn.LocalPort,
-                    conn.RemoteIpAddress.UnmapIPv4().ToString(), conn.RemotePort,
+                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress._UnmapIPv4().ToString(), conn.LocalPort,
+                    conn.RemoteIpAddress._UnmapIPv4().ToString(), conn.RemotePort,
                     headers);
 
                 //string in_str = request.Body.ReadToEnd().GetString_UTF8();
@@ -138,19 +138,19 @@ namespace IPA.Cores.Basic
             {
                 JsonRpcException json_ex;
                 if (ex is JsonRpcException) json_ex = ex as JsonRpcException;
-                else json_ex = new JsonRpcException(new JsonRpcError(1234, ex.GetSingleException().Message, ex.ToString()));
+                else json_ex = new JsonRpcException(new JsonRpcError(1234, ex._GetSingleException().Message, ex.ToString()));
 
                 ret_str = new JsonRpcResponseError()
                 {
                     Error = json_ex.RpcError,
                     Id = null,
                     Result = null,
-                }.ObjectToJson();
+                }._ObjectToJson();
             }
 
             //Dbg.WriteLine("ret_str: " + ret_str);
 
-            await response.SendStringContents(ret_str, responseContentsType, cancel: this.CancelToken);
+            await response._SendStringContents(ret_str, responseContentsType, cancel: this.CancelToken);
         }
 
         public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "rpc")

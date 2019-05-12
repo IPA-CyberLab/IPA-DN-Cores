@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
             {
-                route.CancelSafe();
+                route._CancelSafe();
             }
         }
 
@@ -146,9 +146,9 @@ namespace IPA.Cores.Basic
                 this.RouteList = this.RouteList.Remove(route);
             }
 
-            route.CancelSafe();
-            await route.CleanupSafeAsync();
-            route.DisposeSafe();
+            route._CancelSafe();
+            await route._CleanupSafeAsync();
+            route._DisposeSafe();
         }
 
         public void PostLog(LogRecord record, string kind)
@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
             {
                 if (route.MinimalPriority != LogPriority.None)
                 {
-                    if (route.Kind == kind || route.Kind.IsEmpty())
+                    if (route.Kind == kind || route.Kind._IsEmpty())
                     {
                         if (route.MinimalPriority <= record.Priority)
                         {
@@ -254,7 +254,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            Router.DisposeSafe(new CoresLibraryShutdowningException());
+            Router._DisposeSafe(new CoresLibraryShutdowningException());
             Router = null;
         }
 

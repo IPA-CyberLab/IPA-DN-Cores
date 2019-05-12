@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
             w.WriteLine();
             w.WriteLine("----------");
             string str = w.ToString();
-            Dbg.WriteLine(w.ToString().TrimCrlf());
+            Dbg.WriteLine(w.ToString()._TrimCrlf());
         }
     }
 
@@ -135,8 +135,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public DateTime DateTime => ((DateTime)Object).NormalizeDateTime();
-        public DateTimeOffset DateTimeOffset => ((DateTimeOffset)Object).NormalizeDateTimeOffset();
+        public DateTime DateTime => ((DateTime)Object)._NormalizeDateTime();
+        public DateTimeOffset DateTimeOffset => ((DateTimeOffset)Object)._NormalizeDateTimeOffset();
         public string String => (string)Object;
         public double Double => (double)Object;
         public int Int => (int)Object;
@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
             Connection = dbConnection;
         }
 
-        public void EnsureOpen() => EnsureOpenAsync().GetResult();
+        public void EnsureOpen() => EnsureOpenAsync()._GetResult();
 
         AsyncLock OpenCloseLock = new AsyncLock();
 
@@ -439,8 +439,8 @@ namespace IPA.Cores.Basic
                             var properties = type.GetProperties();
 
                             // UserName == USER_NAME
-                            var c1 = properties.SingleOrDefault(p => p.Name.IsSameiIgnoreUnderscores(columnName)
-                                || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name.IsSameiIgnoreUnderscores(columnName)));
+                            var c1 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName)
+                                || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName)));
                             if (c1 != null) return c1;
 
                             int i = columnName.IndexOf("_");
@@ -449,8 +449,8 @@ namespace IPA.Cores.Basic
                                 // UserName == USERS_USERNAME
                                 string columnName2 = columnName.Substring(i + 1);
 
-                                var c2 = properties.SingleOrDefault(p => p.Name.IsSameiIgnoreUnderscores(columnName2)
-                                    || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name.IsSameiIgnoreUnderscores(columnName2)));
+                                var c2 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName2)
+                                    || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName2)));
                                 if (c2 != null) return c2;
                             }
 
@@ -502,13 +502,13 @@ namespace IPA.Cores.Basic
             => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
 
         public IEnumerable<T> Query<T>(string commandStr, object param = null)
-            => QueryAsync<T>(commandStr, param).GetResult();
+            => QueryAsync<T>(commandStr, param)._GetResult();
 
         public int Execute(string commandStr, object param = null)
-            => ExecuteAsync(commandStr, param).GetResult();
+            => ExecuteAsync(commandStr, param)._GetResult();
 
         public T ExecuteScalar<T>(string commandStr, object param = null)
-            => ExecuteScalarAsync<T>(commandStr, param).GetResult();
+            => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
 
         public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
@@ -573,16 +573,16 @@ namespace IPA.Cores.Basic
         }
 
         public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
-            => EasyGetAllAsync<T>(throwErrorIfNotFound).GetResult();
+            => EasyGetAllAsync<T>(throwErrorIfNotFound)._GetResult();
 
         public int EasyInsert<T>(T data) where T : class
-            => EasyInsertAsync(data).GetResult();
+            => EasyInsertAsync(data)._GetResult();
 
         public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyUpdateAsync(data, throwErrorIfNotFound).GetResult();
+            => EasyUpdateAsync(data, throwErrorIfNotFound)._GetResult();
 
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyDeleteAsync(data, throwErrorIfNotFound).GetResult();
+            => EasyDeleteAsync(data, throwErrorIfNotFound)._GetResult();
 
         public async Task<dynamic> EasyFindIdAsync<T>(string selectStr, object selectParam) where T: class
         {
@@ -931,7 +931,7 @@ namespace IPA.Cores.Basic
             else if (t == typeof(System.DateTimeOffset))
             {
                 DateTimeOffset d = (DateTimeOffset)o;
-                d = d.NormalizeDateTimeOffset();
+                d = d._NormalizeDateTimeOffset();
                 DbParameter p = cmd.CreateParameter();
                 p.ParameterName = name;
                 p.DbType = DbType.DateTimeOffset;

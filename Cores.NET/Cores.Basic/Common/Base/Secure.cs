@@ -210,7 +210,7 @@ namespace IPA.Cores.Basic
         public static long HashSHA1AsLong(ReadOnlySpan<byte> src)
         {
             byte[] hash = Secure.HashSHA1(src);
-            long ret = hash.GetSInt64();
+            long ret = hash._GetSInt64();
             if (ret == 0) ret = 1;
             return ret;
         }
@@ -249,38 +249,38 @@ namespace IPA.Cores.Basic
                 salt = Secure.Rand(PasswordSaltSize);
             }
 
-            byte[] pw = password.NonNull().GetBytes_UTF8();
+            byte[] pw = password._NonNull()._GetBytes_UTF8();
             byte[] src = pw;
 
             for (int i = 0; i < PasswordIterations; i++)
             {
-                src = Secure.HashSHA256(src.CombineByte(salt));
+                src = Secure.HashSHA256(src._CombineByte(salt));
             }
 
-            return src.CombineByte(salt).GetHexString();
+            return src._CombineByte(salt)._GetHexString();
         }
 
         // パスワードハッシュの検証
         public static bool VeritySaltedPassword(string hash, string password)
         {
-            byte[] data = hash.GetHexBytes();
+            byte[] data = hash._GetHexBytes();
             if (data.Length != (PasswordSaltSize + PasswordKeySize))
             {
                 throw new ApplicationException("data.Length != (PasswordSaltSize + PasswordKeySize)");
             }
 
-            byte[] pw = data.ExtractByte(0, PasswordKeySize);
-            byte[] salt = data.ExtractByte(PasswordKeySize, PasswordSaltSize);
+            byte[] pw = data._ExtractByte(0, PasswordKeySize);
+            byte[] salt = data._ExtractByte(PasswordKeySize, PasswordSaltSize);
 
             string hash2 = SaltPassword(password, salt);
 
-            return hash.GetHexBytes().IsSameByte(hash2.GetHexBytes());
+            return hash._GetHexBytes()._IsSameByte(hash2._GetHexBytes());
         }
 
         // PKCS 証明書の読み込み
         public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(byte[] data, string password = null)
         {
-            password = password.NonNull();
+            password = password._NonNull();
             return new System.Security.Cryptography.X509Certificates.X509Certificate2(data, password, System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.MachineKeySet);
         }
         public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string filename, string password = null)

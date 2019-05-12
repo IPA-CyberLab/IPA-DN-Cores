@@ -67,7 +67,7 @@ namespace IPA.TestDev
                             {
                                 //c.Call.Divide(8, 2).Wait();
                                 TMP1 a = new TMP1() { a = 4, b = 2 };
-                                c.MT_Call<object>("Divide", a, true).GetResult();
+                                c.MT_Call<object>("Divide", a, true)._GetResult();
                                 //c.ST_CallOne<object>("Divide", a, true).Wait();
                                 b.IncrementMe++;
                             }

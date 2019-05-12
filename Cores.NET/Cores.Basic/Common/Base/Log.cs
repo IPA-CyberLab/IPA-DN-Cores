@@ -107,9 +107,9 @@ namespace IPA.Cores.Basic
 
         public void Normalize(string logKind)
         {
-            this.MachineName = this.MachineName.NonNullTrim().NoSpace();
-            this.AppName = this.AppName.NonNullTrim().NoSpace();
-            this.Kind = this.Kind.NonNullTrim().FilledOrDefault(logKind).NoSpace();
+            this.MachineName = this.MachineName._NonNullTrim()._NoSpace();
+            this.AppName = this.AppName._NonNullTrim()._NoSpace();
+            this.Kind = this.Kind._NonNullTrim()._FilledOrDefault(logKind)._NoSpace();
         }
     }
 
@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
 
     class LogRecord
     {
-        public static readonly byte[] CrLfByte = "\r\n".GetBytes_Ascii();
+        public static readonly byte[] CrLfByte = "\r\n"._GetBytes_Ascii();
 
         public DateTimeOffset TimeStamp { get; }
         public object Data { get; }
@@ -160,7 +160,7 @@ namespace IPA.Cores.Basic
             if (data == null) return "null";
             if (data is string str) return str;
 
-            return data.GetObjectDump("", opt.ObjectPrintSeparator, true);
+            return data._GetObjectDump("", opt.ObjectPrintSeparator, true);
         }
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
@@ -169,13 +169,13 @@ namespace IPA.Cores.Basic
                 paddingLenForNextLines = 0;
 
             string pad = Str.MakeCharArray(' ', paddingLenForNextLines);
-            string[] lines = src.GetLines();
+            string[] lines = src._GetLines();
             StringBuilder sb = new StringBuilder();
 
             int num = 0;
             foreach (string line in lines)
             {
-                if (line.IsFilled())
+                if (line._IsFilled())
                 {
                     string line2 = line.TrimEnd();
                     if (num >= 1)
@@ -230,16 +230,16 @@ namespace IPA.Cores.Basic
                     jc.Priority = this.Priority.ToString();
 
                 if (opt.WithTag)
-                    jc.Tag = this.Tag.FilledOrDefault(LogTag.None);
+                    jc.Tag = this.Tag._FilledOrDefault(LogTag.None);
 
                 if (opt.WithTypeName)
                     jc.TypeName = this.Data?.GetType().Name ?? "null";
 
                 jc.Data = this.Data;
 
-                string jsonText = jc.GetObjectDump(jsonIfPossible: true);
+                string jsonText = jc._GetObjectDump(jsonIfPossible: true);
 
-                b.Write(jsonText.GetBytes_UTF8());
+                b.Write(jsonText._GetBytes_UTF8());
                 b.Write(CrLfByte);
             }
             else
@@ -250,7 +250,7 @@ namespace IPA.Cores.Basic
                 // Timestamp
                 if (opt.WithTimeStamp)
                 {
-                    sb.Append(this.TimeStamp.ToDtStr(true, DtstrOption.All, false));
+                    sb.Append(this.TimeStamp._ToDtStr(true, DtstrOption.All, false));
                     sb.Append(" ");
                 }
 
@@ -273,13 +273,13 @@ namespace IPA.Cores.Basic
                     additionalList.Add(this.Priority.ToString());
 
                 if (opt.WithTag)
-                    additionalList.Add(this.Tag.FilledOrDefault(LogTag.None));
+                    additionalList.Add(this.Tag._FilledOrDefault(LogTag.None));
 
                 if (opt.WithTypeName)
                     additionalList.Add(this.Data?.GetType().Name ?? "null");
 
                 string additionalStr = Str.CombineStringArray(" ", additionalList.ToArray());
-                if (additionalStr.IsFilled())
+                if (additionalStr._IsFilled())
                 {
                     sb.Append("[");
                     sb.Append(additionalStr);
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
                 sb.Append(logText);
                 sb.Append("\r\n");
 
-                b.Write(sb.ToString().GetBytes_UTF8());
+                b.Write(sb.ToString()._GetBytes_UTF8());
             }
         }
     }
@@ -343,11 +343,11 @@ namespace IPA.Cores.Basic
             : base()
         {
             this.UniqueProcessId = uniqueProcessId;
-            this.DirName = dir.NonNullTrim();
-            this.Kind = kind.NonNullTrim().FilledOrDefault(LogKind.Default);
-            this.Prefix = prefix.NonNullTrim().FilledOrDefault("log").ReplaceStr("\\", "_").Replace("/", "_");
+            this.DirName = dir._NonNullTrim();
+            this.Kind = kind._NonNullTrim()._FilledOrDefault(LogKind.Default);
+            this.Prefix = prefix._NonNullTrim()._FilledOrDefault("log")._ReplaceStr("\\", "_").Replace("/", "_");
             this.SwitchType = switchType;
-            this.Extension = extension.FilledOrDefault(DefaultExtension);
+            this.Extension = extension._FilledOrDefault(DefaultExtension);
             this.KeepFileHandleWhenIdle = keepFileHandleWhenIdle;
             if (this.MaxLogSize <= 0)
                 this.MaxLogSize = CoresConfig.Logger.DefaultMaxLogSize;
@@ -355,34 +355,34 @@ namespace IPA.Cores.Basic
             if (this.Extension.StartsWith(".") == false)
                 this.Extension = "." + this.Extension;
 
-            this.InfoOptions = infoOptions.CloneDeep();
+            this.InfoOptions = infoOptions._CloneDeep();
             this.InfoOptions.Normalize(this.Kind);
 
 
             if (autoDeleteTotalMinSize != null && autoDeleteTotalMinSize.Value != long.MaxValue)
             {
-                autoDeleteTotalMinSize = autoDeleteTotalMinSize.FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
-                this.Eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir.SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
+                autoDeleteTotalMinSize = autoDeleteTotalMinSize._FilledOrDefault(CoresConfig.Logger.DefaultAutoDeleteTotalMinSize.Value);
+                this.Eraser = new OldFileEraser(autoDeleteTotalMinSize ?? 0, dir._SingleArray(), extension, CoresConfig.Logger.EraserIntervalMsecs);
             }
 
-            LogTask = LogThreadAsync().LeakCheck();
+            LogTask = LogThreadAsync()._LeakCheck();
         }
 
         protected override void CancelImpl(Exception ex)
         {
-            this.Eraser.CancelSafe(ex);
+            this.Eraser._CancelSafe(ex);
         }
 
         protected override async Task CleanupImplAsync(Exception ex)
         {
-            await this.Eraser.CleanupSafeAsync(ex);
+            await this.Eraser._CleanupSafeAsync(ex);
 
             await LogTask;
         }
 
         protected override void DisposeImpl(Exception ex)
         {
-            this.Eraser.DisposeSafe(ex);
+            this.Eraser._DisposeSafe(ex);
         }
 
         public void Stop(bool abandonUnwritenData)
@@ -415,7 +415,7 @@ namespace IPA.Cores.Basic
 
                     lock (this.RecordQueue)
                     {
-                        rec = RecordQueue.DequeueOrNull();
+                        rec = RecordQueue._DequeueOrNull();
                         num = RecordQueue.Count;
                     }
 
@@ -518,16 +518,16 @@ namespace IPA.Cores.Basic
 
                                 string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
 
-                                if (candidateFileNameStartStr.IsFilled())
+                                if (candidateFileNameStartStr._IsFilled())
                                 {
-                                    string maxFileName = existingFiles.Select(x => x.GetFileName()).OrderByDescending(x => x).Where(x => x.InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
+                                    string maxFileName = existingFiles.Select(x => x._GetFileName()).OrderByDescending(x => x).Where(x => x._InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
 
-                                    if (maxFileName.IsFilled())
+                                    if (maxFileName._IsFilled())
                                     {
                                         string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
-                                        if (existingFileNumberStr.IsFilled())
+                                        if (existingFileNumberStr._IsFilled())
                                         {
-                                            existingMaxLogNumber = existingFileNumberStr.ToInt();
+                                            existingMaxLogNumber = existingFileNumberStr._ToInt();
                                         }
                                     }
                                 }
@@ -755,7 +755,7 @@ namespace IPA.Cores.Basic
                 }
                 else if (pendingTreatment == LogPendingTreatment.Wait)
                 {
-                    await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.GrandCancel }, events: this.WaitPendingEvent.SingleArray());
+                    await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { pendingWaitCancel, this.GrandCancel }, events: this.WaitPendingEvent._SingleArray());
                 }
                 else
                 {
@@ -818,7 +818,7 @@ namespace IPA.Cores.Basic
 
         bool MakeLogFileName(out string name, string dir, string prefix, int uniqueProcessId, DateTimeOffset dateTime, LogSwitchType switchType, int num, ref string oldDateStr)
         {
-            prefix = prefix.TrimNonNull();
+            prefix = prefix._TrimNonNull();
             string dateTimePart = MakeLogFileNameStringFromTick(dateTime, switchType);
             string numberStr = "";
             string uniqueProcessIdStr = ("@" + uniqueProcessId.ToString("D3"));

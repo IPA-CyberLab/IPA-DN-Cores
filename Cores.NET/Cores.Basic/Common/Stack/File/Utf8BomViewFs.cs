@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic
                 catch
                 {
                     await underlayFileObjectResult.FileObject.CloseAsync();
-                    underlayFileObjectResult.FileObject.DisposeSafe();
+                    underlayFileObjectResult.FileObject._DisposeSafe();
                     throw;
                 }
             }

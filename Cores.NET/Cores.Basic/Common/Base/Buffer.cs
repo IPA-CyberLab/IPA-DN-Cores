@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
         public static SpanBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new SpanBuffer<byte>(baseMemory.Span);
         }
@@ -265,7 +265,7 @@ namespace IPA.Cores.Basic
             while (newInternalSize < newSize)
                 newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
 
-            InternalSpan = InternalSpan.ReAlloc(newInternalSize, this.Length);
+            InternalSpan = InternalSpan._ReAlloc(newInternalSize, this.Length);
         }
 
         public void OptimizeInternalBufferSize()
@@ -275,7 +275,7 @@ namespace IPA.Cores.Basic
                 newInternalSize = checked(newInternalSize * 2);
 
             if (this.InternalSpan.Length > newInternalSize)
-                InternalSpan = InternalSpan.ReAlloc(newInternalSize, this.Length);
+                InternalSpan = InternalSpan._ReAlloc(newInternalSize, this.Length);
         }
 
         public void SetLength(int size)
@@ -355,7 +355,7 @@ namespace IPA.Cores.Basic
         public static ReadOnlySpanBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new ReadOnlySpanBuffer<byte>(baseMemory.Span);
         }
@@ -484,7 +484,7 @@ namespace IPA.Cores.Basic
         public static FastMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new FastMemoryBuffer<byte>(baseMemory);
         }
@@ -731,7 +731,7 @@ namespace IPA.Cores.Basic
             while (newInternalSize < newSize)
                 newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
 
-            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+            InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
             InternalSpan = InternalBuffer.Span;
         }
 
@@ -743,7 +743,7 @@ namespace IPA.Cores.Basic
 
             if (this.InternalBuffer.Length > newInternalSize)
             {
-                InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+                InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
                 InternalSpan = InternalBuffer.Span;
             }
         }
@@ -797,7 +797,7 @@ namespace IPA.Cores.Basic
         public static FastReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new FastReadOnlyMemoryBuffer<byte>(baseMemory);
         }
@@ -1108,7 +1108,7 @@ namespace IPA.Cores.Basic
         public static MemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new MemoryBuffer<byte>(baseMemory);
         }
@@ -1396,7 +1396,7 @@ namespace IPA.Cores.Basic
 
             if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
 
-            InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+            InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
         }
 
         public void OptimizeInternalBufferSize()
@@ -1408,7 +1408,7 @@ namespace IPA.Cores.Basic
                 newInternalSize = checked(newInternalSize * 2);
 
             if (this.InternalBuffer.Length > newInternalSize)
-                InternalBuffer = InternalBuffer.ReAlloc(newInternalSize, this.Length);
+                InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
         }
 
         public void Clear()
@@ -1467,7 +1467,7 @@ namespace IPA.Cores.Basic
         public static ReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
         {
             Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
-            ref TStruct dst = ref baseMemory.AsStruct<TStruct>();
+            ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new ReadOnlyMemoryBuffer<byte>(baseMemory);
         }
@@ -2217,198 +2217,198 @@ namespace IPA.Cores.Basic
 
     static class SpanMemoryBufferHelper
     {
-        public static void WriteBool8(this ref SpanBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, false));
-        public static void WriteUInt8(this ref SpanBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteByte(this ref SpanBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this ref SpanBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this ref SpanBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this ref SpanBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, false));
-        public static void WriteSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this ref SpanBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this ref SpanBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this ref SpanBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, false));
+        public static void WriteBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
+        public static void WriteUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteByte(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteUInt16(this ref SpanBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
+        public static void WriteUInt32(this ref SpanBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
+        public static void WriteUInt64(this ref SpanBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
+        public static void WriteSInt16(this ref SpanBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
+        public static void WriteSInt32(this ref SpanBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
+        public static void WriteSInt64(this ref SpanBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
 
-        public static void SetBool8(this ref SpanBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, true));
-        public static void SetUInt8(this ref SpanBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this ref SpanBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this ref SpanBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this ref SpanBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, true));
-        public static void SetSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this ref SpanBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this ref SpanBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this ref SpanBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, true));
+        public static void SetBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
+        public static void SetUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
+        public static void SetUInt16(this ref SpanBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
+        public static void SetUInt32(this ref SpanBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
+        public static void SetUInt64(this ref SpanBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
+        public static void SetSInt16(this ref SpanBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
+        public static void SetSInt32(this ref SpanBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
+        public static void SetSInt64(this ref SpanBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
 
-        public static bool ReadBool8(ref this SpanBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(ref this SpanBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(ref this SpanBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(ref this SpanBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(ref this SpanBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(ref this SpanBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(ref this SpanBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(ref this SpanBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(ref this SpanBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(ref this SpanBuffer<byte> buf) => buf.Read(8).GetSInt64();
+        public static bool ReadBool8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(ref this SpanBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(ref this SpanBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(ref this SpanBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(ref this SpanBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(ref this SpanBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(ref this SpanBuffer<byte> buf) => buf.Read(8)._GetSInt64();
 
-        public static bool PeekBool8(ref this SpanBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8).GetSInt64();
-
-
-        public static bool ReadBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8).GetSInt64();
-
-        public static bool PeekBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8).GetSInt64();
+        public static bool PeekBool8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
 
 
-        public static void WriteBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, false));
-        public static void WriteUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteByte(this ref FastMemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, false));
-        public static void WriteSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, false));
+        public static bool ReadBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8)._GetSInt64();
 
-        public static void SetBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, true));
-        public static void SetUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, true));
-        public static void SetSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, true));
-
-        public static bool ReadBool8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(ref this FastMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8).GetSInt64();
-
-        public static bool PeekBool8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8).GetSInt64();
+        public static bool PeekBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
 
 
-        public static bool ReadBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8).GetSInt64();
+        public static void WriteBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
+        public static void WriteUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteByte(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
+        public static void WriteUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
+        public static void WriteUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
+        public static void WriteSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
+        public static void WriteSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
+        public static void WriteSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
 
-        public static bool PeekBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8).GetSInt64();
+        public static void SetBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
+        public static void SetUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
+        public static void SetUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
+        public static void SetUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
+        public static void SetUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
+        public static void SetSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
+        public static void SetSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
+        public static void SetSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
+
+        public static bool ReadBool8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+
+        public static bool PeekBool8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
 
 
-        public static void WriteBool8(this MemoryBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, false));
-        public static void WriteUInt8(this MemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteByte(this MemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this MemoryBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this MemoryBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this MemoryBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, false));
-        public static void WriteSInt8(this MemoryBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this MemoryBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this MemoryBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this MemoryBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, false));
+        public static bool ReadBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
 
-        public static void SetBool8(this MemoryBuffer<byte> buf, bool value) => value.SetBool8(buf.Walk(1, true));
-        public static void SetUInt8(this MemoryBuffer<byte> buf, byte value) => value.SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this MemoryBuffer<byte> buf, ushort value) => value.SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this MemoryBuffer<byte> buf, uint value) => value.SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this MemoryBuffer<byte> buf, ulong value) => value.SetUInt64(buf.Walk(8, true));
-        public static void SetSInt8(this MemoryBuffer<byte> buf, sbyte value) => value.SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this MemoryBuffer<byte> buf, short value) => value.SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this MemoryBuffer<byte> buf, int value) => value.SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this MemoryBuffer<byte> buf, long value) => value.SetSInt64(buf.Walk(8, true));
+        public static bool PeekBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
 
-        public static bool ReadBool8(this MemoryBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(this MemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(this MemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(this MemoryBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(this MemoryBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(this MemoryBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(this MemoryBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(this MemoryBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(this MemoryBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(this MemoryBuffer<byte> buf) => buf.Read(8).GetSInt64();
 
-        public static bool PeekBool8(this MemoryBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(this MemoryBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(this MemoryBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(this MemoryBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(this MemoryBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(this MemoryBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(this MemoryBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(this MemoryBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(this MemoryBuffer<byte> buf) => buf.Peek(8).GetSInt64();
+        public static void WriteBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
+        public static void WriteUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteByte(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
+        public static void WriteUInt16(this MemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
+        public static void WriteUInt32(this MemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
+        public static void WriteUInt64(this MemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteSInt8(this MemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
+        public static void WriteSInt16(this MemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
+        public static void WriteSInt32(this MemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
+        public static void WriteSInt64(this MemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
 
-        public static bool ReadBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetBool8();
-        public static byte ReadUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static byte ReadByte(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetUInt8();
-        public static ushort ReadUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2).GetUInt16();
-        public static uint ReadUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4).GetUInt32();
-        public static ulong ReadUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8).GetUInt64();
-        public static sbyte ReadSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1).GetSInt8();
-        public static short ReadSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2).GetSInt16();
-        public static int ReadSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4).GetSInt32();
-        public static long ReadSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8).GetSInt64();
+        public static void SetBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
+        public static void SetUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
+        public static void SetUInt16(this MemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
+        public static void SetUInt32(this MemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
+        public static void SetUInt64(this MemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetSInt8(this MemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
+        public static void SetSInt16(this MemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
+        public static void SetSInt32(this MemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
+        public static void SetSInt64(this MemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
 
-        public static bool PeekBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetBool8();
-        public static byte PeekUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetUInt8();
-        public static ushort PeekUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2).GetUInt16();
-        public static uint PeekUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4).GetUInt32();
-        public static ulong PeekUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8).GetUInt64();
-        public static sbyte PeekSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1).GetSInt8();
-        public static short PeekSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2).GetSInt16();
-        public static int PeekSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4).GetSInt32();
-        public static long PeekSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8).GetSInt64();
+        public static bool ReadBool8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(this MemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(this MemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(this MemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(this MemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(this MemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(this MemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(this MemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+
+        public static bool PeekBool8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(this MemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(this MemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(this MemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(this MemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(this MemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(this MemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+
+        public static bool ReadBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
+        public static byte ReadUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static byte ReadByte(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
+        public static ushort ReadUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
+        public static uint ReadUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
+        public static ulong ReadUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static sbyte ReadSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
+        public static short ReadSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
+        public static int ReadSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
+        public static long ReadSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+
+        public static bool PeekBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
+        public static byte PeekUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
+        public static ushort PeekUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
+        public static uint PeekUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
+        public static ulong PeekUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static sbyte PeekSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
+        public static short PeekSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
+        public static int PeekSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
+        public static long PeekSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
     }
 
     static class MemoryHelper
@@ -2488,7 +2488,7 @@ namespace IPA.Cores.Basic
                 ArrayPool<T>.Shared.Return(array);
         }
 
-        public static void FastFree<T>(Memory<T> memory) => memory.GetInternalArray().FastFree();
+        public static void FastFree<T>(Memory<T> memory) => memory._GetInternalArray()._FastFree();
 
         public static ValueHolder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
         {
@@ -2638,7 +2638,7 @@ namespace IPA.Cores.Basic
                     {
                         Memory<T> mAdd = m.Slice(0, m.Length - overSize);
 
-                        currentList.Add(mAdd.AsSegment());
+                        currentList.Add(mAdd._AsSegment());
                         ret.Add(currentList);
                         currentList = new List<ArraySegment<T>>();
                         currentSize = 0;
@@ -2649,7 +2649,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        currentList.Add(m.AsSegment());
+                        currentList.Add(m._AsSegment());
                         currentSize += m.Length;
                     }
                 }

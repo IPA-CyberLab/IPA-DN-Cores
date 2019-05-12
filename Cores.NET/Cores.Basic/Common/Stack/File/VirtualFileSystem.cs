@@ -628,7 +628,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                ctx.DisposeSafe();
+                ctx._DisposeSafe();
                 throw;
             }
         }

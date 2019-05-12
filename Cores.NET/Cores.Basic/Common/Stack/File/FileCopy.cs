@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
             await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, cancel);
         }
         public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystem destFileSystem = null)
-            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem).GetResult();
+            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem)._GetResult();
 
         public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem destFileSystem = null,
             CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
@@ -235,7 +235,7 @@ namespace IPA.Cores.Basic
         }
         public CopyDirectoryStatus CopyDir(string srcPath, string destPath, FileSystem destFileSystem = null,
             CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
-            => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel).GetResult();
+            => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel)._GetResult();
     }
 
     static partial class FileUtil
@@ -495,7 +495,7 @@ namespace IPA.Cores.Basic
         }
         public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
             CopyFileParams param = null, object state = null, CancellationToken cancel = default)
-            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel).GetResult();
+            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel)._GetResult();
 
         static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel)
         {

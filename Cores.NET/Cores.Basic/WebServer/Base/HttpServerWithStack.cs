@@ -130,14 +130,14 @@ namespace IPA.Cores.Basic
             {
                 if (Listener != null)
                 {
-                    await Listener.CleanupSafeAsync();
-                    Listener.DisposeSafe();
+                    await Listener._CleanupSafeAsync();
+                    Listener._DisposeSafe();
                     Listener = null;
                 }
             }
             catch (Exception ex)
             {
-                ex.Debug();
+                ex._Debug();
                 throw;
             }
         }
@@ -150,7 +150,7 @@ namespace IPA.Cores.Basic
                 // In ASP.NET Core 2.2 or higher, Dispatcher.OnConnection() will return Task.
                 // Otherwise, Dispatcher.OnConnection() will return void.
                 // Then we need to use the reflection to call the OnConnection() method indirectly.
-                Task middlewareTask = Dispatcher.PrivateInvoke("OnConnection", connection) as Task;
+                Task middlewareTask = Dispatcher._PrivateInvoke("OnConnection", connection) as Task;
 
                 // Wait for transport to end
                 await connection.StartAsync();
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
                 if (middlewareTask != null)
                     await middlewareTask;
 
-                connection.DisposeSafe();
+                connection._DisposeSafe();
             }
         }
     }
@@ -199,9 +199,9 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 // Stop the socket (for just in case)
-                Sock.CancelSafe(new DisconnectedException());
+                Sock._CancelSafe(new DisconnectedException());
 
-                ex.Debug();
+                ex._Debug();
             }
         }
 
@@ -215,13 +215,13 @@ namespace IPA.Cores.Basic
 
         public override void Abort()
         {
-            this.Sock.CancelSafe();
+            this.Sock._CancelSafe();
             base.Abort();
         }
 
         public override void Abort(ConnectionAbortedException abortReason)
         {
-            this.Sock.CancelSafe(abortReason);
+            this.Sock._CancelSafe(abortReason);
             base.Abort(abortReason);
         }
     }
@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
                 if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
                     log.UserAgent = userAgentValue.ToString();
 
-                log.PostAccessLog(LogTag.WebServer);
+                log._PostAccessLog(LogTag.WebServer);
 
                 await next.Invoke();
             });

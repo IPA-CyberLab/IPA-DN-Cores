@@ -553,7 +553,7 @@ namespace IPA.Cores.Basic
 
         public sealed override async Task CloseAsync()
         {
-            CancelSource.TryCancelNoBlock();
+            CancelSource._TryCancelNoBlock();
 
             if (ClosedFlag.IsSet) return;
 
@@ -581,7 +581,7 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                CancelSource.TryCancelNoBlock();
+                CancelSource._TryCancelNoBlock();
             }
             finally { base.Dispose(disposing); }
         }
@@ -725,13 +725,13 @@ namespace IPA.Cores.Basic
         static readonly char[] PossibleDirectorySeparatorsForAllPlatform = new char[] { '\\', '/'};
         public string RemoveDangerousDirectoryTraversal(string path)
         {
-            path = path.NonNull();
+            path = path._NonNull();
 
             string[] tokens = path.Split(PossibleDirectorySeparatorsForAllPlatform, StringSplitOptions.RemoveEmptyEntries);
 
             for (int i = 0; i < tokens.Length; i++)
             {
-                string s = tokens[i].NonNullTrim();
+                string s = tokens[i]._NonNullTrim();
 
                 if (s == "." || s == "..")
                     tokens[i] = "";
@@ -750,7 +750,7 @@ namespace IPA.Cores.Basic
         public string[] SplitAbsolutePathToElementsUnixStyle(string path)
         {
             Debug.Assert(this.Style != FileSystemStyle.Windows);
-            path = path.NonNull();
+            path = path._NonNull();
 
             if (path.StartsWith("/") == false)
                 throw new ArgumentException($"The speficied path \"{path}\" is not an absolute path.");
@@ -799,7 +799,7 @@ namespace IPA.Cores.Basic
 
         public bool IsLastCharDirectoryDirectorySeparator(string path)
         {
-            path = path.NonNull();
+            path = path._NonNull();
 
             if (path.Length >= 1)
             {
@@ -812,7 +812,7 @@ namespace IPA.Cores.Basic
 
         public string NormalizeDirectorySeparatorIncludeWindowsBackslash(string srcPath)
         {
-            srcPath = srcPath.NonNull();
+            srcPath = srcPath._NonNull();
 
             StringBuilder sb = new StringBuilder();
             foreach (char c in srcPath)
@@ -829,7 +829,7 @@ namespace IPA.Cores.Basic
 
         public string NormalizeDirectorySeparator(string srcPath)
         {
-            srcPath = srcPath.NonNull();
+            srcPath = srcPath._NonNull();
 
             if (this.Style == FileSystemStyle.Windows)
                 srcPath = srcPath.TrimStart();
@@ -915,7 +915,7 @@ namespace IPA.Cores.Basic
 
         public string ConvertDirectorySeparatorToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
         {
-            srcPath = srcPath.NonNull();
+            srcPath = srcPath._NonNull();
 
             StringBuilder sb = new StringBuilder();
             foreach (char c in srcPath)
@@ -958,7 +958,7 @@ namespace IPA.Cores.Basic
 
         public string RemoveLastSeparatorChar(string path)
         {
-            path = path.NonNull();
+            path = path._NonNull();
 
             if (path.All(c => PossibleDirectorySeparators.Where(x => x == c).Any()))
             {
@@ -1005,8 +1005,8 @@ namespace IPA.Cores.Basic
 
         public string GetRelativeFileName(string fileName, string baseDirName)
         {
-            fileName = fileName.TrimNonNull();
-            baseDirName = baseDirName.TrimNonNull();
+            fileName = fileName._TrimNonNull();
+            baseDirName = baseDirName._TrimNonNull();
 
             baseDirName = this.NormalizeDirectorySeparator(baseDirName);
             baseDirName = this.RemoveLastSeparatorChar(baseDirName);
@@ -1042,10 +1042,10 @@ namespace IPA.Cores.Basic
         {
             if (path1 == null && path2 == null) return null;
 
-            path1 = path1.NonNull();
-            path2 = path2.NonNull();
+            path1 = path1._NonNull();
+            path2 = path2._NonNull();
 
-            if (path1.IsEmpty())
+            if (path1._IsEmpty())
             {
                 if (path2NeverAbsolutePath == false)
                     return path2;
@@ -1053,7 +1053,7 @@ namespace IPA.Cores.Basic
                     return "";
             }
 
-            if (path2.IsEmpty())
+            if (path2._IsEmpty())
                 return path1;
 
             if (path2.Length >= 1)
@@ -1096,9 +1096,9 @@ namespace IPA.Cores.Basic
         public string GetFileNameWithoutExtension(string path, bool longExtension = false)
         {
             if (path == null) return null;
-            if (path.IsEmpty()) return "";
+            if (path._IsEmpty()) return "";
             path = GetFileName(path);
-            int[] dots = path.FindStringIndexes(".", true);
+            int[] dots = path._FindStringIndexes(".", true);
             if (dots.Length == 0)
                 return path;
 
@@ -1109,9 +1109,9 @@ namespace IPA.Cores.Basic
         public string GetExtension(string path, bool longExtension = false)
         {
             if (path == null) return null;
-            if (path.IsEmpty()) return "";
+            if (path._IsEmpty()) return "";
             path = GetFileName(path);
-            int[] dots = path.FindStringIndexes(".", true);
+            int[] dots = path._FindStringIndexes(".", true);
             if (dots.Length == 0)
                 return path;
 
@@ -1121,10 +1121,10 @@ namespace IPA.Cores.Basic
 
         public void SepareteDirectoryAndFileName(string path, out string dirPath, out string fileName)
         {
-            if (path.IsEmpty())
+            if (path._IsEmpty())
                 throw new ArgumentNullException("path");
 
-            path = path.NonNull();
+            path = path._NonNull();
 
             int i = 0;
 
@@ -1402,7 +1402,7 @@ namespace IPA.Cores.Basic
             return new RandomAccessHandle(refFileBase);
         }
         public RandomAccessHandle GetRandomAccessHandle(string fileName, bool writeMode, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel).GetResult();
+            => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel)._GetResult();
 
         protected override void CancelImpl(Exception ex) { }
 
@@ -1424,8 +1424,8 @@ namespace IPA.Cores.Basic
 
         protected override void DisposeImpl(Exception ex)
         {
-            ObjectPoolForRead.DisposeSafe();
-            ObjectPoolForWrite.DisposeSafe();
+            ObjectPoolForRead._DisposeSafe();
+            ObjectPoolForWrite._DisposeSafe();
         }
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
@@ -1451,7 +1451,7 @@ namespace IPA.Cores.Basic
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
-            path = path.NonNull();
+            path = path._NonNull();
 
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
@@ -1466,7 +1466,7 @@ namespace IPA.Cores.Basic
             }
         }
         public string NormalizePath(string path, CancellationToken cancel = default)
-            => NormalizePathAsync(path, cancel).GetResult();
+            => NormalizePathAsync(path, cancel)._GetResult();
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
@@ -1490,7 +1490,7 @@ namespace IPA.Cores.Basic
                         if (option.Flags.Bit(FileOperationFlags.AutoCreateDirectory))
                         {
                             string dirName = this.PathParser.GetDirectoryName(option.Path);
-                            if (dirName.IsFilled())
+                            if (dirName._IsFilled())
                             {
                                 await CreateDirectoryImplAsync(dirName, option.Flags, opCancel);
                             }
@@ -1525,32 +1525,32 @@ namespace IPA.Cores.Basic
         }
 
         public FileObject CreateFile(FileParameters option, CancellationToken cancel = default)
-            => CreateFileAsync(option, cancel).GetResult();
+            => CreateFileAsync(option, cancel)._GetResult();
 
         public Task<FileObject> CreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, doNotOverwrite ? FileMode.CreateNew : FileMode.Create, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
         public FileObject Create(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-            => CreateAsync(path, noShare, flags, doNotOverwrite, cancel).GetResult();
+            => CreateAsync(path, noShare, flags, doNotOverwrite, cancel)._GetResult();
 
         public Task<FileObject> OpenAsync(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Open, (writeMode ? FileAccess.ReadWrite : FileAccess.Read),
                 (noShare ? FileShare.None : ((writeMode || readLock) ? FileShare.Read : (FileShare.ReadWrite | FileShare.Delete))), flags), cancel);
 
         public FileObject Open(string path, bool writeMode = false, bool noShare = false, bool readLock = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => OpenAsync(path, writeMode, noShare, readLock, flags, cancel).GetResult();
+            => OpenAsync(path, writeMode, noShare, readLock, flags, cancel)._GetResult();
 
         public Task<FileObject> OpenOrCreateAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
         public FileObject OpenOrCreate(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
+            => OpenOrCreateAsync(path, noShare, flags, cancel)._GetResult();
 
         public Task<FileObject> OpenOrCreateAppendAsync(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(new FileParameters(path, FileMode.Append, FileAccess.Write, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
         public FileObject OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => OpenOrCreateAsync(path, noShare, flags, cancel).GetResult();
+            => OpenOrCreateAsync(path, noShare, flags, cancel)._GetResult();
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -1570,7 +1570,7 @@ namespace IPA.Cores.Basic
         }
 
         public void CreateDirectory(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => CreateDirectoryAsync(path, flags, cancel).GetResult();
+            => CreateDirectoryAsync(path, flags, cancel)._GetResult();
 
         public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default)
         {
@@ -1589,7 +1589,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default)
-            => DeleteDirectoryAsync(path, recursive, cancel).GetResult();
+            => DeleteDirectoryAsync(path, recursive, cancel)._GetResult();
 
         async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken opCancel)
         {
@@ -1663,7 +1663,7 @@ namespace IPA.Cores.Basic
         }
 
         public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
-            => EnumDirectoryAsync(directoryPath, recursive, flags, cancel).GetResult();
+            => EnumDirectoryAsync(directoryPath, recursive, flags, cancel)._GetResult();
 
         public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
@@ -1680,7 +1680,7 @@ namespace IPA.Cores.Basic
             }
         }
         public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-            => GetFileMetadataAsync(path, flags, cancel).GetResult();
+            => GetFileMetadataAsync(path, flags, cancel)._GetResult();
 
         public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
@@ -1697,7 +1697,7 @@ namespace IPA.Cores.Basic
             }
         }
         public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-            => GetDirectoryMetadataAsync(path, flags, cancel).GetResult();
+            => GetDirectoryMetadataAsync(path, flags, cancel)._GetResult();
 
         public async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
         {
@@ -1712,7 +1712,7 @@ namespace IPA.Cores.Basic
             return false;
         }
         public bool IsFileExists(string path, CancellationToken cancel = default)
-            => IsFileExistsAsync(path, cancel).GetResult();
+            => IsFileExistsAsync(path, cancel)._GetResult();
 
         public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default)
         {
@@ -1727,7 +1727,7 @@ namespace IPA.Cores.Basic
             return false;
         }
         public bool IsDirectoryExists(string path, CancellationToken cancel = default)
-            => IsDirectoryExistsAsync(path, cancel).GetResult();
+            => IsDirectoryExistsAsync(path, cancel)._GetResult();
 
         public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
@@ -1746,7 +1746,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void SetFileMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
-            => SetFileMetadataAsync(path, metadata, cancel).GetResult();
+            => SetFileMetadataAsync(path, metadata, cancel)._GetResult();
 
         public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
         {
@@ -1765,7 +1765,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void SetDirectoryMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
-            => SetDirectoryMetadataAsync(path, metadata, cancel).GetResult();
+            => SetDirectoryMetadataAsync(path, metadata, cancel)._GetResult();
 
         public async Task DeleteFileAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {
@@ -1785,7 +1785,7 @@ namespace IPA.Cores.Basic
         }
 
         public void DeleteFile(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => DeleteFileAsync(path, flags, cancel).GetResult();
+            => DeleteFileAsync(path, flags, cancel)._GetResult();
 
         public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
@@ -1805,7 +1805,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void MoveFile(string srcPath, string destPath, CancellationToken cancel = default)
-            => MoveFileAsync(srcPath, destPath, cancel).GetResult();
+            => MoveFileAsync(srcPath, destPath, cancel)._GetResult();
 
         public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default)
         {
@@ -1825,7 +1825,7 @@ namespace IPA.Cores.Basic
             }
         }
         public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default)
-            => MoveDirectoryAsync(srcPath, destPath, cancel).GetResult();
+            => MoveDirectoryAsync(srcPath, destPath, cancel)._GetResult();
 
         public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
         {

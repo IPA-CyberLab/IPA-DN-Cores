@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            Singleton.DisposeSafe();
+            Singleton._DisposeSafe();
 
             Singleton = null;
         }
@@ -111,7 +111,7 @@ namespace IPA.Cores.Basic
                 async (newFilename, newFileOption, c) =>
                     {
                         return new VfsResourceFile(this, name);
-                    }).GetResult())
+                    })._GetResult())
                 {
                 }
 #pragma warning restore CS1998

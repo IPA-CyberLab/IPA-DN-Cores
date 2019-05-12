@@ -40,13 +40,13 @@ namespace IPA.Cores.Basic
 {
     static partial class Dbg
     {
-        public static void Report(string name, object obj) => Report(name, obj.ObjectToJson(compact: true));
+        public static void Report(string name, object obj) => Report(name, obj._ObjectToJson(compact: true));
     }
 
     partial class GlobalIntervalReporter
     {
         public void Report(string name, object obj)
-            => Report(name, obj.ObjectToJson(compact: true));
+            => Report(name, obj._ObjectToJson(compact: true));
     }
 }
 

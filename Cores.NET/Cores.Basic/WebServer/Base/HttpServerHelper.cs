@@ -46,7 +46,7 @@ namespace IPA.Cores.Helper.Basic
 {
     static class WebServerHelper
     {
-        public static Task SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             h.ContentType = contentsType;
@@ -54,10 +54,10 @@ namespace IPA.Cores.Helper.Basic
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
-        public static async Task<string> RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            return (await h.Body.ReadToEndAsync(maxRequestBodyLen, cancel)).GetString_UTF8();
+            return (await h.Body._ReadToEndAsync(maxRequestBodyLen, cancel))._GetString_UTF8();
         }
     }
 

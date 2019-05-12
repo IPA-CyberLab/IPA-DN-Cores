@@ -81,10 +81,10 @@ namespace IPA.Cores.Basic
 
         static void ModuleFree()
         {
-            LocalUtf8.DisposeSafe();
+            LocalUtf8._DisposeSafe();
             LocalUtf8 = null;
 
-            Local.DisposeSafe();
+            Local._DisposeSafe();
             Local = null;
         }
 
@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
                 // UNC server root path
                 try
                 {
-                    return Task.FromResult(Win32EnumUncPathSpecialDirectory(normalizedUncPath, EnumDirectoryFlags.None, cancel).Where(x => x.FullPath.IsSamei(normalizedUncPath)).Any());
+                    return Task.FromResult(Win32EnumUncPathSpecialDirectory(normalizedUncPath, EnumDirectoryFlags.None, cancel).Where(x => x.FullPath._IsSamei(normalizedUncPath)).Any());
                 }
                 catch { return Task.FromResult(false); }
             }
@@ -230,9 +230,9 @@ namespace IPA.Cores.Basic
                 FullPath = info.FullName,
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
                 Attributes = info.Attributes,
-                CreationTime = info.CreationTime.AsDateTimeOffset(true),
-                LastWriteTime = info.LastWriteTime.AsDateTimeOffset(true),
-                LastAccessTime = info.LastAccessTime.AsDateTimeOffset(true),
+                CreationTime = info.CreationTime._AsDateTimeOffset(true),
+                LastWriteTime = info.LastWriteTime._AsDateTimeOffset(true),
+                LastAccessTime = info.LastAccessTime._AsDateTimeOffset(true),
             };
 
             ret.PhysicalSize = ret.Size;
@@ -246,9 +246,9 @@ namespace IPA.Cores.Basic
             {
                 Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
                 Attributes = flags.Bit(FileMetadataGetFlags.NoAttributes) == false ? info.Attributes : (FileAttributes ?)null,
-                CreationTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.CreationTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
-                LastWriteTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastWriteTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
-                LastAccessTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastAccessTime.AsDateTimeOffset(true) : (DateTimeOffset?)null,
+                CreationTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.CreationTime._AsDateTimeOffset(true) : (DateTimeOffset?)null,
+                LastWriteTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastWriteTime._AsDateTimeOffset(true) : (DateTimeOffset?)null,
+                LastAccessTime = flags.Bit(FileMetadataGetFlags.NoTimes) == false ? info.LastAccessTime._AsDateTimeOffset(true) : (DateTimeOffset?)null,
                 IsDirectory = info.Attributes.Bit(FileAttributes.Directory),
             };
 
@@ -277,7 +277,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    Win32ApiUtil.SetCreationTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetCreationTime(path, dt._AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -295,7 +295,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    Win32ApiUtil.SetLastWriteTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetLastWriteTime(path, dt._AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
             {
                 if (Env.IsWindows)
                 {
-                    Win32ApiUtil.SetLastAccessTime(path, dt.AsDateTimeOffset(false), false, true);
+                    Win32ApiUtil.SetLastAccessTime(path, dt._AsDateTimeOffset(false), false, true);
                     return;
                 }
 
@@ -374,7 +374,7 @@ namespace IPA.Cores.Basic
         void Win32SetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, string sddl, AccessControlSections section)
         {
             if (Env.IsWindows == false) return;
-            if (sddl.IsEmpty()) return;
+            if (sddl._IsEmpty()) return;
 
             bool setProtected = false;
             if (sddl.StartsWith("!"))
@@ -383,7 +383,7 @@ namespace IPA.Cores.Basic
                 setProtected = true;
             }
 
-            if (sddl.IsEmpty()) return;
+            if (sddl._IsEmpty()) return;
 
             FileSystemSecurity sec = isDirectory ? (FileSystemSecurity)(new DirectorySecurity()) : (FileSystemSecurity)(new FileSecurity());
 
@@ -412,7 +412,7 @@ namespace IPA.Cores.Basic
 
         async Task SetFileAlternateStreamMetadataAsync(string path, FileAlternateStreamMetadata data, CancellationToken cancel = default)
         {
-            if (data.IsEmpty())
+            if (data._IsEmpty())
                 return;
 
             if (Env.IsWindows)
@@ -425,9 +425,9 @@ namespace IPA.Cores.Basic
                 // Copy streams
                 foreach (var d in data.Items)
                 {
-                    if (d.IsFilled())
+                    if (d._IsFilled())
                     {
-                        if (d.Name.IsEmpty() == false)
+                        if (d.Name._IsEmpty() == false)
                         {
                             if (d.Name.IndexOfAny(PathParser.PossibleDirectorySeparators) == -1)
                             {
@@ -449,11 +449,11 @@ namespace IPA.Cores.Basic
                 // Remove any streams on the destination which is not existing on the source
                 foreach (var existingStream in currentStreams)
                 {
-                    if (existingStream.Item1.IsEmpty() == false)
+                    if (existingStream.Item1._IsEmpty() == false)
                     {
                         if (existingStream.Item2 <= Win32MaxAlternateStreamSize)
                         {
-                            if (data.Items.Select(x => x.Name).Where(x => x.IsSamei(existingStream.Item1)).Any() == false)
+                            if (data.Items.Select(x => x.Name).Where(x => x._IsSamei(existingStream.Item1)).Any() == false)
                             {
                                 string fullpath = path + existingStream.Item1;
 
@@ -464,7 +464,7 @@ namespace IPA.Cores.Basic
                                 }
                                 catch (Exception ex)
                                 {
-                                    ex.Debug();
+                                    ex._Debug();
                                 }
                             }
                         }
@@ -490,7 +490,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var item in list)
                 {
-                    if (item.Item1.IsFilled() && item.Item2 >= 1)
+                    if (item.Item1._IsFilled() && item.Item2 >= 1)
                     {
                         int readSize = (int)Math.Min(item.Item2, Win32MaxAlternateStreamSize);
                         string fileName = path + item.Item1;
@@ -530,23 +530,23 @@ namespace IPA.Cores.Basic
             if (Env.IsWindows)
             {
                 sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Owner);
-                if (sddl.IsFilled())
+                if (sddl._IsFilled())
                     ret.Owner = new FileSecurityOwner() { Win32OwnerSddl = sddl };
 
                 sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Group);
-                if (sddl.IsFilled())
+                if (sddl._IsFilled())
                     ret.Group = new FileSecurityGroup() { Win32GroupSddl = sddl };
 
                 sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Access);
-                if (sddl.IsFilled())
+                if (sddl._IsFilled())
                     ret.Acl = new FileSecurityAcl() { Win32AclSddl = sddl };
 
                 sddl = Win32GetFileOrDirectorySecuritySddlInternal(path, isDirectory, AccessControlSections.Audit);
-                if (sddl.IsFilled())
+                if (sddl._IsFilled())
                     ret.Audit = new FileSecurityAudit() { Win32AuditSddl = sddl };
             }
 
-            return ret.FilledOrDefault();
+            return ret._FilledOrDefault();
         }
 
         async Task ApplyFileOrDirectorySpecialOperationFlagsMedatataAsync(string path, bool isDirectory, FileSpecialOperationFlags operationFlags, CancellationToken cancel = default)
@@ -571,7 +571,7 @@ namespace IPA.Cores.Basic
         {
             if (Env.IsWindows)
             {
-                if (data.IsFilled())
+                if (data._IsFilled())
                 {
                     Util.DoMultipleActions(MultipleActionsFlag.AllOk, default,
                         () => Win32SetFileOrDirectorySecuritySddlInternal(path, isDirectory, data?.Owner?.Win32OwnerSddl, AccessControlSections.Owner),
@@ -634,7 +634,7 @@ namespace IPA.Cores.Basic
                     }
                     finally
                     {
-                        f.DisposeSafe();
+                        f._DisposeSafe();
                     }
                 }
             }
@@ -653,7 +653,7 @@ namespace IPA.Cores.Basic
                 () =>
                 {
                     if (metadata.AlternateStream != null)
-                        SetFileAlternateStreamMetadataAsync(path, metadata.AlternateStream, cancel).GetResult();
+                        SetFileAlternateStreamMetadataAsync(path, metadata.AlternateStream, cancel)._GetResult();
                     return Task.CompletedTask;
                 },
                 () =>
@@ -806,14 +806,14 @@ namespace IPA.Cores.Basic
                  token = Win32Api.Win32DisableMediaInsertionPrompt.Create();
             }
 
-            return new ValueHolder<IDisposable>(x => x.DisposeSafe(), token);
+            return new ValueHolder<IDisposable>(x => x._DisposeSafe(), token);
         }
     }
 
     class LocalFileObject : FileObject
     {
         string _PhysicalFinalPath = null;
-        public override string FinalPhysicalPath => _PhysicalFinalPath.FilledOrException();
+        public override string FinalPhysicalPath => _PhysicalFinalPath._FilledOrException();
 
         protected LocalFileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
@@ -940,7 +940,7 @@ namespace IPA.Cores.Basic
                     catch { }
                 }
 
-                if (physicalFinalPathTmp.IsEmpty())
+                if (physicalFinalPathTmp._IsEmpty())
                     physicalFinalPathTmp = FileParams.Path;
 
                 _PhysicalFinalPath = physicalFinalPathTmp;
@@ -951,7 +951,7 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                BaseStream.DisposeSafe();
+                BaseStream._DisposeSafe();
                 BaseStream = null;
                 throw;
             }
@@ -972,7 +972,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task CloseImplAsync()
         {
-            BaseStream.DisposeSafe();
+            BaseStream._DisposeSafe();
             BaseStream = null;
 
             Con.WriteTrace($"CloseImplAsync '{FileParams.Path}'");

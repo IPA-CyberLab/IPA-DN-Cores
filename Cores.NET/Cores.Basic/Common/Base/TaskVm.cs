@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        ex.ToString().Debug();
+                        ex.ToString()._Debug();
                     }
                 }
 
@@ -370,7 +370,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        ex.ToString().Debug();
+                        ex.ToString()._Debug();
                     }
                 }
             }
