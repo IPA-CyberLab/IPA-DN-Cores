@@ -116,18 +116,18 @@ namespace IPA.Cores.Basic
     class FileHiveStorageOptions : HiveStorageOptionsBase
     {
         public FileSystem FileSystem { get; }
-        public Copenhagen<string> RootDirectoryName { get; }
+        public Copenhagen<string> RootDirectoryPath { get; }
         public Copenhagen<FileOperationFlags> OperationFlags { get; }
         public Copenhagen<string> FileExtension { get; } = ".json";
         public Copenhagen<string> ErrorFileExtension { get; } = ".error.log";
         public Copenhagen<string> TmpFileExtension { get; } = ".tmp";
         public Copenhagen<string> DefaultDataName { get; } = "default";
 
-        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryName, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue)
+        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue)
             : base(maxDataSize)
         {
             this.FileSystem = fileSystem;
-            this.RootDirectoryName = rootDirectoryName;
+            this.RootDirectoryPath = rootDirectoryPath;
             this.OperationFlags = operationFlags;
         }
     }
@@ -174,7 +174,7 @@ namespace IPA.Cores.Basic
             if (dataName._IsEmpty())
                 dataName = Options.DefaultDataName;
 
-            string ret = PathParser.Combine(Options.RootDirectoryName, SafePathParser.MakeSafePathName(dataName), true);
+            string ret = PathParser.Combine(Options.RootDirectoryPath, SafePathParser.MakeSafePathName(dataName), true);
 
             ret = PathParser.RemoveDangerousDirectoryTraversal(ret);
 
@@ -308,8 +308,8 @@ namespace IPA.Cores.Basic
 
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
-        public HiveOptions(string rootDirectoryName, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryName)), enableManagedSync, syncInterval, serializer) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath)), enableManagedSync, syncInterval, serializer) { }
 
         public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null, HiveSerializer serializer = null)
         {

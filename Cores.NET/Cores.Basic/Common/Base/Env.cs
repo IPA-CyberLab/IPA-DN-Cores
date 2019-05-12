@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
         public static string ExeAssemblyFullName { get; }
         public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
         public static StrComparer FilePathStringComparer { get; }
-        public static FileSystemPathParser LocalFileSystemPathInterpreter { get; }
+        public static FileSystemPathParser LocalPathParser { get; }
         public static bool IsCoresLibraryDebugBuild { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
                 WinTempDir = TempDir;
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
-            LocalFileSystemPathInterpreter = FileSystemPathParser.GetInstance(FileSystemStyle.LocalSystem);
+            LocalPathParser = FileSystemPathParser.GetInstance(FileSystemStyle.LocalSystem);
             ProgramFilesDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             PersonalStartMenuDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             PersonalProgramsDir = BasicFile.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));

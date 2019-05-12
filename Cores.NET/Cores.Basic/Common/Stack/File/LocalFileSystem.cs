@@ -90,7 +90,7 @@ namespace IPA.Cores.Basic
 
 
         private LocalFileSystem(FileSystemMode mode = FileSystemMode.Default)
-            : base(new FileSystemParams(Env.LocalFileSystemPathInterpreter, mode))
+            : base(new FileSystemParams(Env.LocalPathParser, mode))
         {
         }
 

@@ -47,11 +47,19 @@ namespace IPA.Cores.Basic
             Hive.Module.Init();
 
             GlobalMicroBenchmark.Module.Init();
+
+#if CORES_BASIC_GIT
+            GitGlobalFs.Module.Init();
+#endif // CORES_BASIC_GIT
         }
 
         static CoresLibraryResult GlobalFree()
         {
             // Finalize
+#if CORES_BASIC_GIT
+            GitGlobalFs.Module.Free();
+#endif // CORES_BASIC_GIT
+
             GlobalMicroBenchmark.Module.Free();
 
             Hive.Module.Free();

@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                this.WorkDir = Env.LocalFileSystemPathInterpreter.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(workDir);
+                this.WorkDir = Env.LocalPathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(workDir);
 
                 this.Repository = new Repository(this.WorkDir);
 
