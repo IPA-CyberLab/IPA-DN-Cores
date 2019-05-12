@@ -79,7 +79,11 @@ namespace IPA.TestDev
                 {
                     using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
                     {
-                        fs.ReadDataFromFile("/LICENSE");
+                        while (true)
+                        {
+                            fs.ReadDataFromFile("/test.txt");
+                            Sleep(500);
+                        }
                     }
                 }
             }

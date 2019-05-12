@@ -61,10 +61,7 @@ namespace IPA.Cores.Basic
     class GitGlobalFsRepository
     {
         [DataMember]
-        public string Name;
-
-        [DataMember]
-        public string SrcUrl;
+        public string Url;
 
         [DataMember]
         public string LocalWorkDir;
@@ -93,6 +90,8 @@ namespace IPA.Cores.Basic
         public static readonly string HiveDir = Env.LocalPathParser.Combine(LocalCacheRootDir, "State");
         public static readonly string RepoDir = Env.LocalPathParser.Combine(LocalCacheRootDir, "Repo");
 
+        static readonly FileSystemPathParser LinuxParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
+
         public const string HiveDataName = "State";
 
         static Singleton<Hive> HiveSingleton;
@@ -110,8 +109,8 @@ namespace IPA.Cores.Basic
 
             FileSystemSingleton = new Singleton<string, GitFileSystem>(key =>
             {
-                Str.GetKeyAndValue(key, out string repoName, out string commitId, "/");
-                GitRepository repository = GetRepository(repoName);
+                Str.GetKeyAndValue(key, out string repoUrl, out string commitId, "@");
+                GitRepository repository = GetRepository(repoUrl);
                 return new GitFileSystem(new GitFileSystemParams(repository, commitId));
             },
             LeakCounterKind.DoNotTrack,
@@ -141,14 +140,16 @@ namespace IPA.Cores.Basic
             HiveSingleton = null;
         }
 
-        static string GenerateNewRepositoryDirName(string repositoryName)
+        static string GenerateNewRepositoryDirName(string repoUrl)
         {
-            repositoryName = repositoryName.Trim().ToLower();
+            repoUrl = repoUrl.Trim().ToLower();
+
+            string repoName = LinuxParser.GetFileNameWithoutExtension(LinuxParser.RemoveLastSeparatorChar(repoUrl));
 
             DateTime now = DateTime.Now;
             for (int i = 1; ; i++)
             {
-                string name = $"{Lfs.PathParser.MakeSafeFileName(repositoryName)}_{now.Year:D4}{now.Month:D2}{now.Day:D2}_{Env.ProcessId}_{i:D5}";
+                string name = $"{Lfs.PathParser.MakeSafeFileName(repoName)}_{now.Year:D4}{now.Month:D2}{now.Day:D2}_{Env.ProcessId}_{i:D5}";
                 string fullPath = Lfs.PathParser.Combine(RepoDir, name);
 
                 if (Lfs.IsDirectoryExists(fullPath) == false)
@@ -158,44 +159,56 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static GitRepository GetRepository(string name)
+        public static GitRepository GetRepository(string repoUrl)
         {
             lock (Data.DataLock)
             {
-                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Name._IsSamei(name)).SingleOrDefault();
+                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
-                if (repoData == null)
-                    throw new ApplicationException($"The repository \"{name}\" is not found by the registered list with StartRepository().");
+                if (repoData == null || repoData.Repository == null)
+                    throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
 
                 return repoData.Repository;
             }
         }
 
-        public static GitFileSystem GetFileSystem(string name, string commitId)
+        public static GitFileSystem GetFileSystem(string repoUrl, string commitId)
         {
-            return FileSystemSingleton[$"{name}/{commitId}"];
+            return FileSystemSingleton[$"{repoUrl}@{commitId}"];
         }
 
-        public static void StartRepository(string name, string srcUrl)
+        public static void StartRepository(string repoUrl)
         {
-            if (name.IndexOf("/") != -1) throw new ArgumentException($"The repository name \'{name}\' must not contain '/'.");
+            if (repoUrl.IndexOf("@") != -1) throw new ArgumentException($"The repository name \'{repoUrl}\' must not contain '/'.");
+
+            if (Data.IsReadOnly) throw new ApplicationException("Data.IsReadOnly");
 
             lock (Data.DataLock)
             {
-                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Name._IsSamei(name)).SingleOrDefault();
+                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                 L_RETRY:
 
                 if (repoData == null)
                 {
-                    string dirName = GenerateNewRepositoryDirName(name);
+                    string dirName = GenerateNewRepositoryDirName(repoUrl);
                     string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
-                    GitUtil.Clone(dirFullPath, srcUrl);
+
+                    Con.WriteDebug($"Clone the repository \"{repoUrl}\" to \"{dirFullPath}\" ...");
+                    try
+                    {
+                        GitUtil.Clone(dirFullPath, repoUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        Con.WriteError($"GitUtil.Clone error: {ex.ToString()}");
+                        throw;
+                    }
+                    Con.WriteDebug("Done.");
                     GitRepository gitRepo = new GitRepository(dirFullPath);
                     repoData = new GitGlobalFsRepository()
                     {
-                        Name = name,
-                        SrcUrl = srcUrl,
+                        Url = repoUrl,
                         LocalWorkDir = dirName,
                         Repository = gitRepo,
                         LastFetch = DateTime.UtcNow,
@@ -205,6 +218,8 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
+                    repoData.Url = repoUrl;
+
                     if (repoData.Repository == null)
                     {
                         string dirName = repoData.LocalWorkDir;
@@ -231,6 +246,31 @@ namespace IPA.Cores.Basic
             }
 
             Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+        }
+
+        public static void UpdateRepository(string repoUrl)
+        {
+            GitGlobalFsRepository repoData;
+            lock (Data.DataLock)
+            {
+                repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+            }
+            if (repoData == null || repoData.Repository == null)
+                throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
+
+            Con.WriteDebug($"Fetching the repository \"{repoUrl}\" ...");
+
+            try
+            {
+                repoData.Repository.Fetch(repoData.Url);
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"repoData.Repository.Fetch error: {ex.ToString()}");
+                throw;
+            }
+
+            Con.WriteDebug("Done.");
         }
     }
 }

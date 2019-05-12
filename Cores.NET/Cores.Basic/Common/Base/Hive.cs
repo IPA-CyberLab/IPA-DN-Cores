@@ -335,8 +335,6 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider { get; }
         public bool IsPollingEnabled { get; }
 
-        SingleInstance SingleInstance;
-
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
         public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null, bool singleInstance = false)

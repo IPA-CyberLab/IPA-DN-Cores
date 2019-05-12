@@ -402,7 +402,7 @@ namespace IPA.Cores.Basic
         {
             return this.RunCriticalProcessAsync(true, cancel, c =>
             {
-                this.Repository.Network.Fetch(url, new string[0]);
+                this.Repository.Network.Fetch("origin", new string[0]);
 
                 this.RefCache.Clear();
 

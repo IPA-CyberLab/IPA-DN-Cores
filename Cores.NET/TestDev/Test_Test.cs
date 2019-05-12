@@ -73,11 +73,19 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            GitGlobalFs.StartRepository("cores", "https://github.com/IPA-CyberLab/IPA-DN-Cores.git");
+            string repoUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
 
-            var fs = GitGlobalFs.GetFileSystem("cores", "");
+            GitGlobalFs.StartRepository(repoUrl);
 
-            fs.EnumDirectory("/")._PrintAsJson();
+            var fs = GitGlobalFs.GetFileSystem(repoUrl, "");
+
+            while (true)
+            {
+                fs.ReadStringFromFile("/Cores.NET/Test.txt")._Print();
+                GitGlobalFs.UpdateRepository(repoUrl);
+                Sleep(500);
+            }
+
         }
     }
 }
