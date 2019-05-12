@@ -2652,6 +2652,7 @@ namespace IPA.Cores.Basic
         TObject Object = null;
         readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
         IHolder LeakHolder = null;
+        public bool IsCreated { get; private set; }
 
         public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton2)
         {
@@ -2672,6 +2673,7 @@ namespace IPA.Cores.Basic
                 if (this.Object == null)
                 {
                     this.Object = this.CreateProc();
+                    this.IsCreated = true;
                     if (this.Object != null)
                     {
                         LeakHolder = LeakChecker.Enter(this.LeakKind);
@@ -2703,6 +2705,8 @@ namespace IPA.Cores.Basic
 
             if (obj is IDisposable disposeTarget)
                 disposeTarget._DisposeSafe();
+
+            IsCreated = false;
         }
     }
 

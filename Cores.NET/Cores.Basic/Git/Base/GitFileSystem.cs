@@ -92,7 +92,9 @@ namespace IPA.Cores.Basic
             : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux), FileSystemMode.ReadOnly)
         {
             this.Repository = repository;
-            this.CommitId = commitId ?? repository.OriginMasterBranchCommitId;
+            if (commitId._IsEmpty()) commitId = repository.OriginMasterBranchCommitId;
+
+            this.CommitId = commitId;
         }
     }
 

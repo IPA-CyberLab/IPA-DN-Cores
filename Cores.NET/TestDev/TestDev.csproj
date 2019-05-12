@@ -21,8 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="GitLocal\**" />
     <Compile Remove="Log\**" />
+    <EmbeddedResource Remove="GitLocal\**" />
     <EmbeddedResource Remove="Log\**" />
+    <None Remove="GitLocal\**" />
     <None Remove="Log\**" />
   </ItemGroup>
 

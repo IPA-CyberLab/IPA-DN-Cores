@@ -51,6 +51,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class GitGlobalFsSettings
         {
+            public static readonly Copenhagen<int> AutoFetchInterval = 1 * 1000;
             public static readonly Copenhagen<Func<string>> GetLocalCacheRootDirProc = new Func<string>(() => Env.LocalPathParser.Combine(Env.AppRootDir, "GitLocal"));
         }
     }
@@ -71,6 +72,7 @@ namespace IPA.Cores.Basic
         [DataMember]
         public DateTime LastFetch;
 
+        [NonSerialized]
         public GitRepository Repository;
     }
 
@@ -99,14 +101,39 @@ namespace IPA.Cores.Basic
         static Singleton<HiveData<GitGlobalFsState>> DataSingleton;
         static HiveData<GitGlobalFsState> Data => DataSingleton;
 
+        static Singleton<string, GitFileSystem> FileSystemSingleton;
+
         static void InitModule()
         {
-            HiveSingleton = new Singleton<Hive>(() => new Hive(new HiveOptions(HiveDir)));
+            HiveSingleton = new Singleton<Hive>(() => new Hive(new HiveOptions(HiveDir, singleInstance: true)));
             DataSingleton = new Singleton<HiveData<GitGlobalFsState>>(() => new HiveData<GitGlobalFsState>(GitGlobalFs.Hive, HiveDataName, () => new GitGlobalFsState(), HiveSyncPolicy.None));
+
+            FileSystemSingleton = new Singleton<string, GitFileSystem>(key =>
+            {
+                Str.GetKeyAndValue(key, out string repoName, out string commitId, "/");
+                GitRepository repository = GetRepository(repoName);
+                return new GitFileSystem(new GitFileSystemParams(repository, commitId));
+            },
+            LeakCounterKind.DoNotTrack,
+            StrComparer.IgnoreCaseComparer);
         }
 
         static void FreeModule()
         {
+            FileSystemSingleton._DisposeSafe();
+            FileSystemSingleton = null;
+
+            if (DataSingleton.IsCreated)
+            {
+                lock (Data.DataLock)
+                {
+                    foreach (var repo in Data.Data.RepositoryList)
+                    {
+                        repo.Repository._DisposeSafe();
+                    }
+                }
+            }
+
             DataSingleton._DisposeSafe();
             DataSingleton = null;
 
@@ -131,11 +158,33 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static void StartRepository(string name, string srcUrl)
+        public static GitRepository GetRepository(string name)
         {
             lock (Data.DataLock)
             {
                 GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Name._IsSamei(name)).SingleOrDefault();
+
+                if (repoData == null)
+                    throw new ApplicationException($"The repository \"{name}\" is not found by the registered list with StartRepository().");
+
+                return repoData.Repository;
+            }
+        }
+
+        public static GitFileSystem GetFileSystem(string name, string commitId)
+        {
+            return FileSystemSingleton[$"{name}/{commitId}"];
+        }
+
+        public static void StartRepository(string name, string srcUrl)
+        {
+            if (name.IndexOf("/") != -1) throw new ArgumentException($"The repository name \'{name}\' must not contain '/'.");
+
+            lock (Data.DataLock)
+            {
+                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Name._IsSamei(name)).SingleOrDefault();
+
+                L_RETRY:
 
                 if (repoData == null)
                 {
@@ -158,13 +207,30 @@ namespace IPA.Cores.Basic
                 {
                     if (repoData.Repository == null)
                     {
-                        string dirName = repoData.Name;
+                        string dirName = repoData.LocalWorkDir;
                         string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
-                        GitRepository gitRepo = new GitRepository(dirFullPath);
-                        repoData.Repository = gitRepo;
+
+                        try
+                        {
+                            GitRepository gitRepo = new GitRepository(dirFullPath);
+                            repoData.Repository = gitRepo;
+                        }
+                        catch (Exception ex)
+                        {
+                            Con.WriteDebug($"Repository local dir \"{dirFullPath}\" load error: {ex.ToString()}");
+                            Con.WriteDebug($"Trying to clone as a new local dir.");
+
+                            Data.Data.RepositoryList.Remove(repoData);
+                            Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+
+                            repoData = null;
+                            goto L_RETRY;
+                        }
                     }
                 }
             }
+
+            Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
         }
     }
 }

@@ -115,6 +115,7 @@ namespace IPA.Cores.Basic
 
     class FileHiveStorageOptions : HiveStorageOptionsBase
     {
+        public bool SingleInstance { get; }
         public FileSystem FileSystem { get; }
         public Copenhagen<string> RootDirectoryPath { get; }
         public Copenhagen<FileOperationFlags> OperationFlags { get; }
@@ -123,12 +124,13 @@ namespace IPA.Cores.Basic
         public Copenhagen<string> TmpFileExtension { get; } = ".tmp";
         public Copenhagen<string> DefaultDataName { get; } = "default";
 
-        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue)
+        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue, bool singleInstance = false)
             : base(maxDataSize)
         {
             this.FileSystem = fileSystem;
             this.RootDirectoryPath = rootDirectoryPath;
             this.OperationFlags = operationFlags;
+            this.SingleInstance = singleInstance;
         }
     }
 
@@ -163,8 +165,22 @@ namespace IPA.Cores.Basic
 
         AsyncLock LockObj = new AsyncLock();
 
+        SingleInstance SingleInstance = null;
+
         public FileHiveStorageProvider(FileHiveStorageOptions options) : base(options)
         {
+            try
+            {
+                if (options.SingleInstance)
+                {
+                    this.SingleInstance = new SingleInstance(options.RootDirectoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
         }
 
         string MakeFileName(string dataName, string extension)
@@ -283,6 +299,19 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                if (this.SingleInstance != null)
+                    this.SingleInstance._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
     }
 
     static partial class CoresConfig
@@ -306,10 +335,12 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider { get; }
         public bool IsPollingEnabled { get; }
 
+        SingleInstance SingleInstance;
+
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
-        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath)), enableManagedSync, syncInterval, serializer) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null, bool singleInstance = false)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance)), enableManagedSync, syncInterval, serializer) { }
 
         public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null, HiveSerializer serializer = null)
         {
