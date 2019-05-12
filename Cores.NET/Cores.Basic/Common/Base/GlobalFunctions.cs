@@ -121,6 +121,10 @@ namespace IPA.Cores
             public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
             public static ResourceFileSystem CoresRes => Res.Cores;
 
+#if CORES_BASIC_GIT
+            public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
+#endif // CORES_BASIC_GIT
+
             public static partial class Res
             {
                 public static readonly ResourceFileSystem Cores = ResourceFileSystem.Singleton[typeof(Res).Assembly];

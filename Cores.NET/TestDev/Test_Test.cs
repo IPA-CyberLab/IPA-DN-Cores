@@ -77,11 +77,9 @@ namespace IPA.TestDev
 
             GitGlobalFs.StartRepository(repoUrl);
 
-            var fs = GitGlobalFs.GetFileSystem(repoUrl, "");
-
             while (true)
             {
-                fs.ReadStringFromFile("/Cores.NET/Test.txt")._Print();
+                GitFs(repoUrl).ReadStringFromFile("/Cores.NET/Test.txt")._Print();
                 GitGlobalFs.UpdateRepository(repoUrl);
                 Sleep(500);
             }
