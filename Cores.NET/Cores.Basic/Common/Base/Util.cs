@@ -55,6 +55,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+
+    static partial class CoresConfig
+    {
+        public static partial class DaemonDefaultSettings
+        {
+            public static readonly Copenhagen<int> DefaultStopTimeout = 5 * 1000;
+        }
+    }
+
     // 言語一覧
     enum CoreLanguage
     {
@@ -4368,6 +4377,189 @@ namespace IPA.Cores.Basic
         public static object GetAppState(object targetObject) => targetObject._PrivateGet(AppStateFieldName);
 
         public static void SetAppState(object targetObject, object state) => targetObject._PrivateSet(AppStateFieldName, state);
+    }
+
+    [Flags]
+    enum DaemonStatus
+    {
+        Stopped = 0,
+        Starting,
+        Running,
+        Stopping,
+    }
+
+    class DaemonOptions
+    {
+        public string Name { get; }
+        public string FriendlyName { get; }
+        public int StopTimeout { get; }
+        public bool SingleInstance { get; }
+
+        public DaemonOptions(string name, string friendlyName, bool singleInstance, int stopTimeout = 0)
+        {
+            if (stopTimeout == 0)
+                stopTimeout = CoresConfig.DaemonDefaultSettings.DefaultStopTimeout;
+
+            if (stopTimeout < 0) stopTimeout = Timeout.Infinite;
+
+            this.Name = name;
+            this.FriendlyName = friendlyName;
+            this.StopTimeout = stopTimeout;
+
+            this.SingleInstance = singleInstance;
+        }
+    }
+
+    interface IDaemon : IDisposable
+    {
+        Task StartAsync(object param = null);
+        Task StopAsync(bool silent = false);
+    }
+
+    abstract class Daemon : IDaemon
+    {
+        public DaemonOptions Options { get; }
+        public DaemonStatus Status { get; private set; }
+        public FastEventListenerList<Daemon, DaemonStatus> StatusChangedEvent { get; }
+
+        CriticalSection StatusLock = new CriticalSection();
+
+        AsyncLock AsyncLock = new AsyncLock();
+
+        SingleInstance SingleInstance = null;
+
+        IHolder Leak;
+
+        object Param = null;
+
+        public Daemon(DaemonOptions options)
+        {
+            this.Options = options;
+            this.Status = DaemonStatus.Stopped;
+            this.StatusChangedEvent = new FastEventListenerList<Daemon, DaemonStatus>();
+        }
+
+        protected abstract Task StartImplAsync(object param);
+        protected abstract Task StopImplAsync(object param);
+
+        public async Task StartAsync(object param = null)
+        {
+            await Task.Yield();
+            using (await AsyncLock.LockWithAwait())
+            {
+                Leak = LeakChecker.Enter(LeakCounterKind.StartDaemon);
+
+                try
+                {
+                    if (this.Status != DaemonStatus.Stopped)
+                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is '{this.Status}'.");
+
+                    if (this.Options.SingleInstance)
+                    {
+                        try
+                        {
+                            SingleInstance = new SingleInstance($"svc_instance_{Options.Name}", true);
+                        }
+                        catch
+                        {
+                            throw new ApplicationException($"Another instance of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") has been already running.");
+                        }
+                    }
+
+                    Con.WriteDebug($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") ...");
+
+                    this.Status = DaemonStatus.Starting;
+                    this.StatusChangedEvent.Fire(this, this.Status);
+
+                    try
+                    {
+                        await StartImplAsync(param);
+                    }
+                    catch (Exception ex)
+                    {
+                        Con.WriteError($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
+                        Con.WriteError($"Error: {ex.ToString()}");
+
+                        this.Status = DaemonStatus.Stopped;
+                        this.StatusChangedEvent.Fire(this, this.Status);
+                        throw;
+                    }
+
+                    Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is started successfully.");
+
+                    this.Param = param;
+
+                    this.Status = DaemonStatus.Running;
+                    this.StatusChangedEvent.Fire(this, this.Status);
+                }
+                catch
+                {
+                    Leak._DisposeSafe();
+                    throw;
+                }
+            }
+        }
+
+        public async Task StopAsync(bool silent = false)
+        {
+            await Task.Yield();
+
+            using (await AsyncLock.LockWithAwait())
+            {
+                if (this.Status != DaemonStatus.Running)
+                {
+                    if (silent == false)
+                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is '{this.Status}'.");
+                    else
+                        return;
+                }
+
+                this.Status = DaemonStatus.Stopping;
+                this.StatusChangedEvent.Fire(this, this.Status);
+
+                try
+                {
+                    Task stopTask = StopImplAsync(this.Param);
+
+                    if (await TaskUtil.WaitObjectsAsync(tasks: stopTask._SingleArray(), timeout: this.Options.StopTimeout, exceptions: ExceptionWhen.None) == ExceptionWhen.TimeoutException)
+                    {
+                        // Timeouted
+                        string msg = $"Error! The StopImplAsync() routine of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") has been timed out ({Options.StopTimeout} msecs). Terminating the process forcefully.";
+                        Kernel.SelfKill(msg);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError($"Stopping the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
+                    Con.WriteError($"Error: {ex.ToString()}");
+
+                    this.Status = DaemonStatus.Running;
+                    this.StatusChangedEvent.Fire(this, this.Status);
+                    throw;
+                }
+
+                if (SingleInstance != null)
+                {
+                    SingleInstance._DisposeSafe();
+                    SingleInstance = null;
+                }
+
+                Leak._DisposeSafe();
+
+                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is stopped successfully.");
+
+                this.Status = DaemonStatus.Stopped;
+                this.StatusChangedEvent.Fire(this, this.Status);
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            StopAsync(true)._TryGetResult();
+        }
     }
 }
 

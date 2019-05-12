@@ -1152,6 +1152,7 @@ namespace IPA.Cores.Basic
         Singleton1,
         Singleton2,
         StillOpeningSockets,
+        StartDaemon,
     }
 
     class LeakCheckerResult
