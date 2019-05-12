@@ -49,7 +49,7 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
-        const string GitTestBaseDir = @"c:\tmp\git_test_base";
+        const string GitTestBaseDir = @"c:\tmp\git_test_base2";
 
         [ConsoleCommandMethod(
             "Git command",
@@ -71,15 +71,17 @@ namespace IPA.TestDev
         {
             using (var rep = new GitRepository(GitTestBaseDir))
             {
-                var meta = rep.GetMetadata(@"/Cores.NET/Cores.Basic/Common/Base/TaskVm.cs", false, DateTimeOffset.MaxValue);
-                meta._PrintAsJson();
+                //var meta = rep.GetMetadata(@"/Cores.NET/Cores.Basic/Common/Base/TaskVm.cs", false, DateTimeOffset.MaxValue);
+                //meta._PrintAsJson();
 
-                return;
+                //return;
 
-                using (var fs = new GitFileSystem(new GitFileSystemParams(rep, "0b3732968c00bdd72876ce5811b7d714659ff29f")))
+                using (var fs = new GitFileSystem(new GitFileSystemParams(rep, "8146f25e9b75b66911bd9f0da68e7f7b4db86448")))
                 {
-                    var dirs = fs.EnumDirectory("/");
+                    var dirs = fs.EnumDirectory("/Cores.NET/Cores.Basic/Common/Base/");
                     dirs._PrintAsJson();
+
+                    fs.Commit.Test1("/Cores.NET/Cores.Basic/Database/Base/Database.cs");
                 }
             }
         }

@@ -115,8 +115,8 @@ namespace IPA.Cores.Basic
     class GitFileSystem : FileSystem
     {
         protected new GitFileSystemParams Params => (GitFileSystemParams)base.Params;
-        GitRepository Repository => Params.Repository;
-        GitCommit Commit;
+        public GitRepository Repository => Params.Repository;
+        public GitCommit Commit { get; }
         public DateTimeOffset TimeStamp => Commit.TimeStamp;
 
         static readonly FileSystemPathParser Parser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);

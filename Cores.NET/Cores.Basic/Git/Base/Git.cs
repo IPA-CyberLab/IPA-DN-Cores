@@ -58,8 +58,6 @@ namespace IPA.Cores.Basic
 
     class GitCommit
     {
-        static readonly FileSystemPathParser Parser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
-
         public GitRepository Repository { get; }
         public Commit Commit { get; }
         public DateTimeOffset TimeStamp => Commit.Author.When;
@@ -72,8 +70,8 @@ namespace IPA.Cores.Basic
         {
             this.Repository = repository;
             this.Commit = commit;
-            this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), LeakCounterKind.DoNotTrack, Parser.PathStringComparer);
-            this.DirectoryItemCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), LeakCounterKind.DoNotTrack, Parser.PathStringComparer);
+            this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.DirectoryItemCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
         }
 
         public FileSystemEntity[] GetDirectoryItems(string dirPath)
@@ -88,7 +86,7 @@ namespace IPA.Cores.Basic
 
         FileSystemEntity[] GetDirectoryItemsInternal(string dirPath, Tree tree)
         {
-            dirPath = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(dirPath);
+            dirPath = GitRepository.NormalizePath(dirPath);
 
             List<FileSystemEntity> ret = new List<FileSystemEntity>();
 
@@ -111,7 +109,7 @@ namespace IPA.Cores.Basic
                     Tree subTree = (Tree)item.Target;
                     FileSystemEntity e = new FileSystemEntity()
                     {
-                        FullPath = Parser.Combine(dirPath, item.Name),
+                        FullPath = GitRepository.PathParser.Combine(dirPath, item.Name),
                         Name = item.Name,
                         Attributes = FileAttributes.Directory,
                         CreationTime = this.TimeStamp,
@@ -125,7 +123,7 @@ namespace IPA.Cores.Basic
                     Blob blob = (Blob)item.Target;
                     FileSystemEntity e = new FileSystemEntity()
                     {
-                        FullPath = Parser.Combine(dirPath, item.Name),
+                        FullPath = GitRepository.PathParser.Combine(dirPath, item.Name),
                         Name = item.Name,
                         Attributes = FileAttributes.Normal,
                         Size = blob.Size,
@@ -146,34 +144,58 @@ namespace IPA.Cores.Basic
 
         Tree GetDirectoryInternal(string dirPath)
         {
-            dirPath = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(dirPath);
+            dirPath = GitRepository.NormalizePathToGit(dirPath);
 
-            string[] elements = Parser.SplitAbsolutePathToElementsUnixStyle(dirPath);
+            TreeEntry entry = this.RootTree[dirPath];
 
-            Tree currentTree = this.RootTree;
+            if (entry == null)
+                throw new ArgumentException($"The path \"{dirPath}\" not found.");
 
-            for (int i = 0; i < elements.Length; i++)
+            if (entry.TargetType != TreeEntryTargetType.Tree)
             {
-                string name = elements[i];
+                throw new ArgumentException($"The path \"{dirPath}\" is not a directory.");
+            }
 
-                TreeEntry entry = currentTree[name];
+            return (Tree)entry.Target;
+        }
 
-                if (entry == null)
-                    throw new ArgumentException($"The path \"{dirPath}\" not found. There is no \"{name}\" object in the database.");
+        public void Test1(string path)
+        {
+            path = GitRepository.NormalizePathToGit(path);
 
-                if (entry.TargetType == TreeEntryTargetType.Tree)
+            // The below code was written by refering to: https://github.com/libgit2/libgit2sharp/issues/89#issuecomment-38380873
+            Commit commit = this.Commit;
+            GitObject gitObj = commit[path].Target;
+
+            HashSet<string> commitUniqueHash = new HashSet<string>();
+            Queue<Commit> queue = new Queue<Commit>();
+
+            queue.Enqueue(commit);
+            commitUniqueHash.Add(commit.Sha);
+
+            while (queue.Count > 0)
+            {
+                commit = queue.Dequeue();
+                bool flag = false;
+
+                foreach (Commit parent in commit.Parents)
                 {
-                    Tree nextTree = (Tree)entry.Target;
-
-                    currentTree = nextTree;
+                    var tree = parent[path];
+                    if (tree == null)
+                        continue;
+                    bool isSameHash = tree.Target.Sha._IsSamei(gitObj.Sha);
+                    if (isSameHash && commitUniqueHash.Add(parent.Sha))
+                        queue.Enqueue(parent);
+                    flag = flag || isSameHash;
                 }
-                else
+
+                if (flag == false)
                 {
-                    throw new ArgumentException($"The path \"{dirPath}\" is not a directory.");
+                    //break;
                 }
             }
 
-            return currentTree;
+            Con.WriteLine($"{commit.Sha} {commit.Author.When} {commit.Message}");
         }
     }
 
@@ -182,7 +204,7 @@ namespace IPA.Cores.Basic
         public string WorkDir { get; }
         Repository Repository { get; }
 
-        static readonly FileSystemPathParser Parser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
+        public static readonly FileSystemPathParser PathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
 
         public GitRepository(string workDir, CancellationToken cancel = default) : base(cancel)
         {
@@ -201,7 +223,7 @@ namespace IPA.Cores.Basic
 
         public FileMetadata GetMetadata(string path, bool isDirectory, DateTimeOffset baseTimeStamp)
         {
-            path = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
+            path = PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
 
             if (path.StartsWith("/")) path = path.Substring(1);
 
@@ -271,6 +293,18 @@ namespace IPA.Cores.Basic
             {
                 base.DisposeImpl(ex);
             }
+        }
+
+        public static string NormalizePath(string path)
+        {
+            return PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
+        }
+
+        public static string NormalizePathToGit(string path)
+        {
+            path = NormalizePath(path);
+            if (path.StartsWith("/")) path = path.Substring(1);
+            return path;
         }
     }
 }
