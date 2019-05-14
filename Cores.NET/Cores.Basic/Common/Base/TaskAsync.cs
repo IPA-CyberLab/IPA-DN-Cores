@@ -1199,13 +1199,15 @@ namespace IPA.Cores.Basic
                     timeout: timeout,
                     leakCounterKind: leakCounterKind);
 
-                return (reason != ExceptionWhen.None);
+                return (reason == ExceptionWhen.None);
             }
             catch
             {
                 return false;
             }
         }
+        public void Wait(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
+            => WaitAsync(timeout, cancel, leakCounterKind)._GetResult();
 
         public Task WaitAsync()
         {
@@ -1221,6 +1223,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+        public void Wait() => WaitAsync()._GetResult();
 
         public void Set(bool softly = false)
         {
@@ -3797,6 +3800,149 @@ namespace IPA.Cores.Basic
                 }
                 this.ObjectList.Clear();
             }
+        }
+    }
+
+    class SingleThreadWorker : IDisposable
+    {
+        class Job
+        {
+            public Func<object, object> Proc;
+            public object Param;
+            public AsyncManualResetEvent Completed = new AsyncManualResetEvent();
+            public Exception Error = null;
+            public object Result = null;
+
+            public Job(Func<object, object> proc, object param)
+            {
+                this.Proc = proc;
+                this.Param = param;
+            }
+        }
+
+        readonly ThreadObj Thread;
+        readonly CriticalSection LockObj = new CriticalSection();
+        readonly Queue<Job> Queue = new Queue<Job>();
+        readonly Event QueueInsertedEvent = new Event(false);
+        readonly CancellationTokenSource CancalSource = new CancellationTokenSource();
+
+        readonly IHolder Leak;
+
+        public bool SelfThread { get; }
+        public int SelfThreadId { get; }
+
+        public SingleThreadWorker(string name = "", bool selfThread = false)
+        {
+            this.SelfThread = selfThread;
+
+            if (this.SelfThread == false)
+            {
+                Thread = new ThreadObj(ThreadProc, name: name, isBackground: true);
+            }
+            else
+            {
+                if (System.Threading.Thread.CurrentThread.IsThreadPoolThread)
+                {
+                    throw new ArgumentException("selfThread == true while CurrentThread.IsThreadPoolThread");
+                }
+
+                this.SelfThreadId = Environment.CurrentManagedThreadId;
+            }
+
+            Leak = LeakChecker.Enter(LeakCounterKind.SingleThreadWorker);
+        }
+
+        public async Task<TResult> ExecAsync<TResult, TParam>(Func<TParam, TResult> proc, TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        {
+            if (DisposeFlag.IsSet) throw new ObjectDisposedException("SingleWorkerThread");
+
+            if (this.SelfThread)
+            {
+                if (timeout != Timeout.Infinite) throw new ArgumentException("this.SelfThread == true && timeout != Timeout.Infinite");
+                if (cancel.CanBeCanceled) throw new ArgumentException("this.SelfThread == true && cancel.CanBeCanceled == true");
+                if (this.SelfThreadId != Environment.CurrentManagedThreadId) throw new ApplicationException("this.SelfThreadId != Environment.CurrentManagedThreadId");
+
+                return proc(param);
+            }
+
+            Job job = new Job((p) => proc((TParam)p), param);
+
+            lock (this.LockObj)
+            {
+                this.Queue.Enqueue(job);
+            }
+
+            this.QueueInsertedEvent.Set();
+
+            await TaskUtil.WaitObjectsAsync(cancels: new CancellationToken[] { cancel, this.CancalSource.Token },
+                    manualEvents: job.Completed._SingleArray(),
+                    timeout: timeout, exceptions: ExceptionWhen.All);
+
+            if (job.Error != null) throw job.Error;
+
+            return (TResult)job.Result;
+        }
+
+        public Task ExecAsync<TParam>(Action<TParam> proc, TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+            => ExecAsync<int, TParam>(p => { proc(p); return 0; }, param, timeout, cancel);
+
+        void ThreadProc(object param)
+        {
+            while (CancalSource.IsCancellationRequested == false)
+            {
+                if (CancalSource.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                Job nextJob = null;
+                bool wait = false;
+
+                lock (this.LockObj)
+                {
+                    if (this.Queue.TryDequeue(out nextJob) == false)
+                    {
+                        wait = true;
+                    }
+                }
+
+                if (nextJob != null)
+                {
+                    try
+                    {
+                        object ret = nextJob.Proc(nextJob.Param);
+
+                        nextJob.Result = ret;
+                    }
+                    catch (Exception ex)
+                    {
+                        nextJob.Error = ex;
+                    }
+
+                    nextJob.Completed.Set(true);
+                }
+
+                if (wait)
+                {
+                    //QueueInsertedEvent.Wait();
+                }
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.SelfThread == false)
+            {
+                CancalSource.Cancel();
+                this.QueueInsertedEvent.Set();
+                this.Thread.WaitForEnd();
+            }
+
+            Leak._DisposeSafe();
         }
     }
 }

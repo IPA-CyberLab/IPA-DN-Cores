@@ -66,7 +66,7 @@ namespace IPA.TestDev
 
     partial class TestDevCommands
     {
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "Net command",
             "Net [arg]",
             "Net test")]

@@ -312,7 +312,6 @@ namespace IPA.Cores.Basic
         public int UniqueProcessId { get; }
         readonly Queue<LogRecord> RecordQueue = new Queue<LogRecord>();
         readonly AsyncAutoResetEvent Event = new AsyncAutoResetEvent();
-        readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
         readonly AsyncAutoResetEvent WaitPendingEvent = new AsyncAutoResetEvent();
         public string Extension { get; }
         public bool DiscardPendingDataOnDispose { get; set; } = false;
@@ -496,8 +495,6 @@ namespace IPA.Cores.Basic
                                 }
                             }
                         }
-
-                        FlushEvent.Set();
 
                         break;
                     }
@@ -800,9 +797,11 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WaitAllLogFlush()
+        public async Task<bool> FlushAsync(CancellationToken cancel = default)
         {
-            while (this.GrandCancel.IsCancellationRequested == false)
+            this.Event.Set();
+
+            while (this.GrandCancel.IsCancellationRequested == false && cancel.IsCancellationRequested == false)
             {
                 int num;
                 lock (this.RecordQueue)
@@ -810,8 +809,11 @@ namespace IPA.Cores.Basic
 
                 if (num == 0) return true;
                 if (this.GrandCancel.IsCancellationRequested) return false;
+                if (cancel.IsCancellationRequested) return false;
 
-                await this.FlushEvent.WaitOneAsync(100, this.GrandCancel);
+                var ret = await TaskUtil.WaitObjectsAsync(timeout: 100, cancels: new CancellationToken[] { cancel, this.GrandCancel });
+                if (ret == ExceptionWhen.CancelException)
+                    return false;
             }
             return false;
         }

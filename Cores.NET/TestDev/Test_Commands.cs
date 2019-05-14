@@ -46,7 +46,7 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "Test command",
             "Test [arg]",
             "This is a test command.",

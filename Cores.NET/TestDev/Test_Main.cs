@@ -69,7 +69,7 @@ namespace IPA.TestDev
 
             try
             {
-                ConsoleService.EntryPoint("TestDev " + Env.CommandLine, "TestDev", typeof(TestDevAppMain));
+                ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));
             }
             finally
             {
@@ -77,7 +77,7 @@ namespace IPA.TestDev
             }
         }
 
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "IPA.Cores for .NET Core Development Test Program",
             "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
             "This is the TestDev Test Program.",

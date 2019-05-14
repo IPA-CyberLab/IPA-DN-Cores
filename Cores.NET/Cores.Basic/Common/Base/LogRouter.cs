@@ -49,6 +49,12 @@ namespace IPA.Cores.Basic
     {
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
 
+        public override Task FlushAsync(CancellationToken cancel = default)
+        {
+            Console.Out.Flush();
+            return Task.CompletedTask;
+        }
+
         public override void ReceiveLog(LogRecord record)
         {
             if (record.Flags.Bit(LogFlags.NoOutputToConsole) == false)
@@ -68,7 +74,7 @@ namespace IPA.Cores.Basic
             if (minimalPriority == LogPriority.None)
                 return;
 
-            Log = new Logger(dir, kind, prefix, Env.UniqueLogProcessId,
+            Log = new Logger(dir, kind, prefix, LocalLogRouter.UniqueLogProcessId,
                 switchType: switchType,
                 infoOptions: infoOptions,
                 maxLogSize: CoresConfig.Logger.DefaultMaxLogSize,
@@ -77,6 +83,10 @@ namespace IPA.Cores.Basic
             AddDirectDisposeLink(Log);
         }
 
+        public override Task FlushAsync(CancellationToken cancel = default)
+        {
+            return Log.FlushAsync(cancel);
+        }
 
         public override void ReceiveLog(LogRecord record)
         {
@@ -99,6 +109,8 @@ namespace IPA.Cores.Basic
         }
 
         public abstract void ReceiveLog(LogRecord record);
+
+        public abstract Task FlushAsync(CancellationToken cancel = default);
     }
 
     class LogRouter : AsyncService
@@ -151,6 +163,28 @@ namespace IPA.Cores.Basic
             route._DisposeSafe();
         }
 
+        public async Task FlushAsync(CancellationToken cancel = default)
+        {
+            try
+            {
+                List<Task> flushTaskList = new List<Task>();
+                var routeList = this.RouteList;
+                foreach (LogRouteBase route in routeList)
+                {
+                    try
+                    {
+                        flushTaskList.Add(route.FlushAsync(cancel));
+                    }
+                    catch { }
+                }
+                foreach (Task t in flushTaskList)
+                {
+                    await t._TryWaitAsync();
+                }
+            }
+            catch { }
+        }
+
         public void PostLog(LogRecord record, string kind)
         {
             if (record.Priority == LogPriority.None)
@@ -179,12 +213,31 @@ namespace IPA.Cores.Basic
 
     static class LocalLogRouter
     {
+        public static int UniqueLogProcessId { get; private set; } = 0;
+
         public static LogRouter Router { get; private set; }
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
+        static SingleInstance SingleInstanceForUniqueLogProcessId = null;
+
         static void ModuleInit()
         {
+            // Unique log process id
+            UniqueLogProcessId = 0;
+            for (int uid = 0; uid < 80; uid++)
+            {
+                string uniqueName = $"UlogName_{Env.AppRootDir}_{uid}";
+
+                SingleInstance instance = SingleInstance.TryGet(uniqueName, true, true);
+                if (instance != null)
+                {
+                    SingleInstanceForUniqueLogProcessId = instance;
+                    UniqueLogProcessId = uid;
+                    break;
+                }
+            }
+
             Router = new LogRouter();
 
             // Console log
@@ -256,12 +309,18 @@ namespace IPA.Cores.Basic
         {
             Router._DisposeSafe(new CoresLibraryShutdowningException());
             Router = null;
+
+            SingleInstanceForUniqueLogProcessId._DisposeSafe();
+            SingleInstanceForUniqueLogProcessId = null;
         }
 
-        public static void Post(LogRecord record, string kind = LogKind.Default) => Router.PostLog(record, kind);
+        public static Task FlushAsync(CancellationToken cancel = default)
+            => Router?.FlushAsync(cancel);
+
+        public static void Post(LogRecord record, string kind = LogKind.Default) => Router?.PostLog(record, kind);
 
         public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
-            => Router.PostLog(new LogRecord(obj, priority, flags, tag), kind);
+            => Router?.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
         public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);

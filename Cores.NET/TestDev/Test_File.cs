@@ -50,7 +50,7 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "RamFile command",
             "RamFile [arg]",
             "RamFile test")]
@@ -82,7 +82,7 @@ namespace IPA.TestDev
             return 0;
         }
 
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "CopyFile command",
             "CopyFile [arg]",
             "CopyFile test")]
@@ -233,7 +233,7 @@ namespace IPA.TestDev
             return 0;
         }
 
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "LargeFile command",
             "LargeFile [arg]",
             "LargeFile test")]
@@ -339,7 +339,7 @@ namespace IPA.TestDev
             return ret;
         }
 
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "SparseFile command",
             "SparseFile [arg]",
             "SparseFile test")]

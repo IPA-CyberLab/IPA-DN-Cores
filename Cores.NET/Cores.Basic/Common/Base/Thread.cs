@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
         {
             this.GlobalLock = g;
 
-            mutant = Mutant.Create(this.GlobalLock.Name);
+            mutant = new Mutant(this.GlobalLock.Name, false, false);
             mutant.Lock();
         }
 
@@ -237,11 +237,11 @@ namespace IPA.Cores.Basic
         readonly string NameOfMutant;
         readonly Mutant Mutant;
 
-        public static SingleInstance TryGet(string name, bool ignoreCase = true)
+        public static SingleInstance TryGet(string name, bool ignoreCase = true, bool selfThread = false)
         {
             try
             {
-                return new SingleInstance(name, ignoreCase);
+                return new SingleInstance(name, ignoreCase, selfThread);
             }
             catch
             {
@@ -249,17 +249,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public SingleInstance(string name, bool ignoreCase = true)
+        public SingleInstance(string name, bool ignoreCase = true, bool selfThread = false)
         {
             NameOfMutant = $"SingleInstance_" + name._NonNullTrim();
 
             if (ignoreCase)
                 NameOfMutant = NameOfMutant.ToUpper();
 
-            this.Mutant = Mutant.Create(NameOfMutant);
+            this.Mutant = new Mutant(NameOfMutant, true, selfThread);
             try
             {
-                this.Mutant.Lock(true);
+                this.Mutant.Lock();
             }
             catch
             {
@@ -278,15 +278,104 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MutantUnix : Mutant
+    class Mutant : IDisposable
+    {
+        public string Name { get; }
+        public bool NonBlock { get; }
+
+        readonly IHolder Leak;
+
+        readonly SingleThreadWorker Worker;
+
+        MutantBase MutantBase;
+
+        readonly AsyncLock LockObj = new AsyncLock();
+
+        volatile bool _IsLocked = false;
+        public bool IsLocked => _IsLocked;
+
+        public Mutant(string name, bool nonBlock, bool selfThread)
+        {
+            this.Name = name;
+            this.NonBlock = nonBlock;
+            this.Leak = LeakChecker.Enter(LeakCounterKind.Mutant);
+
+            try
+            {
+                Worker = new SingleThreadWorker($"Mutant - '{this.Name}'", selfThread);
+
+                Worker.ExecAsync(p =>
+                {
+                    MutantBase = MutantBase.Create(name);
+                }, 0);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public async Task LockAsync()
+        {
+            using (await LockObj.LockWithAwait())
+            {
+                if (_IsLocked)
+                    throw new ApplicationException($"The mutex \"{Name}\" is already locked.");
+
+                await Worker.ExecAsync(p =>
+                {
+                    MutantBase.Lock(this.NonBlock);
+                }, 0);
+
+                _IsLocked = true;
+            }
+        }
+        public void Lock() => LockAsync()._GetResult();
+
+        public async Task UnlockAsync()
+        {
+            using (await LockObj.LockWithAwait())
+            {
+                await Worker.ExecAsync(p =>
+                {
+                    MutantBase.Unlock();
+                }, 0);
+
+                _IsLocked = false;
+            }
+        }
+        public void Unlock() => this.UnlockAsync()._GetResult();
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.Worker != null)
+            {
+                Worker.ExecAsync(p =>
+                {
+                    MutantBase._DisposeSafe();
+                }, 0);
+
+                Worker._DisposeSafe();
+            }
+
+            this.Leak._DisposeSafe();
+        }
+    }
+
+    class MutantUnixImpl : MutantBase
     {
         string Filename;
         int LockedCount = 0;
         IntPtr FileHandle;
 
-        public MutantUnix(string name)
+        public MutantUnixImpl(string name)
         {
-            Filename = Path.Combine(Env.UnixMutantDir, Mutant.GenerateInternalName(name) + ".lock");
+            Filename = Path.Combine(Env.UnixMutantDir, MutantBase.GenerateInternalName(name) + ".lock");
             BasicFile.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
@@ -328,15 +417,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MutantWin32 : Mutant
+    class MutantWin32Impl : MutantBase
     {
         Mutex MutexObj;
         int LockedCount = 0;
 
-        public MutantWin32(string name)
+        public MutantWin32Impl(string name)
         {
             bool f;
-            MutexObj = new Mutex(false, Mutant.GenerateInternalName(name), out f);
+            MutexObj = new Mutex(false, MutantBase.GenerateInternalName(name), out f);
         }
 
         public override void Lock(bool nonBlock = false)
@@ -368,7 +457,14 @@ namespace IPA.Cores.Basic
             if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
             if (LockedCount == 1)
             {
-                MutexObj.ReleaseMutex();
+                try
+                {
+                    MutexObj.ReleaseMutex();
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
             LockedCount--;
         }
@@ -385,8 +481,10 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class Mutant : IDisposable
+    abstract class MutantBase : IDisposable
     {
+        readonly static bool IsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
+
         public static string GenerateInternalName(string name)
         {
             name = name.Trim().ToUpperInvariant();
@@ -396,15 +494,15 @@ namespace IPA.Cores.Basic
         public abstract void Lock(bool nonBlock = false);
         public abstract void Unlock();
 
-        public static Mutant Create(string name)
+        public static MutantBase Create(string name)
         {
-            if (Env.IsWindows)
+            if (IsWindows)
             {
-                return new MutantWin32(name);
+                return new MutantWin32Impl(name);
             }
             else
             {
-                return new MutantUnix(name);
+                return new MutantUnixImpl(name);
             }
         }
 

@@ -372,7 +372,7 @@ namespace IPA.TestDev
             queue.Run();
         }
 
-        [ConsoleCommandMethod(
+        [ConsoleCommand(
             "BenchMark command",
             "BenchMark [arg]",
             "BenchMark test")]

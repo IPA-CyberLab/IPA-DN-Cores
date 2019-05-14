@@ -143,9 +143,6 @@ namespace IPA.Cores.Basic
         public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
         public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
 
-        public static int UniqueLogProcessId { get; } = 0;
-        static readonly SingleInstance SingleInstanceForUniqueLogProcessId = null;
-
         // 初期化
         static Env()
         {
@@ -347,21 +344,6 @@ namespace IPA.Cores.Basic
             // ロックファイルの作成
             string lockFileName = Path.Combine(Env.MyTempDir, "LockFile.dat");
             lockFile = BasicFile.FileCreate(lockFileName, Env.IsUnix);
-
-            // Unique log process id
-            UniqueLogProcessId = 0;
-            for (int uid = 0; uid < 80; uid++)
-            {
-                string uniqueName = $"UlogName_{Env.AppRootDir}_{uid}";
-
-                SingleInstance instance = SingleInstance.TryGet(uniqueName, true);
-                if (instance != null)
-                {
-                    Env.SingleInstanceForUniqueLogProcessId = instance;
-                    UniqueLogProcessId = uid;
-                    break;
-                }
-            }
         }
 
 

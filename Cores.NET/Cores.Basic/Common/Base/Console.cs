@@ -479,11 +479,11 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールコマンドメソッド属性
-    class ConsoleCommandMethod : Attribute
+    class ConsoleCommand : Attribute, IEmptyChecker
     {
-        public readonly string Description;
-        public readonly string ArgsHelp;
-        public readonly string BodyHelp;
+        public string Description { get; private set; }
+        public string ArgsHelp { get; private set; }
+        public string BodyHelp { get; private set; }
         public readonly SortedList<string, string> ParamHelp;
 
         internal BindingFlags bindingFlag;
@@ -491,7 +491,9 @@ namespace IPA.Cores.Basic
         internal MethodInfo methodInfo;
         internal string name;
 
-        public ConsoleCommandMethod(string description, string argsHelp, string bodyHelp, params string[] paramHelp)
+        public ConsoleCommand() : this("", "", "") { }
+
+        public ConsoleCommand(string description, string argsHelp, string bodyHelp, params string[] paramHelp)
         {
             this.Description = description;
             this.ArgsHelp = argsHelp;
@@ -508,6 +510,18 @@ namespace IPA.Cores.Basic
 
                 this.ParamHelp.Add(s.Substring(0, i), s.Substring(i + 1));
             }
+        }
+
+        public bool IsThisEmpty()
+        {
+            return Description._IsEmpty() && ArgsHelp._IsEmpty() && BodyHelp._IsEmpty() && ParamHelp.Count == 0;
+        }
+
+        public void FillDefault(string cmdName)
+        {
+            this.Description = $"{cmdName} command";
+            this.ArgsHelp = $"{cmdName}";
+            this.BodyHelp = $"{cmdName} command";
         }
     }
 
@@ -606,7 +620,7 @@ namespace IPA.Cores.Basic
         ConsoleGetWidthDelegate getWidth;
 
         // 現在呼び出し中のコマンドリスト
-        SortedList<string, ConsoleCommandMethod> currentCmdList = null;
+        SortedList<string, ConsoleCommand> currentCmdList = null;
 
 
         private ConsoleService()
@@ -616,8 +630,7 @@ namespace IPA.Cores.Basic
         // エントリポイント
         public static int EntryPoint(string cmdLine, string programName, Type commandClass)
         {
-            string s;
-            return EntryPoint(cmdLine, programName, commandClass, out s);
+            return EntryPoint(cmdLine, programName, commandClass, out _);
         }
         public static int EntryPoint(string cmdLine, string programName, Type commandClass, out string lastErrorMessage)
         {
@@ -625,6 +638,15 @@ namespace IPA.Cores.Basic
             string infile, outfile;
             string csvmode;
             ConsoleService c;
+
+            cmdLine = cmdLine._NonNullTrim();
+
+            if (cmdLine.StartsWith("-") == false && cmdLine.StartsWith("/") == false)
+            {
+                cmdLine = "/cmd:" + cmdLine;
+            }
+
+            cmdLine = programName + " " + cmdLine;
 
             lastErrorMessage = "";
 
@@ -888,7 +910,7 @@ namespace IPA.Cores.Basic
         }
 
         // 候補一覧のヘルプを表示する
-        public void PrintCandidateHelp(string cmdName, string[] candidateList, int leftSpace, SortedList<string, ConsoleCommandMethod> ccList)
+        public void PrintCandidateHelp(string cmdName, string[] candidateList, int leftSpace, SortedList<string, ConsoleCommand> ccList)
         {
             int console_width;
             int max_keyword_width;
@@ -1118,7 +1140,7 @@ namespace IPA.Cores.Basic
         }
         public bool DispatchCommand(string execCommandOrNull, string prompt, Type commandClass, object invokerInstance)
         {
-            SortedList<string, ConsoleCommandMethod> cmdList = GetCommandList(commandClass);
+            SortedList<string, ConsoleCommand> cmdList = GetCommandList(commandClass);
 
             currentCmdList = cmdList;
             try
@@ -1294,8 +1316,15 @@ namespace IPA.Cores.Basic
                                 try
                                 {
                                     GC.Collect();
-                                    //object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, paramList);
-                                    object retobj = cmdList.Values[j].methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
+
+                                    var methodInfo = cmdList.Values[j].methodInfo;
+
+                                    if (methodInfo.GetParameters().Length == 0)
+                                        paramList = new object[0];
+                                    else if (methodInfo.GetParameters().Length == 1)
+                                        paramList = new object[1] { cmd_param };
+
+                                    object retobj = methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
 
                                     if (retobj is int)
                                     {
@@ -1305,6 +1334,15 @@ namespace IPA.Cores.Basic
                                     {
                                         Task<int> task = (Task<int>)retobj;
                                         ret = task._GetResult();
+                                    }
+                                    else if (retobj is Task task)
+                                    {
+                                        task._GetResult();
+                                        ret = 0;
+                                    }
+                                    else
+                                    {
+                                        ret = 0;
                                     }
                                 }
                                 catch (ConsoleUserCancelException)
@@ -1359,9 +1397,9 @@ namespace IPA.Cores.Basic
         }
 
         // コマンド名の一覧の取得
-        public static SortedList<string, ConsoleCommandMethod> GetCommandList(Type commandClass)
+        public static SortedList<string, ConsoleCommand> GetCommandList(Type commandClass)
         {
-            SortedList<string, ConsoleCommandMethod> cmdList = new SortedList<string, ConsoleCommandMethod>(StrComparer.IgnoreCaseComparer);
+            SortedList<string, ConsoleCommand> cmdList = new SortedList<string, ConsoleCommand>(StrComparer.IgnoreCaseComparer);
 
             // コマンド名の一覧の取得
             BindingFlags[] searchFlags =
@@ -1386,9 +1424,13 @@ namespace IPA.Cores.Basic
 
                         foreach (object att in customAtts)
                         {
-                            if (att is ConsoleCommandMethod)
+                            if (att is ConsoleCommand)
                             {
-                                ConsoleCommandMethod cc = (ConsoleCommandMethod)att;
+                                ConsoleCommand cc = (ConsoleCommand)att;
+
+                                if (cc._IsEmpty())
+                                    cc.FillDefault(info.Name);
+
                                 cc.bindingFlag = bFlag;
                                 cc.memberInfo = info;
                                 cc.methodInfo = mInfo;
@@ -1953,8 +1995,7 @@ namespace IPA.Cores.Basic
         // コマンドをパースする
         public static string ParseCommand(string str, string name)
         {
-            string[] pl;
-            return ParseCommand(str, name, out pl);
+            return ParseCommand(str, name, out _);
         }
         public static string ParseCommand(string str, string name, out string[] paramList)
         {

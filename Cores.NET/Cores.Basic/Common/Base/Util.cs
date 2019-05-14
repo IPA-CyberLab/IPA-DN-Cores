@@ -4491,12 +4491,33 @@ namespace IPA.Cores.Basic
 
                     this.Status = DaemonStatus.Running;
                     this.StatusChangedEvent.Fire(this, this.Status);
+
+                    if (Env.IsUnix)
+                    {
+                        // Register the SIGTERM handler
+                        SigTermOnce = new Once();
+                        System.Runtime.Loader.AssemblyLoadContext.Default.Unloading += UnixSigTermHandler;
+                    }
                 }
                 catch
                 {
                     Leak._DisposeSafe();
                     throw;
                 }
+            }
+        }
+        public void Start(object param = null) => this.StartAsync(param)._GetResult();
+
+        // SIGTERM handler
+        Once SigTermOnce;
+        private void UnixSigTermHandler(System.Runtime.Loader.AssemblyLoadContext obj)
+        {
+            if (SigTermOnce.IsFirstCall())
+            {
+                // Stop the service
+                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") received the SIGTERM signal. Shutting down the daemon...");
+                this.StopAsync(true)._GetResult();
+                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") completed the SIGTERM handler.");
             }
         }
 
@@ -4548,12 +4569,25 @@ namespace IPA.Cores.Basic
 
                 Leak._DisposeSafe();
 
+                Con.WriteDebug("Flushing local logs...");
+
+                await LocalLogRouter.FlushAsync();
+
+                Con.WriteDebug("Flushing local logs completed.");
+
                 Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is stopped successfully.");
 
                 this.Status = DaemonStatus.Stopped;
                 this.StatusChangedEvent.Fire(this, this.Status);
+
+                if (Env.IsUnix)
+                {
+                    // Unregister the SIGTERM handler
+                    System.Runtime.Loader.AssemblyLoadContext.Default.Unloading -= UnixSigTermHandler;
+                }
             }
         }
+        public void Stop(bool silent = false) => this.StopAsync(silent)._GetResult();
 
         public void Dispose() => Dispose(true);
         Once DisposeFlag;

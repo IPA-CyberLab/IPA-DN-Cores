@@ -38,60 +38,50 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
-using LibGit2Sharp;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+#pragma warning disable CS0162
+#pragma warning disable CS0219
+
 namespace IPA.TestDev
 {
+    class TestDaemon : Daemon
+    {
+        public TestDaemon() : base(new DaemonOptions("Test", "Test Service", true, 1000))
+        {
+        }
+
+        protected override async Task StartImplAsync(object param)
+        {
+            Con.WriteLine("TestDaemon: Starting...");
+            await Task.Delay(500);
+            Con.WriteLine("TestDaemon: Started.");
+        }
+
+        protected override async Task StopImplAsync(object param)
+        {
+            Con.WriteLine("TestDaemon: Stopping...");
+            await Task.Delay(500);
+            Con.WriteLine("TestDaemon: Stopped.");
+        }
+    }
+
     partial class TestDevCommands
     {
-        const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
-        //const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-TestIDS.git";
-        const string GitTestBaseDir = @"c:\tmp\git_test_root\4";
-
-        [ConsoleCommand(
-            "Git command",
-            "Git [arg]",
-            "Git test")]
-        static int Git(ConsoleService c, string cmdName, string str)
+        [ConsoleCommand]
+        static void DaemonTest()
         {
-            ConsoleParam[] args = { };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+            TestDaemon d = new TestDaemon();
 
-            if (Lfs.IsDirectoryExists(GitTestBaseDir) == false)
-            {
-                Git_Test_Clone();
-            }
+            d.Start();
 
-            Git_Test_1();
+            Con.ReadLine("Enter to stop>");
 
-            return 0;
-        }
-
-        static void Git_Test_1()
-        {
-            while (true)
-            {
-                using (var rep = new GitRepository(GitTestBaseDir))
-                {
-                    using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
-                    {
-                        while (true)
-                        {
-                            fs.ReadDataFromFile("/test.txt");
-                            Sleep(500);
-                        }
-                    }
-                }
-            }
-        }
-
-        static void Git_Test_Clone()
-        {
-            GitUtil.Clone(GitTestBaseDir, GitUrl);
+            d.Stop(true);
         }
     }
 }
+
