@@ -4589,12 +4589,53 @@ namespace IPA.Cores.Basic
         }
         public void Stop(bool silent = false) => this.StopAsync(silent)._GetResult();
 
+        public override string ToString() => $"\"{Options.Name}\" (\"{Options.FriendlyName}\")";
+
         public void Dispose() => Dispose(true);
-        Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             StopAsync(true)._TryGetResult();
+        }
+    }
+
+    class DaemonHost
+    {
+        public Daemon Daemon { get; }
+        public object Param { get; }
+
+        public DaemonHost(Daemon daemon, object param = null)
+        {
+            this.Daemon = daemon;
+            this.Param = param;
+        }
+
+        Once StartedOnce;
+
+        public void TestRun()
+        {
+            if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
+
+            this.Daemon.Start(this.Param);
+
+            Con.ReadLine($"Enter key to stop the {this.Daemon.Options.Name} daemon >");
+
+            this.Daemon.Stop(false);
+        }
+
+        public void ExecServiceMainRoutine()
+        {
+            if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
+
+            this.Daemon.Start(this.Param);
+        }
+
+        public void ShutdownService()
+        {
+            this.Daemon.Stop(false);
+        }
+
+        public void StopService()
+        {
         }
     }
 }
