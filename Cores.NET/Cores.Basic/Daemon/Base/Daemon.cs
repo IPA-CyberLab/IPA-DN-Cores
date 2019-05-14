@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    Con.WriteDebug($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") ...");
+                    Con.WriteLine($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") ...");
 
                     this.Status = DaemonStatus.Starting;
                     this.StatusChangedEvent.Fire(this, this.Status);
@@ -140,19 +140,12 @@ namespace IPA.Cores.Basic
                         throw;
                     }
 
-                    Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is started successfully.");
+                    Con.WriteLine($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is started successfully.");
 
                     this.Param = param;
 
                     this.Status = DaemonStatus.Running;
                     this.StatusChangedEvent.Fire(this, this.Status);
-
-                    if (Env.IsUnix)
-                    {
-                        // Register the SIGTERM handler
-                        SigTermOnce = new Once();
-                        System.Runtime.Loader.AssemblyLoadContext.Default.Unloading += UnixSigTermHandler;
-                    }
                 }
                 catch
                 {
@@ -162,18 +155,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        // SIGTERM handler
-        Once SigTermOnce;
-        private void UnixSigTermHandler(System.Runtime.Loader.AssemblyLoadContext obj)
-        {
-            if (SigTermOnce.IsFirstCall())
-            {
-                // Stop the service
-                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") received the SIGTERM signal. Shutting down the daemon...");
-                this.StopAsync(true)._GetResult();
-                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") completed the SIGTERM handler.");
-            }
-        }
 
         public async Task StopAsync(bool silent = false)
         {
@@ -207,8 +188,8 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
-                    Con.WriteError($"Stopping the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
-                    Con.WriteError($"Error: {ex.ToString()}");
+                    Con.WriteLine($"Stopping the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
+                    Con.WriteLine($"Error: {ex.ToString()}");
 
                     this.Status = DaemonStatus.Running;
                     this.StatusChangedEvent.Fire(this, this.Status);
@@ -223,22 +204,16 @@ namespace IPA.Cores.Basic
 
                 Leak._DisposeSafe();
 
-                Con.WriteDebug("Flushing local logs...");
+                Con.WriteLine("Flushing local logs...");
 
                 await LocalLogRouter.FlushAsync();
 
-                Con.WriteDebug("Flushing local logs completed.");
+                Con.WriteLine("Flushing local logs completed.");
 
-                Con.WriteDebug($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is stopped successfully.");
+                Con.WriteLine($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is stopped successfully.");
 
                 this.Status = DaemonStatus.Stopped;
                 this.StatusChangedEvent.Fire(this, this.Status);
-
-                if (Env.IsUnix)
-                {
-                    // Unregister the SIGTERM handler
-                    System.Runtime.Loader.AssemblyLoadContext.Default.Unloading -= UnixSigTermHandler;
-                }
             }
         }
 
@@ -249,6 +224,13 @@ namespace IPA.Cores.Basic
         {
             StopAsync(true)._TryGetResult();
         }
+    }
+
+    [Flags]
+    enum DaemonMode
+    {
+        UserMode = 0,
+        WindowsServiceMode = 1,
     }
 
     class DaemonHost
@@ -275,16 +257,38 @@ namespace IPA.Cores.Basic
             this.Daemon.Stop(false);
         }
 
-        public void ExecServiceMainRoutine()
+
+        DaemonMode Mode;
+
+        public void ExecMain(DaemonMode mode)
         {
+            if (Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode)
+                throw new ArgumentException("Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode");
+
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
 
-            this.Daemon.Start(this.Param);
-        }
+            this.Mode = mode;
 
-        public void ShutdownService()
-        {
-            this.Daemon.Stop(false);
+            IService service;
+
+            if (this.Mode != DaemonMode.WindowsServiceMode)
+            {
+                // Usermode
+                service = new UserModeService(
+                    this.Daemon.Name,
+                    () => this.Daemon.Start(this.Param),
+                    () => this.Daemon.Stop(true));
+            }
+            else
+            {
+                // Windows service mode
+                service = new WindowsService(
+                    this.Daemon.Name,
+                    () => this.Daemon.Start(this.Param),
+                    () => this.Daemon.Stop(true));
+            }
+
+            service.ExecMain();
         }
 
         public void StopService()

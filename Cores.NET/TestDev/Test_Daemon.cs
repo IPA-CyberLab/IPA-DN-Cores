@@ -74,13 +74,19 @@ namespace IPA.TestDev
         [ConsoleCommand]
         static void DaemonTest()
         {
-            TestDaemon d = new TestDaemon();
+            DaemonHost host = new DaemonHost(new TestDaemon());
 
-            d.Start();
+            host.TestRun();
+        }
 
-            Con.ReadLine("Enter to stop>");
+        [ConsoleCommand]
+        static void DaemonExecMain()
+        {
+            DaemonHost host = new DaemonHost(new TestDaemon());
 
-            d.Stop(true);
+            host.ExecMain(DaemonMode.UserMode);
+
+            Dbg.Where();
         }
     }
 }

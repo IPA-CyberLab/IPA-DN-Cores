@@ -89,6 +89,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClientResource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\Daemon.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\UserModeService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\WindowsService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\Git.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitFileSystem.cs" />

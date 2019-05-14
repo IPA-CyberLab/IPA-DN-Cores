@@ -336,3 +336,4 @@ ASALocalRun/
 
 !**/BenchmarkRecords/**/*.log
 **/GitLocal/**
+**/Local/**

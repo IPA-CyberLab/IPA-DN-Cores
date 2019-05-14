@@ -186,7 +186,7 @@ namespace IPA.Cores.Basic
             public uint HeaderPos;
             public Encoding Encoding;
             public bool Compress;
-            public Basic.Internal.ZStream ZStream;
+            public Basic.WinSvcInternal.ZStream ZStream;
 
             public void WriteZipDataHeader(ref ZipDataHeader h, bool writeSizes)
             {
@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
 
             if (compress)
             {
-                f.ZStream = new Basic.Internal.ZStream();
+                f.ZStream = new Basic.WinSvcInternal.ZStream();
                 f.ZStream.deflateInit(-1, -15);
             }
 
@@ -324,7 +324,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Basic.Internal.ZStream zs = currentFile.ZStream;
+                Basic.WinSvcInternal.ZStream zs = currentFile.ZStream;
 
                 byte[] srcData = Util.ExtractByteArray(data, pos, len);
                 byte[] dstData = new byte[srcData.Length * 2 + 100];
@@ -339,11 +339,11 @@ namespace IPA.Cores.Basic
 
                 if (currentFile.Size == (currentFile.CurrentSize + len))
                 {
-                    zs.deflate(Basic.Internal.zlibConst.Z_FINISH);
+                    zs.deflate(Basic.WinSvcInternal.zlibConst.Z_FINISH);
                 }
                 else
                 {
-                    zs.deflate(Basic.Internal.zlibConst.Z_SYNC_FLUSH);
+                    zs.deflate(Basic.WinSvcInternal.zlibConst.Z_SYNC_FLUSH);
                 }
 
                 fifo.Write(dstData, 0, dstData.Length - zs.avail_out);

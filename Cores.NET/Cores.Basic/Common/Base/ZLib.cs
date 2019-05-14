@@ -50,7 +50,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class Adler32
@@ -155,7 +155,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     internal sealed class Deflate
@@ -1953,7 +1953,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class InfBlocks
@@ -2672,7 +2672,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class InfCodes
@@ -3387,7 +3387,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class Inflate
@@ -3836,7 +3836,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class InfTree
@@ -4212,7 +4212,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class StaticTree
@@ -4474,7 +4474,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed class Tree
@@ -4822,7 +4822,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     internal class ZInputStream : System.IO.BinaryReader
@@ -5002,7 +5002,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed internal class zlibConst
@@ -5085,7 +5085,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     internal class ZOutputStream : System.IO.Stream
@@ -5365,7 +5365,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
     sealed internal class ZStream
@@ -5597,7 +5597,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
-namespace IPA.Cores.Basic.Internal
+namespace IPA.Cores.Basic.WinSvcInternal
 {
 
 

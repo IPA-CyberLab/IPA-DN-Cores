@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
         public static partial class GitGlobalFsSettings
         {
             public static readonly Copenhagen<int> AutoFetchInterval = 1 * 1000;
-            public static readonly Copenhagen<Func<string>> GetLocalCacheRootDirProc = new Func<string>(() => Env.LocalPathParser.Combine(Env.AppRootDir, "GitLocal"));
+            public static readonly Copenhagen<Func<string>> GetLocalCacheRootDirProc = new Func<string>(() => Env.LocalPathParser.Combine(Env.AppRootDir, "Local", "Git"));
         }
     }
 
