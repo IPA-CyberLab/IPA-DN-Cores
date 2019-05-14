@@ -699,6 +699,30 @@ namespace IPA.Cores.Basic
 
             return ctx.CompletionSource.Task;
         }
+
+        public static bool IsProcess(int pid)
+        {
+            try
+            {
+                using (var p = Process.GetProcessById(pid))
+                {
+                    if (p.HasExited)
+                    {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool WaitProcessExit(int pid, int timeout, CancellationToken cancel = default)
+        {
+            return TaskUtil.WaitWithPoll(timeout, 100, () => (IsProcess(pid) == false), cancel);
+        }
     }
 
     delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);

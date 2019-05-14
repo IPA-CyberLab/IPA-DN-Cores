@@ -3924,7 +3924,7 @@ namespace IPA.Cores.Basic
 
                 if (wait)
                 {
-                    //QueueInsertedEvent.Wait();
+                    QueueInsertedEvent.Wait();
                 }
             }
         }

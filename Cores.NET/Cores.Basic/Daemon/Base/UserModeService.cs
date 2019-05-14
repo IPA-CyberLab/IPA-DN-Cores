@@ -45,6 +45,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.Internal.UserModeService;
+using System.IO.Pipes;
 
 namespace IPA.Cores.Basic
 {
@@ -64,6 +65,9 @@ namespace IPA.Cores.Basic
         {
             [DataMember]
             public long Pid;
+
+            [DataMember]
+            public string PipeName;
         }
     }
 
@@ -105,9 +109,26 @@ namespace IPA.Cores.Basic
 
             try
             {
+                string pipeName = null;
+                NamedPipeServerStream pipe = null;
+
                 if (Env.IsUnix)
                 {
                     System.Runtime.Loader.AssemblyLoadContext.Default.Unloading += UnixSigTermHandler;
+                }
+                else
+                {
+                    pipeName = "usermodesvc_" + Util.Rand(16)._GetHexString().ToLower();
+                    pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 32, PipeTransmissionMode.Byte);
+
+                    TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        byte[] tmp = new byte[4096];
+
+                        await pipe.ReadAsync(tmp);
+
+                        Win32PipeRecvHandler();
+                    }, leakCheck: false)._LaissezFaire(true);
                 }
 
                 InternalStart();
@@ -115,6 +136,7 @@ namespace IPA.Cores.Basic
                 lock (HiveData.DataLock)
                 {
                     HiveData.Data.Pid = Env.ProcessId;
+                    HiveData.Data.PipeName = pipeName;
                 }
 
                 try
@@ -188,6 +210,21 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // Win32 Pipe handler
+        Once PipeRecvOnce;
+        void Win32PipeRecvHandler()
+        {
+            if (PipeRecvOnce.IsFirstCall())
+            {
+                // Stop the service
+                Con.WriteLine($"The daemon \"{Name}\" received the shutdown command. Shutting down the daemon...");
+
+                InternalStop();
+
+                Con.WriteLine($"The daemon \"{Name}\" completed the shutdown command handler.");
+            }
+        }
+
         // SIGTERM handler
         Once SigTermOnce;
         void UnixSigTermHandler(System.Runtime.Loader.AssemblyLoadContext obj)
@@ -235,7 +272,35 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    NamedPipeClientStream pipe;
+
+                    pipe = new NamedPipeClientStream(".", HiveData.Data.PipeName, PipeDirection.InOut);
+
+                    try
+                    {
+                        pipe.Connect(stopTimeout);
+
+                        Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
+
+                        Dbg.Where();
+
+                        pipe.WriteAsync("Hello"._GetBytes_Ascii());
+
+                        Dbg.Where();
+
+                        if (Win32ApiUtil.WaitProcessExit((int)pid, stopTimeout) == false)
+                        {
+                            Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+
+                            throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                        }
+
+                        Dbg.Where();
+                    }
+                    finally
+                    {
+                        pipe._DisposeSafe();
+                    }
                 }
             }
             else

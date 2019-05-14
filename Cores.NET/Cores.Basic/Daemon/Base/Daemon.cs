@@ -325,11 +325,12 @@ namespace IPA.Cores.Basic
         Start,
         Stop,
         Test,
+        ExecMain,
+
         StartWin,
         StopWin,
         InstallWin,
         UninstallWin,
-        ExecMain,
         ExecWinSvc,
     }
 
@@ -380,10 +381,24 @@ namespace IPA.Cores.Basic
                     {
                         bool isDotNetHosted = Env.ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
 
+                        string exe;
+                        string arguments;
+
+                        if (Env.IsUnix)
+                        {
+                            exe = "nohup";
+                            arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}");
+                        }
+                        else
+                        {
+                            exe = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"");
+                            arguments = (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}");
+                        }
+
                         ProcessStartInfo info = new ProcessStartInfo()
                         {
-                            FileName = "nohup",
-                            Arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}"),
+                            FileName = exe,
+                            Arguments = arguments,
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
