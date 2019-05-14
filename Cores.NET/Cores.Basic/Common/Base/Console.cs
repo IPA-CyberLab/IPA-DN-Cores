@@ -907,6 +907,8 @@ namespace IPA.Cores.Basic
                 this.write(CoreStr.CMD_HELP_ARGS, LogPriority.Info);
                 PrintCandidateHelp(cmdName, paramList.ToArray(), 2, this.currentCmdList);
             }
+
+            this.write("", LogPriority.Info);
         }
 
         // 候補一覧のヘルプを表示する

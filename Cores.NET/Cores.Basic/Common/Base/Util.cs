@@ -4389,7 +4389,7 @@ namespace IPA.Cores.Basic
         public DaemonOptions(string name, string friendlyName, bool singleInstance, int stopTimeout = 0)
         {
             if (stopTimeout == 0)
-                stopTimeout = CoresConfig.DaemonDefaultSettings.DefaultStopTimeout;
+                stopTimeout = CoresConfig.DaemonSettings.DefaultStopTimeout;
 
             if (stopTimeout < 0) stopTimeout = Timeout.Infinite;
 

@@ -824,9 +824,7 @@ namespace IPA.Cores.Basic
             return EventObj.WaitOne(millisecs, false);
         }
 
-        public delegate bool WaitWithPollDelegate();
-
-        public bool WaitWithPoll(int waitMillisecs, int pollInterval, WaitWithPollDelegate proc)
+        public bool WaitWithPoll(int waitMillisecs, int pollInterval, Func<bool> proc)
         {
             long end_tick = Time.Tick64 + (long)waitMillisecs;
 

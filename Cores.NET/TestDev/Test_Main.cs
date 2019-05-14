@@ -61,20 +61,24 @@ namespace IPA.TestDev
 
     class TestDevAppMain
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            int ret = -1;
+
             Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
 
             CoresLibrary.Main.Init();
 
             try
             {
-                ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));
+                ret = ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));
             }
             finally
             {
                 CoresLibrary.Main.Free();
             }
+
+            return ret;
         }
 
         [ConsoleCommand(

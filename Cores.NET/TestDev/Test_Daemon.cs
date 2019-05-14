@@ -50,7 +50,7 @@ namespace IPA.TestDev
 {
     class TestDaemon : Daemon
     {
-        public TestDaemon() : base(new DaemonOptions("Test", "Test Service", true, 1000))
+        public TestDaemon() : base(new DaemonOptions("Test", "Test Service", true))
         {
         }
 
@@ -64,13 +64,34 @@ namespace IPA.TestDev
         protected override async Task StopImplAsync(object param)
         {
             Con.WriteLine("TestDaemon: Stopping...");
-            await Task.Delay(500);
+            await Task.Delay(3000);
             Con.WriteLine("TestDaemon: Stopped.");
         }
     }
 
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+            "Start or stop the TestDaemon daemon",
+            "TestDaemon [command]",
+            "Start or stop the TestDaemon daemon",
+            @"[command]:The control command.
+
+[UNIX / Windows common commands]
+start        - Start the daemon in the background mode.
+stop         - Stop the running daemon in the background mode.
+test         - Start the daemon in the foreground testing mode.
+
+[Windows specific commands]
+startwin     - Start the daemon as a Windows service.
+stopwin      - Stop the running daemon as a Windows service.
+installwin   - Install the daemon as a Windows service.
+uninstallwin - Uninstall the daemon as a Windows service.")]
+        static int TestDaemon(ConsoleService c, string cmdName, string str)
+        {
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new TestDaemon());
+        }
+
         [ConsoleCommand]
         static void DaemonTest()
         {
@@ -85,6 +106,16 @@ namespace IPA.TestDev
             DaemonHost host = new DaemonHost(new TestDaemon());
 
             host.ExecMain(DaemonMode.UserMode);
+
+            Dbg.Where();
+        }
+
+        [ConsoleCommand]
+        static void DaemonStop()
+        {
+            DaemonHost host = new DaemonHost(new TestDaemon());
+
+            host.StopService(DaemonMode.UserMode);
 
             Dbg.Where();
         }

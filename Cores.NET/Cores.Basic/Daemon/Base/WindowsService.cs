@@ -52,6 +52,8 @@ namespace IPA.Cores.Basic
         string Name { get; }
 
         void ExecMain();
+
+        void StopService(int stopTimeout);
     }
 
     sealed class WindowsService : IService
@@ -82,6 +84,11 @@ namespace IPA.Cores.Basic
             if (Once.IsFirstCall() == false) throw new ApplicationException("StartMainLoop can be called only once.");
 
             ServiceBase.Run(this.WinSvcObj);
+        }
+
+        public void StopService(int stopTimeout)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -132,7 +139,7 @@ namespace IPA.Cores.Basic
                         }
                         catch (Exception ex)
                         {
-                            Kernel.SelfKill($"WindowsServiceObject ({this.ServiceName}): An error occured on the OnStop() routine. Terminating the process. Error: {ex.ToString()}", 0);
+                            Kernel.SelfKill($"WindowsServiceObject ({this.ServiceName}): An error occured on the OnStop() routine. Terminating the process. Error: {ex.ToString()}");
                         }
                     }
                 }

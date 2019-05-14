@@ -34,7 +34,7 @@ using System;
 using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
-
+using System.Threading;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -74,6 +74,13 @@ namespace IPA.Cores.Basic
         static class Libraries
         {
             public const string SystemNative = "System.Native";
+        }
+
+        public enum Signals : int
+        {
+            None = 0,
+            SIGKILL = 9,
+            SIGTERM = 15,
         }
 
         public enum LockOperations : int
@@ -138,6 +145,12 @@ namespace IPA.Cores.Basic
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FcntlSetIsNonBlocking", SetLastError = true)]
         public static extern int SetIsNonBlocking(IntPtr fd, int isNonBlocking);
+
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_Kill", SetLastError = true)]
+        internal static extern int Kill(int pid, Signals signal);
+
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetSid")]
+        internal static extern int GetSid(int pid);
 
         public static unsafe void NewPipe(out IntPtr p0_read, out IntPtr p1_write)
         {
@@ -298,6 +311,28 @@ namespace IPA.Cores.Basic
                 // buffer was too small, loop around again and try with a larger buffer.
                 bufferSize *= 2;
             } while (true);
+        }
+
+        public static bool IsProcess(int pid)
+        {
+            try
+            {
+                if (GetSid(pid) == -1)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool WaitProcessExit(int pid, int timeout, CancellationToken cancel = default)
+        {
+            return TaskUtil.WaitWithPoll(timeout, 100, () => (IsProcess(pid) == false), cancel);
         }
     }
 }

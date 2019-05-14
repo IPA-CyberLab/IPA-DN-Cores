@@ -33,6 +33,7 @@
 #if CORES_BASIC_DAEMON
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -47,8 +48,8 @@ namespace IPA.Cores.Helper.Basic
 {
     static class DaemonHelper
     {
-        public static void Start(this IDaemon daemon, object param = null) => daemon.StartAsync(param)._GetResult();
-        public static void Stop(this IDaemon daemon, bool silent = false) => daemon.StopAsync(silent)._GetResult();
+        public static void Start(this Daemon daemon, object param = null) => daemon.StartAsync(param)._GetResult();
+        public static void Stop(this Daemon daemon, bool silent = false) => daemon.StopAsync(silent)._GetResult();
     }
 }
 
@@ -56,20 +57,14 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class DaemonDefaultSettings
+        public static partial class DaemonSettings
         {
-            public static readonly Copenhagen<int> DefaultStopTimeout = 5 * 1000;
+            public static readonly Copenhagen<int> DefaultStopTimeout = 60 * 1000;
+            public static readonly Copenhagen<int> StartExecTimeout = 15 * 1000;
         }
     }
 
-    interface IDaemon : IDisposable
-    {
-        Task StartAsync(object param = null);
-        Task StopAsync(bool silent = false);
-        string Name { get; }
-    }
-
-    abstract class Daemon : IDaemon
+    abstract class Daemon
     {
         public DaemonOptions Options { get; }
         public string Name => Options.Name;
@@ -97,6 +92,19 @@ namespace IPA.Cores.Basic
         protected abstract Task StartImplAsync(object param);
         protected abstract Task StopImplAsync(object param);
 
+        public bool IsInstanceRunning()
+        {
+            try
+            {
+                SingleInstance = new SingleInstance($"svc_instance_{Options.Name}", true);
+                SingleInstance._DisposeSafe();
+                return false;
+            }
+            catch { }
+
+            return true;
+        }
+    
         public async Task StartAsync(object param = null)
         {
             await Task.Yield();
@@ -107,7 +115,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     if (this.Status != DaemonStatus.Stopped)
-                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is '{this.Status}'.");
+                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" ({Options.FriendlyName}) is '{this.Status}'.");
 
                     if (this.Options.SingleInstance)
                     {
@@ -117,11 +125,11 @@ namespace IPA.Cores.Basic
                         }
                         catch
                         {
-                            throw new ApplicationException($"Another instance of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") has been already running.");
+                            throw new ApplicationException($"Another instance of the daemon \"{Options.Name}\" ({Options.FriendlyName}) has been already running.");
                         }
                     }
 
-                    Con.WriteLine($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") ...");
+                    Con.WriteLine($"Starting the daemon \"{Options.Name}\" ({Options.FriendlyName}) ...");
 
                     this.Status = DaemonStatus.Starting;
                     this.StatusChangedEvent.Fire(this, this.Status);
@@ -132,7 +140,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        Con.WriteError($"Starting the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
+                        Con.WriteError($"Starting the daemon \"{Options.Name}\" ({Options.FriendlyName}) failed.");
                         Con.WriteError($"Error: {ex.ToString()}");
 
                         this.Status = DaemonStatus.Stopped;
@@ -140,7 +148,7 @@ namespace IPA.Cores.Basic
                         throw;
                     }
 
-                    Con.WriteLine($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is started successfully.");
+                    Con.WriteLine($"The daemon \"{Options.Name}\" ({Options.FriendlyName}) is now running.");
 
                     this.Param = param;
 
@@ -165,7 +173,7 @@ namespace IPA.Cores.Basic
                 if (this.Status != DaemonStatus.Running)
                 {
                     if (silent == false)
-                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is '{this.Status}'.");
+                        throw new ApplicationException($"The status of the daemon \"{Options.Name}\" ({Options.FriendlyName}) is '{this.Status}'.");
                     else
                         return;
                 }
@@ -180,7 +188,7 @@ namespace IPA.Cores.Basic
                     if (await TaskUtil.WaitObjectsAsync(tasks: stopTask._SingleArray(), timeout: this.Options.StopTimeout, exceptions: ExceptionWhen.None) == ExceptionWhen.TimeoutException)
                     {
                         // Timeouted
-                        string msg = $"Error! The StopImplAsync() routine of the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") has been timed out ({Options.StopTimeout} msecs). Terminating the process forcefully.";
+                        string msg = $"Error! The StopImplAsync() routine of the daemon \"{Options.Name}\" ({Options.FriendlyName}) has been timed out ({Options.StopTimeout} msecs). Terminating the process forcefully.";
                         Kernel.SelfKill(msg);
                     }
 
@@ -188,7 +196,7 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
-                    Con.WriteLine($"Stopping the daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") failed.");
+                    Con.WriteLine($"Stopping the daemon \"{Options.Name}\" ({Options.FriendlyName}) failed.");
                     Con.WriteLine($"Error: {ex.ToString()}");
 
                     this.Status = DaemonStatus.Running;
@@ -210,14 +218,14 @@ namespace IPA.Cores.Basic
 
                 Con.WriteLine("Flushing local logs completed.");
 
-                Con.WriteLine($"The daemon \"{Options.Name}\" (\"{Options.FriendlyName}\") is stopped successfully.");
+                Con.WriteLine($"The daemon \"{Options.Name}\" ({Options.FriendlyName}) is stopped successfully.");
 
                 this.Status = DaemonStatus.Stopped;
                 this.StatusChangedEvent.Fire(this, this.Status);
             }
         }
 
-        public override string ToString() => $"\"{Options.Name}\" (\"{Options.FriendlyName}\")";
+        public override string ToString() => $"\"{Options.Name}\" ({Options.FriendlyName})";
 
         public void Dispose() => Dispose(true);
         protected virtual void Dispose(bool disposing)
@@ -235,10 +243,10 @@ namespace IPA.Cores.Basic
 
     class DaemonHost
     {
-        public IDaemon Daemon { get; }
+        public Daemon Daemon { get; }
         public object Param { get; }
 
-        public DaemonHost(IDaemon daemon, object param = null)
+        public DaemonHost(Daemon daemon, object param = null)
         {
             this.Daemon = daemon;
             this.Param = param;
@@ -260,15 +268,8 @@ namespace IPA.Cores.Basic
 
         DaemonMode Mode;
 
-        public void ExecMain(DaemonMode mode)
+        IService CreateService(DaemonMode mode)
         {
-            if (Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode)
-                throw new ArgumentException("Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode");
-
-            if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
-
-            this.Mode = mode;
-
             IService service;
 
             if (this.Mode != DaemonMode.WindowsServiceMode)
@@ -288,11 +289,218 @@ namespace IPA.Cores.Basic
                     () => this.Daemon.Stop(true));
             }
 
+            return service;
+        }
+
+        public void ExecMain(DaemonMode mode)
+        {
+            if (Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode)
+                throw new ArgumentException("Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode");
+
+            if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
+
+            this.Mode = mode;
+
+            IService service = CreateService(mode);
+
             service.ExecMain();
         }
 
-        public void StopService()
+        public void StopService(DaemonMode mode)
         {
+            IService service = CreateService(mode);
+
+            Con.WriteLine($"Stopping the daemon {Daemon.ToString()} ...");
+
+            service.StopService(Daemon.Options.StopTimeout);
+
+            Con.WriteLine($"The daemon {Daemon.ToString()} is stopped successfully.");
+        }
+    }
+
+    [Flags]
+    enum DaemonCmdType
+    {
+        Unknown = 0,
+        Start,
+        Stop,
+        Test,
+        StartWin,
+        StopWin,
+        InstallWin,
+        UninstallWin,
+        ExecMain,
+        ExecWinSvc,
+    }
+
+    class DaemonCmdLineTool
+    {
+        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[command]"),
+            };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Con.WriteLine();
+            Con.WriteLine($"Daemon {daemon.ToString()} control command");
+            Con.WriteLine();
+
+            string command = vl.DefaultParam.StrValue;
+
+            if (command._IsEmpty())
+            {
+                Con.WriteError($"You must specify the [command] argument.\nFor details please enter \"{cmdName} /help\".");
+                return 1;
+            }
+
+            DaemonCmdType cmdType = command._ParseEnum(DaemonCmdType.Unknown);
+
+            if (cmdType == DaemonCmdType.Unknown)
+            {
+                Con.WriteError($"Invalid command \"{command}\".\nFor details please enter \"cmdName\" /help.");
+                return 1;
+            }
+
+            Con.WriteLine($"Executing the {cmdType.ToString().ToLower()} command.");
+            Con.WriteLine();
+
+            DaemonHost host = new DaemonHost(daemon);
+
+            switch (cmdType)
+            {
+                case DaemonCmdType.Start:
+                    if (daemon.IsInstanceRunning())
+                    {
+                        Con.WriteError($"The {daemon.ToString()} is already running.");
+                        return 1;
+                    }
+                    else
+                    {
+                        bool isDotNetHosted = Env.ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+
+                        ProcessStartInfo info = new ProcessStartInfo()
+                        {
+                            FileName = "nohup",
+                            Arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}"),
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            RedirectStandardInput = false,
+                        };
+
+                        using (Process p = Process.Start(info))
+                        {
+                            CancellationTokenSource cts = new CancellationTokenSource();
+
+                            StringWriter stdOut = new StringWriter();
+                            StringWriter stdErr = new StringWriter();
+
+                            Task outputReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                            {
+                                while (true)
+                                {
+                                    cts.Token.ThrowIfCancellationRequested();
+
+                                    string line = await p.StandardOutput.ReadLineAsync();
+                                    if (line == null)
+                                        throw new ApplicationException("StandardOutput is disconnected.");
+
+                                    stdOut.WriteLine(line);
+
+                                    if (line._InStr(UserModeService.ExecMainSignature, false))
+                                    {
+                                        return;
+                                    }
+                                }
+                            });
+
+                            Task errorReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                            {
+                                while (true)
+                                {
+                                    cts.Token.ThrowIfCancellationRequested();
+
+                                    string line = await p.StandardError.ReadLineAsync();
+
+                                    stdErr.WriteLine(line);
+
+                                    if (line == null)
+                                        throw new ApplicationException("StandardError is disconnected.");
+                                }
+                            }, leakCheck: false);
+
+                            var result = TaskUtil.WaitObjectsAsync(new Task[] { outputReaderTask, errorReaderTask }, timeout: CoresConfig.DaemonSettings.StartExecTimeout)._GetResult();
+
+                            cts.Cancel();
+
+                            bool isError = false;
+
+                            if (result == ExceptionWhen.TimeoutException)
+                            {
+                                // Error
+                                Con.WriteError($"Failed to start the {daemon.ToString()}. Child process timed out.");
+                                isError = true;
+                            }
+                            else if (result == ExceptionWhen.TaskException)
+                            {
+                                // Error
+                                Con.WriteError($"Failed to start the {daemon.ToString()}. Error occured in the child process.");
+                                isError = true;
+                            }
+
+                            if (isError)
+                            {
+                                Con.WriteError();
+                                Con.WriteError("--- Standard output ---");
+                                Con.WriteError(stdOut.ToString());
+                                Con.WriteError();
+                                Con.WriteError("--- Standard error ---");
+                                Con.WriteError(stdErr.ToString());
+                                Con.WriteError();
+
+                                // Terminate the process
+                                try
+                                {
+                                    p.Kill();
+                                    p.WaitForExit();
+                                }
+                                catch { }
+                            }
+                            else
+                            {
+                                // OK
+                                Con.WriteLine($"The {daemon.ToString()} is started successfully.");
+                            }
+
+                            outputReaderTask._TryWait(true);
+
+                            if (isError)
+                            {
+                                return 1;
+                            }
+                            else
+                            {
+                                return 0;
+                            }
+                        }
+                    }
+
+                case DaemonCmdType.Stop:
+                    host.StopService(DaemonMode.UserMode);
+                    break;
+
+                case DaemonCmdType.ExecMain:
+                    host.ExecMain(DaemonMode.UserMode);
+                    break;
+
+                case DaemonCmdType.Test:
+                    host.TestRun();
+                    break;
+            }
+
+            return 0;
         }
     }
 }

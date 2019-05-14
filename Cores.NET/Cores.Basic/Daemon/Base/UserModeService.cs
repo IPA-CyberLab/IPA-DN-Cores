@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class UserModeServiceSettings
         {
-            public static readonly Copenhagen<Func<string>> GetLocalHiveDirProc = new Func<string>(() => Env.LocalPathParser.Combine(Env.AppRootDir, "Local", "RunningService"));
+            public static readonly Copenhagen<Func<string>> GetLocalHiveDirProc = new Func<string>(() => Env.LocalPathParser.Combine(Env.AppRootDir, "Local", "DaemonPid"));
         }
     }
 
@@ -63,12 +63,14 @@ namespace IPA.Cores.Basic
         class UserModeServicePidData
         {
             [DataMember]
-            public long ProcessId;
+            public long Pid;
         }
     }
 
     sealed class UserModeService : IService
     {
+        public const string ExecMainSignature = "--- User mode service started ---";
+
         public string Name { get; }
 
         public Action OnStart { get; }
@@ -112,7 +114,7 @@ namespace IPA.Cores.Basic
 
                 lock (HiveData.DataLock)
                 {
-                    HiveData.Data.ProcessId = Env.ProcessId;
+                    HiveData.Data.Pid = Env.ProcessId;
                 }
 
                 try
@@ -120,6 +122,8 @@ namespace IPA.Cores.Basic
                     HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile);
                 }
                 catch { }
+
+                Console.WriteLine(ExecMainSignature);
 
                 // The daemon routine is now started. Wait here until InternalStop() is called.
                 StoppedEvent.Wait();
@@ -164,12 +168,12 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        Kernel.SelfKill($"UserModeService ({this.Name}): An error occured on the OnStop() routine. Terminating the process. Error: {ex.ToString()}", 0);
+                        Kernel.SelfKill($"UserModeService ({this.Name}): An error occured on the OnStop() routine. Terminating the process. Error: {ex.ToString()}");
                     }
 
                     lock (HiveData.DataLock)
                     {
-                        HiveData.Data.ProcessId = 0;
+                        HiveData.Data.Pid = 0;
                     }
 
                     try
@@ -199,6 +203,46 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void StopService(int stopTimeout)
+        {
+            try
+            {
+                HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile);
+            }
+            catch { }
+
+            long pid = HiveData.Data.Pid;
+
+            if (pid != 0)
+            {
+                if (Env.IsWindows == false)
+                {
+                    if (UnixApi.Kill((int)pid, UnixApi.Signals.SIGTERM) == 0)
+                    {
+                        Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
+
+                        if (UnixApi.WaitProcessExit((int)pid, stopTimeout) == false)
+                        {
+                            Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+
+                            throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                        }
+                    }
+                    else
+                    {
+                        Con.WriteLine($"The daemon \"{Name}\" is not running.");
+                    }
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            else
+            {
+                Con.WriteLine($"The daemon \"{Name}\" is not running.");
+            }
+        }
     }
 }
 

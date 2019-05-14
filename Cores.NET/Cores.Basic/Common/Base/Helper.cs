@@ -695,6 +695,16 @@ namespace IPA.Cores.Helper.Basic
             return ((value1 & value2) == 0) ? false : true;
         }
 
+        public static T Parse<T>(this T defaultValue, string str) where T : Enum
+        {
+            return Str.ParseEnum<T>(str, defaultValue);
+        }
+
+        public static T _ParseEnum<T>(this string str, T defaultValue) where T : Enum
+        {
+            return Str.ParseEnum<T>(str, defaultValue);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsAnyOfThem<T>(T value, params T[] flags) where T : Enum
         {

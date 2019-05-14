@@ -3701,6 +3701,10 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
+        public static T ParseEnum<T>(string str, T defaultValue) where T: Enum
+        {
+            return (T)StrToEnum(str, defaultValue);
+        }
         public static object ParseEnum(object value, object defaultValue)
         {
             return ParseEnum(value.ToString(), defaultValue);
