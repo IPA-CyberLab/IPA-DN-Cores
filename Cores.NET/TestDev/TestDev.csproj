@@ -11,13 +11,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
+    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +34,9 @@
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
+
+    <!-- Cores.Basic.Daemon -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />
 
     <!-- Cores.Basic.Database -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
