@@ -204,7 +204,7 @@ namespace IPA.Cores.Basic
             public object Data;
         }
 
-        public void WriteRecordToBuffer(Logger g, LogInfoOptions opt, MemoryBuffer<byte> b)
+        public void WriteRecordToBuffer(LogInfoOptions opt, MemoryBuffer<byte> b)
         {
             if (opt.WriteAsJsonFormat && Dbg.IsJsonSupported)
             {
@@ -334,8 +334,7 @@ namespace IPA.Cores.Basic
         Task LogTask = null;
         OldFileEraser Eraser = null;
 
-        public Logger(string dir, string kind, string prefix, int uniqueProcessId, LogSwitchType switchType = LogSwitchType.Day,
-            LogInfoOptions infoOptions = default,
+        public Logger(string dir, string kind, string prefix, int uniqueProcessId, LogSwitchType switchType, LogInfoOptions infoOptions,
             long maxLogSize = 0, string extension = DefaultExtension,
             long? autoDeleteTotalMinSize = null,
             bool keepFileHandleWhenIdle = true)
@@ -666,7 +665,7 @@ namespace IPA.Cores.Basic
                     }
 
                     // Write the contents of the log to the buffer
-                    rec.WriteRecordToBuffer(this, this.InfoOptions, b);
+                    rec.WriteRecordToBuffer(this.InfoOptions, b);
 
                     if (io == null)
                         break;

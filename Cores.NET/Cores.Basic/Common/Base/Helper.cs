@@ -681,6 +681,11 @@ namespace IPA.Cores.Helper.Basic
             if (task.IsCanceled) throw new TaskCanceledException();
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T If<T>(this T value, bool condition) where T : Enum
+            => (condition ? value : default);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Bit<T>(this T value, T flag) where T : Enum
             => value.HasFlag(flag);

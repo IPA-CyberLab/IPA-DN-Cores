@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket = s;
             this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
-            AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock by cyclic reference.
+            AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             UpperAttach.SetLayerInfo(new LayerInfo()
             {
@@ -472,7 +472,19 @@ namespace IPA.Cores.Basic
 
     class ConnSock : NetworkSock
     {
-        public ConnSock(FastProtocolBase protocolStack) : base(protocolStack) { }
+        public LogDefIPEndPoints EndPointInfo { get; }
+
+        public ConnSock(FastProtocolBase protocolStack) : base(protocolStack)
+        {
+            this.EndPointInfo = new LogDefIPEndPoints()
+            {
+                LocalIP = this.Info?.Ip?.LocalIPAddress?.ToString() ?? "",
+                LocalPort = this.Info?.Tcp?.LocalPort ?? 0,
+
+                RemoteIP = this.Info?.Ip?.RemoteIPAddress?.ToString() ?? "",
+                RemotePort = this.Info?.Tcp?.RemotePort ?? 0,
+            };
+        }
     }
 
     class FastDnsClientOptions : FastStackOptionsBase { }

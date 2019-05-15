@@ -55,6 +55,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\NetworkApp\Util\TelnetStreamWatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ChrootViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileCopy.cs" />

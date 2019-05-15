@@ -74,6 +74,8 @@ namespace IPA.Cores.Basic
 
             public static readonly Copenhagen<LogPriority> ConsoleMinimalLevel = LogPriority.Debug;
 
+            public static readonly Copenhagen<LogPriority> BufferedLogMinimalLevel = LogPriority.Debug;
+
             public static readonly Copenhagen<bool> LeakCheckerFullStackLog = false;
 
             public static readonly Copenhagen<StatisticsReporterLogTypes> CoresStatLogType = StatisticsReporterLogTypes.Snapshot;

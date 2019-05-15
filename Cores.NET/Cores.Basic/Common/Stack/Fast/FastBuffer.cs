@@ -46,6 +46,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class FastBufferConfig
+        {
+            public static readonly Copenhagen<long> DefaultFastStreamBufferThreshold = 524288;
+            public static readonly Copenhagen<long> DefaultFastDatagramBufferThreshold = 65536;
+        }
+    }
+
     enum FastBufferCallbackEventType
     {
         Init,
@@ -215,7 +224,7 @@ namespace IPA.Cores.Basic
         public AsyncAutoResetEvent EventWriteReady { get; } = null;
         public AsyncAutoResetEvent EventReadReady { get; } = null;
 
-        public const long DefaultThreshold = 524288;
+        public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastStreamBufferThreshold;
 
         public List<Action> OnDisconnected { get; } = new List<Action>();
 
@@ -519,6 +528,20 @@ namespace IPA.Cores.Basic
                     node = node.Next;
                 }
             }
+        }
+
+        public ReadOnlySpan<ReadOnlyMemory<T>> GetAllFast()
+        {
+            FastBufferSegment<ReadOnlyMemory<T>>[] segments = GetSegmentsFast(this.PinHead, this.Length, out long readSize, true);
+
+            Span<ReadOnlyMemory<T>> ret = new ReadOnlyMemory<T>[segments.Length];
+
+            for (int i = 0; i < segments.Length; i++)
+            {
+                ret[i] = segments[i].Item;
+            }
+
+            return ret;
         }
 
         public FastBufferSegment<ReadOnlyMemory<T>>[] GetSegmentsFast(long pin, long size, out long readSize, bool allowPartial = false)
@@ -1160,7 +1183,7 @@ namespace IPA.Cores.Basic
 
         public List<Action> OnDisconnected { get; } = new List<Action>();
 
-        public const long DefaultThreshold = 65536;
+        public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastDatagramBufferThreshold;
 
         public CriticalSection LockObj { get; } = new CriticalSection();
 
@@ -1426,5 +1449,74 @@ namespace IPA.Cores.Basic
     {
         public FastDatagramBuffer(bool enableEvents = false, long? thresholdLength = null)
             : base(enableEvents, thresholdLength) { }
+    }
+
+    [Flags]
+    enum FastStreamNonStopWriteMode
+    {
+        DiscardExistingData = 0,
+        DiscardWritingData,
+    }
+
+    static class FastStreamBufferHelper
+    {
+        public static long NonStopWrite<T>(this FastStreamBuffer<T> buffer, ReadOnlyMemory<T> item, bool completeWrite = true, FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData)
+        {
+            ReadOnlySpan<ReadOnlyMemory<T>> itemList = new ReadOnlyMemory<T>[] { item };
+
+            return NonStopWrite(buffer, itemList, completeWrite, mode);
+        }
+
+        public static long NonStopWrite<T>(this FastStreamBuffer<T> buffer, ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = true, FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData)
+        {
+            long ret = 0;
+
+            checked
+            {
+                lock (buffer.LockObj)
+                {
+                    if (mode == FastStreamNonStopWriteMode.DiscardExistingData)
+                    {
+                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetTailOfReadOnlyMemoryArray(itemList, buffer.Threshold, out long totalSizeToInsert);
+
+                        Debug.Assert(totalSizeToInsert <= buffer.Threshold);
+
+                        long existingDataMaxLength = buffer.Threshold - totalSizeToInsert;
+                        if (existingDataMaxLength < buffer.Length)
+                        {
+                            long sizeToRemove = buffer.Length - existingDataMaxLength;
+
+                            buffer.Dequeue(sizeToRemove, out _, true);
+                        }
+
+                        buffer.EnqueueAll(itemToInsert);
+
+                        Debug.Assert(buffer.Length <= buffer.Threshold);
+
+                        ret = totalSizeToInsert;
+                    }
+                    else
+                    {
+                        long freeSpace = buffer.SizeWantToBeWritten;
+                        if (freeSpace == 0) return 0;
+
+                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetHeadOfReadOnlyMemoryArray(itemList, freeSpace, out long totalSizeToInsert);
+
+                        Debug.Assert(totalSizeToInsert <= freeSpace);
+
+                        buffer.EnqueueAll(itemToInsert);
+
+                        Debug.Assert(buffer.Length <= buffer.Threshold);
+
+                        ret = totalSizeToInsert;
+                    }
+                }
+            }
+
+            if (ret >= 1 && completeWrite)
+                buffer.CompleteWrite(true);
+
+            return ret;
+        }
     }
 }

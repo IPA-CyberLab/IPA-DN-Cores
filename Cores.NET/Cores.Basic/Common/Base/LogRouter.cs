@@ -45,6 +45,89 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class LocalBufferedLogRouteSettings
+        {
+            public static readonly Copenhagen<int> BufferSize = 65536;
+        }
+    }
+
+    class BufferedLogRoute : LogRouteBase
+    {
+        readonly LogInfoOptions LogInfoOptions;
+        readonly int BufferSize;
+
+        readonly FastStreamBuffer MasterBuffer;
+
+        readonly HashSet<FastPipeEnd> SubscribersList = new HashSet<FastPipeEnd>();
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        public BufferedLogRoute(string kind, LogPriority minimalPriority, LogInfoOptions infoOptions, int bufferSize) : base(kind, minimalPriority)
+        {
+            this.LogInfoOptions = infoOptions;
+            this.BufferSize = Math.Max(bufferSize, 1);
+
+            MasterBuffer = new FastStreamBuffer(false, this.BufferSize);
+        }
+
+        public override Task FlushAsync(CancellationToken cancel = default) => Task.CompletedTask;
+
+        public override void ReceiveLog(LogRecord record)
+        {
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            record.WriteRecordToBuffer(this.LogInfoOptions, buf);
+
+            MasterBuffer.NonStopWrite(buf.Memory, true, FastStreamNonStopWriteMode.DiscardExistingData);
+
+            lock (LockObj)
+            {
+                foreach (var pipe in this.SubscribersList)
+                {
+                    lock (pipe.CounterPart.StreamWriter.LockObj)
+                    {
+                        pipe.CounterPart.StreamWriter.NonStopWrite(buf.Memory, true, FastStreamNonStopWriteMode.DiscardExistingData);
+                    }
+                }
+            }
+        }
+
+        public FastPipeEnd Subscribe(int? bufferSize = null, CancellationToken cancelForNewPipe = default)
+        {
+            bufferSize = Math.Max(bufferSize ?? this.BufferSize, 1);
+
+            FastPipeEnd mySide = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
+
+            mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
+
+            lock (this.MasterBuffer.LockObj)
+            {
+                ReadOnlySpan<ReadOnlyMemory<byte>> currentAllData = this.MasterBuffer.GetAllFast();
+
+                lock (mySide.StreamWriter.LockObj)
+                {
+                    mySide.StreamWriter.NonStopWrite(currentAllData, true, FastStreamNonStopWriteMode.DiscardExistingData);
+                }
+            }
+
+            lock (LockObj)
+            {
+                this.SubscribersList.Add(mySide.CounterPart);
+            }
+
+            return mySide.CounterPart;
+        }
+
+        public void Unsubscribe(FastPipeEnd pipeEnd)
+        {
+            lock (LockObj)
+            {
+                this.SubscribersList.Remove(pipeEnd);
+            }
+        }
+    }
+
     class ConsoleLogRoute : LogRouteBase
     {
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
@@ -68,7 +151,7 @@ namespace IPA.Cores.Basic
     {
         Logger Log = null;
 
-        public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType = LogSwitchType.Day, LogInfoOptions infoOptions = null,
+        public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType, LogInfoOptions infoOptions,
             long? autoDeleteTotalMaxSize = null) : base(kind, minimalPriority)
         {
             if (minimalPriority == LogPriority.None)
@@ -139,7 +222,7 @@ namespace IPA.Cores.Basic
 
         protected override void DisposeImpl(Exception ex) { }
 
-        public LogRouteBase InstallLogRoute(LogRouteBase route)
+        public T InstallLogRoute<T>(T route) where T: LogRouteBase
         {
             lock (LockObj)
             {
@@ -162,6 +245,8 @@ namespace IPA.Cores.Basic
             await route._CleanupSafeAsync();
             route._DisposeSafe();
         }
+        public void UninstallLogRoute(LogRouteBase route)
+            => UninstallLogRouteAsync(route)._GetResult();
 
         public async Task FlushAsync(CancellationToken cancel = default)
         {
@@ -217,6 +302,8 @@ namespace IPA.Cores.Basic
 
         public static LogRouter Router { get; private set; }
 
+        public static BufferedLogRoute BufferedLogRoute { get; private set; } = null;
+
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
         static SingleInstance SingleInstanceForUniqueLogProcessId = null;
@@ -243,6 +330,13 @@ namespace IPA.Cores.Basic
             // Console log
             Router.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
                 CoresConfig.DebugSettings.ConsoleMinimalLevel));
+
+            // Buffered debug log
+            BufferedLogRoute = Router.InstallLogRoute(new BufferedLogRoute(LogKind.Default,
+                CoresConfig.DebugSettings.BufferedLogMinimalLevel,
+                new LogInfoOptions() { WithTimeStamp = true },
+                CoresConfig.LocalBufferedLogRouteSettings.BufferSize
+                ));
 
             // Debug log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Default,
@@ -312,6 +406,8 @@ namespace IPA.Cores.Basic
 
             SingleInstanceForUniqueLogProcessId._DisposeSafe();
             SingleInstanceForUniqueLogProcessId = null;
+
+            BufferedLogRoute = null;
         }
 
         public static Task FlushAsync(CancellationToken cancel = default)

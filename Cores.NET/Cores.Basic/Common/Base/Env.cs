@@ -76,6 +76,10 @@ namespace IPA.Cores.Basic
         public Architecture CpuInfo = Env.CpuInfo;
         public string FrameworkInfoString = Env.FrameworkInfoString;
         public string OsInfoString = Env.OsInfoString;
+        public bool IsCoresLibraryDebugBuild = Env.IsCoresLibraryDebugBuild;
+        public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
+        public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
+        public bool IsDebuggerAttached = Env.IsDebuggerAttached;
     }
 
 

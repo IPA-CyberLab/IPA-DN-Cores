@@ -317,28 +317,28 @@ namespace IPA.Cores.Basic
     }
 
     // IP アドレスの種類
-    struct IPAddressType
+    [Flags]
+    enum IPAddressType : long
     {
-        public int IPVersion;
-        public bool Unicast;
-        public bool GlobalUnicast;
-        public bool LocalUnicast;
-        public bool Multicast;
-        public bool Zero;
-        public bool Loopback;
-        public bool IPv4_APIPA;
-        public bool IPv4_IspShared;
-        public bool IPv4_Broadcast;
-        public bool IPv6_AllNodeMulticast;
-        public bool IPv6_AllRouterMulticast;
-        public bool IPv6_SoliciationMulticast;
+        IPv4 = 0,
+        IPv6 = 1,
+        Unicast = 2,
+        GlobalUnicast = 4,
+        LocalUnicast = 8,
+        Multicast = 16,
+        Zero = 32,
+        Loopback = 64,
+        IPv4_APIPA = 128,
+        IPv4_IspShared = 256,
+        IPv4_Broadcast = 512,
+        IPv6_AllNodeMulticast = 1024,
+        IPv6_AllRouterMulticast = 2048,
+        IPv6_SoliciationMulticast = 4096,
     }
 
     // IP ユーティリティ
     static class IPUtil
     {
-        
-
         // ユーザーが利用できるホストアドレスかどうか確認
         public static bool IsIPv4UserHostAddress(IPAddress ip, IPAddress subnet)
         {
@@ -1297,60 +1297,59 @@ namespace IPA.Cores.Basic
         // IPv4 アドレスの種類を取得する
         public static IPAddressType GetIPv4AddressType(IPAddress ip)
         {
-            IPAddressType ret = new IPAddressType();
+            IPAddressType ret = IPAddressType.IPv4;
             if (IsIPv4(ip) == false)
             {
                 throw new ArgumentException("ip is not IPv6.");
             }
-            ret.IPVersion = 4;
 
             byte[] data = ip.GetAddressBytes();
 
-            ret.Zero = Util.IsZero(data);
+            if (Util.IsZero(data)) ret |= IPAddressType.Zero;
 
-            if (ret.Zero == false)
+            if (ret.Bit(IPAddressType.Zero) == false)
             {
-                ret.Loopback = IPUtil.IsInSubnet(ip, "127.0.0.0/8");
+                ret |= IPAddressType.Loopback.If(IPUtil.IsInSubnet(ip, "127.0.0.0/8"));
 
                 if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff && data[3] == 0xff)
                 {
-                    ret.IPv4_Broadcast = true;
+                    ret |= IPAddressType.IPv4_Broadcast;
                 }
                 else
                 {
                     if (data[0] >= 224 && data[0] <= 239)
                     {
-                        ret.Multicast = true;
+                        ret |= IPAddressType.Multicast;
                     }
                     else
                     {
-                        ret.Unicast = true;
+                        ret |= IPAddressType.Unicast;
 
                         if (IPUtil.IsInSubnet(ip, "100.64.0.0/16"))
                         {
-                            ret.IPv4_IspShared = true;
+                            ret |= IPAddressType.IPv4_IspShared;
                         }
                         else if (IPUtil.IsInSubnet(ip, "192.168.0.0/16") ||
                             IPUtil.IsInSubnet(ip, "172.16.0.0/12") ||
                             IPUtil.IsInSubnet(ip, "10.0.0.0/8"))
                         {
-                            ret.LocalUnicast = true;
+                            ret |= IPAddressType.LocalUnicast;
                         }
                         else if (IPUtil.IsInSubnet(ip, "169.254.0.0/16"))
                         {
-                            ret.IPv4_APIPA = true;
-                            ret.LocalUnicast = true;
+                            ret |= IPAddressType.IPv4_APIPA;
+                            ret |= IPAddressType.LocalUnicast;
                         }
                         else
                         {
-                            ret.GlobalUnicast = true;
+                            ret |= IPAddressType.GlobalUnicast;
                         }
                     }
                 }
             }
             else
             {
-                ret.Unicast = true;
+                ret |= IPAddressType.Unicast;
             }
 
             return ret;
@@ -1359,13 +1358,12 @@ namespace IPA.Cores.Basic
         // IPv6 アドレスの種類を取得する
         public static IPAddressType GetIPv6AddressType(IPAddress ip)
         {
-            IPAddressType ret = new IPAddressType();
+            IPAddressType ret = IPAddressType.IPv6;
             byte[] data;
             if (IsIPv6(ip) == false)
             {
                 throw new ArgumentException("ip is not IPv6.");
             }
-            ret.IPVersion = 6;
 
             data = ip.GetAddressBytes();
 
@@ -1374,15 +1372,15 @@ namespace IPA.Cores.Basic
                 IPAddress all_node = AllNodeMulticaseAddress;
                 IPAddress all_router = AllRouterMulticastAddress;
 
-                ret.Multicast = true;
+                ret |= IPAddressType.Multicast;
 
                 if (CompareIPAddress(ip, all_node))
                 {
-                    ret.IPv6_AllNodeMulticast = true;
+                    ret |= IPAddressType.IPv6_AllNodeMulticast;
                 }
                 else if (CompareIPAddress(ip, all_router))
                 {
-                    ret.IPv6_AllRouterMulticast = true;
+                    ret |= IPAddressType.IPv6_AllRouterMulticast;
                 }
                 else
                 {
@@ -1392,33 +1390,33 @@ namespace IPA.Cores.Basic
                         addr[7] == 0 && addr[8] == 0 && addr[9] == 0 &&
                         addr[10] == 0 && addr[11] == 0x01 && addr[12] == 0xff)
                     {
-                        ret.IPv6_SoliciationMulticast = true;
+                        ret |= IPAddressType.IPv6_SoliciationMulticast;
                     }
                 }
             }
             else
             {
-                ret.Unicast = true;
+                ret |= IPAddressType.Unicast;
 
                 byte[] addr = ip.GetAddressBytes();
 
                 if (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80)
                 {
-                    ret.LocalUnicast = true;
+                    ret |= IPAddressType.LocalUnicast;
                 }
                 else
                 {
-                    ret.GlobalUnicast = true;
+                    ret |= IPAddressType.GlobalUnicast;
 
                     if (Util.IsZero(addr))
                     {
-                        ret.Zero = true;
+                        ret |= IPAddressType.Zero;
                     }
                     else
                     {
                         if (CompareIPAddress(ip, LoopbackAddress))
                         {
-                            ret.Loopback = true;
+                            ret |= IPAddressType.Loopback;
                         }
                     }
                 }

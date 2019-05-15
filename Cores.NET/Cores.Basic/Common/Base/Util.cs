@@ -2178,6 +2178,76 @@ namespace IPA.Cores.Basic
 
             return size;
         }
+
+        public static ReadOnlySpan<ReadOnlyMemory<T>> GetTailOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize)
+        {
+            checked
+            {
+                returnTotalSize = 0;
+
+                if (maxSize <= 0)
+                {
+                    return new ReadOnlySpan<ReadOnlyMemory<T>>();
+                }
+
+                Span<ReadOnlyMemory<T>> ret = new ReadOnlyMemory<T>[itemList.Length];
+
+                int index = 0;
+
+                for (int i = itemList.Length - 1; i >= 0; i--)
+                {
+                    ref readonly ReadOnlyMemory<T> item = ref itemList[i];
+                    if (item.Length >= 1)
+                    {
+                        long sizeToRead = Math.Min(item.Length, maxSize);
+                        ret[index++] = item.Slice(item.Length - (int)sizeToRead);
+                        maxSize -= sizeToRead;
+                        returnTotalSize += sizeToRead;
+                        if (maxSize <= 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                return ret.Slice(0, index);
+            }
+        }
+
+        public static ReadOnlySpan<ReadOnlyMemory<T>> GetHeadOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize)
+        {
+            checked
+            {
+                returnTotalSize = 0;
+
+                if (maxSize <= 0)
+                {
+                    return new ReadOnlySpan<ReadOnlyMemory<T>>();
+                }
+
+                Span<ReadOnlyMemory<T>> ret = new ReadOnlyMemory<T>[itemList.Length];
+
+                int index = 0;
+
+                for (int i = 0;i < itemList.Length;i++)
+                {
+                    ref readonly ReadOnlyMemory<T> item = ref itemList[i];
+                    if (item.Length >= 1)
+                    {
+                        long sizeToRead = Math.Min(item.Length, maxSize);
+                        ret[index++] = item.Slice(0, (int)sizeToRead);
+                        maxSize -= sizeToRead;
+                        returnTotalSize += sizeToRead;
+                        if (maxSize <= 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                return ret.Slice(0, index);
+            }
+        }
     }
 
 

@@ -73,9 +73,10 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            System.Diagnostics.Process myProc = System.Diagnostics.Process.GetCurrentProcess();
-
-            Con.WriteDebug(myProc);
+            using (TelnetLocalLogWatcher w = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions(null, null, 23)))
+            {
+                Con.ReadLine("?");
+            }
         }
     }
 }
