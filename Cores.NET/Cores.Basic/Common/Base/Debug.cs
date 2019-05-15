@@ -1071,7 +1071,6 @@ namespace IPA.Cores.Basic
     class CoresRuntimeStat
     {
         public int Task;
-        public int P;
         public int D;
         public int Q;
         public int S;
@@ -1091,8 +1090,7 @@ namespace IPA.Cores.Basic
 
             this.Task = max_workers - avail_workers;
             this.Task2 = avail_workers;
-            this.P = num_queued;
-            this.D = TaskUtil.GetNumPendingAsyncTasks();
+            this.D = num_queued + TaskUtil.GetNumPendingAsyncTasks();
             this.Q = num_timered;
             try
             {
