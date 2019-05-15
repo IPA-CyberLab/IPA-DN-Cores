@@ -1072,8 +1072,9 @@ namespace IPA.Cores.Basic
     {
         public int Task;
         public int P;
-        public int P2;
+        public int D;
         public int Q;
+        public int S;
         public int Obj;
         public int IO;
         public long Mem;
@@ -1091,8 +1092,13 @@ namespace IPA.Cores.Basic
             this.Task = max_workers - avail_workers;
             this.Task2 = avail_workers;
             this.P = num_queued;
-            this.P2 = TaskUtil.GetNumPendingAsyncTasks();
+            this.D = TaskUtil.GetNumPendingAsyncTasks();
             this.Q = num_timered;
+            try
+            {
+                this.S = LocalTcpIpSystem.Local?.GetOpenedSockCount() ?? 0;
+            }
+            catch { }
             this.Obj = LeakChecker.Count;
             this.IO = max_ports - avail_ports;
             this.Mem = mem / 1024;
