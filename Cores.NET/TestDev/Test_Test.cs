@@ -40,15 +40,15 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Json;
+using System.Security.AccessControl;
+using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Security.AccessControl;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 
-using LibGit2Sharp;
 
 
 #pragma warning disable CS0219
@@ -73,6 +73,8 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            var p = Process.GetCurrentProcess();
+            Con.WriteLine(p.TotalProcessorTime);
             //FastStreamBuffer buf = new FastStreamBuffer(thresholdLength: 1);
 
             //buf.Enqueue("123"._GetBytes_Ascii());
