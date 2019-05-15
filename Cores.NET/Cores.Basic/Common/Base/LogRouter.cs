@@ -49,12 +49,14 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalBufferedLogRouteSettings
         {
-            public static readonly Copenhagen<int> BufferSize = 65536;
+            public static readonly Copenhagen<int> BufferSize = 1 * 1024 * 1024;
         }
     }
 
     class BufferedLogRoute : LogRouteBase
     {
+        public static readonly string DefaultFilter = Str.CombineStringArray(",", LogKind.Default, LogKind.Access, LogKind.Data, LogKind.Socket, LogKind.Stat);
+
         readonly LogInfoOptions LogInfoOptions;
         readonly int BufferSize;
 
@@ -182,13 +184,28 @@ namespace IPA.Cores.Basic
 
     abstract class LogRouteBase : AsyncService
     {
-        public string Kind { get; }
+        public ImmutableHashSet<string> KindHash { get; set; } = ImmutableHashSet<string>.Empty;
         public LogPriority MinimalPriority { get; }
 
         public LogRouteBase(string kind, LogPriority minimalPriority)
         {
             this.MinimalPriority = minimalPriority;
-            this.Kind = kind;
+
+            SetKind(kind);
+        }
+
+        public void SetKind(string kind)
+        {
+            kind = kind._NonNullTrim();
+
+            ImmutableHashSet<string> hash = ImmutableHashSet<string>.Empty;
+
+            foreach (string token in kind.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                hash = hash.Add(token);
+            }
+
+            this.KindHash = hash;
         }
 
         public abstract void ReceiveLog(LogRecord record);
@@ -280,7 +297,7 @@ namespace IPA.Cores.Basic
             {
                 if (route.MinimalPriority != LogPriority.None)
                 {
-                    if (route.Kind == kind || route.Kind._IsEmpty())
+                    if (route.KindHash.Count == 0 || route.KindHash.Contains(kind))
                     {
                         if (route.MinimalPriority <= record.Priority)
                         {
@@ -332,7 +349,7 @@ namespace IPA.Cores.Basic
                 CoresConfig.DebugSettings.ConsoleMinimalLevel));
 
             // Buffered debug log
-            BufferedLogRoute = Router.InstallLogRoute(new BufferedLogRoute(LogKind.Default,
+            BufferedLogRoute = Router.InstallLogRoute(new BufferedLogRoute(BufferedLogRoute.DefaultFilter,
                 CoresConfig.DebugSettings.BufferedLogMinimalLevel,
                 new LogInfoOptions() { WithTimeStamp = true },
                 CoresConfig.LocalBufferedLogRouteSettings.BufferSize

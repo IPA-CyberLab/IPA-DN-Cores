@@ -73,7 +73,15 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            //FastStreamBuffer buf = new FastStreamBuffer(thresholdLength: 5);
+            //FastStreamBuffer buf = new FastStreamBuffer(thresholdLength: 1);
+
+            //buf.Enqueue("123"._GetBytes_Ascii());
+
+            //buf.ToArray()._GetHexString(" ")._Print();
+
+            //buf.NonStopWrite("456"._GetBytes_Ascii(), mode: FastStreamNonStopWriteMode.DiscardExistingData);
+
+            //buf.ToArray()._GetHexString(" ")._Print();
 
 
             //return;

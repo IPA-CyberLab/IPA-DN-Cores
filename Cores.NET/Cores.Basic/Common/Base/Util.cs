@@ -2210,7 +2210,11 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                return ret.Slice(0, index);
+                ret = ret.Slice(0, index);
+
+                ret.Reverse();
+
+                return ret;
             }
         }
 

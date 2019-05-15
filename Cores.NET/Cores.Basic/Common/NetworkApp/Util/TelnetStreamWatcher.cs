@@ -43,6 +43,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO;
+using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
@@ -126,15 +127,52 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Serializable]
+    [DataContract]
+    class TelnetLocalLogWatcherConfig : INormalizable
+    {
+        [DataMember]
+        public string Filters;
+
+        public void Normalize()
+        {
+            this.Filters = this.Filters._NonNullTrim();
+        }
+    }
+
     class TelnetLocalLogWatcher : TelnetStreamWatcherBase
     {
+        public readonly static StaticModule Module = new StaticModule(InitModule, FreeModule);
+        static HiveData<TelnetLocalLogWatcherConfig> Config;
+
+        static void InitModule()
+        {
+            Config = new HiveData<TelnetLocalLogWatcherConfig>(Hive.SharedConfigHive, "DebugSettings/LocalLogWatcher",
+                () =>
+                {
+                    return new TelnetLocalLogWatcherConfig() { Filters = LocalLogRouter.BufferedLogRoute.KindHash.ToArray()._Combine(",") };
+                },
+                 HiveSyncPolicy.None);
+        }
+
+        static void FreeModule()
+        {
+        }
+
         public TelnetLocalLogWatcher(TelnetStreamWatcherOptions options) : base(options)
         {
         }
 
-        protected override Task<PipeEnd> SubscribeImplAsync()
+        protected override async Task<PipeEnd> SubscribeImplAsync()
         {
-            return Task.FromResult(LocalLogRouter.BufferedLogRoute.Subscribe());
+            await Config.SyncWithStorageAsync(HiveSyncFlags.LoadFromFile, true);
+
+            lock (Config.DataLock)
+            {
+                LocalLogRouter.BufferedLogRoute.SetKind(Config.Data.Filters);
+            }
+
+            return LocalLogRouter.BufferedLogRoute.Subscribe();
         }
 
         protected override Task UnsubscribeImplAsync(PipeEnd pipe)

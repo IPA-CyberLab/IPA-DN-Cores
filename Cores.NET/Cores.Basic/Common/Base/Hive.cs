@@ -372,7 +372,7 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
         public static Hive SharedConfigHive { get; private set; } = null;
-        const string ConfigHiveDirName = "Config";
+        const string ConfigHiveDirName = "Local/Config";
 
         static void InitModule()
         {
@@ -402,7 +402,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string NormalizeDataName(string name) => name._NonNullTrim().ToLower();
+        public static string NormalizeDataName(string name) => name._NonNullTrim();
 
         // Instance states and methods
         public HiveOptions Options { get; }
@@ -482,11 +482,7 @@ namespace IPA.Cores.Basic
                 if (hive.IsReadOnly == false)
                     flags |= HiveSyncFlags.SaveToFile;
 
-                try
-                {
-                    await hive.SyncWithStorageAsync(flags, cancel);
-                }
-                catch { }
+                await hive.SyncWithStorageAsync(flags, true, cancel);
             }
         }
 
@@ -599,7 +595,12 @@ namespace IPA.Cores.Basic
         Hive Hive { get; }
         bool IsManaged { get; }
         bool IsReadOnly { get; }
-        Task SyncWithStorageAsync(HiveSyncFlags flag, CancellationToken cancel = default);
+        Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default);
+    }
+
+    interface INormalizable
+    {
+        void Normalize();
     }
 
     class HiveData<T> : IHiveData where T: class, new()
@@ -677,6 +678,16 @@ namespace IPA.Cores.Basic
                     {
                         // If the data is empty, first try loading from the storage.
                         result = LoadDataCoreAsync()._GetResult();
+
+                        if (this.Policy.Bit(HiveSyncPolicy.ReadOnly) == false)
+                        {
+                            // If loading is ok, then write to the storage except readonly mode.
+                            try
+                            {
+                                SaveDataCoreAsync(result.SerializedData, false)._GetResult();
+                            }
+                            catch { }
+                        }
                     }
                     catch
                     {
@@ -713,19 +724,38 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SyncWithStorage(HiveSyncFlags flag, CancellationToken cancel = default)
-            => SyncWithStorageAsync(flag, cancel)._GetResult();
+        public void SyncWithStorage(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
+            => SyncWithStorageAsync(flag, ignoreError, cancel)._GetResult();
 
-        public async Task SyncWithStorageAsync(HiveSyncFlags flag, CancellationToken cancel = default)
+        public async Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
+        {
+            try
+            {
+                await SyncWithStorageAsyncInternal(flag, ignoreError, cancel);
+            }
+            catch (Exception ex)
+            {
+                if (ignoreError)
+                {
+                    Con.WriteError($"SyncWithStorageAsync (DataName = '{DataName}') error.\n{ex.ToString()}");
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        async Task SyncWithStorageAsyncInternal(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
         {
             if (this.IsReadOnly && flag.Bit(HiveSyncFlags.SaveToFile))
                 throw new ApplicationException("IsReadOnly is set.");
 
-            T dataSnapshot = GetDataSnapshot();
-            HiveDataState dataSnapshotState = GetDataState(dataSnapshot);
-
             using (await StorageAsyncLock.LockWithAwait(cancel))
             {
+                T dataSnapshot = GetDataSnapshot();
+                HiveDataState dataSnapshotState = GetDataState(dataSnapshot);
+
                 bool skipLoadFromFile = false;
 
                 if (flag.Bit(HiveSyncFlags.SaveToFile))
@@ -774,6 +804,12 @@ namespace IPA.Cores.Basic
 
             T data = this.GetDefaultDataFunc();
 
+            try
+            {
+                if (data is INormalizable data2) data2.Normalize();
+            }
+            catch { }
+
             ret.SerializedData = Hive.Serializer.Serialize(data);
             ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
             ret.Data = data;
@@ -791,6 +827,12 @@ namespace IPA.Cores.Basic
             try
             {
                 T data = Hive.Serializer.Deserialize<T>(loadBytes);
+
+                try
+                {
+                    if (data is INormalizable data2) data2.Normalize();
+                }
+                catch { }
 
                 ret.SerializedData = Hive.Serializer.Serialize(data);
                 ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);

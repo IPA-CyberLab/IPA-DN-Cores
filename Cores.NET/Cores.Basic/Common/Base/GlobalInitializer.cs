@@ -51,11 +51,15 @@ namespace IPA.Cores.Basic
 #if CORES_BASIC_GIT
             GitGlobalFs.Module.Init();
 #endif // CORES_BASIC_GIT
+
+            TelnetLocalLogWatcher.Module.Init();
         }
 
         static CoresLibraryResult GlobalFree()
         {
             // Finalize
+            TelnetLocalLogWatcher.Module.Free();
+
 #if CORES_BASIC_GIT
             GitGlobalFs.Module.Free();
 #endif // CORES_BASIC_GIT

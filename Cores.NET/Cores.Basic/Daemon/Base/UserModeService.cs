@@ -138,11 +138,7 @@ namespace IPA.Cores.Basic
                     HiveData.Data.EventName = eventName;
                 }
 
-                try
-                {
-                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile);
-                }
-                catch { }
+                HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
 
                 Console.WriteLine(ExecMainSignature);
 
@@ -197,11 +193,7 @@ namespace IPA.Cores.Basic
                         HiveData.Data.Pid = 0;
                     }
 
-                    try
-                    {
-                        HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile);
-                    }
-                    catch { }
+                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
 
                     // Break the freeze state of the ExecMain() function
                     StoppedEvent.Set();
@@ -241,11 +233,7 @@ namespace IPA.Cores.Basic
 
         public void StopService(int stopTimeout)
         {
-            try
-            {
-                HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile);
-            }
-            catch { }
+            HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile, true);
 
             long pid = HiveData.Data.Pid;
 

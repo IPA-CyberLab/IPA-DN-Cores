@@ -292,7 +292,7 @@ namespace IPA.Cores.Basic
                                 Con.WriteDebug($"Trying to clone as a new local dir.");
 
                                 Data.Data.RepositoryList.Remove(repoData);
-                                Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+                                Data.SyncWithStorage(HiveSyncFlags.SaveToFile, false);
 
                                 repoData = null;
                                 goto L_RETRY;
@@ -301,7 +301,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                Data.SyncWithStorage(HiveSyncFlags.SaveToFile);
+                Data.SyncWithStorage(HiveSyncFlags.SaveToFile, false);
 
                 StartUpdateLoop();
             }
