@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteLine($"Connected {sock.Info.Tcp.RemoteIPAddress}:{sock.Info.Tcp.RemotePort} -> {sock.Info.Tcp.LocalIPAddress}:{sock.Info.Tcp.LocalPort}");
 
-                    var app = sock.GetFastAppProtocolStub();
+                    var app = sock.GetNetAppProtocolStub();
 
                     var st = app.GetStream();
 
@@ -395,17 +395,17 @@ namespace IPA.Cores.Basic
         {
             Result ret = new Result();
 
-            using (FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(cancel: cancel))
+            using (NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel))
             {
                 await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                using (NetworkSock sock = new NetworkSock(tcp))
+                using (NetSock sock = new NetSock(tcp))
                 {
-                    FastAppStub app = sock.GetFastAppProtocolStub();
+                    NetAppStub app = sock.GetNetAppProtocolStub();
 
-                    FastAttachHandle attachHandle = app.AttachHandle;
+                    AttachHandle attachHandle = app.AttachHandle;
 
-                    FastPipeEndStream st = app.GetStream();
+                    PipeEndStream st = app.GetStream();
 
                     if (dir == SpeedTestDirection.Recv)
                         app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);

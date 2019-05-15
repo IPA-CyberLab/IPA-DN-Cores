@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class FastPipeConfig
+        public static partial class PipeConfig
         {
             public static readonly Copenhagen<int> MaxStreamBufferLength = 4 * 65536;
             public static readonly Copenhagen<int> MaxDatagramQueueLength = 65536;

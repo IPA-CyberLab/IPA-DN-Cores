@@ -34,7 +34,7 @@ namespace IPA.Cores.Basic
 
             CoresRuntimeStatReporter.Module.Init();
 
-            FastPalDnsClient.Module.Init();
+            NetPalDnsClient.Module.Init();
 
             LocalTcpIpSystem.Module.Init();
 
@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
 
             LocalTcpIpSystem.Module.Free();
 
-            FastPalDnsClient.Module.Free();
+            NetPalDnsClient.Module.Free();
 
             CoresRuntimeStatReporter.Module.Free();
 

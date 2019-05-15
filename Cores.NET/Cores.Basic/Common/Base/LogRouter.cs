@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
 
         readonly FastStreamBuffer MasterBuffer;
 
-        readonly HashSet<FastPipeEnd> SubscribersList = new HashSet<FastPipeEnd>();
+        readonly HashSet<PipeEnd> SubscribersList = new HashSet<PipeEnd>();
 
         readonly CriticalSection LockObj = new CriticalSection();
 
@@ -93,11 +93,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastPipeEnd Subscribe(int? bufferSize = null, CancellationToken cancelForNewPipe = default)
+        public PipeEnd Subscribe(int? bufferSize = null, CancellationToken cancelForNewPipe = default)
         {
             bufferSize = Math.Max(bufferSize ?? this.BufferSize, 1);
 
-            FastPipeEnd mySide = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
+            PipeEnd mySide = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
 
             mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
 
@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
             return mySide.CounterPart;
         }
 
-        public void Unsubscribe(FastPipeEnd pipeEnd)
+        public void Unsubscribe(PipeEnd pipeEnd)
         {
             lock (LockObj)
             {

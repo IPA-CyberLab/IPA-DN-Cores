@@ -45,33 +45,33 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class FastStackOptionsBase { }
+    abstract class NetStackOptionsBase { }
 
-    abstract class FastStackBase : AsyncService
+    abstract class NetStackBase : AsyncService
     {
-        public FastStackOptionsBase Options { get; }
+        public NetStackOptionsBase Options { get; }
 
-        public FastStackBase(FastStackOptionsBase options, CancellationToken cancel = default) : base(cancel)
+        public NetStackBase(NetStackOptionsBase options, CancellationToken cancel = default) : base(cancel)
         {
             Options = options;
         }
     }
 
-    abstract class FastAppStubOptionsBase : FastStackOptionsBase { }
+    abstract class NetAppStubOptionsBase : NetStackOptionsBase { }
 
-    abstract class FastAppStubBase : FastStackBase
+    abstract class NetAppStubBase : NetStackBase
     {
-        protected FastPipeEnd Lower { get; }
-        protected FastAttachHandle LowerAttach { get; private set; }
+        protected PipeEnd Lower { get; }
+        protected AttachHandle LowerAttach { get; private set; }
 
-        public new FastAppStubOptionsBase Options => (FastAppStubOptionsBase)base.Options;
+        public new NetAppStubOptionsBase Options => (NetAppStubOptionsBase)base.Options;
 
-        public FastAppStubBase(FastPipeEnd lower, FastAppStubOptionsBase options, CancellationToken cancel = default)
+        public NetAppStubBase(PipeEnd lower, NetAppStubOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
             try
             {
-                LowerAttach = lower.Attach(FastPipeEndAttachDirection.B_UpperSide);
+                LowerAttach = lower.Attach(AttachDirection.B_UpperSide);
                 Lower = lower;
 
                 AddIndirectDisposeLink(Lower);
@@ -85,22 +85,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastAppStubOptions : FastAppStubOptionsBase { }
+    class NetAppStubOptions : NetAppStubOptionsBase { }
 
-    class FastAppStub : FastAppStubBase
+    class NetAppStub : NetAppStubBase
     {
-        public new FastAppStubOptions Options => (FastAppStubOptions)base.Options;
+        public new NetAppStubOptions Options => (NetAppStubOptions)base.Options;
 
-        public FastAppStub(FastPipeEnd lower, CancellationToken cancel = default, FastAppStubOptions options = null)
-            : base(lower, options ?? new FastAppStubOptions(), cancel)
+        public NetAppStub(PipeEnd lower, CancellationToken cancel = default, NetAppStubOptions options = null)
+            : base(lower, options ?? new NetAppStubOptions(), cancel)
         {
         }
 
         CriticalSection LockObj = new CriticalSection();
 
-        FastPipeEndStream StreamCache = null;
+        PipeEndStream StreamCache = null;
 
-        public FastPipeEndStream GetStream(bool autoFlash = true)
+        public PipeEndStream GetStream(bool autoFlash = true)
         {
             lock (LockObj)
             {
@@ -113,14 +113,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastPipeEnd GetPipeEnd()
+        public PipeEnd GetPipeEnd()
         {
             Lower.CheckCanceled();
 
             return Lower;
         }
 
-        public FastAttachHandle AttachHandle
+        public AttachHandle AttachHandle
         {
             get
             {
@@ -142,29 +142,29 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class FastProtocolOptionsBase : FastStackOptionsBase { }
+    abstract class NetProtocolOptionsBase : NetStackOptionsBase { }
 
-    abstract class FastProtocolBase : FastStackBase
+    abstract class NetProtocolBase : NetStackBase
     {
-        protected FastPipeEnd Upper { get; }
+        protected PipeEnd Upper { get; }
 
-        protected internal FastPipeEnd _InternalUpper { get => Upper; }
+        protected internal PipeEnd _InternalUpper { get => Upper; }
 
-        protected FastAttachHandle UpperAttach { get; private set; }
+        protected AttachHandle UpperAttach { get; private set; }
 
-        public new FastProtocolOptionsBase Options => (FastProtocolOptionsBase)base.Options;
+        public new NetProtocolOptionsBase Options => (NetProtocolOptionsBase)base.Options;
 
-        public FastProtocolBase(FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetProtocolBase(PipeEnd upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
             try
             {
                 if (upper == null)
                 {
-                    upper = FastPipeEnd.NewFastPipeAndGetOneSide(FastPipeEndSide.A_LowerSide, cancel);
+                    upper = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, cancel);
                 }
 
-                UpperAttach = upper.Attach(FastPipeEndAttachDirection.A_LowerSide);
+                UpperAttach = upper.Attach(AttachDirection.A_LowerSide);
                 Upper = upper;
 
                 AddIndirectDisposeLink(Upper);
@@ -178,35 +178,35 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class FastBottomProtocolOptionsBase : FastProtocolOptionsBase { }
+    abstract class NetBottomProtocolOptionsBase : NetProtocolOptionsBase { }
 
-    abstract class FastBottomProtocolStubBase : FastProtocolBase
+    abstract class NetBottomProtocolStubBase : NetProtocolBase
     {
-        public new FastBottomProtocolOptionsBase Options => (FastBottomProtocolOptionsBase)base.Options;
+        public new NetBottomProtocolOptionsBase Options => (NetBottomProtocolOptionsBase)base.Options;
 
-        public FastBottomProtocolStubBase(FastPipeEnd upper, FastProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetBottomProtocolStubBase(PipeEnd upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
     }
 
-    abstract class FastTcpProtocolOptionsBase : FastBottomProtocolOptionsBase
+    abstract class NetTcpProtocolOptionsBase : NetBottomProtocolOptionsBase
     {
-        public FastDnsClientStub DnsClient { get; set; }
+        public NetDnsClientStub DnsClient { get; set; }
     }
 
-    abstract class FastTcpProtocolStubBase : FastBottomProtocolStubBase
+    abstract class NetTcpProtocolStubBase : NetBottomProtocolStubBase
     {
         public const int DefaultTcpConnectTimeout = 15 * 1000;
 
-        public new FastTcpProtocolOptionsBase Options => (FastTcpProtocolOptionsBase)base.Options;
+        public new NetTcpProtocolOptionsBase Options => (NetTcpProtocolOptionsBase)base.Options;
 
-        public FastTcpProtocolStubBase(FastPipeEnd upper, FastTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetTcpProtocolStubBase(PipeEnd upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
 
         protected abstract Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = DefaultTcpConnectTimeout, CancellationToken cancel = default);
         protected abstract void ListenImpl(IPEndPoint localEndPoint);
-        protected abstract Task<FastTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default);
+        protected abstract Task<NetTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default);
 
         public bool IsConnected { get; private set; }
         public bool IsListening { get; private set; }
@@ -231,10 +231,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Task ConnectAsync(IPAddress ip, int port, CancellationToken cancel = default, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
+        public Task ConnectAsync(IPAddress ip, int port, CancellationToken cancel = default, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => ConnectAsync(new IPEndPoint(ip, port), connectTimeout, cancel);
 
-        public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout)
+        public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => await ConnectAsync(await Options.DnsClient.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
 
         CriticalSection ListenLock = new CriticalSection();
@@ -261,15 +261,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPalTcpProtocolOptions : FastTcpProtocolOptionsBase
+    class NetPalTcpProtocolOptions : NetTcpProtocolOptionsBase
     {
-        public FastPalTcpProtocolOptions()
+        public NetPalTcpProtocolOptions()
         {
-            this.DnsClient = FastPalDnsClient.Shared;
+            this.DnsClient = NetPalDnsClient.Shared;
         }
     }
 
-    class FastPalTcpProtocolStub : FastTcpProtocolStubBase
+    class NetPalTcpProtocolStub : NetTcpProtocolStubBase
     {
         public class LayerInfo : LayerInfoBase, ILayerInfoTcpEndPoint
         {
@@ -281,22 +281,22 @@ namespace IPA.Cores.Basic
             public long NativeHandle { get; set; }
         }
 
-        public new FastPalTcpProtocolOptions Options => (FastPalTcpProtocolOptions)base.Options;
+        public new NetPalTcpProtocolOptions Options => (NetPalTcpProtocolOptions)base.Options;
 
         PalSocket ConnectedSocket = null;
-        FastPipeEndSocketWrapper SocketWrapper = null;
+        PipeEndSocketWrapper SocketWrapper = null;
 
         PalSocket ListeningSocket = null;
 
-        public FastPalTcpProtocolStub(FastPipeEnd upper = null, FastPalTcpProtocolOptions options = null, CancellationToken cancel = default)
-            : base(upper, options ?? new FastPalTcpProtocolOptions(), cancel)
+        public NetPalTcpProtocolStub(PipeEnd upper = null, NetPalTcpProtocolOptions options = null, CancellationToken cancel = default)
+            : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel)
         {
         }
 
         void InitSocketWrapperFromSocket(PalSocket s)
         {
             this.ConnectedSocket = s;
-            this.SocketWrapper = new FastPipeEndSocketWrapper(Upper, s, this.GrandCancel);
+            this.SocketWrapper = new PipeEndSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             UpperAttach.SetLayerInfo(new LayerInfo()
@@ -310,7 +310,7 @@ namespace IPA.Cores.Basic
             }, this, false);
         }
 
-        protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = FastTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
+        protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
         {
             if (!(remoteEndPoint.AddressFamily == AddressFamily.InterNetwork || remoteEndPoint.AddressFamily == AddressFamily.InterNetworkV6))
                 throw new ArgumentException("RemoteEndPoint.AddressFamily");
@@ -352,12 +352,12 @@ namespace IPA.Cores.Basic
             this.ListeningSocket = s;
         }
 
-        protected override async Task<FastTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default)
+        protected override async Task<NetTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default)
         {
             PalSocket newSocket = await ListeningSocket.AcceptAsync();
             try
             {
-                var newStub = new FastPalTcpProtocolStub(null, null, cancelForNewSocket);
+                var newStub = new NetPalTcpProtocolStub(null, null, cancelForNewSocket);
 
                 newStub.InitSocketWrapperFromSocket(newSocket);
 
@@ -387,20 +387,20 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetworkSock : AsyncService
+    class NetSock : AsyncService
     {
-        FastAppStub AppStub = null;
+        NetAppStub AppStub = null;
 
-        public FastProtocolBase Stack { get; }
-        public FastPipe Pipe { get; }
-        public FastPipeEnd UpperEnd { get; }
+        public NetProtocolBase Stack { get; }
+        public DuplexPipe Pipe { get; }
+        public PipeEnd UpperEnd { get; }
         public LayerInfo Info { get => this.Pipe.LayerInfo; }
         public string Guid { get; } = Str.NewGuid();
         public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
         public DateTimeOffset? Disconnected { get; private set; }
 
 
-        public NetworkSock(FastProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
+        public NetSock(NetProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {
             try
             {
@@ -448,33 +448,33 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public FastAppStub GetFastAppProtocolStub()
+        public NetAppStub GetNetAppProtocolStub()
         {
-            FastAppStub ret = AddDirectDisposeLink(UpperEnd.GetFastAppProtocolStub());
+            NetAppStub ret = AddDirectDisposeLink(UpperEnd.GetNetAppProtocolStub());
 
             ret.AddIndirectDisposeLink(this);
 
             return ret;
         }
 
-        public FastPipeEndStream GetStream(bool autoFlush = true)
+        public PipeEndStream GetStream(bool autoFlush = true)
         {
             if (AppStub == null)
-                AppStub = this.GetFastAppProtocolStub();
+                AppStub = this.GetNetAppProtocolStub();
 
             return AppStub.GetStream(autoFlush);
         }
 
         public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
 
-        public FastAttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
+        public AttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
     }
 
-    class ConnSock : NetworkSock
+    class ConnSock : NetSock
     {
         public LogDefIPEndPoints EndPointInfo { get; }
 
-        public ConnSock(FastProtocolBase protocolStack) : base(protocolStack)
+        public ConnSock(NetProtocolBase protocolStack) : base(protocolStack)
         {
             this.EndPointInfo = new LogDefIPEndPoints()
             {
@@ -487,13 +487,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastDnsClientOptions : FastStackOptionsBase { }
+    class NetDnsClientOptions : NetStackOptionsBase { }
 
-    abstract class FastDnsClientStub : FastStackBase
+    abstract class NetDnsClientStub : NetStackBase
     {
         public const int DefaultDnsResolveTimeout = 5 * 1000;
 
-        public FastDnsClientStub(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
+        public NetDnsClientStub(NetDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
         }
 
@@ -501,15 +501,15 @@ namespace IPA.Cores.Basic
             int timeout = DefaultDnsResolveTimeout);
     }
 
-    class FastPalDnsClient : FastDnsClientStub
+    class NetPalDnsClient : NetDnsClientStub
     {
-        public static FastPalDnsClient Shared { get; private set; }
+        public static NetPalDnsClient Shared { get; private set; }
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
         static void ModuleInit()
         {
-            Shared = new FastPalDnsClient(new FastDnsClientOptions());
+            Shared = new NetPalDnsClient(new NetDnsClientOptions());
         }
 
         static void ModuleFree()
@@ -519,12 +519,12 @@ namespace IPA.Cores.Basic
         }
 
 
-        public FastPalDnsClient(FastDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
+        public NetPalDnsClient(NetDnsClientOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
         }
 
         public override async Task<IPAddress> GetIPFromHostName(string host, AddressFamily? addressFamily = null, CancellationToken cancel = default,
-            int timeout = FastDnsClientStub.DefaultDnsResolveTimeout)
+            int timeout = NetDnsClientStub.DefaultDnsResolveTimeout)
         {
             if (IPAddress.TryParse(host, out IPAddress ip))
             {
@@ -542,7 +542,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class FastMiddleProtocolOptionsBase : FastProtocolOptionsBase
+    abstract class NetMiddleProtocolOptionsBase : NetProtocolOptionsBase
     {
         public int LowerReceiveTimeoutOnInit { get; set; } = 5 * 1000;
         public int LowerSendTimeoutOnInit { get; set; } = 60 * 1000;
@@ -551,21 +551,21 @@ namespace IPA.Cores.Basic
         public int LowerSendTimeoutAfterInit { get; set; } = Timeout.Infinite;
     }
 
-    abstract class FastMiddleProtocolStackBase : FastProtocolBase
+    abstract class NetMiddleProtocolStackBase : NetProtocolBase
     {
-        protected FastPipeEnd Lower { get; }
+        protected PipeEnd Lower { get; }
 
         CriticalSection LockObj = new CriticalSection();
-        protected FastAttachHandle LowerAttach { get; private set; }
+        protected AttachHandle LowerAttach { get; private set; }
 
-        public new FastMiddleProtocolOptionsBase Options => (FastMiddleProtocolOptionsBase)base.Options;
+        public new NetMiddleProtocolOptionsBase Options => (NetMiddleProtocolOptionsBase)base.Options;
 
-        public FastMiddleProtocolStackBase(FastPipeEnd lower, FastPipeEnd upper, FastMiddleProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetMiddleProtocolStackBase(PipeEnd lower, PipeEnd upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
             try
             {
-                LowerAttach = AddIndirectDisposeLink(lower.Attach(FastPipeEndAttachDirection.B_UpperSide));
+                LowerAttach = AddIndirectDisposeLink(lower.Attach(AttachDirection.B_UpperSide));
                 Lower = AddIndirectDisposeLink(lower);
 
                 Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
@@ -582,9 +582,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastSslProtocolOptions : FastMiddleProtocolOptionsBase { }
+    class NetSslProtocolOptions : NetMiddleProtocolOptionsBase { }
 
-    class FastSslProtocolStack : FastMiddleProtocolStackBase
+    class NetSslProtocolStack : NetMiddleProtocolStackBase
     {
         public class LayerInfo : LayerInfoBase, ILayerInfoSsl
         {
@@ -600,12 +600,12 @@ namespace IPA.Cores.Basic
             public PalX509Certificate RemoteCertificate { get; internal set; }
         }
 
-        public FastSslProtocolStack(FastPipeEnd lower, FastPipeEnd upper, FastSslProtocolOptions options,
-            CancellationToken cancel = default) : base(lower, upper, options ?? new FastSslProtocolOptions(), cancel) { }
+        public NetSslProtocolStack(PipeEnd lower, PipeEnd upper, NetSslProtocolOptions options,
+            CancellationToken cancel = default) : base(lower, upper, options ?? new NetSslProtocolOptions(), cancel) { }
 
-        FastPipeEndStream LowerStream = null;
+        PipeEndStream LowerStream = null;
         PalSslStream SslStream = null;
-        FastPipeEndStreamWrapper Wrapper = null;
+        PipeEndStreamWrapper Wrapper = null;
 
         public async Task SslStartClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
         {
@@ -614,7 +614,7 @@ namespace IPA.Cores.Basic
 
             using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
             {
-                FastPipeEndStream lowerStream = LowerAttach.GetStream(autoFlush: false);
+                PipeEndStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
                 {
                     PalSslStream ssl = new PalSslStream(lowerStream);
@@ -639,7 +639,7 @@ namespace IPA.Cores.Basic
                         this.SslStream = ssl;
                         this.LowerStream = lowerStream;
 
-                        this.Wrapper = new FastPipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                        this.Wrapper = new PipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
 
                         AddIndirectDisposeLink(this.Wrapper); // Do not add Wrapper with AddChild(). It makes cyclic reference.
                     }
@@ -687,9 +687,9 @@ namespace IPA.Cores.Basic
         Stopped,
     }
 
-    delegate Task FastTcpListenerAcceptedProcCallback(FastTcpListenerBase.Listener listener, ConnSock newSock);
+    delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerBase.Listener listener, ConnSock newSock);
 
-    abstract class FastTcpListenerBase : AsyncService
+    abstract class NetTcpListenerBase : AsyncService
     {
         public class Listener
         {
@@ -705,12 +705,12 @@ namespace IPA.Cores.Basic
             internal CancellationTokenSource _InternalSelfCancelSource { get; }
             internal CancellationToken _InternalSelfCancelToken { get => _InternalSelfCancelSource.Token; }
 
-            public FastTcpListenerBase TcpListener { get; }
+            public NetTcpListenerBase TcpListener { get; }
 
             public const long RetryIntervalStandard = 1 * 512;
             public const long RetryIntervalMax = 60 * 1000;
 
-            internal Listener(FastTcpListenerBase listener, IPVersion ver, IPAddress addr, int port)
+            internal Listener(NetTcpListenerBase listener, IPVersion ver, IPAddress addr, int port)
             {
                 TcpListener = listener;
                 IPVersion = ver;
@@ -764,7 +764,7 @@ namespace IPA.Cores.Basic
 
                         _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                        FastTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
+                        NetTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
 
                         try
                         {
@@ -827,7 +827,7 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<Task, ConnSock> RunningAcceptedTasks = new Dictionary<Task, ConnSock>();
 
-        FastTcpListenerAcceptedProcCallback AcceptedProc { get; }
+        NetTcpListenerAcceptedProcCallback AcceptedProc { get; }
 
         public int CurrentConnections
         {
@@ -838,12 +838,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastTcpListenerBase(FastTcpListenerAcceptedProcCallback acceptedProc)
+        public NetTcpListenerBase(NetTcpListenerAcceptedProcCallback acceptedProc)
         {
             AcceptedProc = acceptedProc;
         }
 
-        internal protected abstract FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
+        internal protected abstract NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
 
         public Listener Add(int port, IPVersion? ipVer = null, IPAddress addr = null)
         {
@@ -989,11 +989,11 @@ namespace IPA.Cores.Basic
         protected override void DisposeImpl(Exception ex) { }
     }
 
-    class FastPalTcpListener : FastTcpListenerBase
+    class NetPalTcpListener : NetTcpListenerBase
     {
-        public FastPalTcpListener(FastTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
+        public NetPalTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
 
-        protected internal override FastTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel)
-            => new FastPalTcpProtocolStub(null, null, cancel);
+        protected internal override NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel)
+            => new NetPalTcpProtocolStub(null, null, cancel);
     }
 }

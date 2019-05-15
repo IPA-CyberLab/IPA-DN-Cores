@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
             log.Direction = tcp?.Direction.ToString() ?? null;
             log.LocalPort = tcp?.LocalPort;
             log.RemotePort = tcp?.RemotePort;
-
+            
             return log;
         }
     }
@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
         internal SharedHierarchy<LayerInfoBase>.HierarchyBodyItem _InternalHierarchyBodyItem = null;
         internal LayerInfo _InternalLayerStack = null;
 
-        public FastStackBase ProtocolStack { get; private set; } = null;
+        public NetStackBase ProtocolStack { get; private set; } = null;
 
         public bool IsInstalled => Position.IsInstalled;
 
@@ -161,11 +161,11 @@ namespace IPA.Cores.Basic
         public void Uninstall()
             => _InternalLayerStack.Uninstall(this);
 
-        internal void _InternalSetProtocolStack(FastStackBase protocolStack)
+        internal void _InternalSetProtocolStack(NetStackBase protocolStack)
             => ProtocolStack = protocolStack;
     }
 
-    class FastPipe : AsyncService
+    class DuplexPipe : AsyncService
     {
         FastStreamBuffer StreamAtoB;
         FastStreamBuffer StreamBtoA;
@@ -175,16 +175,16 @@ namespace IPA.Cores.Basic
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo LayerInfo { get; } = new LayerInfo();
 
-        public FastPipeEnd A_LowerSide { get; }
-        public FastPipeEnd B_UpperSide { get; }
+        public PipeEnd A_LowerSide { get; }
+        public PipeEnd B_UpperSide { get; }
 
-        public FastPipeEnd this[FastPipeEndSide side]
+        public PipeEnd this[PipeEndSide side]
         {
             get
             {
-                if (side == FastPipeEndSide.A_LowerSide)
+                if (side == PipeEndSide.A_LowerSide)
                     return A_LowerSide;
-                else if (side == FastPipeEndSide.B_UpperSide)
+                else if (side == PipeEndSide.B_UpperSide)
                     return B_UpperSide;
                 else
                     throw new ArgumentOutOfRangeException("side");
@@ -195,12 +195,12 @@ namespace IPA.Cores.Basic
 
         public AsyncManualResetEvent OnDisconnectedEvent { get; } = new AsyncManualResetEvent();
 
-        public FastPipe(CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null) : base(cancel)
+        public DuplexPipe(CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null) : base(cancel)
         {
             try
             {
-                if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
-                if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.FastPipeConfig.MaxDatagramQueueLength;
+                if (thresholdLengthStream == null) thresholdLengthStream = CoresConfig.PipeConfig.MaxStreamBufferLength;
+                if (thresholdLengthDatagram == null) thresholdLengthDatagram = CoresConfig.PipeConfig.MaxDatagramQueueLength;
 
                 StreamAtoB = new FastStreamBuffer(true, thresholdLengthStream);
                 StreamBtoA = new FastStreamBuffer(true, thresholdLengthStream);
@@ -226,8 +226,8 @@ namespace IPA.Cores.Basic
                 DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
                 DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
-                A_LowerSide = new FastPipeEnd(this, FastPipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
-                B_UpperSide = new FastPipeEnd(this, FastPipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
+                A_LowerSide = new PipeEnd(this, PipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
+                B_UpperSide = new PipeEnd(this, PipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
 
                 A_LowerSide._InternalSetCounterPart(B_UpperSide);
                 B_UpperSide._InternalSetCounterPart(A_LowerSide);
@@ -249,14 +249,14 @@ namespace IPA.Cores.Basic
             internal InstalledLayerHolder(Action<LayerInfoBase> disposeProc, LayerInfoBase userData = null) : base(disposeProc, userData) { }
         }
 
-        internal InstalledLayerHolder _InternalInstallLayerInfo(FastPipeEndSide side, LayerInfoBase info, bool uninstallOnDispose)
+        internal InstalledLayerHolder _InternalInstallLayerInfo(PipeEndSide side, LayerInfoBase info, bool uninstallOnDispose)
         {
             if (info == null)
                 throw new ArgumentNullException("info");
 
             lock (LayerInfoLock)
             {
-                if (side == FastPipeEndSide.A_LowerSide)
+                if (side == PipeEndSide.A_LowerSide)
                 {
                     if (LayerInfo_A_LowerSide != null) throw new ApplicationException("LayerInfo_A_LowerSide is already installed.");
                     LayerInfo.Install(info, LayerInfo_B_UpperSide, false);
@@ -273,7 +273,7 @@ namespace IPA.Cores.Basic
                 {
                     lock (LayerInfoLock)
                     {
-                        if (side == FastPipeEndSide.A_LowerSide)
+                        if (side == PipeEndSide.A_LowerSide)
                         {
                             Debug.Assert(LayerInfo_A_LowerSide != null);
 
@@ -340,32 +340,32 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FastPipeEndSide
+    enum PipeEndSide
     {
         A_LowerSide,
         B_UpperSide,
     }
 
     [Flags]
-    enum FastPipeEndAttachDirection
+    enum AttachDirection
     {
         NoAttach,
         A_LowerSide,
         B_UpperSide,
     }
 
-    class FastPipeEnd : IAsyncService
+    class PipeEnd : IAsyncService
     {
-        public FastPipe Pipe { get; }
+        public DuplexPipe Pipe { get; }
 
-        public FastPipeEndSide Side { get; }
+        public PipeEndSide Side { get; }
 
         public FastStreamBuffer StreamWriter { get; }
         public FastStreamBuffer StreamReader { get; }
         public FastDatagramBuffer DatagramWriter { get; }
         public FastDatagramBuffer DatagramReader { get; }
 
-        public FastPipeEnd CounterPart { get; private set; }
+        public PipeEnd CounterPart { get; private set; }
 
         public AsyncManualResetEvent OnDisconnectedEvent { get => Pipe.OnDisconnectedEvent; }
 
@@ -379,13 +379,13 @@ namespace IPA.Cores.Basic
                 Pipe.OnDisconnected.Add(action);
         }
 
-        public static FastPipeEnd NewFastPipeAndGetOneSide(FastPipeEndSide createNewPipeAndReturnThisSide, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
+        public static PipeEnd NewDuplexPipeAndGetOneSide(PipeEndSide createNewPipeAndReturnThisSide, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
         {
-            var pipe = new FastPipe(cancel, thresholdLengthStream, thresholdLengthDatagram);
+            var pipe = new DuplexPipe(cancel, thresholdLengthStream, thresholdLengthDatagram);
             return pipe[createNewPipeAndReturnThisSide];
         }
 
-        internal FastPipeEnd(FastPipe pipe, FastPipeEndSide side,
+        internal PipeEnd(DuplexPipe pipe, PipeEndSide side,
             CancelWatcher cancelWatcher,
             FastStreamBuffer streamToWrite, FastStreamBuffer streamToRead,
             FastDatagramBuffer datagramToWrite, FastDatagramBuffer datagramToRead)
@@ -398,19 +398,19 @@ namespace IPA.Cores.Basic
             this.DatagramReader = datagramToRead;
         }
 
-        internal void _InternalSetCounterPart(FastPipeEnd p)
+        internal void _InternalSetCounterPart(PipeEnd p)
             => this.CounterPart = p;
 
         internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
-        internal FastAttachHandle _InternalCurrentAttachHandle = null;
+        internal AttachHandle _InternalCurrentAttachHandle = null;
 
-        public FastAttachHandle Attach(FastPipeEndAttachDirection attachDirection, object userState = null) => new FastAttachHandle(this, attachDirection, userState);
+        public AttachHandle Attach(AttachDirection attachDirection, object userState = null) => new AttachHandle(this, attachDirection, userState);
 
-        internal FastPipeEndStream _InternalGetStream(bool autoFlush = true)
-            => new FastPipeEndStream(this, autoFlush);
+        internal PipeEndStream _InternalGetStream(bool autoFlush = true)
+            => new PipeEndStream(this, autoFlush);
 
-        public FastAppStub GetFastAppProtocolStub(CancellationToken cancel = default)
-            => new FastAppStub(this, cancel);
+        public NetAppStub GetNetAppProtocolStub(CancellationToken cancel = default)
+            => new NetAppStub(this, cancel);
 
         public void CheckCanceled() => Pipe.CheckDisconnected();
 
@@ -423,25 +423,25 @@ namespace IPA.Cores.Basic
         public Task DisposeWithCleanupAsync(Exception ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
     }
 
-    class FastAttachHandle : AsyncService
+    class AttachHandle : AsyncService
     {
-        public FastPipeEnd PipeEnd { get; }
+        public PipeEnd PipeEnd { get; }
         public object UserState { get; }
-        public FastPipeEndAttachDirection Direction { get; }
+        public AttachDirection Direction { get; }
 
-        FastPipe.InstalledLayerHolder InstalledLayerHolder = null;
+        DuplexPipe.InstalledLayerHolder InstalledLayerHolder = null;
 
         IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
-        public FastAttachHandle(FastPipeEnd end, FastPipeEndAttachDirection attachDirection, object userState = null) : base()
+        public AttachHandle(PipeEnd end, AttachDirection attachDirection, object userState = null) : base()
         {
             try
             {
-                if (end.Side == FastPipeEndSide.A_LowerSide)
-                    Direction = FastPipeEndAttachDirection.A_LowerSide;
+                if (end.Side == PipeEndSide.A_LowerSide)
+                    Direction = AttachDirection.A_LowerSide;
                 else
-                    Direction = FastPipeEndAttachDirection.B_UpperSide;
+                    Direction = AttachDirection.B_UpperSide;
 
                 if (attachDirection != Direction)
                     throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
@@ -451,7 +451,7 @@ namespace IPA.Cores.Basic
                 lock (end._InternalAttachHandleLock)
                 {
                     if (end._InternalCurrentAttachHandle != null)
-                        throw new ApplicationException("The FastPipeEnd is already attached.");
+                        throw new ApplicationException("The PipeEnd is already attached.");
 
                     this.UserState = userState;
                     this.PipeEnd = end;
@@ -467,7 +467,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SetLayerInfo(LayerInfoBase info, FastStackBase protocolStack, bool uninstallOnDetach)
+        public void SetLayerInfo(LayerInfoBase info, NetStackBase protocolStack, bool uninstallOnDetach)
         {
             lock (LockObj)
             {
@@ -493,7 +493,7 @@ namespace IPA.Cores.Basic
 
         public void SetStreamReceiveTimeout(int timeout = Timeout.Infinite)
         {
-            if (Direction == FastPipeEndAttachDirection.A_LowerSide)
+            if (Direction == AttachDirection.A_LowerSide)
                 throw new ApplicationException("The attachment direction is From_Lower_To_A_LowerSide.");
 
             lock (LockObj)
@@ -535,7 +535,7 @@ namespace IPA.Cores.Basic
 
         public void SetStreamSendTimeout(int timeout = Timeout.Infinite)
         {
-            if (Direction == FastPipeEndAttachDirection.A_LowerSide)
+            if (Direction == AttachDirection.A_LowerSide)
                 throw new ApplicationException("The attachment direction is From_Lower_To_A_LowerSide.");
 
             lock (LockObj)
@@ -574,14 +574,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FastPipeEndStream GetStream(bool autoFlush = true)
+        public PipeEndStream GetStream(bool autoFlush = true)
             => PipeEnd._InternalGetStream(autoFlush);
 
         protected override void CancelImpl(Exception ex)
         {
             lock (LockObj)
             {
-                if (Direction == FastPipeEndAttachDirection.B_UpperSide)
+                if (Direction == AttachDirection.B_UpperSide)
                 {
                     SetStreamReceiveTimeout(Timeout.Infinite);
                     SetStreamSendTimeout(Timeout.Infinite);
@@ -604,12 +604,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeEndStream : FastStream
+    class PipeEndStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
-        public FastPipeEnd End { get; private set; }
+        public PipeEnd End { get; private set; }
 
-        public FastPipeEndStream(FastPipeEnd end, bool autoFlush = true)
+        public PipeEndStream(PipeEnd end, bool autoFlush = true)
         {
             end.CheckCanceled();
 
@@ -1030,12 +1030,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeNonblockStateHelper
+    class FastNonBlockStateHelper
     {
         byte[] LastState = new byte[0];
 
-        public FastPipeNonblockStateHelper() { }
-        public FastPipeNonblockStateHelper(IFastBufferState reader, IFastBufferState writer, CancellationToken cancel = default) : this()
+        public FastNonBlockStateHelper() { }
+        public FastNonBlockStateHelper(IFastBufferState reader, IFastBufferState writer, CancellationToken cancel = default) : this()
         {
             AddWatchReader(reader);
             AddWatchWriter(writer);
@@ -1110,7 +1110,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
+        static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
         public async Task<bool> WaitIfNothingChanged(int timeout = Timeout.Infinite, int salt = 0)
         {
@@ -1135,15 +1135,15 @@ namespace IPA.Cores.Basic
         Datagram = 2,
     }
 
-    abstract class FastPipeEndAsyncObjectWrapperBase : AsyncServiceWithMainLoop
+    abstract class PipeEndAsyncObjectWrapperBase : AsyncServiceWithMainLoop
     {
-        public FastPipeEnd PipeEnd { get; }
+        public PipeEnd PipeEnd { get; }
         public abstract PipeSupportedDataTypes SupportedDataTypes { get; }
 
         public ExceptionQueue ExceptionQueue { get => PipeEnd.ExceptionQueue; }
         public LayerInfo LayerInfo { get => PipeEnd.LayerInfo; }
 
-        public FastPipeEndAsyncObjectWrapperBase(FastPipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
+        public PipeEndAsyncObjectWrapperBase(PipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
         {
             PipeEnd = AddDirectDisposeLink(pipeEnd);
         }
@@ -1189,7 +1189,7 @@ namespace IPA.Cores.Basic
         protected abstract Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel);
         protected abstract Task DatagramReadFromObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel);
 
-        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
+        static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
         async Task StreamReadFromPipeLoopAsync()
         {
@@ -1374,13 +1374,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeEndSocketWrapper : FastPipeEndAsyncObjectWrapperBase
+    class PipeEndSocketWrapper : PipeEndAsyncObjectWrapperBase
     {
         public PalSocket Socket { get; }
         public int RecvTmpBufferSize { get; private set; }
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public FastPipeEndSocketWrapper(FastPipeEnd pipeEnd, PalSocket socket, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipeEndSocketWrapper(PipeEnd pipeEnd, PalSocket socket, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.Socket = socket;
             SupportedDataTypes = (Socket.SocketType == SocketType.Stream) ? PipeSupportedDataTypes.Stream : PipeSupportedDataTypes.Datagram;
@@ -1411,9 +1411,9 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
-        static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+        static readonly int MaxStreamBufferLength = CoresConfig.PipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndSocketWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndSocketWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1472,7 +1472,7 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
 
-        AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, FastPipeEndSocketWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<Datagram, PipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, PipeEndSocketWrapper>(async (me, cancel) =>
         {
             Memory<byte> tmp = me.FastMemoryAllocatorForDatagram.Reserve(65536);
 
@@ -1510,14 +1510,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeEndStreamWrapper : FastPipeEndAsyncObjectWrapperBase
+    class PipeEndStreamWrapper : PipeEndAsyncObjectWrapperBase
     {
-        public FastStream Stream { get; }
+        public Stream Stream { get; }
         public int RecvTmpBufferSize { get; private set; }
         public const int SendTmpBufferSize = 65536;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public FastPipeEndStreamWrapper(FastPipeEnd pipeEnd, FastStream stream, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipeEndStreamWrapper(PipeEnd pipeEnd, Stream stream, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.Stream = stream;
             SupportedDataTypes = PipeSupportedDataTypes.Stream;
@@ -1559,9 +1559,9 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
-        static readonly int MaxStreamBufferLength = CoresConfig.FastPipeConfig.MaxStreamBufferLength;
+        static readonly int MaxStreamBufferLength = CoresConfig.PipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, FastPipeEndStreamWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndStreamWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1617,7 +1617,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastPipeEndDuplexPipeWrapper : FastPipeEndAsyncObjectWrapperBase
+    class PipeEndDuplexPipeWrapper : PipeEndAsyncObjectWrapperBase
     {
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
@@ -1627,7 +1627,7 @@ namespace IPA.Cores.Basic
         readonly PipeWriter PipeToWrite;
         readonly PipeReader PipeToRead;
 
-        public FastPipeEndDuplexPipeWrapper(FastPipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipeEndDuplexPipeWrapper(PipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(pipeEnd, cancel)
         {
             this.SupportedDataTypes = PipeSupportedDataTypes.Stream;
 
@@ -1705,15 +1705,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class FastStream : Stream
+    abstract class StreamImplBase : Stream
     {
         public abstract bool DataAvailable { get; }
 
         IHolder Leak;
 
-        public FastStream()
+        public StreamImplBase()
         {
-            this.Leak = LeakChecker.Enter(LeakCounterKind.FastStream);
+            this.Leak = LeakChecker.Enter(LeakCounterKind.StreamImplBase);
         }
 
         Once DisposeFlag;
@@ -1765,7 +1765,7 @@ namespace IPA.Cores.Basic
 
         public sealed override bool Equals(object obj) => object.Equals(this, obj);
         public sealed override int GetHashCode() => 0;
-        public override string ToString() => "FastStream";
+        public override string ToString() => "StreamImplBase";
         public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public sealed override void Close() => Dispose(true);
 

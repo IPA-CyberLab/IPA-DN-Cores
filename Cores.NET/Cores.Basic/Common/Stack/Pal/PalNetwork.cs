@@ -290,7 +290,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalStream : FastStream
+    class PalStream : StreamImplBase
     {
         protected Stream NativeStream;
         protected NetworkStream NativeNetworkStream;
@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
     class PalSslStream : PalStream
     {
         SslStream Ssl;
-        public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream, true))
+        public PalSslStream(Stream innerStream) : base(new SslStream(innerStream, true))
         {
             this.Ssl = (SslStream)NativeStream;
         }

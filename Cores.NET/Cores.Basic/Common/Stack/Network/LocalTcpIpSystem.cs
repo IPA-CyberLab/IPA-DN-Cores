@@ -92,16 +92,16 @@ namespace IPA.Cores.Basic
 
         protected override TcpIpSystemHostInfo GetHostInfoImpl() => new HostInfo();
 
-        protected override FastTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
+        protected override NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
         {
-            FastPalTcpProtocolStub tcp = new FastPalTcpProtocolStub(cancel: cancel);
+            NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel);
 
             return tcp;
         }
 
-        protected override FastTcpListenerBase CreateListenerImpl(FastTcpListenerAcceptedProcCallback acceptedProc)
+        protected override NetTcpListenerBase CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc)
         {
-            FastPalTcpListener ret = new FastPalTcpListener(acceptedProc);
+            NetPalTcpListener ret = new NetPalTcpListener(acceptedProc);
 
             return ret;
         }

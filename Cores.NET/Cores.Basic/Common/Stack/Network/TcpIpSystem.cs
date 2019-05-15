@@ -175,10 +175,10 @@ namespace IPA.Cores.Basic
 
     class TcpListenParam
     {
-        public FastTcpListenerAcceptedProcCallback AcceptCallback { get; }
+        public NetTcpListenerAcceptedProcCallback AcceptCallback { get; }
         public IReadOnlyList<int> PortsList { get; }
 
-        public TcpListenParam(FastTcpListenerAcceptedProcCallback acceptCallback, params int[] ports)
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback acceptCallback, params int[] ports)
         {
             this.PortsList = new List<int>(ports);
             this.AcceptCallback = acceptCallback;
@@ -267,9 +267,9 @@ namespace IPA.Cores.Basic
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
-        protected abstract FastTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
+        protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
-        protected abstract FastTcpListenerBase CreateListenerImpl(FastTcpListenerAcceptedProcCallback acceptedProc);
+        protected abstract NetTcpListenerBase CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param) { }
 
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
 
                 using (EnterCriticalCounter())
                 {
-                    FastTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel);
+                    NetTcpProtocolStubBase tcp = CreateTcpProtocolStubImpl(param, this.GrandCancel);
 
                     try
                     {
@@ -313,13 +313,13 @@ namespace IPA.Cores.Basic
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel)._GetResult();
 
-        public FastTcpListenerBase CreateListener(TcpListenParam param)
+        public NetTcpListenerBase CreateListener(TcpListenParam param)
         {
             var hostInfo = GetHostInfo();
 
             using (EnterCriticalCounter())
             {
-                FastTcpListenerBase ret = CreateListenerImpl((listener, sock) =>
+                NetTcpListenerBase ret = CreateListenerImpl((listener, sock) =>
                 {
                     this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
 

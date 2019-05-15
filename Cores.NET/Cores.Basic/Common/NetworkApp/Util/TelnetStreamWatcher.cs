@@ -67,12 +67,12 @@ namespace IPA.Cores.Basic
     {
         public TelnetStreamWatcherOptions Options { get; }
 
-        readonly FastTcpListenerBase Listener;
+        readonly NetTcpListenerBase Listener;
 
         TcpIpSystem Net => Options.TcpIpSystem;
 
-        protected abstract Task<FastPipeEnd> SubscribeImplAsync();
-        protected abstract Task UnsubscribeImplAsync(FastPipeEnd pipe);
+        protected abstract Task<PipeEnd> SubscribeImplAsync();
+        protected abstract Task UnsubscribeImplAsync(PipeEnd pipe);
 
         public TelnetStreamWatcherBase(TelnetStreamWatcherOptions options)
         {
@@ -101,7 +101,7 @@ namespace IPA.Cores.Basic
                         {
                             try
                             {
-                                using (var pipeStub = pipeEnd.GetFastAppProtocolStub())
+                                using (var pipeStub = pipeEnd.GetNetAppProtocolStub())
                                 using (var srcStream = pipeStub.GetStream())
                                 {
                                     await srcStream.CopyToAsync(destStream, sock.GrandCancel);
@@ -132,12 +132,12 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override Task<FastPipeEnd> SubscribeImplAsync()
+        protected override Task<PipeEnd> SubscribeImplAsync()
         {
             return Task.FromResult(LocalLogRouter.BufferedLogRoute.Subscribe());
         }
 
-        protected override Task UnsubscribeImplAsync(FastPipeEnd pipe)
+        protected override Task UnsubscribeImplAsync(PipeEnd pipe)
         {
             LocalLogRouter.BufferedLogRoute.Unsubscribe(pipe);
             return Task.CompletedTask;

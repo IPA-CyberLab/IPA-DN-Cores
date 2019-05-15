@@ -67,14 +67,14 @@ namespace IPA.Cores.Basic
         protected NetworkSystemParam Param;
 
         protected readonly CriticalSection LockObj = new CriticalSection();
-        protected readonly HashSet<NetworkSock> OpenedSockList = new HashSet<NetworkSock>();
+        protected readonly HashSet<NetSock> OpenedSockList = new HashSet<NetSock>();
 
         public NetworkSystemBase(NetworkSystemParam param)
         {
             this.Param = param;
         }
 
-        protected void AddToOpenedSockList(NetworkSock sock, string logTag)
+        protected void AddToOpenedSockList(NetSock sock, string logTag)
         {
             lock (LockObj)
                 OpenedSockList.Add(sock);
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected void RemoveFromOpenedSockList(NetworkSock sock)
+        protected void RemoveFromOpenedSockList(NetSock sock)
         {
             try
             {
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception ex)
         {
-            NetworkSock[] openedSockets;
+            NetSock[] openedSockets;
 
             lock (LockObj)
             {

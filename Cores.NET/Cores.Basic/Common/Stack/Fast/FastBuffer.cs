@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
 
     static class IFastBufferStateHelper
     {
-        static readonly int PollingTimeout = CoresConfig.FastPipeConfig.PollingTimeout;
+        static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
         public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout)
         {

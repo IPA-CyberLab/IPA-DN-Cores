@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
             this.Server = server;
         }
 
-        FastTcpListenerBase Listener = null;
+        NetTcpListenerBase Listener = null;
 
         public Task BindAsync()
         {
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task ListenerAcceptNewSocketCallback(FastTcpListenerBase.Listener listener, ConnSock newSock)
+        async Task ListenerAcceptNewSocketCallback(NetTcpListenerBase.Listener listener, ConnSock newSock)
         {
             using (var connection = new KestrelStackConnection(newSock, this.PipeScheduler))
             {
@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var wrapper = new FastPipeEndDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
+                using (var wrapper = new PipeEndDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
                 {
                     // Now wait for complete
                     await wrapper.MainLoopToWaitComplete;

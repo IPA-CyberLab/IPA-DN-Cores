@@ -1149,7 +1149,7 @@ namespace IPA.Cores.Basic
         PalSocket,
         TaskLeak,
         FastStreamToPalNetworkStream,
-        FastStream,
+        StreamImplBase,
         AsyncServiceWithMainLoop,
         Singleton1,
         Singleton2,

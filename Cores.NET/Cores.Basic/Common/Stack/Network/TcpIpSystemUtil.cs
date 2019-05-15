@@ -212,16 +212,16 @@ namespace IPA.Cores.Basic
             => ConnectIPv4v6DualAsync(param, cancel)._GetResult();
     }
 
-    class MiddleSock : NetworkSock
+    class MiddleSock : NetSock
     {
-        public MiddleSock(NetworkSock LowerSock, FastProtocolBase protocolStack) : base(protocolStack) { }
+        public MiddleSock(NetSock LowerSock, NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
     class SslSock : MiddleSock
     {
-        protected new FastSslProtocolStack Stack => (FastSslProtocolStack)base.Stack;
+        protected new NetSslProtocolStack Stack => (NetSslProtocolStack)base.Stack;
 
-        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new FastSslProtocolStack(lowerStreamSock.UpperEnd, null, null))
+        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new NetSslProtocolStack(lowerStreamSock.UpperEnd, null, null))
         {
         }
 
