@@ -538,6 +538,38 @@ namespace IPA.Cores.Basic
                 uint BufferLength,
                 TOKEN_PRIVILEGE* PreviousState,
                 uint* ReturnLength);
+
+            [DllImport(Libraries.Advapi32, EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
+            internal extern static IntPtr OpenSCManager(string machineName, string databaseName, int access);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            public extern static IntPtr CreateService(SafeServiceHandle databaseHandle, string serviceName, string displayName, int access, int serviceType,
+                int startType, int errorControl, string binaryPath, string loadOrderGroup, IntPtr pTagId, string dependencies,
+                string servicesStartName, string password);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            public static extern bool ChangeServiceConfig2(SafeServiceHandle serviceHandle, uint infoLevel, ref SERVICE_DESCRIPTION serviceDesc);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            public static extern bool ChangeServiceConfig2(SafeServiceHandle serviceHandle, uint infoLevel, ref SERVICE_DELAYED_AUTOSTART_INFO serviceDesc);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal extern static bool CloseServiceHandle(IntPtr handle);
+
+            [DllImport(Libraries.Advapi32, EntryPoint = "OpenServiceW", CharSet = CharSet.Unicode, SetLastError = true)]
+            internal extern static IntPtr OpenService(SafeServiceHandle databaseHandle, string serviceName, int access);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal static extern unsafe bool QueryServiceStatus(SafeServiceHandle serviceHandle, SERVICE_STATUS* pStatus);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            internal extern unsafe static bool ControlService(SafeServiceHandle serviceHandle, int control, SERVICE_STATUS* pStatus);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            public unsafe extern static bool SetServiceStatus(IntPtr serviceStatusHandle, SERVICE_STATUS* status);
+
+            [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+            public extern static bool DeleteService(SafeServiceHandle serviceHandle);
         }
 
         // Win32 types
@@ -1268,6 +1300,48 @@ namespace IPA.Cores.Basic
             {
                 public uint PrivilegeCount;
                 public LUID_AND_ATTRIBUTES Privileges /*[ANYSIZE_ARRAY]*/;
+            }
+
+            internal class SafeServiceHandle : SafeHandle
+            {
+                internal SafeServiceHandle(IntPtr handle) : base(IntPtr.Zero, true)
+                {
+                    SetHandle(handle);
+                }
+
+                public override bool IsInvalid
+                {
+                    get { return DangerousGetHandle() == IntPtr.Zero || DangerousGetHandle() == new IntPtr(-1); }
+                }
+
+                protected override bool ReleaseHandle()
+                {
+                    return Win32Api.Advapi32.CloseServiceHandle(handle);
+                }
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct SERVICE_DESCRIPTION
+            {
+                public IntPtr description;
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct SERVICE_DELAYED_AUTOSTART_INFO
+            {
+                public bool fDelayedAutostart;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            internal struct SERVICE_STATUS
+            {
+                public int serviceType;
+                public int currentState;
+                public int controlsAccepted;
+                public int win32ExitCode;
+                public int serviceSpecificExitCode;
+                public int checkPoint;
+                public int waitHint;
             }
         }
 

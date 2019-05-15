@@ -314,6 +314,7 @@ namespace IPA.Cores.Basic
 
             service.StopService(Daemon.Options.StopTimeout);
 
+            Con.WriteLine();
             Con.WriteLine($"The daemon {Daemon.ToString()} is stopped successfully.");
         }
     }
@@ -387,12 +388,12 @@ namespace IPA.Cores.Basic
                         if (Env.IsUnix)
                         {
                             exe = "nohup";
-                            arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}");
+                            arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
                         else
                         {
                             exe = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"");
-                            arguments = (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" {cmdName} {DaemonCmdType.ExecMain}" : $"{cmdName} {DaemonCmdType.ExecMain}");
+                            arguments = (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
 
                         ProcessStartInfo info = new ProcessStartInfo()
@@ -405,100 +406,110 @@ namespace IPA.Cores.Basic
                             RedirectStandardInput = false,
                         };
 
-                        using (Process p = Process.Start(info))
+                        try
                         {
-                            CancellationTokenSource cts = new CancellationTokenSource();
-
-                            StringWriter stdOut = new StringWriter();
-                            StringWriter stdErr = new StringWriter();
-
-                            Task outputReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                            using (Process p = Process.Start(info))
                             {
-                                while (true)
+                                CancellationTokenSource cts = new CancellationTokenSource();
+
+                                StringWriter stdOut = new StringWriter();
+                                StringWriter stdErr = new StringWriter();
+
+                                Task outputReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
                                 {
-                                    cts.Token.ThrowIfCancellationRequested();
-
-                                    string line = await p.StandardOutput.ReadLineAsync();
-                                    if (line == null)
-                                        throw new ApplicationException("StandardOutput is disconnected.");
-
-                                    stdOut.WriteLine(line);
-
-                                    if (line._InStr(UserModeService.ExecMainSignature, false))
+                                    while (true)
                                     {
-                                        return;
+                                        cts.Token.ThrowIfCancellationRequested();
+
+                                        string line = await p.StandardOutput.ReadLineAsync();
+                                        if (line == null)
+                                            throw new ApplicationException("StandardOutput is disconnected.");
+
+                                        stdOut.WriteLine(line);
+
+                                        if (line._InStr(UserModeService.ExecMainSignature, false))
+                                        {
+                                            return;
+                                        }
                                     }
-                                }
-                            });
+                                });
 
-                            Task errorReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
-                            {
-                                while (true)
+                                Task errorReaderTask = TaskUtil.StartAsyncTaskAsync(async () =>
                                 {
-                                    cts.Token.ThrowIfCancellationRequested();
+                                    while (true)
+                                    {
+                                        cts.Token.ThrowIfCancellationRequested();
 
-                                    string line = await p.StandardError.ReadLineAsync();
+                                        string line = await p.StandardError.ReadLineAsync();
 
-                                    stdErr.WriteLine(line);
+                                        stdErr.WriteLine(line);
 
-                                    if (line == null)
-                                        throw new ApplicationException("StandardError is disconnected.");
-                                }
-                            }, leakCheck: false);
+                                        if (line == null)
+                                            throw new ApplicationException("StandardError is disconnected.");
+                                    }
+                                }, leakCheck: false);
 
-                            var result = TaskUtil.WaitObjectsAsync(new Task[] { outputReaderTask, errorReaderTask }, timeout: CoresConfig.DaemonSettings.StartExecTimeout)._GetResult();
+                                var result = TaskUtil.WaitObjectsAsync(new Task[] { outputReaderTask, errorReaderTask }, timeout: CoresConfig.DaemonSettings.StartExecTimeout)._GetResult();
 
-                            cts.Cancel();
+                                cts.Cancel();
 
-                            bool isError = false;
+                                bool isError = false;
 
-                            if (result == ExceptionWhen.TimeoutException)
-                            {
-                                // Error
-                                Con.WriteError($"Failed to start the {daemon.ToString()}. Child process timed out.");
-                                isError = true;
-                            }
-                            else if (result == ExceptionWhen.TaskException)
-                            {
-                                // Error
-                                Con.WriteError($"Failed to start the {daemon.ToString()}. Error occured in the child process.");
-                                isError = true;
-                            }
-
-                            if (isError)
-                            {
-                                Con.WriteError();
-                                Con.WriteError("--- Standard output ---");
-                                Con.WriteError(stdOut.ToString());
-                                Con.WriteError();
-                                Con.WriteError("--- Standard error ---");
-                                Con.WriteError(stdErr.ToString());
-                                Con.WriteError();
-
-                                // Terminate the process
-                                try
+                                if (result == ExceptionWhen.TimeoutException)
                                 {
-                                    p.Kill();
-                                    p.WaitForExit();
+                                    // Error
+                                    Con.WriteError($"Failed to start the {daemon.ToString()}. Child process timed out.");
+                                    isError = true;
                                 }
-                                catch { }
-                            }
-                            else
-                            {
-                                // OK
-                                Con.WriteLine($"The {daemon.ToString()} is started successfully.");
-                            }
+                                else if (result == ExceptionWhen.TaskException)
+                                {
+                                    // Error
+                                    Con.WriteError($"Failed to start the {daemon.ToString()}. Error occured in the child process.");
+                                    isError = true;
+                                }
 
-                            outputReaderTask._TryWait(true);
+                                if (isError)
+                                {
+                                    Con.WriteError();
+                                    Con.WriteError("--- Standard output ---");
+                                    Con.WriteError(stdOut.ToString());
+                                    Con.WriteError();
+                                    Con.WriteError("--- Standard error ---");
+                                    Con.WriteError(stdErr.ToString());
+                                    Con.WriteError();
 
-                            if (isError)
-                            {
-                                return 1;
+                                    // Terminate the process
+                                    try
+                                    {
+                                        p.Kill();
+                                        p.WaitForExit();
+                                    }
+                                    catch { }
+                                }
+                                else
+                                {
+                                    // OK
+                                    Con.WriteLine($"The {daemon.ToString()} is started successfully.");
+                                }
+
+                                outputReaderTask._TryWait(true);
+
+                                if (isError)
+                                {
+                                    return 1;
+                                }
+                                else
+                                {
+                                    return 0;
+                                }
                             }
-                            else
-                            {
-                                return 0;
-                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Con.WriteError($"File name: '{info.FileName}'");
+                            Con.WriteError($"Arguments: '{info.Arguments}'");
+                            Con.WriteError(ex.Message);
+                            return 1;
                         }
                     }
 
@@ -512,6 +523,11 @@ namespace IPA.Cores.Basic
 
                 case DaemonCmdType.Test:
                     host.TestRun();
+                    break;
+
+                case DaemonCmdType.ExecWinSvc:
+                    if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+                    host.ExecMain(DaemonMode.WindowsServiceMode);
                     break;
             }
 

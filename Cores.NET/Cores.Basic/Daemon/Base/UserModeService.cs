@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
             public long Pid;
 
             [DataMember]
-            public string PipeName;
+            public string EventName;
         }
     }
 
@@ -109,8 +109,8 @@ namespace IPA.Cores.Basic
 
             try
             {
-                string pipeName = null;
-                NamedPipeServerStream pipe = null;
+                string eventName = null;
+                EventWaitHandle eventHandle = null;
 
                 if (Env.IsUnix)
                 {
@@ -118,14 +118,13 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    pipeName = "usermodesvc_" + Util.Rand(16)._GetHexString().ToLower();
-                    pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 32, PipeTransmissionMode.Byte);
+                    eventName = @"Global\usermodesvc_" + Util.Rand(16)._GetHexString().ToLower();
 
-                    TaskUtil.StartAsyncTaskAsync(async () =>
+                    eventHandle = new EventWaitHandle(false, EventResetMode.ManualReset, eventName);
+
+                    TaskUtil.StartSyncTaskAsync(() =>
                     {
-                        byte[] tmp = new byte[4096];
-
-                        await pipe.ReadAsync(tmp);
+                        eventHandle.WaitOne();
 
                         Win32PipeRecvHandler();
                     }, leakCheck: false)._LaissezFaire(true);
@@ -136,7 +135,7 @@ namespace IPA.Cores.Basic
                 lock (HiveData.DataLock)
                 {
                     HiveData.Data.Pid = Env.ProcessId;
-                    HiveData.Data.PipeName = pipeName;
+                    HiveData.Data.EventName = eventName;
                 }
 
                 try
@@ -272,34 +271,35 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    NamedPipeClientStream pipe;
-
-                    pipe = new NamedPipeClientStream(".", HiveData.Data.PipeName, PipeDirection.InOut);
-
-                    try
+                    if (ManualResetEvent.TryOpenExisting(HiveData.Data.EventName, out EventWaitHandle eventHandle))
                     {
-                        pipe.Connect(stopTimeout);
-
-                        Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
-
-                        Dbg.Where();
-
-                        pipe.WriteAsync("Hello"._GetBytes_Ascii());
-
-                        Dbg.Where();
-
-                        if (Win32ApiUtil.WaitProcessExit((int)pid, stopTimeout) == false)
+                        try
                         {
-                            Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                            Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
 
-                            throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                            Dbg.Where();
+
+                            eventHandle.Set();
+
+                            Dbg.Where();
+
+                            if (Win32ApiUtil.WaitProcessExit((int)pid, stopTimeout) == false)
+                            {
+                                Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+
+                                throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                            }
+
+                            Dbg.Where();
                         }
-
-                        Dbg.Where();
+                        finally
+                        {
+                            eventHandle._DisposeSafe();
+                        }
                     }
-                    finally
+                    else
                     {
-                        pipe._DisposeSafe();
+                        Con.WriteLine($"The daemon \"{Name}\" is not running.");
                     }
                 }
             }
