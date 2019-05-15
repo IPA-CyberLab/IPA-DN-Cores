@@ -290,191 +290,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastStreamToPalNetworkStream : NetworkStream, IFastStream
-    {
-        private FastStreamToPalNetworkStream() : base(null) { }
-        FastStream FastStream;
-
-        public bool DisposeParentObjectAutomatically = false;
-
-        IHolder LeakHolder = null;
-
-        private void _InternalInit(FastStream fastStream, bool disposeParentObject)
-        {
-            FastStream = fastStream;
-            DisposeParentObjectAutomatically = disposeParentObject;
-
-            ReadTimeout = Timeout.Infinite;
-            WriteTimeout = Timeout.Infinite;
-
-            this.LeakHolder = LeakChecker.Enter(LeakCounterKind.FastStreamToPalNetworkStream);
-        }
-
-        public static FastStreamToPalNetworkStream CreateFromFastStream(FastStream fastStream, bool disposeObject = false)
-        {
-            FastStreamToPalNetworkStream ret = Util.NewWithoutConstructor<FastStreamToPalNetworkStream>();
-
-            ret._InternalInit(fastStream, disposeObject);
-
-            return ret;
-        }
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            if (DisposeFlag.IsFirstCall() && disposing)
-            {
-                if (this.DisposeParentObjectAutomatically)
-                {
-                    FastStream._DisposeSafe();
-                }
-
-                this.LeakHolder._DisposeSafe();
-            }
-            base.Dispose(disposing);
-        }
-
-
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotImplementedException();
-        public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotImplementedException();
-        public override void SetLength(long value) => throw new NotImplementedException();
-
-        public override bool CanTimeout => true;
-        public override int ReadTimeout { get => FastStream.ReadTimeout; set => FastStream.ReadTimeout = value; }
-        public override int WriteTimeout { get => FastStream.WriteTimeout; set => FastStream.WriteTimeout = value; }
-
-        public override bool DataAvailable => FastStream.DataAvailable;
-
-        public override void Flush() => FastStream.FlushAsync()._GetResult();
-
-        public override Task FlushAsync(CancellationToken cancellationToken = default) => FastStream.FlushAsync(cancellationToken);
-
-        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
-            => await FastStream.WriteAsync(buffer._AsReadOnlyMemory(offset, count), cancellationToken);
-
-        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
-            => await FastStream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
-
-        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default)._GetResult();
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default)._GetResult();
-
-        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
-        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-            => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
-        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
-        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
-
-        public override bool Equals(object obj) => object.Equals(this, obj);
-        public override int GetHashCode() => 0;
-        public override string ToString() => "FastStreamToPalNetworkStream";
-        public override object InitializeLifetimeService() => base.InitializeLifetimeService();
-        public override void Close() => Dispose(true);
-
-        public override void CopyTo(Stream destination, int bufferSize)
-        {
-            byte[] array = ArrayPool<byte>.Shared.Rent(bufferSize);
-            try
-            {
-                int count;
-                while ((count = this.Read(array, 0, array.Length)) != 0)
-                {
-                    destination.Write(array, 0, count);
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(array, false);
-            }
-        }
-
-        public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
-        {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            try
-            {
-                for (; ; )
-                {
-                    int num = await this.ReadAsync(new Memory<byte>(buffer), cancellationToken).ConfigureAwait(false);
-                    int num2 = num;
-                    if (num2 == 0)
-                    {
-                        break;
-                    }
-                    await destination.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, num2), cancellationToken).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer, false);
-            }
-        }
-
-        [Obsolete]
-        protected override WaitHandle CreateWaitHandle() => new ManualResetEvent(false);
-
-        [Obsolete]
-        protected override void ObjectInvariant() { }
-
-        public override int Read(Span<byte> buffer)
-        {
-            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
-            int result;
-            try
-            {
-                int num = this.Read(array, 0, buffer.Length);
-                if ((ulong)num > (ulong)((long)buffer.Length))
-                {
-                    throw new IOException("StreamTooLong");
-                }
-                new Span<byte>(array, 0, num).CopyTo(buffer);
-                result = num;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(array, false);
-            }
-            return result;
-        }
-
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-            => await FastStream.ReadAsync(buffer, cancellationToken);
-
-        public override int ReadByte()
-        {
-            byte[] array = new byte[1];
-            if (this.Read(array, 0, 1) == 0)
-            {
-                return -1;
-            }
-            return (int)array[0];
-        }
-
-        public override void Write(ReadOnlySpan<byte> buffer)
-        {
-            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
-            try
-            {
-                buffer.CopyTo(array);
-                this.Write(array, 0, buffer.Length);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(array, false);
-            }
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-            => await FastStream.WriteAsync(buffer, cancellationToken);
-
-        public override void WriteByte(byte value)
-            => this.Write(new byte[] { value }, 0, 1);
-    }
-
     class PalStream : FastStream
     {
         protected Stream NativeStream;
@@ -489,18 +304,16 @@ namespace IPA.Cores.Basic
             NativeNetworkStream = NativeStream as NetworkStream;
         }
 
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default)
+        protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancel = default)
             => NativeStream.ReadAsync(buffer, cancel);
 
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
+        protected override ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
             => NativeStream.WriteAsync(buffer, cancel);
 
         Once DisposeFlag;
 
-        public override int ReadTimeout { get => NativeStream.ReadTimeout;
-            set => NativeStream.ReadTimeout = value; }
+        public override int ReadTimeout { get => NativeStream.ReadTimeout; set => NativeStream.ReadTimeout = value; }
         public override int WriteTimeout { get => NativeStream.WriteTimeout; set => NativeStream.WriteTimeout = value; }
-
         public override bool DataAvailable => NativeNetworkStream?.DataAvailable ?? true;
 
         protected override void Dispose(bool disposing)
@@ -513,7 +326,7 @@ namespace IPA.Cores.Basic
             finally { base.Dispose(disposing); }
         }
 
-        public override Task FlushAsync(CancellationToken cancel = default) => NativeStream.FlushAsync(cancel);
+        protected override Task FlushImplAsync(CancellationToken cancel = default) => NativeStream.FlushAsync(cancel);
     }
 
     class PalSslClientAuthenticationOptions
@@ -547,7 +360,7 @@ namespace IPA.Cores.Basic
     class PalSslStream : PalStream
     {
         SslStream Ssl;
-        public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream.NetworkStream, true))
+        public PalSslStream(FastStream innerStream) : base(new SslStream(innerStream, true))
         {
             this.Ssl = (SslStream)NativeStream;
         }

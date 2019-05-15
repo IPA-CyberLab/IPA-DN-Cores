@@ -73,6 +73,11 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            //FastStreamBuffer buf = new FastStreamBuffer(thresholdLength: 5);
+
+
+            //return;
+
             using (TelnetLocalLogWatcher w = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions(null, null, 23)))
             {
                 Con.ReadLine("?");

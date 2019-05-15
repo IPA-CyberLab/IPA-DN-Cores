@@ -84,13 +84,13 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Connected: {sock.EndPointInfo._GetObjectDump()}");
 
-                    using (var st = sock.GetStream())
+                    using (var destStream = sock.GetStream())
                     {
                         if (Options.IPAccessFilter(sock.Info.Ip.RemoteIPAddress) == false)
                         {
                             Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Access denied: {sock.EndPointInfo._GetObjectDump()}");
 
-                            await st.WriteAsync("You are not allowed to access to this service.\r\n\r\n"._GetBytes_Ascii());
+                            await destStream.WriteAsync("You are not allowed to access to this service.\r\n\r\n"._GetBytes_Ascii());
 
                             await Task.Delay(100);
 
@@ -102,9 +102,7 @@ namespace IPA.Cores.Basic
                             try
                             {
                                 using (var pipeStub = pipeEnd.GetFastAppProtocolStub())
-                                using (var pipeStream = pipeStub.GetStream())
-                                using (var srcStream = pipeStream.NetworkStream)
-                                using (var destStream = st.NetworkStream)
+                                using (var srcStream = pipeStub.GetStream())
                                 {
                                     await srcStream.CopyToAsync(destStream, sock.GrandCancel);
                                 }

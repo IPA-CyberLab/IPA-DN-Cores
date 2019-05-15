@@ -15458,8 +15458,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                 else
                 {
                     ConnSock connSock = await system.ConnectIPv4v6DualAsync(new TcpConnectParam(host, port), cancellationToken);
-                    var networkStream = connSock.GetStream(true).NetworkStream;
-                    networkStream.DisposeParentObjectAutomatically = true;
+                    var networkStream = connSock.GetStream(true);
                     result = new ValueTuple<Socket, Stream>(null, networkStream);
                 }
             }

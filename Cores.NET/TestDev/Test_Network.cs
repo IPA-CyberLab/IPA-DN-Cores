@@ -101,9 +101,9 @@ namespace IPA.TestDev
 
             //Net_Test6_DualStack_Client();
 
-            //Net_Test7_Http_Download_Async().GetResult();
+            //Net_Test7_Http_Download_Async()._GetResult();
 
-            //Net_Test8_Http_Upload_Async().GetResult();
+            //Net_Test8_Http_Upload_Async()._GetResult();
 
             Net_Test9_WebServer();
 
@@ -204,7 +204,7 @@ namespace IPA.TestDev
 
                     ssl.StartSslClient(sslClientOptions);
 
-                    var st = ssl.GetStream().NetworkStream;
+                    var st = ssl.GetStream();
 
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);
@@ -266,7 +266,7 @@ namespace IPA.TestDev
             using (var listener = LocalNet.CreateListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
-                        var stream = sock.GetStream().NetworkStream;
+                        var stream = sock.GetStream();
                         StreamWriter w = new StreamWriter(stream);
                         while (true)
                         {
@@ -297,7 +297,7 @@ namespace IPA.TestDev
 
                     ssl.StartSslClient(sslClientOptions);
 
-                    var st = ssl.GetStream().NetworkStream;
+                    var st = ssl.GetStream();
 
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);
@@ -328,7 +328,7 @@ namespace IPA.TestDev
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
                 {
-                    var st = sock.GetStream().NetworkStream;
+                    var st = sock.GetStream();
                     //sock.DisposeSafe();
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);

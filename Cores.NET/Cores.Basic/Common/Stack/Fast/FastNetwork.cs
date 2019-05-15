@@ -43,6 +43,8 @@ using System.IO.Pipelines;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO;
+using System.Buffers;
 
 namespace IPA.Cores.Basic
 {
@@ -1002,29 +1004,18 @@ namespace IPA.Cores.Basic
 
         public void Disconnect() => End.Cancel(new DisconnectedException());
 
-        public override int ReadTimeout { get; set; }
-        public override int WriteTimeout { get; set; }
-
         public override bool DataAvailable => IsReadyToReceive;
 
-        public virtual void Flush() => FastFlush();
-
-        public override Task FlushAsync(CancellationToken cancellationToken)
+        protected override Task FlushImplAsync(CancellationToken cancellationToken)
         {
-            Flush();
+            FastFlush(true, true);
             return Task.CompletedTask;
         }
 
-        public virtual Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            => SendAsync(buffer._AsReadOnlyMemory(offset, count), cancellationToken);
-
-        public virtual Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            => ReceiveAsync(buffer.AsMemory(offset, count), cancellationToken);
-
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        protected override async ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
             => await ReceiveAsync(buffer, cancellationToken);
 
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
             => await this.SendAsync(buffer, cancellationToken);
 
         Once DisposeFlag;
@@ -1724,10 +1715,8 @@ namespace IPA.Cores.Basic
         Task FlushAsync(CancellationToken cancel = default);
     }
 
-    abstract class FastStream : IDisposable, IFastStream
+    abstract class FastStream : Stream, IFastStream
     {
-        public abstract int ReadTimeout { get; set; }
-        public abstract int WriteTimeout { get; set; }
         public abstract bool DataAvailable { get; }
 
         IHolder Leak;
@@ -1737,33 +1726,157 @@ namespace IPA.Cores.Basic
             this.Leak = LeakChecker.Enter(LeakCounterKind.FastStream);
         }
 
-        public abstract ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default);
-        public abstract ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
-        public abstract Task FlushAsync(CancellationToken cancel = default);
-
-        FastStreamToPalNetworkStream _NetworkStream = null;
-        public FastStreamToPalNetworkStream NetworkStream
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
         {
-            get
+            try
             {
-                if (_NetworkStream == null)
-                    _NetworkStream = FastStreamToPalNetworkStream.CreateFromFastStream(this, true);
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                Leak._DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
 
-                return _NetworkStream;
+        protected abstract Task FlushImplAsync(CancellationToken cancellationToken = default);
+        protected abstract ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default);
+        protected abstract ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default);
+
+        public sealed override bool CanRead => true;
+        public sealed override bool CanSeek => false;
+        public sealed override bool CanWrite => true;
+        public sealed override long Length => throw new NotImplementedException();
+        public sealed override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public sealed override long Seek(long offset, SeekOrigin origin) => throw new NotImplementedException();
+        public sealed override void SetLength(long value) => throw new NotImplementedException();
+
+        public sealed override bool CanTimeout => true;
+        public override int ReadTimeout { get; set; }
+        public override int WriteTimeout { get; set; }
+
+        public sealed override void Flush() => FlushAsync()._GetResult();
+
+        public sealed override Task FlushAsync(CancellationToken cancellationToken = default) => FlushImplAsync(cancellationToken);
+
+        public sealed override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+            => await WriteAsync(buffer._AsReadOnlyMemory(offset, count), cancellationToken);
+
+        public sealed override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+            => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+
+        public sealed override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default)._GetResult();
+        public sealed override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default)._GetResult();
+
+        public sealed override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+            => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
+        public sealed override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+            => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
+        public sealed override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
+        public sealed override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
+
+        public sealed override bool Equals(object obj) => object.Equals(this, obj);
+        public sealed override int GetHashCode() => 0;
+        public override string ToString() => "FastStream";
+        public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
+        public sealed override void Close() => Dispose(true);
+
+        public sealed override void CopyTo(Stream destination, int bufferSize)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(bufferSize);
+            try
+            {
+                int count;
+                while ((count = this.Read(array, 0, array.Length)) != 0)
+                {
+                    destination.Write(array, 0, count);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
             }
         }
 
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
+        public sealed override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            _NetworkStream._DisposeSafe();
-
-            Leak._DisposeSafe();
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            try
+            {
+                for (; ; )
+                {
+                    int num = await this.ReadAsync(new Memory<byte>(buffer), cancellationToken).ConfigureAwait(false);
+                    int num2 = num;
+                    if (num2 == 0)
+                    {
+                        break;
+                    }
+                    await destination.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, num2), cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer, false);
+            }
         }
 
+        [Obsolete]
+        protected sealed override WaitHandle CreateWaitHandle() => new ManualResetEvent(false);
+
+        [Obsolete]
+        protected sealed override void ObjectInvariant() { }
+
+        public sealed override int Read(Span<byte> buffer)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            int result;
+            try
+            {
+                int num = this.Read(array, 0, buffer.Length);
+                if ((ulong)num > (ulong)((long)buffer.Length))
+                {
+                    throw new IOException("StreamTooLong");
+                }
+                new Span<byte>(array, 0, num).CopyTo(buffer);
+                result = num;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
+            }
+            return result;
+        }
+
+        public sealed override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => await ReadImplAsync(buffer, cancellationToken);
+
+        public sealed override int ReadByte()
+        {
+            byte[] array = new byte[1];
+            if (this.Read(array, 0, 1) == 0)
+            {
+                return -1;
+            }
+            return (int)array[0];
+        }
+
+        public sealed override void Write(ReadOnlySpan<byte> buffer)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(array);
+                this.Write(array, 0, buffer.Length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
+            }
+        }
+
+        public sealed override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+            => await WriteImplAsync(buffer, cancellationToken);
+
+        public sealed override void WriteByte(byte value)
+            => this.Write(new byte[] { value }, 0, 1);
     }
 }
 
