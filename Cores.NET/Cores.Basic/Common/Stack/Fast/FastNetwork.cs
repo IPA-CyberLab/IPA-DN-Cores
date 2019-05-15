@@ -406,8 +406,8 @@ namespace IPA.Cores.Basic
 
         public AttachHandle Attach(AttachDirection attachDirection, object userState = null) => new AttachHandle(this, attachDirection, userState);
 
-        internal PipeEndStream _InternalGetStream(bool autoFlush = true)
-            => new PipeEndStream(this, autoFlush);
+        internal PipeStream _InternalGetStream(bool autoFlush = true)
+            => new PipeStream(this, autoFlush);
 
         public NetAppStub GetNetAppProtocolStub(CancellationToken cancel = default)
             => new NetAppStub(this, cancel);
@@ -574,7 +574,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public PipeEndStream GetStream(bool autoFlush = true)
+        public PipeStream GetStream(bool autoFlush = true)
             => PipeEnd._InternalGetStream(autoFlush);
 
         protected override void CancelImpl(Exception ex)
@@ -604,12 +604,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipeEndStream : StreamImplBase
+    class PipeStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
         public PipeEnd End { get; private set; }
 
-        public PipeEndStream(PipeEnd end, bool autoFlush = true)
+        public PipeStream(PipeEnd end, bool autoFlush = true)
         {
             end.CheckCanceled();
 

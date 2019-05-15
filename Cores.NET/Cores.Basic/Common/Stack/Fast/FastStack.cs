@@ -98,9 +98,9 @@ namespace IPA.Cores.Basic
 
         CriticalSection LockObj = new CriticalSection();
 
-        PipeEndStream StreamCache = null;
+        PipeStream StreamCache = null;
 
-        public PipeEndStream GetStream(bool autoFlash = true)
+        public PipeStream GetStream(bool autoFlash = true)
         {
             lock (LockObj)
             {
@@ -457,7 +457,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public PipeEndStream GetStream(bool autoFlush = true)
+        public PipeStream GetStream(bool autoFlush = true)
         {
             if (AppStub == null)
                 AppStub = this.GetNetAppProtocolStub();
@@ -603,7 +603,7 @@ namespace IPA.Cores.Basic
         public NetSslProtocolStack(PipeEnd lower, PipeEnd upper, NetSslProtocolOptions options,
             CancellationToken cancel = default) : base(lower, upper, options ?? new NetSslProtocolOptions(), cancel) { }
 
-        PipeEndStream LowerStream = null;
+        PipeStream LowerStream = null;
         PalSslStream SslStream = null;
         PipeEndStreamWrapper Wrapper = null;
 
@@ -614,7 +614,7 @@ namespace IPA.Cores.Basic
 
             using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
             {
-                PipeEndStream lowerStream = LowerAttach.GetStream(autoFlush: false);
+                PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
                 {
                     PalSslStream ssl = new PalSslStream(lowerStream);

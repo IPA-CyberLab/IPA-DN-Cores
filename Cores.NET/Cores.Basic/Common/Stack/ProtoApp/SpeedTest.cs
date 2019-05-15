@@ -405,7 +405,7 @@ namespace IPA.Cores.Basic
 
                     AttachHandle attachHandle = app.AttachHandle;
 
-                    PipeEndStream st = app.GetStream();
+                    PipeStream st = app.GetStream();
 
                     if (dir == SpeedTestDirection.Recv)
                         app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
