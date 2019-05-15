@@ -1705,17 +1705,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IFastStream
-    {
-        ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default);
-        ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancel = default);
-        int ReadTimeout { get; set; }
-        int WriteTimeout { get; set; }
-        bool DataAvailable { get; }
-        Task FlushAsync(CancellationToken cancel = default);
-    }
-
-    abstract class FastStream : Stream, IFastStream
+    abstract class FastStream : Stream
     {
         public abstract bool DataAvailable { get; }
 
