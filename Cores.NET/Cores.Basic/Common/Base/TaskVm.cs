@@ -267,7 +267,7 @@ namespace IPA.Cores.Basic
             sync_ctx = new TaskVmSynchronizationContext(this);
             SynchronizationContext.SetSynchronizationContext(sync_ctx);
 
-            ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"] = this.GracefulCancel;
+            ThreadLocalStorage.CurrentThreadData["taskvm_current_graceful_cancel"] = this.GracefulCancel;
 
             //Dbg.WriteCurrentThreadId("before task_proc()");
 

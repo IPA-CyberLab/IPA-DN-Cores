@@ -255,8 +255,6 @@ namespace IPA.Cores.Basic
         public TcpIpSystemParam(string name) : base(name) { }
     }
 
-    delegate Task TcpIpAcceptCallbackAsync(Listener listener, ConnSock newSock);
-
     interface ITcpConnectableSystem
     {
         Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default);

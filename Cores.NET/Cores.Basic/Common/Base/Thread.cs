@@ -38,6 +38,7 @@ using System.Collections.Generic;
 using System.IO;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
@@ -376,14 +377,14 @@ namespace IPA.Cores.Basic
         public MutantUnixImpl(string name)
         {
             Filename = Path.Combine(Env.UnixMutantDir, MutantBase.GenerateInternalName(name) + ".lock");
-            BasicFile.MakeDirIfNotExists(Env.UnixMutantDir);
+            IO.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
         public override void Lock(bool nonBlock = false)
         {
             if (LockedCount == 0)
             {
-                BasicFile.MakeDirIfNotExists(Env.UnixMutantDir);
+                IO.MakeDirIfNotExists(Env.UnixMutantDir);
 
                 UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
 
@@ -528,247 +529,249 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SemaphoneArray
+    namespace Legacy
     {
-        Dictionary<string, SemaphoneArrayItem> array = new Dictionary<string, SemaphoneArrayItem>();
-
-        string NormalizeName(string name)
+        class SemaphoneArray
         {
-            Str.NormalizeString(ref name);
-            name = name.ToUpperInvariant();
-            return name;
-        }
+            Dictionary<string, SemaphoneArrayItem> array = new Dictionary<string, SemaphoneArrayItem>();
 
-        public int GetNumSemaphone
-        {
-            get
+            string NormalizeName(string name)
             {
+                Str.NormalizeString(ref name);
+                name = name.ToUpperInvariant();
+                return name;
+            }
+
+            public int GetNumSemaphone
+            {
+                get
+                {
+                    lock (array)
+                    {
+                        return array.Count;
+                    }
+                }
+            }
+
+            public void Release(string name)
+            {
+                name = NormalizeName(name);
+
+                SemaphoneArrayItem sem;
+
                 lock (array)
                 {
-                    return array.Count;
-                }
-            }
-        }
-
-        public void Release(string name)
-        {
-            name = NormalizeName(name);
-
-            SemaphoneArrayItem sem;
-
-            lock (array)
-            {
-                if (array.ContainsKey(name) == false)
-                {
-                    throw new ApplicationException("invalid semaphone name: " + name);
-                }
-
-                sem = array[name];
-
-                int c = sem.Semaphone.Release();
-
-                if ((c + 1) == sem.MaxCount)
-                {
-                    if (sem.CurrentWaitThreads == 0)
+                    if (array.ContainsKey(name) == false)
                     {
-                        //sem.Semaphone.Dispose();
-
-                        array.Remove(name);
+                        throw new ApplicationException("invalid semaphone name: " + name);
                     }
-                }
-            }
 
-        }
-
-        public bool Wait(string name, int max_count, int timeout)
-        {
-            if (max_count <= 0 || (timeout < 0 && timeout != -1))
-            {
-                throw new ApplicationException("Invalid args.");
-            }
-
-            name = NormalizeName(name);
-
-            SemaphoneArrayItem sem = null;
-
-            lock (array)
-            {
-                if (array.ContainsKey(name) == false)
-                {
-                    sem = new SemaphoneArrayItem(max_count);
-
-                    array.Add(name, sem);
-
-                    return true;
-                }
-                else
-                {
                     sem = array[name];
 
-                    if (sem.MaxCount != max_count)
-                    {
-                        throw new ApplicationException("max_count != current database value.");
-                    }
+                    int c = sem.Semaphone.Release();
 
-                    if (sem.Semaphone.WaitOne(0))
+                    if ((c + 1) == sem.MaxCount)
                     {
-                        return true;
-                    }
+                        if (sem.CurrentWaitThreads == 0)
+                        {
+                            //sem.Semaphone.Dispose();
 
-                    Interlocked.Increment(ref sem.CurrentWaitThreads);
+                            array.Remove(name);
+                        }
+                    }
                 }
+
             }
 
-            bool ret = sem.Semaphone.WaitOne(timeout);
-
-            Interlocked.Decrement(ref sem.CurrentWaitThreads);
-
-            return ret;
-        }
-    }
-
-    static class BackgroundWorker
-    {
-        
-
-        static volatile int NumBusyWorkerThreads = 0;
-        static volatile int NumWorkerThreads = 0;
-
-        static Queue<Tuple<Action<object>, object>> ActionQueue = new Queue<Tuple<Action<object>, object>>();
-
-        static AutoResetEvent signal = new AutoResetEvent(false);
-
-        static void WorkerThreadProc()
-        {
-            while (true)
+            public bool Wait(string name, int max_count, int timeout)
             {
-                Interlocked.Increment(ref NumBusyWorkerThreads);
-                while (true)
+                if (max_count <= 0 || (timeout < 0 && timeout != -1))
                 {
-                    Tuple<Action<object>, object> work = null;
-                    lock (ActionQueue)
-                    {
-                        if (ActionQueue.Count != 0)
-                        {
-                            work = ActionQueue.Dequeue();
-                        }
-                    }
+                    throw new ApplicationException("Invalid args.");
+                }
 
-                    if (work != null)
+                name = NormalizeName(name);
+
+                SemaphoneArrayItem sem = null;
+
+                lock (array)
+                {
+                    if (array.ContainsKey(name) == false)
                     {
-                        try
-                        {
-                            work.Item1(work.Item2);
-                        }
-                        catch (Exception ex)
-                        {
-                            Dbg.WriteLine(ex.ToString());
-                        }
+                        sem = new SemaphoneArrayItem(max_count);
+
+                        array.Add(name, sem);
+
+                        return true;
                     }
                     else
                     {
-                        break;
+                        sem = array[name];
+
+                        if (sem.MaxCount != max_count)
+                        {
+                            throw new ApplicationException("max_count != current database value.");
+                        }
+
+                        if (sem.Semaphone.WaitOne(0))
+                        {
+                            return true;
+                        }
+
+                        Interlocked.Increment(ref sem.CurrentWaitThreads);
                     }
                 }
-                Interlocked.Decrement(ref NumBusyWorkerThreads);
 
-                signal.WaitOne();
+                bool ret = sem.Semaphone.WaitOne(timeout);
+
+                Interlocked.Decrement(ref sem.CurrentWaitThreads);
+
+                return ret;
             }
         }
-
-        public static void Run(Action<object> action, object arg)
+        static class BackgroundWorker
         {
-            if (NumBusyWorkerThreads == NumWorkerThreads)
+
+
+            static volatile int NumBusyWorkerThreads = 0;
+            static volatile int NumWorkerThreads = 0;
+
+            static Queue<Tuple<Action<object>, object>> ActionQueue = new Queue<Tuple<Action<object>, object>>();
+
+            static AutoResetEvent signal = new AutoResetEvent(false);
+
+            static void WorkerThreadProc()
             {
-                Interlocked.Increment(ref NumWorkerThreads);
-                Thread t = new Thread(WorkerThreadProc);
-                t.IsBackground = true;
-                t.Start();
-            }
-
-            lock (ActionQueue)
-            {
-                ActionQueue.Enqueue(new Tuple<Action<object>, object>(action, arg));
-            }
-
-            signal.Set();
-        }
-
-    }
-
-    class WorkerQueuePrivate
-    {
-        CriticalSection LockObj = new CriticalSection();
-
-        List<ThreadObj> ThreadList;
-        ThreadProc ThreadProc;
-        int NumWorkerThreads;
-        Queue<object> TaskQueue = new Queue<object>();
-        Exception RaisedException = null;
-
-        void WorkerThread(object param)
-        {
-            while (true)
-            {
-                object task = null;
-
-                // キューから 1 個取得する
-                lock (LockObj)
+                while (true)
                 {
-                    if (TaskQueue.Count == 0)
+                    Interlocked.Increment(ref NumBusyWorkerThreads);
+                    while (true)
                     {
-                        return;
-                    }
-                    task = TaskQueue.Dequeue();
-                }
+                        Tuple<Action<object>, object> work = null;
+                        lock (ActionQueue)
+                        {
+                            if (ActionQueue.Count != 0)
+                            {
+                                work = ActionQueue.Dequeue();
+                            }
+                        }
 
-                // タスクを処理する
-                try
-                {
-                    this.ThreadProc(task);
-                }
-                catch (Exception ex)
-                {
-                    if (RaisedException == null)
-                    {
-                        RaisedException = ex;
+                        if (work != null)
+                        {
+                            try
+                            {
+                                work.Item1(work.Item2);
+                            }
+                            catch (Exception ex)
+                            {
+                                Dbg.WriteLine(ex.ToString());
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
+                    Interlocked.Decrement(ref NumBusyWorkerThreads);
 
-                    Dbg.WriteLine(ex.Message);
+                    signal.WaitOne();
                 }
             }
+
+            public static void Run(Action<object> action, object arg)
+            {
+                if (NumBusyWorkerThreads == NumWorkerThreads)
+                {
+                    Interlocked.Increment(ref NumWorkerThreads);
+                    Thread t = new Thread(WorkerThreadProc);
+                    t.IsBackground = true;
+                    t.Start();
+                }
+
+                lock (ActionQueue)
+                {
+                    ActionQueue.Enqueue(new Tuple<Action<object>, object>(action, arg));
+                }
+
+                signal.Set();
+            }
+
         }
 
-        public WorkerQueuePrivate(ThreadProc threadProc, int numWorkerThreads, object[] tasks)
+        class WorkerQueuePrivate
         {
-            ThreadList = new List<ThreadObj>();
-            int i;
+            CriticalSection LockObj = new CriticalSection();
 
-            this.ThreadProc = threadProc;
-            this.NumWorkerThreads = numWorkerThreads;
+            List<ThreadObj> ThreadList;
+            ThreadProc ThreadProc;
+            int NumWorkerThreads;
+            Queue<object> TaskQueue = new Queue<object>();
+            Exception RaisedException = null;
 
-            foreach (object task in tasks)
+            void WorkerThread(object param)
             {
-                TaskQueue.Enqueue(task);
+                while (true)
+                {
+                    object task = null;
+
+                    // キューから 1 個取得する
+                    lock (LockObj)
+                    {
+                        if (TaskQueue.Count == 0)
+                        {
+                            return;
+                        }
+                        task = TaskQueue.Dequeue();
+                    }
+
+                    // タスクを処理する
+                    try
+                    {
+                        this.ThreadProc(task);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (RaisedException == null)
+                        {
+                            RaisedException = ex;
+                        }
+
+                        Dbg.WriteLine(ex.Message);
+                    }
+                }
             }
 
-            RaisedException = null;
-
-            for (i = 0; i < numWorkerThreads; i++)
+            public WorkerQueuePrivate(ThreadProc threadProc, int numWorkerThreads, object[] tasks)
             {
-                ThreadObj t = new ThreadObj(WorkerThread);
+                ThreadList = new List<ThreadObj>();
+                int i;
 
-                ThreadList.Add(t);
-            }
+                this.ThreadProc = threadProc;
+                this.NumWorkerThreads = numWorkerThreads;
 
-            foreach (ThreadObj t in ThreadList)
-            {
-                t.WaitForEnd();
-            }
+                foreach (object task in tasks)
+                {
+                    TaskQueue.Enqueue(task);
+                }
 
-            if (RaisedException != null)
-            {
-                throw RaisedException;
+                RaisedException = null;
+
+                for (i = 0; i < numWorkerThreads; i++)
+                {
+                    ThreadObj t = new ThreadObj(WorkerThread);
+
+                    ThreadList.Add(t);
+                }
+
+                foreach (ThreadObj t in ThreadList)
+                {
+                    t.WaitForEnd();
+                }
+
+                if (RaisedException != null)
+                {
+                    throw RaisedException;
+                }
             }
         }
     }
@@ -968,7 +971,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ThreadData
+    class ThreadLocalStorage
     {
         static LocalDataStoreSlot Slot = Thread.AllocateDataSlot();
 
@@ -1017,7 +1020,7 @@ namespace IPA.Cores.Basic
         {
             if (Global_DebugReportNumCurrentThreads_Flag.IsFirstCall())
             {
-                GlobalIntervalReporter.Singleton.ReportRefObject("NumThreads", NumCurrentThreads);
+                Legacy.GlobalIntervalReporter.Singleton.ReportRefObject("NumThreads", NumCurrentThreads);
             }
         }
 
@@ -1175,98 +1178,101 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class StillRunningThreadRegister
+    namespace Legacy
     {
-        public static int RegularWatchInterval = 1 * 1000;
-
-        static ConcurrentDictionary<string, Func<bool>> CallbacksList = new ConcurrentDictionary<string, Func<bool>>();
-
-        static AutoResetEvent ev = new AutoResetEvent(true);
-
-        static StillRunningThreadRegister()
+        static class StillRunningThreadRegister
         {
-            ThreadObj t = new ThreadObj(ThreadProc);
-        }
+            public static int RegularWatchInterval = 1 * 1000;
 
-        public static string RegisterRefInt(RefInt r)
-        {
-            return RegisterCallback(() =>
+            static ConcurrentDictionary<string, Func<bool>> CallbacksList = new ConcurrentDictionary<string, Func<bool>>();
+
+            static AutoResetEvent ev = new AutoResetEvent(true);
+
+            static StillRunningThreadRegister()
             {
-                return (r.Value != 0);
-            });
-        }
+                ThreadObj t = new ThreadObj(ThreadProc);
+            }
 
-        public static string RegisterRefBool(RefBool r)
-        {
-            return RegisterCallback(() =>
+            public static string RegisterRefInt(RefInt r)
             {
-                return r.Value;
-            });
-        }
-
-        public static string RegisterCallback(Func<bool> proc)
-        {
-            string key = Str.NewGuid();
-
-            ManualResetEventSlim ev = new ManualResetEventSlim(false);
-            Once once_flag = new Once();
-
-            CallbacksList[key] = new Func<bool>(() =>
-            {
-                if (once_flag.IsFirstCall())
+                return RegisterCallback(() =>
                 {
-                    ev.Set();
-                }
-                return proc();
-            });
+                    return (r.Value != 0);
+                });
+            }
 
-            NotifyStatusChanges();
-
-            ev.Wait();
-
-            return key;
-        }
-
-        public static void Unregister(string key)
-        {
-            CallbacksList.TryRemove(key, out _);
-        }
-
-        public static void NotifyStatusChanges()
-        {
-            ev.Set();
-        }
-
-        static void ThreadProc(object param)
-        {
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
-
-            while (true)
+            public static string RegisterRefBool(RefBool r)
             {
-                var procs = CallbacksList.Values;
-
-                bool prevent = false;
-
-                foreach (var proc in procs)
+                return RegisterCallback(() =>
                 {
-                    bool ret = false;
-                    try
+                    return r.Value;
+                });
+            }
+
+            public static string RegisterCallback(Func<bool> proc)
+            {
+                string key = Str.NewGuid();
+
+                ManualResetEventSlim ev = new ManualResetEventSlim(false);
+                Once once_flag = new Once();
+
+                CallbacksList[key] = new Func<bool>(() =>
+                {
+                    if (once_flag.IsFirstCall())
                     {
-                        ret = proc();
+                        ev.Set();
                     }
-                    catch
+                    return proc();
+                });
+
+                NotifyStatusChanges();
+
+                ev.Wait();
+
+                return key;
+            }
+
+            public static void Unregister(string key)
+            {
+                CallbacksList.TryRemove(key, out _);
+            }
+
+            public static void NotifyStatusChanges()
+            {
+                ev.Set();
+            }
+
+            static void ThreadProc(object param)
+            {
+                Thread.CurrentThread.Priority = ThreadPriority.Highest;
+
+                while (true)
+                {
+                    var procs = CallbacksList.Values;
+
+                    bool prevent = false;
+
+                    foreach (var proc in procs)
                     {
+                        bool ret = false;
+                        try
+                        {
+                            ret = proc();
+                        }
+                        catch
+                        {
+                        }
+
+                        if (ret)
+                        {
+                            prevent = true;
+                        }
                     }
 
-                    if (ret)
-                    {
-                        prevent = true;
-                    }
+                    Thread.CurrentThread.IsBackground = !prevent;
+
+                    ev.WaitOne(RegularWatchInterval);
                 }
-
-                Thread.CurrentThread.IsBackground = !prevent;
-
-                ev.WaitOne(RegularWatchInterval);
             }
         }
     }

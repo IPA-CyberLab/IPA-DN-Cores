@@ -37,10 +37,11 @@ using System.Web;
 using System.IO;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
 
     // ASP.NET ユーティリティ
@@ -112,7 +113,7 @@ namespace IPA.Cores.Basic
         }
         public static string GetTitleFromHtmlFile(string filename)
         {
-            string body = BasicFile.ReadAllTextWithAutoGetEncoding(filename);
+            string body = IO.ReadAllTextWithAutoGetEncoding(filename);
 
             return GetTitleFromHtml(body);
         }

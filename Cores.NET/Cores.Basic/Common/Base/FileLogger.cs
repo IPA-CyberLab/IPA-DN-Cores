@@ -37,14 +37,14 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     class FileLogger
     {
         CriticalSection LockObj = new CriticalSection();
         string logDir;
         string lastFileName;
-        BasicFile fs;
+        IO fs;
         public bool Flush = false;
 
         public FileLogger(string logDir)
@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                this.logDir = BasicFile.InnerFilePath(logDir);
+                this.logDir = IO.InnerFilePath(logDir);
             }
         }
 
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                return BasicFile.CombinePath(logDir, generateFileName(dt));
+                return IO.CombinePath(logDir, generateFileName(dt));
             }
         }
 
@@ -88,9 +88,9 @@ namespace IPA.Cores.Basic
                     return;
                 }
 
-                if (BasicFile.IsDirExists(logDir) == false)
+                if (IO.IsDirExists(logDir) == false)
                 {
-                    if (BasicFile.MakeDir(logDir) == false)
+                    if (IO.MakeDir(logDir) == false)
                     {
                         return;
                     }
@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    fs = BasicFile.FileCreateOrAppendOpen(filename);
+                    fs = IO.FileCreateOrAppendOpen(filename);
                 }
 
                 lastFileName = filename;

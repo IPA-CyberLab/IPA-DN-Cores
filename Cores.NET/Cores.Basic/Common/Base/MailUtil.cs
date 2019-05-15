@@ -36,6 +36,7 @@ using System.Collections.Generic;
 using System.Net.Mail;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 

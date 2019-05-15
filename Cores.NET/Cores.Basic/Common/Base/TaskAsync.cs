@@ -869,7 +869,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadData.CurrentThreadData["taskvm_current_graceful_cancel"];
+        public static CancellationToken CurrentTaskVmGracefulCancel => (CancellationToken)ThreadLocalStorage.CurrentThreadData["taskvm_current_graceful_cancel"];
 
         public static ValueHolder EnterCriticalCounter(RefInt counter)
         {

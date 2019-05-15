@@ -36,6 +36,7 @@ using System.IO;
 using System.Net;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -482,3 +483,5 @@ namespace IPA.Cores.Basic
         }
     }
 }
+
+

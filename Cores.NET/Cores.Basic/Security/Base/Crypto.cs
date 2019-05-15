@@ -44,6 +44,7 @@ using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -297,7 +298,7 @@ namespace IPA.Cores.Basic
         }
         public Cert(string filename)
         {
-            init(BasicFile.ReadFile(filename));
+            init(IO.ReadFile(filename));
         }
         public Cert(Buf buf)
         {

@@ -38,9 +38,9 @@ using System.Runtime.InteropServices;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using IPA.Cores.Basic.WinSvcInternal;
+using IPA.Cores.Basic.Internal;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct GZipHeader

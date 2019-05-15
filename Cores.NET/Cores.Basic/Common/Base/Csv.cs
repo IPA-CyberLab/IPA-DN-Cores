@@ -51,7 +51,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     class CsvTimeSpan
     {
@@ -222,7 +222,7 @@ namespace IPA.Cores.Basic
 
         public void SaveToFile(string filename)
         {
-            BasicFile.SaveFile(filename, ToBuf().ByteData);
+            IO.SaveFile(filename, ToBuf().ByteData);
         }
 
         public void Add(CsvEntry e)

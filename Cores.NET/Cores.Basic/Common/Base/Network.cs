@@ -40,278 +40,282 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    // ソケットの種類
-    enum SockType
+    namespace Legacy
     {
-        Unknown = 0,
-        Tcp = 1,
-        Udp = 2,
-    }
-
-    // ソケットイベント
-    class SockEvent : IDisposable
-    {
-        Event Win32Event;
-
-        internal List<Sock> UnixSockList;
-        IntPtr UnixPipeRead, UnixPipeWrite;
-        int UnixCurrentPipeData;
-
-        bool IsReleased = false;
-        CriticalSection ReleaseLock = new CriticalSection();
-
-        public SockEvent()
+        // ソケットの種類
+        enum SockType
         {
-            if (Env.IsWindows)
-            {
-                Win32Event = new Event();
-            }
-            else
-            {
-                UnixSockList = new List<Sock>();
-                UnixApi.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
-            }
+            Unknown = 0,
+            Tcp = 1,
+            Udp = 2,
         }
 
-        ~SockEvent()
+        // ソケットイベント
+        class SockEvent : IDisposable
         {
-            Release();
-        }
+            Event Win32Event;
 
-        public void Dispose()
-        {
-            Release();
-        }
+            internal List<Sock> UnixSockList;
+            IntPtr UnixPipeRead, UnixPipeWrite;
+            int UnixCurrentPipeData;
 
-        void Release()
-        {
-            lock (ReleaseLock)
+            bool IsReleased = false;
+            CriticalSection ReleaseLock = new CriticalSection();
+
+            public SockEvent()
             {
-                if (IsReleased == false)
+                if (Env.IsWindows)
                 {
-                    IsReleased = true;
-                    if (Env.IsUnix)
+                    Win32Event = new Event();
+                }
+                else
+                {
+                    UnixSockList = new List<Sock>();
+                    UnixApi.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
+                }
+            }
+
+            ~SockEvent()
+            {
+                Release();
+            }
+
+            public void Dispose()
+            {
+                Release();
+            }
+
+            void Release()
+            {
+                lock (ReleaseLock)
+                {
+                    if (IsReleased == false)
                     {
-                        UnixApi.Close(this.UnixPipeRead);
-                        UnixApi.Close(this.UnixPipeWrite);
+                        IsReleased = true;
+                        if (Env.IsUnix)
+                        {
+                            UnixApi.Close(this.UnixPipeRead);
+                            UnixApi.Close(this.UnixPipeWrite);
+                        }
                     }
                 }
             }
-        }
 
-        // ソケットをソケットイベントに関連付けして非同期に設定する
-        public void JoinSock(Sock sock)
-        {
-            if (sock.asyncMode)
+            // ソケットをソケットイベントに関連付けして非同期に設定する
+            public void JoinSock(Sock sock)
             {
-                return;
-            }
-
-            if (Env.IsWindows)
-            {
-                // Windows
-                try
+                if (sock.asyncMode)
                 {
+                    return;
+                }
+
+                if (Env.IsWindows)
+                {
+                    // Windows
+                    try
+                    {
+                        if (sock.ListenMode != false || (sock.Type == SockType.Tcp && sock.Connected == false))
+                        {
+                            return;
+                        }
+
+                        Sock.WSAEventSelect(sock.Socket.Handle, Win32Event.Handle, 35);
+                        sock.Socket.Blocking = false;
+
+                        sock.SockEvent = this;
+
+                        sock.asyncMode = true;
+                    }
+                    catch
+                    {
+                    }
+                }
+                else
+                {
+                    // UNIX
                     if (sock.ListenMode != false || (sock.Type == SockType.Tcp && sock.Connected == false))
                     {
                         return;
                     }
 
-                    Sock.WSAEventSelect(sock.Socket.Handle, Win32Event.Handle, 35);
+                    sock.asyncMode = true;
+
+                    lock (UnixSockList)
+                    {
+                        UnixSockList.Add(sock);
+                    }
+
                     sock.Socket.Blocking = false;
 
                     sock.SockEvent = this;
 
-                    sock.asyncMode = true;
-                }
-                catch
-                {
+                    this.Set();
                 }
             }
-            else
+
+            // イベントを叩く
+            public void Set()
             {
-                // UNIX
-                if (sock.ListenMode != false || (sock.Type == SockType.Tcp && sock.Connected == false))
+                if (Env.IsWindows)
+                {
+                    this.Win32Event.Set();
+                }
+                else
+                {
+                    if (this.UnixCurrentPipeData <= 100)
+                    {
+                        UnixApi.Write(this.UnixPipeWrite, new byte[] { 0 }, 0, 1);
+                        this.UnixCurrentPipeData++;
+                    }
+                }
+            }
+
+            // イベントを待つ
+            public bool Wait(int timeout)
+            {
+                if (Env.IsWindows)
+                {
+                    if (timeout == 0)
+                    {
+                        return false;
+                    }
+
+                    return this.Win32Event.Wait(timeout);
+                }
+                else
+                {
+                    List<IntPtr> reads = new List<IntPtr>();
+                    List<IntPtr> writes = new List<IntPtr>();
+
+                    lock (this.UnixSockList)
+                    {
+                        foreach (Sock s in this.UnixSockList)
+                        {
+                            reads.Add(s.Fd);
+                            if (s.writeBlocked)
+                            {
+                                writes.Add(s.Fd);
+                            }
+                        }
+                    }
+
+                    reads.Add(this.UnixPipeRead);
+
+                    if (this.UnixCurrentPipeData == 0)
+                    {
+                        UnixApi.Poll(reads.ToArray(), writes.ToArray(), timeout);
+                    }
+
+                    int readret;
+                    byte[] tmp = new byte[1024];
+                    this.UnixCurrentPipeData = 0;
+                    do
+                    {
+                        readret = UnixApi.Read(this.UnixPipeRead, tmp, 0, tmp.Length);
+                    }
+                    while (readret >= 1);
+
+                    return true;
+                }
+            }
+        }
+
+        // ソケットセット
+        class SockSet
+        {
+            List<Sock> List;
+
+            public const int MaxSocketNum = 60;
+
+            public SockSet()
+            {
+                Clear();
+            }
+
+            public void Add(Sock sock)
+            {
+                if (sock.Type == SockType.Tcp && sock.Connected == false)
                 {
                     return;
                 }
 
-                sock.asyncMode = true;
-
-                lock (UnixSockList)
+                if (List.Count >= MaxSocketNum)
                 {
-                    UnixSockList.Add(sock);
+                    return;
                 }
 
-                sock.Socket.Blocking = false;
-
-                sock.SockEvent = this;
-
-                this.Set();
+                List.Add(sock);
             }
-        }
 
-        // イベントを叩く
-        public void Set()
-        {
-            if (Env.IsWindows)
+            public void Clear()
             {
-                this.Win32Event.Set();
+                List = new List<Sock>();
             }
-            else
+
+            public void Poll()
             {
-                if (this.UnixCurrentPipeData <= 100)
+                Poll(Timeout.Infinite);
+            }
+            public void Poll(int timeout)
+            {
+                Poll(timeout, null);
+            }
+            public void Poll(Event e1)
+            {
+                Poll(Timeout.Infinite, e1);
+            }
+            public void Poll(int timeout, Event e1)
+            {
+                Poll(timeout, e1, null);
+            }
+            public void Poll(Event e1, Event e2)
+            {
+                Poll(Timeout.Infinite, e1, e2);
+            }
+            public void Poll(int timeout, Event e1, Event e2)
+            {
+                try
                 {
-                    UnixApi.Write(this.UnixPipeWrite, new byte[] { 0 }, 0, 1);
-                    this.UnixCurrentPipeData++;
-                }
-            }
-        }
+                    List<Event> array = new List<Event>();
 
-        // イベントを待つ
-        public bool Wait(int timeout)
-        {
-            if (Env.IsWindows)
-            {
-                if (timeout == 0)
-                {
-                    return false;
-                }
-
-                return this.Win32Event.Wait(timeout);
-            }
-            else
-            {
-                List<IntPtr> reads = new List<IntPtr>();
-                List<IntPtr> writes = new List<IntPtr>();
-
-                lock (this.UnixSockList)
-                {
-                    foreach (Sock s in this.UnixSockList)
+                    // イベント配列の設定
+                    foreach (Sock s in List)
                     {
-                        reads.Add(s.Fd);
-                        if (s.writeBlocked)
+                        s.initAsyncSocket();
+                        if (s.hEvent != null)
                         {
-                            writes.Add(s.Fd);
+                            array.Add(s.hEvent);
                         }
                     }
-                }
 
-                reads.Add(this.UnixPipeRead);
-
-                if (this.UnixCurrentPipeData == 0)
-                {
-                    UnixApi.Poll(reads.ToArray(), writes.ToArray(), timeout);
-                }
-
-                int readret;
-                byte[] tmp = new byte[1024];
-                this.UnixCurrentPipeData = 0;
-                do
-                {
-                    readret = UnixApi.Read(this.UnixPipeRead, tmp, 0, tmp.Length);
-                }
-                while (readret >= 1);
-
-                return true;
-            }
-        }
-    }
-
-    // ソケットセット
-    class SockSet
-    {
-        List<Sock> List;
-
-        public const int MaxSocketNum = 60;
-
-        public SockSet()
-        {
-            Clear();
-        }
-
-        public void Add(Sock sock)
-        {
-            if (sock.Type == SockType.Tcp && sock.Connected == false)
-            {
-                return;
-            }
-
-            if (List.Count >= MaxSocketNum)
-            {
-                return;
-            }
-
-            List.Add(sock);
-        }
-
-        public void Clear()
-        {
-            List = new List<Sock>();
-        }
-
-        public void Poll()
-        {
-            Poll(Timeout.Infinite);
-        }
-        public void Poll(int timeout)
-        {
-            Poll(timeout, null);
-        }
-        public void Poll(Event e1)
-        {
-            Poll(Timeout.Infinite, e1);
-        }
-        public void Poll(int timeout, Event e1)
-        {
-            Poll(timeout, e1, null);
-        }
-        public void Poll(Event e1, Event e2)
-        {
-            Poll(Timeout.Infinite, e1, e2);
-        }
-        public void Poll(int timeout, Event e1, Event e2)
-        {
-            try
-            {
-                List<Event> array = new List<Event>();
-
-                // イベント配列の設定
-                foreach (Sock s in List)
-                {
-                    s.initAsyncSocket();
-                    if (s.hEvent != null)
+                    if (e1 != null)
                     {
-                        array.Add(s.hEvent);
+                        array.Add(e1);
+                    }
+
+                    if (e2 != null)
+                    {
+                        array.Add(e2);
+                    }
+
+                    if (array.Count == 0)
+                    {
+                        ThreadObj.Sleep(timeout);
+                    }
+                    else
+                    {
+                        Event.WaitAny(array.ToArray(), timeout);
                     }
                 }
-
-                if (e1 != null)
+                catch
                 {
-                    array.Add(e1);
                 }
-
-                if (e2 != null)
-                {
-                    array.Add(e2);
-                }
-
-                if (array.Count == 0)
-                {
-                    ThreadObj.Sleep(timeout);
-                }
-                else
-                {
-                    Event.WaitAny(array.ToArray(), timeout);
-                }
-            }
-            catch
-            {
             }
         }
     }
@@ -1716,1446 +1720,1449 @@ namespace IPA.Cores.Basic
         }
     }
 
-    // ソケット
-    class Sock
+    namespace Legacy
     {
-        static readonly SocketFlags DefaultSocketFlags;
-        static Sock()
+        // ソケット
+        class Sock
         {
-            if (Env.IsWindows)
+            static readonly SocketFlags DefaultSocketFlags;
+            static Sock()
             {
-                Sock.DefaultSocketFlags = SocketFlags.Partial;
-            }
-            else
-            {
-                Sock.DefaultSocketFlags = SocketFlags.None;
-            }
-        }
-
-        public const int TimeoutInfinite = Timeout.Infinite;
-        public const int TimeoutTcpPortCheck = 10 * 1000;
-        public const int TimeoutSslConnect = 15 * 1000;
-        public const int TimeoutGetHostname = 1500;
-        public const int MaxSendBufMemSize = 10 * 1024 * 1024;
-        public const int SockLater = -1;
-        public const string SecureProtocolKey = "SecureProtocol";
-        public bool IsIPv6 = false;
-
-        internal object lockObj;
-        internal object disconnectLockObj;
-        internal object sslLockObj;
-        public Socket Socket { get; private set; }
-        public SockType Type { get; private set; }
-        public bool Connected { get; private set; }
-        public bool ServerMode { get; private set; }
-        internal bool asyncMode;
-        public bool AsyncMode => asyncMode;
-        public bool SecureMode { get; private set; }
-        public bool ListenMode { get; private set; }
-        bool cancelAccept;
-        public IPAddress RemoteIP { get; private set; }
-        public IPAddress LocalIP { get; private set; }
-        public string RemoteHostName { get; private set; }
-        public int RemotePort { get; private set; }
-        public int LocalPort { get; private set; }
-        public long SendSize { get; private set; }
-        public long RecvSize { get; private set; }
-        public long SendNum { get; private set; }
-        public long RecvNum { get; private set; }
-        public bool IgnoreLastRecvError { get; private set; }
-        public ulong LastRecvError = 0;
-        public bool IgnoreLastSendError { get; private set; }
-
-        int timeOut;
-        internal bool writeBlocked;
-        internal bool disconnecting;
-        public bool UDPBroadcastMode { get; private set; }
-        public object Param { get; set; }
-
-        internal Event hEvent;
-
-        public SockEvent SockEvent = null;
-
-        public IntPtr Fd = new IntPtr(-1);
-
-        [DllImport("ws2_32.dll", SetLastError = true)]
-        internal static extern int WSAEventSelect(IntPtr s, IntPtr hEventObject, int lNetworkEvents);
-
-        // 初期化
-        private Sock()
-        {
-            this.lockObj = new object();
-            this.disconnectLockObj = new object();
-            this.sslLockObj = new object();
-            this.Socket = null;
-            this.Type = SockType.Unknown;
-            this.IgnoreLastRecvError = this.IgnoreLastSendError = false;
-        }
-
-        // UDP 受信
-        public byte[] RecvFrom(out IPEndPoint src, int size)
-        {
-            byte[] data = new byte[size];
-            int ret;
-
-            ret = RecvFrom(out src, data, 0, data.Length);
-
-            if (ret > 0)
-            {
-                Array.Resize<byte>(ref data, ret);
-
-                return data;
-            }
-            else if (ret == SockLater)
-            {
-                return new byte[0];
-            }
-            else
-            {
-                return null;
-            }
-        }
-        public int RecvFrom(out IPEndPoint src, byte[] data)
-        {
-            return RecvFrom(out src, data, data.Length);
-        }
-        public int RecvFrom(out IPEndPoint src, byte[] data, int size)
-        {
-            return RecvFrom(out src, data, 0, size);
-        }
-        public int RecvFrom(out IPEndPoint src, byte[] data, int offset, int size)
-        {
-            Socket s;
-            src = null;
-            if (this.Type != SockType.Udp || this.Socket == null)
-            {
-                return 0;
-            }
-            if (size == 0)
-            {
-                return 0;
-            }
-
-            s = this.Socket;
-
-            int ret = -1;
-            SocketError err = SocketError.Success;
-
-            try
-            {
-                EndPoint ep = new IPEndPoint(this.IsIPv6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
-                ret = s.ReceiveFrom(data, offset, size, 0, ref ep);
-                src = (IPEndPoint)ep;
-            }
-            catch (SocketException se)
-            {
-                err = se.SocketErrorCode;
-            }
-            catch
-            {
-            }
-
-            if (ret > 0)
-            {
-                lock (this.lockObj)
+                if (Env.IsWindows)
                 {
-                    this.RecvNum++;
-                    this.RecvSize += (long)ret;
-                }
-
-                return ret;
-            }
-            else
-            {
-                this.IgnoreLastRecvError = false;
-
-                if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
-                    err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
-                {
-                    this.IgnoreLastRecvError = true;
-                }
-                else if (err == SocketError.WouldBlock)
-                {
-                    return SockLater;
+                    Sock.DefaultSocketFlags = SocketFlags.Partial;
                 }
                 else
                 {
-                    this.LastRecvError = (ulong)err;
+                    Sock.DefaultSocketFlags = SocketFlags.None;
+                }
+            }
+
+            public const int TimeoutInfinite = Timeout.Infinite;
+            public const int TimeoutTcpPortCheck = 10 * 1000;
+            public const int TimeoutSslConnect = 15 * 1000;
+            public const int TimeoutGetHostname = 1500;
+            public const int MaxSendBufMemSize = 10 * 1024 * 1024;
+            public const int SockLater = -1;
+            public const string SecureProtocolKey = "SecureProtocol";
+            public bool IsIPv6 = false;
+
+            internal object lockObj;
+            internal object disconnectLockObj;
+            internal object sslLockObj;
+            public Socket Socket { get; private set; }
+            public SockType Type { get; private set; }
+            public bool Connected { get; private set; }
+            public bool ServerMode { get; private set; }
+            internal bool asyncMode;
+            public bool AsyncMode => asyncMode;
+            public bool SecureMode { get; private set; }
+            public bool ListenMode { get; private set; }
+            bool cancelAccept;
+            public IPAddress RemoteIP { get; private set; }
+            public IPAddress LocalIP { get; private set; }
+            public string RemoteHostName { get; private set; }
+            public int RemotePort { get; private set; }
+            public int LocalPort { get; private set; }
+            public long SendSize { get; private set; }
+            public long RecvSize { get; private set; }
+            public long SendNum { get; private set; }
+            public long RecvNum { get; private set; }
+            public bool IgnoreLastRecvError { get; private set; }
+            public ulong LastRecvError = 0;
+            public bool IgnoreLastSendError { get; private set; }
+
+            int timeOut;
+            internal bool writeBlocked;
+            internal bool disconnecting;
+            public bool UDPBroadcastMode { get; private set; }
+            public object Param { get; set; }
+
+            internal Event hEvent;
+
+            public SockEvent SockEvent = null;
+
+            public IntPtr Fd = new IntPtr(-1);
+
+            [DllImport("ws2_32.dll", SetLastError = true)]
+            internal static extern int WSAEventSelect(IntPtr s, IntPtr hEventObject, int lNetworkEvents);
+
+            // 初期化
+            private Sock()
+            {
+                this.lockObj = new object();
+                this.disconnectLockObj = new object();
+                this.sslLockObj = new object();
+                this.Socket = null;
+                this.Type = SockType.Unknown;
+                this.IgnoreLastRecvError = this.IgnoreLastSendError = false;
+            }
+
+            // UDP 受信
+            public byte[] RecvFrom(out IPEndPoint src, int size)
+            {
+                byte[] data = new byte[size];
+                int ret;
+
+                ret = RecvFrom(out src, data, 0, data.Length);
+
+                if (ret > 0)
+                {
+                    Array.Resize<byte>(ref data, ret);
+
+                    return data;
+                }
+                else if (ret == SockLater)
+                {
+                    return new byte[0];
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            public int RecvFrom(out IPEndPoint src, byte[] data)
+            {
+                return RecvFrom(out src, data, data.Length);
+            }
+            public int RecvFrom(out IPEndPoint src, byte[] data, int size)
+            {
+                return RecvFrom(out src, data, 0, size);
+            }
+            public int RecvFrom(out IPEndPoint src, byte[] data, int offset, int size)
+            {
+                Socket s;
+                src = null;
+                if (this.Type != SockType.Udp || this.Socket == null)
+                {
+                    return 0;
+                }
+                if (size == 0)
+                {
+                    return 0;
                 }
 
-                return 0;
-            }
-        }
+                s = this.Socket;
 
-        // UDP 送信
-        public int SendTo(IPAddress destAddr, int destPort, byte[] data)
-        {
-            return SendTo(destAddr, destPort, data, data.Length);
-        }
-        public int SendTo(IPAddress destAddr, int destPort, byte[] data, int size)
-        {
-            return SendTo(destAddr, destPort, data, 0, size);
-        }
-        public int SendTo(IPAddress destAddr, int destPort, byte[] data, int offset, int size)
-        {
-            Socket s;
-            bool isBroadcast = false;
-            if (this.Type != SockType.Udp || this.Socket == null)
-            {
-                return 0;
-            }
-            if (size == 0)
-            {
-                return 0;
-            }
+                int ret = -1;
+                SocketError err = SocketError.Success;
 
-            s = this.Socket;
-
-            byte[] destBytes = destAddr.GetAddressBytes();
-            if (destAddr.AddressFamily == AddressFamily.InterNetwork)
-            {
-                if (destBytes.Length == 4)
+                try
                 {
-                    if (destBytes[0] == 255 &&
-                        destBytes[1] == 255 &&
-                        destBytes[2] == 255 &&
-                        destBytes[3] == 255)
+                    EndPoint ep = new IPEndPoint(this.IsIPv6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
+                    ret = s.ReceiveFrom(data, offset, size, 0, ref ep);
+                    src = (IPEndPoint)ep;
+                }
+                catch (SocketException se)
+                {
+                    err = se.SocketErrorCode;
+                }
+                catch
+                {
+                }
+
+                if (ret > 0)
+                {
+                    lock (this.lockObj)
                     {
-                        s.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+                        this.RecvNum++;
+                        this.RecvSize += (long)ret;
+                    }
 
-                        isBroadcast = true;
+                    return ret;
+                }
+                else
+                {
+                    this.IgnoreLastRecvError = false;
 
-                        this.UDPBroadcastMode = true;
+                    if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
+                        err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
+                    {
+                        this.IgnoreLastRecvError = true;
+                    }
+                    else if (err == SocketError.WouldBlock)
+                    {
+                        return SockLater;
+                    }
+                    else
+                    {
+                        this.LastRecvError = (ulong)err;
+                    }
+
+                    return 0;
+                }
+            }
+
+            // UDP 送信
+            public int SendTo(IPAddress destAddr, int destPort, byte[] data)
+            {
+                return SendTo(destAddr, destPort, data, data.Length);
+            }
+            public int SendTo(IPAddress destAddr, int destPort, byte[] data, int size)
+            {
+                return SendTo(destAddr, destPort, data, 0, size);
+            }
+            public int SendTo(IPAddress destAddr, int destPort, byte[] data, int offset, int size)
+            {
+                Socket s;
+                bool isBroadcast = false;
+                if (this.Type != SockType.Udp || this.Socket == null)
+                {
+                    return 0;
+                }
+                if (size == 0)
+                {
+                    return 0;
+                }
+
+                s = this.Socket;
+
+                byte[] destBytes = destAddr.GetAddressBytes();
+                if (destAddr.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    if (destBytes.Length == 4)
+                    {
+                        if (destBytes[0] == 255 &&
+                            destBytes[1] == 255 &&
+                            destBytes[2] == 255 &&
+                            destBytes[3] == 255)
+                        {
+                            s.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+
+                            isBroadcast = true;
+
+                            this.UDPBroadcastMode = true;
+                        }
                     }
                 }
-            }
 
-            int ret = -1;
-            SocketError err = 0;
+                int ret = -1;
+                SocketError err = 0;
 
-            try
-            {
-                ret = s.SendTo(data, offset, size, (isBroadcast ? SocketFlags.Broadcast : 0), new IPEndPoint(destAddr, destPort));
-            }
-            catch (SocketException se)
-            {
-                err = se.SocketErrorCode;
-            }
-            catch
-            {
-            }
-
-            if (ret != size)
-            {
-                this.IgnoreLastSendError = false;
-
-                if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
-                    err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
+                try
                 {
-                    this.IgnoreLastSendError = true;
+                    ret = s.SendTo(data, offset, size, (isBroadcast ? SocketFlags.Broadcast : 0), new IPEndPoint(destAddr, destPort));
                 }
-                else if (err == SocketError.WouldBlock)
+                catch (SocketException se)
                 {
-                    return SockLater;
+                    err = se.SocketErrorCode;
+                }
+                catch
+                {
                 }
 
-                return 0;
-            }
-
-            lock (this.lockObj)
-            {
-                this.SendSize += (long)ret;
-                this.SendNum++;
-            }
-
-            return ret;
-        }
-
-        // UDP ソケットの作成と初期化
-        public static Sock NewUDP()
-        {
-            return NewUDP(0);
-        }
-        public static Sock NewUDP(int port)
-        {
-            return NewUDP(port, IPAddress.Any);
-        }
-        public static Sock NewUDP(int port, IPAddress endpoint)
-        {
-            return NewUDP(port, endpoint, false);
-        }
-        public static Sock NewUDP(int port, IPAddress endpoint, bool ipv6)
-        {
-            Sock sock;
-            Socket s;
-
-            if (ipv6 == false)
-            {
-                s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            }
-            else
-            {
-                s = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            }
-
-            IPEndPoint ep = new IPEndPoint(endpoint, port);
-            s.Bind(ep);
-
-            sock = new Sock();
-            sock.Type = SockType.Udp;
-            sock.Connected = false;
-            sock.asyncMode = false;
-            sock.ServerMode = false;
-            sock.IsIPv6 = ipv6;
-            if (port != 0)
-            {
-                sock.ServerMode = true;
-            }
-
-            sock.Socket = s;
-            sock.Fd = s.Handle;
-
-            sock.querySocketInformation();
-
-            return sock;
-        }
-
-        // Pack の送信
-        public bool SendPack(Pack p)
-        {
-            Buf b = new Buf();
-            byte[] data = p.ByteData;
-
-            b.WriteInt((uint)data.Length);
-            b.Write(data);
-
-            return SendAll(b.ByteData);
-        }
-
-        // Pack の受信
-        public Pack RecvPack()
-        {
-            return RecvPack(0);
-        }
-        public Pack RecvPack(int maxSize)
-        {
-            byte[] sizeData = RecvAll(Util.SizeOfInt32);
-            if (sizeData == null)
-            {
-                return null;
-            }
-
-            int size = Util.ByteToInt(sizeData);
-
-            if (maxSize != 0 && size > maxSize)
-            {
-                return null;
-            }
-
-            byte[] data = RecvAll(size);
-            if (data == null)
-            {
-                return null;
-            }
-
-            Buf b = new Buf(data);
-
-            try
-            {
-                Pack p = Pack.CreateFromBuf(b);
-
-                return p;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        // ソケットを非同期に設定する
-        internal void initAsyncSocket()
-        {
-            try
-            {
-                if (this.asyncMode)
+                if (ret != size)
                 {
-                    return;
-                }
-                if (this.ListenMode != false || (this.Type == SockType.Tcp && this.Connected == false))
-                {
-                    return;
+                    this.IgnoreLastSendError = false;
+
+                    if (err == SocketError.ConnectionReset || err == SocketError.MessageSize || err == SocketError.NetworkUnreachable ||
+                        err == SocketError.NoBufferSpaceAvailable || (int)err == 10068 || err == SocketError.NetworkReset)
+                    {
+                        this.IgnoreLastSendError = true;
+                    }
+                    else if (err == SocketError.WouldBlock)
+                    {
+                        return SockLater;
+                    }
+
+                    return 0;
                 }
 
-                this.hEvent = new Event();
-
-                // 関連付け
-                WSAEventSelect((IntPtr)this.Socket.Handle, this.hEvent.Handle, 35);
-                this.Socket.Blocking = false;
-
-                this.asyncMode = true;
-            }
-            catch
-            {
-            }
-        }
-
-        // TCP すべて受信
-        public byte[] RecvAll(int size)
-        {
-            byte[] data = new byte[size];
-            bool ret = RecvAll(data);
-            if (ret)
-            {
-                return data;
-            }
-            else
-            {
-                return null;
-            }
-        }
-        public bool RecvAll(byte[] data)
-        {
-            return RecvAll(data, 0, data.Length);
-        }
-        public bool RecvAll(byte[] data, int size)
-        {
-            return RecvAll(data, 0, size);
-        }
-        public bool RecvAll(byte[] data, int offset, int size)
-        {
-            int recv_size, sz, ret;
-            if (size == 0)
-            {
-                return true;
-            }
-            if (this.asyncMode)
-            {
-                return false;
-            }
-
-            recv_size = 0;
-
-            while (true)
-            {
-                sz = size - recv_size;
-
-                ret = Recv(data, offset + recv_size, sz);
-                if (ret <= 0)
-                {
-                    return false;
-                }
-
-                recv_size += ret;
-                if (recv_size >= size)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // TCP 受信
-        public byte[] Recv(int size)
-        {
-            byte[] data = new byte[size];
-            int ret = Recv(data);
-            if (ret >= 1)
-            {
-                Array.Resize<byte>(ref data, ret);
-                return data;
-            }
-            else if (ret == SockLater)
-            {
-                return new byte[0];
-            }
-            else
-            {
-                return null;
-            }
-        }
-        public int Recv(byte[] data)
-        {
-            return Recv(data, 0, data.Length);
-        }
-        public int Recv(byte[] data, int size)
-        {
-            return Recv(data, 0, size);
-        }
-        public int Recv(byte[] data, int offset, int size)
-        {
-            Socket s;
-
-            if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
-                this.Socket == null)
-            {
-                return 0;
-            }
-
-            // 受信
-            s = this.Socket;
-
-            int ret = -1;
-            SocketError err = 0;
-            try
-            {
-                ret = s.Receive(data, offset, size, DefaultSocketFlags);
-            }
-            catch (SocketException se)
-            {
-                err = se.SocketErrorCode;
-            }
-            catch
-            {
-            }
-
-            if (ret > 0)
-            {
-                // 受信成功
-                lock (lockObj)
-                {
-                    this.RecvSize += (long)ret;
-                    this.RecvNum++;
-                }
-
-                return ret;
-            }
-
-            if (this.asyncMode)
-            {
-                if (err == SocketError.WouldBlock)
-                {
-                    // ブロッキングしている
-                    return SockLater;
-                }
-            }
-
-            Disconnect();
-
-            return 0;
-        }
-
-        // TCP 送信
-        public int Send(byte[] data)
-        {
-            return Send(data, 0, data.Length);
-        }
-        public int Send(byte[] data, int size)
-        {
-            return Send(data, 0, size);
-        }
-        public int Send(byte[] data, int offset, int size)
-        {
-            Socket s;
-            size = Math.Min(size, MaxSendBufMemSize);
-            if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
-                this.Socket == null)
-            {
-                return 0;
-            }
-
-            // 送信
-            s = this.Socket;
-            int ret = -1;
-            SocketError err = 0;
-            try
-            {
-                ret = s.Send(data, offset, size, DefaultSocketFlags);
-            }
-            catch (SocketException se)
-            {
-                err = se.SocketErrorCode;
-            }
-            catch
-            {
-            }
-
-            if (ret > 0)
-            {
-                // 送信成功
                 lock (this.lockObj)
                 {
                     this.SendSize += (long)ret;
                     this.SendNum++;
                 }
-                this.writeBlocked = false;
 
                 return ret;
             }
 
-            // 送信失敗
-            if (this.asyncMode)
+            // UDP ソケットの作成と初期化
+            public static Sock NewUDP()
             {
-                // 非同期モードの場合、エラーを調べる
-                if (err == SocketError.WouldBlock)
-                {
-                    // ブロッキングしている
-                    this.writeBlocked = true;
+                return NewUDP(0);
+            }
+            public static Sock NewUDP(int port)
+            {
+                return NewUDP(port, IPAddress.Any);
+            }
+            public static Sock NewUDP(int port, IPAddress endpoint)
+            {
+                return NewUDP(port, endpoint, false);
+            }
+            public static Sock NewUDP(int port, IPAddress endpoint, bool ipv6)
+            {
+                Sock sock;
+                Socket s;
 
-                    return SockLater;
+                if (ipv6 == false)
+                {
+                    s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                }
+                else
+                {
+                    s = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
+                }
+
+                IPEndPoint ep = new IPEndPoint(endpoint, port);
+                s.Bind(ep);
+
+                sock = new Sock();
+                sock.Type = SockType.Udp;
+                sock.Connected = false;
+                sock.asyncMode = false;
+                sock.ServerMode = false;
+                sock.IsIPv6 = ipv6;
+                if (port != 0)
+                {
+                    sock.ServerMode = true;
+                }
+
+                sock.Socket = s;
+                sock.Fd = s.Handle;
+
+                sock.querySocketInformation();
+
+                return sock;
+            }
+
+            // Pack の送信
+            public bool SendPack(Pack p)
+            {
+                Buf b = new Buf();
+                byte[] data = p.ByteData;
+
+                b.WriteInt((uint)data.Length);
+                b.Write(data);
+
+                return SendAll(b.ByteData);
+            }
+
+            // Pack の受信
+            public Pack RecvPack()
+            {
+                return RecvPack(0);
+            }
+            public Pack RecvPack(int maxSize)
+            {
+                byte[] sizeData = RecvAll(Util.SizeOfInt32);
+                if (sizeData == null)
+                {
+                    return null;
+                }
+
+                int size = Util.ByteToInt(sizeData);
+
+                if (maxSize != 0 && size > maxSize)
+                {
+                    return null;
+                }
+
+                byte[] data = RecvAll(size);
+                if (data == null)
+                {
+                    return null;
+                }
+
+                Buf b = new Buf(data);
+
+                try
+                {
+                    Pack p = Pack.CreateFromBuf(b);
+
+                    return p;
+                }
+                catch
+                {
+                    return null;
                 }
             }
 
-            // 切断された
-            Disconnect();
-
-            return 0;
-        }
-
-        // TCP すべて送信
-        public bool SendAll(byte[] data)
-        {
-            return SendAll(data, 0, data.Length);
-        }
-        public bool SendAll(byte[] data, int size)
-        {
-            return SendAll(data, 0, size);
-        }
-        public bool SendAll(byte[] data, int offset, int size)
-        {
-            if (this.asyncMode)
+            // ソケットを非同期に設定する
+            internal void initAsyncSocket()
             {
-                return false;
-            }
-            if (size == 0)
-            {
-                return true;
-            }
-
-            int sent_size = 0;
-
-            while (true)
-            {
-                int ret = Send(data, offset + sent_size, size - sent_size);
-                if (ret <= 0)
+                try
                 {
-                    return false;
+                    if (this.asyncMode)
+                    {
+                        return;
+                    }
+                    if (this.ListenMode != false || (this.Type == SockType.Tcp && this.Connected == false))
+                    {
+                        return;
+                    }
+
+                    this.hEvent = new Event();
+
+                    // 関連付け
+                    WSAEventSelect((IntPtr)this.Socket.Handle, this.hEvent.Handle, 35);
+                    this.Socket.Blocking = false;
+
+                    this.asyncMode = true;
                 }
-                sent_size += ret;
-                if (sent_size >= size)
+                catch
+                {
+                }
+            }
+
+            // TCP すべて受信
+            public byte[] RecvAll(int size)
+            {
+                byte[] data = new byte[size];
+                bool ret = RecvAll(data);
+                if (ret)
+                {
+                    return data;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            public bool RecvAll(byte[] data)
+            {
+                return RecvAll(data, 0, data.Length);
+            }
+            public bool RecvAll(byte[] data, int size)
+            {
+                return RecvAll(data, 0, size);
+            }
+            public bool RecvAll(byte[] data, int offset, int size)
+            {
+                int recv_size, sz, ret;
+                if (size == 0)
                 {
                     return true;
                 }
-            }
-        }
+                if (this.asyncMode)
+                {
+                    return false;
+                }
 
-        // TCP 接続受諾
-        public Sock Accept(bool getHostName = false)
-        {
-            if (this.ListenMode == false || this.Type != SockType.Tcp || this.ServerMode == false)
-            {
-                return null;
-            }
-            if (this.cancelAccept)
-            {
-                return null;
+                recv_size = 0;
+
+                while (true)
+                {
+                    sz = size - recv_size;
+
+                    ret = Recv(data, offset + recv_size, sz);
+                    if (ret <= 0)
+                    {
+                        return false;
+                    }
+
+                    recv_size += ret;
+                    if (recv_size >= size)
+                    {
+                        return true;
+                    }
+                }
             }
 
-            Socket s = this.Socket;
-            if (s == null)
+            // TCP 受信
+            public byte[] Recv(int size)
             {
-                return null;
-            }
-
-            try
-            {
-                Socket newSocket = s.Accept();
-
-                if (newSocket == null)
+                byte[] data = new byte[size];
+                int ret = Recv(data);
+                if (ret >= 1)
+                {
+                    Array.Resize<byte>(ref data, ret);
+                    return data;
+                }
+                else if (ret == SockLater)
+                {
+                    return new byte[0];
+                }
+                else
                 {
                     return null;
                 }
+            }
+            public int Recv(byte[] data)
+            {
+                return Recv(data, 0, data.Length);
+            }
+            public int Recv(byte[] data, int size)
+            {
+                return Recv(data, 0, size);
+            }
+            public int Recv(byte[] data, int offset, int size)
+            {
+                Socket s;
 
+                if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
+                    this.Socket == null)
+                {
+                    return 0;
+                }
+
+                // 受信
+                s = this.Socket;
+
+                int ret = -1;
+                SocketError err = 0;
+                try
+                {
+                    ret = s.Receive(data, offset, size, DefaultSocketFlags);
+                }
+                catch (SocketException se)
+                {
+                    err = se.SocketErrorCode;
+                }
+                catch
+                {
+                }
+
+                if (ret > 0)
+                {
+                    // 受信成功
+                    lock (lockObj)
+                    {
+                        this.RecvSize += (long)ret;
+                        this.RecvNum++;
+                    }
+
+                    return ret;
+                }
+
+                if (this.asyncMode)
+                {
+                    if (err == SocketError.WouldBlock)
+                    {
+                        // ブロッキングしている
+                        return SockLater;
+                    }
+                }
+
+                Disconnect();
+
+                return 0;
+            }
+
+            // TCP 送信
+            public int Send(byte[] data)
+            {
+                return Send(data, 0, data.Length);
+            }
+            public int Send(byte[] data, int size)
+            {
+                return Send(data, 0, size);
+            }
+            public int Send(byte[] data, int offset, int size)
+            {
+                Socket s;
+                size = Math.Min(size, MaxSendBufMemSize);
+                if (this.Type != SockType.Tcp || this.Connected == false || this.ListenMode != false ||
+                    this.Socket == null)
+                {
+                    return 0;
+                }
+
+                // 送信
+                s = this.Socket;
+                int ret = -1;
+                SocketError err = 0;
+                try
+                {
+                    ret = s.Send(data, offset, size, DefaultSocketFlags);
+                }
+                catch (SocketException se)
+                {
+                    err = se.SocketErrorCode;
+                }
+                catch
+                {
+                }
+
+                if (ret > 0)
+                {
+                    // 送信成功
+                    lock (this.lockObj)
+                    {
+                        this.SendSize += (long)ret;
+                        this.SendNum++;
+                    }
+                    this.writeBlocked = false;
+
+                    return ret;
+                }
+
+                // 送信失敗
+                if (this.asyncMode)
+                {
+                    // 非同期モードの場合、エラーを調べる
+                    if (err == SocketError.WouldBlock)
+                    {
+                        // ブロッキングしている
+                        this.writeBlocked = true;
+
+                        return SockLater;
+                    }
+                }
+
+                // 切断された
+                Disconnect();
+
+                return 0;
+            }
+
+            // TCP すべて送信
+            public bool SendAll(byte[] data)
+            {
+                return SendAll(data, 0, data.Length);
+            }
+            public bool SendAll(byte[] data, int size)
+            {
+                return SendAll(data, 0, size);
+            }
+            public bool SendAll(byte[] data, int offset, int size)
+            {
+                if (this.asyncMode)
+                {
+                    return false;
+                }
+                if (size == 0)
+                {
+                    return true;
+                }
+
+                int sent_size = 0;
+
+                while (true)
+                {
+                    int ret = Send(data, offset + sent_size, size - sent_size);
+                    if (ret <= 0)
+                    {
+                        return false;
+                    }
+                    sent_size += ret;
+                    if (sent_size >= size)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // TCP 接続受諾
+            public Sock Accept(bool getHostName = false)
+            {
+                if (this.ListenMode == false || this.Type != SockType.Tcp || this.ServerMode == false)
+                {
+                    return null;
+                }
                 if (this.cancelAccept)
                 {
-                    newSocket.Close();
                     return null;
                 }
 
-                Sock ret = new Sock();
-                ret.Socket = newSocket;
-                ret.Connected = true;
-                ret.asyncMode = false;
-                ret.Type = SockType.Tcp;
-                ret.ServerMode = true;
-                ret.SecureMode = false;
-                newSocket.NoDelay = true;
-
-                ret.SetTimeout(TimeoutInfinite);
-
-                ret.Fd = (IntPtr)ret.Socket.Handle;
-
-                ret.querySocketInformation();
-
-                if (getHostName)
+                Socket s = this.Socket;
+                if (s == null)
                 {
-                    try
-                    {
-                        ret.RemoteHostName = Domain.GetHostName(ret.RemoteIP, TimeoutGetHostname)[0];
-                    }
-                    catch
-                    {
-                        ret.RemoteHostName = ret.RemoteIP.ToString();
-                    }
+                    return null;
                 }
 
-                return ret;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        // TCP 待ち受け
-        public static Sock Listen(int port, bool localOnly = false, bool ipv6 = false)
-        {
-            Socket s;
-
-            if (ipv6 == false)
-            {
-                s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            }
-            else
-            {
-                s = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-            }
-
-            IPEndPoint ep = new IPEndPoint(ipv6 ? IPAddress.IPv6Any : IPAddress.Any, port);
-            if (localOnly)
-            {
-                ep = new IPEndPoint(ipv6 ? IPAddress.IPv6Loopback : IPAddress.Loopback, port);
-            }
-
-            s.Bind(ep);
-
-            s.Listen(0x7fffffff);
-
-            Sock sock = new Sock();
-            sock.Fd = s.Handle;
-            sock.Connected = false;
-            sock.asyncMode = false;
-            sock.ServerMode = true;
-            sock.Type = SockType.Tcp;
-            sock.Socket = s;
-            sock.ListenMode = true;
-            sock.SecureMode = false;
-            sock.LocalPort = port;
-            sock.IsIPv6 = ipv6;
-
-            return sock;
-        }
-
-        // TCP 接続
-        public static Sock Connect(string hostName, int port, int timeout = 0, bool use46 = false, bool noDnsCache = false)
-        {
-            if (timeout == 0)
-            {
-                timeout = TimeoutInfinite;
-            }
-
-            // 正引き
-            IPAddress ip;
-
-            if (use46 == false)
-            {
-                ip = Domain.GetIP(hostName, noDnsCache)[0];
-            }
-            else
-            {
-                ip = Domain.GetIP46(hostName, noDnsCache)[0];
-            }
-
-            IPEndPoint endPoint = new IPEndPoint(ip, port);
-
-            // ソケット作成
-            Sock sock = new Sock();
-            sock.Socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            sock.Type = SockType.Tcp;
-            sock.ServerMode = false;
-
-            // 接続の実施
-            connectTimeout(sock.Socket, endPoint, timeout);
-
-            // ホスト名解決
-            try
-            {
-                string[] hostname = Domain.GetHostName(ip, TimeoutGetHostname);
-                sock.RemoteHostName = hostname[0];
-            }
-            catch
-            {
-                sock.RemoteHostName = ip.ToString();
-            }
-
-            sock.Socket.LingerState = new LingerOption(false, 0);
-            try
-            {
-                sock.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-            }
-            catch
-            {
-            }
-            sock.Socket.NoDelay = true;
-
-            sock.querySocketInformation();
-
-            sock.Connected = true;
-            sock.asyncMode = false;
-            sock.SecureMode = false;
-            sock.Fd = sock.Socket.Handle;
-
-            sock.IsIPv6 = (ip.AddressFamily == AddressFamily.InterNetworkV6) ? true : false;
-
-            sock.SetTimeout(TimeoutInfinite);
-
-            return sock;
-        }
-        // 接続の実施
-        static void connectTimeoutCallback(IAsyncResult r)
-        {
-        }
-        static void connectTimeout(Socket s, IPEndPoint endPoint, int timeout)
-        {
-            IAsyncResult r = s.BeginConnect(endPoint, new AsyncCallback(connectTimeoutCallback), null);
-            r.AsyncWaitHandle.WaitOne(timeout, false);
-            if (r.IsCompleted == false)
-            {
-                throw new TimeoutException();
-            }
-            s.EndConnect(r);
-        }
-
-        // 切断
-        object unix_asyncmode_lock = new object();
-        public void Disconnect()
-        {
-            try
-            {
-                if (Env.IsUnix)
+                try
                 {
-                    lock (unix_asyncmode_lock)
-                    {
-                        if (this.asyncMode)
-                        {
-                            this.asyncMode = false;
+                    Socket newSocket = s.Accept();
 
-                            if (this.SockEvent != null)
+                    if (newSocket == null)
+                    {
+                        return null;
+                    }
+
+                    if (this.cancelAccept)
+                    {
+                        newSocket.Close();
+                        return null;
+                    }
+
+                    Sock ret = new Sock();
+                    ret.Socket = newSocket;
+                    ret.Connected = true;
+                    ret.asyncMode = false;
+                    ret.Type = SockType.Tcp;
+                    ret.ServerMode = true;
+                    ret.SecureMode = false;
+                    newSocket.NoDelay = true;
+
+                    ret.SetTimeout(TimeoutInfinite);
+
+                    ret.Fd = (IntPtr)ret.Socket.Handle;
+
+                    ret.querySocketInformation();
+
+                    if (getHostName)
+                    {
+                        try
+                        {
+                            ret.RemoteHostName = Domain.GetHostName(ret.RemoteIP, TimeoutGetHostname)[0];
+                        }
+                        catch
+                        {
+                            ret.RemoteHostName = ret.RemoteIP.ToString();
+                        }
+                    }
+
+                    return ret;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            // TCP 待ち受け
+            public static Sock Listen(int port, bool localOnly = false, bool ipv6 = false)
+            {
+                Socket s;
+
+                if (ipv6 == false)
+                {
+                    s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                }
+                else
+                {
+                    s = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+                }
+
+                IPEndPoint ep = new IPEndPoint(ipv6 ? IPAddress.IPv6Any : IPAddress.Any, port);
+                if (localOnly)
+                {
+                    ep = new IPEndPoint(ipv6 ? IPAddress.IPv6Loopback : IPAddress.Loopback, port);
+                }
+
+                s.Bind(ep);
+
+                s.Listen(0x7fffffff);
+
+                Sock sock = new Sock();
+                sock.Fd = s.Handle;
+                sock.Connected = false;
+                sock.asyncMode = false;
+                sock.ServerMode = true;
+                sock.Type = SockType.Tcp;
+                sock.Socket = s;
+                sock.ListenMode = true;
+                sock.SecureMode = false;
+                sock.LocalPort = port;
+                sock.IsIPv6 = ipv6;
+
+                return sock;
+            }
+
+            // TCP 接続
+            public static Sock Connect(string hostName, int port, int timeout = 0, bool use46 = false, bool noDnsCache = false)
+            {
+                if (timeout == 0)
+                {
+                    timeout = TimeoutInfinite;
+                }
+
+                // 正引き
+                IPAddress ip;
+
+                if (use46 == false)
+                {
+                    ip = Domain.GetIP(hostName, noDnsCache)[0];
+                }
+                else
+                {
+                    ip = Domain.GetIP46(hostName, noDnsCache)[0];
+                }
+
+                IPEndPoint endPoint = new IPEndPoint(ip, port);
+
+                // ソケット作成
+                Sock sock = new Sock();
+                sock.Socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                sock.Type = SockType.Tcp;
+                sock.ServerMode = false;
+
+                // 接続の実施
+                connectTimeout(sock.Socket, endPoint, timeout);
+
+                // ホスト名解決
+                try
+                {
+                    string[] hostname = Domain.GetHostName(ip, TimeoutGetHostname);
+                    sock.RemoteHostName = hostname[0];
+                }
+                catch
+                {
+                    sock.RemoteHostName = ip.ToString();
+                }
+
+                sock.Socket.LingerState = new LingerOption(false, 0);
+                try
+                {
+                    sock.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+                }
+                catch
+                {
+                }
+                sock.Socket.NoDelay = true;
+
+                sock.querySocketInformation();
+
+                sock.Connected = true;
+                sock.asyncMode = false;
+                sock.SecureMode = false;
+                sock.Fd = sock.Socket.Handle;
+
+                sock.IsIPv6 = (ip.AddressFamily == AddressFamily.InterNetworkV6) ? true : false;
+
+                sock.SetTimeout(TimeoutInfinite);
+
+                return sock;
+            }
+            // 接続の実施
+            static void connectTimeoutCallback(IAsyncResult r)
+            {
+            }
+            static void connectTimeout(Socket s, IPEndPoint endPoint, int timeout)
+            {
+                IAsyncResult r = s.BeginConnect(endPoint, new AsyncCallback(connectTimeoutCallback), null);
+                r.AsyncWaitHandle.WaitOne(timeout, false);
+                if (r.IsCompleted == false)
+                {
+                    throw new TimeoutException();
+                }
+                s.EndConnect(r);
+            }
+
+            // 切断
+            object unix_asyncmode_lock = new object();
+            public void Disconnect()
+            {
+                try
+                {
+                    if (Env.IsUnix)
+                    {
+                        lock (unix_asyncmode_lock)
+                        {
+                            if (this.asyncMode)
                             {
-                                lock (this.SockEvent.UnixSockList)
+                                this.asyncMode = false;
+
+                                if (this.SockEvent != null)
                                 {
-                                    this.SockEvent.UnixSockList.Remove(this);
+                                    lock (this.SockEvent.UnixSockList)
+                                    {
+                                        this.SockEvent.UnixSockList.Remove(this);
+                                    }
+
+                                    SockEvent se = this.SockEvent;
+                                    this.SockEvent = null;
+
+                                    se.Set();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    this.disconnecting = true;
+
+                    if (this.Type == SockType.Tcp && this.ListenMode)
+                    {
+                        this.cancelAccept = true;
+
+                        try
+                        {
+                            Sock s = Sock.Connect((this.IsIPv6 ? "::1" : "127.0.0.1"), this.LocalPort);
+
+                            s.Disconnect();
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    lock (disconnectLockObj)
+                    {
+                        if (this.Type == SockType.Tcp)
+                        {
+                            if (this.Socket != null)
+                            {
+                                try
+                                {
+                                    this.Socket.LingerState = new LingerOption(false, 0);
+                                }
+                                catch
+                                {
                                 }
 
-                                SockEvent se = this.SockEvent;
-                                this.SockEvent = null;
-
-                                se.Set();
+                                try
+                                {
+                                    this.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+                                }
+                                catch
+                                {
+                                }
                             }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
 
-            try
-            {
-                this.disconnecting = true;
-
-                if (this.Type == SockType.Tcp && this.ListenMode)
-                {
-                    this.cancelAccept = true;
-
-                    try
-                    {
-                        Sock s = Sock.Connect((this.IsIPv6 ? "::1" : "127.0.0.1"), this.LocalPort);
-
-                        s.Disconnect();
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                lock (disconnectLockObj)
-                {
-                    if (this.Type == SockType.Tcp)
-                    {
-                        if (this.Socket != null)
-                        {
-                            try
+                            lock (lockObj)
                             {
-                                this.Socket.LingerState = new LingerOption(false, 0);
+                                if (this.Socket == null)
+                                {
+                                    return;
+                                }
+
+                                Socket s = this.Socket;
+
+                                if (this.Connected)
+                                {
+                                    s.Shutdown(SocketShutdown.Both);
+                                }
+
+                                s.Close();
                             }
-                            catch
+
+                            lock (sslLockObj)
                             {
+                                if (this.SecureMode)
+                                {
+
+                                }
                             }
 
-                            try
-                            {
-                                this.Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                            }
-                            catch
-                            {
-                            }
-                        }
-
-                        lock (lockObj)
-                        {
-                            if (this.Socket == null)
-                            {
-                                return;
-                            }
-
-                            Socket s = this.Socket;
-
-                            if (this.Connected)
-                            {
-                                s.Shutdown(SocketShutdown.Both);
-                            }
-
-                            s.Close();
-                        }
-
-                        lock (sslLockObj)
-                        {
-                            if (this.SecureMode)
-                            {
-
-                            }
-                        }
-
-                        this.Socket = null;
-                        this.Type = SockType.Unknown;
-                        this.asyncMode = this.Connected = this.ListenMode = this.SecureMode = false;
-                    }
-                    else if (this.Type == SockType.Udp)
-                    {
-                        lock (lockObj)
-                        {
-                            if (this.Socket == null)
-                            {
-                                return;
-                            }
-
-                            Socket s = this.Socket;
-
-                            s.Close();
-
+                            this.Socket = null;
                             this.Type = SockType.Unknown;
                             this.asyncMode = this.Connected = this.ListenMode = this.SecureMode = false;
                         }
+                        else if (this.Type == SockType.Udp)
+                        {
+                            lock (lockObj)
+                            {
+                                if (this.Socket == null)
+                                {
+                                    return;
+                                }
+
+                                Socket s = this.Socket;
+
+                                s.Close();
+
+                                this.Type = SockType.Unknown;
+                                this.asyncMode = this.Connected = this.ListenMode = this.SecureMode = false;
+                            }
+                        }
                     }
                 }
-            }
-            catch
-            {
-            }
-        }
-
-        // タイムアウト時間の設定
-        public void SetTimeout(int timeout)
-        {
-            try
-            {
-                if (this.Type == SockType.Tcp)
+                catch
                 {
-                    if (timeout < 0)
-                    {
-                        timeout = TimeoutInfinite;
-                    }
-
-                    this.Socket.SendTimeout = this.Socket.ReceiveTimeout = timeout;
-                    this.timeOut = timeout;
                 }
             }
-            catch
-            {
-            }
-        }
 
-        // タイムアウト時間の取得
-        public int GetTimeout()
-        {
-            try
+            // タイムアウト時間の設定
+            public void SetTimeout(int timeout)
             {
-                if (this.Type != SockType.Tcp)
-                {
-                    return TimeoutInfinite;
-                }
-
-                return this.timeOut;
-            }
-            catch
-            {
-                return Timeout.Infinite;
-            }
-        }
-
-        // ソケット情報の取得
-        void querySocketInformation()
-        {
-            try
-            {
-                lock (this.lockObj)
+                try
                 {
                     if (this.Type == SockType.Tcp)
                     {
-                        // リモートホストの情報を取得
-                        IPEndPoint ep1 = (IPEndPoint)this.Socket.RemoteEndPoint;
+                        if (timeout < 0)
+                        {
+                            timeout = TimeoutInfinite;
+                        }
 
-                        this.RemotePort = ep1.Port;
-                        this.RemoteIP = ep1.Address;
+                        this.Socket.SendTimeout = this.Socket.ReceiveTimeout = timeout;
+                        this.timeOut = timeout;
                     }
-
-                    // ローカルホストの情報を取得
-                    IPEndPoint ep2 = (IPEndPoint)this.Socket.LocalEndPoint;
-
-                    this.LocalPort = ep2.Port;
-                    this.LocalIP = ep2.Address;
+                }
+                catch
+                {
                 }
             }
-            catch
-            {
-            }
-        }
 
-        public static bool SetKeepAlive(Socket socket, ulong time, ulong interval)
-        {
-            const int BytesPerLong = 4;
-            const int BitsPerByte = 8;
-
-            try
+            // タイムアウト時間の取得
+            public int GetTimeout()
             {
-                var input = new[]
+                try
                 {
+                    if (this.Type != SockType.Tcp)
+                    {
+                        return TimeoutInfinite;
+                    }
+
+                    return this.timeOut;
+                }
+                catch
+                {
+                    return Timeout.Infinite;
+                }
+            }
+
+            // ソケット情報の取得
+            void querySocketInformation()
+            {
+                try
+                {
+                    lock (this.lockObj)
+                    {
+                        if (this.Type == SockType.Tcp)
+                        {
+                            // リモートホストの情報を取得
+                            IPEndPoint ep1 = (IPEndPoint)this.Socket.RemoteEndPoint;
+
+                            this.RemotePort = ep1.Port;
+                            this.RemoteIP = ep1.Address;
+                        }
+
+                        // ローカルホストの情報を取得
+                        IPEndPoint ep2 = (IPEndPoint)this.Socket.LocalEndPoint;
+
+                        this.LocalPort = ep2.Port;
+                        this.LocalIP = ep2.Address;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            public static bool SetKeepAlive(Socket socket, ulong time, ulong interval)
+            {
+                const int BytesPerLong = 4;
+                const int BitsPerByte = 8;
+
+                try
+                {
+                    var input = new[]
+                    {
                     (time == 0 || interval == 0) ? 0UL : 1UL,
                     time,
                     interval
                 };
 
-                byte[] inValue = new byte[3 * BytesPerLong];
-                for (int i = 0; i < input.Length; i++)
+                    byte[] inValue = new byte[3 * BytesPerLong];
+                    for (int i = 0; i < input.Length; i++)
+                    {
+                        inValue[i * BytesPerLong + 3] = (byte)(input[i] >> ((BytesPerLong - 1) * BitsPerByte) & 0xff);
+                        inValue[i * BytesPerLong + 2] = (byte)(input[i] >> ((BytesPerLong - 2) * BitsPerByte) & 0xff);
+                        inValue[i * BytesPerLong + 1] = (byte)(input[i] >> ((BytesPerLong - 3) * BitsPerByte) & 0xff);
+                        inValue[i * BytesPerLong + 0] = (byte)(input[i] >> ((BytesPerLong - 4) * BitsPerByte) & 0xff);
+                    }
+
+                    byte[] outValue = BitConverter.GetBytes(0);
+                    //socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.KeepAlive, true);
+                    socket.IOControl(IOControlCode.KeepAliveValues, inValue, outValue);
+                }
+                catch// (Exception ex)
                 {
-                    inValue[i * BytesPerLong + 3] = (byte)(input[i] >> ((BytesPerLong - 1) * BitsPerByte) & 0xff);
-                    inValue[i * BytesPerLong + 2] = (byte)(input[i] >> ((BytesPerLong - 2) * BitsPerByte) & 0xff);
-                    inValue[i * BytesPerLong + 1] = (byte)(input[i] >> ((BytesPerLong - 3) * BitsPerByte) & 0xff);
-                    inValue[i * BytesPerLong + 0] = (byte)(input[i] >> ((BytesPerLong - 4) * BitsPerByte) & 0xff);
+                    //Con.WriteLine(ex.ToString());
+                    return false;
                 }
 
-                byte[] outValue = BitConverter.GetBytes(0);
-                //socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.KeepAlive, true);
-                socket.IOControl(IOControlCode.KeepAliveValues, inValue, outValue);
-            }
-            catch// (Exception ex)
-            {
-                //Con.WriteLine(ex.ToString());
-                return false;
-            }
-
-            return true;
-        }
-    }
-
-    // Ping 応答
-    class SendPingReply
-    {
-        private TimeSpan rttTimeSpan;
-        public TimeSpan RttTimeSpan
-        {
-            get { return rttTimeSpan; }
-        }
-
-        private double rttDouble;
-        public double RttDouble
-        {
-            get { return rttDouble; }
-        }
-
-        private IPStatus status;
-        internal IPStatus Status
-        {
-            get { return status; }
-        }
-
-        private bool ok;
-        public bool Ok
-        {
-            get { return ok; }
-        }
-
-        object userObject;
-        public object UserObject
-        {
-            get { return userObject; }
-        }
-
-        internal SendPingReply(IPStatus status, TimeSpan span, object userObject)
-        {
-            this.status = status;
-            this.userObject = userObject;
-
-            if (this.status == IPStatus.Success)
-            {
-                this.rttTimeSpan = span;
-                this.rttDouble = span.Ticks / 10000000.0;
-                ok = true;
-            }
-            else
-            {
-                ok = false;
+                return true;
             }
         }
-    }
 
-    // Ping 送信
-    class SendPing
-    {
-        public const int DefaultSendSize = 32;
-        public const int DefaultTimeout = 1000;
-
-        public static SendPingReply Send(IPAddress target)
+        // Ping 応答
+        class SendPingReply
         {
-            return Send(target, 0);
-        }
-        public static SendPingReply Send(IPAddress target, int timeout)
-        {
-            return Send(target, null, timeout);
-        }
-        public static SendPingReply Send(string target)
-        {
-            return Send(target, 0);
-        }
-        public static SendPingReply Send(string target, int timeout)
-        {
-            return Send(target, null, timeout);
-        }
-        public static SendPingReply Send(string target, byte[] data)
-        {
-            return Send(target, data, 0);
-        }
-        public static SendPingReply Send(string target, byte[] data, int timeout)
-        {
-            return Send(Domain.GetIP46(target, true)[0], data, timeout);
-        }
-        public static SendPingReply Send(IPAddress target, byte[] data)
-        {
-            return Send(target, data, 0);
-        }
-        public static SendPingReply Send(IPAddress target, byte[] data, int timeout)
-        {
-            try
+            private TimeSpan rttTimeSpan;
+            public TimeSpan RttTimeSpan
             {
-                if (data == null)
+                get { return rttTimeSpan; }
+            }
+
+            private double rttDouble;
+            public double RttDouble
+            {
+                get { return rttDouble; }
+            }
+
+            private IPStatus status;
+            internal IPStatus Status
+            {
+                get { return status; }
+            }
+
+            private bool ok;
+            public bool Ok
+            {
+                get { return ok; }
+            }
+
+            object userObject;
+            public object UserObject
+            {
+                get { return userObject; }
+            }
+
+            internal SendPingReply(IPStatus status, TimeSpan span, object userObject)
+            {
+                this.status = status;
+                this.userObject = userObject;
+
+                if (this.status == IPStatus.Success)
                 {
-                    data = Secure.Rand(DefaultSendSize);
-                }
-                if (timeout == 0)
-                {
-                    timeout = DefaultTimeout;
-                }
-
-                using (Ping p = new Ping())
-                {
-                    DateTime startDateTime = Time.NowHighResDateTimeUtc;
-
-                    PingReply ret = p.Send(target, timeout, data);
-
-                    DateTime endDateTime = Time.NowHighResDateTimeUtc;
-
-                    TimeSpan span = endDateTime - startDateTime;
-
-                    SendPingReply r = new SendPingReply(ret.Status, span, null);
-
-                    return r;
-                }
-            }
-            catch
-            {
-                return new SendPingReply(IPStatus.Unknown, new TimeSpan(), null);
-            }
-        }
-    }
-
-    // DNS
-    class Domain
-    {
-        public static readonly TimeSpan DnsCacheLifeTime = new TimeSpan(0, 1, 0, 0);
-        static Cache<string, IPAddress[]> dnsACache = new Cache<string, IPAddress[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);
-        static Cache<IPAddress, string[]> dnsPTRCache = new Cache<IPAddress, string[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);
-
-
-        class GetHostNameData
-        {
-            public string[] HostName;
-            public IPAddress IP;
-            public bool NoCache;
-        }
-
-        // タイムアウト付き逆引き
-        public static string[] GetHostName(IPAddress ip, int timeout)
-        {
-            return GetHostName(ip, timeout, false);
-        }
-        public static string[] GetHostName(IPAddress ip, int timeout, bool noCache)
-        {
-            GetHostNameData d = new GetHostNameData();
-            d.HostName = null;
-            d.IP = ip;
-            d.NoCache = noCache;
-
-            ThreadObj t = new ThreadObj(new ThreadProc(getHostNameThreadProc), d);
-            t.WaitForEnd(timeout);
-
-            lock (d)
-            {
-                if (d.HostName != null)
-                {
-                    return d.HostName;
+                    this.rttTimeSpan = span;
+                    this.rttDouble = span.Ticks / 10000000.0;
+                    ok = true;
                 }
                 else
                 {
+                    ok = false;
+                }
+            }
+        }
+
+        // Ping 送信
+        class SendPing
+        {
+            public const int DefaultSendSize = 32;
+            public const int DefaultTimeout = 1000;
+
+            public static SendPingReply Send(IPAddress target)
+            {
+                return Send(target, 0);
+            }
+            public static SendPingReply Send(IPAddress target, int timeout)
+            {
+                return Send(target, null, timeout);
+            }
+            public static SendPingReply Send(string target)
+            {
+                return Send(target, 0);
+            }
+            public static SendPingReply Send(string target, int timeout)
+            {
+                return Send(target, null, timeout);
+            }
+            public static SendPingReply Send(string target, byte[] data)
+            {
+                return Send(target, data, 0);
+            }
+            public static SendPingReply Send(string target, byte[] data, int timeout)
+            {
+                return Send(Domain.GetIP46(target, true)[0], data, timeout);
+            }
+            public static SendPingReply Send(IPAddress target, byte[] data)
+            {
+                return Send(target, data, 0);
+            }
+            public static SendPingReply Send(IPAddress target, byte[] data, int timeout)
+            {
+                try
+                {
+                    if (data == null)
+                    {
+                        data = Secure.Rand(DefaultSendSize);
+                    }
+                    if (timeout == 0)
+                    {
+                        timeout = DefaultTimeout;
+                    }
+
+                    using (Ping p = new Ping())
+                    {
+                        DateTime startDateTime = Time.NowHighResDateTimeUtc;
+
+                        PingReply ret = p.Send(target, timeout, data);
+
+                        DateTime endDateTime = Time.NowHighResDateTimeUtc;
+
+                        TimeSpan span = endDateTime - startDateTime;
+
+                        SendPingReply r = new SendPingReply(ret.Status, span, null);
+
+                        return r;
+                    }
+                }
+                catch
+                {
+                    return new SendPingReply(IPStatus.Unknown, new TimeSpan(), null);
+                }
+            }
+        }
+
+        // DNS
+        class Domain
+        {
+            public static readonly TimeSpan DnsCacheLifeTime = new TimeSpan(0, 1, 0, 0);
+            static Cache<string, IPAddress[]> dnsACache = new Cache<string, IPAddress[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);
+            static Cache<IPAddress, string[]> dnsPTRCache = new Cache<IPAddress, string[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);
+
+
+            class GetHostNameData
+            {
+                public string[] HostName;
+                public IPAddress IP;
+                public bool NoCache;
+            }
+
+            // タイムアウト付き逆引き
+            public static string[] GetHostName(IPAddress ip, int timeout)
+            {
+                return GetHostName(ip, timeout, false);
+            }
+            public static string[] GetHostName(IPAddress ip, int timeout, bool noCache)
+            {
+                GetHostNameData d = new GetHostNameData();
+                d.HostName = null;
+                d.IP = ip;
+                d.NoCache = noCache;
+
+                ThreadObj t = new ThreadObj(new ThreadProc(getHostNameThreadProc), d);
+                t.WaitForEnd(timeout);
+
+                lock (d)
+                {
+                    if (d.HostName != null)
+                    {
+                        return d.HostName;
+                    }
+                    else
+                    {
+                        if (noCache == false)
+                        {
+                            string[] ret = dnsPTRCache[ip];
+
+                            if (ret != null)
+                            {
+                                return ret;
+                            }
+                        }
+                        throw new TimeoutException();
+                    }
+                }
+            }
+            static void getHostNameThreadProc(object param)
+            {
+                GetHostNameData d = (GetHostNameData)param;
+
+                string[] hostname = Domain.GetHostName(d.IP, d.NoCache);
+
+                lock (d)
+                {
+                    d.HostName = hostname;
+                }
+            }
+
+            // 逆引き
+            public static string[] GetHostName(IPAddress ip)
+            {
+                return GetHostName(ip, false);
+            }
+            public static string[] GetHostName(IPAddress ip, bool noCache)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork && ip.GetAddressBytes()[0] == 127)
+                {
+                    return new string[] { "localhost" };
+                }
+
+                try
+                {
+                    IPHostEntry e = Dns.GetHostEntry(ip);
+
+                    string[] ret = IPHostEntryToStringArray(e);
+
+                    if (ret.Length == 0)
+                    {
+                        return null;
+                    }
+
                     if (noCache == false)
                     {
-                        string[] ret = dnsPTRCache[ip];
-
-                        if (ret != null)
-                        {
-                            return ret;
-                        }
+                        dnsPTRCache.Add(ip, ret);
                     }
-                    throw new TimeoutException();
+
+                    return ret;
+                }
+                catch
+                {
+                    if (noCache)
+                    {
+                        return null;
+                    }
+
+                    string[] ret = dnsPTRCache[ip];
+
+                    if (ret == null)
+                    {
+                        return null;
+                    }
+
+                    return ret;
                 }
             }
-        }
-        static void getHostNameThreadProc(object param)
-        {
-            GetHostNameData d = (GetHostNameData)param;
 
-            string[] hostname = Domain.GetHostName(d.IP, d.NoCache);
-
-            lock (d)
+            // IPHostEntry から文字列リストを取得する
+            public static string[] IPHostEntryToStringArray(IPHostEntry e)
             {
-                d.HostName = hostname;
-            }
-        }
+                List<string> o = new List<string>();
 
-        // 逆引き
-        public static string[] GetHostName(IPAddress ip)
-        {
-            return GetHostName(ip, false);
-        }
-        public static string[] GetHostName(IPAddress ip, bool noCache)
-        {
-            if (ip.AddressFamily == AddressFamily.InterNetwork && ip.GetAddressBytes()[0] == 127)
-            {
-                return new string[] { "localhost" };
+                o.Add(e.HostName);
+
+                foreach (string s in e.Aliases)
+                {
+                    o.Add(s);
+                }
+
+                return Str.UniqueToken(o.ToArray());
             }
 
-            try
+            // 正引き (IPv6 も)
+            public static IPAddress[] GetIP46(string hostName)
             {
-                IPHostEntry e = Dns.GetHostEntry(ip);
+                return GetIP46(hostName, false);
+            }
+            public static IPAddress[] GetIP46(string hostName, bool noCache)
+            {
+                hostName = NormalizeHostName(hostName);
 
-                string[] ret = IPHostEntryToStringArray(e);
+                if (IsIPAddress(hostName))
+                {
+                    return new IPAddress[1] { StrToIP(hostName) };
+                }
 
-                if (ret.Length == 0)
+                if (Str.StrCmpi(hostName, "localhost"))
+                {
+                    return new IPAddress[] { new IPAddress(new byte[] { 127, 0, 0, 1 }) };
+                }
+
+                try
+                {
+                    IPAddress[] ret = Dns.GetHostAddresses(hostName);
+
+                    if (ret.Length == 0)
+                    {
+                        return null;
+                    }
+
+                    if (noCache == false)
+                    {
+                        dnsACache.Add(hostName, ret);
+                    }
+
+                    return ret;
+                }
+                catch
+                {
+                    if (noCache)
+                    {
+                        throw;
+                    }
+                    IPAddress[] ret = dnsACache[hostName];
+
+                    if (ret == null)
+                    {
+                        throw;
+                    }
+
+                    return ret;
+                }
+            }
+
+            // 正引き
+            public static IPAddress[] GetIP(string hostName)
+            {
+                return GetIP(hostName, false);
+            }
+            public static IPAddress[] GetIP(string hostName, bool noCache)
+            {
+                hostName = NormalizeHostName(hostName);
+
+                if (IsIPAddress(hostName))
+                {
+                    return new IPAddress[1] { StrToIP(hostName) };
+                }
+
+                if (Str.StrCmpi(hostName, "localhost"))
+                {
+                    return new IPAddress[] { new IPAddress(new byte[] { 127, 0, 0, 1 }) };
+                }
+
+                try
+                {
+                    IPAddress[] ret = GetIPv4OnlyFromIPAddressList(Dns.GetHostAddresses(hostName));
+
+                    if (ret.Length == 0)
+                    {
+                        return null;
+                    }
+
+                    if (noCache == false)
+                    {
+                        dnsACache.Add(hostName, ret);
+                    }
+
+                    return ret;
+                }
+                catch
+                {
+                    if (noCache)
+                    {
+                        throw;
+                    }
+                    IPAddress[] ret = dnsACache[hostName];
+
+                    if (ret == null)
+                    {
+                        throw;
+                    }
+
+                    return ret;
+                }
+            }
+
+            // IP アドレスリストから IPv4 のもののみを抽出する
+            public static IPAddress[] GetIPv4OnlyFromIPAddressList(IPAddress[] list)
+            {
+                List<IPAddress> o = new List<IPAddress>();
+
+                foreach (IPAddress p in list)
+                {
+                    if (p.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        o.Add(p);
+                    }
+                }
+
+                return o.ToArray();
+            }
+
+            // 文字列が IP アドレスかどうか取得する
+            public static bool IsIPAddress(string str)
+            {
+                str = NormalizeHostName(str);
+
+                try
+                {
+                    IPAddress.Parse(str);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // 文字列を IP アドレスに変換する
+            public static IPAddress StrToIP(string str)
+            {
+                str = NormalizeHostName(str);
+
+                if (IsIPAddress(str) == false)
                 {
                     return null;
                 }
 
-                if (noCache == false)
-                {
-                    dnsPTRCache.Add(ip, ret);
-                }
-
-                return ret;
+                return IPAddress.Parse(str);
             }
-            catch
+
+            // ホスト名の正規化
+            public static string NormalizeHostName(string hostName)
             {
-                if (noCache)
-                {
-                    return null;
-                }
-
-                string[] ret = dnsPTRCache[ip];
-
-                if (ret == null)
-                {
-                    return null;
-                }
-
-                return ret;
+                return hostName.Trim().ToLower();
             }
-        }
-
-        // IPHostEntry から文字列リストを取得する
-        public static string[] IPHostEntryToStringArray(IPHostEntry e)
-        {
-            List<string> o = new List<string>();
-
-            o.Add(e.HostName);
-
-            foreach (string s in e.Aliases)
-            {
-                o.Add(s);
-            }
-
-            return Str.UniqueToken(o.ToArray());
-        }
-
-        // 正引き (IPv6 も)
-        public static IPAddress[] GetIP46(string hostName)
-        {
-            return GetIP46(hostName, false);
-        }
-        public static IPAddress[] GetIP46(string hostName, bool noCache)
-        {
-            hostName = NormalizeHostName(hostName);
-
-            if (IsIPAddress(hostName))
-            {
-                return new IPAddress[1] { StrToIP(hostName) };
-            }
-
-            if (Str.StrCmpi(hostName, "localhost"))
-            {
-                return new IPAddress[] { new IPAddress(new byte[] { 127, 0, 0, 1 }) };
-            }
-
-            try
-            {
-                IPAddress[] ret = Dns.GetHostAddresses(hostName);
-
-                if (ret.Length == 0)
-                {
-                    return null;
-                }
-
-                if (noCache == false)
-                {
-                    dnsACache.Add(hostName, ret);
-                }
-
-                return ret;
-            }
-            catch
-            {
-                if (noCache)
-                {
-                    throw;
-                }
-                IPAddress[] ret = dnsACache[hostName];
-
-                if (ret == null)
-                {
-                    throw;
-                }
-
-                return ret;
-            }
-        }
-
-        // 正引き
-        public static IPAddress[] GetIP(string hostName)
-        {
-            return GetIP(hostName, false);
-        }
-        public static IPAddress[] GetIP(string hostName, bool noCache)
-        {
-            hostName = NormalizeHostName(hostName);
-
-            if (IsIPAddress(hostName))
-            {
-                return new IPAddress[1] { StrToIP(hostName) };
-            }
-
-            if (Str.StrCmpi(hostName, "localhost"))
-            {
-                return new IPAddress[] { new IPAddress(new byte[] { 127, 0, 0, 1 }) };
-            }
-
-            try
-            {
-                IPAddress[] ret = GetIPv4OnlyFromIPAddressList(Dns.GetHostAddresses(hostName));
-
-                if (ret.Length == 0)
-                {
-                    return null;
-                }
-
-                if (noCache == false)
-                {
-                    dnsACache.Add(hostName, ret);
-                }
-
-                return ret;
-            }
-            catch
-            {
-                if (noCache)
-                {
-                    throw;
-                }
-                IPAddress[] ret = dnsACache[hostName];
-
-                if (ret == null)
-                {
-                    throw;
-                }
-
-                return ret;
-            }
-        }
-
-        // IP アドレスリストから IPv4 のもののみを抽出する
-        public static IPAddress[] GetIPv4OnlyFromIPAddressList(IPAddress[] list)
-        {
-            List<IPAddress> o = new List<IPAddress>();
-
-            foreach (IPAddress p in list)
-            {
-                if (p.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    o.Add(p);
-                }
-            }
-
-            return o.ToArray();
-        }
-
-        // 文字列が IP アドレスかどうか取得する
-        public static bool IsIPAddress(string str)
-        {
-            str = NormalizeHostName(str);
-
-            try
-            {
-                IPAddress.Parse(str);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        // 文字列を IP アドレスに変換する
-        public static IPAddress StrToIP(string str)
-        {
-            str = NormalizeHostName(str);
-
-            if (IsIPAddress(str) == false)
-            {
-                return null;
-            }
-
-            return IPAddress.Parse(str);
-        }
-
-        // ホスト名の正規化
-        public static string NormalizeHostName(string hostName)
-        {
-            return hostName.Trim().ToLower();
         }
     }
 

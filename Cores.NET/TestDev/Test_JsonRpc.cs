@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -171,7 +172,7 @@ namespace IPA.TestDev
         public async Task<string[]> Test6()
         {
             List<string> ret = new List<string>();
-            foreach (var d in BasicFile.EnumDirEx(Env.AppRootDir))
+            foreach (var d in IO.EnumDirEx(Env.AppRootDir))
             {
                 ret.Add(d.FullPath);
             }

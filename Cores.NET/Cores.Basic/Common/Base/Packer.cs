@@ -35,10 +35,11 @@ using System.Collections.Generic;
 using System.IO;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     enum PackerFileFormat
     {
@@ -64,11 +65,11 @@ namespace IPA.Cores.Basic
 
             foreach (string fileName in fileList)
             {
-                string relativePath = BasicFile.GetRelativeFileName(fileName, topDirPath);
+                string relativePath = IO.GetRelativeFileName(fileName, topDirPath);
 
                 if (Str.IsEmptyStr(appendPrefixDirName) == false)
                 {
-                    relativePath = BasicFile.RemoveLastEnMark(appendPrefixDirName) + "\\" + relativePath;
+                    relativePath = IO.RemoveLastEnMark(appendPrefixDirName) + "\\" + relativePath;
                 }
 
                 relativeFileList.Add(relativePath);
@@ -106,7 +107,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                byte[] srcData = BasicFile.ReadFile(srcFileNameList[i]);
+                byte[] srcData = IO.ReadFile(srcFileNameList[i]);
                 DateTime date = File.GetLastWriteTime(srcFileNameList[i]);
 
                 switch (format)

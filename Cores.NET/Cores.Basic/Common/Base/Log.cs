@@ -39,6 +39,7 @@ using System.IO;
 using System.Linq;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -250,7 +251,7 @@ namespace IPA.Cores.Basic
                 // Timestamp
                 if (opt.WithTimeStamp)
                 {
-                    sb.Append(this.TimeStamp._ToDtStr(true, DtstrOption.All, false));
+                    sb.Append(this.TimeStamp._ToDtStr(true, DtStrOption.All, false));
                     sb.Append(" ");
                 }
 
@@ -392,7 +393,7 @@ namespace IPA.Cores.Basic
 
         async Task LogThreadAsync()
         {
-            BasicFile io = null;
+            IO io = null;
             MemoryBuffer<byte> b = new MemoryBuffer<byte>();
             string currentFileName = "";
             string currentLogFileDateName = "";
@@ -510,7 +511,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                string[] existingFiles = Directory.GetFiles(BasicFile.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
+                                string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
                                 string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
 
@@ -546,7 +547,7 @@ namespace IPA.Cores.Basic
                                     MakeLogFileName(out string tmp, this.DirName, this.Prefix, this.UniqueProcessId,
                                         rec.TimeStamp, this.SwitchType, i, ref currentLogFileDateName);
 
-                                    if (BasicFile.IsFileExists(tmp) == false)
+                                    if (IO.IsFileExists(tmp) == false)
                                         break;
 
                                     this.CurrentLogNumber = i;
@@ -595,7 +596,7 @@ namespace IPA.Cores.Basic
                             currentFileName = fileName;
                             try
                             {
-                                io = BasicFile.FileOpen(fileName, writeMode: true, useAsync: true);
+                                io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
                                 this.CurrentFilePointer = io.FileSize64;
                                 io.Seek(SeekOrigin.End, 0);
                             }
@@ -606,14 +607,14 @@ namespace IPA.Cores.Basic
                                 {
                                     try
                                     {
-                                        BasicFile.MakeDirIfNotExists(this.DirName);
+                                        IO.MakeDirIfNotExists(this.DirName);
                                         Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                     }
                                     catch { }
                                 }
                                 try
                                 {
-                                    io = BasicFile.FileCreate(fileName, useAsync: true);
+                                    io = IO.FileCreate(fileName, useAsync: true);
                                     await io.WriteAsync(NewFilePreamble);
                                 }
                                 catch (Exception ex)
@@ -631,7 +632,7 @@ namespace IPA.Cores.Basic
                         currentFileName = fileName;
                         try
                         {
-                            io = BasicFile.FileOpen(fileName, writeMode: true, useAsync: true);
+                            io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
                             this.CurrentFilePointer = io.FileSize64;
                             io.Seek(SeekOrigin.End, 0);
                         }
@@ -642,7 +643,7 @@ namespace IPA.Cores.Basic
                             {
                                 try
                                 {
-                                    BasicFile.MakeDirIfNotExists(this.DirName);
+                                    IO.MakeDirIfNotExists(this.DirName);
                                     Win32FolderCompression.SetFolderCompression(this.DirName, true);
                                 }
                                 catch { }
@@ -650,7 +651,7 @@ namespace IPA.Cores.Basic
                             this.CurrentFilePointer = 0;
                             try
                             {
-                                io = BasicFile.FileCreate(fileName, useAsync: true);
+                                io = IO.FileCreate(fileName, useAsync: true);
                                 await io.WriteAsync(NewFilePreamble);
                             }
                             catch (Exception ex)

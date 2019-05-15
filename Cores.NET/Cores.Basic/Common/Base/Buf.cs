@@ -35,6 +35,7 @@ using System.Text;
 using System.IO;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -738,7 +739,7 @@ namespace IPA.Cores.Basic
         // ファイルから読み込み
         public static Buf ReadFromFile(string filename)
         {
-            return new Buf(BasicFile.ReadFile(filename));
+            return new Buf(IO.ReadFile(filename));
         }
 
         // バッファから読み込み (ハッシュを調べる)
@@ -764,7 +765,7 @@ namespace IPA.Cores.Basic
         // ファイルから読み込み (ハッシュ調べる)
         public static Buf ReadFromFileWithHash(string filename)
         {
-            byte[] filedata = BasicFile.ReadFile(filename);
+            byte[] filedata = IO.ReadFile(filename);
             if (filedata.Length < 20)
             {
                 throw new ApplicationException("filedata.Length < 20");
@@ -784,7 +785,7 @@ namespace IPA.Cores.Basic
         // ファイルに書き込み
         public void WriteToFile(string filename)
         {
-            BasicFile.SaveFile(filename, this.ByteData);
+            IO.SaveFile(filename, this.ByteData);
         }
 
         // ファイルに書き込み (ハッシュ付ける)

@@ -50,152 +50,156 @@ using System.Reflection.Emit;
 using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    // 言語一覧
-    enum CoreLanguage
+    namespace Legacy
     {
-        Japanese = 0,
-        English = 1,
-    }
-
-    // 言語クラス
-    class CoreLanguageClass
-    {
-        public readonly CoreLanguage Language;
-        public readonly int Id;
-        readonly string name;
-        public string Name
+        // 言語一覧
+        enum CoreLanguage
         {
-            get
+            Japanese = 0,
+            English = 1,
+        }
+
+        // 言語クラス
+        class CoreLanguageClass
+        {
+            public readonly CoreLanguage Language;
+            public readonly int Id;
+            readonly string name;
+            public string Name
             {
-                if (name == "ja")
+                get
                 {
-                    if (CoreLanguageList.RegardsJapanAsJP)
+                    if (name == "ja")
                     {
-                        return "jp";
+                        if (CoreLanguageList.RegardsJapanAsJP)
+                        {
+                            return "jp";
+                        }
+                    }
+
+                    return name;
+                }
+            }
+            public readonly string TitleInEnglish;
+            public readonly string TitleInNative;
+
+            public CoreLanguageClass(CoreLanguage lang, int id, string name,
+                string titleInEnglish, string titleInNative)
+            {
+                this.Language = lang;
+                this.Id = id;
+                this.name = name;
+                this.TitleInEnglish = titleInEnglish;
+                this.TitleInNative = titleInNative;
+            }
+
+            public static void SetCurrentThreadLanguageClass(CoreLanguageClass lang)
+            {
+                ThreadLocalStorage.CurrentThreadData["current_thread_language"] = lang;
+            }
+
+            public static CoreLanguageClass CurrentThreadLanguageClass
+            {
+                get
+                {
+                    return GetCurrentThreadLanguageClass();
+                }
+
+                set
+                {
+                    SetCurrentThreadLanguageClass(value);
+                }
+            }
+
+            public static CoreLanguage CurrentThreadLanguage
+            {
+                get
+                {
+                    return CurrentThreadLanguageClass.Language;
+                }
+            }
+
+            public static CoreLanguageClass GetCurrentThreadLanguageClass()
+            {
+                CoreLanguageClass lang = null;
+
+                try
+                {
+                    lang = (CoreLanguageClass)ThreadLocalStorage.CurrentThreadData["current_thread_language"];
+                }
+                catch
+                {
+                }
+
+                if (lang == null)
+                {
+                    lang = CoreLanguageList.DefaultLanguage;
+
+                    SetCurrentThreadLanguageClass(lang);
+                }
+
+                return lang;
+            }
+        }
+
+        // 言語リスト
+        static class CoreLanguageList
+        {
+            public static readonly CoreLanguageClass DefaultLanguage;
+            public static readonly CoreLanguageClass Japanese;
+            public static readonly CoreLanguageClass English;
+            public static bool RegardsJapanAsJP = false;
+
+            public static readonly List<CoreLanguageClass> LanguageList = new List<CoreLanguageClass>();
+
+            static CoreLanguageList()
+            {
+                CoreLanguageList.LanguageList = new List<CoreLanguageClass>();
+
+                CoreLanguageList.Japanese = new CoreLanguageClass(CoreLanguage.Japanese,
+                    0, "ja", "Japanese", "日本語");
+                CoreLanguageList.English = new CoreLanguageClass(CoreLanguage.English,
+                    1, "en", "English", "English");
+
+                CoreLanguageList.DefaultLanguage = CoreLanguageList.Japanese;
+
+                CoreLanguageList.LanguageList.Add(CoreLanguageList.Japanese);
+                CoreLanguageList.LanguageList.Add(CoreLanguageList.English);
+            }
+
+            public static CoreLanguageClass GetLanguageClassByName(string name)
+            {
+                Str.NormalizeStringStandard(ref name);
+
+                foreach (CoreLanguageClass c in LanguageList)
+                {
+                    if (Str.StrCmpi(c.Name, name))
+                    {
+                        return c;
                     }
                 }
 
-                return name;
-            }
-        }
-        public readonly string TitleInEnglish;
-        public readonly string TitleInNative;
-
-        public CoreLanguageClass(CoreLanguage lang, int id, string name,
-            string titleInEnglish, string titleInNative)
-        {
-            this.Language = lang;
-            this.Id = id;
-            this.name = name;
-            this.TitleInEnglish = titleInEnglish;
-            this.TitleInNative = titleInNative;
-        }
-
-        public static void SetCurrentThreadLanguageClass(CoreLanguageClass lang)
-        {
-            ThreadData.CurrentThreadData["current_thread_language"] = lang;
-        }
-
-        public static CoreLanguageClass CurrentThreadLanguageClass
-        {
-            get
-            {
-                return GetCurrentThreadLanguageClass();
+                return DefaultLanguage;
             }
 
-            set
+            public static CoreLanguageClass GetLangugageClassByEnum(CoreLanguage lang)
             {
-                SetCurrentThreadLanguageClass(value);
-            }
-        }
-
-        public static CoreLanguage CurrentThreadLanguage
-        {
-            get
-            {
-                return CurrentThreadLanguageClass.Language;
-            }
-        }
-
-        public static CoreLanguageClass GetCurrentThreadLanguageClass()
-        {
-            CoreLanguageClass lang = null;
-
-            try
-            {
-                lang = (CoreLanguageClass)ThreadData.CurrentThreadData["current_thread_language"];
-            }
-            catch
-            {
-            }
-
-            if (lang == null)
-            {
-                lang = CoreLanguageList.DefaultLanguage;
-
-                SetCurrentThreadLanguageClass(lang);
-            }
-
-            return lang;
-        }
-    }
-
-    // 言語リスト
-    static class CoreLanguageList
-    {
-        public static readonly CoreLanguageClass DefaultLanguage;
-        public static readonly CoreLanguageClass Japanese;
-        public static readonly CoreLanguageClass English;
-        public static bool RegardsJapanAsJP = false;
-
-        public static readonly List<CoreLanguageClass> LanguageList = new List<CoreLanguageClass>();
-
-        static CoreLanguageList()
-        {
-            CoreLanguageList.LanguageList = new List<CoreLanguageClass>();
-
-            CoreLanguageList.Japanese = new CoreLanguageClass(CoreLanguage.Japanese,
-                0, "ja", "Japanese", "日本語");
-            CoreLanguageList.English = new CoreLanguageClass(CoreLanguage.English,
-                1, "en", "English", "English");
-
-            CoreLanguageList.DefaultLanguage = CoreLanguageList.Japanese;
-
-            CoreLanguageList.LanguageList.Add(CoreLanguageList.Japanese);
-            CoreLanguageList.LanguageList.Add(CoreLanguageList.English);
-        }
-
-        public static CoreLanguageClass GetLanguageClassByName(string name)
-        {
-            Str.NormalizeStringStandard(ref name);
-
-            foreach (CoreLanguageClass c in LanguageList)
-            {
-                if (Str.StrCmpi(c.Name, name))
+                foreach (CoreLanguageClass c in LanguageList)
                 {
-                    return c;
+                    if (c.Language == lang)
+                    {
+                        return c;
+                    }
                 }
+
+                return DefaultLanguage;
             }
-
-            return DefaultLanguage;
-        }
-
-        public static CoreLanguageClass GetLangugageClassByEnum(CoreLanguage lang)
-        {
-            foreach (CoreLanguageClass c in LanguageList)
-            {
-                if (c.Language == lang)
-                {
-                    return c;
-                }
-            }
-
-            return DefaultLanguage;
         }
     }
 
@@ -2252,6 +2256,55 @@ namespace IPA.Cores.Basic
                 return ret.Slice(0, index);
             }
         }
+
+        // Stream を最後まで読む
+        public static byte[] ReadStreamToEnd(Stream s, int maxSize = 0)
+        {
+            if (maxSize <= 0) maxSize = int.MaxValue;
+            MemoryStream ms = new MemoryStream();
+
+            byte[] tmp = new byte[200000];
+            while (true)
+            {
+                int r = s.Read(tmp, 0, tmp.Length);
+                if (r == 0)
+                {
+                    break;
+                }
+                ms.Write(tmp, 0, r);
+                if (ms.Length > maxSize) throw new OverflowException();
+            }
+
+            return ms.ToArray();
+        }
+
+        public static async Task<byte[]> ReadStreamToEndAsync(Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken))
+        {
+            if (maxSize <= 0) maxSize = int.MaxValue;
+            MemoryStream ms = new MemoryStream();
+
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(200000);
+            try
+            {
+                while (true)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    int r = await s.ReadAsync(tmp, 0, tmp.Length, cancel);
+                    if (r == 0)
+                    {
+                        break;
+                    }
+                    ms.Write(tmp, 0, r);
+                    if (ms.Length > maxSize) throw new OverflowException("ReadStreamToEndAsync: too large data");
+                }
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
+            }
+
+            return ms.ToArray();
+        }
     }
 
 
@@ -2545,12 +2598,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class XmlAndXsd
+    namespace Legacy
     {
-        public byte[] XmlData;
-        public byte[] XsdData;
-        public string XmlFileName;
-        public string XsdFileName;
+        class XmlAndXsd
+        {
+            public byte[] XmlData;
+            public byte[] XsdData;
+            public string XmlFileName;
+            public string XsdFileName;
+        }
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体
@@ -2854,19 +2910,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    // シングルトン
-    struct OldSingleton<T> where T : class
+    namespace Legacy
     {
-        static object lockobj = new object();
-        T obj;
-
-        public T CreateOrGet(Func<T> createProc)
+        // シングルトン
+        struct OldSingleton<T> where T : class
         {
-            lock (lockobj)
+            static object lockobj = new object();
+            T obj;
+
+            public T CreateOrGet(Func<T> createProc)
             {
-                if (obj == null)
-                    obj = createProc();
-                return obj;
+                lock (lockobj)
+                {
+                    if (obj == null)
+                        obj = createProc();
+                    return obj;
+                }
             }
         }
     }
@@ -2963,45 +3022,65 @@ namespace IPA.Cores.Basic
         public T[] Values { get => d.Keys._ToArrayList(); }
     }
 
-    class DelayLoader<T> : IDisposable
+    namespace Legacy
     {
-        Func<long, (T, long)> LoadProc;
-        int RetryInterval;
-        int UpdateInterval;
-        ThreadObj Thread;
-        ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
-        public readonly ManualResetEventSlim LoadCompleteEvent = new ManualResetEventSlim();
-        bool HaltFlag = false;
-
-        public T Data { get; private set; }
-
-        public DelayLoader(Func<long, (T data, long dataTimeStamp)> loadProc, int retryInterval = 1000, int updateInterval = 1000)
+        class DelayLoader<T> : IDisposable
         {
-            this.LoadProc = loadProc;
-            this.RetryInterval = retryInterval;
-            this.UpdateInterval = updateInterval;
+            Func<long, (T, long)> LoadProc;
+            int RetryInterval;
+            int UpdateInterval;
+            ThreadObj Thread;
+            ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
+            public readonly ManualResetEventSlim LoadCompleteEvent = new ManualResetEventSlim();
+            bool HaltFlag = false;
 
-            this.Thread = new ThreadObj(ThreadProc, isBackground: true);
-        }
+            public T Data { get; private set; }
 
-        void ThreadProc(object param)
-        {
-            long lastTimeStamp = 0;
-
-            (T data, long dataTimeStamp) ret;
-
-            LABEL_RETRY:
-            try
+            public DelayLoader(Func<long, (T data, long dataTimeStamp)> loadProc, int retryInterval = 1000, int updateInterval = 1000)
             {
-                // データの読み込み
-                ret = LoadProc(lastTimeStamp);
+                this.LoadProc = loadProc;
+                this.RetryInterval = retryInterval;
+                this.UpdateInterval = updateInterval;
+
+                this.Thread = new ThreadObj(ThreadProc, isBackground: true);
             }
-            catch (Exception ex)
+
+            void ThreadProc(object param)
             {
-                Dbg.WriteLine(ex.ToString());
+                long lastTimeStamp = 0;
 
-                HaltEvent.Wait(RetryInterval);
+                (T data, long dataTimeStamp) ret;
 
+                LABEL_RETRY:
+                try
+                {
+                    // データの読み込み
+                    ret = LoadProc(lastTimeStamp);
+                }
+                catch (Exception ex)
+                {
+                    Dbg.WriteLine(ex.ToString());
+
+                    HaltEvent.Wait(RetryInterval);
+
+                    if (HaltFlag)
+                    {
+                        return;
+                    }
+
+                    goto LABEL_RETRY;
+                }
+
+                if (ret.data != null)
+                {
+                    // 読み込んだデータをグローバルにセット
+                    lastTimeStamp = ret.dataTimeStamp;
+                    this.Data = ret.data;
+                    LoadCompleteEvent.Set();
+                }
+
+                // 次回まで待機
+                HaltEvent.Wait(UpdateInterval);
                 if (HaltFlag)
                 {
                     return;
@@ -3010,32 +3089,15 @@ namespace IPA.Cores.Basic
                 goto LABEL_RETRY;
             }
 
-            if (ret.data != null)
+            Once DisposeFlag;
+            public void Dispose()
             {
-                // 読み込んだデータをグローバルにセット
-                lastTimeStamp = ret.dataTimeStamp;
-                this.Data = ret.data;
-                LoadCompleteEvent.Set();
-            }
-
-            // 次回まで待機
-            HaltEvent.Wait(UpdateInterval);
-            if (HaltFlag)
-            {
-                return;
-            }
-
-            goto LABEL_RETRY;
-        }
-
-        Once DisposeFlag;
-        public void Dispose()
-        {
-            if (DisposeFlag.IsFirstCall())
-            {
-                HaltFlag = true;
-                HaltEvent.Set();
-                Thread.WaitForEnd();
+                if (DisposeFlag.IsFirstCall())
+                {
+                    HaltFlag = true;
+                    HaltEvent.Set();
+                    Thread.WaitForEnd();
+                }
             }
         }
     }

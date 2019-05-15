@@ -34,10 +34,11 @@ using System.Collections.Generic;
 using System.IO;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     class Stb
     {
@@ -60,7 +61,7 @@ namespace IPA.Cores.Basic
 
         public Stb(string filename)
         {
-            init(BasicFile.ReadFile(filename));
+            init(IO.ReadFile(filename));
         }
 
         public Stb(byte[] data)

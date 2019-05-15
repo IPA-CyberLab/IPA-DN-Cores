@@ -35,10 +35,11 @@ using System.Text;
 using System.Collections.Generic;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic.Legacy
 {
     // Ini ファイルの読み込み
     class ReadIni
@@ -168,7 +169,7 @@ namespace IPA.Cores.Basic
 
                 if (filename != null)
                 {
-                    lastUpdate = BasicFile.GetLastWriteTimeUtc(filename);
+                    lastUpdate = IO.GetLastWriteTimeUtc(filename);
 
                     datas = IniCache.GetCache(filename, lastUpdate);
                 }

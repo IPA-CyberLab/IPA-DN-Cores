@@ -218,11 +218,6 @@ namespace IPA.Cores.Basic
 
         public static bool IsConsoleDebugMode => CoresConfig.DebugSettings.IsConsoleDebugMode();
 
-        public static void Report(string name, string value)
-        {
-            if (Dbg.IsDebugMode) GlobalIntervalReporter.Singleton.Report(name, value);
-        }
-
         public static string WriteLine()
         {
             if (Dbg.IsDebugMode == false) return "";
@@ -755,316 +750,319 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class IntervalDebug
+    namespace Legacy
     {
-        public string Name { get; }
-        public IntervalDebug(string name = "Interval") => this.Name = name._NonNullTrim();
-        long StartTick = 0;
-        public void Start() => this.StartTick = Time.Tick64;
-        public int Elapsed => (int)(Time.Tick64 - this.StartTick);
-        public void PrintElapsed()
+        class IntervalDebug
         {
-            if (Dbg.IsDebugMode)
+            public string Name { get; }
+            public IntervalDebug(string name = "Interval") => this.Name = name._NonNullTrim();
+            long StartTick = 0;
+            public void Start() => this.StartTick = Time.Tick64;
+            public int Elapsed => (int)(Time.Tick64 - this.StartTick);
+            public void PrintElapsed()
             {
-                int value = this.Elapsed;
-                Dbg.WriteLine($"{this.Name}: {value}");
-            }
-            Start();
-        }
-    }
-
-    class Benchmark : IDisposable
-    {
-        public int Interval { get; }
-        public long IncrementMe = 0;
-        Once DisposeFlag;
-        ThreadObj Thread;
-        ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
-        bool HaltFlag = false;
-        public string Name { get; }
-
-        public Benchmark(string name = "Benchmark", int interval = 1000, bool disabled = false)
-        {
-            this.Interval = interval;
-            this.Name = name;
-
-            if (disabled == false)
-            {
-                this.Thread = new ThreadObj(thread_proc);
-            }
-        }
-
-        void thread_proc(object param)
-        {
-            System.Threading.Thread.CurrentThread.IsBackground = true;
-            try
-            {
-                System.Threading.Thread.CurrentThread.Priority = ThreadPriority.Highest;
-            }
-            catch
-            {
-            }
-            long last_value = 0;
-            long last_tick = Time.Tick64;
-            while (true)
-            {
-                int wait_interval = this.Interval;
-                if (HaltFlag) break;
-                HaltEvent.Wait(wait_interval);
-                if (HaltFlag) break;
-
-                long now_value = this.IncrementMe;
-                long diff_value = now_value - last_value;
-
-                last_value = now_value;
-                long now_time = Time.Tick64;
-                long span2 = now_time - last_tick;
-                last_tick = now_time;
-                span2 = Math.Max(span2, 1);
-
-                double r = (double)diff_value * 1000.0 / (double)span2;
-
-                string name = this.Name;
-                string value = $"{Str.ToString3((long)r)} / sec";
-
-                GlobalIntervalReporter.Singleton.Report(name, value);
-                //Dbg.WriteLine($"{name}: {value}");
-            }
-
-            GlobalIntervalReporter.Singleton.Report(this.Name, null);
-        }
-
-        public void Dispose()
-        {
-            if (DisposeFlag.IsFirstCall())
-            {
-                HaltFlag = true;
-                HaltEvent.Set();
-                this.Thread.WaitForEnd();
-            }
-        }
-    }
-
-    static class OldSingletonFactory
-    {
-        static Dictionary<string, object> Table = new Dictionary<string, object>();
-
-        public static T New<T>() where T : new()
-        {
-            Type t = typeof(T);
-            string name = t.AssemblyQualifiedName;
-            lock (Table)
-            {
-                object ret = null;
-                if (Table.ContainsKey(name))
-                    ret = Table[name];
-                else
+                if (Dbg.IsDebugMode)
                 {
-                    ret = new T();
-                    Table[name] = ret;
+                    int value = this.Elapsed;
+                    Dbg.WriteLine($"{this.Name}: {value}");
                 }
-                return (T)ret;
+                Start();
             }
         }
-    }
 
-    partial class GlobalIntervalReporter
-    {
-        public const int Interval = 1000;
-        SortedList<string, Ref<(int ver, string value)>> table = new SortedList<string, Ref<(int ver, string value)>>();
-        SortedList<string, object> table2 = new SortedList<string, object>();
-        ThreadObj thread;
-
-        public static GlobalIntervalReporter Singleton { get => OldSingletonFactory.New<GlobalIntervalReporter>(); }
-
-        public GlobalIntervalReporter()
+        class Benchmark : IDisposable
         {
-            thread = new ThreadObj(main_thread);
-        }
+            public int Interval { get; }
+            public long IncrementMe = 0;
+            Once DisposeFlag;
+            ThreadObj Thread;
+            ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
+            bool HaltFlag = false;
+            public string Name { get; }
 
-        public void ReportRefObject(string name, object refObj)
-        {
-            name = name._NonNullTrim();
-            lock (table2)
+            public Benchmark(string name = "Benchmark", int interval = 1000, bool disabled = false)
             {
-                if (table2.ContainsKey(name))
+                this.Interval = interval;
+                this.Name = name;
+
+                if (disabled == false)
                 {
-                    if (refObj == null) table2.Remove(name);
-                    table2[name] = refObj;
+                    this.Thread = new ThreadObj(thread_proc);
                 }
-                else
+            }
+
+            void thread_proc(object param)
+            {
+                System.Threading.Thread.CurrentThread.IsBackground = true;
+                try
                 {
-                    if (refObj == null) return;
-                    table2.Add(name, refObj);
+                    System.Threading.Thread.CurrentThread.Priority = ThreadPriority.Highest;
+                }
+                catch
+                {
+                }
+                long last_value = 0;
+                long last_tick = Time.Tick64;
+                while (true)
+                {
+                    int wait_interval = this.Interval;
+                    if (HaltFlag) break;
+                    HaltEvent.Wait(wait_interval);
+                    if (HaltFlag) break;
+
+                    long now_value = this.IncrementMe;
+                    long diff_value = now_value - last_value;
+
+                    last_value = now_value;
+                    long now_time = Time.Tick64;
+                    long span2 = now_time - last_tick;
+                    last_tick = now_time;
+                    span2 = Math.Max(span2, 1);
+
+                    double r = (double)diff_value * 1000.0 / (double)span2;
+
+                    string name = this.Name;
+                    string value = $"{Str.ToString3((long)r)} / sec";
+
+                    GlobalIntervalReporter.Singleton.Report(name, value);
+                    //Dbg.WriteLine($"{name}: {value}");
+                }
+
+                GlobalIntervalReporter.Singleton.Report(this.Name, null);
+            }
+
+            public void Dispose()
+            {
+                if (DisposeFlag.IsFirstCall())
+                {
+                    HaltFlag = true;
+                    HaltEvent.Set();
+                    this.Thread.WaitForEnd();
                 }
             }
         }
 
-        public void Report(string name, string value)
+        static class OldSingletonFactory
         {
-            if (Dbg.IsDebugMode == false) return;
-            name = name._NonNullTrim();
-            lock (table)
-            {
-                Ref<(int ver, string value)> r;
-                if (table.ContainsKey(name))
-                {
-                    if (value._IsEmpty()) table.Remove(name);
-                    r = table[name];
-                }
-                else
-                {
-                    if (value._IsEmpty()) return;
-                    r = new Ref<(int ver, string value)>();
-                    table.Add(name, r);
-                }
-                r.Set((r.Value.ver + 1, value));
-            }
-        }
+            static Dictionary<string, object> Table = new Dictionary<string, object>();
 
-        void print()
-        {
-            List<string> o = new List<string>();
-            lock (table)
+            public static T New<T>() where T : new()
             {
-                foreach (string name in table.Keys)
+                Type t = typeof(T);
+                string name = t.AssemblyQualifiedName;
+                lock (Table)
                 {
-                    var r = table[name];
-                    o.Add($"{name}: {r.Value.value}");
-                }
-                foreach (string name in table2.Keys)
-                {
-                    object r = table2[name];
-                    try
+                    object ret = null;
+                    if (Table.ContainsKey(name))
+                        ret = Table[name];
+                    else
                     {
-                        o.Add($"{name}: {r.ToString()}");
+                        ret = new T();
+                        Table[name] = ret;
                     }
-                    catch
+                    return (T)ret;
+                }
+            }
+        }
+
+        partial class GlobalIntervalReporter
+        {
+            public const int Interval = 1000;
+            SortedList<string, Ref<(int ver, string value)>> table = new SortedList<string, Ref<(int ver, string value)>>();
+            SortedList<string, object> table2 = new SortedList<string, object>();
+            ThreadObj thread;
+
+            public static GlobalIntervalReporter Singleton { get => OldSingletonFactory.New<GlobalIntervalReporter>(); }
+
+            public GlobalIntervalReporter()
+            {
+                thread = new ThreadObj(main_thread);
+            }
+
+            public void ReportRefObject(string name, object refObj)
+            {
+                name = name._NonNullTrim();
+                lock (table2)
+                {
+                    if (table2.ContainsKey(name))
                     {
+                        if (refObj == null) table2.Remove(name);
+                        table2[name] = refObj;
+                    }
+                    else
+                    {
+                        if (refObj == null) return;
+                        table2.Add(name, refObj);
                     }
                 }
             }
-            string s = Str.CombineStringArray(", ", o.ToArray());
 
-            Dbg.WriteLine(s);
-        }
-
-        void main_thread(object param)
-        {
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
-            Thread.CurrentThread.IsBackground = true;
-            IntervalManager m = new IntervalManager(Interval);
-            while (true)
+            public void Report(string name, string value)
             {
-                print();
-                Kernel.SleepThread(m.GetNextInterval());
-            }
-        }
-    }
-
-
-    class IntervalReporter : IDisposable
-    {
-        public int Interval { get; }
-        Once d;
-        ThreadObj thread;
-        ManualResetEventSlim halt_event = new ManualResetEventSlim();
-        bool halt_flag = false;
-        public string Name { get; }
-        public object SetMeToPrint = null;
-        public const int DefaultInterval = 1000;
-        public Func<string> PrintProc { get; }
-
-        public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string> printProc = null)
-        {
-            if (interval == 0) interval = DefaultInterval;
-            this.Interval = interval;
-            this.Name = name;
-            this.PrintProc = printProc;
-
-            if (Dbg.IsDebugMode)
-            {
-                this.thread = new ThreadObj(thread_proc);
-            }
-        }
-
-        void thread_proc(object param)
-        {
-            Thread.CurrentThread.IsBackground = true;
-            IntervalManager m = new IntervalManager(this.Interval);
-            while (true)
-            {
-                int wait_interval = m.GetNextInterval(out int span);
-                if (halt_flag) break;
-                halt_event.Wait(wait_interval);
-                if (halt_flag) break;
-
-                //try
+                if (Dbg.IsDebugMode == false) return;
+                name = name._NonNullTrim();
+                lock (table)
                 {
-                    Print();
+                    Ref<(int ver, string value)> r;
+                    if (table.ContainsKey(name))
+                    {
+                        if (value._IsEmpty()) table.Remove(name);
+                        r = table[name];
+                    }
+                    else
+                    {
+                        if (value._IsEmpty()) return;
+                        r = new Ref<(int ver, string value)>();
+                        table.Add(name, r);
+                    }
+                    r.Set((r.Value.ver + 1, value));
                 }
-                //catch
+            }
+
+            void print()
+            {
+                List<string> o = new List<string>();
+                lock (table)
                 {
+                    foreach (string name in table.Keys)
+                    {
+                        var r = table[name];
+                        o.Add($"{name}: {r.Value.value}");
+                    }
+                    foreach (string name in table2.Keys)
+                    {
+                        object r = table2[name];
+                        try
+                        {
+                            o.Add($"{name}: {r.ToString()}");
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+                string s = Str.CombineStringArray(", ", o.ToArray());
+
+                Dbg.WriteLine(s);
+            }
+
+            void main_thread(object param)
+            {
+                Thread.CurrentThread.Priority = ThreadPriority.Highest;
+                Thread.CurrentThread.IsBackground = true;
+                IntervalManager m = new IntervalManager(Interval);
+                while (true)
+                {
+                    print();
+                    Kernel.SleepThread(m.GetNextInterval());
                 }
             }
         }
 
-        public virtual void Print()
-        {
-            string str = "";
-            object obj = this.SetMeToPrint;
-            if (obj != null) str = obj.ToString();
-            if (this.PrintProc != null)
-            {
-                str = this.PrintProc();
-            }
-            if (str._IsFilled())
-            {
-                Dbg.WriteLine($"{this.Name}: {str}");
-            }
-        }
 
-        public void Dispose()
+        class IntervalReporter : IDisposable
         {
-            if (d.IsFirstCall())
-            {
-                halt_flag = true;
-                halt_event.Set();
-                this.thread.WaitForEnd();
-            }
-        }
+            public int Interval { get; }
+            Once d;
+            ThreadObj thread;
+            ManualResetEventSlim halt_event = new ManualResetEventSlim();
+            bool halt_flag = false;
+            public string Name { get; }
+            public object SetMeToPrint = null;
+            public const int DefaultInterval = 1000;
+            public Func<string> PrintProc { get; }
 
-        static OldSingleton<IntervalReporter> thread_pool_stat_reporter;
-        public static IntervalReporter StartThreadPoolStatReporter()
-        {
-            return thread_pool_stat_reporter.CreateOrGet(() =>
+            public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string> printProc = null)
             {
-                return new IntervalReporter("<Stat>", printProc: () =>
+                if (interval == 0) interval = DefaultInterval;
+                this.Interval = interval;
+                this.Name = name;
+                this.PrintProc = printProc;
+
+                if (Dbg.IsDebugMode)
                 {
-                    List<string> o = new List<string>();
+                    this.thread = new ThreadObj(thread_proc);
+                }
+            }
 
-                    ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
-                    ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
-                    ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
-                    long mem = GC.GetTotalMemory(true);
+            void thread_proc(object param)
+            {
+                Thread.CurrentThread.IsBackground = true;
+                IntervalManager m = new IntervalManager(this.Interval);
+                while (true)
+                {
+                    int wait_interval = m.GetNextInterval(out int span);
+                    if (halt_flag) break;
+                    halt_event.Wait(wait_interval);
+                    if (halt_flag) break;
 
-                    int num_queued = TaskUtil.GetQueuedTasksCount();
+                    //try
+                    {
+                        Print();
+                    }
+                    //catch
+                    {
+                    }
+                }
+            }
 
-                    int num_timered = TaskUtil.GetScheduledTimersCount();
+            public virtual void Print()
+            {
+                string str = "";
+                object obj = this.SetMeToPrint;
+                if (obj != null) str = obj.ToString();
+                if (this.PrintProc != null)
+                {
+                    str = this.PrintProc();
+                }
+                if (str._IsFilled())
+                {
+                    Dbg.WriteLine($"{this.Name}: {str}");
+                }
+            }
 
-                    o.Add($"Work: {max_workers - avail_workers}");
+            public void Dispose()
+            {
+                if (d.IsFirstCall())
+                {
+                    halt_flag = true;
+                    halt_event.Set();
+                    this.thread.WaitForEnd();
+                }
+            }
 
-                    o.Add($"Pend: {num_queued}");
+            static OldSingleton<IntervalReporter> thread_pool_stat_reporter;
+            public static IntervalReporter StartThreadPoolStatReporter()
+            {
+                return thread_pool_stat_reporter.CreateOrGet(() =>
+                {
+                    return new IntervalReporter("<Stat>", printProc: () =>
+                    {
+                        List<string> o = new List<string>();
 
-                    o.Add($"Delay: {num_timered}");
+                        ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
+                        ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
+                        ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
+                        long mem = GC.GetTotalMemory(true);
 
-                    o.Add($"I/O: {max_ports - avail_ports}");
+                        int num_queued = TaskUtil.GetQueuedTasksCount();
 
-                    o.Add($"Mem: {(mem / 1024)._ToString3()} kb");
+                        int num_timered = TaskUtil.GetScheduledTimersCount();
 
-                    return Str.CombineStringArray(o.ToArray(), ", ");
+                        o.Add($"Work: {max_workers - avail_workers}");
+
+                        o.Add($"Pend: {num_queued}");
+
+                        o.Add($"Delay: {num_timered}");
+
+                        o.Add($"I/O: {max_ports - avail_ports}");
+
+                        o.Add($"Mem: {(mem / 1024)._ToString3()} kb");
+
+                        return Str.CombineStringArray(o.ToArray(), ", ");
+                    });
                 });
-            });
+            }
         }
     }
 

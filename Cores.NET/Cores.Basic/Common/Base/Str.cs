@@ -43,6 +43,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -59,157 +60,160 @@ namespace IPA.Cores.Basic
 
     // DateTime をシンブル文字列に変換
     [Flags]
-    enum DtstrOption
+    enum DtStrOption
     {
         All,
         DateOnly,
         TimeOnly,
     }
 
-    // キーバリューリスト
-    class KeyValueList
+    namespace Legacy
     {
-        SortedDictionary<string, string> data = new SortedDictionary<string, string>();
-
-        public KeyValueList()
+        // キーバリューリスト
+        class KeyValueList
         {
-        }
+            SortedDictionary<string, string> data = new SortedDictionary<string, string>();
 
-        public KeyValueList(string fromString)
-        {
-            KeyValueList v = this;
-            StringReader r = new StringReader(fromString);
-            while (true)
+            public KeyValueList()
             {
-                string line = r.ReadLine();
-                if (line == null)
+            }
+
+            public KeyValueList(string fromString)
+            {
+                KeyValueList v = this;
+                StringReader r = new StringReader(fromString);
+                while (true)
                 {
-                    break;
+                    string line = r.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    int i = Str.SearchStr(line, "=", 0);
+                    if (i != -1)
+                    {
+                        string key = Str.Escape(line.Substring(0, i));
+                        string value = Str.Escape(line.Substring(i + 1));
+
+                        v.Add(key, value);
+                    }
+                }
+            }
+
+            void NormalizeName(ref string name)
+            {
+                Str.NormalizeString(ref name);
+                name = name.ToUpperInvariant();
+                if (Str.InStr(name, "="))
+                {
+                    throw new InvalidDataException(name);
+                }
+            }
+
+            public string this[string name]
+            {
+                get
+                {
+                    return Get(name);
                 }
 
-                int i = Str.SearchStr(line, "=", 0);
-                if (i != -1)
+                set
                 {
-                    string key = Str.Escape(line.Substring(0, i));
-                    string value = Str.Escape(line.Substring(i + 1));
-
-                    v.Add(key, value);
+                    Set(name, value);
                 }
             }
-        }
 
-        void NormalizeName(ref string name)
-        {
-            Str.NormalizeString(ref name);
-            name = name.ToUpperInvariant();
-            if (Str.InStr(name, "="))
-            {
-                throw new InvalidDataException(name);
-            }
-        }
-
-        public string this[string name]
-        {
-            get
-            {
-                return Get(name);
-            }
-
-            set
+            public void Add(string name, string value)
             {
                 Set(name, value);
             }
+
+            public void Set(string name, string value)
+            {
+                NormalizeName(ref name);
+
+                if (value == null)
+                {
+                    value = "";
+                }
+
+                if (value == "")
+                {
+                    Delete(name);
+                    return;
+                }
+
+                if (data.ContainsKey(name) == false)
+                {
+                    data.Add(name, value);
+                }
+                else
+                {
+                    data[name] = value;
+                }
+            }
+
+            public string Get(string name)
+            {
+                NormalizeName(ref name);
+
+                if (data.ContainsKey(name))
+                {
+                    return data[name];
+                }
+                else
+                {
+                    return "";
+                }
+            }
+
+            public void Delete(string name)
+            {
+                NormalizeName(ref name);
+
+                if (data.ContainsKey(name))
+                {
+                    data.Remove(name);
+                }
+            }
+
+            public string[] EnumKeys()
+            {
+                List<string> ret = new List<string>();
+                foreach (string key in this.data.Keys)
+                {
+                    ret.Add(key);
+                }
+                return ret.ToArray();
+            }
+
+            public override string ToString()
+            {
+                StringWriter w = new StringWriter();
+                foreach (string name in data.Keys)
+                {
+                    string line = string.Format("{0}={1}", Str.Unescape(name), Str.Unescape(data[name]));
+
+                    w.WriteLine(line);
+                }
+
+                return w.ToString();
+            }
+
+            public static KeyValueList FromString(string src)
+            {
+                return new KeyValueList(src);
+            }
         }
 
-        public void Add(string name, string value)
+        // シリアライズされたエラー文字列
+        class SerializedError
         {
-            Set(name, value);
+            public string Code;
+            public string Language;
+            public string ErrorMsg;
         }
-
-        public void Set(string name, string value)
-        {
-            NormalizeName(ref name);
-
-            if (value == null)
-            {
-                value = "";
-            }
-
-            if (value == "")
-            {
-                Delete(name);
-                return;
-            }
-
-            if (data.ContainsKey(name) == false)
-            {
-                data.Add(name, value);
-            }
-            else
-            {
-                data[name] = value;
-            }
-        }
-
-        public string Get(string name)
-        {
-            NormalizeName(ref name);
-
-            if (data.ContainsKey(name))
-            {
-                return data[name];
-            }
-            else
-            {
-                return "";
-            }
-        }
-
-        public void Delete(string name)
-        {
-            NormalizeName(ref name);
-
-            if (data.ContainsKey(name))
-            {
-                data.Remove(name);
-            }
-        }
-
-        public string[] EnumKeys()
-        {
-            List<string> ret = new List<string>();
-            foreach (string key in this.data.Keys)
-            {
-                ret.Add(key);
-            }
-            return ret.ToArray();
-        }
-
-        public override string ToString()
-        {
-            StringWriter w = new StringWriter();
-            foreach (string name in data.Keys)
-            {
-                string line = string.Format("{0}={1}", Str.Unescape(name), Str.Unescape(data[name]));
-
-                w.WriteLine(line);
-            }
-
-            return w.ToString();
-        }
-
-        public static KeyValueList FromString(string src)
-        {
-            return new KeyValueList(src);
-        }
-    }
-
-    // シリアライズされたエラー文字列
-    class SerializedError
-    {
-        public string Code;
-        public string Language;
-        public string ErrorMsg;
     }
 
     // Printf 風フラグ
@@ -682,8 +686,6 @@ namespace IPA.Cores.Basic
     // 文字列操作
     static class Str
     {
-        
-
         public static Encoding AsciiEncoding { get; }
         public static Encoding ShiftJisEncoding { get; }
         public static Encoding ISO2022JPEncoding { get; }
@@ -1437,7 +1439,7 @@ namespace IPA.Cores.Basic
         // テキストファイルを読み込む
         public static string ReadTextFile(string filename)
         {
-            byte[] data = BasicFile.ReadFile(filename);
+            byte[] data = IO.ReadFile(filename);
             int bomSize = 0;
 
             Encoding enc = GetEncoding(data, out bomSize);
@@ -1454,7 +1456,7 @@ namespace IPA.Cores.Basic
         }
         public static string ReadTextFile(string filename, Encoding encoding)
         {
-            byte[] data = BasicFile.ReadFile(filename);
+            byte[] data = IO.ReadFile(filename);
 
             Encoding enc = encoding;
 
@@ -1475,7 +1477,7 @@ namespace IPA.Cores.Basic
 
             buf.SeekToBegin();
 
-            BasicFile.SaveFile(filename, buf.Read());
+            IO.SaveFile(filename, buf.Read());
         }
 
         // 受信した byte[] 配列を自動的にエンコーディング検出して string に変換する
@@ -4421,7 +4423,7 @@ namespace IPA.Cores.Basic
             return dt.ToString("yyyyMMdd_HHmmss") + "." + msecStr.Split('.')[1];
         }
 
-        public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false)
+        public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
@@ -4443,11 +4445,11 @@ namespace IPA.Cores.Basic
 
             string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((withMSecs || withNanoSecs) ? "." + msecStr : "");
 
-            if (option == DtstrOption.DateOnly)
+            if (option == DtStrOption.DateOnly)
             {
                 ret = ret._ToToken(" ")[0];
             }
-            else if (option == DtstrOption.TimeOnly)
+            else if (option == DtStrOption.TimeOnly)
             {
                 ret = ret._ToToken(" ")[1];
             }
@@ -4455,7 +4457,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static string DateTimeToDtstr(DateTimeOffset dt, bool withMSecs = false, DtstrOption option = DtstrOption.All, bool withNanoSecs = false)
+        public static string DateTimeToDtstr(DateTimeOffset dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
@@ -4477,11 +4479,11 @@ namespace IPA.Cores.Basic
 
             string ret = dt.ToString("yyyy/MM/dd HH:mm:ss") + ((withMSecs || withNanoSecs) ? "." + msecStr : "");
 
-            if (option == DtstrOption.DateOnly)
+            if (option == DtStrOption.DateOnly)
             {
                 ret = ret._ToToken(" ")[0];
             }
-            else if (option == DtstrOption.TimeOnly)
+            else if (option == DtStrOption.TimeOnly)
             {
                 ret = ret._ToToken(" ")[1];
             }
@@ -5339,126 +5341,129 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class XmlCheckObjectInternal
+    namespace Legacy
     {
-        public string Str = null;
-    }
-
-    // 文字列トークン操作
-    class StrToken
-    {
-        string[] tokens;
-
-        public string[] Tokens
+        class XmlCheckObjectInternal
         {
-            get { return tokens; }
+            public string Str = null;
         }
 
-        public string this[uint index]
+        // 文字列トークン操作
+        class StrToken
         {
-            get { return tokens[index]; }
-        }
+            string[] tokens;
 
-        public uint NumTokens
-        {
-            get
+            public string[] Tokens
             {
-                return (uint)Tokens.Length;
-            }
-        }
-
-        const string defaultSplitStr = " ,\t\r\n";
-
-        public static string DefaultSplitStr
-        {
-            get { return defaultSplitStr; }
-        }
-
-        public StrToken(string[] tokens)
-        {
-            List<string> a = new List<string>();
-            foreach (string s in tokens)
-            {
-                a.Add(s);
+                get { return tokens; }
             }
 
-            this.tokens = a.ToArray();
-        }
-
-        public StrToken(string str)
-            : this(str, null)
-        {
-        }
-        public StrToken(string str, string splitStr)
-        {
-            // トークンの切り出し
-            if (splitStr == null)
+            public string this[uint index]
             {
-                splitStr = defaultSplitStr;
+                get { return tokens[index]; }
             }
-            int i, len;
-            len = splitStr.Length;
-            char[] chars = new char[len];
-            for (i = 0; i < len; i++)
+
+            public uint NumTokens
             {
-                chars[i] = splitStr[i];
-            }
-            tokens = str.Split(chars, StringSplitOptions.RemoveEmptyEntries);
-        }
-    }
-
-    // 文字列を各種のデータ型に変換
-    class StrData
-    {
-        public string StrValue { get; }
-
-        public uint IntValue => Str.StrToUInt(StrValue);
-
-        public ulong Int64Value => Str.StrToULong(StrValue);
-
-        public bool BoolValue
-        {
-            get
-            {
-                string s = StrValue.Trim();
-
-                if (Str.IsEmptyStr(s))
+                get
                 {
+                    return (uint)Tokens.Length;
+                }
+            }
+
+            const string defaultSplitStr = " ,\t\r\n";
+
+            public static string DefaultSplitStr
+            {
+                get { return defaultSplitStr; }
+            }
+
+            public StrToken(string[] tokens)
+            {
+                List<string> a = new List<string>();
+                foreach (string s in tokens)
+                {
+                    a.Add(s);
+                }
+
+                this.tokens = a.ToArray();
+            }
+
+            public StrToken(string str)
+                : this(str, null)
+            {
+            }
+            public StrToken(string str, string splitStr)
+            {
+                // トークンの切り出し
+                if (splitStr == null)
+                {
+                    splitStr = defaultSplitStr;
+                }
+                int i, len;
+                len = splitStr.Length;
+                char[] chars = new char[len];
+                for (i = 0; i < len; i++)
+                {
+                    chars[i] = splitStr[i];
+                }
+                tokens = str.Split(chars, StringSplitOptions.RemoveEmptyEntries);
+            }
+        }
+
+        // 文字列を各種のデータ型に変換
+        class StrData
+        {
+            public string StrValue { get; }
+
+            public uint IntValue => Str.StrToUInt(StrValue);
+
+            public ulong Int64Value => Str.StrToULong(StrValue);
+
+            public bool BoolValue
+            {
+                get
+                {
+                    string s = StrValue.Trim();
+
+                    if (Str.IsEmptyStr(s))
+                    {
+                        return false;
+                    }
+                    if (s.StartsWith("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    if ("true".StartsWith(s, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    if (s.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    if ("yes".StartsWith(s, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    if (Str.StrToUInt(s) != 0)
+                    {
+                        return true;
+                    }
+
                     return false;
                 }
-                if (s.StartsWith("true", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-                if ("true".StartsWith(s, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-                if (s.StartsWith("yes", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-                if ("yes".StartsWith(s, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                if (Str.StrToUInt(s) != 0)
-                {
-                    return true;
-                }
-
-                return false;
             }
-        }
 
-        public StrData(string str)
-        {
-            if (str == null)
+            public StrData(string str)
             {
-                str = "";
+                if (str == null)
+                {
+                    str = "";
+                }
+                StrValue = str;
             }
-            StrValue = str;
         }
     }
 }
