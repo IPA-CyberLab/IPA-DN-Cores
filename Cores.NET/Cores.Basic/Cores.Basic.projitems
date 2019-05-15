@@ -23,33 +23,33 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Csv.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Csv.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Debug.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Env.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\FileIO.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\FileLogger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\FullRoute.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\GZip.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\GZip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Helper.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\DnHttpClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\DnHttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\IPInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Kernel.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Listener.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Listener.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Mail.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\MailUtil.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\MultiLang.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\MultiLang.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Network.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Pack.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Packer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Packer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\RadixTrie.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\ReadIni.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\ReadIni2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\ReadIni.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\ReadIni2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Secure.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Smtp.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Stb.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Stb.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Str.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\SubnetSpace.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Tar.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Tar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\TaskVm.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Thread.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Time.cs" />
@@ -72,7 +72,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Win32Api.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Win32ApiUtil.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Zip.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Zip.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\ZLib.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastBuffer.cs" />
@@ -120,5 +120,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\Test\HelloWorld.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Common\Legacy\" />
   </ItemGroup>
 </Project>
