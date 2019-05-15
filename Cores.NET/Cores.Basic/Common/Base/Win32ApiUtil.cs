@@ -723,6 +723,159 @@ namespace IPA.Cores.Basic
         {
             return TaskUtil.WaitWithPoll(timeout, 100, () => (IsProcess(pid) == false), cancel);
         }
+
+        public static unsafe bool IsServiceInstalled(string name)
+        {
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+                
+                using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
+                {
+                    if (service.IsInvalid == false)
+                    {
+                        return true;
+                    }
+
+                    return false;
+                }
+            }
+        }
+
+        public static unsafe bool IsServiceRunning(string name)
+        {
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+
+                using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
+                {
+                    if (service.IsInvalid == false)
+                    {
+                        if (Win32Api.Advapi32.QueryServiceStatus(service, out Win32Api.Advapi32.SERVICE_STATUS status))
+                        {
+                            if (status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_CONTINUE_PENDING ||
+                                status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_PAUSE_PENDING ||
+                                status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_PAUSED ||
+                                status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_RUNNING ||
+                                status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_START_PENDING ||
+                                status.currentState == Win32Api.Advapi32.ServiceControlStatus.STATE_STOP_PENDING)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+            }
+        }
+
+        public static unsafe void StopService(string name)
+        {
+            if (IsServiceRunning(name) == false) return;
+
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+
+                using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+                {
+                    if (service.IsInvalid) ThrowLastWin32Error(name);
+
+                    if (Win32Api.Advapi32.ControlService(service, IPA.Cores.Basic.Win32Api.Advapi32.ControlOptions.CONTROL_STOP, out _) == false)
+                        ThrowLastWin32Error(name);
+                }
+            }
+
+            TaskUtil.WaitWithPoll(30000, 250, () => !IsServiceRunning(name));
+        }
+
+        public static unsafe void StartService(string name)
+        {
+            if (IsServiceRunning(name)) return;
+
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+
+                using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+                {
+                    if (service.IsInvalid) ThrowLastWin32Error(name);
+
+                    if (Win32Api.Advapi32.StartService(service, 0, IntPtr.Zero) == false)
+                        ThrowLastWin32Error(name);
+                }
+            }
+
+            TaskUtil.WaitWithPoll(30000, 250, () => IsServiceRunning(name));
+        }
+
+        public static unsafe void UninstallService(string name)
+        {
+            StopService(name);
+
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+
+                using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+                {
+                    if (service.IsInvalid) ThrowLastWin32Error(name);
+
+                    if (Win32Api.Advapi32.DeleteService(service) == false)
+                        ThrowLastWin32Error(name);
+                }
+            }
+        }
+
+        public static unsafe void InstallService(string name, string title, string description, string path)
+        {
+            using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Advapi32.ServiceControllerOptions.SC_MANAGER_ALL))
+            {
+                if (sc.IsInvalid) ThrowLastWin32Error(name);
+
+                using (var service = Win32Api.Advapi32.CreateService(sc, name, title, Win32Api.Advapi32.ServiceOptions.SERVICE_ALL_ACCESS,
+                    Win32Api.Advapi32.ServiceTypeOptions.SERVICE_TYPE_WIN32_OWN_PROCESS,
+                    Win32Api.Advapi32.ServiceStartModes.START_TYPE_AUTO,
+                    Win32Api.Advapi32.ServiceStartErrorModes.ERROR_CONTROL_NORMAL,
+                    path, null, IntPtr.Zero, null, null, null))
+                {
+                    if (service.IsInvalid) ThrowLastWin32Error(name);
+
+                    Win32Api.Advapi32.SERVICE_DESCRIPTION d;
+                    d.description = Marshal.StringToHGlobalUni(description);
+                    try
+                    {
+                        Win32Api.Advapi32.SERVICE_FAILURE_ACTIONS action = new Win32Api.Advapi32.SERVICE_FAILURE_ACTIONS();
+
+                        int numActions = 3;
+
+                        MemoryBuffer<int> actionArray = new MemoryBuffer<int>();
+                        for (int i = 0; i < numActions; i++)
+                        {
+                            actionArray.WriteOne(Win32Api.Advapi32.SC_ACTION_RESTART);
+                            actionArray.WriteOne(10 * 1000);
+                        }
+
+                        fixed (void* actionArrayPtr = &actionArray.GetRefForFixedPtr())
+                        {
+                            action.cActions = numActions;
+                            action.dwResetPeriod = 1 * 60 * 60 * 24;
+                            action.lpsaActions = (IntPtr)actionArrayPtr;
+
+                            Win32Api.Advapi32.ChangeServiceConfig2(service, Win32Api.Advapi32.ServiceConfigOptions.SERVICE_CONFIG_DESCRIPTION, ref d);
+
+                            Win32Api.Advapi32.ChangeServiceConfig2(service, Win32Api.Advapi32.ServiceConfigOptions.SERVICE_CONFIG_FAILURE_ACTIONS, ref action);
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(d.description);
+                    }
+                }
+            }
+        }
     }
 
     delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);

@@ -130,6 +130,8 @@ namespace IPA.Cores.Basic
         public static StrComparer FilePathStringComparer { get; }
         public static FileSystemPathParser LocalPathParser { get; }
         public static bool IsCoresLibraryDebugBuild { get; }
+        public static bool IsHostedByDotNetProcess { get; }
+        public static string DotNetHostProcessExeName { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
@@ -344,6 +346,13 @@ namespace IPA.Cores.Basic
             // ロックファイルの作成
             string lockFileName = Path.Combine(Env.MyTempDir, "LockFile.dat");
             lockFile = BasicFile.FileCreate(lockFileName, Env.IsUnix);
+
+            Env.IsHostedByDotNetProcess = ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+
+            if (Env.IsHostedByDotNetProcess)
+            {
+                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
+            }
         }
 
 

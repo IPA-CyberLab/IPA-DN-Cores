@@ -380,20 +380,18 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        bool isDotNetHosted = Env.ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
-
                         string exe;
                         string arguments;
 
                         if (Env.IsUnix)
                         {
                             exe = "nohup";
-                            arguments = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"") + " " + (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
+                            arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
                         else
                         {
-                            exe = (isDotNetHosted ? "dotnet" : $"\"{Env.ExeFileName}\"");
-                            arguments = (isDotNetHosted ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
+                            exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"");
+                            arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
 
                         ProcessStartInfo info = new ProcessStartInfo()
@@ -529,6 +527,117 @@ namespace IPA.Cores.Basic
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
                     host.ExecMain(DaemonMode.WindowsServiceMode);
                     break;
+
+                case DaemonCmdType.InstallWin:
+                    {
+                        if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+                        string exe;
+                        string arguments;
+
+                        exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"");
+                        arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecWinSvc}" : $"/cmd:{cmdName} {DaemonCmdType.ExecWinSvc}");
+
+                        string path = $"\"{exe}\" {arguments}";
+
+                        if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name))
+                        {
+                            Con.WriteError($"The Windows service {daemon.ToString()} has already been installed.");
+                            return -1;
+                        }
+
+                        Con.WriteLine($"Installing the Windows service {daemon.ToString()} ...");
+
+                        Win32ApiUtil.InstallService(daemon.Options.Name, daemon.Options.FriendlyName, daemon.Options.FriendlyName, path);
+
+                        Con.WriteLine($"The Windows service {daemon.ToString()} is successfully installed.");
+
+                        Con.WriteLine();
+
+                        Con.WriteLine($"Starting the Windows service {daemon.ToString()} ...");
+
+                        Win32ApiUtil.StartService(daemon.Options.Name);
+
+                        Con.WriteLine($"The Windows service {daemon.ToString()} is successfully started.");
+
+                        return 0;
+                    }
+
+                case DaemonCmdType.UninstallWin:
+                    if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+                    if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
+                    {
+                        Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
+                        return -1;
+                    }
+
+                    if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name))
+                    {
+                        Con.WriteLine($"Stopping the Windows service {daemon.ToString()} ...");
+
+                        Win32ApiUtil.StopService(daemon.Options.Name);
+
+                        Con.WriteLine($"The Windows service {daemon.ToString()} is successfully stopped.");
+
+                        Con.WriteLine();
+                    }
+
+                    Con.WriteLine($"Uninstalling the Windows service {daemon.ToString()} ...");
+
+                    Win32ApiUtil.UninstallService(daemon.Options.Name);
+
+                    Con.WriteLine($"The Windows service {daemon.ToString()} is successfully uninstalled.");
+
+                    return 0;
+
+                case DaemonCmdType.StartWin:
+
+                    if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+                    if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
+                    {
+                        Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
+                        return -1;
+                    }
+
+                    if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name))
+                    {
+                        Con.WriteError($"The Windows service {daemon.ToString()} is already running");
+                        return -1;
+                    }
+
+                    Con.WriteLine($"Starting the Windows service {daemon.ToString()} ...");
+
+                    Win32ApiUtil.StartService(daemon.Options.Name);
+
+                    Con.WriteLine($"The Windows service {daemon.ToString()} is successfully started.");
+
+                    return 0;
+
+                case DaemonCmdType.StopWin:
+
+                    if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+                    if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
+                    {
+                        Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
+                        return -1;
+                    }
+
+                    if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name) == false)
+                    {
+                        Con.WriteError($"The Windows service {daemon.ToString()} is not started.");
+                        return -1;
+                    }
+
+                    Con.WriteLine($"Stopping the Windows service {daemon.ToString()} ...");
+
+                    Win32ApiUtil.StopService(daemon.Options.Name);
+
+                    Con.WriteLine($"The Windows service {daemon.ToString()} is successfully stopped.");
+
+                    return 0;
             }
 
             return 0;

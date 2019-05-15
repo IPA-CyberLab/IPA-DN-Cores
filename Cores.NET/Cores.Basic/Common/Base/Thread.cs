@@ -425,7 +425,7 @@ namespace IPA.Cores.Basic
         public MutantWin32Impl(string name)
         {
             bool f;
-            MutexObj = new Mutex(false, MutantBase.GenerateInternalName(name), out f);
+            MutexObj = new Mutex(false, @"Global\" + MutantBase.GenerateInternalName(name), out f);
         }
 
         public override void Lock(bool nonBlock = false)

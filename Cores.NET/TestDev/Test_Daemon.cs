@@ -91,34 +91,6 @@ uninstallwin - Uninstall the daemon as a Windows service.")]
         {
             return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new TestDaemon());
         }
-
-        [ConsoleCommand]
-        static void DaemonTest()
-        {
-            DaemonHost host = new DaemonHost(new TestDaemon());
-
-            host.TestRun();
-        }
-
-        [ConsoleCommand]
-        static void DaemonExecMain()
-        {
-            DaemonHost host = new DaemonHost(new TestDaemon());
-
-            host.ExecMain(DaemonMode.UserMode);
-
-            Dbg.Where();
-        }
-
-        [ConsoleCommand]
-        static void DaemonStop()
-        {
-            DaemonHost host = new DaemonHost(new TestDaemon());
-
-            host.StopService(DaemonMode.UserMode);
-
-            Dbg.Where();
-        }
     }
 }
 

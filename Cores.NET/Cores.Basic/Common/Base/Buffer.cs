@@ -294,6 +294,24 @@ namespace IPA.Cores.Basic
             CurrentPosition = 0;
             Length = 0;
         }
+
+        public void WriteOne(T data)
+        {
+            var span = Walk(1);
+            span[0] = data;
+        }
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
+        }
     }
 
     ref struct ReadOnlySpanBuffer<T>
@@ -451,6 +469,18 @@ namespace IPA.Cores.Basic
             InternalSpan = new ReadOnlySpan<T>();
             CurrentPosition = 0;
             Length = 0;
+        }
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
         }
     }
 
@@ -765,6 +795,24 @@ namespace IPA.Cores.Basic
             Length = 0;
             InternalSpan = new Span<T>();
         }
+
+        public void WriteOne(T data)
+        {
+            var span = Walk(1);
+            span[0] = data;
+        }
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
+        }
     }
 
     ref struct FastReadOnlyMemoryBuffer<T>
@@ -992,6 +1040,8 @@ namespace IPA.Cores.Basic
         void Write(ReadOnlySpan<T> data);
         ReadOnlySpan<T> Read(long size, bool allowPartial = false);
         ReadOnlySpan<T> Peek(long size, bool allowPartial = false);
+        T ReadOne();
+        T PeekOne();
         void Seek(long offset, SeekOrigin mode, bool allocate = false);
         void SetLength(long size);
         void Clear();
@@ -1233,6 +1283,24 @@ namespace IPA.Cores.Basic
         {
             var span = Walk(data.Length);
             data.CopyTo(span);
+        }
+
+        public void WriteOne(T data)
+        {
+            var span = Walk(1);
+            span[0] = data;
+        }
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
         }
 
         public void WriteZero(int length)
@@ -1689,6 +1757,19 @@ namespace IPA.Cores.Basic
 
         public void SetLength(long size)
             => SetLength(checked((int)size));
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
+        }
+
     }
 
     class HugeMemoryBufferOptions
@@ -2212,6 +2293,27 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
             return this.PhysicalSize;
+        }
+
+        Memory<T> tmpArray = new T[1];
+
+        public void WriteOne(T data)
+        {
+            tmpArray.Span[0] = data;
+
+            Write(tmpArray);
+        }
+
+        public T ReadOne()
+        {
+            var span = Read(1, false);
+            return span[0];
+        }
+
+        public T PeekOne()
+        {
+            var span = Peek(1, false);
+            return span[0];
         }
     }
 

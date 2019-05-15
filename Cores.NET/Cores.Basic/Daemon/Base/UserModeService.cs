@@ -255,13 +255,13 @@ namespace IPA.Cores.Basic
                 {
                     if (UnixApi.Kill((int)pid, UnixApi.Signals.SIGTERM) == 0)
                     {
-                        Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
+                        Con.WriteLine($"Shutting down the daemon \"{Name}\" (pid = {pid}) ...");
 
                         if (UnixApi.WaitProcessExit((int)pid, stopTimeout) == false)
                         {
-                            Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                            Con.WriteLine($"Shutting down the daemon \"{Name}\" (pid = {pid}) timed out.");
 
-                            throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
+                            throw new ApplicationException($"Shutting down the daemon \"{Name}\" (pid = {pid}) timed out.");
                         }
                     }
                     else
