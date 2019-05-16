@@ -85,11 +85,6 @@ namespace IPA.TestDev
 
 
             //return;
-
-            using (TelnetLocalLogWatcher w = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions(null, null, 23)))
-            {
-                Con.ReadLine("?");
-            }
         }
     }
 }

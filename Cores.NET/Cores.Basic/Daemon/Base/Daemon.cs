@@ -43,6 +43,7 @@ using System.ServiceProcess;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -258,11 +259,17 @@ namespace IPA.Cores.Basic
         {
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
 
-            this.Daemon.Start(this.Param);
+            // Start the TelnetLogWatcher
+            using (var telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
+                new IPEndPoint(IPAddress.Any, this.Daemon.Options.TelnetLogWatcherPort),
+                new IPEndPoint(IPAddress.IPv6Any, this.Daemon.Options.TelnetLogWatcherPort))))
+            {
+                this.Daemon.Start(this.Param);
 
-            Con.ReadLine($"Enter key to stop the {this.Daemon.Name} daemon >");
+                Con.ReadLine($"Enter key to stop the {this.Daemon.Name} daemon >");
 
-            this.Daemon.Stop(false);
+                this.Daemon.Stop(false);
+            }
         }
 
 
@@ -278,7 +285,8 @@ namespace IPA.Cores.Basic
                 service = new UserModeService(
                     this.Daemon.Name,
                     () => this.Daemon.Start(this.Param),
-                    () => this.Daemon.Stop(true));
+                    () => this.Daemon.Stop(true),
+                    this.Daemon.Options.TelnetLogWatcherPort);
             }
             else
             {
@@ -286,7 +294,8 @@ namespace IPA.Cores.Basic
                 service = new WindowsService(
                     this.Daemon.Name,
                     () => this.Daemon.Start(this.Param),
-                    () => this.Daemon.Stop(true));
+                    () => this.Daemon.Stop(true),
+                    this.Daemon.Options.TelnetLogWatcherPort);
             }
 
             return service;
@@ -317,6 +326,13 @@ namespace IPA.Cores.Basic
             Con.WriteLine();
             Con.WriteLine($"The daemon {Daemon.ToString()} is stopped successfully.");
         }
+
+        public void Show(DaemonMode mode)
+        {
+            IService service = CreateService(mode);
+
+            service.Show();
+        }
     }
 
     [Flags]
@@ -326,13 +342,14 @@ namespace IPA.Cores.Basic
         Start,
         Stop,
         Test,
+        Show,
         ExecMain,
 
-        StartWin,
-        StopWin,
-        InstallWin,
-        UninstallWin,
-        ExecWinSvc,
+        WinStart,
+        WinStop,
+        WinInstall,
+        WinUninstall,
+        WinExecSvc,
     }
 
     class DaemonCmdLineTool
@@ -515,6 +532,10 @@ namespace IPA.Cores.Basic
                     host.StopService(DaemonMode.UserMode);
                     break;
 
+                case DaemonCmdType.Show:
+                    host.Show(DaemonMode.UserMode);
+                    break;
+
                 case DaemonCmdType.ExecMain:
                     host.ExecMain(DaemonMode.UserMode);
                     break;
@@ -523,12 +544,12 @@ namespace IPA.Cores.Basic
                     host.TestRun();
                     break;
 
-                case DaemonCmdType.ExecWinSvc:
+                case DaemonCmdType.WinExecSvc:
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
                     host.ExecMain(DaemonMode.WindowsServiceMode);
                     break;
 
-                case DaemonCmdType.InstallWin:
+                case DaemonCmdType.WinInstall:
                     {
                         if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
@@ -536,7 +557,7 @@ namespace IPA.Cores.Basic
                         string arguments;
 
                         exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"");
-                        arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecWinSvc}" : $"/cmd:{cmdName} {DaemonCmdType.ExecWinSvc}");
+                        arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.WinExecSvc}" : $"/cmd:{cmdName} {DaemonCmdType.WinExecSvc}");
 
                         string path = $"\"{exe}\" {arguments}";
 
@@ -563,7 +584,7 @@ namespace IPA.Cores.Basic
                         return 0;
                     }
 
-                case DaemonCmdType.UninstallWin:
+                case DaemonCmdType.WinUninstall:
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
                     if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
@@ -591,7 +612,7 @@ namespace IPA.Cores.Basic
 
                     return 0;
 
-                case DaemonCmdType.StartWin:
+                case DaemonCmdType.WinStart:
 
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
@@ -615,7 +636,7 @@ namespace IPA.Cores.Basic
 
                     return 0;
 
-                case DaemonCmdType.StopWin:
+                case DaemonCmdType.WinStop:
 
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 

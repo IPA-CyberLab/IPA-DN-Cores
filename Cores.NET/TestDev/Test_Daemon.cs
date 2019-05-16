@@ -48,9 +48,9 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.TestDev
 {
-    class TestDaemon : Daemon
+    class DaemonTest : Daemon
     {
-        public TestDaemon() : base(new DaemonOptions("Test", "Test Service", true))
+        public DaemonTest() : base(new DaemonOptions("Test", "Test Service", true, telnetLogWatcherPort: 23))
         {
         }
 
@@ -72,24 +72,25 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
-            "Start or stop the TestDaemon daemon",
-            "TestDaemon [command]",
-            "Start or stop the TestDaemon daemon",
+            "Start or stop the DaemonTest daemon",
+            "DaemonTest [command]",
+            "Start or stop the DaemonTest daemon",
             @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
 stop         - Stop the running daemon in the background mode.
+show         - Show the real-time log by the background daemon.
 test         - Start the daemon in the foreground testing mode.
 
 [Windows specific commands]
-startwin     - Start the daemon as a Windows service.
-stopwin      - Stop the running daemon as a Windows service.
-installwin   - Install the daemon as a Windows service.
-uninstallwin - Uninstall the daemon as a Windows service.")]
-        static int TestDaemon(ConsoleService c, string cmdName, string str)
+winstart     - Start the daemon as a Windows service.
+winstop      - Stop the running daemon as a Windows service.
+wininstall   - Install the daemon as a Windows service.
+winuninstall - Uninstall the daemon as a Windows service.")]
+        static int DaemonTest(ConsoleService c, string cmdName, string str)
         {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new TestDaemon());
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest());
         }
     }
 }

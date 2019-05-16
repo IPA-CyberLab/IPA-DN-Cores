@@ -44,6 +44,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.Internal.WinSvc;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -54,25 +55,32 @@ namespace IPA.Cores.Basic
         void ExecMain();
 
         void StopService(int stopTimeout);
+
+        void Show();
     }
 
     sealed class WindowsService : IService
     {
         public string Name { get; }
 
-        public Action OnStart { get; }
-        public Action OnStop { get; }
+        Action OnStartInternal { get; }
+        Action OnStopInternal { get; }
 
         readonly WindowsServiceObject WinSvcObj;
 
-        public WindowsService(string name, Action onStart, Action onStop)
+        public int TelnetLogWatcherPort { get; }
+        TelnetLocalLogWatcher TelnetWatcher;
+
+        public WindowsService(string name, Action onStart, Action onStop, int telnetLogWatcherPort)
         {
             if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
             this.Name = name;
 
-            this.OnStart = onStart;
-            this.OnStop = onStop;
+            this.OnStartInternal = onStart;
+            this.OnStopInternal = onStop;
+
+            this.TelnetLogWatcherPort = telnetLogWatcherPort;
 
             this.WinSvcObj = new WindowsServiceObject(this);
         }
@@ -90,6 +98,29 @@ namespace IPA.Cores.Basic
         {
             throw new NotImplementedException();
         }
+
+        public void OnStart()
+        {
+            // Start the TelnetLogWatcher
+            TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
+                new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
+                new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
+
+            // Start the service
+            this.OnStartInternal();
+        }
+
+        public void OnStop()
+        {
+            // Stop the service
+            this.OnStopInternal();
+
+            // Stop the TelnetLogWatcher
+            TelnetWatcher._DisposeSafe();
+            TelnetWatcher = null;
+        }
+
+        public void Show() => throw new NotImplementedException();
     }
 
     namespace Internal.WinSvc
@@ -135,7 +166,7 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
-                            this.OnStop();
+                            Svc.OnStop();
                         }
                         catch (Exception ex)
                         {

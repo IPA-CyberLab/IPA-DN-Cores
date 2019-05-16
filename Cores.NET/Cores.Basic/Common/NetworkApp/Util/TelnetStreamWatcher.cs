@@ -51,15 +51,15 @@ namespace IPA.Cores.Basic
     {
         public TcpIpSystem TcpIpSystem { get; }
         public Func<IPAddress, bool> IPAccessFilter { get; }
-        public IReadOnlyList<int> Ports { get; }
+        public IReadOnlyList<IPEndPoint> EndPoints { get; }
 
-        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem tcpIpSystem, params int[] ports)
+        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
         {
             if (ipAccessFilter == null) ipAccessFilter = new Func<IPAddress, bool>((address) => true);
             if (tcpIpSystem == null) tcpIpSystem = LocalNet;
 
             this.IPAccessFilter = ipAccessFilter;
-            this.Ports = ports.ToList();
+            this.EndPoints = endPoints.ToList();
             this.TcpIpSystem = tcpIpSystem;
         }
     }
@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Disconnected: {sock.EndPointInfo._GetObjectDump()}");
                 }
-            }, this.Options.Ports.ToArray()));
+            }, this.Options.EndPoints.ToArray()));
 
             this.AddIndirectDisposeLink(this.Listener);
         }

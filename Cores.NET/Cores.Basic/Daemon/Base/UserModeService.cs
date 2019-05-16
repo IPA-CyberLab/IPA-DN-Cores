@@ -39,6 +39,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.ServiceProcess;
 using System.Runtime.Serialization;
+using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -61,13 +62,22 @@ namespace IPA.Cores.Basic
     {
         [Serializable]
         [DataContract]
-        class UserModeServicePidData
+        class UserModeServicePidData : INormalizable
         {
             [DataMember]
             public long Pid;
 
             [DataMember]
             public string EventName;
+
+            [DataMember]
+            public int LocalLogWatchPort;
+
+            public void Normalize()
+            {
+                if (LocalLogWatchPort == 0)
+                    LocalLogWatchPort = 50000 + Util.RandSInt31() % 10000;
+            }
         }
     }
 
@@ -88,12 +98,17 @@ namespace IPA.Cores.Basic
 
         SingleInstance SingleInstance;
 
-        public UserModeService(string name, Action onStart, Action onStop)
+        public int TelnetLogWatcherPort { get; }
+        TelnetLocalLogWatcher TelnetWatcher;
+
+        public UserModeService(string name, Action onStart, Action onStop, int telnetLogWatcherPort)
         {
             this.Name = name;
 
             this.OnStart = onStart;
             this.OnStop = onStop;
+
+            this.TelnetLogWatcherPort = telnetLogWatcherPort;
 
             this.Hive = new Hive(new HiveOptions(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value()));
             this.HiveData = new HiveData<UserModeServicePidData>(this.Hive, this.Name, () => new UserModeServicePidData());
@@ -130,6 +145,13 @@ namespace IPA.Cores.Basic
                     }, leakCheck: false)._LaissezFaire(true);
                 }
 
+                // Start the TelnetLogWatcher
+                TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
+                    new IPEndPoint(IPAddress.Loopback, HiveData.Data.LocalLogWatchPort),
+                    new IPEndPoint(IPAddress.IPv6Loopback, HiveData.Data.LocalLogWatchPort),
+                    new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
+                    new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
+
                 InternalStart();
 
                 lock (HiveData.DataLock)
@@ -147,6 +169,9 @@ namespace IPA.Cores.Basic
             }
             catch
             {
+                this.TelnetWatcher._DisposeSafe();
+                this.TelnetWatcher = null;
+
                 this.SingleInstance._DisposeSafe();
                 this.SingleInstance = null;
                 throw;
@@ -186,6 +211,11 @@ namespace IPA.Cores.Basic
                     catch (Exception ex)
                     {
                         Kernel.SelfKill($"UserModeService ({this.Name}): An error occured on the OnStop() routine. Terminating the process. Error: {ex.ToString()}");
+                    }
+
+                    if (TelnetWatcher != null)
+                    {
+                        TelnetWatcher._DisposeSafe();
                     }
 
                     lock (HiveData.DataLock)
@@ -231,6 +261,80 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void Show()
+        {
+            HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile, true);
+
+            long pid = HiveData.Data.Pid;
+            int port = HiveData.Data.LocalLogWatchPort;
+
+            if (pid != 0 && port != 0)
+            {
+                Con.WriteLine("Starting the real-time log session.");
+                Con.WriteLine("Pressing Ctrl + D or Ctrl + Q to disconnect the session.");
+                Con.WriteLine();
+
+                Con.WriteLine($"Connecting to localhost:{port} ...");
+
+                CancellationTokenSource cancelSource = new CancellationTokenSource();
+                CancellationToken cancel = cancelSource.Token;
+
+                Task task = TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    try
+                    {
+                        using (var sock = await LocalNet.ConnectAsync(new TcpConnectParam(IPAddress.Loopback, port), cancel))
+                        using (var stream = sock.GetStream())
+                        using (MemoryHelper.FastAllocMemoryWithUsing(65536, out Memory<byte> tmp))
+                        {
+                            Con.WriteLine("The real-time log session is connected.");
+                            Con.WriteLine();
+                            try
+                            {
+                                while (true)
+                                {
+                                    int r = await stream.ReadAsync(tmp, cancel);
+                                    if (r <= 0) break;
+                                    ReadOnlyMemory<byte> data = tmp.Slice(0, r);
+                                    string s = Str.Utf8Encoding.GetString(data.Span);
+                                    Console.Write(s);
+                                }
+                            }
+                            catch { }
+
+                            Con.WriteLine();
+                            Con.WriteLine("The real-time log session is disconnected.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Con.WriteError(ex.Message);
+                    }
+                });
+
+                try
+                {
+                    while (true)
+                    {
+                        var key = Console.ReadKey();
+                        if ((key.Key == ConsoleKey.D || key.Key == ConsoleKey.Q) && key.Modifiers == ConsoleModifiers.Control)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch { }
+
+                cancelSource._TryCancelNoBlock();
+
+                task._TryWait(true);
+            }
+            else
+            {
+                Con.WriteLine($"The daemon \"{Name}\" is not running.");
+            }
+        }
+
         public void StopService(int stopTimeout)
         {
             HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile, true);
@@ -265,11 +369,7 @@ namespace IPA.Cores.Basic
                         {
                             Con.WriteLine($"Stopping the daemon \"{Name}\" (pid = {pid}) ...");
 
-                            Dbg.Where();
-
                             eventHandle.Set();
-
-                            Dbg.Where();
 
                             if (Win32ApiUtil.WaitProcessExit((int)pid, stopTimeout) == false)
                             {
@@ -277,8 +377,6 @@ namespace IPA.Cores.Basic
 
                                 throw new ApplicationException($"Stopping the daemon \"{Name}\" (pid = {pid}) timed out.");
                             }
-
-                            Dbg.Where();
                         }
                         finally
                         {
