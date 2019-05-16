@@ -73,8 +73,6 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            var p = Process.GetCurrentProcess();
-            Con.WriteLine(p.TotalProcessorTime);
             //FastStreamBuffer buf = new FastStreamBuffer(thresholdLength: 1);
 
             //buf.Enqueue("123"._GetBytes_Ascii());

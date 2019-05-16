@@ -89,7 +89,12 @@ namespace IPA.Cores.Basic
                 {
                     lock (pipe.CounterPart.StreamWriter.LockObj)
                     {
-                        pipe.CounterPart.StreamWriter.NonStopWrite(buf.Memory, true, FastStreamNonStopWriteMode.DiscardExistingData);
+                        if (pipe.CounterPart.StreamWriter.NonStopWrite(buf.Memory, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
+                        {
+                            // To avoid deadlock, CompleteWrite() must be called from other thread.
+                            // (CompleteWrite() ==> Disconnect ==> Socket Log will recorded ==> ReceiveLog() ==> this function will be called!)
+                            TaskUtil.StartSyncTaskAsync(() => pipe.CounterPart.StreamWriter.CompleteWrite(false), false, false)._LaissezFaire(true);
+                        }
                     }
                 }
             }

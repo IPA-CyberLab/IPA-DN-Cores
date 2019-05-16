@@ -81,6 +81,7 @@ namespace IPA.Cores.Basic
         public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
         public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
         public bool IsDebuggerAttached = Env.IsDebuggerAttached;
+        public int NumCpus => Env.NumCpus;
     }
 
 
@@ -137,6 +138,7 @@ namespace IPA.Cores.Basic
         public static bool IsCoresLibraryDebugBuild { get; }
         public static bool IsHostedByDotNetProcess { get; }
         public static string DotNetHostProcessExeName { get; }
+        public static int NumCpus { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
@@ -153,6 +155,8 @@ namespace IPA.Cores.Basic
         // 初期化
         static Env()
         {
+            NumCpus = Math.Max(Environment.ProcessorCount, 1);
+
             int debugChecker = 0;
             Debug.Assert((++debugChecker) >= 1);
             Env.IsCoresLibraryDebugBuild = (debugChecker >= 1);

@@ -1066,6 +1066,68 @@ namespace IPA.Cores.Basic
         }
     }
 
+    namespace Internal
+    {
+        static class ProcessCpuUsageReporter
+        {
+            static readonly Task MainTask;
+
+            static CriticalSection LockObj = new CriticalSection();
+
+            static double _CpuUsageSingle = 0.0;
+            static double _CpuUsageTotal = 0.0;
+
+            public static double CpuUsageSingle => Volatile.Read(ref _CpuUsageSingle);
+            public static double CpuUsageTotal => Volatile.Read(ref _CpuUsageTotal);
+
+            static ProcessCpuUsageReporter()
+            {
+                MainTask = CpuUsageReporterMainLoopAsync();
+            }
+
+            static async Task CpuUsageReporterMainLoopAsync()
+            {
+                TimeSpan timeLast = Time.NowHighResTimeSpan;
+                TimeSpan cpuLast = Process.GetCurrentProcess().TotalProcessorTime;
+                double cpuCount = (double)Env.NumCpus;
+
+                while (true)
+                {
+                    await Task.Delay(1000);
+
+                    TimeSpan timeCurrent = Time.NowHighResTimeSpan;
+                    TimeSpan cpuCurrent = Process.GetCurrentProcess().TotalProcessorTime;
+
+                    TimeSpan timeDiff = timeCurrent - timeLast;
+                    timeLast = timeCurrent;
+
+                    TimeSpan cpuDiff = cpuCurrent - cpuLast;
+                    cpuLast = cpuCurrent;
+
+                    double cpuUsageSingle;
+                    double cpuUsageTotal;
+
+                    if (timeDiff.TotalSeconds == 0.0)
+                    {
+                        cpuUsageSingle = 0.0;
+                    }
+                    else
+                    {
+                        cpuUsageSingle = cpuDiff.TotalSeconds * 100.0 / timeDiff.TotalSeconds;
+                    }
+                    cpuUsageTotal = cpuUsageSingle / cpuCount;
+
+                    cpuUsageSingle = Math.Min(cpuUsageSingle, 100.0 * cpuCount);
+
+                    cpuUsageTotal = Math.Min(cpuUsageTotal, 100.0);
+
+                    Volatile.Write(ref _CpuUsageSingle, cpuUsageSingle);
+                    Volatile.Write(ref _CpuUsageTotal, cpuUsageTotal);
+                }
+            }
+        }
+    }
+
     class CoresRuntimeStat
     {
         public int Task;
@@ -1074,6 +1136,7 @@ namespace IPA.Cores.Basic
         public int S;
         public int Obj;
         public int IO;
+        public int Cpu;
         public long Mem;
         public int Task2;
 
@@ -1086,6 +1149,7 @@ namespace IPA.Cores.Basic
             int num_queued = TaskUtil.GetQueuedTasksCount();
             int num_timered = TaskUtil.GetScheduledTimersCount();
 
+            this.Cpu = (int)Internal.ProcessCpuUsageReporter.CpuUsageSingle;
             this.Task = max_workers - avail_workers;
             this.Task2 = avail_workers;
             this.D = num_queued + TaskUtil.GetNumPendingAsyncTasks();
