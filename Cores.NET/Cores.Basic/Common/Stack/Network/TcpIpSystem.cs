@@ -176,11 +176,27 @@ namespace IPA.Cores.Basic
     class TcpListenParam
     {
         public NetTcpListenerAcceptedProcCallback AcceptCallback { get; }
-        public IReadOnlyList<int> PortsList { get; }
+        public IReadOnlyList<IPEndPoint> EndPointsList { get; }
+
+        static IPEndPoint[] PortsToEndPoints(int[] ports)
+        {
+            List<IPEndPoint> ret = new List<IPEndPoint>();
+
+            foreach (int port in ports)
+            {
+                ret.Add(new IPEndPoint(IPAddress.Any, port));
+                ret.Add(new IPEndPoint(IPAddress.IPv6Any, port));
+            }
+
+            return ret.ToArray();
+        }
 
         public TcpListenParam(NetTcpListenerAcceptedProcCallback acceptCallback, params int[] ports)
+            : this(acceptCallback, PortsToEndPoints(ports)) { }
+
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback acceptCallback, params IPEndPoint[] endPoints)
         {
-            this.PortsList = new List<int>(ports);
+            this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
         }
     }
@@ -324,17 +340,17 @@ namespace IPA.Cores.Basic
                     return param.AcceptCallback(listener, sock);
                 });
 
-                foreach (int port in param.PortsList)
+                foreach (IPEndPoint ep in param.EndPointsList)
                 {
                     try
                     {
-                        if (hostInfo.IsIPv4Supported) ret.Add(port, IPVersion.IPv4);
+                        if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port,  IPVersion.IPv4, ep.Address);
                     }
                     catch { }
 
                     try
                     {
-                        if (hostInfo.IsIPv6Supported) ret.Add(port, IPVersion.IPv6);
+                        if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
                     }
                     catch { }
                 }
