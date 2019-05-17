@@ -473,7 +473,7 @@ namespace IPA.Cores.Basic
     {
         // Properties
         public string String => (string)this[EasyFileAccessType.String];
-        public Memory<byte> Binary => (Memory<byte>)this[EasyFileAccessType.Binary];
+        public ReadOnlyMemory<byte> Binary => (ReadOnlyMemory<byte>)this[EasyFileAccessType.Binary];
 
         // Implementation
         public FileSystem FileSystem { get; }
@@ -500,7 +500,7 @@ namespace IPA.Cores.Basic
                     return FileSystem.ReadStringFromFile(this.FilePath);
 
                 case EasyFileAccessType.Binary:
-                    return FileSystem.ReadDataFromFile(this.FilePath);
+                    return (ReadOnlyMemory<byte>)FileSystem.ReadDataFromFile(this.FilePath);
 
                 default:
                     throw new ArgumentOutOfRangeException("type");
@@ -508,8 +508,6 @@ namespace IPA.Cores.Basic
         }
 
         public static implicit operator string(EasyFileAccess access) => access.String;
-        public static implicit operator Memory<byte>(EasyFileAccess access) => access.Binary;
-        public static implicit operator Span<byte>(EasyFileAccess access) => access.Binary.Span;
         public static implicit operator ReadOnlyMemory<byte>(EasyFileAccess access) => access.Binary;
         public static implicit operator ReadOnlySpan<byte>(EasyFileAccess access) => access.Binary.Span;
         public static implicit operator byte[](EasyFileAccess access) => access.Binary.ToArray();
@@ -567,5 +565,29 @@ namespace IPA.Cores.Basic
 
         protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.BaseAccess.WriteRandomAsync(position, data, cancel);
+    }
+
+    class FilePath
+    {
+        public string FileName { get; }
+        public FileSystem FileSystem { get; }
+        public FileOperationFlags OperationFlags { get; }
+        public EasyFileAccess EasyAccess => new EasyFileAccess(this.FileSystem, this.FileName);
+
+        public FilePath(ResourceFileSystem resFs, string partOfPath, bool exact = false, string rootDir = "/", FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
+            : this((resFs ?? Res.Cores).EasyFindSingleFile(partOfPath, exact, rootDir, cancel), (resFs ?? Res.Cores)) { }
+
+        public FilePath(string fileName, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None)
+        {
+            if (fileSystem == null) fileSystem = Lfs;
+
+            this.FileName = fileName;
+            this.FileSystem = fileSystem;
+            this.OperationFlags = operationFlags;
+        }
+
+        public override string ToString() => this.FileName;
+
+        public static implicit operator FilePath(string fileName) => new FilePath(fileName);
     }
 }

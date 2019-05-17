@@ -73,7 +73,11 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            var x = new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert.p12"));
+            Con.WriteLine(x.ToString());
+            Con.WriteLine(x.HashSHA1);
         }
     }
 }
+
 
