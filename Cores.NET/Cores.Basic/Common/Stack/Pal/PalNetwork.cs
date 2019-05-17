@@ -61,6 +61,17 @@ namespace IPA.Cores.Basic
         {
             NativeCertificate = nativeCertificate;
         }
+
+        public PalX509Certificate(ReadOnlySpan<byte> pkcs12Data, string password = null)
+        {
+            NativeCertificate = Secure.LoadPkcs12(pkcs12Data.ToArray(), password);
+        }
+
+        public PalX509Certificate(string fileName, string password = null, FileSystem fileSystem = null)
+            : this((fileSystem ?? Lfs).ReadDataFromFile(fileName).Span, password) { }
+
+        public PalX509Certificate(ResourceFileSystem resFs, string partOfFileName, string password = null, bool exact = false)
+            : this(resFs.EasyReadData(partOfFileName, exact: true).Span, password) { }
     }
 
     struct PalSocketReceiveFromResult

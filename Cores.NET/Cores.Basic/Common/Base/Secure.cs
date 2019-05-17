@@ -217,18 +217,20 @@ namespace IPA.Cores.Basic
         }
 
         // PKCS 証明書の読み込み
-        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(byte[] data, string password = null)
+        public static X509Certificate2 LoadPkcs12(byte[] data, string password = null)
         {
             password = password._NonNull();
-            return new System.Security.Cryptography.X509Certificates.X509Certificate2(data, password, System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.MachineKeySet);
+            return new X509Certificate2(data, password, X509KeyStorageFlags.MachineKeySet);
         }
-        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string filename, string password = null)
+        public static X509Certificate2 LoadPkcs12(string filename, string password = null, FileSystem fileSystem = null)
         {
-            return LoadPkcs12(IO.ReadFile(filename), password);
+            if (fileSystem == null) fileSystem = Lfs;
+
+            return LoadPkcs12(fileSystem.ReadDataFromFile(filename).ToArray(), password);
         }
-        public static System.Security.Cryptography.X509Certificates.X509Certificate2 LoadPkcs12(string embeddedResourceName, Type assemblyType)
+        public static X509Certificate2 LoadPkcs12(ResourceFileSystem resFs, string partOfFileName, string password = null, bool exact = false)
         {
-            return LoadPkcs12(IO.ReadEmbeddedFileData(embeddedResourceName, assemblyType));
+            return LoadPkcs12(resFs.EasyReadData(partOfFileName, exact: true).ToArray(), password);
         }
 
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
