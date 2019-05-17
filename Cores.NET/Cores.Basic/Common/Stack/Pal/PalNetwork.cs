@@ -46,12 +46,16 @@ using System.Net.NetworkInformation;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
     class PalX509Certificate
     {
-        public X509Certificate NativeCertificate;
+        public X509Certificate NativeCertificate { get; }
+
+        public override string ToString() => this.NativeCertificate.ToString(true);
+        public string HashSHA1 => this.NativeCertificate.GetCertHashString();
 
         public PalX509Certificate(X509Certificate nativeCertificate)
         {
@@ -329,14 +333,19 @@ namespace IPA.Cores.Basic
         protected override Task FlushImplAsync(CancellationToken cancel = default) => NativeStream.FlushAsync(cancel);
     }
 
+    delegate bool PalSslValidateRemoteCertificateCallback(PalX509Certificate cert);
+
+    delegate PalX509Certificate PalSslCertificateSelectionCallback(object param, string sniHostName);
+
     class PalSslClientAuthenticationOptions
     {
-        public delegate bool ValidateRemoteCertificateCallback(PalX509Certificate cert);
-
         public PalSslClientAuthenticationOptions() { }
 
         public string TargetHost { get; set; }
-        public ValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
+        public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
+        public string[] ServerCertSHA1List { get; set; } = new string[0];
+        public bool AllowAnyServerCert { get; set; } = false;
+
         public PalX509Certificate ClientCertificate { get; set; }
 
         public SslClientAuthenticationOptions GetNativeOptions()
@@ -345,13 +354,86 @@ namespace IPA.Cores.Basic
             {
                 TargetHost = TargetHost,
                 AllowRenegotiation = true,
-                RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) => ValidateRemoteCertificateProc(new PalX509Certificate(cert))),
+                RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
+                {
+                    string sha1 = cert.GetCertHashString();
+
+                    bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
+                    bool b2 = ServerCertSHA1List?.Where(x => x._IsSamei(sha1)).Any() ?? false;
+                    bool b3 = this.AllowAnyServerCert;
+
+                    return b1 || b2 || b3;
+                }),
                 EncryptionPolicy = EncryptionPolicy.RequireEncryption,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
             };
 
             if (this.ClientCertificate != null)
                 ret.ClientCertificates.Add(this.ClientCertificate.NativeCertificate);
+
+            return ret;
+        }
+    }
+
+    class PalSslServerAuthenticationOptions
+    {
+        public PalSslServerAuthenticationOptions() { }
+
+        public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
+        public string[] ClientCertSHA1List { get; set; } = new string[0];
+        public bool AllowAnyClientCert { get; set; } = true;
+
+        public PalSslCertificateSelectionCallback CertificateSelectionProc { get; set; }
+        public object CertificateSelectionProcParam { get; set; }
+
+        public PalX509Certificate Certificate { get; set; }
+
+        public SslServerAuthenticationOptions GetNativeOptions()
+        {
+            SslServerAuthenticationOptions ret = new SslServerAuthenticationOptions()
+            {
+                AllowRenegotiation = true,
+                RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
+                {
+                    string sha1 = cert.GetCertHashString();
+
+                    bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
+                    bool b2 = ClientCertSHA1List?.Where(x => x._IsSamei(sha1)).Any() ?? false;
+                    bool b3 = this.AllowAnyClientCert;
+
+                    return b1 || b2 || b3;
+                }),
+                ClientCertificateRequired = !AllowAnyClientCert,
+                EncryptionPolicy = EncryptionPolicy.RequireEncryption,
+                CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
+            };
+
+            bool certExists = false;
+
+            if (this.CertificateSelectionProc != null)
+            {
+                object param = this.CertificateSelectionProcParam;
+                ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
+                {
+                    PalX509Certificate cert = this.CertificateSelectionProc(param, sniHostName);
+                    return cert.NativeCertificate;
+                };
+
+                certExists = true;
+            }
+
+            if (this.Certificate != null)
+            {
+                ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
+                {
+                    return this.Certificate.NativeCertificate;
+                };
+
+                certExists = true;
+            }
+
+            if (certExists == false)
+                throw new ApplicationException("CertificateSelectionProc or Certificate must be specified.");
 
             return ret;
         }
@@ -367,6 +449,9 @@ namespace IPA.Cores.Basic
 
         public Task AuthenticateAsClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken)
             => Ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions.GetNativeOptions(), cancellationToken);
+
+        public Task AuthenticateAsServerAsync(PalSslServerAuthenticationOptions sslServerAuthenticationOptions, CancellationToken cancellationToken)
+            => Ssl.AuthenticateAsServerAsync(sslServerAuthenticationOptions.GetNativeOptions(), cancellationToken);
 
         public string SslProtocol => Ssl.SslProtocol.ToString();
         public string CipherAlgorithm => Ssl.CipherAlgorithm.ToString();

@@ -343,6 +343,27 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     static class IPUtil
     {
+        public static IPEndPoint[] GenerateListeningEndPointsList(bool localHostOnly, params int[] ports)
+        {
+            List<IPEndPoint> ret = new List<IPEndPoint>();
+
+            foreach (int port in ports)
+            {
+                if (localHostOnly == false)
+                {
+                    ret.Add(new IPEndPoint(IPAddress.Any, port));
+                    ret.Add(new IPEndPoint(IPAddress.IPv6Any, port));
+                }
+                else
+                {
+                    ret.Add(new IPEndPoint(IPAddress.Loopback, port));
+                    ret.Add(new IPEndPoint(IPAddress.IPv6Loopback, port));
+                }
+            }
+
+            return ret.ToArray();
+        }
+
         // ユーザーが利用できるホストアドレスかどうか確認
         public static bool IsIPv4UserHostAddress(IPAddress ip, IPAddress subnet)
         {

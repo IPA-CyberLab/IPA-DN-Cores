@@ -55,6 +55,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\NetworkApp\Util\TcpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\NetworkApp\Util\TelnetStreamWatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ChrootViewFs.cs" />
@@ -105,6 +106,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\LogDef\LogDef.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />

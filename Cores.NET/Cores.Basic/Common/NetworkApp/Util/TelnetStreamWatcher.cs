@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
     {
         public TelnetStreamWatcherOptions Options { get; }
 
-        readonly NetTcpListenerBase Listener;
+        readonly NetTcpListener Listener;
 
         TcpIpSystem Net => Options.TcpIpSystem;
 

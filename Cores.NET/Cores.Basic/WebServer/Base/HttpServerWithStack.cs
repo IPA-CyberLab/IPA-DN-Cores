@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
             this.Server = server;
         }
 
-        NetTcpListenerBase Listener = null;
+        NetTcpListener Listener = null;
 
         public Task BindAsync()
         {
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task ListenerAcceptNewSocketCallback(NetTcpListenerBase.Listener listener, ConnSock newSock)
+        async Task ListenerAcceptNewSocketCallback(NetTcpListenerPort listener, ConnSock newSock)
         {
             using (var connection = new KestrelStackConnection(newSock, this.PipeScheduler))
             {

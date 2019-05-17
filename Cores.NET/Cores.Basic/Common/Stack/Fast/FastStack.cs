@@ -607,12 +607,12 @@ namespace IPA.Cores.Basic
         PalSslStream SslStream = null;
         PipeEndStreamWrapper Wrapper = null;
 
-        public async Task SslStartClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
+        public async Task SslStartServerAsync(PalSslServerAuthenticationOptions sslServerAuthOption, CancellationToken cancel = default)
         {
             if (Wrapper != null)
                 throw new ApplicationException("SSL is already established.");
 
-            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancellationToken))
+            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
@@ -620,7 +620,57 @@ namespace IPA.Cores.Basic
                     PalSslStream ssl = new PalSslStream(lowerStream);
                     try
                     {
-                        await ssl.AuthenticateAsClientAsync(sslClientAuthenticationOptions, opCancel);
+                        await ssl.AuthenticateAsServerAsync(sslServerAuthOption, opCancel);
+
+                        LowerAttach.SetLayerInfo(new LayerInfo()
+                        {
+                            IsServerMode = true,
+                            SslProtocol = ssl.SslProtocol.ToString(),
+                            CipherAlgorithm = ssl.CipherAlgorithm.ToString(),
+                            CipherStrength = ssl.CipherStrength,
+                            HashAlgorithm = ssl.HashAlgorithm.ToString(),
+                            HashStrength = ssl.HashStrength,
+                            KeyExchangeAlgorithm = ssl.KeyExchangeAlgorithm.ToString(),
+                            KeyExchangeStrength = ssl.KeyExchangeStrength,
+                            LocalCertificate = ssl.LocalCertificate,
+                            RemoteCertificate = ssl.RemoteCertificate,
+                        }, this, false);
+
+                        this.SslStream = ssl;
+                        this.LowerStream = lowerStream;
+
+                        this.Wrapper = new PipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+
+                        AddIndirectDisposeLink(this.Wrapper); // Do not add Wrapper with AddChild(). It makes cyclic reference.
+                    }
+                    catch
+                    {
+                        ssl._DisposeSafe();
+                        throw;
+                    }
+                }
+                catch
+                {
+                    lowerStream._DisposeSafe();
+                    throw;
+                }
+            }
+        }
+
+        public async Task SslStartClientAsync(PalSslClientAuthenticationOptions sslClientAuthOption, CancellationToken cancel = default)
+        {
+            if (Wrapper != null)
+                throw new ApplicationException("SSL is already established.");
+
+            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            {
+                PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
+                try
+                {
+                    PalSslStream ssl = new PalSslStream(lowerStream);
+                    try
+                    {
+                        await ssl.AuthenticateAsClientAsync(sslClientAuthOption, opCancel);
 
                         LowerAttach.SetLayerInfo(new LayerInfo()
                         {
@@ -687,143 +737,143 @@ namespace IPA.Cores.Basic
         Stopped,
     }
 
-    delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerBase.Listener listener, ConnSock newSock);
+    delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerPort listener, ConnSock newSock);
 
-    abstract class NetTcpListenerBase : AsyncService
+    class NetTcpListenerPort
     {
-        public class Listener
+        public IPVersion IPVersion { get; }
+        public IPAddress IPAddress { get; }
+        public int Port { get; }
+
+        public ListenStatus Status { get; internal set; }
+        public Exception LastError { get; internal set; }
+
+        internal Task _InternalTask { get; }
+
+        internal CancellationTokenSource _InternalSelfCancelSource { get; }
+        internal CancellationToken _InternalSelfCancelToken { get => _InternalSelfCancelSource.Token; }
+
+        public NetTcpListener TcpListener { get; }
+
+        public const long RetryIntervalStandard = 1 * 512;
+        public const long RetryIntervalMax = 60 * 1000;
+
+        internal NetTcpListenerPort(NetTcpListener listener, IPVersion ver, IPAddress addr, int port)
         {
-            public IPVersion IPVersion { get; }
-            public IPAddress IPAddress { get; }
-            public int Port { get; }
+            TcpListener = listener;
+            IPVersion = ver;
+            IPAddress = addr;
+            Port = port;
+            LastError = null;
+            Status = ListenStatus.Trying;
+            _InternalSelfCancelSource = new CancellationTokenSource();
 
-            public ListenStatus Status { get; internal set; }
-            public Exception LastError { get; internal set; }
+            _InternalTask = ListenLoop();
+        }
 
-            internal Task _InternalTask { get; }
+        static internal string MakeHashKey(IPVersion ipVer, IPAddress ipAddress, int port)
+        {
+            return $"{port} / {ipAddress} / {ipAddress.AddressFamily} / {ipVer}";
+        }
 
-            internal CancellationTokenSource _InternalSelfCancelSource { get; }
-            internal CancellationToken _InternalSelfCancelToken { get => _InternalSelfCancelSource.Token; }
+        async Task ListenLoop()
+        {
+            AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
+            int eventRegisterId = BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(networkChangedEvent);
 
-            public NetTcpListenerBase TcpListener { get; }
+            Status = ListenStatus.Trying;
 
-            public const long RetryIntervalStandard = 1 * 512;
-            public const long RetryIntervalMax = 60 * 1000;
+            bool reportError = true;
 
-            internal Listener(NetTcpListenerBase listener, IPVersion ver, IPAddress addr, int port)
+            int numRetry = 0;
+            int lastNetworkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
+
+            try
             {
-                TcpListener = listener;
-                IPVersion = ver;
-                IPAddress = addr;
-                Port = port;
-                LastError = null;
-                Status = ListenStatus.Trying;
-                _InternalSelfCancelSource = new CancellationTokenSource();
-
-                _InternalTask = ListenLoop();
-            }
-
-            static internal string MakeHashKey(IPVersion ipVer, IPAddress ipAddress, int port)
-            {
-                return $"{port} / {ipAddress} / {ipAddress.AddressFamily} / {ipVer}";
-            }
-
-            async Task ListenLoop()
-            {
-                AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
-                int eventRegisterId = BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(networkChangedEvent);
-
-                Status = ListenStatus.Trying;
-
-                bool reportError = true;
-
-                int numRetry = 0;
-                int lastNetworkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
-
-                try
+                while (_InternalSelfCancelToken.IsCancellationRequested == false)
                 {
-                    while (_InternalSelfCancelToken.IsCancellationRequested == false)
+                    Status = ListenStatus.Trying;
+                    _InternalSelfCancelToken.ThrowIfCancellationRequested();
+
+                    int sleepDelay = (int)Math.Min(RetryIntervalStandard * numRetry, RetryIntervalMax);
+                    if (sleepDelay >= 1)
+                        sleepDelay = Util.RandSInt31() % sleepDelay;
+                    await TaskUtil.WaitObjectsAsync(timeout: sleepDelay,
+                        cancels: new CancellationToken[] { _InternalSelfCancelToken },
+                        events: new AsyncAutoResetEvent[] { networkChangedEvent });
+                    numRetry++;
+
+                    int networkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
+                    if (lastNetworkInfoVer != networkInfoVer)
                     {
-                        Status = ListenStatus.Trying;
-                        _InternalSelfCancelToken.ThrowIfCancellationRequested();
+                        lastNetworkInfoVer = networkInfoVer;
+                        numRetry = 0;
+                    }
 
-                        int sleepDelay = (int)Math.Min(RetryIntervalStandard * numRetry, RetryIntervalMax);
-                        if (sleepDelay >= 1)
-                            sleepDelay = Util.RandSInt31() % sleepDelay;
-                        await TaskUtil.WaitObjectsAsync(timeout: sleepDelay,
-                            cancels: new CancellationToken[] { _InternalSelfCancelToken },
-                            events: new AsyncAutoResetEvent[] { networkChangedEvent });
-                        numRetry++;
+                    _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                        int networkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
-                        if (lastNetworkInfoVer != networkInfoVer)
+                    NetTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
+
+                    try
+                    {
+                        listenTcp.Listen(new IPEndPoint(IPAddress, Port));
+
+                        reportError = true;
+                        Status = ListenStatus.Listening;
+
+                        Con.WriteDebug($"Listener starts on [{IPAddress.ToString()}]:{Port}.");
+
+                        while (true)
                         {
-                            lastNetworkInfoVer = networkInfoVer;
-                            numRetry = 0;
-                        }
+                            _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                        _InternalSelfCancelToken.ThrowIfCancellationRequested();
+                            ConnSock sock = await listenTcp.AcceptAsync();
 
-                        NetTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
-
-                        try
-                        {
-                            listenTcp.Listen(new IPEndPoint(IPAddress, Port));
-
-                            reportError = true;
-                            Status = ListenStatus.Listening;
-
-                            Con.WriteDebug($"Listener starts on [{IPAddress.ToString()}]:{Port}.");
-
-                            while (true)
-                            {
-                                _InternalSelfCancelToken.ThrowIfCancellationRequested();
-
-                                ConnSock sock = await listenTcp.AcceptAsync();
-
-                                TcpListener.InternalSocketAccepted(this, sock);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LastError = ex;
-
-                            if (_InternalSelfCancelToken.IsCancellationRequested == false)
-                            {
-                                if (reportError)
-                                {
-                                    reportError = false;
-                                    Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.Message);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            listenTcp._DisposeSafe();
+                            TcpListener.InternalSocketAccepted(this, sock);
                         }
                     }
-                }
-                finally
-                {
-                    BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(eventRegisterId);
-                    Status = ListenStatus.Stopped;
+                    catch (Exception ex)
+                    {
+                        LastError = ex;
+
+                        if (_InternalSelfCancelToken.IsCancellationRequested == false)
+                        {
+                            if (reportError)
+                            {
+                                reportError = false;
+                                Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.Message);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        listenTcp._DisposeSafe();
+                    }
                 }
             }
-
-            internal async Task _InternalStopAsync()
+            finally
             {
-                await _InternalSelfCancelSource._TryCancelAsync();
-                try
-                {
-                    await _InternalTask;
-                }
-                catch { }
+                BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(eventRegisterId);
+                Status = ListenStatus.Stopped;
             }
         }
 
+        internal async Task _InternalStopAsync()
+        {
+            await _InternalSelfCancelSource._TryCancelAsync();
+            try
+            {
+                await _InternalTask;
+            }
+            catch { }
+        }
+    }
+
+    abstract class NetTcpListener : AsyncService
+    {
         readonly CriticalSection LockObj = new CriticalSection();
 
-        readonly Dictionary<string, Listener> List = new Dictionary<string, Listener>();
+        readonly Dictionary<string, NetTcpListenerPort> List = new Dictionary<string, NetTcpListenerPort>();
 
         readonly Dictionary<Task, ConnSock> RunningAcceptedTasks = new Dictionary<Task, ConnSock>();
 
@@ -838,14 +888,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public NetTcpListenerBase(NetTcpListenerAcceptedProcCallback acceptedProc)
+        public NetTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc)
         {
             AcceptedProc = acceptedProc;
         }
 
         internal protected abstract NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
 
-        public Listener Add(int port, IPVersion? ipVer = null, IPAddress addr = null)
+        public NetTcpListenerPort Add(int port, IPVersion? ipVer = null, IPAddress addr = null)
         {
             if (addr == null)
                 addr = ((ipVer ?? IPVersion.IPv4) == IPVersion.IPv4) ? IPAddress.Any : IPAddress.IPv6Any;
@@ -864,21 +914,21 @@ namespace IPA.Cores.Basic
             {
                 CheckNotCanceled();
 
-                var s = Search(Listener.MakeHashKey((IPVersion)ipVer, addr, port));
+                var s = Search(NetTcpListenerPort.MakeHashKey((IPVersion)ipVer, addr, port));
                 if (s != null)
                     return s;
-                s = new Listener(this, (IPVersion)ipVer, addr, port);
-                List.Add(Listener.MakeHashKey((IPVersion)ipVer, addr, port), s);
+                s = new NetTcpListenerPort(this, (IPVersion)ipVer, addr, port);
+                List.Add(NetTcpListenerPort.MakeHashKey((IPVersion)ipVer, addr, port), s);
                 return s;
             }
         }
 
-        public async Task<bool> DeleteAsync(Listener listener)
+        public async Task<bool> DeleteAsync(NetTcpListenerPort listener)
         {
-            Listener s;
+            NetTcpListenerPort s;
             lock (LockObj)
             {
-                string hashKey = Listener.MakeHashKey(listener.IPVersion, listener.IPAddress, listener.Port);
+                string hashKey = NetTcpListenerPort.MakeHashKey(listener.IPVersion, listener.IPAddress, listener.Port);
                 s = Search(hashKey);
                 if (s == null)
                     return false;
@@ -888,14 +938,14 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        Listener Search(string hashKey)
+        NetTcpListenerPort Search(string hashKey)
         {
-            if (List.TryGetValue(hashKey, out Listener ret) == false)
+            if (List.TryGetValue(hashKey, out NetTcpListenerPort ret) == false)
                 return null;
             return ret;
         }
 
-        async Task InternalSocketAcceptedAsync(Listener listener, ConnSock sock)
+        internal async Task InternalSocketAcceptedAsync(NetTcpListenerPort listener, ConnSock sock)
         {
             try
             {
@@ -909,7 +959,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void InternalSocketAccepted(Listener listener, ConnSock sock)
+        internal void InternalSocketAccepted(NetTcpListenerPort listener, ConnSock sock)
         {
             try
             {
@@ -933,7 +983,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Listener[] Listeners
+        public NetTcpListenerPort[] Listeners
         {
             get
             {
@@ -948,14 +998,14 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception ex)
         {
-            List<Listener> o = new List<Listener>();
+            List<NetTcpListenerPort> o = new List<NetTcpListenerPort>();
             lock (LockObj)
             {
                 List.Values.ToList().ForEach(x => o.Add(x));
                 List.Clear();
             }
 
-            foreach (Listener s in o)
+            foreach (NetTcpListenerPort s in o)
                 await s._InternalStopAsync()._TryWaitAsync();
 
             List<Task> waitTasks = new List<Task>();
@@ -989,7 +1039,7 @@ namespace IPA.Cores.Basic
         protected override void DisposeImpl(Exception ex) { }
     }
 
-    class NetPalTcpListener : NetTcpListenerBase
+    class NetPalTcpListener : NetTcpListener
     {
         public NetPalTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
 

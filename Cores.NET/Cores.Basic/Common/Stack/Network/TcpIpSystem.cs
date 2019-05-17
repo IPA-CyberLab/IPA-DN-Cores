@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
-        protected abstract NetTcpListenerBase CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
+        protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param) { }
 
@@ -327,13 +327,13 @@ namespace IPA.Cores.Basic
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel)._GetResult();
 
-        public NetTcpListenerBase CreateListener(TcpListenParam param)
+        public NetTcpListener CreateListener(TcpListenParam param)
         {
             var hostInfo = GetHostInfo();
 
             using (EnterCriticalCounter())
             {
-                NetTcpListenerBase ret = CreateListenerImpl((listener, sock) =>
+                NetTcpListener ret = CreateListenerImpl((listener, sock) =>
                 {
                     this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
 

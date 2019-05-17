@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
             return tcp;
         }
 
-        protected override NetTcpListenerBase CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc)
+        protected override NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc)
         {
             NetPalTcpListener ret = new NetPalTcpListener(acceptedProc);
 

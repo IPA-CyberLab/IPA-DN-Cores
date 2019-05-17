@@ -30,11 +30,14 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_BASIC_JSON
+
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Reflection;
+using System.IO;
+using System.Net;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -42,67 +45,48 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class LogTag
+    static partial class CoresConfig
     {
-        public const string None = "None";
-        public const string SocketConnected = "SocketConnected";
-        public const string SocketAccepted = "SocketAccepted";
-        public const string SocketDisconnected = "SocketDisconnected";
+        public static partial class LogServerSettings
+        {
+            public static readonly Copenhagen<int> DefaultPort = 3003;
+        }
     }
 
-    partial class LogKind
+    class LogServerOptions
     {
-        public const string Default = "Default";
-        public const string Data = "Data";
-        public const string Access = "Access";
-        public const string Socket = "Socket";
-        public const string Stat = "Stat";
+        public IReadOnlyList<IPEndPoint> EndPoints { get; }
+        public TcpIpSystem TcpIpSystem { get; }
+        public CertSelectorCallback CertSelector { get; }
+
+        public static readonly IPEndPoint[] DefaultEndPoints = IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogServerSettings.DefaultPort);
+
+        public LogServerOptions(TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
+        {
+            this.TcpIpSystem = tcpIpSystem;
+            this.EndPoints = endPoints.ToList();
+        }
     }
 
-    class LogDefIPEndPoints
+    class LogServer : AsyncService
     {
-        public string LocalIP = null;
-        public int LocalPort = 0;
-        public string RemoteIP = null;
-        public int RemotePort = 0;
-    }
+        public LogServerOptions Options { get; }
 
-    class LogDefSslSession
-    {
-        public bool IsServerMode;
-        public string SslProtocol;
-        public string CipherAlgorithm;
-        public int CipherStrength;
-        public string HashAlgorithm;
-        public int HashStrength;
-        public string KeyExchangeAlgorithm;
-        public int KeyExchangeStrength;
-        public string LocalCertificateInfo;
-        public string LocalCertificateHashSHA1;
-        public string RemoteCertificateInfo;
-        public string RemoteCertificateHashSHA1;
-    }
+        public LogServer(LogServerOptions options)
+        {
+            this.Options = options;
 
-    [Serializable]
-    class LogDefSocket
-    {
-        public string NetworkSystem;
-        public string SockGuid;
-        public string SockType;
-        public string Direction;
-        public long NativeHandle;
+            NetTcpListener listener = this.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
 
-        public string LocalIP;
-        public string RemoteIP;
-        public int? LocalPort;
-        public int? RemotePort;
+            this.AddIndirectDisposeLink(listener);
+        }
 
-        public DateTimeOffset ConnectedTime;
-        public DateTimeOffset? DisconnectedTime;
-
-        public long StreamSend;
-        public long StreamRecv;
-        public long DatagramSend;
-        public long DatagramRecv;
+        async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
+        {
+            await Task.CompletedTask;
+        }
     }
 }
+
+#endif  // CORES_BASIC_JSON
+

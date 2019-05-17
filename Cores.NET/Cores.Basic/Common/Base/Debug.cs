@@ -1214,7 +1214,6 @@ namespace IPA.Cores.Basic
         CancelWatcher,
         PalSocket,
         TaskLeak,
-        FastStreamToPalNetworkStream,
         StreamImplBase,
         AsyncServiceWithMainLoop,
         Singleton1,

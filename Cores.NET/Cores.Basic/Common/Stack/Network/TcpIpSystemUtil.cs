@@ -217,21 +217,53 @@ namespace IPA.Cores.Basic
         public MiddleSock(NetSock LowerSock, NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
-    class SslSock : MiddleSock
+    class MiddleConnSock : ConnSock
     {
+        public MiddleConnSock(ConnSock LowerSock, NetProtocolBase protocolStack) : base(protocolStack) { }
+    }
+
+    class SslSock : MiddleConnSock
+    {
+        public LogDefSslSession SslSessionInfo { get; private set; }
+
         protected new NetSslProtocolStack Stack => (NetSslProtocolStack)base.Stack;
 
         public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new NetSslProtocolStack(lowerStreamSock.UpperEnd, null, null))
         {
         }
 
+        public void UpdateSslSessionInfo()
+        {
+            this.SslSessionInfo = new LogDefSslSession()
+            {
+                IsServerMode = this.Info?.Ssl?.IsServerMode ?? false,
+                SslProtocol = this.Info?.Ssl?.SslProtocol,
+                CipherAlgorithm = this.Info?.Ssl?.CipherAlgorithm,
+                CipherStrength = this.Info?.Ssl?.CipherStrength ?? 0,
+                HashAlgorithm = this.Info?.Ssl?.HashAlgorithm,
+                HashStrength = this.Info?.Ssl?.HashStrength ?? 0,
+                KeyExchangeAlgorithm = this.Info?.Ssl?.KeyExchangeAlgorithm,
+                KeyExchangeStrength = this.Info?.Ssl?.KeyExchangeStrength ?? 0,
+                LocalCertificateInfo = this.Info?.Ssl?.LocalCertificate?.ToString(),
+                LocalCertificateHashSHA1 = this.Info?.Ssl?.LocalCertificate?.HashSHA1,
+                RemoteCertificateInfo = this.Info?.Ssl?.RemoteCertificate?.ToString(),
+                RemoteCertificateHashSHA1 = this.Info?.Ssl?.RemoteCertificate?.HashSHA1,
+            };
+        }
+
         public async Task StartSslClientAsync(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
         {
             await Stack.SslStartClientAsync(sslClientAuthenticationOptions, cancellationToken);
         }
-
         public void StartSslClient(PalSslClientAuthenticationOptions sslClientAuthenticationOptions, CancellationToken cancellationToken = default)
             => StartSslClientAsync(sslClientAuthenticationOptions, cancellationToken)._GetResult();
+
+        public async Task StartSslServerAsync(PalSslServerAuthenticationOptions sslServerAuthenticationOptions, CancellationToken cancellationToken = default)
+        {
+            await Stack.SslStartServerAsync(sslServerAuthenticationOptions, cancellationToken);
+        }
+        public void StartSslServer(PalSslServerAuthenticationOptions sslServerAuthenticationOptions, CancellationToken cancellationToken = default)
+            => StartSslServerAsync(sslServerAuthenticationOptions, cancellationToken)._GetResult();
     }
 }
 
