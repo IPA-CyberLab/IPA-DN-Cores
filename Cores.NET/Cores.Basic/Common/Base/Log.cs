@@ -138,8 +138,18 @@ namespace IPA.Cores.Basic
         public string TypeName;
         public object Data;
 
+        static readonly FileSystemPathParser WinParser = FileSystemPathParser.GetInstance(FileSystemStyle.Windows);
+
         public void NormalizeReceivedLog(string defaultSrcMachineName)
         {
+            this.Guid = WinParser.MakeSafeFileName(this.Guid);
+            this.MachineName = WinParser.MakeSafeFileName(this.MachineName);
+            this.AppName = WinParser.MakeSafeFileName(this.AppName);
+            this.Kind = WinParser.MakeSafeFileName(this.Kind);
+            this.Priority = WinParser.MakeSafeFileName(this.Priority);
+            this.Tag = WinParser.MakeSafeFileName(this.Tag);
+            this.TypeName = WinParser.MakeSafeFileName(this.TypeName);
+
             if (this.TimeStamp == null) this.TimeStamp = DateTimeOffset.Now;
 
             if (this.Guid._IsEmpty()) this.Guid = Str.NewGuid();
@@ -151,7 +161,7 @@ namespace IPA.Cores.Basic
 
             if (this.Kind._IsEmpty()) this.Kind = LogKind.Default;
 
-            if (this.Priority._IsEmpty()) this.Priority = LogPriority.Info.ToString();
+            if (this.Priority._IsEmpty()) this.Priority = LogPriority.None.ToString();
 
             if (this.Tag._IsEmpty()) this.Tag = LogTag.None;
 

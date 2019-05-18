@@ -1038,7 +1038,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _ToPointerHexString(this IntPtr ptr) => $"0x{ptr.ToInt64():X}";
 
-        public static ConcurrentRandomAccess<T> CreateConcurrentRandomAccess<T>(this IRandomAccess<T> randomAccess) => new ConcurrentRandomAccess<T>(randomAccess);
+        public static ConcurrentRandomAccess<T> GetConcurrentRandomAccess<T>(this IRandomAccess<T> randomAccess) => new ConcurrentRandomAccess<T>(randomAccess);
 
         public static string _ToIPv4v6String(this AddressFamily family) => _ToIPv4v6String(family);
         public static string _ToIPv4v6String(this AddressFamily? family)

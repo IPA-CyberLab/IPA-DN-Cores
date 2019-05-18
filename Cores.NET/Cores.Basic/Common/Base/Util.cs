@@ -2862,6 +2862,7 @@ namespace IPA.Cores.Basic
         readonly Dictionary<TKey, TObject> Table;
         readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
         IHolder LeakHolder = null;
+        public IEnumerable<TKey> Keys => this.Table.Keys;
 
         public Singleton(Func<TKey, TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton1, IEqualityComparer<TKey> keyComparer = null)
         {
@@ -2916,6 +2917,49 @@ namespace IPA.Cores.Basic
                 list = this.Table.Values.ToArray();
                 this.Table.Clear();
             }
+
+            foreach (var obj in list)
+            {
+                if (obj is IDisposable disposeTarget)
+                    disposeTarget._DisposeSafe();
+            }
+        }
+    }
+
+    class SingletonSlim<TKey, TObject> where TObject : class
+    {
+        readonly Func<TKey, TObject> CreateProc;
+        readonly Dictionary<TKey, TObject> Table;
+        public IEnumerable<TKey> Keys => this.Table.Keys;
+
+        public SingletonSlim(Func<TKey, TObject> createProc, IEqualityComparer<TKey> keyComparer = null)
+        {
+            this.CreateProc = createProc;
+
+            if (keyComparer == null)
+                this.Table = new Dictionary<TKey, TObject>();
+            else
+                this.Table = new Dictionary<TKey, TObject>(keyComparer);
+        }
+
+        public TObject this[TKey key] => CreateOrGet(key);
+
+        public TObject CreateOrGet(TKey key)
+        {
+            if (this.Table.TryGetValue(key, out TObject obj) == false)
+            {
+                obj = this.CreateProc(key);
+                this.Table.Add(key, obj);
+            }
+            return obj;
+        }
+
+        public void Clear()
+        {
+            TObject[] list;
+            
+            list = this.Table.Values.ToArray();
+            this.Table.Clear();
 
             foreach (var obj in list)
             {

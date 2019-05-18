@@ -1346,7 +1346,12 @@ namespace IPA.Cores.Basic
                 sb.Append(s);
             }
 
-            return sb.ToString();
+            string ret = sb.ToString();
+
+            string trim = ret.Trim();
+            if (trim == "." || trim == "..") ret = "_";
+
+            return ret;
         }
     }
 
@@ -1433,7 +1438,7 @@ namespace IPA.Cores.Basic
 
             FileSystemObjectPool pool = writeMode ? ObjectPoolForWrite : ObjectPoolForRead;
 
-            RefObjectHandle<FileBase> refFileBase = await pool.OpenOrGetAsync(fileName, flags, cancel);
+            RefCounterObjectHandle<FileBase> refFileBase = await pool.OpenOrGetAsync(fileName, flags, cancel);
 
             return new RandomAccessHandle(refFileBase);
         }

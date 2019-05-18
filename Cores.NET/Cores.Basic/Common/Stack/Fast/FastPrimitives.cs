@@ -301,16 +301,5 @@ namespace IPA.Cores.Basic
             }
         }
     }
-
-    class NetReader
-    {
-        public Stream BaseStream { get; }
-
-        public NetReader(Stream baseStream)
-        {
-            BufferedStream s;
-            this.BaseStream = baseStream;
-        }
-    }
 }
 

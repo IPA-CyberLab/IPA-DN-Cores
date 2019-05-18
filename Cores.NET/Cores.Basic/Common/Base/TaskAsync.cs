@@ -3525,12 +3525,12 @@ namespace IPA.Cores.Basic
         public RefCounterHolder AddRef() => new RefCounterHolder(this);
     }
 
-    class RefObjectHandle<T> : IDisposable
+    class RefCounterObjectHandle<T> : IDisposable
     {
         public T Object { get; }
         readonly RefCounterHolder CounterHolder;
 
-        public RefObjectHandle(T obj, Action onDispose)
+        public RefCounterObjectHandle(T obj, Action onDispose)
         {
             this.Object = obj;
             RefCounter counter = new RefCounter();
@@ -3546,7 +3546,7 @@ namespace IPA.Cores.Basic
             this.CounterHolder = counter.AddRef();
         }
 
-        public RefObjectHandle(RefCounter counter, T obj)
+        public RefCounterObjectHandle(RefCounter counter, T obj)
         {
             this.Object = obj;
             this.CounterHolder = counter.AddRef();
@@ -3595,7 +3595,7 @@ namespace IPA.Cores.Basic
                 });
             }
 
-            public RefObjectHandle<TObject> TryGetIfAlive()
+            public RefCounterObjectHandle<TObject> TryGetIfAlive()
             {
                 try
                 {
@@ -3607,7 +3607,7 @@ namespace IPA.Cores.Basic
                         {
                             this.LastReleasedTick = 0;
 
-                            return new RefObjectHandle<TObject>(this.Counter, this.Object);
+                            return new RefCounterObjectHandle<TObject>(this.Counter, this.Object);
                         }
                     }
                 }
@@ -3644,7 +3644,7 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<TObject> OpenImplAsync(string key, TParam param, CancellationToken cancel);
 
-        public async Task<RefObjectHandle<TObject>> OpenOrGetAsync(string key, TParam param, CancellationToken cancel = default)
+        public async Task<RefCounterObjectHandle<TObject>> OpenOrGetAsync(string key, TParam param, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
@@ -3672,7 +3672,7 @@ namespace IPA.Cores.Basic
                         ObjectList.Add(key, entry);
                     }
 
-                    RefObjectHandle<TObject> ret = entry.TryGetIfAlive();
+                    RefCounterObjectHandle<TObject> ret = entry.TryGetIfAlive();
                     if (ret == null)
                     {
                         ObjectList.Remove(key);

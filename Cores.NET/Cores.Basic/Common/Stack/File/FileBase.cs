@@ -1019,7 +1019,7 @@ namespace IPA.Cores.Basic
 
     class RandomAccessHandle : IRandomAccess<byte>, IDisposable
     {
-        readonly RefObjectHandle<FileBase> Ref;
+        readonly RefCounterObjectHandle<FileBase> Ref;
         readonly FileBase File;
         bool DisposeFile = false;
 
@@ -1032,7 +1032,7 @@ namespace IPA.Cores.Basic
             this.DisposeFile = disposeObject;
         }
 
-        public RandomAccessHandle(RefObjectHandle<FileBase> objHandle)
+        public RandomAccessHandle(RefCounterObjectHandle<FileBase> objHandle)
         {
             this.Ref = objHandle;
             this.File = this.Ref.Object;

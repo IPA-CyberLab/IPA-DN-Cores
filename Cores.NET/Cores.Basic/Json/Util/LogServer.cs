@@ -86,11 +86,13 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> BinaryData;
         public LogJsonData JsonData;
 
-        HashSet<string> DestFileName = new HashSet<string>(Lfs.PathParser.PathStringComparer);
+        HashSet<string> DestFileNamesHashInternal = new HashSet<string>(Lfs.PathParser.PathStringComparer);
+
+        public IEnumerable<string> DestFileNames => DestFileNamesHashInternal;
 
         public void AddDestinationFileName(string fileName)
         {
-            DestFileName.Add(fileName);
+            DestFileNamesHashInternal.Add(fileName);
         }
     }
 
@@ -205,14 +207,17 @@ namespace IPA.Cores.Basic
     {
         public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
 
+        public FileOperationFlags FileFlags { get; }
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileOperationFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 
             this.DestRootDirName = destRootDirName;
+
+            this.FileFlags = fileFlags;
 
             this.DestFileSystem = destFileSystem ?? LLfsUtf8;
 
@@ -233,16 +238,66 @@ namespace IPA.Cores.Basic
         public static void DefaultSetDestinationsProc(LogServerReceivedData data, LogServerOptions options)
         {
             FileSystem fs = options.DestFileSystem;
+            FileSystemPathParser parser = fs.PathParser;
             string root = options.DestRootDirName;
+            LogPriority priority = data.JsonData.Priority._ParseEnum(LogPriority.None);
+            LogJsonData d = data.JsonData;
 
-            LogPriority p = data.JsonData.Priority._ParseEnum(LogPriority.Info);
+            if (d.Kind._IsSamei(LogKind.Default))
+            {
+                if (priority >= LogPriority.Debug)
+                    Add($"{d.AppName}/{d.MachineName}/Debug");
+
+                if (priority >= LogPriority.Error)
+                    Add($"{d.AppName}/{d.MachineName}/Error");
+
+                if (priority >= LogPriority.Info)
+                    Add($"{d.AppName}/{d.MachineName}/Info");
+            }
+            else
+            {
+                Add($"{d.AppName}/{d.MachineName}/{d.Kind}");
+            }
+
+            void Add(string filename)
+            {
+                data.AddDestinationFileName(parser.NormalizeDirectorySeparator(parser.Combine(root, filename + ".log")));
+            }
         }
 
         protected override async Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList)
         {
+            SingletonSlim<string, MemoryBuffer<byte>> writeBufferList =
+                new SingletonSlim<string, MemoryBuffer<byte>>((filename) => new MemoryBuffer<byte>(), this.Options.DestFileSystem.PathParser.PathStringComparer);
+
             foreach (LogServerReceivedData data in dataList)
             {
                 Options.SetDestinationsProc(data, this.Options);
+
+                foreach (string fileName in data.DestFileNames)
+                {
+                    var buffer = writeBufferList[fileName];
+
+                    buffer.Write(data.BinaryData);
+                    buffer.Write(Str.NewLine_Bytes_Windows);
+                }
+            }
+
+            foreach (string fileName in writeBufferList.Keys)
+            {
+                try
+                {
+                    var buffer = writeBufferList[fileName];
+
+                    var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags);
+                    var concurrentHandle = handle.GetConcurrentRandomAccess();
+
+                    await concurrentHandle.AppendAsync(buffer.Memory);
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteDebug($"LogReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
+                }
             }
         }
     }
