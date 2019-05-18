@@ -73,9 +73,11 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            var x = new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert.p12"));
-            Con.WriteLine(x.ToString());
-            Con.WriteLine(x.HashSHA1);
+            using (var sock = LocalNet.Connect(new TcpConnectParam("127.0.0.1", 444)))
+            using (var ssl = sock.SslStartClient(new PalSslClientAuthenticationOptions("a", false, null, "5DAD0FEDDED8A046AE9B6FCFF90B77A956C2CEB2")))
+            {
+                Dbg.Where();
+            }
         }
     }
 }

@@ -62,6 +62,8 @@ namespace IPA.Cores.Basic
 
         public PalX509Certificate(X509Certificate nativeCertificate)
         {
+            if (nativeCertificate == null) throw new ArgumentNullException("nativeCertificate");
+
             NativeCertificate = nativeCertificate;
         }
 
@@ -303,6 +305,22 @@ namespace IPA.Cores.Basic
             }
             return false;
         }
+
+        public static bool IsSocketErrorDisconnected(SocketException e)
+        {
+            try
+            {
+                switch (e.SocketErrorCode)
+                {
+                    case SocketError.ConnectionReset:
+                    case SocketError.Disconnecting:
+                        return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
     }
 
     class PalStream : StreamImplBase
@@ -352,6 +370,14 @@ namespace IPA.Cores.Basic
     {
         public PalSslClientAuthenticationOptions() { }
 
+        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] serverCertSHA1List)
+        {
+            this.TargetHost = targetHost;
+            this.AllowAnyServerCert = allowAnyServerCert;
+            this.ValidateRemoteCertificateProc = validateRemoteCertificateProc;
+            this.ServerCertSHA1List = serverCertSHA1List;
+        }
+
         public string TargetHost { get; set; }
         public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
         public string[] ServerCertSHA1List { get; set; } = new string[0];
@@ -390,14 +416,22 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions() { }
 
+        public PalSslServerAuthenticationOptions(PalX509Certificate serverCertificate, bool allowAnyClientCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] clientCertSHA1List)
+        {
+            this.AllowAnyClientCert = allowAnyClientCert;
+            this.ValidateRemoteCertificateProc = validateRemoteCertificateProc;
+            this.ClientCertSHA1List = clientCertSHA1List;
+            this.ServerCertificate = serverCertificate;
+        }
+
         public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
         public string[] ClientCertSHA1List { get; set; } = new string[0];
         public bool AllowAnyClientCert { get; set; } = true;
 
-        public PalSslCertificateSelectionCallback CertificateSelectionProc { get; set; }
-        public object CertificateSelectionProcParam { get; set; }
+        public PalSslCertificateSelectionCallback ServerCertificateSelectionProc { get; set; }
+        public object ServerCertificateSelectionProcParam { get; set; }
 
-        public PalX509Certificate Certificate { get; set; }
+        public PalX509Certificate ServerCertificate { get; set; }
 
         public SslServerAuthenticationOptions GetNativeOptions()
         {
@@ -406,6 +440,8 @@ namespace IPA.Cores.Basic
                 AllowRenegotiation = true,
                 RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
                 {
+                    if (cert == null) return this.AllowAnyClientCert;
+
                     string sha1 = cert.GetCertHashString();
 
                     bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
@@ -421,23 +457,23 @@ namespace IPA.Cores.Basic
 
             bool certExists = false;
 
-            if (this.CertificateSelectionProc != null)
+            if (this.ServerCertificateSelectionProc != null)
             {
-                object param = this.CertificateSelectionProcParam;
+                object param = this.ServerCertificateSelectionProcParam;
                 ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
                 {
-                    PalX509Certificate cert = this.CertificateSelectionProc(param, sniHostName);
+                    PalX509Certificate cert = this.ServerCertificateSelectionProc(param, sniHostName);
                     return cert.NativeCertificate;
                 };
 
                 certExists = true;
             }
 
-            if (this.Certificate != null)
+            if (this.ServerCertificate != null)
             {
                 ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
                 {
-                    return this.Certificate.NativeCertificate;
+                    return this.ServerCertificate.NativeCertificate;
                 };
 
                 certExists = true;
@@ -471,8 +507,8 @@ namespace IPA.Cores.Basic
         public int HashStrength => Ssl.HashStrength;
         public string KeyExchangeAlgorithm => Ssl.KeyExchangeAlgorithm.ToString();
         public int KeyExchangeStrength => Ssl.KeyExchangeStrength;
-        public PalX509Certificate LocalCertificate => new PalX509Certificate(Ssl.LocalCertificate);
-        public PalX509Certificate RemoteCertificate => new PalX509Certificate(Ssl.RemoteCertificate);
+        public PalX509Certificate LocalCertificate => Ssl.LocalCertificate == null ? null : new PalX509Certificate(Ssl.LocalCertificate);
+        public PalX509Certificate RemoteCertificate => Ssl.RemoteCertificate == null ? null : new PalX509Certificate(Ssl.RemoteCertificate);
 
         Once DisposeFlag;
         protected override void Dispose(bool disposing)

@@ -1036,6 +1036,8 @@ namespace IPA.Cores.Helper.Basic
         public static object _PrivateInvoke(this object obj, string name, params object[] parameters) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).Invoke(obj, name, parameters);
 
         public static bool _IsSubClassOfOrSame(this Type deriverClass, Type baseClass) => deriverClass == baseClass || deriverClass.IsSubclassOf(baseClass);
+
+        public static bool _IsSocketErrorDisconnected(this SocketException e) => PalSocket.IsSocketErrorDisconnected(e);
     }
 }
 

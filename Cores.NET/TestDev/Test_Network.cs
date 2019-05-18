@@ -105,9 +105,54 @@ namespace IPA.TestDev
 
             //Net_Test8_Http_Upload_Async()._GetResult();
 
-            Net_Test9_WebServer();
+            //Net_Test9_WebServer();
+
+            Net_Test10_SslServer();
 
             return 0;
+        }
+
+        class SslServerTest : SslServerBase
+        {
+            public SslServerTest(SslServerOptions options) : base(options)
+            {
+            }
+
+            protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
+            {
+                Dbg.Where();
+                using (var stream = sock.GetStream())
+                using (var r = new StreamReader(stream))
+                using (var w = new StreamWriter(stream))
+                {
+                    while (true)
+                    {
+                        string recv = await r.ReadLineAsync();
+                        if (recv == null)
+                            return;
+
+                        Con.WriteLine(recv);
+
+                        await w.WriteLineAsync("[" + recv + "]\r\n");
+                        await w.FlushAsync();
+                    }
+                }
+            }
+        }
+
+        static void Net_Test10_SslServer()
+        {
+            SslServerOptions opt = new SslServerOptions(LocalNet, new PalSslServerAuthenticationOptions()
+            {
+                AllowAnyClientCert = true,
+                ServerCertificate = DevTools.TestSampleCert,
+            },
+            IPUtil.GenerateListeningEndPointsList(false, 444));
+
+            using (SslServerTest svr = new SslServerTest(opt))
+            {
+                Con.ReadLine("Enter to quit:");
+            }
         }
 
         static void Net_Test9_WebServer()

@@ -265,5 +265,19 @@ namespace IPA.Cores.Basic
         public void StartSslServer(PalSslServerAuthenticationOptions sslServerAuthenticationOptions, CancellationToken cancellationToken = default)
             => StartSslServerAsync(sslServerAuthenticationOptions, cancellationToken)._GetResult();
     }
+
+    static class SslSockHelper
+    {
+        public static async Task<SslSock> SslStartClientAsync(this ConnSock baseSock, PalSslClientAuthenticationOptions sslOptions, CancellationToken cancel = default)
+        {
+            SslSock ret = new SslSock(baseSock);
+
+            await ret.StartSslClientAsync(sslOptions, cancel);
+
+            return ret;
+        }
+        public static SslSock SslStartClient(this ConnSock baseSock, PalSslClientAuthenticationOptions sslOptions, CancellationToken cancel = default)
+            => SslStartClientAsync(baseSock, sslOptions, cancel)._GetResult();
+    }
 }
 

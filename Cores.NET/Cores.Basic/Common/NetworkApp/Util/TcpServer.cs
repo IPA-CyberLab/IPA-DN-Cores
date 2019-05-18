@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
             this.AddIndirectDisposeLink(listener);
         }
 
-        protected abstract Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock s);
+        protected abstract Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock sock);
 
         async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
         {
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class SslServerOptions : TcpServerOptions
+    class SslServerOptions : TcpServerOptions
     {
         public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
 
@@ -94,11 +94,11 @@ namespace IPA.Cores.Basic
     {
         protected new SslServerOptions Options => (SslServerOptions)base.Options;
 
-        public SslServerBase(TcpServerOptions options) : base(options)
+        public SslServerBase(SslServerOptions options) : base(options)
         {
         }
 
-        protected abstract Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock s);
+        protected abstract Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock);
 
         protected sealed override async Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock s)
         {

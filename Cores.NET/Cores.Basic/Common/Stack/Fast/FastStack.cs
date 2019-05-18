@@ -951,6 +951,11 @@ namespace IPA.Cores.Basic
             {
                 await AcceptedProc(listener, sock);
             }
+            catch (SocketException ex) when (ex._IsSocketErrorDisconnected()) { }
+            catch (Exception ex)
+            {
+                Dbg.WriteLine("AcceptProc error: " + ex.ToString());
+            }
             finally
             {
                 sock._CancelSafe(new DisconnectedException());
@@ -977,6 +982,7 @@ namespace IPA.Cores.Basic
                     });
                 }
             }
+            catch (SocketException ex) when (ex._IsSocketErrorDisconnected()) { }
             catch (Exception ex)
             {
                 Dbg.WriteLine("AcceptedProc error: " + ex.ToString());
