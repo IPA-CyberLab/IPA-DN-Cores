@@ -4554,5 +4554,32 @@ namespace IPA.Cores.Basic
             this.TelnetLogWatcherPort = telnetLogWatcherPort;
         }
     }
+
+    class SizedDataQueue<T>
+    {
+        readonly List<T> InternalList;
+
+        public long CurrentTotalSize { get; private set; }
+
+        public IReadOnlyList<T> List => this.InternalList;
+
+        public SizedDataQueue()
+        {
+            this.InternalList = new List<T>();
+        }
+
+        public void Add(T t, long size)
+        {
+            if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
+            this.InternalList.Add(t);
+            this.CurrentTotalSize += size;
+        }
+
+        public void Clear()
+        {
+            this.InternalList.Clear();
+            this.CurrentTotalSize = 0;
+        }
+    }
 }
 

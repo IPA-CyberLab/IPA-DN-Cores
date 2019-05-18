@@ -73,6 +73,11 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            var x = LogPriority.Debug.ToString()._ParseEnum(LogPriority.None);
+            var y = LogPriority.Trace.ToString().ToLowerInvariant()._ParseEnum(LogPriority.Error);
+
+            Con.WriteLine(x);
+            Con.WriteLine(y);
         }
     }
 }

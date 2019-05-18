@@ -711,7 +711,7 @@ namespace IPA.Cores.Basic
 
         public async Task<Memory<byte>> ReceiveAllAsync(int size, CancellationToken cancel = default)
         {
-            Memory<byte> buffer = MemoryHelper.FastAllocMemoryMoreThan<byte>(size);
+            Memory<byte> buffer = MemoryHelper.FastAllocMemory<byte>(size);
             await ReceiveAllAsync(buffer, cancel);
             return buffer;
         }

@@ -137,6 +137,26 @@ namespace IPA.Cores.Basic
         public string Tag;
         public string TypeName;
         public object Data;
+
+        public void NormalizeReceivedLog(string defaultSrcMachineName)
+        {
+            if (this.TimeStamp == null) this.TimeStamp = DateTimeOffset.Now;
+
+            if (this.Guid._IsEmpty()) this.Guid = Str.NewGuid();
+
+            this.MachineName = this.MachineName._NonNullTrim().ToLower();
+            if (this.MachineName._IsEmpty()) this.MachineName = defaultSrcMachineName;
+
+            if (this.AppName._IsEmpty()) this.AppName = "unknown";
+
+            if (this.Kind._IsEmpty()) this.Kind = LogKind.Default;
+
+            if (this.Priority._IsEmpty()) this.Priority = LogPriority.Info.ToString();
+
+            if (this.Tag._IsEmpty()) this.Tag = LogTag.None;
+
+            if (this.TypeName._IsEmpty()) this.TypeName = "unknown";
+        }
     }
 
     class LogRecord

@@ -147,6 +147,16 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark($"ParseEnum", Benchmark_CountForNormal, count =>
+            {
+                string str = LogPriority.Info.ToString();
+
+                for (int c = 0; c < count; c++)
+                {
+                    str._ParseEnum(LogPriority.Trace);
+                }
+            }), enabled: true, priority: 190518)
+
             .Add(new MicroBenchmark($"Memory Copy by Array.CopyTo (Util.CopyByte) {memcopyLength._ToString3()} bytes", Benchmark_CountForSlow, count =>
             {
                 for (int c = 0; c < count; c++)

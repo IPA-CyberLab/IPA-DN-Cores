@@ -58,6 +58,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
             public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
 
+            public static readonly Copenhagen<int> MaxBufferingSizePerServer = (96 * 1024 * 1024); // 96MB
+
             public static readonly Copenhagen<int> MaxDataSize = (64 * 1024 * 1024); // 64MB
         }
     }
@@ -79,6 +81,19 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class LogServerReceivedData
+    {
+        public ReadOnlyMemory<byte> BinaryData;
+        public LogJsonData JsonData;
+
+        HashSet<string> DestFileName = new HashSet<string>(Lfs.PathParser.PathStringComparer);
+
+        public void AddDestinationFileName(string fileName)
+        {
+            DestFileName.Add(fileName);
+        }
+    }
+
     abstract class LogServerBase : SslServerBase
     {
         public const int MagicNumber = 0x415554a4;
@@ -86,7 +101,7 @@ namespace IPA.Cores.Basic
 
         protected new LogServerOptionsBase Options => (LogServerOptionsBase)base.Options;
 
-        protected abstract Task LogReceiveImplAsync(ReadOnlyMemory<byte> binaryData, LogJsonData jsonData);
+        protected abstract Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList);
 
         public LogServerBase(LogServerOptionsBase options) : base(options)
         {
@@ -107,50 +122,103 @@ namespace IPA.Cores.Basic
                 sendBuffer.WriteSInt32(ServerVersion);
                 await st.SendAsync(sendBuffer);
 
-                while (true)
+                SizedDataQueue<Memory<byte>> standardLogQueue = new SizedDataQueue<Memory<byte>>();
+                try
                 {
-                    LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
-
-                    switch (type)
+                    while (true)
                     {
-                        case LogProtocolDataType.StandardLog:
-                            {
-                                int size = await st.ReceiveSInt32Async();
+                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogServerSettings.MaxBufferingSizePerServer || st.IsReadyToReceive(sizeof(int)) == false)
+                        {
+                            var list = standardLogQueue.List;
+                            standardLogQueue.Clear();
+                            await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, list);
+                        }
 
-                                if (size > CoresConfig.LogServerSettings.MaxDataSize)
-                                    throw new ApplicationException($"size > MaxDataSize. size = {size}");
+                        LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
 
-                                using (MemoryHelper.FastAllocMemoryWithUsing(size, out Memory<byte> data))
+                        switch (type)
+                        {
+                            case LogProtocolDataType.StandardLog:
                                 {
+                                    int size = await st.ReceiveSInt32Async();
+
+                                    if (size > CoresConfig.LogServerSettings.MaxDataSize)
+                                        throw new ApplicationException($"size > MaxDataSize. size = {size}");
+
+                                    Memory<byte> data = MemoryHelper.FastAllocMemory<byte>(size);
+
                                     await st.ReceiveAllAsync(data);
 
-                                    await LogDataReceivedInternal(data);
+                                    standardLogQueue.Add(data, data.Length);
+
+                                    break;
                                 }
 
-                                break;
-                            }
-
-                        default:
-                            throw new ApplicationException("Invalid LogProtocolDataType");
+                            default:
+                                throw new ApplicationException("Invalid LogProtocolDataType");
+                        }
                     }
+                }
+                finally
+                {
+                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, standardLogQueue.List);
                 }
             }
         }
 
-        async Task LogDataReceivedInternal(Memory<byte> data)
+        async Task LogDataReceivedInternalAsync(string srcHostName, IReadOnlyList<Memory<byte>> dataList)
         {
-            string str = data._GetString_UTF8();
-            LogJsonData json = str._JsonToObject<LogJsonData>();
+            if (dataList.Count == 0) return;
 
-            await LogReceiveImplAsync(data, json);
+            List<LogServerReceivedData> list = new List<LogServerReceivedData>();
+
+            foreach (Memory<byte> data in dataList)
+            {
+                try
+                {
+                    string str = data._GetString_UTF8();
+
+                    LogServerReceivedData d = new LogServerReceivedData()
+                    {
+                        BinaryData = data,
+                        JsonData = str._JsonToObject<LogJsonData>(),
+                    };
+
+                    d.JsonData.NormalizeReceivedLog(srcHostName);
+
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError($"LogDataReceivedInternalAsync: {ex.ToString()}");
+                }
+            }
+
+            if (list.Count >= 1)
+            {
+                await LogReceiveImplAsync(list);
+            }
         }
     }
 
     class LogServerOptions : LogServerOptionsBase
     {
+        public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
 
-        public LogServerOptions(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
+        public FileSystem DestFileSystem { get; }
+        public string DestRootDirName { get; }
+
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
         {
+            if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
+
+            this.DestRootDirName = destRootDirName;
+
+            this.DestFileSystem = destFileSystem ?? LLfsUtf8;
+
+            this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
+
+            this.SetDestinationsProc = setDestinationProc;
         }
     }
 
@@ -162,9 +230,20 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override Task LogReceiveImplAsync(ReadOnlyMemory<byte> binaryData, LogJsonData jsonData)
+        public static void DefaultSetDestinationsProc(LogServerReceivedData data, LogServerOptions options)
         {
-            throw new NotImplementedException();
+            FileSystem fs = options.DestFileSystem;
+            string root = options.DestRootDirName;
+
+            LogPriority p = data.JsonData.Priority._ParseEnum(LogPriority.Info);
+        }
+
+        protected override async Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList)
+        {
+            foreach (LogServerReceivedData data in dataList)
+            {
+                Options.SetDestinationsProc(data, this.Options);
+            }
         }
     }
 }

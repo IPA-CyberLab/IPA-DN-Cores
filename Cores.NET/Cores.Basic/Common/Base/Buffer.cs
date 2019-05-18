@@ -2576,7 +2576,7 @@ namespace IPA.Cores.Basic
                 return ArrayPool<T>.Shared.Rent(size);
         }
 
-        public static Memory<T> FastAllocMemoryMoreThan<T>(int size)
+        public static Memory<T> FastAllocMemory<T>(int size)
         {
             if (size < MemoryUsePoolThreshold)
                 return new T[size];

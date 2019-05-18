@@ -656,8 +656,8 @@ namespace IPA.Cores.Basic
 
     class StrComparer : IEqualityComparer<string>, IComparer<string>
     {
-        public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(true);
-        public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(false);
+        public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
+        public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
 
         public StringComparison Comparison { get; }
 
@@ -678,7 +678,7 @@ namespace IPA.Cores.Basic
             => x.Equals(y, this.Comparison);
 
         public int GetHashCode(string obj)
-            => obj.GetHashCode();
+            => obj.GetHashCode(this.Comparison);
     }
 
     delegate bool RemoveStringFunction(string str);
@@ -3715,26 +3715,41 @@ namespace IPA.Cores.Basic
         {
             return StrToEnum(str, defaultValue);
         }
+
+        static Singleton<Type, Dictionary<string, object>> EnumCacheCaseSensitive = new Singleton<Type, Dictionary<string, object>>(t =>
+        {
+            string[] names = Enum.GetNames(t);
+            Dictionary<string, object> d = new Dictionary<string, object>();
+            foreach (string name in names)
+            {
+                d.Add(name, Enum.Parse(t, name));
+            }
+            return d;
+        }, LeakCounterKind.DoNotTrack);
+
+        static Singleton<Type, Dictionary<string, object>> EnumCacheCaseIgnore = new Singleton<Type, Dictionary<string, object>>(t =>
+        {
+            string[] names = Enum.GetNames(t);
+            Dictionary<string, object> d = new Dictionary<string, object>(StrComparer.IgnoreCaseComparer);
+            foreach (string name in names)
+            {
+                d.Add(name, Enum.Parse(t, name));
+            }
+            return d;
+        }, LeakCounterKind.DoNotTrack);
+
         public static object StrToEnum(string str, object defaultValue)
         {
-            try
+            Type type = defaultValue.GetType();
+            if (EnumCacheCaseSensitive[type].TryGetValue(str, out object ret))
             {
-                string[] names = Enum.GetNames(defaultValue.GetType());
-                bool is_ok = false;
-                foreach (string name in names)
-                    if (Str.StrCmpi(str, name))
-                    {
-                        is_ok = true;
-                        break;
-                    }
-                if (is_ok == false)
-                    return defaultValue;
-                return Enum.Parse(defaultValue.GetType(), str, true);
+                return ret;
             }
-            catch
+            if (EnumCacheCaseIgnore[type].TryGetValue(str, out object ret2))
             {
-                return defaultValue;
+                return ret2;
             }
+            return defaultValue;
         }
 
         // 文字列を bool に変換する

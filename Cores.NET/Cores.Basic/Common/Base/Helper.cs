@@ -459,7 +459,7 @@ namespace IPA.Cores.Helper.Basic
             {
                 return await ps.ReceiveAllAsync(size, cancel);
             }
-            Memory<byte> tmp = MemoryHelper.FastAllocMemoryMoreThan<byte>(size);
+            Memory<byte> tmp = MemoryHelper.FastAllocMemory<byte>(size);
             await _ReadAllAsync(stream, tmp, cancel);
             return tmp;
         }
@@ -486,7 +486,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static async Task<Memory<byte>> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool? readAll = false, CancellationToken cancel = default)
         {
-            Memory<byte> tmp = MemoryHelper.FastAllocMemoryMoreThan<byte>(maxSize);
+            Memory<byte> tmp = MemoryHelper.FastAllocMemory<byte>(maxSize);
             int ret = await stream._ReadAsyncWithTimeout(tmp, timeout,
                 readAll: readAll,
                 cancel: cancel);
@@ -737,7 +737,7 @@ namespace IPA.Cores.Helper.Basic
         {
             return Str.ParseEnum<T>(str, defaultValue);
         }
-
+        
         public static T _ParseEnum<T>(this string str, T defaultValue) where T : Enum
         {
             return Str.ParseEnum<T>(str, defaultValue);
