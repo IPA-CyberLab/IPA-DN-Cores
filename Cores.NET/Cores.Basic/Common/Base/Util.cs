@@ -1689,6 +1689,21 @@ namespace IPA.Cores.Basic
             return (RandUInt32() % 2) == 0;
         }
 
+        public static int GenRandInterval(int standard, double plusMinusPercentage = 30.0)
+        {
+            double rate = plusMinusPercentage / 100.0;
+            int v = (int)((double)standard * rate);
+            if (v == 0) return standard;
+            bool b = Util.RandBool();
+            v = Util.RandSInt31() % v;
+            int ret;
+            if (b)
+                ret = standard + v;
+            else
+                ret = standard - v;
+            return Math.Max(ret, 1);
+        }
+
         public static int GenRandInterval(int min, int max)
         {
             int a = Math.Min(min, max);

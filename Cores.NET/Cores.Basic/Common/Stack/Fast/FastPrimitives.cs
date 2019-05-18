@@ -43,6 +43,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO;
 
 namespace IPA.Cores.Basic
 {
@@ -301,5 +302,15 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class NetReader
+    {
+        public Stream BaseStream { get; }
+
+        public NetReader(Stream baseStream)
+        {
+            BufferedStream s;
+            this.BaseStream = baseStream;
+        }
+    }
 }
 

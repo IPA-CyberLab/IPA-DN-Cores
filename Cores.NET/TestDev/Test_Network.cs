@@ -120,7 +120,6 @@ namespace IPA.TestDev
 
             protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
             {
-                Dbg.Where();
                 using (var stream = sock.GetStream())
                 using (var r = new StreamReader(stream))
                 using (var w = new StreamWriter(stream))

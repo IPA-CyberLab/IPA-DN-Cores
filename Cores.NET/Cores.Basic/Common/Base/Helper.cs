@@ -453,21 +453,51 @@ namespace IPA.Cores.Helper.Basic
             });
         }
 
-        public static async Task<byte[]> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool? readAll = false, CancellationToken cancel = default)
+        public static async Task<Memory<byte>> _ReadAllAsync(this Stream stream, int size, CancellationToken cancel = default)
         {
-            byte[] tmp = new byte[maxSize];
-            int ret = await stream._ReadAsyncWithTimeout(tmp, 0, tmp.Length, timeout,
-                readAll: readAll,
-                cancel: cancel);
-            return Util.CopyByte(tmp, 0, ret);
+            if (stream is PipeStream ps)
+            {
+                return await ps.ReceiveAllAsync(size, cancel);
+            }
+            Memory<byte> tmp = MemoryHelper.FastAllocMemoryMoreThan<byte>(size);
+            await _ReadAllAsync(stream, tmp, cancel);
+            return tmp;
         }
 
-        public static async Task<int> _ReadAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int? count = null, int? timeout = null, bool? readAll = false, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
+        public static async Task _ReadAllAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancel = default)
+        {
+            if (stream is PipeStream ps)
+            {
+                await ps.ReceiveAllAsync(buffer, cancel);
+                return;
+            }
+
+            if (buffer.Length == 0) return;
+            int currentReadSize = 0;
+
+            while (currentReadSize != buffer.Length)
+            {
+                int sz = await stream.ReadAsync(buffer.Slice(currentReadSize, buffer.Length - currentReadSize), cancel);
+                if (sz == 0) throw new DisconnectedException();
+
+                currentReadSize += sz;
+            }
+        }
+
+        public static async Task<Memory<byte>> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool? readAll = false, CancellationToken cancel = default)
+        {
+            Memory<byte> tmp = MemoryHelper.FastAllocMemoryMoreThan<byte>(maxSize);
+            int ret = await stream._ReadAsyncWithTimeout(tmp, timeout,
+                readAll: readAll,
+                cancel: cancel);
+            return tmp.Slice(0, ret);
+        }
+
+        public static async Task<int> _ReadAsyncWithTimeout(this Stream stream, Memory<byte> buffer, int? timeout = null, bool? readAll = false, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout == null) timeout = stream.ReadTimeout;
             if (timeout <= 0) timeout = Timeout.Infinite;
-            int targetReadSize = count ?? (buffer.Length - offset);
-            if (targetReadSize == 0) return 0;
+            if (buffer.Length == 0) return 0;
 
             try
             {
@@ -475,18 +505,20 @@ namespace IPA.Cores.Helper.Basic
                 {
                     if (readAll == false)
                     {
-                        return await stream.ReadAsync(buffer, offset, targetReadSize, cancelLocal);
+                        int a = await stream.ReadAsync(buffer, cancelLocal);
+                        if (a <= 0) throw new DisconnectedException();
+                        return a;
                     }
                     else
                     {
                         int currentReadSize = 0;
 
-                        while (currentReadSize != targetReadSize)
+                        while (currentReadSize != buffer.Length)
                         {
-                            int sz = await stream.ReadAsync(buffer, offset + currentReadSize, targetReadSize - currentReadSize, cancelLocal);
-                            if (sz == 0)
+                            int sz = await stream.ReadAsync(buffer.Slice(currentReadSize, buffer.Length - currentReadSize), cancelLocal);
+                            if (sz <= 0)
                             {
-                                return 0;
+                                throw new DisconnectedException();
                             }
 
                             currentReadSize += sz;
@@ -1038,6 +1070,37 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsSubClassOfOrSame(this Type deriverClass, Type baseClass) => deriverClass == baseClass || deriverClass.IsSubclassOf(baseClass);
 
         public static bool _IsSocketErrorDisconnected(this SocketException e) => PalSocket.IsSocketErrorDisconnected(e);
+
+        public static async Task<bool> ReceiveBool8Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(1, cancel))._GetBool8();
+
+        public static async Task<byte> ReceiveUInt8Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(1, cancel))._GetUInt8();
+
+        public static async Task<byte> ReceiveByteAsync(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(1, cancel)).Span[0];
+
+        public static async Task<ushort> ReceiveUInt16Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(2, cancel))._GetUInt16();
+
+        public static async Task<uint> ReceiveUInt32Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(4, cancel))._GetUInt32();
+
+        public static async Task<ulong> ReceiveUInt64Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(8, cancel))._GetUInt64();
+
+        public static async Task<sbyte> ReceiveSInt8Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(1, cancel))._GetSInt8();
+
+        public static async Task<short> ReceiveSInt16Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(2, cancel))._GetSInt16();
+
+        public static async Task<int> ReceiveSInt32Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(4, cancel))._GetSInt32();
+
+        public static async Task<long> ReceiveSInt64Async(this Stream stream, CancellationToken cancel = default)
+            => (await stream._ReadAllAsync(8, cancel))._GetSInt64();
+
     }
 }
 

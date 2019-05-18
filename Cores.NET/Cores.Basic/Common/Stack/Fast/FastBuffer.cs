@@ -79,9 +79,10 @@ namespace IPA.Cores.Basic
 
         CriticalSection LockObj { get; }
 
-        bool IsReadyToWrite { get; }
-        bool IsReadyToRead { get; }
+        bool IsReadyToWrite();
+        bool IsReadyToRead(int size = 1);
         bool IsEventsEnabled { get; }
+
         AsyncAutoResetEvent EventWriteReady { get; }
         AsyncAutoResetEvent EventReadReady { get; }
 
@@ -102,7 +103,7 @@ namespace IPA.Cores.Basic
             timer.AddTimeout(PollingTimeout);
             long timeoutTick = timer.AddTimeout(timeout);
 
-            while (writer.IsReadyToWrite == false)
+            while (writer.IsReadyToWrite() == false)
             {
                 if (FastTick64.Now >= timeoutTick) throw new TimeoutException();
                 cancel.ThrowIfCancellationRequested();
@@ -117,14 +118,14 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout)
+        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1)
         {
             LocalTimer timer = new LocalTimer();
 
             timer.AddTimeout(PollingTimeout);
             long timeoutTick = timer.AddTimeout(timeout);
 
-            while (reader.IsReadyToRead == false)
+            while (reader.IsReadyToRead(sizeToRead) == false)
             {
                 if (FastTick64.Now >= timeoutTick) throw new TimeoutException();
                 cancel.ThrowIfCancellationRequested();
@@ -185,15 +186,12 @@ namespace IPA.Cores.Basic
         public FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
             = new FastEventListenerList<IFastBufferState, FastBufferCallbackEventType>();
 
-        public bool IsReadyToWrite
+        public bool IsReadyToWrite()
         {
-            get
-            {
-                if (IsDisconnected) return true;
-                if (Length <= Threshold) return true;
-                CompleteWrite(false);
-                return false;
-            }
+            if (IsDisconnected) return true;
+            if (Length <= Threshold) return true;
+            CompleteWrite(false);
+            return false;
         }
 
         public long SizeWantToBeWritten
@@ -206,15 +204,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool IsReadyToRead
+        public bool IsReadyToRead(int size = 1)
         {
-            get
-            {
-                if (IsDisconnected) return true;
-                if (Length >= 1) return true;
-                CompleteRead();
-                return false;
-            }
+            size = Math.Max(size, 1);
+            if (IsDisconnected) return true;
+            if (Length >= 1) return true;
+            CompleteRead();
+            return false;
         }
         public bool IsEventsEnabled { get; }
 
@@ -301,7 +297,7 @@ namespace IPA.Cores.Basic
                     if (LastHeadPin != current)
                     {
                         LastHeadPin = current;
-                        if (IsReadyToWrite)
+                        if (IsReadyToWrite())
                             setFlag = true;
                     }
                     if (IsDisconnected)
@@ -1151,26 +1147,21 @@ namespace IPA.Cores.Basic
         public FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
             = new FastEventListenerList<IFastBufferState, FastBufferCallbackEventType>();
 
-        public bool IsReadyToWrite
+        public bool IsReadyToWrite()
         {
-            get
-            {
-                if (IsDisconnected) return true;
-                if (Length <= Threshold) return true;
-                CompleteWrite(false);
-                return false;
-            }
+            if (IsDisconnected) return true;
+            if (Length <= Threshold) return true;
+            CompleteWrite(false);
+            return false;
         }
 
-        public bool IsReadyToRead
+        public bool IsReadyToRead(int size = 1)
         {
-            get
-            {
-                if (IsDisconnected) return true;
-                if (Length >= 1) return true;
-                CompleteRead();
-                return false;
-            }
+            size = Math.Max(size, 1);
+            if (IsDisconnected) return true;
+            if (Length >= size) return true;
+            CompleteRead();
+            return false;
         }
 
         public bool IsEventsEnabled { get; }
@@ -1256,7 +1247,7 @@ namespace IPA.Cores.Basic
                     if (LastHeadPin != current)
                     {
                         LastHeadPin = current;
-                        if (IsReadyToWrite)
+                        if (IsReadyToWrite())
                             setFlag = true;
                     }
                     if (IsDisconnected)

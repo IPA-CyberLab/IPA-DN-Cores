@@ -33,6 +33,7 @@
 #if CORES_BASIC_JSON
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.IO;
@@ -43,6 +44,9 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
@@ -50,40 +54,89 @@ namespace IPA.Cores.Basic
         public static partial class LogServerSettings
         {
             public static readonly Copenhagen<int> DefaultPort = 3003;
+
+            public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
+            public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
+
+            public static readonly Copenhagen<int> MaxDataSize = (64 * 1024 * 1024); // 64MB
         }
     }
 
-    class LogServerOptions
+    [Flags]
+    enum LogProtocolDataType
     {
-        public IReadOnlyList<IPEndPoint> EndPoints { get; }
-        public TcpIpSystem TcpIpSystem { get; }
-        public CertSelectorCallback CertSelector { get; }
+        StandardLog = 0,
+    }
 
-        public static readonly IPEndPoint[] DefaultEndPoints = IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogServerSettings.DefaultPort);
+    abstract class LogServerOptionsBase : SslServerOptions
+    {
+        public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogServerSettings.DefaultRecvTimeout;
+        public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.LogServerSettings.DefaultSendKeepAliveInterval;
 
-        public LogServerOptions(TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
+        public LogServerOptionsBase(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
+            : base(tcpIpSystem, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogServerSettings.DefaultPort))
         {
-            this.TcpIpSystem = tcpIpSystem;
-            this.EndPoints = endPoints.ToList();
         }
     }
 
-    class LogServer : AsyncService
+    abstract class LogServerBase : SslServerBase
     {
-        public LogServerOptions Options { get; }
+        public const int MagicNumber = 0x415554a4;
+        public const int ServerVersion = 1;
 
-        public LogServer(LogServerOptions options)
+        protected new LogServerOptionsBase Options => (LogServerOptionsBase)base.Options;
+
+        public LogServerBase(LogServerOptionsBase options) : base(options)
         {
-            this.Options = options;
-
-            NetTcpListener listener = this.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
-
-            this.AddIndirectDisposeLink(listener);
         }
 
-        async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
+        protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
         {
-            await Task.CompletedTask;
+            sock.AttachHandle.SetStreamReceiveTimeout(this.Options.RecvTimeout);
+
+            using (PipeStream st = sock.GetStream())
+            {
+                int magicNumber = await st.ReceiveSInt32Async();
+                if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
+
+                int clientVersion = await st.ReceiveSInt32Async();
+
+                MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+                sendBuffer.WriteSInt32(ServerVersion);
+                await st.SendAsync(sendBuffer);
+
+                while (true)
+                {
+                    LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
+
+                    switch (type)
+                    {
+                        case LogProtocolDataType.StandardLog:
+                            {
+                                int size = await st.ReceiveSInt32Async();
+
+                                if (size > CoresConfig.LogServerSettings.MaxDataSize)
+                                    throw new ApplicationException($"size > MaxDataSize. size = {size}");
+
+                                using (MemoryHelper.FastAllocMemoryWithUsing(size, out Memory<byte> data))
+                                {
+                                    await st.ReceiveAllAsync(data);
+
+                                    await LogDataReceivedInternal(data);
+                                }
+
+                                break;
+                            }
+
+                        default:
+                            throw new ApplicationException("Invalid LogProtocolDataType");
+                    }
+                }
+            }
+        }
+
+        async Task LogDataReceivedInternal(Memory<byte> data)
+        {
         }
     }
 }
