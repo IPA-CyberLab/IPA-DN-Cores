@@ -688,8 +688,6 @@ namespace IPA.Cores.Basic
 
         public async Task ReceiveAllAsync(Memory<byte> buffer, CancellationToken cancel = default)
         {
-            await WaitReadyToReceiveFromAsync(cancel, ReadTimeout, buffer.Length);
-
             while (buffer.Length >= 1)
             {
                 int r = await ReceiveAsync(buffer, cancel);
@@ -713,8 +711,6 @@ namespace IPA.Cores.Basic
 
         public async Task<Memory<byte>> ReceiveAllAsync(int size, CancellationToken cancel = default)
         {
-            await WaitReadyToReceiveFromAsync(cancel, ReadTimeout, size);
-
             Memory<byte> buffer = MemoryHelper.FastAllocMemoryMoreThan<byte>(size);
             await ReceiveAllAsync(buffer, cancel);
             return buffer;

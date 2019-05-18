@@ -74,6 +74,8 @@ namespace IPA.Cores.Basic
         long PinTail { get; }
         long Length { get; }
 
+        long Threshold { get; }
+
         ExceptionQueue ExceptionQueue { get; }
         LayerInfo Info { get; }
 
@@ -120,6 +122,10 @@ namespace IPA.Cores.Basic
 
         public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1)
         {
+            sizeToRead = Math.Max(sizeToRead, 1);
+
+            if (sizeToRead > reader.Threshold) throw new ArgumentException("WaitForReadyToReadAsync: sizeToRead > reader.Threshold");
+
             LocalTimer timer = new LocalTimer();
 
             timer.AddTimeout(PollingTimeout);

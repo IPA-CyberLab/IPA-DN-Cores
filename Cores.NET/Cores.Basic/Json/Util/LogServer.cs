@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
 
         protected new LogServerOptionsBase Options => (LogServerOptionsBase)base.Options;
 
+        protected abstract Task LogReceiveImplAsync(ReadOnlyMemory<byte> binaryData, LogJsonData jsonData);
+
         public LogServerBase(LogServerOptionsBase options) : base(options)
         {
         }
@@ -137,6 +139,32 @@ namespace IPA.Cores.Basic
 
         async Task LogDataReceivedInternal(Memory<byte> data)
         {
+            string str = data._GetString_UTF8();
+            LogJsonData json = str._JsonToObject<LogJsonData>();
+
+            await LogReceiveImplAsync(data, json);
+        }
+    }
+
+    class LogServerOptions : LogServerOptionsBase
+    {
+
+        public LogServerOptions(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
+        {
+        }
+    }
+
+    class LogServer : LogServerBase
+    {
+        protected new LogServerOptions Options => (LogServerOptions)base.Options;
+
+        public LogServer(LogServerOptions options) : base(options)
+        {
+        }
+
+        protected override Task LogReceiveImplAsync(ReadOnlyMemory<byte> binaryData, LogJsonData jsonData)
+        {
+            throw new NotImplementedException();
         }
     }
 }

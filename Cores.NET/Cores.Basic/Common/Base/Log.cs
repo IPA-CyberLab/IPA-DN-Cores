@@ -126,6 +126,19 @@ namespace IPA.Cores.Basic
         DateTimeOffset TimeStamp { get; }
     }
 
+    class LogJsonData
+    {
+        public DateTimeOffset? TimeStamp;
+        public string Guid;
+        public string MachineName;
+        public string AppName;
+        public string Kind;
+        public string Priority;
+        public string Tag;
+        public string TypeName;
+        public object Data;
+    }
+
     class LogRecord
     {
         public static readonly byte[] CrLfByte = "\r\n"._GetBytes_Ascii();
@@ -192,25 +205,12 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        class JsonContainer
-        {
-            public DateTimeOffset? TimeStamp;
-            public string Guid;
-            public string MachineName;
-            public string AppName;
-            public string Kind;
-            public string Priority;
-            public string Tag;
-            public string TypeName;
-            public object Data;
-        }
-
         public void WriteRecordToBuffer(LogInfoOptions opt, MemoryBuffer<byte> b)
         {
             if (opt.WriteAsJsonFormat && Dbg.IsJsonSupported)
             {
                 // JSON text
-                JsonContainer jc = new JsonContainer();
+                LogJsonData jc = new LogJsonData();
 
                 if (opt.WithTimeStamp)
                     jc.TimeStamp = this.TimeStamp;
