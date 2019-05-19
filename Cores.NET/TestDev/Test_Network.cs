@@ -293,7 +293,7 @@ namespace IPA.TestDev
 
             //Con.ReadLine("Enter to stop>");
 
-            int wait = 2000 + Util.RandSInt32() % 1000;
+            int wait = 2000 + Util.RandSInt32_Caution() % 1000;
             Con.WriteLine("Waiting for " + wait);
             ThreadObj.Sleep(wait);
 

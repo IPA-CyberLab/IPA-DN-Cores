@@ -145,7 +145,61 @@ namespace IPA.TestDev
             byte[] byteArrayCopy = memcopySrcSpan.ToArray();
             byte[] byteArrayCopy2 = memcopySrcSpan.ToArray();
 
+            int sparseTestSize = 1024 * 1024;
+
+            MemoryBuffer<byte> nonSparse = new byte[sparseTestSize];
+            Util.Rand(nonSparse.Span);
+
+            MemoryBuffer<byte> sparse = new byte[sparseTestSize];
+            Util.Rand(sparse.Span);
+            for (int i = 0; i < 100; i++)
+            {
+                int pos = Util.RandSInt31() % (sparse.Length - 6000);
+                sparse.Span.Slice(pos, 6000).Fill(0);
+            }
+
+
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"Util.Rand()", Benchmark_CountForSlow, count =>
+            {
+                Span<byte> dest = new byte[100];
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.Rand(dest);
+                }
+            }), enabled: true, priority: 190518)
+
+            .Add(new MicroBenchmark($"Secure.Rand()", Benchmark_CountForSlow, count =>
+            {
+                Span<byte> dest = new byte[100];
+
+                for (int c = 0; c < count; c++)
+                {
+                    Secure.Rand(dest);
+                }
+            }), enabled: true, priority: 190518)
+
+            .Add(new MicroBenchmark($"GetSparseChunks - NonSparse", Benchmark_CountForSlow, count =>
+            {
+                ReadOnlyMemory<byte> data = nonSparse;
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.GetSparseChunks(data, 4096);
+                }
+            }), enabled: true, priority: 190518)
+
+            .Add(new MicroBenchmark($"GetSparseChunks - Sparse", Benchmark_CountForSlow, count =>
+            {
+                ReadOnlyMemory<byte> data = sparse;
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.GetSparseChunks(data, 4096);
+                }
+            }), enabled: true, priority: 190518)
 
             .Add(new MicroBenchmark($"ParseEnum", Benchmark_CountForNormal, count =>
             {
@@ -393,9 +447,9 @@ namespace IPA.TestDev
 
             bool enableRecords = true;
 
-            if (Env.IsCoresLibraryDebugBuild || IsDebugBuildChecker.IsDebugBuild || Env.IsDebuggerAttached)
+            if (Env.IsCoresLibraryDebugBuild || IsDebugBuildChecker.IsDebugBuild || Env.IsDebuggerAttached || CoresConfig.DebugSettings.LeakCheckerFullStackLog)
             {
-                Con.WriteLine("*** Warning: The benchmark is under the debug mode. We do not record to files.");
+                Con.WriteLine("*** Warning: The benchmark is under the debug mode or full stack trace mode. We do not record to files.");
                 Con.WriteLine();
 
                 enableRecords = false;

@@ -2805,7 +2805,7 @@ namespace IPA.Cores.Basic
 
                     for (i = 0; i < num; i++)
                     {
-                        o.Add(IPAddr.FromString(string.Format("{0}.{1}.{2}.{3}", Secure.Rand32() % 256, Secure.Rand32() % 256, Secure.Rand32() % 256, Secure.Rand32() % 256)));
+                        o.Add(IPAddr.FromString(string.Format("{0}.{1}.{2}.{3}", Util.RandUInt32() % 256, Util.RandUInt32() % 256, Util.RandUInt32() % 256, Util.RandUInt32() % 256)));
                     }
 
                     long start = Time.Tick64;

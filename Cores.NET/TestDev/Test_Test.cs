@@ -69,15 +69,45 @@ namespace IPA.TestDev
         public int C;
     }
 
+    class CapTest : FastStreamBufferCaptureBase<byte>
+    {
+        public CapTest(FastStreamBuffer<byte> target, CancellationToken cancel = default) : base(target, cancel)
+        {
+        }
+
+        protected override void CaptureCallbackImpl(long tick, FastBufferSegment<ReadOnlyMemory<byte>>[] segments, long totalSize)
+        {
+            Con.WriteLine($"Captured: {totalSize}");
+        }
+    }
+
     static class TestClass
     {
+        public static async Task Test1(DateTimeOffset dt)
+        {
+        }
+
         public static void Test()
         {
-            var x = LogPriority.Debug.ToString()._ParseEnum(LogPriority.None);
-            var y = LogPriority.Trace.ToString().ToLowerInvariant()._ParseEnum(LogPriority.Error);
+            using (var w = new FileLazyWriter(new FileLazyWriterOptions(new FilePath(@"c:\tmp2\190519\large1.txt", Lfs), false)))
+            {
+                var f = Lfs.Create(@"c:\tmp2\190519\a.txt");
+                //ReadOnlyMemory<byte> a = "Hello"._GetBytes_Ascii();
+                var a = Util.Rand(10000);
+                for (int i = 0; ; i++)
+                {
+                    w.Write(a);
+                    //w.Write((i.ToString() + "\r\n")._GetBytes_Ascii());
+                }
+            }
 
-            Con.WriteLine(x);
-            Con.WriteLine(y);
+            //using (var f = LLfs.Create(@"c:\tmp2\190519\large1.txt", flags: FileOperationFlags.AutoCreateDirectory))
+            //{
+            //    while (true)
+            //    f.WriteRandom(Util.RandSInt31(), "a"._GetBytes_Ascii());
+            //}
+
+            //Test1(DateTime.Now)._GetResult();
         }
     }
 }

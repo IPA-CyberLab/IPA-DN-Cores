@@ -46,7 +46,7 @@ namespace IPA.Cores.Basic
     // Secure クラス
     class Secure
     {
-        static readonly RNGCryptoServiceProvider RngShared = new RNGCryptoServiceProvider();
+        static readonly RNGCryptoServiceProvider RandomShared = new RNGCryptoServiceProvider();
         static readonly MD5 MD5Shared = new MD5CryptoServiceProvider();
         public const int SHA1Size = 20;
         public const int SHA256Size = 32;
@@ -55,19 +55,140 @@ namespace IPA.Cores.Basic
         readonly static CriticalSection RandLock = new CriticalSection();
         readonly static CriticalSection MD5Lock = new CriticalSection();
 
-        // 乱数
-        public static byte[] Rand(int size) => Util.Rand(size);
-        public static uint Rand32() => Util.RandUInt32();
-        public static ulong Rand64() => Util.RandUInt64();
-        public static ushort Rand16() => Util.RandUInt16();
-        public static int Rand32i_Caution() => Util.RandSInt32_Caution();
-        public static long Rand64i_Caution() => Util.RandSInt64_Caution();
-        public static short Rand16i_Caution() => Util.RandSInt16_Caution();
-        public static int Rand31i() => Util.RandSInt31();
-        public static long Rand63i() => Util.RandSInt63();
-        public static short Rand15i() => Util.RandSInt15();
-        public static byte Rand8() => Util.RandUInt8();
-        public static bool Rand1() => Util.RandBool();
+        public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
+
+        public static void Rand(Span<byte> dest)
+        {
+            lock (RandomShared)
+            {
+                RandomShared.GetBytes(dest);
+            }
+        }
+
+        public static byte RandUInt8()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            return mem._GetUInt8();
+        }
+
+        public static ushort RandUInt16()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            return mem._GetUInt16();
+        }
+
+        public static uint RandUInt32()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            return mem._GetUInt32();
+        }
+
+        public static ulong RandUInt64()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            return mem._GetUInt64();
+        }
+
+        public static byte RandUInt7()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetUInt8();
+        }
+
+        public static ushort RandUInt15()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetUInt16();
+        }
+
+        public static uint RandUInt31()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetUInt32();
+        }
+
+        public static ulong RandUInt63()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetUInt64();
+        }
+
+        public static sbyte RandSInt8_Caution()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            return mem._GetSInt8();
+        }
+
+        public static short RandSInt16_Caution()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            return mem._GetSInt16();
+        }
+
+        public static int RandSInt32_Caution()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            return mem._GetSInt32();
+        }
+
+        public static long RandSInt64_Caution()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            return mem._GetSInt64();
+        }
+
+        public static sbyte RandSInt7()
+        {
+            Span<byte> mem = stackalloc byte[1];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetSInt8();
+        }
+
+        public static short RandSInt15()
+        {
+            Span<byte> mem = stackalloc byte[2];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetSInt16();
+        }
+
+        public static int RandSInt31()
+        {
+            Span<byte> mem = stackalloc byte[4];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetSInt32();
+        }
+
+        public static long RandSInt63()
+        {
+            Span<byte> mem = stackalloc byte[8];
+            Rand(mem);
+            mem[0] &= 0x7F;
+            return mem._GetSInt64();
+        }
+
+        public static bool RandBool()
+        {
+            return (RandUInt32() % 2) == 0;
+        }
 
         // MD5
         public static byte[] HashMD5(ReadOnlySpan<byte> src)

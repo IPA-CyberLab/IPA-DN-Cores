@@ -994,7 +994,7 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        Kernel.SleepThread(Secure.Rand31i() % retryConfig.RetryAverageInterval);
+                        Kernel.SleepThread(Util.RandSInt31() % retryConfig.RetryAverageInterval);
 
                         goto LABEL_RETRY;
                     }
@@ -1048,7 +1048,7 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        await Task.Delay(Secure.Rand31i() % retryConfig.RetryAverageInterval);
+                        await Task.Delay(Util.RandSInt31() % retryConfig.RetryAverageInterval);
 
                         goto LABEL_RETRY;
                     }

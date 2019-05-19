@@ -322,7 +322,7 @@ namespace IPA.TestDev
                 {
                     string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                    long position = Secure.Rand63i() % (LLfs.Params.MaxLogicalFileSize - 100);
+                    long position = Util.RandSInt63() % (LLfs.Params.MaxLogicalFileSize - 100);
                     handle.WriteRandom(position, hello._GetBytes_Ascii());
                 }
                 return 0;

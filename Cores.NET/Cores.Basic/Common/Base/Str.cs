@@ -886,10 +886,10 @@ namespace IPA.Cores.Basic
 
             string a = ((msecs / 1000UL) % 10000000000UL).ToString("D10");
             string b = (msecs % 1000UL).ToString("D3");
-            string d = (Secure.Rand64() % 100000UL).ToString("D5");
-            string e = (Secure.Rand64() % 100000UL).ToString("D5");
+            string d = (Secure.RandUInt64() % 100000UL).ToString("D5");
+            string e = (Secure.RandUInt64() % 100000UL).ToString("D5");
             string f = (((ulong)((now - new DateTime(2015, 8, 10)).TotalSeconds / 9600.0)) % 100000UL).ToString("D5");
-            string g = (Secure.Rand64() % 100000UL).ToString("D5");
+            string g = (Secure.RandUInt64() % 100000UL).ToString("D5");
             string hash_str = a + b + d + e + f + g + prefix.ToUpperInvariant();
             byte[] hash = Secure.HashSHA1(Str.AsciiEncoding.GetBytes(hash_str));
             Buf buf = new Buf(hash);
