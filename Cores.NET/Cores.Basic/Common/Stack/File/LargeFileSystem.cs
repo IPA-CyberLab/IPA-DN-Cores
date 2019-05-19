@@ -352,6 +352,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        Cursor lastWriteCursor = null;
+
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             checked
@@ -359,6 +361,19 @@ namespace IPA.Cores.Basic
                 if (data.Length == 0) return;
 
                 List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
+
+                if (cursorList.Count >= 1 && lastWriteCursor != null)
+                {
+                    if (cursorList[0].PhysicalFileNumber != lastWriteCursor.PhysicalFileNumber)
+                    {
+                        using (var handle = await GetUnderlayRandomAccessHandle(lastWriteCursor.LogicalPosition, cancel))
+                        {
+                            await handle.FlushAsync();
+                        }
+
+                        lastWriteCursor = null;
+                    }
+                }
 
                 if (this.FileParams.Flags.BitAny(FileOperationFlags.LargeFs_AppendWithoutCrossBorder | FileOperationFlags.LargeFs_AppendNewLineForCrossBorder)
                     && position == this.CurrentFileSize && cursorList.Count >= 2)
@@ -397,6 +412,7 @@ namespace IPA.Cores.Basic
                             }
 
                             await handle.WriteRandomAsync(firstCursor.PhysicalPosition, appendBytes, cancel);
+                            await handle.FlushAsync(cancel); // Complete write the first file
                             this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
                         }
 
@@ -406,17 +422,27 @@ namespace IPA.Cores.Basic
                             await handle.WriteRandomAsync(0, data, cancel);
                             this.CurrentFileSize += data.Length;
                         }
+
+                        this.lastWriteCursor = secondCursor;
                     }
                 }
                 else
                 {
                     // Normal write
-                    foreach (Cursor cursor in cursorList)
+                    for (int i = 0;i < cursorList.Count;i++)
                     {
+                        Cursor cursor = cursorList[i];
+                        bool isPastFile = (i != cursorList.Count - 1);
+
                         using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
                         {
                             await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
+
+                            if (isPastFile)
+                                await handle.FlushAsync(cancel);
                         }
+
+                        this.lastWriteCursor = cursor;
                     }
 
                     this.CurrentFileSize = Math.Max(this.CurrentFileSize, position + data.Length);

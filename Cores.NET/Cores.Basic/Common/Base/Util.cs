@@ -1624,28 +1624,28 @@ namespace IPA.Cores.Basic
             return mem._GetUInt64();
         }
 
-        public static sbyte RandSInt8()
+        public static sbyte RandSInt8_Caution()
         {
             Span<byte> mem = stackalloc byte[1];
             Rand(mem);
             return mem._GetSInt8();
         }
 
-        public static short RandSInt16()
+        public static short RandSInt16_Caution()
         {
             Span<byte> mem = stackalloc byte[2];
             Rand(mem);
             return mem._GetSInt16();
         }
 
-        public static int RandSInt32()
+        public static int RandSInt32_Caution()
         {
             Span<byte> mem = stackalloc byte[4];
             Rand(mem);
             return mem._GetSInt32();
         }
 
-        public static long RandSInt64()
+        public static long RandSInt64_Caution()
         {
             Span<byte> mem = stackalloc byte[8];
             Rand(mem);

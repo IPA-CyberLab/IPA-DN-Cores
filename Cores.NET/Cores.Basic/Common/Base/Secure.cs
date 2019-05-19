@@ -60,9 +60,9 @@ namespace IPA.Cores.Basic
         public static uint Rand32() => Util.RandUInt32();
         public static ulong Rand64() => Util.RandUInt64();
         public static ushort Rand16() => Util.RandUInt16();
-        public static int Rand32i() => Util.RandSInt32();
-        public static long Rand64i() => Util.RandSInt64();
-        public static short Rand16i() => Util.RandSInt16();
+        public static int Rand32i_Caution() => Util.RandSInt32_Caution();
+        public static long Rand64i_Caution() => Util.RandSInt64_Caution();
+        public static short Rand16i_Caution() => Util.RandSInt16_Caution();
         public static int Rand31i() => Util.RandSInt31();
         public static long Rand63i() => Util.RandSInt63();
         public static short Rand15i() => Util.RandSInt15();

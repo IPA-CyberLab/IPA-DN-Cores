@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
 
     static partial class TaskUtil
     {
-        
+
 
         static int NumPendingAsyncTasks = 0;
 
@@ -1158,10 +1158,8 @@ namespace IPA.Cores.Basic
         }
 
         volatile int lazyQueuedSet = 0;
-
-
-        public void SetLazy() => Interlocked.Exchange(ref lazyQueuedSet, 1);
-
+        
+        public void SetLazyEnqueue() => Interlocked.Exchange(ref lazyQueuedSet, 1);
 
         public void SetIfLazyQueued(bool softly = false)
         {
@@ -1309,7 +1307,7 @@ namespace IPA.Cores.Basic
     abstract class AsyncService : IAsyncService
     {
         static long IdSeed = 0;
-        
+
 
         public CancelWatcher CancelWatcher { get; }
         public CancellationToken GrandCancel { get => CancelWatcher.CancelToken; }
@@ -3676,6 +3674,8 @@ namespace IPA.Cores.Basic
         public int LifeTime { get; }
         public int MaxObjects { get; }
 
+        readonly AsyncAutoResetEvent FireGcNowEvent = new AsyncAutoResetEvent();
+
         Task GcTask;
 
         public ObjectPoolBase(int lifeTime, int maxObjects, IEqualityComparer<string> comparer)
@@ -3702,6 +3702,8 @@ namespace IPA.Cores.Basic
                 if (numRetry >= 1)
                     await Task.Yield();
 
+                RefCounterObjectHandle<TObject> ret;
+
                 using (await LockAsyncObj.LockWithAwait(cancelOp))
                 {
                     cancelOp.ThrowIfCancellationRequested();
@@ -3719,7 +3721,7 @@ namespace IPA.Cores.Basic
 
                     entry.LastAccessCounterValue = Interlocked.Increment(ref this.AccessCounter);
 
-                    RefCounterObjectHandle<TObject> ret = entry.TryGetIfAlive();
+                    ret = entry.TryGetIfAlive();
                     if (ret == null)
                     {
                         ObjectList.Remove(key);
@@ -3729,9 +3731,14 @@ namespace IPA.Cores.Basic
                             throw new ApplicationException("numRetry >= 100");
                         goto L_RETRY;
                     }
-
-                    return ret;
                 }
+
+                if (ObjectList.Count > this.MaxObjects)
+                {
+                    FireGcNowEvent.Set(true);
+                }
+
+                return ret;
             }
         }
 
@@ -3790,41 +3797,67 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                cancel.ThrowIfCancellationRequested();
-
-                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), timeout: Math.Max(LifeTime, 100));
-
-                cancel.ThrowIfCancellationRequested();
-
-                long now = Tick64.Now;
-
-                using (await LockAsyncObj.LockWithAwait(cancel))
+                try
                 {
-                    List<ObjectEntry> gcTargetList = new List<ObjectEntry>();
+                    cancel.ThrowIfCancellationRequested();
 
-                    foreach (ObjectEntry entry in this.ObjectList.Values)
+                    await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), events: FireGcNowEvent._SingleArray(), timeout: Math.Max(LifeTime / 2, 100));
+
+                    cancel.ThrowIfCancellationRequested();
+                    
+
+                    long now = Tick64.Now;
+
+                    using (await LockAsyncObj.LockWithAwait(cancel))
                     {
-                        if (entry.LastReleasedTick != 0)
+                        HashSet<ObjectEntry> gcTargetList = new HashSet<ObjectEntry>();
+
+                        foreach (ObjectEntry entry in this.ObjectList.Values)
                         {
-                            if ((entry.LastReleasedTick + LifeTime) < now)
+                            if (entry.LastReleasedTick != 0)
                             {
-                                gcTargetList.Add(entry);
+                                if ((entry.LastReleasedTick + LifeTime) < now)
+                                {
+                                    gcTargetList.Add(entry);
+                                }
+                                else if (entry.Object.LastError != null)
+                                {
+                                    gcTargetList.Add(entry);
+                                }
                             }
-                            else if (entry.Object.LastError != null)
+                        }
+
+                        int numRemains = this.ObjectList.Count - gcTargetList.Count;
+                        if (numRemains > this.MaxObjects)
+                        {
+                            int numToDelete = numRemains - this.MaxObjects;
+
+                            Con.WriteLine(numToDelete);
+
+                            this.ObjectList.Values.Where(x => gcTargetList.Contains(x) == false).OrderBy(x => x.LastAccessCounterValue).Take(numToDelete)._DoForEach(x => gcTargetList.Add(x));
+                        }
+
+                        foreach (ObjectEntry deleteTargetEntry in gcTargetList)
+                        {
+                            cancel.ThrowIfCancellationRequested();
+
+                            this.ObjectList.Remove(deleteTargetEntry.Key);
+
+                            try
                             {
-                                gcTargetList.Add(entry);
+                                await deleteTargetEntry.CloseAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                Con.WriteDebug(ex.ToString());
                             }
                         }
                     }
-
-                    foreach (ObjectEntry deleteTargetEntry in gcTargetList)
-                    {
-                        cancel.ThrowIfCancellationRequested();
-
-                        this.ObjectList.Remove(deleteTargetEntry.Key);
-
-                        await deleteTargetEntry.CloseAsync();
-                    }
+                }
+                catch (Exception ex) when (!(ex is OperationCanceledException || ex is TaskCanceledException))
+                {
+                    Con.WriteDebug("GcTaskProc: " + ex.ToString());
+                    await Task.Delay(10);
                 }
             }
         }

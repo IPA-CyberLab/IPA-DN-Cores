@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
         public static partial class FileSystemSettings
         {
             public static readonly Copenhagen<int> PooledHandleLifetime = 60 * 1000;
-            public static readonly Copenhagen<int> MaxPooledHandleCount = 1;
+            public static readonly Copenhagen<int> MaxPooledHandleCount = 256;
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
