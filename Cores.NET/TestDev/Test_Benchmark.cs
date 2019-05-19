@@ -117,6 +117,11 @@ namespace IPA.TestDev
         }
     }
 
+    class TestClass1
+    {
+        public int A, B, C;
+    }
+
     partial class TestDevCommands
     {
         const int Benchmark_CountForVeryFast = 200000000;
@@ -172,7 +177,7 @@ namespace IPA.TestDev
             {
                 for (int c = 0; c < count; c++)
                 {
-                    new MemoryBuffer<byte>();
+                    packet1.PutContiguous(0, 4);
                 }
             }), enabled: true, priority: 190519)
 
