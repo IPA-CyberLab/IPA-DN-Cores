@@ -1,4 +1,4 @@
-﻿dn-lxd-rt2-test1
+﻿dn-lxd-vm2-test1
 root
 
 ======== Git ========

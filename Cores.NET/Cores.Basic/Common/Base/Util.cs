@@ -434,11 +434,23 @@ namespace IPA.Cores.Basic
     // ユーティリティクラス
     static partial class Util
     {
-        
+
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
 
         static readonly Random RandomShared = new Random();
+
+        static Util()
+        {
+            using (SHA1 sha = new SHA1Managed())
+            {
+                Span<byte> rand = new byte[20];
+                sha.TryComputeHash(System.Text.Encoding.ASCII.GetBytes(Guid.NewGuid().ToString()), rand, out _);
+
+                int seed = BitConverter.ToInt32(rand.Slice(0, 4));
+                RandomShared = new Random(seed);
+            }
+        }
 
         // サイズ定数
         public const int SizeOfInt32 = 4;
@@ -1558,6 +1570,14 @@ namespace IPA.Cores.Basic
 
         public static void Rand(Span<byte> dest)
         {
+            if (Env.IsWindows)
+            {
+                // In the Windows system, Secure.Rand() is faster.
+                Secure.Rand(dest);
+                return;
+            }
+
+            // In UNIX systems, Util.Rand() is faster.
             lock (RandomShared)
             {
                 RandomShared.NextBytes(dest);
@@ -2262,7 +2282,7 @@ namespace IPA.Cores.Basic
 
                 int index = 0;
 
-                for (int i = 0;i < itemList.Length;i++)
+                for (int i = 0; i < itemList.Length; i++)
                 {
                     ref readonly ReadOnlyMemory<T> item = ref itemList[i];
                     if (item.Length >= 1)
@@ -2337,7 +2357,7 @@ namespace IPA.Cores.Basic
 
             List<ReadOnlyMemory<T>> ret = new List<ReadOnlyMemory<T>>();
 
-            MemoryBuffer <T> current = null;
+            MemoryBuffer<T> current = null;
 
             foreach (ReadOnlyMemory<T> src in srcDataList)
             {
@@ -2749,7 +2769,7 @@ namespace IPA.Cores.Basic
     class StaticModule : StaticModule<int, int>
     {
         public StaticModule(Action initProc, Action freeProc)
-            : base(_ => initProc(), () => { freeProc(); return default; } )
+            : base(_ => initProc(), () => { freeProc(); return default; })
         {
         }
 
@@ -2853,7 +2873,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Singleton<TObject> : IDisposable where TObject: class
+    class Singleton<TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TObject> CreateProc;
@@ -2939,7 +2959,7 @@ namespace IPA.Cores.Basic
             this.LeakKind = leakKind;
         }
 
-        public TObject this [TKey key] => CreateOrGet(key);
+        public TObject this[TKey key] => CreateOrGet(key);
 
         public TObject CreateOrGet(TKey key)
         {
@@ -3020,7 +3040,7 @@ namespace IPA.Cores.Basic
         public void Clear()
         {
             TObject[] list;
-            
+
             list = this.Table.Values.ToArray();
             this.Table.Clear();
 
@@ -3326,7 +3346,7 @@ namespace IPA.Cores.Basic
             {
                 LogRouter._DisposeSafe();
                 LogRouter = null;
-                
+
                 OnceFlag.Reset();
             }
         }
@@ -3520,7 +3540,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                if (duration <= 0) duration =  GlobalMicroBenchmark.DefaultDurationMSecs;
+                if (duration <= 0) duration = GlobalMicroBenchmark.DefaultDurationMSecs;
 
                 TUserVariable state = default(TUserVariable);
 
@@ -4358,7 +4378,7 @@ namespace IPA.Cores.Basic
     }
 
     class StatisticsReporter<T> : AsyncServiceWithMainLoop
-        where T: class
+        where T : class
     {
         public readonly T CurrentValues;
 
