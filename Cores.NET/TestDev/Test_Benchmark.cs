@@ -173,11 +173,20 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark($"New Packet", Benchmark_CountForFast, count =>
+            {
+                Memory<byte> hello = new byte[1500];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
+                for (int c = 0; c < count; c++)
+                {
+                    Packet newPacket = new Packet(hello);
+                }
+            }), enabled: true, priority: 190519)
+
             .Add(new MicroBenchmark($"Packet Test", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)
                 {
-                    packet1.PutContiguous(0, 4);
+                    packet1.PutContiguous(0, 1500);
                 }
             }), enabled: true, priority: 190519)
 

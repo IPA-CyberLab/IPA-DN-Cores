@@ -2539,3 +2539,123 @@
 2019/05/19 18:22:10.947 +09:00 AsyncCallMethodFromSyncMethod: 18.33 ns, 54,569,059 / sec
 2019/05/19 18:22:11.619 +09:00 Lock for readonly object: 18.75 ns, 53,329,649 / sec
 2019/05/19 18:22:12.253 +09:00 Lock for get property object: 17.07 ns, 58,574,242 / sec
+2019/05/19 18:22:38.048 +09:00 ----- Start new benchmark -----
+2019/05/19 18:22:38.062 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:22:38.062 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:22:38.062 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:22:38.062 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:22:38.062 +09:00 Host: PC34
+2019/05/19 18:22:38.755 +09:00 Packet Test: 16.69 ns, 59,912,903 / sec
+2019/05/19 18:22:39.257 +09:00 IsZero - NonSparse: 1.38 ns, 722,858,221 / sec
+2019/05/19 18:22:39.759 +09:00 IsZero - All Zero Sparse: 2.59 ns, 385,928,439 / sec
+2019/05/19 18:22:40.264 +09:00 GetSparseChunks - NonSparse: 81,762.05 ns, 12,230 / sec
+2019/05/19 18:22:40.853 +09:00 GetSparseChunks - Sparse: 1,684,768.01 ns, 593 / sec
+2019/05/19 18:22:41.366 +09:00 GetSparseChunks - All Zero Sparse: 153,855.15 ns, 6,499 / sec
+2019/05/19 18:22:41.868 +09:00 Util.Rand(): 285.37 ns, 3,504,234 / sec
+2019/05/19 18:22:42.370 +09:00 Secure.Rand(): 282.18 ns, 3,543,782 / sec
+2019/05/19 18:27:08.479 +09:00 ----- Start new benchmark -----
+2019/05/19 18:27:08.494 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:27:08.494 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:27:08.494 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:27:08.494 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:27:08.494 +09:00 Host: PC34
+2019/05/19 18:27:09.193 +09:00 Packet Test: 17.52 ns, 57,063,188 / sec
+2019/05/19 18:27:09.696 +09:00 IsZero - NonSparse: 1.21 ns, 828,399,641 / sec
+2019/05/19 18:27:16.050 +09:00 ----- Start new benchmark -----
+2019/05/19 18:27:16.064 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:27:16.064 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:27:16.064 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:27:16.064 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:27:16.064 +09:00 Host: PC34
+2019/05/19 18:27:16.760 +09:00 Packet Test: 16.68 ns, 59,942,347 / sec
+2019/05/19 18:27:17.262 +09:00 IsZero - NonSparse: 2.05 ns, 486,973,396 / sec
+2019/05/19 18:27:24.814 +09:00 ----- Start new benchmark -----
+2019/05/19 18:27:24.830 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:27:24.830 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:27:24.830 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:27:24.830 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:27:24.830 +09:00 Host: PC34
+2019/05/19 18:27:25.561 +09:00 Packet Test: 18.40 ns, 54,357,815 / sec
+2019/05/19 18:27:26.063 +09:00 IsZero - NonSparse: 1.98 ns, 506,321,276 / sec
+2019/05/19 18:31:29.557 +09:00 ----- Start new benchmark -----
+2019/05/19 18:31:29.572 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:31:29.572 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:31:29.572 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:31:29.572 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:31:29.572 +09:00 Host: PC34
+2019/05/19 18:31:30.194 +09:00 New Packet: 27.80 ns, 35,966,084 / sec
+2019/05/19 18:31:30.862 +09:00 Packet Test: 18.70 ns, 53,468,882 / sec
+2019/05/19 18:31:31.365 +09:00 IsZero - NonSparse: 2.10 ns, 475,987,562 / sec
+2019/05/19 18:31:31.867 +09:00 IsZero - All Zero Sparse: 3.05 ns, 327,574,991 / sec
+2019/05/19 18:31:32.373 +09:00 GetSparseChunks - NonSparse: 77,365.66 ns, 12,925 / sec
+2019/05/19 18:31:32.904 +09:00 GetSparseChunks - Sparse: 1,395,024.47 ns, 716 / sec
+2019/05/19 18:31:33.409 +09:00 GetSparseChunks - All Zero Sparse: 76,613.89 ns, 13,052 / sec
+2019/05/19 18:31:33.911 +09:00 Util.Rand(): 290.46 ns, 3,442,873 / sec
+2019/05/19 18:31:34.413 +09:00 Secure.Rand(): 287.57 ns, 3,477,370 / sec
+2019/05/19 18:31:34.915 +09:00 ParseEnum: 73.80 ns, 13,550,032 / sec
+2019/05/19 18:31:36.475 +09:00 GetSparseChunks: 13,090,722.49 ns, 76 / sec
+2019/05/19 18:31:37.033 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,020,498.18 ns, 979 / sec
+2019/05/19 18:31:37.588 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,009,133.17 ns, 990 / sec
+2019/05/19 18:31:38.156 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,056,673.49 ns, 946 / sec
+2019/05/19 18:31:38.941 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,329,407.49 ns, 187 / sec
+2019/05/19 18:31:40.218 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,246,711.50 ns, 97 / sec
+2019/05/19 18:31:41.112 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 6,431,286.45 ns, 155 / sec
+2019/05/19 18:31:41.843 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 4,789,650.42 ns, 208 / sec
+2019/05/19 18:31:42.690 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,948,928.50 ns, 168 / sec
+2019/05/19 18:31:43.433 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,906,086.45 ns, 203 / sec
+2019/05/19 18:31:43.970 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 475,366.93 ns, 2,103 / sec
+2019/05/19 18:31:44.794 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 5,688,685.49 ns, 175 / sec
+2019/05/19 18:31:45.297 +09:00 CallAsyncWithAwait: 29.80 ns, 33,555,279 / sec
+2019/05/19 18:31:45.801 +09:00 CallAsyncWithNonAwait: 10.96 ns, 91,237,329 / sec
+2019/05/19 18:31:46.305 +09:00 Rand[16]: 172.97 ns, 5,781,375 / sec
+2019/05/19 18:31:46.809 +09:00 Guid.NewGuid().ToString(): 232.93 ns, 4,293,108 / sec
+2019/05/19 18:31:59.230 +09:00 ----- Start new benchmark -----
+2019/05/19 18:31:59.244 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:31:59.244 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:31:59.244 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:31:59.244 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:31:59.244 +09:00 Host: PC34
+2019/05/19 18:32:01.409 +09:00 New Packet: 182.37 ns, 5,483,429 / sec
+2019/05/19 18:32:02.051 +09:00 Packet Test: 17.70 ns, 56,497,990 / sec
+2019/05/19 18:32:02.554 +09:00 IsZero - NonSparse: 1.81 ns, 553,318,862 / sec
+2019/05/19 18:32:23.287 +09:00 ----- Start new benchmark -----
+2019/05/19 18:32:23.300 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:32:23.300 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:32:23.300 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:32:23.300 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:32:23.300 +09:00 Host: PC34
+2019/05/19 18:32:24.192 +09:00 New Packet: 54.60 ns, 18,314,252 / sec
+2019/05/19 18:32:24.880 +09:00 Packet Test: 19.64 ns, 50,914,329 / sec
+2019/05/19 18:32:25.383 +09:00 IsZero - NonSparse: 1.20 ns, 832,355,947 / sec
+2019/05/19 18:32:25.885 +09:00 IsZero - All Zero Sparse: 1.93 ns, 519,355,444 / sec
+2019/05/19 18:32:26.393 +09:00 GetSparseChunks - NonSparse: 77,744.15 ns, 12,862 / sec
+2019/05/19 18:32:26.956 +09:00 GetSparseChunks - Sparse: 1,558,289.00 ns, 641 / sec
+2019/05/19 18:32:27.461 +09:00 GetSparseChunks - All Zero Sparse: 133,667.20 ns, 7,481 / sec
+2019/05/19 18:32:27.964 +09:00 Util.Rand(): 302.30 ns, 3,307,930 / sec
+2019/05/19 18:32:28.466 +09:00 Secure.Rand(): 282.83 ns, 3,535,652 / sec
+2019/05/19 18:32:28.968 +09:00 ParseEnum: 64.09 ns, 15,603,385 / sec
+2019/05/19 18:32:30.629 +09:00 GetSparseChunks: 14,101,558.51 ns, 70 / sec
+2019/05/19 18:38:05.385 +09:00 ----- Start new benchmark -----
+2019/05/19 18:38:05.398 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:38:05.398 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:38:05.398 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:38:05.398 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:38:05.398 +09:00 Host: PC34
+2019/05/19 18:38:06.253 +09:00 New Packet: 50.93 ns, 19,636,300 / sec
+2019/05/19 18:38:06.900 +09:00 Packet Test: 17.93 ns, 55,782,938 / sec
+2019/05/19 18:38:27.786 +09:00 ----- Start new benchmark -----
+2019/05/19 18:38:27.799 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:38:27.799 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:38:27.799 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:38:27.799 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:38:27.799 +09:00 Host: PC34
+2019/05/19 18:38:28.423 +09:00 New Packet: 27.81 ns, 35,954,185 / sec
+2019/05/19 18:38:29.069 +09:00 Packet Test: 17.66 ns, 56,620,092 / sec
+2019/05/19 18:39:01.639 +09:00 ----- Start new benchmark -----
+2019/05/19 18:39:01.653 +09:00 Commit: ace853927c3204feadc57f3420cd9e3b7aceccbf
+2019/05/19 18:39:01.653 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/19 18:39:01.653 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/19 18:39:01.653 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/19 18:39:01.653 +09:00 Host: PC34
+2019/05/19 18:39:02.262 +09:00 New Packet: 26.23 ns, 38,122,535 / sec
+2019/05/19 18:39:02.946 +09:00 Packet Test: 19.50 ns, 51,271,043 / sec

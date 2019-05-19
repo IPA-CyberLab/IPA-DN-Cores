@@ -286,11 +286,260 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T[] ItemsReadOnly
+        public IReadOnlyList<T> Items
         {
             get
             {
                 List<T> ret = new List<T>();
+                var node = First;
+                while (node != null)
+                {
+                    ret.Add(node.Value);
+                    node = node.Next;
+                }
+                return ret.ToArray();
+            }
+        }
+    }
+
+
+    readonly struct ByteSegment
+    {
+        public readonly Memory<byte> Item;
+        public readonly long Pin;
+        public readonly long RelativeOffset;
+
+        public ByteSegment(Memory<byte> item, long pin, long relativeOffset)
+        {
+            Item = item;
+            Pin = pin;
+            RelativeOffset = relativeOffset;
+        }
+    }
+
+    class ByteLinkedListNode
+    {
+        public Memory<byte> Value;
+        public ByteLinkedListNode Next, Previous;
+    }
+
+    class ByteLinkedList
+    {
+        public int Count;
+        public ByteLinkedListNode First, Last;
+
+        public void Clear()
+        {
+            Count = 0;
+            First = Last = null;
+        }
+
+        public ByteLinkedListNode AddFirst(Memory<byte> value)
+        {
+            if (First == null)
+            {
+                Debug.Assert(Last == null);
+                Debug.Assert(Count == 0);
+                First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
+                Count++;
+                return First;
+            }
+            else
+            {
+                Debug.Assert(Last != null);
+                Debug.Assert(Count >= 1);
+                var oldFirst = First;
+                var nn = new ByteLinkedListNode() { Value = value, Next = oldFirst, Previous = null };
+                Debug.Assert(oldFirst.Previous == null);
+                oldFirst.Previous = nn;
+                First = nn;
+                Count++;
+                return nn;
+            }
+        }
+
+        public void AddFirst(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+        {
+            if (First == null)
+            {
+                Debug.Assert(Last == null);
+                Debug.Assert(Count == 0);
+                First = chainFirst;
+                Last = chainLast;
+                chainFirst.Previous = null;
+                chainLast.Next = null;
+                Count = chainedCount;
+            }
+            else
+            {
+                Debug.Assert(Last != null);
+                Debug.Assert(Count >= 1);
+                var oldFirst = First;
+                Debug.Assert(oldFirst.Previous == null);
+                oldFirst.Previous = chainLast;
+                First = chainFirst;
+                Count += chainedCount;
+            }
+        }
+
+        public ByteLinkedListNode AddLast(Memory<byte> value)
+        {
+            if (Last == null)
+            {
+                Debug.Assert(First == null);
+                Debug.Assert(Count == 0);
+                First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
+                Count++;
+                return Last;
+            }
+            else
+            {
+                Debug.Assert(First != null);
+                Debug.Assert(Count >= 1);
+                var oldLast = Last;
+                var nn = new ByteLinkedListNode() { Value = value, Next = null, Previous = oldLast };
+                Debug.Assert(oldLast.Next == null);
+                oldLast.Next = nn;
+                Last = nn;
+                Count++;
+                return nn;
+            }
+        }
+
+        public void AddLast(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+        {
+            if (Last == null)
+            {
+                Debug.Assert(First == null);
+                Debug.Assert(Count == 0);
+                First = chainFirst;
+                Last = chainLast;
+                chainFirst.Previous = null;
+                chainLast.Next = null;
+                Count = chainedCount;
+            }
+            else
+            {
+                Debug.Assert(First != null);
+                Debug.Assert(Count >= 1);
+                var oldLast = Last;
+                Debug.Assert(oldLast.Next == null);
+                oldLast.Next = chainFirst;
+                Last = chainLast;
+                Count += chainedCount;
+            }
+        }
+
+        public ByteLinkedListNode AddAfter(ByteLinkedListNode prevNode, Memory<byte> value)
+        {
+            var nextNode = prevNode.Next;
+            Debug.Assert(First != null && Last != null);
+            Debug.Assert(nextNode != null || Last == prevNode);
+            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+            var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
+            prevNode.Next = nn;
+            if (nextNode != null) nextNode.Previous = nn;
+            if (Last == prevNode) Last = nn;
+            Count++;
+            return nn;
+        }
+
+        public void AddAfter(ByteLinkedListNode prevNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+        {
+            var nextNode = prevNode.Next;
+            Debug.Assert(First != null && Last != null);
+            Debug.Assert(nextNode != null || Last == prevNode);
+            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+            prevNode.Next = chainFirst;
+            chainFirst.Previous = prevNode;
+            if (nextNode != null) nextNode.Previous = chainLast;
+            chainLast.Previous = nextNode;
+            if (Last == prevNode) Last = chainLast;
+            Count += chainedCount;
+        }
+
+        public ByteLinkedListNode AddBefore(ByteLinkedListNode nextNode, Memory<byte> value)
+        {
+            var prevNode = nextNode.Previous;
+            Debug.Assert(First != null && Last != null);
+            Debug.Assert(prevNode != null || First == nextNode);
+            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+            var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
+            nextNode.Previous = nn;
+            if (prevNode != null) prevNode.Next = nn;
+            if (First == nextNode) First = nn;
+            Count++;
+            return nn;
+        }
+
+        public void AddBefore(ByteLinkedListNode nextNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+        {
+            var prevNode = nextNode.Previous;
+            Debug.Assert(First != null && Last != null);
+            Debug.Assert(prevNode != null || First == nextNode);
+            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+            nextNode.Previous = chainLast;
+            chainLast.Next = nextNode;
+            if (prevNode != null) prevNode.Next = chainFirst;
+            chainFirst.Previous = prevNode;
+            if (First == nextNode) First = chainFirst;
+            Count += chainedCount;
+        }
+
+        public void Remove(ByteLinkedListNode node)
+        {
+            Debug.Assert(First != null && Last != null);
+
+            if (node.Previous != null && node.Next != null)
+            {
+                Debug.Assert(First != null);
+                Debug.Assert(Last != null);
+                Debug.Assert(First != node);
+                Debug.Assert(Last != node);
+
+                node.Previous.Next = node.Next;
+                node.Next.Previous = node.Previous;
+
+                Count--;
+            }
+            else if (node.Previous == null && node.Next == null)
+            {
+                Debug.Assert(First == node);
+                Debug.Assert(Last == node);
+
+                First = Last = null;
+
+                Count--;
+            }
+            else if (node.Previous != null)
+            {
+                Debug.Assert(First != null);
+                Debug.Assert(First != node);
+                Debug.Assert(Last == node);
+
+                node.Previous.Next = null;
+                Last = node.Previous;
+
+                Count--;
+            }
+            else
+            {
+                Debug.Assert(Last != null);
+                Debug.Assert(Last != node);
+                Debug.Assert(First == node);
+
+                node.Next.Previous = null;
+                First = node.Next;
+
+                Count--;
+            }
+        }
+
+        public IReadOnlyList<Memory<byte>> Items
+        {
+            get
+            {
+                List<Memory<byte>> ret = new List<Memory<byte>>();
                 var node = First;
                 while (node != null)
                 {
