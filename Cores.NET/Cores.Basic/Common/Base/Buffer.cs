@@ -2772,7 +2772,7 @@ namespace IPA.Cores.Basic
 
         public FastMemoryPool(int initialSize = 0)
         {
-            initialSize = Math.Min(initialSize, 1);
+            initialSize = Math.Max(initialSize, 1);
             Pool = new T[initialSize];
             MinReserveSize = initialSize;
         }

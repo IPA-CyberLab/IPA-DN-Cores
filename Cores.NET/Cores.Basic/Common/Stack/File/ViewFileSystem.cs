@@ -79,21 +79,37 @@ namespace IPA.Cores.Basic
 
             ViewFileObjectInitUnderlayFileResultParam createResult = await CreateUnderlayFileImplAsync(this.FileParams, cancel);
 
-            this.UnderlayFile = createResult.FileObject;
+            try
+            {
+                InitAndCheckFileSizeAndPosition(createResult.InitialPositon, createResult.InitialSize, cancel);
+            }
+            catch
+            {
+                createResult.FileObject._DisposeSafe();
+                throw;
+            }
 
-            InitAndCheckFileSizeAndPosition(createResult.InitialPositon, createResult.InitialSize, cancel);
+            this.UnderlayFile = createResult.FileObject;
         }
 
         protected virtual async Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             FileObject obj = await UnderlayFileSystem.CreateFileAsync(option, cancel);
 
-            ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
-                obj,
-                obj.Position,
-                obj.Size);
+            try
+            {
+                ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
+                    obj,
+                    obj.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly) ? 0 : obj.Position,
+                    obj.Size);
 
-            return result;
+                return result;
+            }
+            catch
+            {
+                obj._DisposeSafe();
+                throw;
+            }
         }
 
         protected override Task CloseImplAsync()
@@ -142,10 +158,17 @@ namespace IPA.Cores.Basic
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             ViewFileObject fileObj = new ViewFileObject(this, option);
+            try
+            {
+                await fileObj._InternalCreateFileAsync(cancel);
 
-            await fileObj._InternalCreateFileAsync(cancel);
-
-            return fileObj;
+                return fileObj;
+            }
+            catch
+            {
+                fileObj._DisposeSafe();
+                throw;
+            }
         }
 
         protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)

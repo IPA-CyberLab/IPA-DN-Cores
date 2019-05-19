@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
             public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
 
-            public static readonly Copenhagen<int> MaxBufferingSizePerServer = (96 * 1024 * 1024); // 96MB
+            public static readonly Copenhagen<int> BufferingSizeThresholdPerServer = (16 * 1024 * 1024); // 16MB
 
             public static readonly Copenhagen<int> MaxDataSize = (64 * 1024 * 1024); // 64MB
         }
@@ -129,7 +129,7 @@ namespace IPA.Cores.Basic
                 {
                     while (true)
                     {
-                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogServerSettings.MaxBufferingSizePerServer || st.IsReadyToReceive(sizeof(int)) == false)
+                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogServerSettings.BufferingSizeThresholdPerServer || st.IsReadyToReceive(sizeof(int)) == false)
                         {
                             var list = standardLogQueue.List;
                             standardLogQueue.Clear();

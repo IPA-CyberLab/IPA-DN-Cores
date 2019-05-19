@@ -51,6 +51,7 @@ namespace IPA.Cores.Basic
         public static partial class FileSystemSettings
         {
             public static readonly Copenhagen<int> PooledHandleLifetime = 60 * 1000;
+            public static readonly Copenhagen<int> MaxPooledHandleCount = 1;
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
@@ -653,8 +654,8 @@ namespace IPA.Cores.Basic
         public FileOperationFlags DefaultFileOperationFlags { get; }
         public bool IsWriteMode { get; }
 
-        public FileSystemObjectPool(FileSystem FileSystem, bool writeMode, int delayTimeout, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
-            : base(delayTimeout, new StrComparer(FileSystem.PathParser.PathStringComparison))
+        public FileSystemObjectPool(FileSystem FileSystem, bool writeMode, int lifeTime, int maxObjects, FileOperationFlags defaultFileOperationFlags = FileOperationFlags.None)
+            : base(lifeTime, maxObjects, new StrComparer(FileSystem.PathParser.PathStringComparison))
         {
             this.FileSystem = FileSystem;
             this.IsWriteMode = writeMode;
@@ -667,15 +668,13 @@ namespace IPA.Cores.Basic
         {
             if (this.IsWriteMode == false)
             {
-                string path = name.Substring(2);
-                path = await FileSystem.NormalizePathAsync(path, cancel);
+                string path = await FileSystem.NormalizePathAsync(name, cancel);
 
                 return await FileSystem.OpenAsync(path, cancel: cancel, flags: this.DefaultFileOperationFlags | flags);
             }
             else
             {
-                string path = name.Substring(2);
-                path = await FileSystem.NormalizePathAsync(path, cancel);
+                string path = await FileSystem.NormalizePathAsync(name, cancel);
 
                 return await FileSystem.OpenOrCreateAsync(path, cancel: cancel, flags: this.DefaultFileOperationFlags | flags);
             }
@@ -1414,8 +1413,8 @@ namespace IPA.Cores.Basic
             this.PathParser = this.Params.PathParser;
             DirectoryWalker = new DirectoryWalker(this);
 
-            ObjectPoolForRead = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime));
-            ObjectPoolForWrite = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime));
+            ObjectPoolForRead = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, false, CoresConfig.FileSystemSettings.PooledHandleLifetime, CoresConfig.FileSystemSettings.MaxPooledHandleCount));
+            ObjectPoolForWrite = new Singleton<FileSystemObjectPool>(() => new FileSystemObjectPool(this, true, CoresConfig.FileSystemSettings.PooledHandleLifetime, CoresConfig.FileSystemSettings.MaxPooledHandleCount));
 
             try
             {
@@ -1591,7 +1590,7 @@ namespace IPA.Cores.Basic
             => CreateFileAsync(new FileParameters(path, FileMode.Append, FileAccess.Write, noShare ? FileShare.None : FileShare.Read, flags), cancel);
 
         public FileObject OpenOrCreateAppend(string path, bool noShare = false, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
-            => OpenOrCreateAsync(path, noShare, flags, cancel)._GetResult();
+            => OpenOrCreateAppendAsync(path, noShare, flags, cancel)._GetResult();
 
         public async Task CreateDirectoryAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
         {

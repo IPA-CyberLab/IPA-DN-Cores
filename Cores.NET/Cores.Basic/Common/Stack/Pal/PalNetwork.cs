@@ -370,7 +370,7 @@ namespace IPA.Cores.Basic
     {
         public PalSslClientAuthenticationOptions() { }
 
-        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] serverCertSHA1List)
+        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
         {
             this.TargetHost = targetHost;
             this.AllowAnyServerCert = allowAnyServerCert;

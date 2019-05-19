@@ -121,7 +121,15 @@ namespace IPA.Cores.Basic
 
             LargeFileObject f = new LargeFileObject(fileSystem, fileParams, relatedFiles);
 
-            await f.InternalInitAsync(cancel);
+            try
+            {
+                await f.InternalInitAsync(cancel);
+            }
+            catch
+            {
+                f._DisposeSafe();
+                throw;
+            }
 
             return f;
         }
@@ -185,7 +193,7 @@ namespace IPA.Cores.Basic
 
                 if (newFille)
                 {
-                    using (var handle = await GetUnderleyRandomAccessHandle(0, cancel))
+                    using (var handle = await GetUnderlayRandomAccessHandle(0, cancel))
                     {
                     }
                 }
@@ -198,7 +206,7 @@ namespace IPA.Cores.Basic
 
         readonly Cache<string, LargeFileSystem.ParsedPath> ParsedPathCache = new Cache<string, LargeFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(CoresConfig.FileSystemSettings.PooledHandleLifetime.Value), CacheType.UpdateExpiresWhenAccess);
 
-        async Task<RandomAccessHandle> GetUnderleyRandomAccessHandle(long logicalPosition, CancellationToken cancel)
+        async Task<RandomAccessHandle> GetUnderlayRandomAccessHandle(long logicalPosition, CancellationToken cancel)
         {
             var cursor = new Cursor(this, logicalPosition);
 
@@ -239,7 +247,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            using (var handle = await GetUnderleyRandomAccessHandle(this.CurrentFileSize, cancel))
+            using (var handle = await GetUnderlayRandomAccessHandle(this.CurrentFileSize, cancel))
             {
                 await handle.FlushAsync(cancel);
             }
@@ -309,7 +317,7 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel);
+                        handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel);
                     }
                     catch (FileNotFoundException) { }
 
@@ -371,7 +379,7 @@ namespace IPA.Cores.Basic
                         Debug.Assert(firstCursor.LogicalPosition == position);
                         Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
 
-                        using (var handle = await GetUnderleyRandomAccessHandle(position, cancel))
+                        using (var handle = await GetUnderlayRandomAccessHandle(position, cancel))
                         {
                             // Write the zero-cleared block toward the end of the first physical file
                             byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
@@ -392,7 +400,7 @@ namespace IPA.Cores.Basic
                             this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
                         }
 
-                        using (var handle = await GetUnderleyRandomAccessHandle(secondCursor.LogicalPosition, cancel))
+                        using (var handle = await GetUnderlayRandomAccessHandle(secondCursor.LogicalPosition, cancel))
                         {
                             // Write the data from the beginning of the second physical file
                             await handle.WriteRandomAsync(0, data, cancel);
@@ -405,7 +413,7 @@ namespace IPA.Cores.Basic
                     // Normal write
                     foreach (Cursor cursor in cursorList)
                     {
-                        using (var handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel))
+                        using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
                         {
                             await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
                         }
@@ -473,7 +481,7 @@ namespace IPA.Cores.Basic
                 cancel);
             }
 
-            using (var handle = await GetUnderleyRandomAccessHandle(cursor.LogicalPosition, cancel))
+            using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
             {
                 await handle.SetFileSizeAsync(cursor.PhysicalPosition, cancel);
 

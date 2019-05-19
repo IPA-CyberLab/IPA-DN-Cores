@@ -1689,6 +1689,16 @@ namespace IPA.Cores.Basic
             return (RandUInt32() % 2) == 0;
         }
 
+        public static int GenRandIntervalWithRetry(int standard, int numRetry, int max, double plusMinusPercentage = 30.0)
+        {
+            numRetry = Math.Max(numRetry, 1);
+
+            int v = standard * numRetry;
+            v = Math.Min(v, max);
+
+            return GenRandInterval(v, plusMinusPercentage);
+        }
+
         public static int GenRandInterval(int standard, double plusMinusPercentage = 30.0)
         {
             double rate = plusMinusPercentage / 100.0;
@@ -2319,6 +2329,59 @@ namespace IPA.Cores.Basic
             }
 
             return ms.ToArray();
+        }
+
+        public static IReadOnlyList<ReadOnlyMemory<T>> DefragmentMemoryArrays<T>(IEnumerable<ReadOnlyMemory<T>> srcDataList, int minBlockSize)
+        {
+            minBlockSize = Math.Max(minBlockSize, 1);
+
+            List<ReadOnlyMemory<T>> ret = new List<ReadOnlyMemory<T>>();
+
+            MemoryBuffer <T> current = null;
+
+            foreach (ReadOnlyMemory<T> src in srcDataList)
+            {
+                if (src.Length >= 1)
+                {
+                    if (src.Length >= minBlockSize)
+                    {
+                        if (current != null)
+                        {
+                            if (current.Length >= 1)
+                            {
+                                ret.Add(current);
+                            }
+                            current = null;
+                        }
+                        ret.Add(src);
+                    }
+                    else
+                    {
+                        if (current == null)
+                        {
+                            current = new MemoryBuffer<T>();
+                        }
+
+                        current.Write(src);
+
+                        if (current.Length >= minBlockSize)
+                        {
+                            ret.Add(current);
+                            current = null;
+                        }
+                    }
+                }
+            }
+
+            if (current != null)
+            {
+                if (current.Length >= 1)
+                {
+                    ret.Add(current);
+                }
+            }
+
+            return ret.ToArray();
         }
     }
 

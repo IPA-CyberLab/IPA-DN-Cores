@@ -60,7 +60,6 @@ namespace IPA.Cores.Basic
         Init,
         Written,
         Read,
-        PartialProcessReadData,
         EmptyToNonEmpty,
         NonEmptyToEmpty,
         Disconnected,
@@ -91,7 +90,7 @@ namespace IPA.Cores.Basic
         FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
 
         void CompleteRead();
-        void CompleteWrite(bool checkDisconnect = true);
+        void CompleteWrite(bool checkDisconnect = true, bool softly = false);
     }
 
     static class IFastBufferStateHelper
@@ -196,7 +195,7 @@ namespace IPA.Cores.Basic
         {
             if (IsDisconnected) return true;
             if (Length <= Threshold) return true;
-            CompleteWrite(false);
+            CompleteWrite(false, true);
             return false;
         }
 
@@ -319,7 +318,7 @@ namespace IPA.Cores.Basic
 
         long LastTailPin = long.MinValue;
 
-        public void CompleteWrite(bool checkDisconnect = true)
+        public void CompleteWrite(bool checkDisconnect = true, bool softly = false)
         {
             if (IsEventsEnabled)
             {
@@ -337,7 +336,7 @@ namespace IPA.Cores.Basic
                 }
                 if (setFlag)
                 {
-                    EventReadReady.Set();
+                    EventReadReady.Set(softly);
                 }
             }
 
@@ -1157,7 +1156,7 @@ namespace IPA.Cores.Basic
         {
             if (IsDisconnected) return true;
             if (Length <= Threshold) return true;
-            CompleteWrite(false);
+            CompleteWrite(false, true);
             return false;
         }
 
@@ -1269,7 +1268,7 @@ namespace IPA.Cores.Basic
 
         long LastTailPin = long.MinValue;
 
-        public void CompleteWrite(bool checkDisconnect = true)
+        public void CompleteWrite(bool checkDisconnect = true, bool softly = false)
         {
             if (IsEventsEnabled)
             {
@@ -1287,7 +1286,7 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventReadReady.Set();
+                    EventReadReady.Set(softly);
                 }
             }
             if (checkDisconnect)

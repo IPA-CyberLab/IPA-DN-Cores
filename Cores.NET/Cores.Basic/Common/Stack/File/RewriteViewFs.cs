@@ -218,10 +218,17 @@ namespace IPA.Cores.Basic
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             RewriteViewFileObject fileObj = new RewriteViewFileObject(this, option);
+            try
+            {
+                await fileObj._InternalCreateFileAsync(cancel);
 
-            await fileObj._InternalCreateFileAsync(cancel);
-
-            return fileObj;
+                return fileObj;
+            }
+            catch
+            {
+                fileObj._DisposeSafe();
+                throw;
+            }
         }
 
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)

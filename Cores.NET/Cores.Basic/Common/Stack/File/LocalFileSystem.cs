@@ -825,10 +825,17 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
 
             LocalFileObject f = new LocalFileObject(fileSystem, fileParams);
+            try
+            {
+                await f.InternalInitAsync(cancel);
 
-            await f.InternalInitAsync(cancel);
-
-            return f;
+                return f;
+            }
+            catch
+            {
+                f._DisposeSafe();
+                throw;
+            }
         }
 
         static FileStream Win32CreateFileStreamInternal(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)

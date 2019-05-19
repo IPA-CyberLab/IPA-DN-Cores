@@ -423,6 +423,42 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static async Task<bool> AwaitWithPoll(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default)
+        {
+            long end_tick = Time.Tick64 + (long)timeout;
+
+            if (timeout == Timeout.Infinite)
+            {
+                end_tick = long.MaxValue;
+            }
+
+            while (true)
+            {
+                long now = Time.Tick64;
+                if (timeout != Timeout.Infinite)
+                {
+                    if (now >= end_tick)
+                    {
+                        return false;
+                    }
+                }
+
+                long next_wait = (end_tick - now);
+                next_wait = Math.Min(next_wait, (long)pollInterval);
+                next_wait = Math.Max(next_wait, 1);
+
+                if (pollProc != null)
+                {
+                    if (pollProc())
+                    {
+                        return true;
+                    }
+                }
+
+                await cancel._WaitUntilCanceledAsync((int)next_wait);
+            }
+        }
+
         public static int GetMinTimeout(params int[] values)
         {
             long minValue = long.MaxValue;
@@ -1603,6 +1639,9 @@ namespace IPA.Cores.Basic
         public Task MainLoopToWaitComplete { get; private set; } = null;
 
         Once once;
+
+        protected Task StartMainLoop(Func<Task> mainLoopProc, bool noLeakCheck = false)
+            => StartMainLoop((c) => mainLoopProc(), noLeakCheck);
 
         protected Task StartMainLoop(Func<CancellationToken, Task> mainLoopProc, bool noLeakCheck = false)
         {
@@ -3564,12 +3603,15 @@ namespace IPA.Cores.Basic
     abstract class ObjectPoolBase<TObject, TParam> : IDisposable
         where TObject : IAsyncClosable
     {
+        long AccessCounter = 0;
+
         public class ObjectEntry : IDisposable
         {
             public RefCounter Counter { get; } = new RefCounter();
             public TObject Object { get; }
             public string Key { get; }
             public long LastReleasedTick { get; private set; } = 0;
+            public long LastAccessCounterValue = 0;
 
             readonly CriticalSection LockObj = new CriticalSection();
 
@@ -3631,13 +3673,16 @@ namespace IPA.Cores.Basic
         readonly AsyncLock LockAsyncObj = new AsyncLock();
         readonly CancellationTokenSource CancelSource = new CancellationTokenSource();
 
-        public int DelayTimeout { get; }
+        public int LifeTime { get; }
+        public int MaxObjects { get; }
 
         Task GcTask;
 
-        public ObjectPoolBase(int delayTimeout, IEqualityComparer<string> comparer)
+        public ObjectPoolBase(int lifeTime, int maxObjects, IEqualityComparer<string> comparer)
         {
-            this.DelayTimeout = Math.Max(delayTimeout, 0);
+            this.LifeTime = Math.Max(lifeTime, 0);
+            this.MaxObjects = maxObjects;
+
             ObjectList = new Dictionary<string, ObjectEntry>(comparer);
             GcTask = GcTaskProc();
         }
@@ -3671,6 +3716,8 @@ namespace IPA.Cores.Basic
                         entry = new ObjectEntry(this, t, key);
                         ObjectList.Add(key, entry);
                     }
+
+                    entry.LastAccessCounterValue = Interlocked.Increment(ref this.AccessCounter);
 
                     RefCounterObjectHandle<TObject> ret = entry.TryGetIfAlive();
                     if (ret == null)
@@ -3745,7 +3792,7 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), timeout: Math.Max(DelayTimeout, 100));
+                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), timeout: Math.Max(LifeTime, 100));
 
                 cancel.ThrowIfCancellationRequested();
 
@@ -3759,7 +3806,7 @@ namespace IPA.Cores.Basic
                     {
                         if (entry.LastReleasedTick != 0)
                         {
-                            if ((entry.LastReleasedTick + DelayTimeout) < now)
+                            if ((entry.LastReleasedTick + LifeTime) < now)
                             {
                                 gcTargetList.Add(entry);
                             }

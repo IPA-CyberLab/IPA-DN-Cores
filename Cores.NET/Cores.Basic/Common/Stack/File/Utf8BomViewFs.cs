@@ -160,10 +160,17 @@ namespace IPA.Cores.Basic
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
             Utf8BomViewFileObject fileObj = new Utf8BomViewFileObject(this, option);
+            try
+            {
+                await fileObj._InternalCreateFileAsync(cancel);
 
-            await fileObj._InternalCreateFileAsync(cancel);
-
-            return fileObj;
+                return fileObj;
+            }
+            catch
+            {
+                fileObj._DisposeSafe();
+                throw;
+            }
         }
 
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)

@@ -567,7 +567,7 @@ namespace IPA.Cores.Basic
                     sendTimeoutProcId = PipeEnd.StreamWriter.EventListeners.RegisterCallback((buffer, type, state) =>
                     {
                         //                            WriteLine($"{type}  {buffer.Length}  {buffer.IsReadyToWrite}");
-                        if (type == FastBufferCallbackEventType.Read || type == FastBufferCallbackEventType.EmptyToNonEmpty || type == FastBufferCallbackEventType.PartialProcessReadData)
+                        if (type == FastBufferCallbackEventType.Read || type == FastBufferCallbackEventType.EmptyToNonEmpty)
                             sendTimeoutDetector.Keep();
                     });
                 }
