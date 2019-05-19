@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalFileSystemSettings
         {
-            public static readonly Copenhagen<int> SparseFileMinBlockSize = 4096;
+            public static readonly Copenhagen<int> SparseFileMinBlockSize = 32 * 1024;
         }
     }
 

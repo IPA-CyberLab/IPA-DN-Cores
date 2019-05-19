@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
 
             var parsed = ParsedPathCache.GetOrCreate(cacheKey, x => new LargeFileSystem.ParsedPath(LargeFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber));
 
-            return await LargeFileSystem.UnderlayFileSystem.GetRandomAccessHandleAsync(parsed.PhysicalFilePath, FileParams.Access.Bit(FileAccess.Write), this.FileParams.Flags | FileOperationFlags.SparseFile, cancel);
+            return await LargeFileSystem.UnderlayFileSystem.GetRandomAccessHandleAsync(parsed.PhysicalFilePath, FileParams.Access.Bit(FileAccess.Write), this.FileParams.Flags, cancel);
         }
 
         protected override async Task CloseImplAsync()
