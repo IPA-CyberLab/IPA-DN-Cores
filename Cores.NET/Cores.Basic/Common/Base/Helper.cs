@@ -826,6 +826,20 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsZero(this ReadOnlyMemory<byte> data) => Util.IsZero(data);
         public static bool _IsZero(this Memory<byte> data) => Util.IsZero(data);
 
+
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this byte[] data) => Util.IsZeroFast(data);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this byte[] data, int offset, int size) => Util.IsZeroFast(data, offset, size);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this ReadOnlySpan<byte> data) => Util.IsZeroFast(data);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this Span<byte> data) => Util.IsZeroFast(data);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this ReadOnlyMemory<byte> data) => Util.IsZeroFast(data);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
+
         public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 

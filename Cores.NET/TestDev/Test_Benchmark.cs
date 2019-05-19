@@ -158,6 +158,10 @@ namespace IPA.TestDev
                 sparse.Span.Slice(pos, 6000).Fill(0);
             }
 
+            MemoryBuffer<byte> allZeroSparse = new byte[sparseTestSize];
+
+            int isZeroTestSize = 4;
+
 
             var queue = new MicroBenchmarkQueue()
 
@@ -181,6 +185,27 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190518)
 
+            .Add(new MicroBenchmark($"IsZero - NonSparse", Benchmark_CountForSlow, count =>
+            {
+                ReadOnlySpan<byte> data = nonSparse.Slice(0, isZeroTestSize);
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.IsZero(data);
+                }
+            }), enabled: true, priority: 190519)
+
+            .Add(new MicroBenchmark($"IsZero - All Zero Sparse", Benchmark_CountForSlow, count =>
+            {
+                ReadOnlySpan<byte> data = allZeroSparse.Slice(0, isZeroTestSize);
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.IsZero(data);
+                }
+            }), enabled: true, priority: 190519)
+
+
             .Add(new MicroBenchmark($"GetSparseChunks - NonSparse", Benchmark_CountForSlow, count =>
             {
                 ReadOnlyMemory<byte> data = nonSparse;
@@ -189,7 +214,7 @@ namespace IPA.TestDev
                 {
                     Util.GetSparseChunks(data, 4096);
                 }
-            }), enabled: true, priority: 190518)
+            }), enabled: true, priority: 190519)
 
             .Add(new MicroBenchmark($"GetSparseChunks - Sparse", Benchmark_CountForSlow, count =>
             {
@@ -199,7 +224,17 @@ namespace IPA.TestDev
                 {
                     Util.GetSparseChunks(data, 4096);
                 }
-            }), enabled: true, priority: 190518)
+            }), enabled: true, priority: 190519)
+
+            .Add(new MicroBenchmark($"GetSparseChunks - All Zero Sparse", Benchmark_CountForSlow, count =>
+            {
+                ReadOnlyMemory<byte> data = allZeroSparse;
+
+                for (int c = 0; c < count; c++)
+                {
+                    Util.GetSparseChunks(data, 4096);
+                }
+            }), enabled: true, priority: 190519)
 
             .Add(new MicroBenchmark($"ParseEnum", Benchmark_CountForNormal, count =>
             {

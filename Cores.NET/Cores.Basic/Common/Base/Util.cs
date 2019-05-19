@@ -1051,17 +1051,10 @@ namespace IPA.Cores.Basic
         }
         public static bool IsZero(byte[] data, int offset, int size)
         {
-            int i;
             if (data == null) return true;
-            for (i = offset; i < offset + size; i++)
-            {
-                if (data[i] != 0)
-                {
-                    return false;
-                }
-            }
-            return true;
+            return IsZero(new ReadOnlySpan<byte>(data, offset, size));
         }
+
         public static bool IsZero(ReadOnlySpan<byte> data)
         {
             int i;
@@ -1075,6 +1068,52 @@ namespace IPA.Cores.Basic
             return true;
         }
         public static bool IsZero(ReadOnlyMemory<byte> data) => IsZero(data.Span);
+
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static unsafe bool IsZeroFast(ReadOnlySpan<byte> srcMemory)
+        {
+            fixed (byte* srcPointer = srcMemory)
+            {
+                long startLong = (long)srcPointer;
+                long srcLen = srcMemory.Length;
+                long endLong = startLong + srcLen;
+
+                startLong = ((startLong + 7) / 8) * 8;
+                endLong = (endLong / 8) * 8;
+
+                for (byte* p = srcPointer; p < (byte*)startLong; p++)
+                    if (*p != 0) return false;
+
+                byte* endP = srcPointer + srcLen;
+
+                for (byte* p = (byte*)endLong; p < endP; p++)
+                    if (*p != 0) return false;
+
+                for (long i = startLong; i < endLong; i += 8)
+                {
+                    if (*((long*)i) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        }
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool IsZeroFast(ReadOnlyMemory<byte> data) => IsZeroFast(data.Span);
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool IsZeroFast(byte[] data)
+        {
+            if (data == null) return true;
+            return IsZeroFast(data, 0, data.Length);
+        }
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static bool IsZeroFast(byte[] data, int offset, int size)
+        {
+            if (data == null) return true;
+            return IsZeroFast(new ReadOnlySpan<byte>(data, offset, size));
+        }
 
         // byte[] 配列同士を比較する
         public static bool CompareByte(byte[] b1, byte[] b2)
@@ -2095,15 +2134,98 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static IReadOnlyList<SparseChunk<byte>> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int minZeroBlockSize)
+        [Flags]
+        public enum SpanSparseInfo
+        {
+            NotSparse,
+            ContainsSparse,
+            AllZero,
+        }
+
+        public static unsafe SpanSparseInfo GetSpanSparseInfo(ReadOnlySpan<byte> srcMemory, int minZeroBlockSize)
+        {
+            if (srcMemory.Length == 0) return SpanSparseInfo.AllZero;
+            if (minZeroBlockSize <= 7 || minZeroBlockSize == int.MaxValue) return SpanSparseInfo.NotSparse;
+
+            fixed (byte* srcPointer = srcMemory)
+            {
+                long srcLen = srcMemory.Length;
+                long startLong = (long)srcPointer;
+                long endLong = startLong + srcLen;
+
+                startLong = ((startLong + 7) / 8) * 8;
+                endLong = (endLong / 8) * 8;
+
+                int blockSizeCount = (minZeroBlockSize / 8);
+                
+                int count = 0;
+
+                bool hasSparse = false;
+                bool hasNonZero = false;
+
+                for (long i = startLong; i < endLong; i += 8)
+                {
+                    if (*((long *)i) == 0)
+                    {
+                        count++;
+                        if (count >= blockSizeCount)
+                        {
+                            hasSparse = true;
+                        }
+                    }
+                    else
+                    {
+                        count = 0;
+                        hasNonZero = true;
+                    }
+                }
+
+                if (hasSparse)
+                {
+                    if (hasNonZero)
+                    {
+                        return SpanSparseInfo.ContainsSparse;
+                    }
+                    else
+                    {
+                        for (byte* p = srcPointer; p < (byte*)startLong; p++)
+                            if (*p != 0) return SpanSparseInfo.ContainsSparse;
+
+                        byte* endp = srcPointer + srcLen;
+                        for (byte* p = (byte*)endLong; p < endp; p++)
+                            if (*p != 0) return SpanSparseInfo.ContainsSparse;
+
+                        return SpanSparseInfo.AllZero;
+                    }
+                }
+                else
+                {
+                    return SpanSparseInfo.NotSparse;
+                }
+            }
+        }
+
+        public static unsafe IReadOnlyList<SparseChunk<byte>> GetSparseChunks(ReadOnlyMemory<byte> srcMemory, int minZeroBlockSize)
         {
             checked
             {
                 List<SparseChunk<byte>> ret = new List<SparseChunk<byte>>();
 
-                if (minZeroBlockSize <= 0 || minZeroBlockSize == int.MaxValue)
+                if (srcMemory.Length == 0)
+                {
+                    return ret;
+                }
+
+                SpanSparseInfo sparseInfo = GetSpanSparseInfo(srcMemory.Span, minZeroBlockSize);
+
+                if (sparseInfo == SpanSparseInfo.NotSparse)
                 {
                     ret.Add(new SparseChunk<byte>(0, srcMemory));
+                    return ret;
+                }
+                else if (sparseInfo == SpanSparseInfo.AllZero)
+                {
+                    ret.Add(new SparseChunk<byte>(0, srcMemory.Length));
                     return ret;
                 }
 
