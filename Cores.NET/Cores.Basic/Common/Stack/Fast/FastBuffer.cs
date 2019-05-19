@@ -240,13 +240,13 @@ namespace IPA.Cores.Basic
 
             Threshold = thresholdLength ?? DefaultThreshold;
             IsEventsEnabled = enableEvents;
+
             if (IsEventsEnabled)
             {
                 EventWriteReady = new AsyncAutoResetEvent();
                 EventReadReady = new AsyncAutoResetEvent();
+                Id = FastBufferGlobalIdCounter.NewId();
             }
-
-            Id = FastBufferGlobalIdCounter.NewId();
 
             EventListeners.Fire(this, FastBufferCallbackEventType.Init);
         }
@@ -439,6 +439,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         FastLinkedListNode<ReadOnlyMemory<T>> GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
         {
             checked
@@ -488,6 +489,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void GetOverlappedNodes(long pinStart, long pinEnd,
             out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
             out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
@@ -601,7 +603,7 @@ namespace IPA.Cores.Basic
                         throw new ArgumentOutOfRangeException("(pin + size) > PinTail");
                     size = PinTail - pin;
                 }
-                ReadOnlyMemory<T> ret = GetContiguousMemory(pin, pin + size, false, false);
+                ReadOnlyMemory<T> ret = GetContiguousReadOnlyMemory(pin, pin + size, false, false);
                 return ret;
             }
         }
@@ -616,25 +618,25 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public ReadOnlyMemory<T> PutContiguous(long pin, long size, bool appendIfOverrun = false)
+        public Memory<T> PutContiguous(long pin, long size, bool appendIfOverrun = false)
         {
             checked
             {
                 if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
                 if (size == 0)
                 {
-                    return new ReadOnlyMemory<T>();
+                    return new Memory<T>();
                 }
-                ReadOnlyMemory<T> ret = GetContiguousMemory(pin, pin + size, appendIfOverrun, false);
+                Memory<T> ret = GetContiguousWritableMemory(pin, pin + size, appendIfOverrun);
                 return ret;
             }
         }
 
-        public ReadOnlyMemory<T> WriteForwardContiguous(ref long pin, long size, bool appendIfOverrun = false)
+        public Memory<T> WriteForwardContiguous(ref long pin, long size, bool appendIfOverrun = false)
         {
             checked
             {
-                ReadOnlyMemory<T> ret = PutContiguous(pin, size, appendIfOverrun);
+                Memory<T> ret = PutContiguous(pin, size, appendIfOverrun);
                 pin += ret.Length;
                 return ret;
             }
@@ -1041,11 +1043,93 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T[] ToArray() => GetContiguousMemory(PinHead, PinTail, false, true).ToArray();
+        public T[] ToArray() => GetContiguousReadOnlyMemory(PinHead, PinTail, false, true).ToArray();
 
         public T[] ItemsSlow { get => ToArray(); }
 
-        ReadOnlyMemory<T> GetContiguousMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
+        Memory<T> GetContiguousWritableMemory(long pinStart, long pinEnd, bool appendIfOverrun)
+        {
+            checked
+            {
+                if (pinStart == pinEnd) return new Memory<T>();
+                if (pinStart > pinEnd) throw new ArgumentOutOfRangeException("pinStart > pinEnd");
+
+                if (appendIfOverrun)
+                {
+                    if (List.First == null)
+                    {
+                        InsertHead(new T[pinEnd - pinStart]);
+                        PinHead = pinStart;
+                        PinTail = pinEnd;
+                    }
+
+                    if (pinStart < PinHead)
+                        InsertBefore(new T[PinHead - pinStart]);
+
+                    if (pinEnd > PinTail)
+                        InsertTail(new T[pinEnd - PinTail]);
+                }
+                else
+                {
+                    if (List.First == null) throw new ArgumentOutOfRangeException("Buffer is empty.");
+                    if (pinStart < PinHead) throw new ArgumentOutOfRangeException("pinStart < PinHead");
+                    if (pinEnd > PinTail) throw new ArgumentOutOfRangeException("pinEnd > PinTail");
+                }
+
+                GetOverlappedNodes(pinStart, pinEnd,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
+                    out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out int nodeCounts, out int lackRemainLength);
+
+                Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
+
+                if (firstNode == lastNode)
+                {
+                    Memory<T> newMemory2 = firstNode.Value.ToArray();
+                    firstNode.Value = newMemory2;
+                    return newMemory2.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment);
+                }
+
+                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
+
+                Memory<T> newMemory = new T[lastNodePin + lastNode.Value.Length - firstNodePin];
+                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
+                int currentWritePointer = 0;
+
+                while (true)
+                {
+                    Debug.Assert(node != null, "node == null");
+
+                    bool finish = false;
+                    node.Value.CopyTo(newMemory.Slice(currentWritePointer));
+
+                    if (node == lastNode) finish = true;
+
+                    FastLinkedListNode<ReadOnlyMemory<T>> nodeToDelete = node;
+                    currentWritePointer += node.Value.Length;
+
+                    node = node.Next;
+
+                    List.Remove(nodeToDelete);
+
+                    if (finish) break;
+                }
+
+                if (prevNode != null)
+                    List.AddAfter(prevNode, newMemory);
+                else if (nextNode != null)
+                    List.AddBefore(nextNode, newMemory);
+                else
+                    List.AddFirst(newMemory);
+
+                var ret = newMemory.Slice(firstNodeOffsetInSegment, newMemory.Length - (lastNode.Value.Length - lastNodeOffsetInSegment) - firstNodeOffsetInSegment);
+                Debug.Assert(ret.Length == (pinEnd - pinStart), "ret.Length");
+                return ret;
+            }
+        }
+
+        public ReadOnlyMemory<T> GetContiguousReadOnlyMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
         {
             checked
             {

@@ -46,68 +46,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class FastStreamBufferCaptureBase<T> : AsyncService
+    class Packet : FastStreamBuffer
     {
-        public FastStreamBuffer<T> Target { get; }
-
-        readonly IDisposable EventRegister;
-
-        readonly CriticalSection LockObj = new CriticalSection();
-
-        long lastReadTail = long.MinValue;
-
-        protected abstract void CaptureCallbackImpl(long tick, FastBufferSegment<ReadOnlyMemory<T>>[] segments, long totalSize);
-
-        public FastStreamBufferCaptureBase(FastStreamBuffer<T> target, CancellationToken cancel = default) : base(cancel)
+        async Task a()
         {
-            this.Target = target;
-
-            EventRegister = Target.EventListeners.RegisterCallbackWithUsing(EventListenerCallback);
-        }
-
-        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object state)
-        {
-            long tick = Time.Tick64;
-
-            if (type != FastBufferCallbackEventType.Written) return;
-
-            lock (LockObj)
-            {
-                long readStart = Math.Max(lastReadTail, Target.PinHead);
-                long readEnd = Target.PinTail;
-                lastReadTail = readStart;
-
-                if ((readEnd - readStart) >= 1)
-                {
-                    FastBufferSegment<ReadOnlyMemory<T>>[] segments = Target.GetSegmentsFast(readStart, readEnd - readStart, out long readSize, true);
-
-                    CaptureCallbackImpl(tick, segments, readSize);
-                }
-            }
-        }
-
-        protected override void CancelImpl(Exception ex)
-        {
-            try
-            {
-                EventRegister._DisposeSafe();
-            }
-            finally
-            {
-                base.CancelImpl(ex);
-            }
-        }
-    }
-
-    class FastStreamBufferTcpPcapCapture : FastStreamBufferCaptureBase<byte>
-    {
-        public FastStreamBufferTcpPcapCapture(FastStreamBuffer<byte> target, CancellationToken cancel = default) : base(target, cancel)
-        {
-        }
-
-        protected override void CaptureCallbackImpl(long tick, FastBufferSegment<ReadOnlyMemory<byte>>[] segments, long totalSize)
-        {
-            throw new NotImplementedException();
+            MemoryBuffer<byte> m = new MemoryBuffer<byte>();
         }
     }
 }
