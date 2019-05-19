@@ -79,12 +79,14 @@ namespace IPA.Cores.Basic
         public int Count;
         public FastLinkedListNode<T> First, Last;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             Count = 0;
             First = Last = null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastLinkedListNode<T> AddFirst(T value)
         {
             if (First == null)
@@ -109,6 +111,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddFirst(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
         {
             if (First == null)
@@ -133,6 +136,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastLinkedListNode<T> AddLast(T value)
         {
             if (Last == null)
@@ -157,6 +161,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddLast(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
         {
             if (Last == null)
@@ -181,6 +186,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastLinkedListNode<T> AddAfter(FastLinkedListNode<T> prevNode, T value)
         {
             var nextNode = prevNode.Next;
@@ -195,6 +201,7 @@ namespace IPA.Cores.Basic
             return nn;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddAfter(FastLinkedListNode<T> prevNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
         {
             var nextNode = prevNode.Next;
@@ -209,6 +216,7 @@ namespace IPA.Cores.Basic
             Count += chainedCount;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastLinkedListNode<T> AddBefore(FastLinkedListNode<T> nextNode, T value)
         {
             var prevNode = nextNode.Previous;
@@ -223,6 +231,7 @@ namespace IPA.Cores.Basic
             return nn;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddBefore(FastLinkedListNode<T> nextNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
         {
             var prevNode = nextNode.Previous;
@@ -237,6 +246,7 @@ namespace IPA.Cores.Basic
             Count += chainedCount;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Remove(FastLinkedListNode<T> node)
         {
             Debug.Assert(First != null && Last != null);
@@ -328,12 +338,14 @@ namespace IPA.Cores.Basic
         public int Count;
         public ByteLinkedListNode First, Last;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             Count = 0;
             First = Last = null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ByteLinkedListNode AddFirst(Memory<byte> value)
         {
             if (First == null)
@@ -358,6 +370,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddFirst(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
         {
             if (First == null)
@@ -382,6 +395,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ByteLinkedListNode AddLast(Memory<byte> value)
         {
             if (Last == null)
@@ -406,6 +420,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddLast(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
         {
             if (Last == null)
@@ -430,6 +445,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ByteLinkedListNode AddAfter(ByteLinkedListNode prevNode, Memory<byte> value)
         {
             var nextNode = prevNode.Next;
@@ -444,6 +460,7 @@ namespace IPA.Cores.Basic
             return nn;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddAfter(ByteLinkedListNode prevNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
         {
             var nextNode = prevNode.Next;
@@ -458,6 +475,7 @@ namespace IPA.Cores.Basic
             Count += chainedCount;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ByteLinkedListNode AddBefore(ByteLinkedListNode nextNode, Memory<byte> value)
         {
             var prevNode = nextNode.Previous;
@@ -472,6 +490,7 @@ namespace IPA.Cores.Basic
             return nn;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddBefore(ByteLinkedListNode nextNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
         {
             var prevNode = nextNode.Previous;
@@ -486,6 +505,7 @@ namespace IPA.Cores.Basic
             Count += chainedCount;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Remove(ByteLinkedListNode node)
         {
             Debug.Assert(First != null && Last != null);

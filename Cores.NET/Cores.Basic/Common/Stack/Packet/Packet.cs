@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class Packet
+    partial class Packet
     {
         ByteLinkedList List = new ByteLinkedList();
         public long PinHead { get; private set; } = 0;
@@ -60,6 +60,7 @@ namespace IPA.Cores.Basic
             InsertHead(baseMemory);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             checked
@@ -69,6 +70,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InsertBefore(Memory<byte> item)
         {
             checked
@@ -79,6 +81,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InsertHead(Memory<byte> item)
         {
             checked
@@ -89,6 +92,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InsertTail(Memory<byte> item)
         {
             checked
@@ -768,12 +772,73 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Packet(Memory<byte> memory)
             => new Packet(memory);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Packet(Span<byte> span) => span.ToArray().AsMemory();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Packet(ReadOnlySpan<byte> span) => span.ToArray().AsMemory();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Packet(byte[] data) => data.AsMemory();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref readonly T AsReadOnlyStruct<T>(long pin)
+        {
+            Memory<byte> data = this.GetContiguous(pin, Unsafe.SizeOf<T>(), false);
+            fixed (void* ptr = &data.Span[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref T AsStruct<T>(long pin)
+        {
+            Memory<byte> data = this.PutContiguous(pin, Unsafe.SizeOf<T>(), true);
+            fixed (void* ptr = &data.Span[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<T> GetPin<T>(long pin) where T : struct
+            => new PacketPin<T>(this, pin);
+    }
+
+    readonly struct PacketPin<T> where T: struct
+    {
+        public readonly Packet Packet;
+        public readonly long Pin;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin(Packet packet, long pin)
+        {
+            this.Packet = packet;
+            this.Pin = pin;
+        }
+
+        public unsafe ref readonly T ValueRead
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                Memory<byte> data = Packet.GetContiguous(this.Pin, Unsafe.SizeOf<T>(), false);
+                fixed (void* ptr = &data.Span[0])
+                    return ref Unsafe.AsRef<T>(ptr);
+            }
+        }
+
+        public unsafe ref T Value
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                Memory<byte> data = Packet.PutContiguous(this.Pin, Unsafe.SizeOf<T>(), true);
+                fixed (void* ptr = &data.Span[0])
+                    return ref Unsafe.AsRef<T>(ptr);
+            }
+        }
     }
 }
 
