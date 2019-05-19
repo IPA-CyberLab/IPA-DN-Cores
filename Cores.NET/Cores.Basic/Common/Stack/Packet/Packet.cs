@@ -49,15 +49,15 @@ namespace IPA.Cores.Basic
     partial class Packet
     {
         ByteLinkedList List = new ByteLinkedList();
-        public long PinHead { get; private set; } = 0;
-        public long PinTail { get; private set; } = 0;
-        public long Length { get { long ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
+        public int PinHead { get; private set; } = 0;
+        public int PinTail { get; private set; } = 0;
+        public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
 
         public Packet() { }
 
         public Packet(Memory<byte> baseMemory)
         {
-            InsertHead(baseMemory);
+            InsertHeadInternal(baseMemory);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertBefore(Memory<byte> item)
+        void InsertBefore(Memory<byte> item)
         {
             checked
             {
@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertHead(Memory<byte> item)
+        void InsertHeadInternal(Memory<byte> item)
         {
             checked
             {
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertTail(Memory<byte> item)
+        void InsertTail(Memory<byte> item)
         {
             checked
             {
@@ -103,7 +103,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Insert(long pin, Memory<byte> item, bool appendIfOverrun = false)
+        void Insert(int pin, Memory<byte> item, bool appendIfOverrun = false)
         {
             checked
             {
@@ -111,7 +111,7 @@ namespace IPA.Cores.Basic
 
                 if (List.First == null)
                 {
-                    InsertHead(item);
+                    InsertHeadInternal(item);
                     return;
                 }
 
@@ -156,7 +156,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ByteLinkedListNode GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
+        ByteLinkedListNode GetNodeWithPin(int pin, out int offsetInSegment, out int nodePin)
         {
             checked
             {
@@ -188,7 +188,7 @@ namespace IPA.Cores.Basic
                     }
                     return last;
                 }
-                long currentPin = PinHead;
+                int currentPin = PinHead;
                 ByteLinkedListNode node = List.First;
                 while (node != null)
                 {
@@ -206,9 +206,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void GetOverlappedNodes(long pinStart, long pinEnd,
-            out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-            out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+        void GetOverlappedNodes(int pinStart, int pinEnd,
+            out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out int firstNodePin,
+            out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out int lastNodePin,
             out int nodeCounts, out int lackRemainLength)
         {
             checked
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
                 }
 
                 ByteLinkedListNode node = firstNode;
-                long currentPin = pinStart - firstNodeOffsetInSegment;
+                int currentPin = pinStart - firstNodeOffsetInSegment;
                 nodeCounts = 0;
                 while (true)
                 {
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
 
         public ReadOnlySpan<Memory<byte>> GetAllFast()
         {
-            ByteSegment[] segments = GetSegmentsFast(this.PinHead, this.Length, out long readSize, true);
+            PacketSegment[] segments = GetSegmentsFast(this.PinHead, this.Length, out int readSize, true);
 
             Span<Memory<byte>> ret = new Memory<byte>[segments.Length];
 
@@ -263,7 +263,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public ByteSegment[] GetSegmentsFast(long pin, long size, out long readSize, bool allowPartial = false)
+        public PacketSegment[] GetSegmentsFast(int pin, int size, out int readSize, bool allowPartial = false)
         {
             checked
             {
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
                 if (size == 0)
                 {
                     readSize = 0;
-                    return new ByteSegment[0];
+                    return new PacketSegment[0];
                 }
                 if (pin > PinTail)
                 {
@@ -284,23 +284,13 @@ namespace IPA.Cores.Basic
                     size = PinTail - pin;
                 }
 
-                ByteSegment[] ret = GetUncontiguousSegments(pin, pin + size, false);
+                PacketSegment[] ret = GetUncontiguousSegments(pin, pin + size, false);
                 readSize = size;
                 return ret;
             }
         }
 
-        public ByteSegment[] ReadForwardFast(ref long pin, long size, out long readSize, bool allowPartial = false)
-        {
-            checked
-            {
-                ByteSegment[] ret = GetSegmentsFast(pin, size, out readSize, allowPartial);
-                pin += readSize;
-                return ret;
-            }
-        }
-
-        public Memory<byte> GetContiguous(long pin, long size, bool allowPartial = false)
+        public Memory<byte> GetContiguous(int pin, int size, bool allowPartial = false)
         {
             checked
             {
@@ -324,17 +314,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Memory<byte> ReadForwardContiguous(ref long pin, long size, bool allowPartial = false)
-        {
-            checked
-            {
-                Memory<byte> ret = GetContiguous(pin, size, allowPartial);
-                pin += ret.Length;
-                return ret;
-            }
-        }
-
-        public Memory<byte> PutContiguous(long pin, long size, bool appendIfOverrun = false)
+        public Memory<byte> PutContiguous(int pin, int size, bool appendIfOverrun = false)
         {
             checked
             {
@@ -348,201 +328,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Memory<byte> WriteForwardContiguous(ref long pin, long size, bool appendIfOverrun = false)
+        PacketSegment[] GetUncontiguousSegments(int pinStart, int pinEnd, bool appendIfOverrun)
         {
             checked
             {
-                Memory<byte> ret = PutContiguous(pin, size, appendIfOverrun);
-                pin += ret.Length;
-                return ret;
-            }
-        }
-
-        public void Enqueue(Memory<byte> item)
-        {
-            long oldLen = Length;
-            if (item.Length == 0) return;
-            InsertTail(item);
-        }
-
-        public void EnqueueAll(ReadOnlySpan<Memory<byte>> itemList)
-        {
-            checked
-            {
-                int num = 0;
-                long oldLen = Length;
-                foreach (Memory<byte> t in itemList)
-                {
-                    if (t.Length != 0)
-                    {
-                        List.AddLast(t);
-                        PinTail += t.Length;
-                        num++;
-                    }
-                }
-            }
-        }
-
-        public int DequeueContiguousSlow(Memory<byte> dest, int size = int.MaxValue)
-        {
-            checked
-            {
-                long oldLen = Length;
-                if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
-                size = Math.Min(size, dest.Length);
-                Debug.Assert(size >= 0);
-                if (size == 0) return 0;
-                var memarray = Dequeue(size, out long totalSize, true);
-                Debug.Assert(totalSize <= size);
-                if (totalSize > int.MaxValue) throw new IndexOutOfRangeException("totalSize > int.MaxValue");
-                if (dest.Length < totalSize) throw new ArgumentOutOfRangeException("dest.Length < totalSize");
-                int pos = 0;
-                foreach (var mem in memarray)
-                {
-                    mem.CopyTo(dest.Slice(pos, mem.Length));
-                    pos += mem.Length;
-                }
-                Debug.Assert(pos == totalSize);
-                return (int)totalSize;
-            }
-        }
-
-        public Memory<byte> DequeueContiguousSlow(int size = int.MaxValue)
-        {
-            checked
-            {
-                long oldLen = Length;
-                if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
-                if (size == 0) return Memory<byte>.Empty;
-                int readSize = (int)Math.Min(size, Length);
-                Memory<byte> ret = new byte[readSize];
-                int r = DequeueContiguousSlow(ret, readSize);
-                Debug.Assert(r <= readSize);
-                ret = ret.Slice(0, r);
-                return ret;
-            }
-        }
-
-        public IReadOnlyList<Memory<byte>> DequeueAll(out long totalReadSize) => Dequeue(long.MaxValue, out totalReadSize);
-
-        public IReadOnlyList<Memory<byte>> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true)
-        {
-            checked
-            {
-                if (minReadSize < 1) throw new ArgumentOutOfRangeException("minReadSize < 1");
-
-                totalReadSize = 0;
-                if (List.First == null)
-                {
-                    return new List<Memory<byte>>();
-                }
-
-                long oldLen = Length;
-
-                ByteLinkedListNode node = List.First;
-                List<Memory<byte>> ret = new List<Memory<byte>>();
-                while (true)
-                {
-                    if ((totalReadSize + node.Value.Length) >= minReadSize)
-                    {
-                        if (allowSplitSegments && (totalReadSize + node.Value.Length) > minReadSize)
-                        {
-                            int lastSegmentReadSize = (int)(minReadSize - totalReadSize);
-                            Debug.Assert(lastSegmentReadSize <= node.Value.Length);
-                            ret.Add(node.Value.Slice(0, lastSegmentReadSize));
-                            if (lastSegmentReadSize == node.Value.Length)
-                                List.Remove(node);
-                            else
-                                node.Value = node.Value.Slice(lastSegmentReadSize);
-                            totalReadSize += lastSegmentReadSize;
-                            PinHead += totalReadSize;
-                            Debug.Assert(minReadSize >= totalReadSize);
-                            return ret;
-                        }
-                        else
-                        {
-                            ret.Add(node.Value);
-                            totalReadSize += node.Value.Length;
-                            List.Remove(node);
-                            PinHead += totalReadSize;
-                            Debug.Assert(minReadSize <= totalReadSize);
-                            return ret;
-                        }
-                    }
-                    else
-                    {
-                        ret.Add(node.Value);
-                        totalReadSize += node.Value.Length;
-
-                        ByteLinkedListNode deleteNode = node;
-                        node = node.Next;
-
-                        List.Remove(deleteNode);
-
-                        if (node == null)
-                        {
-                            PinHead += totalReadSize;
-                            return ret;
-                        }
-                    }
-                }
-            }
-        }
-
-        public long DequeueAllAndEnqueueToOther(IFastBuffer<Memory<byte>> other) => DequeueAllAndEnqueueToOther((Packet)other);
-
-        public long DequeueAllAndEnqueueToOther(Packet other)
-        {
-            checked
-            {
-                if (this == other) throw new ArgumentException("this == other");
-
-                if (this.Length == 0)
-                {
-                    Debug.Assert(this.List.Count == 0);
-                    return 0;
-                }
-
-                if (other.Length == 0)
-                {
-                    long length = this.Length;
-                    long otherOldLen = other.Length;
-                    long oldLen = Length;
-                    Debug.Assert(other.List.Count == 0);
-                    other.List = this.List;
-                    this.List = new ByteLinkedList();
-                    this.PinHead = this.PinTail;
-                    other.PinTail += length;
-                    return length;
-                }
-                else
-                {
-                    long length = this.Length;
-                    long oldLen = Length;
-                    long otherOldLen = other.Length;
-                    var chainFirst = this.List.First;
-                    var chainLast = this.List.Last;
-                    other.List.AddLast(this.List.First, this.List.Last, this.List.Count);
-                    this.List.Clear();
-                    this.PinHead = this.PinTail;
-                    other.PinTail += length;
-                    return length;
-                }
-            }
-        }
-
-        ByteSegment[] GetUncontiguousSegments(long pinStart, long pinEnd, bool appendIfOverrun)
-        {
-            checked
-            {
-                if (pinStart == pinEnd) return new ByteSegment[0];
+                if (pinStart == pinEnd) return new PacketSegment[0];
                 if (pinStart > pinEnd) throw new ArgumentOutOfRangeException("pinStart > pinEnd");
 
                 if (appendIfOverrun)
                 {
                     if (List.First == null)
                     {
-                        InsertHead(new byte[pinEnd - pinStart]);
+                        InsertHeadInternal(new byte[pinEnd - pinStart]);
                         PinHead = pinStart;
                         PinTail = pinEnd;
                     }
@@ -561,24 +358,24 @@ namespace IPA.Cores.Basic
                 }
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out int firstNodePin,
+                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out int lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
 
                 if (firstNode == lastNode)
-                    return new ByteSegment[1]{ new ByteSegment(
+                    return new PacketSegment[1]{ new PacketSegment(
                     firstNode.Value.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment), pinStart, 0) };
 
-                ByteSegment[] ret = new ByteSegment[nodeCounts];
+                PacketSegment[] ret = new PacketSegment[nodeCounts];
 
                 ByteLinkedListNode prevNode = firstNode.Previous;
                 ByteLinkedListNode nextNode = lastNode.Next;
 
                 ByteLinkedListNode node = firstNode;
                 int count = 0;
-                long currentOffset = 0;
+                int currentOffset = 0;
 
                 while (true)
                 {
@@ -587,7 +384,7 @@ namespace IPA.Cores.Basic
                     int sliceStart = (node == firstNode) ? firstNodeOffsetInSegment : 0;
                     int sliceLength = (node == lastNode) ? lastNodeOffsetInSegment : node.Value.Length - sliceStart;
 
-                    ret[count] = new ByteSegment(node.Value.Slice(sliceStart, sliceLength), currentOffset + pinStart, currentOffset);
+                    ret[count] = new PacketSegment(node.Value.Slice(sliceStart, sliceLength), currentOffset + pinStart, currentOffset);
                     count++;
 
                     Debug.Assert(count <= nodeCounts, "count > nodeCounts");
@@ -607,20 +404,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Remove(long pinStart, long length)
+        public void Remove(int pinStart, int length)
         {
             checked
             {
                 if (length == 0) return;
                 if (length < 0) throw new ArgumentOutOfRangeException("length < 0");
-                long pinEnd = checked(pinStart + length);
+                int pinEnd = checked(pinStart + length);
                 if (List.First == null) throw new ArgumentOutOfRangeException("Buffer is empty.");
                 if (pinStart < PinHead) throw new ArgumentOutOfRangeException("pinStart < PinHead");
                 if (pinEnd > PinTail) throw new ArgumentOutOfRangeException("pinEnd > PinTail");
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out int firstNodePin,
+                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out int lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
@@ -690,7 +487,7 @@ namespace IPA.Cores.Basic
 
         public byte[] ItemsSlow { get => ToArray(); }
 
-        Memory<byte> GetContiguousMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
+        Memory<byte> GetContiguousMemory(int pinStart, int pinEnd, bool appendIfOverrun, bool noReplace)
         {
             checked
             {
@@ -701,7 +498,7 @@ namespace IPA.Cores.Basic
                 {
                     if (List.First == null)
                     {
-                        InsertHead(new byte[pinEnd - pinStart]);
+                        InsertHeadInternal(new byte[pinEnd - pinStart]);
                         PinHead = pinStart;
                         PinTail = pinEnd;
                     }
@@ -720,8 +517,8 @@ namespace IPA.Cores.Basic
                 }
 
                 GetOverlappedNodes(pinStart, pinEnd,
-                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
-                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
+                    out ByteLinkedListNode firstNode, out int firstNodeOffsetInSegment, out int firstNodePin,
+                    out ByteLinkedListNode lastNode, out int lastNodeOffsetInSegment, out int lastNodePin,
                     out int nodeCounts, out int lackRemainLength);
 
                 Debug.Assert(lackRemainLength == 0, "lackRemainLength != 0");
@@ -786,58 +583,81 @@ namespace IPA.Cores.Basic
         public static implicit operator Packet(byte[] data) => data.AsMemory();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ref readonly T AsReadOnlyStruct<T>(long pin)
+        public unsafe ref readonly T AsReadOnlyStruct<T>(int pin, int? size = null)
         {
-            Memory<byte> data = this.GetContiguous(pin, Unsafe.SizeOf<T>(), false);
+            Memory<byte> data = this.GetContiguous(pin, size ?? Unsafe.SizeOf<T>(), false);
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ref T AsStruct<T>(long pin)
+        public unsafe ref T AsStruct<T>(int pin, int? size = null)
         {
-            Memory<byte> data = this.PutContiguous(pin, Unsafe.SizeOf<T>(), true);
+            Memory<byte> data = this.PutContiguous(pin, size ?? Unsafe.SizeOf<T>(), true);
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> GetPin<T>(long pin) where T : struct
-            => new PacketPin<T>(this, pin);
+        public PacketPin<T> GetHeader<T>(int pin, int? size = null) where T : unmanaged
+            => new PacketPin<T>(this, pin, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<T> InsertHeaderHead<T>(Memory<byte> data) where T : unmanaged
+        {
+            InsertBefore(data);
+            return new PacketPin<T>(this, this.PinHead, data.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int ?size = null) where T : unmanaged
+        {
+            int size2 = size ?? sizeof(T);
+            Memory<byte> data = new byte[size2];
+            fixed (void* ptr = &data.Span[0])
+            {
+                (Unsafe.AsRef<T>(ptr)) = value;
+            }
+            return InsertHeaderHead<T>(data);
+        }
     }
 
-    readonly struct PacketPin<T> where T: struct
+    readonly unsafe struct PacketPin<T> where T : unmanaged
     {
         public readonly Packet Packet;
-        public readonly long Pin;
+        public readonly int Pin;
+        public readonly int Size;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin(Packet packet, long pin)
+        public PacketPin(Packet packet, int pin, int? size = null)
         {
             this.Packet = packet;
             this.Pin = pin;
+            this.Size = size ?? sizeof(T);
         }
 
         public unsafe ref readonly T ValueRead
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                Memory<byte> data = Packet.GetContiguous(this.Pin, Unsafe.SizeOf<T>(), false);
-                fixed (void* ptr = &data.Span[0])
-                    return ref Unsafe.AsRef<T>(ptr);
-            }
+            get => ref Packet.AsReadOnlyStruct<T>(this.Pin, this.Size);
         }
 
         public unsafe ref T Value
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                Memory<byte> data = Packet.PutContiguous(this.Pin, Unsafe.SizeOf<T>(), true);
-                fixed (void* ptr = &data.Span[0])
-                    return ref Unsafe.AsRef<T>(ptr);
-            }
+            get => ref Packet.AsStruct<T>(this.Pin, this.Size);
+        }
+
+        public ReadOnlyMemory<byte> MemoryRead
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Packet.GetContiguous(this.Pin, this.Size, false);
+        }
+
+        public Memory<byte> Memory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Packet.PutContiguous(this.Pin, this.Size, true);
         }
     }
 }

@@ -167,10 +167,6 @@ namespace IPA.TestDev
 
             int isZeroTestSize = 4;
 
-            Packet packet1 = new Packet();
-            for (int i = 0;i<1500;i++)
-            packet1.Enqueue("H"._GetBytes_Ascii());
-
             var queue = new MicroBenchmarkQueue()
 
             .Add(new MicroBenchmark($"New Packet", Benchmark_CountForFast, count =>
@@ -185,20 +181,11 @@ namespace IPA.TestDev
             .Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
             {
                 Memory<byte> hello = "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-                Packet newPacket = new Packet(hello);
+                long v = 8;
                 for (int c = 0; c < count; c++)
                 {
-                    PacketPin<long> pin = newPacket.GetPin<long>(0);
-                    long v = pin.Value;
-                    //pin.Value = 1;
-                }
-            }), enabled: true, priority: 190519)
-
-            .Add(new MicroBenchmark($"Packet Test", Benchmark_CountForFast, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    packet1.PutContiguous(0, 1500);
+                    Packet newPacket = new Packet(hello);
+                    newPacket.InsertHeaderHead(v);
                 }
             }), enabled: true, priority: 190519)
 

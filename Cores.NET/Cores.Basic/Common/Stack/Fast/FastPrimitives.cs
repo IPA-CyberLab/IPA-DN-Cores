@@ -313,13 +313,13 @@ namespace IPA.Cores.Basic
     }
 
 
-    readonly struct ByteSegment
+    readonly struct PacketSegment
     {
         public readonly Memory<byte> Item;
-        public readonly long Pin;
-        public readonly long RelativeOffset;
+        public readonly int Pin;
+        public readonly int RelativeOffset;
 
-        public ByteSegment(Memory<byte> item, long pin, long relativeOffset)
+        public PacketSegment(Memory<byte> item, int pin, int relativeOffset)
         {
             Item = item;
             Pin = pin;
