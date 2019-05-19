@@ -862,8 +862,6 @@ namespace IPA.Cores.Basic
 
             try
             {
-                Con.WriteTrace($"InternalInitAsync '{FileParams.Path}'");
-
                 FileOptions options = FileOptions.None;
                 if (this.FileParams.Flags.Bit(FileOperationFlags.NoAsync) == false)
                     options |= FileOptions.Asynchronous;
@@ -981,8 +979,6 @@ namespace IPA.Cores.Basic
         {
             BaseStream._DisposeSafe();
             BaseStream = null;
-
-            Con.WriteTrace($"CloseImplAsync '{FileParams.Path}'");
         }
 
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)

@@ -120,6 +120,8 @@ namespace IPA.Cores.Basic
         protected FileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileParams)
         {
             this.FileSystem = fileSystem;
+
+            Con.WriteTrace($"CreateFile ({FileSystem.ToString()}): '{fileParams.Path}'");
         }
 
         public override string ToString() => $"FileObject('{FileParams.Path}')";
@@ -590,6 +592,8 @@ namespace IPA.Cores.Basic
 
         public sealed override async Task CloseAsync()
         {
+            Con.WriteTrace($"CloseAsync({this.FileSystem}) '{FileParams.Path}'");
+
             CancelSource._TryCancelNoBlock();
 
             if (ClosedFlag.IsSet) return;

@@ -1660,17 +1660,28 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                if (MainLoopTask != null)
+                try
                 {
-                    await MainLoopTask;
-                    MainLoopTask = null;
+                    if (MainLoopTask != null)
+                    {
+                        try
+                        {
+                            await MainLoopTask;
+                        }
+                        finally
+                        {
+                            MainLoopTask = null;
+                        }
+                    }
                 }
-
+                catch (TaskCanceledException) { }
+                catch (OperationCanceledException) { }
+            }
+            finally
+            {
                 Leak._DisposeSafe();
             }
-            catch (TaskCanceledException) { }
-            catch (OperationCanceledException) { }
-        }
+            }
     }
 
     struct FastReadList<T>

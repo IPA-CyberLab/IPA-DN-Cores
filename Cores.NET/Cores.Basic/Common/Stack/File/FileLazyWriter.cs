@@ -103,6 +103,8 @@ namespace IPA.Cores.Basic
 
         public void Write(ReadOnlyMemory<byte> data)
         {
+            CheckNotCanceled();
+
             try
             {
                 lock (this.Writer.StreamWriter.LockObj)
@@ -121,14 +123,22 @@ namespace IPA.Cores.Basic
                 var st = this.Reader.StreamReader;
                 int numFailed = 0;
 
-                while (cancel.IsCancellationRequested == false)
+                while (true)
                 {
-                    cancel.ThrowIfCancellationRequested();
                     await TaskUtil.AwaitWithPoll(Timeout.Infinite, Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
-                    cancel.ThrowIfCancellationRequested();
 
                     IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = this.Reader.StreamReader.DequeueAllWithLock(out long totalSize);
-                    if (totalSize == 0) continue;
+                    if (totalSize == 0)
+                    {
+                        if (cancel.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
 
                     dataToWrite = Util.DefragmentMemoryArrays(dataToWrite, this.Options.DefragmentWriteBlockSize);
 
@@ -139,9 +149,9 @@ namespace IPA.Cores.Basic
                         try
                         {
                             if (this.Options.AppendMode)
-                                file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                                file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory);
                             else
-                                file = await this.Options.FilePath.CreateAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                                file = await this.Options.FilePath.CreateAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory);
 
                             numFailed = 0;
                         }
@@ -158,7 +168,7 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
-                            await file.WriteAsync(data, cancel);
+                            await file.WriteAsync(data);
                         }
                         catch (Exception ex)
                         {
