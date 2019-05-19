@@ -163,7 +163,7 @@ namespace IPA.TestDev
             int isZeroTestSize = 4;
 
             Packet packet1 = new Packet();
-            for (int i = 0;i<8;i++)
+            for (int i = 0;i<1500;i++)
             packet1.Enqueue("H"._GetBytes_Ascii());
 
             var queue = new MicroBenchmarkQueue()
@@ -172,8 +172,7 @@ namespace IPA.TestDev
             {
                 for (int c = 0; c < count; c++)
                 {
-                    packet1.GetContiguousReadOnlyMemory(0, 4, false, false);
-                    //packet1.PutContiguous(0, 4, false);
+                    new MemoryBuffer<byte>();
                 }
             }), enabled: true, priority: 190519)
 

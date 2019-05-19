@@ -48,10 +48,6 @@ namespace IPA.Cores.Basic
 {
     class Packet : FastStreamBuffer
     {
-        async Task a()
-        {
-            MemoryBuffer<byte> m = new MemoryBuffer<byte>();
-        }
     }
 }
 

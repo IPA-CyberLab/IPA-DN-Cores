@@ -1158,7 +1158,7 @@ namespace IPA.Cores.Basic
         }
 
         volatile int lazyQueuedSet = 0;
-        
+
         public void SetLazyEnqueue() => Interlocked.Exchange(ref lazyQueuedSet, 1);
 
         public void SetIfLazyQueued(bool softly = false)
@@ -1681,7 +1681,7 @@ namespace IPA.Cores.Basic
             {
                 Leak._DisposeSafe();
             }
-            }
+        }
     }
 
     struct FastReadList<T>
@@ -3815,7 +3815,7 @@ namespace IPA.Cores.Basic
                     await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), events: FireGcNowEvent._SingleArray(), timeout: Math.Max(LifeTime / 2, 100));
 
                     cancel.ThrowIfCancellationRequested();
-                    
+
 
                     long now = Tick64.Now;
 

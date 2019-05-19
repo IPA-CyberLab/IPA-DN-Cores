@@ -83,21 +83,20 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static async Task Test1(DateTimeOffset dt)
-        {
-        }
 
         public static void Test()
         {
-            using (var w = new FileLazyWriter(new FileLazyWriterOptions(new FilePath(@"c:\tmp2\190519\large1.txt", Lfs), false)))
+            using (var w = new FileLazyWriter(new FileLazyWriterOptions(new FilePath(@"c:\tmp2\190519\large1.txt", LLfs), false)))
             {
                 var f = Lfs.Create(@"c:\tmp2\190519\a.txt");
                 //ReadOnlyMemory<byte> a = "Hello"._GetBytes_Ascii();
-                var a = Util.Rand(10000);
-                for (int i = 0; ; i++)
+                //var a = Util.Rand(10000);
+                //Memory<byte> a = new byte[1000000];
+                //a.Span[5000] = (byte)'@';
+                for (int i = 0; i<100; i++)
                 {
-                    w.Write(a);
-                    //w.Write((i.ToString() + "\r\n")._GetBytes_Ascii());
+                    //w.Write(a);
+                    w.Write((i.ToString() + "\r\n")._GetBytes_Ascii());
                 }
             }
 

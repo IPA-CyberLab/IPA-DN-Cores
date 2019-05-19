@@ -1129,7 +1129,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public ReadOnlyMemory<T> GetContiguousReadOnlyMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
+        ReadOnlyMemory<T> GetContiguousReadOnlyMemory(long pinStart, long pinEnd, bool appendIfOverrun, bool noReplace)
         {
             checked
             {
