@@ -51,7 +51,7 @@ using System.Security.AccessControl;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum CopyDirectoryFlags
+    enum CopyDirectoryFlags : long
     {
         None = 0,
         BackupMode = 1,
@@ -62,6 +62,7 @@ namespace IPA.Cores.Basic
         Overwrite = 32,
         Recursive = 64,
         SetAclProtectionFlagOnRootDir = 128,
+        IgnoreReadError = 256,
 
         Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive | SetAclProtectionFlagOnRootDir,
     }
@@ -81,6 +82,7 @@ namespace IPA.Cores.Basic
         public long NumDirectoriesTotal { get; set; }
         public long NumDirectoriesOk { get; set; }
         public long NumDirectoriesError => NumDirectoriesTotal - NumDirectoriesOk;
+        public List<string> IgnoreReadErrorFileNameList { get; } = new List<string>();
 
         public bool IsAllOk => (NumFilesTotal == NumFilesOk && NumDirectoriesTotal == NumDirectoriesOk);
 
@@ -102,6 +104,7 @@ namespace IPA.Cores.Basic
         public FileMetadataCopier DirectoryMetadataCopier { get; }
         public FileMetadataCopier FileMetadataCopier { get; }
         public int BufferSize { get; }
+        public int IgnoreReadErrorSectorSize { get; }
 
         public ProgressReporterFactoryBase EntireProgressReporterFactory { get; }
         public ProgressReporterFactoryBase FileProgressReporterFactory { get; }
@@ -119,6 +122,8 @@ namespace IPA.Cores.Basic
                 this.FileMetadataCopier,
                 this.BufferSize,
                 this.CopyDirFlags.Bit(CopyDirectoryFlags.AsyncCopy),
+                this.CopyDirFlags.Bit(CopyDirectoryFlags.IgnoreReadError),
+                this.IgnoreReadErrorSectorSize,
                 this.FileProgressReporterFactory);
         }
 
@@ -147,7 +152,7 @@ namespace IPA.Cores.Basic
 
         public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileOperationFlags copyFileFlags = FileOperationFlags.None,
             FileMetadataCopier dirMetadataCopier = null, FileMetadataCopier fileMetadataCopier = null,
-            int bufferSize = 0,
+            int bufferSize = 0, int ignoreReadErrorSectorSize = 0,
             ProgressReporterFactoryBase entireReporterFactory = null, ProgressReporterFactoryBase fileReporterFactory = null,
             ProgressCallback progressCallback = null,
             ExceptionCallback exceptionCallback = null)
@@ -178,6 +183,8 @@ namespace IPA.Cores.Basic
 
             this.ExceptionCallbackProc = exceptionCallback;
             this.ProgressCallbackProc = progressCallback;
+
+            this.IgnoreReadErrorSectorSize = ignoreReadErrorSectorSize;
         }
 
     }
@@ -191,6 +198,8 @@ namespace IPA.Cores.Basic
         public FileMetadataCopier MetadataCopier { get; }
         public int BufferSize { get; }
         public bool AsyncCopy { get; }
+        public bool IgnoreReadError { get; }
+        public int IgnoreReadErrorSectorSize { get; }
 
         public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -199,11 +208,13 @@ namespace IPA.Cores.Basic
         public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
 
         public CopyFileParams(bool overwrite = true, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
+            bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
             ProgressReporterFactoryBase reporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
-            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize.Value;
+            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
             if (reporterFactory == null) reporterFactory = NullReporterFactory;
+            if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
 
             this.Overwrite = overwrite;
             this.Flags = flags;
@@ -211,20 +222,22 @@ namespace IPA.Cores.Basic
             this.BufferSize = bufferSize;
             this.AsyncCopy = asyncCopy;
             this.ProgressReporterFactory = reporterFactory;
+            this.IgnoreReadError = ignoreReadError;
+            this.IgnoreReadErrorSectorSize = ignoreReadErrorSectorSize;
         }
     }
 
 
     abstract partial class FileSystem
     {
-        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystem destFileSystem = null)
+        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, object state = null, CancellationToken cancel = default, FileSystem destFileSystem = null, RefBool readErrorIgnored = null)
         {
             if (destFileSystem == null) destFileSystem = this;
 
-            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, cancel);
+            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored);
         }
-        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, CancellationToken cancel = default, FileSystem destFileSystem = null)
-            => CopyFileAsync(srcPath, destPath, param, cancel, destFileSystem)._GetResult();
+        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, object state = null, CancellationToken cancel = default, FileSystem destFileSystem = null, RefBool readErrorIgnored = null)
+            => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored)._GetResult();
 
         public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem destFileSystem = null,
             CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
@@ -311,12 +324,20 @@ namespace IPA.Cores.Basic
                                                 copyFileAdditionalFlags |= FileOperationFlags.SparseFile;
 
                                     var copyFileParam = param.GenerateCopyFileParams(copyFileAdditionalFlags);
-                                    await CopyFileAsync(srcFileSystem, srcFullPath, destFileSystem, destFullPath, copyFileParam, state, cancel);
+
+                                    RefBool ignoredReadError = new RefBool(false);
+
+                                    await CopyFileAsync(srcFileSystem, srcFullPath, destFileSystem, destFullPath, copyFileParam, state, cancel, ignoredReadError);
 
                                     lock (status.LockObj)
                                     {
                                         status.NumFilesOk++;
                                         status.SizeOk += srcFileMetadata.Size;
+
+                                        if (ignoredReadError)
+                                        {
+                                            status.IgnoreReadErrorFileNameList.Add(srcFullPath);
+                                        }
                                     }
                                 }
                                 else
@@ -424,8 +445,13 @@ namespace IPA.Cores.Basic
         }
 
         public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
+            CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
         {
+            if (readErrorIgnored == null)
+                readErrorIgnored = new RefBool(false);
+
+            readErrorIgnored.Set(false);
+
             if (param == null)
                 param = new CopyFileParams();
 
@@ -452,7 +478,7 @@ namespace IPA.Cores.Basic
                             {
                                 reporter.ReportProgress(new ProgressData(0, srcFileMetadata.Size));
 
-                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel);
+                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored);
 
                                 reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
 
@@ -494,16 +520,67 @@ namespace IPA.Cores.Basic
             }
         }
         public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default)
-            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel)._GetResult();
+            CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+            => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored)._GetResult();
 
-        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel)
+        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored)
         {
+            readErrorIgnored.Set(false);
+
             checked
             {
                 long currentPosition = 0;
 
-                if (param.AsyncCopy == false)
+                if (param.IgnoreReadError)
+                {
+                    long fileSize = src.Size;
+                    int errorCounter = 0;
+
+                    // Ignore read error mode
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.IgnoreReadErrorSectorSize, out Memory<byte> buffer))
+                    {
+                        for (long pos = 0; pos < fileSize; pos += param.IgnoreReadErrorSectorSize)
+                        {
+                            int size = (int)Math.Min(param.IgnoreReadErrorSectorSize, (fileSize - pos));
+                            Memory<byte> buffer2 = buffer.Slice(0, size);
+
+                            int readSize = 0;
+
+                            try
+                            {
+                                //if (pos >= 10000000 && pos <= (10000000 + 100000)) throw new ApplicationException("*err*");
+                                readSize = await src.ReadRandomAsync(pos, buffer2, cancel);
+                            }
+                            catch (Exception ex)
+                            {
+                                errorCounter++;
+                                if (errorCounter >= 100)
+                                {
+                                    // Skip error display
+                                    if (errorCounter == 100)
+                                    {
+                                        Con.WriteError($"The read error counter of the file \"{src.FileParams.Path}\" exceeds 100. No more errors will be reported.");
+                                    }
+                                }
+                                else
+                                {
+                                    // Display the error
+                                    Con.WriteError($"Ignoring the read error at the offset {pos} of the file \"{src.FileParams.Path}\". Error: {ex.Message}");
+                                }
+                                readErrorIgnored.Set(true);
+                            }
+
+                            if (readSize >= 1)
+                            {
+                                await dest.WriteRandomAsync(pos, buffer2.Slice(0, readSize), cancel);
+                            }
+
+                            currentPosition = pos + readSize;
+                            reporter.ReportProgress(new ProgressData(currentPosition, fileSize));
+                        }
+                    }
+                }
+                else if (param.AsyncCopy == false)
                 {
                     // Normal copy
                     using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))

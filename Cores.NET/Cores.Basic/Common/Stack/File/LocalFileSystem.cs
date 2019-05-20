@@ -988,23 +988,40 @@ namespace IPA.Cores.Basic
 
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {
-            long oldFileSize = BaseStream.Length;
-
-            BaseStream.SetLength(size);
-
-            if (Env.IsWindows)
+            try
             {
-                if (oldFileSize < size)
-                {
-                    // In Windows, Use the FSCTL_SET_ZERO_DATA ioctl to ensure zero-clear the region.
-                    // See https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setendoffile
-                    // "The SetEndOfFile function can be used to truncate or extend a file. If the file is extended,
-                    //  the contents of the file between the old end of the file and the new end of the file are not defined."
-                    await FileZeroClearDataAsync(oldFileSize, size - oldFileSize, cancel);
-                }
-            }
+                long oldFileSize = BaseStream.Length;
 
-            this.CurrentPosition = BaseStream.Position;
+                BaseStream.SetLength(size);
+
+                if (Env.IsWindows)
+                {
+                    if (oldFileSize < size)
+                    {
+                        // In Windows, Use the FSCTL_SET_ZERO_DATA ioctl to ensure zero-clear the region.
+                        // See https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setendoffile
+                        // "The SetEndOfFile function can be used to truncate or extend a file. If the file is extended,
+                        //  the contents of the file between the old end of the file and the new end of the file are not defined."
+                        await FileZeroClearDataAsync(oldFileSize, size - oldFileSize, cancel);
+                    }
+                }
+
+                this.CurrentPosition = BaseStream.Position;
+            }
+            catch
+            {
+                // When Any error occurs, we need to obtain the position.
+                try
+                {
+                    this.CurrentPosition = BaseStream.Position;
+                }
+                catch
+                {
+                    // Failed to obtain the position.
+                    this.CurrentPosition = long.MinValue;
+                }
+                throw;
+            }
         }
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
@@ -1016,20 +1033,37 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                if (this.CurrentPosition != position)
+                try
                 {
-                    BaseStream.Seek(position, SeekOrigin.Begin);
-                    this.CurrentPosition = position;
+                    if (this.CurrentPosition != position)
+                    {
+                        BaseStream.Seek(position, SeekOrigin.Begin);
+                        this.CurrentPosition = position;
+                    }
+
+                    int ret = await BaseStream.ReadAsync(data, cancel);
+
+                    if (ret >= 1)
+                    {
+                        this.CurrentPosition += ret;
+                    }
+
+                    return ret;
                 }
-
-                int ret = await BaseStream.ReadAsync(data, cancel);
-
-                if (ret >= 1)
+                catch
                 {
-                    this.CurrentPosition += ret;
+                    // When ReadAsync occurs the error, we need to obtain the position.
+                    try
+                    {
+                        this.CurrentPosition = BaseStream.Position;
+                    }
+                    catch
+                    {
+                        // Failed to obtain the position.
+                        this.CurrentPosition = long.MinValue;
+                    }
+                    throw;
                 }
-
-                return ret;
             }
         }
 
@@ -1045,7 +1079,6 @@ namespace IPA.Cores.Basic
                         if (readSize == data.Length)
                             if (data.Span.SequenceEqual(readBuffer.Span))
                             {
-                                Dbg.Where("skip");
                                 return;
                             }
                     }
@@ -1067,15 +1100,32 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                if (this.CurrentPosition != position)
+                try
                 {
-                    BaseStream.Seek(position, SeekOrigin.Begin);
-                    this.CurrentPosition = position;
+                    if (this.CurrentPosition != position)
+                    {
+                        BaseStream.Seek(position, SeekOrigin.Begin);
+                        this.CurrentPosition = position;
+                    }
+
+                    await BaseStream.WriteAsync(data, cancel);
+
+                    this.CurrentPosition += data.Length;
                 }
-
-                await BaseStream.WriteAsync(data, cancel);
-
-                this.CurrentPosition += data.Length;
+                catch
+                {
+                    // When WriteAsync occurs the error, we need to obtain the position.
+                    try
+                    {
+                        this.CurrentPosition = BaseStream.Position;
+                    }
+                    catch
+                    {
+                        // Failed to obtain the position.
+                        this.CurrentPosition = long.MinValue;
+                    }
+                    throw;
+                }
             }
         }
 

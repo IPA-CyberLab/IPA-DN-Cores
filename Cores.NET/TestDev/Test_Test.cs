@@ -91,42 +91,8 @@ namespace IPA.TestDev
 
         public static void Test()
         {
-            unsafe
-            {
-                Packet p = new Packet("ff ff ff ff ff ff ff ff 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"._GetHexBytes());
-
-                var pin = p.GetHeader<A>(0);
-
-                var x = pin.ValueRead;
-
-                A a2 = new A() { a = 0x33333333, b = 0x44444444 };
-
-                var pin2 = p.InsertHeaderHead(a2);
-
-                return;
-            }
-
-            using (var w = new FileLazyWriter(new FileLazyWriterOptions(new FilePath(@"c:\tmp2\190519\large1.txt", LLfs), false)))
-            {
-                var f = Lfs.Create(@"c:\tmp2\190519\a.txt");
-                //ReadOnlyMemory<byte> a = "Hello"._GetBytes_Ascii();
-                //var a = Util.Rand(10000);
-                //Memory<byte> a = new byte[1000000];
-                //a.Span[5000] = (byte)'@';
-                for (int i = 0; i<100; i++)
-                {
-                    //w.Write(a);
-                    w.Write((i.ToString() + "\r\n")._GetBytes_Ascii());
-                }
-            }
-
-            //using (var f = LLfs.Create(@"c:\tmp2\190519\large1.txt", flags: FileOperationFlags.AutoCreateDirectory))
-            //{
-            //    while (true)
-            //    f.WriteRandom(Util.RandSInt31(), "a"._GetBytes_Ascii());
-            //}
-
-            //Test1(DateTime.Now)._GetResult();
+//            Lfs.CopyDir(@"C:\tmp\iso\test1", @"C:\tmp\iso\test2", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite));
+            Lfs.CopyDir(@"C:\sec\SENet\AntiGfw", @"d:\tmp\antigfw", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite | CopyDirectoryFlags.Recursive));
         }
     }
 }

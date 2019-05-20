@@ -51,6 +51,35 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+            "CopyErrorFile command",
+            "CopyErrorFile src /dest:dest",
+            "CopyErrorFile command")]
+        static int CopyErrorFile(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dest", ConsoleService.Prompt, "Destination filename: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            RefBool ignoredError = new RefBool(false);
+
+            Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
+                new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectory, ignoreReadError: true,
+                reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console)),
+                readErrorIgnored: ignoredError);
+
+            if (ignoredError)
+            {
+                Con.WriteError("*** Read errors are ignored. ***");
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "RamFile command",
             "RamFile [arg]",
             "RamFile test")]
