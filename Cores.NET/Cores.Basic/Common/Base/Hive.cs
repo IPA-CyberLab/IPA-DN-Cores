@@ -44,6 +44,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    [Flags]
+    enum HiveSerializerSelection
+    {
+        DefaultRuntimeJson = 0,
+        RichJson = 1,
+        Custom = int.MaxValue,
+    }
+
     abstract class HiveSerializerOptions { }
 
     abstract class HiveSerializer
@@ -62,23 +70,21 @@ namespace IPA.Cores.Basic
         public T Deserialize<T>(ReadOnlyMemory<byte> memory) => DeserializeImpl<T>(memory);
     }
 
-    class JsonHiveSerializerOptions : HiveSerializerOptions
+    class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
     {
         public DataContractJsonSerializerSettings JsonSettings { get; }
 
-        public JsonHiveSerializerOptions(DataContractJsonSerializerSettings jsonSettings = null)
+        public RuntimeJsonHiveSerializerOptions(DataContractJsonSerializerSettings jsonSettings = null)
         {
             this.JsonSettings = jsonSettings;
         }
     }
 
-    class JsonHiveSerializer : HiveSerializer
+    class RuntimeJsonHiveSerializer : HiveSerializer
     {
-        public new JsonHiveSerializerOptions Options => (JsonHiveSerializerOptions)base.Options;
+        public new RuntimeJsonHiveSerializerOptions Options => (RuntimeJsonHiveSerializerOptions)base.Options;
 
-        public JsonHiveSerializer(JsonHiveSerializerOptions options = null) : base(options == null ? new JsonHiveSerializerOptions() : options)
-        {
-        }
+        public RuntimeJsonHiveSerializer(RuntimeJsonHiveSerializerOptions options = null) : base(options ?? new RuntimeJsonHiveSerializerOptions()) { }
 
         protected override Memory<byte> SerializeImpl<T>(T obj)
         {
@@ -331,21 +337,17 @@ namespace IPA.Cores.Basic
     {
         public const int MinSyncIntervalMsec = 2 * 1000;
 
-        public HiveSerializer Serializer { get; }
         public HiveStorageProvider StorageProvider { get; }
         public bool IsPollingEnabled { get; }
 
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
-        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, HiveSerializer serializer = null, bool singleInstance = false)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance)), enableManagedSync, syncInterval, serializer) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance)), enableManagedSync, syncInterval) { }
 
-        public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null, HiveSerializer serializer = null)
+        public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null)
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
-            if (serializer == null) serializer = new JsonHiveSerializer();
-
-            this.Serializer = serializer;
             this.StorageProvider = provider;
 
             if (enablePolling == false)
@@ -382,8 +384,7 @@ namespace IPA.Cores.Basic
             {
                 // Create shared config hive
                 SharedConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, ConfigHiveDirName), true,
-                    CoresConfig.ConfigHiveOptions.SyncIntervalMsec,
-                    null));
+                    CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
             });
 
             // Create the .gitignore file on the "Local" directory
@@ -411,8 +412,7 @@ namespace IPA.Cores.Basic
 
         // Instance states and methods
         public HiveOptions Options { get; }
-
-        public HiveSerializer Serializer => Options.Serializer;
+        
         public HiveStorageProvider StorageProvider => Options.StorageProvider;
 
         readonly Dictionary<string, IHiveData> RegisteredHiveData = new Dictionary<string, IHiveData>();
@@ -613,6 +613,7 @@ namespace IPA.Cores.Basic
         public HiveSyncPolicy Policy { get; private set; }
         public string DataName { get; }
         public Hive Hive { get; }
+        public HiveSerializer Serializer { get; }
         public bool IsManaged { get; } = false;
         public bool IsReadOnly => this.Policy.Bit(HiveSyncPolicy.ReadOnly);
         public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
@@ -633,10 +634,31 @@ namespace IPA.Cores.Basic
             public long Hash;
         }
 
-        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc, HiveSyncPolicy policy = HiveSyncPolicy.None)
+        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer customSerializer = null)
         {
             if (getDefaultDataFunc == null) throw new ArgumentNullException("getDefaultDataFunc");
 
+            switch (serializer)
+            {
+                case HiveSerializerSelection.DefaultRuntimeJson:
+                    customSerializer = new RuntimeJsonHiveSerializer();
+                    break;
+
+                case HiveSerializerSelection.RichJson:
+#if CORES_BASIC_JSON
+                    customSerializer = new RichJsonHiveSerializer();
+                    break;
+#else // CORES_BASIC_JSON
+                    throw new NotImplementedException("CORES_BASIC_JSON is not implemented.");
+#endif // CORES_BASIC_JSON
+
+                default:
+                    if (customSerializer == null)
+                        throw new ArgumentNullException("serializerInstance");
+                    break;
+            }
+
+            this.Serializer = customSerializer;
             this.Hive = hive;
             this.Policy = policy;
             this.DataName = Hive.NormalizeDataName(dataName);
@@ -796,7 +818,7 @@ namespace IPA.Cores.Basic
         {
             HiveDataState ret = new HiveDataState();
 
-            ret.SerializedData = Hive.Serializer.Serialize(data);
+            ret.SerializedData = this.Serializer.Serialize(data);
             ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
             ret.Data = data;
 
@@ -815,7 +837,7 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
-            ret.SerializedData = Hive.Serializer.Serialize(data);
+            ret.SerializedData = this.Serializer.Serialize(data);
             ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
             ret.Data = data;
 
@@ -831,7 +853,7 @@ namespace IPA.Cores.Basic
             Memory<byte> loadBytes = await Hive.StorageProvider.LoadAsync(this.DataName, cancel);
             try
             {
-                T data = Hive.Serializer.Deserialize<T>(loadBytes);
+                T data = this.Serializer.Deserialize<T>(loadBytes);
 
                 try
                 {
@@ -839,7 +861,7 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                ret.SerializedData = Hive.Serializer.Serialize(data);
+                ret.SerializedData = this.Serializer.Serialize(data);
                 ret.Hash = Secure.HashSHA1AsLong(ret.SerializedData.Span);
                 ret.Data = data;
 

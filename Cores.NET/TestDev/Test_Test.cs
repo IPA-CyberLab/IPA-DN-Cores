@@ -94,25 +94,14 @@ namespace IPA.TestDev
         }
     }
 
+    class TestHiveData1
+    {
+    }
+
     static class TestClass
     {
-        unsafe struct A
-        {
-            public int a, b;
-            public fixed int remains[1];
-        }
-
         public static void Test()
         {
-            /*string dir = Env.MyLocalTempDir;
-
-            Con.WriteLine(dir);*/
-
-            Util.PutGitIgnoreFileOnDirectory(@"c:\tmp\aaa1");
-
-
-            //            Lfs.CopyDir(@"C:\tmp\iso\test1", @"C:\tmp\iso\test2", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite));
-            //Lfs.CopyDir(@"C:\sec\SENet\AntiGfw", @"d:\tmp\antigfw", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite | CopyDirectoryFlags.Recursive));
         }
     }
 }
