@@ -837,7 +837,7 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        public bool IsLastCharDirectorySeparator(string path)
+        public bool IsLastCharDirectoryDirectorySeparator(string path)
         {
             path = path._NonNull();
 

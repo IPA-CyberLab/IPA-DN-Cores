@@ -201,13 +201,13 @@ namespace IPA.TestDev
             }), enabled: true, priority: 190521)
 
 
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync", Benchmark_CountForNormal, count =>
             {
-                TaskUtil.StartAsyncTaskAsync(async () =>
+                TaskUtil.StartSyncTaskAsync(() =>
                 {
                     for (int c = 0; c < count; c++)
                     {
-                        await nativeFile1.WriteAsync(testFileWriteData);
+                        nativeFile1.Write(testFileWriteData.Span);
                     }
                 }, false, false)._GetResult();
 

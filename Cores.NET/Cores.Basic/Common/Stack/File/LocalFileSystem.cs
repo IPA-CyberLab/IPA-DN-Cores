@@ -819,6 +819,7 @@ namespace IPA.Cores.Basic
 
         protected FileStream BaseStream;
         long CurrentPosition;
+        bool UseAsyncMode = false;
 
         public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
         {
@@ -863,8 +864,12 @@ namespace IPA.Cores.Basic
             try
             {
                 FileOptions options = FileOptions.None;
+
                 if (this.FileParams.Flags.Bit(FileOperationFlags.Async))
+                {
                     options |= FileOptions.Asynchronous;
+                    UseAsyncMode = true;
+                }
 
                 if (Env.IsWindows)
                 {
@@ -1026,7 +1031,10 @@ namespace IPA.Cores.Basic
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            await BaseStream.FlushAsync(cancel);
+            if (UseAsyncMode)
+                await BaseStream.FlushAsync(cancel);
+            else
+                BaseStream.Flush();
         }
 
         protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
@@ -1041,7 +1049,12 @@ namespace IPA.Cores.Basic
                         this.CurrentPosition = position;
                     }
 
-                    int ret = await BaseStream.ReadAsync(data, cancel);
+                    int ret;
+
+                    if (UseAsyncMode)
+                        ret = await BaseStream.ReadAsync(data, cancel);
+                    else
+                        ret = BaseStream.Read(data.Span);
 
                     if (ret >= 1)
                     {
@@ -1076,6 +1089,7 @@ namespace IPA.Cores.Basic
                     using (MemoryHelper.FastAllocMemoryWithUsing(data.Length, out Memory<byte> readBuffer))
                     {
                         int readSize = await ReadRandomImplAsync(position, readBuffer, cancel);
+
                         if (readSize == data.Length)
                             if (data.Span.SequenceEqual(readBuffer.Span))
                             {
@@ -1108,7 +1122,10 @@ namespace IPA.Cores.Basic
                         this.CurrentPosition = position;
                     }
 
-                    await BaseStream.WriteAsync(data, cancel);
+                    if (UseAsyncMode)
+                        await BaseStream.WriteAsync(data, cancel);
+                    else
+                        BaseStream.Write(data.Span);
 
                     this.CurrentPosition += data.Length;
                 }
