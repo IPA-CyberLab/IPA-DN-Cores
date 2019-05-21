@@ -4845,3 +4845,59 @@
 2019/05/21 15:15:35.976 +09:00 AsyncCallMethodFromSyncMethod: 20.79 ns, 48,092,667 / sec
 2019/05/21 15:15:36.634 +09:00 Lock for readonly object: 18.24 ns, 54,814,606 / sec
 2019/05/21 15:15:37.287 +09:00 Lock for get property object: 18.45 ns, 54,195,484 / sec
+2019/05/21 15:16:44.603 +09:00 ----- Start new benchmark -----
+2019/05/21 15:16:44.620 +09:00 Commit: edf67e87caf0d887cc5df5c281e1c7a5a686689b
+2019/05/21 15:16:44.620 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/21 15:16:44.620 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/21 15:16:44.620 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/21 15:16:44.620 +09:00 Host: PC34
+2019/05/21 15:16:45.265 +09:00 File Write Small - Cores Object - Async: 32,025.11 ns, 31,225 / sec
+2019/05/21 15:16:46.015 +09:00 File Write Small - .NET Native - Async: 24,951.15 ns, 40,078 / sec
+2019/05/21 15:16:46.534 +09:00 SingletonFastArraySlim Get: 1.18 ns, 849,360,370 / sec
+2019/05/21 15:16:47.051 +09:00 SingletonFastArray Get: 2.16 ns, 463,816,378 / sec
+2019/05/21 15:16:47.617 +09:00 SingletonSlim Get: 8.68 ns, 115,201,541 / sec
+2019/05/21 15:16:48.155 +09:00 Singleton2 Get: 26.18 ns, 38,200,289 / sec
+2019/05/21 15:16:48.671 +09:00 Singleton1 Get: 0.77 ns, 1,302,730,269 / sec
+2019/05/21 15:16:49.280 +09:00 New MemoryBuffer: 16.04 ns, 62,329,791 / sec
+2019/05/21 15:16:49.783 +09:00 MemoryBuffer Pin Lock / Unlock: 154.03 ns, 6,492,301 / sec
+2019/05/21 15:16:50.380 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/21 15:16:51.289 +09:00 Convert Enum to Long: 1.57 ns, 636,925,230 / sec
+2019/05/21 15:16:51.831 +09:00 New Packet: 12.51 ns, 79,957,853 / sec
+2019/05/21 15:16:52.371 +09:00 New Packet with Data: 26.40 ns, 37,871,783 / sec
+2019/05/21 15:16:53.212 +09:00 Packet struct I/O: 56.41 ns, 17,728,451 / sec
+2019/05/21 15:16:53.715 +09:00 IsZero - NonSparse: 0.70 ns, 1,432,149,187 / sec
+2019/05/21 15:16:54.217 +09:00 IsZero - All Zero Sparse: 1.85 ns, 539,646,648 / sec
+2019/05/21 15:16:54.719 +09:00 GetSparseChunks - NonSparse: 114,008.96 ns, 8,771 / sec
+2019/05/21 15:16:55.257 +09:00 GetSparseChunks - Sparse: 1,434,261.98 ns, 697 / sec
+2019/05/21 15:16:55.762 +09:00 GetSparseChunks - All Zero Sparse: 76,729.44 ns, 13,032 / sec
+2019/05/21 15:16:56.264 +09:00 Util.Rand(): 288.82 ns, 3,462,384 / sec
+2019/05/21 15:16:56.768 +09:00 Secure.Rand(): 282.76 ns, 3,536,582 / sec
+2019/05/21 15:16:57.272 +09:00 ParseEnum: 64.56 ns, 15,489,535 / sec
+2019/05/21 15:16:58.852 +09:00 GetSparseChunks: 13,277,828.48 ns, 75 / sec
+2019/05/21 15:16:59.396 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 971,343.15 ns, 1,029 / sec
+2019/05/21 15:16:59.950 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 1,005,604.14 ns, 994 / sec
+2019/05/21 15:17:00.511 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,025,016.83 ns, 975 / sec
+2019/05/21 15:17:01.311 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,478,515.46 ns, 182 / sec
+2019/05/21 15:17:02.595 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,303,467.45 ns, 97 / sec
+2019/05/21 15:17:03.418 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 5,703,690.46 ns, 175 / sec
+2019/05/21 15:17:04.144 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 4,736,914.47 ns, 211 / sec
+2019/05/21 15:17:04.975 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,769,426.49 ns, 173 / sec
+2019/05/21 15:17:05.811 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 5,831,625.49 ns, 171 / sec
+2019/05/21 15:17:06.338 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 391,666.33 ns, 2,553 / sec
+2019/05/21 15:17:07.075 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 4,833,719.49 ns, 206 / sec
+2019/05/21 15:17:07.580 +09:00 CallAsyncWithAwait: 29.86 ns, 33,492,832 / sec
+2019/05/21 15:17:08.084 +09:00 CallAsyncWithNonAwait: 10.80 ns, 92,616,989 / sec
+2019/05/21 15:17:08.588 +09:00 Rand[16]: 169.22 ns, 5,909,501 / sec
+2019/05/21 15:17:09.091 +09:00 Guid.NewGuid().ToString(): 230.45 ns, 4,339,388 / sec
+2019/05/21 15:17:09.611 +09:00 Read the String_ReadOnly value: 0.48 ns, 2,098,030,623 / sec
+2019/05/21 15:17:10.146 +09:00 Read the String_GetOnly value: 0.74 ns, 1,353,358,977 / sec
+2019/05/21 15:17:10.660 +09:00 Read the String_Copenhagen_ReadOnly value: 0.75 ns, 1,326,647,879 / sec
+2019/05/21 15:17:11.186 +09:00 Read the String_Copenhagen_GetOnly value: 0.50 ns, 1,984,535,707 / sec
+2019/05/21 15:17:11.797 +09:00 Read the Int_ReadOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/21 15:17:12.427 +09:00 Read the Int_GetOnly value: 0.08 ns, 12,856,610,226 / sec
+2019/05/21 15:17:12.945 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.77 ns, 1,291,903,836 / sec
+2019/05/21 15:17:13.464 +09:00 Read the Int_Copenhagen_GetOnly value: 0.72 ns, 1,386,847,758 / sec
+2019/05/21 15:17:13.969 +09:00 AsyncCallMethodFromAsyncMethod: 23.06 ns, 43,367,847 / sec
+2019/05/21 15:17:14.472 +09:00 AsyncCallMethodFromSyncMethod: 19.01 ns, 52,601,122 / sec
+2019/05/21 15:17:15.110 +09:00 Lock for readonly object: 17.33 ns, 57,705,537 / sec
+2019/05/21 15:17:15.749 +09:00 Lock for get property object: 17.15 ns, 58,317,393 / sec

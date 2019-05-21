@@ -188,7 +188,7 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Sync", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async", Benchmark_CountForNormal, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
@@ -200,38 +200,14 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Sync", Benchmark_CountForNormal, count =>
-            {
-                TaskUtil.StartSyncTaskAsync(() =>
-                {
-                    for (int c = 0; c < count; c++)
-                    {
-                        coresFile2.Write(testFileWriteData);
-                    }
-                }, false, false)._GetResult();
 
-            }), enabled: true, priority: 190521)
-
-
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Sync", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async", Benchmark_CountForNormal, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
                     for (int c = 0; c < count; c++)
                     {
                         await nativeFile1.WriteAsync(testFileWriteData);
-                    }
-                }, false, false)._GetResult();
-
-            }), enabled: true, priority: 190521)
-
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Sync", Benchmark_CountForNormal, count =>
-            {
-                TaskUtil.StartSyncTaskAsync(() =>
-                {
-                    for (int c = 0; c < count; c++)
-                    {
-                        nativeFile2.Write(testFileWriteData.Span);
                     }
                 }, false, false)._GetResult();
 
