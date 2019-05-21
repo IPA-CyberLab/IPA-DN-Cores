@@ -373,22 +373,18 @@ namespace IPA.Cores.Basic
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
-        public static Hive SharedConfigHive { get; private set; } = null;
+        public static Hive SharedLocalConfigHive { get; private set; } = null;
 
-        const string LocalDirName = "Local";
-        const string ConfigHiveDirName = LocalDirName + "/Config";
+        static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
 
         static void InitModule()
         {
             Module.AddAfterInitAction(() =>
             {
                 // Create shared config hive
-                SharedConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, ConfigHiveDirName), true,
+                SharedLocalConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, LocalConfigHiveDirName), true,
                     CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
             });
-
-            // Create the .gitignore file on the "Local" directory
-            Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppRootDir, LocalDirName));
         }
 
         static void FreeModule()

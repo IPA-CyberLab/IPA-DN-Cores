@@ -502,6 +502,8 @@ namespace IPA.Cores.Basic
             public string Tag;
             public object Data;
         }
+
+        public static void PutGitIgnoreFileOnLogDirectory() => Util.PutGitIgnoreFileOnDirectory(CoresConfig.LocalLogRouterSettings.LogRootDir.Value);
     }
 
     static partial class CoresConfig

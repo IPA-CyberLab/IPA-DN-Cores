@@ -97,20 +97,21 @@ namespace IPA.Cores.Basic
         static public string ExeFileName { get; }
         static public string ExeFileDir { get; }
         static public string AppRootDir { get; }
-        static public string WindowsDir { get; }
-        static public string SystemDir { get; }
+        static public string AppLocalDir { get; }
+        static public string Win32_WindowsDir { get; }
+        static public string Win32_SystemDir { get; }
         static public string TempDir { get; }
         static string AppRootLocalTempDirRoot_Internal { get; }
-        static public string WinTempDir { get; }
-        static public string WindowsDrive { get; }
-        static public string ProgramFilesDir { get; }
-        static public string PersonalStartMenuDir { get; }
-        static public string PersonalProgramsDir { get; }
-        static public string PersonalStartupDir { get; }
-        static public string PersonalAppDataDir { get; }
-        static public string PersonalDesktopDir { get; }
-        static public string MyDocumentsDir { get; }
-        static public string LocalAppDataDir { get; }
+        static public string Win32_WinTempDir { get; }
+        static public string Win32_WindowsDrive { get; }
+        static public string Win32_ProgramFilesDir { get; }
+        static public string Win32_PersonalStartMenuDir { get; }
+        static public string Win32_PersonalProgramsDir { get; }
+        static public string Win32_PersonalStartupDir { get; }
+        static public string Win32_PersonalAppDataDir { get; }
+        static public string Win32_PersonalDesktopDir { get; }
+        static public string Win32_MyDocumentsDir { get; }
+        static public string Win32_LocalAppDataDir { get; }
         static public string UserName { get; }
         static public string UserNameEx { get; }
         static public string MachineName { get; }
@@ -220,6 +221,9 @@ namespace IPA.Cores.Basic
                 ExeFileDir = "/tmp";
                 AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
             }
+
+            AppLocalDir = Path.Combine(AppRootDir, "Local");
+
             HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
             if (Str.IsEmptyStr(HomeDir))
             {
@@ -245,27 +249,27 @@ namespace IPA.Cores.Basic
             if (IsWindows)
             {
                 // Windows
-                SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
-                WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(SystemDir));
+                Win32_SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
+                Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir));
                 TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
-                AppRootLocalTempDirRoot_Internal = Path.Combine(IO.RemoveLastEnMark(AppRootDir), @"Local\Temp");
-                WinTempDir = IO.RemoveLastEnMark(Path.Combine(WindowsDir, "Temp"));
-                IO.MakeDir(WinTempDir);
-                if (WindowsDir.Length >= 2 && WindowsDir[1] == ':')
+                AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
+                Win32_WinTempDir = IO.RemoveLastEnMark(Path.Combine(Win32_WindowsDir, "Temp"));
+                IO.MakeDir(Win32_WinTempDir);
+                if (Win32_WindowsDir.Length >= 2 && Win32_WindowsDir[1] == ':')
                 {
-                    WindowsDir = WindowsDir.Substring(0, 2).ToUpper();
+                    Win32_WindowsDir = Win32_WindowsDir.Substring(0, 2).ToUpper();
                 }
                 else
                 {
-                    WindowsDrive = "C:";
+                    Win32_WindowsDrive = "C:";
                 }
             }
             else
             {
                 // UNIX
-                SystemDir = "/bin";
-                WindowsDir = "/bin";
-                WindowsDrive = "/";
+                Win32_SystemDir = "/bin";
+                Win32_WindowsDir = "/bin";
+                Win32_WindowsDrive = "/";
                 if (Str.IsEmptyStr(HomeDir) == false)
                 {
                     TempDir = Path.Combine(HomeDir, ".dntmp");
@@ -274,32 +278,32 @@ namespace IPA.Cores.Basic
                 {
                     TempDir = "/tmp";
                 }
-                AppRootLocalTempDirRoot_Internal = Path.Combine(IO.RemoveLastEnMark(AppRootDir), "Local/Temp");
-                WinTempDir = TempDir;
+                AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
+                Win32_WinTempDir = TempDir;
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
             LocalPathParser = PathParser.GetInstance(FileSystemStyle.LocalSystem);
-            ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
-            PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
-            PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
-            PersonalStartupDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
-            PersonalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
-            PersonalDesktopDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-            MyDocumentsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-            LocalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+            Win32_ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+            Win32_PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
+            Win32_PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+            Win32_PersonalStartupDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
+            Win32_PersonalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+            Win32_PersonalDesktopDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+            Win32_MyDocumentsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+            Win32_LocalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
             if (IsUnix)
             {
                 // ダミーディレクトリ
-                SystemDir = "/bin";
-                WindowsDir = "/bin";
-                WindowsDrive = "/";
-                ProgramFilesDir = "/bin";
-                PersonalStartMenuDir = Path.Combine(HomeDir, "dummy/starmenu");
-                PersonalProgramsDir = Path.Combine(HomeDir, "dummy/starmenu/programs");
-                PersonalStartupDir = Path.Combine(HomeDir, "dummy/starmenu/startup");
-                LocalAppDataDir = PersonalAppDataDir = Path.Combine(HomeDir, ".dnappdata");
-                PersonalDesktopDir = Path.Combine(HomeDir, "dummy/desktop");
-                MyDocumentsDir = HomeDir;
+                Win32_SystemDir = "/bin";
+                Win32_WindowsDir = "/bin";
+                Win32_WindowsDrive = "/";
+                Win32_ProgramFilesDir = "/bin";
+                Win32_PersonalStartMenuDir = Path.Combine(HomeDir, "dummy/starmenu");
+                Win32_PersonalProgramsDir = Path.Combine(HomeDir, "dummy/starmenu/programs");
+                Win32_PersonalStartupDir = Path.Combine(HomeDir, "dummy/starmenu/startup");
+                Win32_LocalAppDataDir = Win32_PersonalAppDataDir = Path.Combine(HomeDir, ".dnappdata");
+                Win32_PersonalDesktopDir = Path.Combine(HomeDir, "dummy/desktop");
+                Win32_MyDocumentsDir = HomeDir;
             }
             StartupCurrentDir = CurrentDir;
             UserName = Environment.UserName;
@@ -393,6 +397,8 @@ namespace IPA.Cores.Basic
 
         static string PrepareMyAppRootLocalTempDirInternal()
         {
+            PutGitIgnoreFileOnAppLocalDirectory();
+
             int num = 0;
             string ret;
             while (true)
@@ -622,5 +628,10 @@ namespace IPA.Cores.Basic
         // 初期化の必要のないプロパティ値
         static public string CurrentDir => IO.RemoveLastEnMark(Environment.CurrentDirectory);
         static public string NewLine => Environment.NewLine;
+
+        public static void PutGitIgnoreFileOnAppLocalDirectory()
+        {
+            Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
+        }
     }
 }

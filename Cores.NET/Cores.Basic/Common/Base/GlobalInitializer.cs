@@ -53,6 +53,9 @@ namespace IPA.Cores.Basic
 #endif // CORES_BASIC_GIT
 
             TelnetLocalLogWatcher.Module.Init();
+
+            // After all initialization completed
+            LocalLogRouter.PutGitIgnoreFileOnLogDirectory();
         }
 
         static CoresLibraryResult GlobalFree()

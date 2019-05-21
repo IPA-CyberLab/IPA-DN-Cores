@@ -147,7 +147,7 @@ namespace IPA.Cores.Basic
 
         static void InitModule()
         {
-            Config = new HiveData<TelnetLocalLogWatcherConfig>(Hive.SharedConfigHive, "DebugSettings/LocalLogWatcher",
+            Config = new HiveData<TelnetLocalLogWatcherConfig>(Hive.SharedLocalConfigHive, "DebugSettings/LocalLogWatcher",
                 () =>
                 {
                     return new TelnetLocalLogWatcherConfig() { Filters = LocalLogRouter.BufferedLogRoute.KindHash.ToArray()._Combine(",") };

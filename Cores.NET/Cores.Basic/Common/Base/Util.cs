@@ -2527,14 +2527,14 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir)
+        public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir, FileOperationFlags flags = FileOperationFlags.None)
         {
             try
             {
                 var srcFilePath = new FilePath(Res.Cores, "190521_LocalGitIgnore.txt");
                 var destFilePath = dir.Combine(".gitignore");
 
-                FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: FileOperationFlags.AutoCreateDirectory));
+                FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: flags));
             }
             catch { }
         }
