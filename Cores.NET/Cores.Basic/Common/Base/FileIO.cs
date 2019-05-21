@@ -133,6 +133,94 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class SystemUniqueDirectoryProvider
+    {
+        public string SubDirNamePrefix { get; }
+        public string BaseDirPath { get; }
+        public string CurrentDirPath { get; }
+        public int DirLength { get; }
+
+        public SystemUniqueDirectoryProvider(string baseDirPath, string subDirNamePrefix)
+        {
+            this.SubDirNamePrefix = subDirNamePrefix._NonNullTrim();
+            this.BaseDirPath = Path.GetFullPath(baseDirPath);
+
+            DirLength = SubDirNamePrefix.Length + 1 + 8;
+
+            DeleteUnusedDirectories();
+
+            for (int i = 0; ; i++)
+            {
+                if (i >= CoresConfig.BasicConfig.MaxPossibleConcurrentProcessCounts)
+                    throw new ApplicationException($"UniqueDirectoryProvider error: failed to obtain the unique path. baseDirPath = \"{baseDirPath}\", subDirNamePrefix = \"{subDirNamePrefix}\"");
+
+                string candidate = Path.Combine(this.BaseDirPath, $"{SubDirNamePrefix}_{i:D8}");
+
+                try
+                {
+                    if (Directory.Exists(candidate)) continue;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                SingleInstance si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true, fastSingleThreadMode: true);
+                if (si != null)
+                {
+                    // Add the SingleInstance object to the blackhole so that it will not be the target of GC.
+                    Util.AddToBlackhole(si);
+
+                    try
+                    {
+                        Directory.CreateDirectory(candidate);
+                        this.CurrentDirPath = candidate;
+                        break;
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        void DeleteUnusedDirectories()
+        {
+            try
+            {
+                var dirs = Directory.EnumerateDirectories(this.BaseDirPath);
+
+                foreach (string dirFullPath in dirs)
+                {
+                    try
+                    {
+                        string dirName = Path.GetFileName(dirFullPath);
+
+                        if (dirName.StartsWith(this.SubDirNamePrefix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (dirName.Length == this.DirLength)
+                            {
+                                if (SingleInstance.IsExistsAndLocked(GenerateSingleInstanceName(dirFullPath), true, fastSingleThreadMode: true) == false)
+                                {
+                                    try
+                                    {
+                                        Directory.Delete(dirFullPath, true);
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        string GenerateSingleInstanceName(string candidateFullPath)
+        {
+            return $"UniqueDirectoryProvider_" + candidateFullPath._NonNullTrim().ToLower();
+        }
+    }
+
     namespace Legacy
     {
 

@@ -1584,9 +1584,11 @@ namespace IPA.Cores.Basic
         }
 
         // 何でも登録するリスト
-        static LinkedList<object> blackhole = new LinkedList<object>();
+        readonly static LinkedList<object> blackhole = new LinkedList<object>();
         public static void AddToBlackhole(object obj)
         {
+            if (obj == null) return;
+
             lock (blackhole)
             {
                 blackhole.AddLast(obj);

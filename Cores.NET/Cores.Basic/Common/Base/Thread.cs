@@ -47,6 +47,14 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class BasicConfig
+        {
+            public static readonly Copenhagen<int> MaxPossibleConcurrentProcessCounts = 1024;
+        }
+    }
+
     class BatchQueueItem<T>
     {
         internal BatchQueueItem(T item)
@@ -236,13 +244,31 @@ namespace IPA.Cores.Basic
     class SingleInstance : IDisposable
     {
         readonly string NameOfMutant;
-        readonly Mutant Mutant;
+        Mutant Mutant;
+        MutantBase MutantFastSingleThread;
 
-        public static SingleInstance TryGet(string name, bool ignoreCase = true, bool selfThread = false)
+        static readonly CriticalSection LockObj = new CriticalSection();
+
+        static readonly HashSet<string> ProcessWideSingleInstanceHashSet = new HashSet<string>();
+
+        public bool FastSingleThreadMode { get; }
+
+        public static bool IsExistsAndLocked(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
+        {
+            SingleInstance si = TryGet(name, ignoreCase, selfThread, fastSingleThreadMode);
+
+            if (si == null) return true;
+
+            si._DisposeSafe();
+
+            return false;
+        }
+
+        public static SingleInstance TryGet(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
         {
             try
             {
-                return new SingleInstance(name, ignoreCase, selfThread);
+                return new SingleInstance(name, ignoreCase, selfThread, fastSingleThreadMode);
             }
             catch
             {
@@ -250,22 +276,50 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public SingleInstance(string name, bool ignoreCase = true, bool selfThread = false)
+        public SingleInstance(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
         {
+            this.FastSingleThreadMode = fastSingleThreadMode;
+
             NameOfMutant = $"SingleInstance_" + name._NonNullTrim();
 
             if (ignoreCase)
-                NameOfMutant = NameOfMutant.ToUpper();
+                NameOfMutant = NameOfMutant.ToLower();
 
-            this.Mutant = new Mutant(NameOfMutant, true, selfThread);
-            try
+            lock (LockObj)
             {
-                this.Mutant.Lock();
-            }
-            catch
-            {
-                this.Mutant._DisposeSafe();
-                throw;
+                if (ProcessWideSingleInstanceHashSet.Contains(NameOfMutant))
+                    throw new ApplicationException($"The single instance is already existing with this process.");
+
+                if (FastSingleThreadMode == false)
+                {
+                    this.Mutant = new Mutant(NameOfMutant, true, selfThread);
+                    try
+                    {
+                        this.Mutant.Lock();
+                    }
+                    catch
+                    {
+                        this.Mutant._DisposeSafe();
+                        throw;
+                    }
+                }
+                else
+                {
+                    MutantBase mb = MutantBase.Create(NameOfMutant);
+                    try
+                    {
+                        mb.Lock(true);
+
+                        MutantFastSingleThread = mb;
+                    }
+                    catch
+                    {
+                        mb._DisposeSafe();
+                        throw;
+                    }
+                }
+
+                ProcessWideSingleInstanceHashSet.Add(NameOfMutant);
             }
         }
 
@@ -274,8 +328,27 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.Mutant.Unlock();
-            this.Mutant._DisposeSafe();
+
+            try
+            {
+                if (this.Mutant != null)
+                {
+                    this.Mutant.Unlock();
+                    this.Mutant._DisposeSafe();
+                    this.Mutant = null;
+                }
+
+                if (this.MutantFastSingleThread != null)
+                {
+                    this.MutantFastSingleThread.Unlock();
+                    this.MutantFastSingleThread._DisposeSafe();
+                    this.MutantFastSingleThread = null;
+                }
+            }
+            finally
+            {
+                ProcessWideSingleInstanceHashSet.Remove(NameOfMutant);
+            }
         }
     }
 
@@ -303,6 +376,7 @@ namespace IPA.Cores.Basic
 
             try
             {
+
                 Worker = new SingleThreadWorker($"Mutant - '{this.Name}'", selfThread);
 
                 Worker.ExecAsync(p =>
@@ -422,11 +496,12 @@ namespace IPA.Cores.Basic
     {
         Mutex MutexObj;
         int LockedCount = 0;
+        readonly string InternalName;
 
         public MutantWin32Impl(string name)
         {
-            bool f;
-            MutexObj = new Mutex(false, @"Global\" + MutantBase.GenerateInternalName(name), out f);
+            InternalName = @"Global\" + MutantBase.GenerateInternalName(name);
+            MutexObj = new Mutex(false, InternalName, out _);
         }
 
         public override void Lock(bool nonBlock = false)
@@ -445,7 +520,12 @@ namespace IPA.Cores.Basic
                 }
                 catch (AbandonedMutexException)
                 {
+                    MutexObj._DisposeSafe();
+                    MutexObj = null;
+
                     if (numRetry >= 100) throw;
+
+                    MutexObj = new Mutex(false, InternalName, out _);
                     numRetry++;
                     goto LABEL_RETRY;
                 }
@@ -1011,7 +1091,7 @@ namespace IPA.Cores.Basic
 
     class ThreadObj
     {
-        
+
 
         public readonly static RefInt NumCurrentThreads = new RefInt();
 

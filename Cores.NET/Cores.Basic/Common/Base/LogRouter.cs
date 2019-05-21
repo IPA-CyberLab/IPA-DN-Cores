@@ -328,25 +328,40 @@ namespace IPA.Cores.Basic
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
-        static SingleInstance SingleInstanceForUniqueLogProcessId = null;
-
-        static void ModuleInit()
+        static LocalLogRouter()
         {
             // Unique log process id
             UniqueLogProcessId = 0;
-            for (int uid = 0; uid < 80; uid++)
+
+            bool ok = false;
+
+            for (int uid = 0; uid < CoresConfig.BasicConfig.MaxPossibleConcurrentProcessCounts; uid++)
             {
                 string uniqueName = $"UlogName_{Env.AppRootDir}_{uid}";
 
-                SingleInstance instance = SingleInstance.TryGet(uniqueName, true, true);
+                SingleInstance instance = SingleInstance.TryGet(uniqueName, true, false, true);
                 if (instance != null)
                 {
-                    SingleInstanceForUniqueLogProcessId = instance;
+                    // Suppress GC
+                    Util.AddToBlackhole(instance);
+
                     UniqueLogProcessId = uid;
+
+                    ok = true;
                     break;
                 }
             }
 
+            if (ok == false)
+            {
+                throw new ApplicationException("Failed to initialize the Unique log process id.");
+            }
+
+            Console.WriteLine($"UniqueLogProcessId = {UniqueLogProcessId}");
+        }
+
+        static void ModuleInit()
+        {
             Router = new LogRouter();
 
             // Console log
@@ -425,9 +440,6 @@ namespace IPA.Cores.Basic
         {
             Router._DisposeSafe(new CoresLibraryShutdowningException());
             Router = null;
-
-            SingleInstanceForUniqueLogProcessId._DisposeSafe();
-            SingleInstanceForUniqueLogProcessId = null;
 
             BufferedLogRoute = null;
         }

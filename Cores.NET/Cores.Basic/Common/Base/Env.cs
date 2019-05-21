@@ -321,49 +321,10 @@ namespace IPA.Cores.Basic
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
             IsAdmin = checkIsAdmin();
 
-            // 自分用の temp ディレクトリの初期化
-            try
-            {
-                DeleteUnusedTempDir();
-            }
-            catch { }
-
-            try
-            {
-                DeleteUnusedAppRootLocalTempDir();
-            }
-            catch { }
-
-            int num = 0;
-
-            while (true)
-            {
-                byte[] rand = Secure.Rand(8);
-                string tmp2 = Str.ByteToStr(rand);
-
-                string tmp = Path.Combine(Env.TempDir, "NET_" + tmp2);
-
-                if (IO.IsDirExists(tmp) == false && IO.MakeDir(tmp))
-                {
-                    Env.MyGlobalTempDir = tmp;
-
-                    break;
-                }
-
-                if ((num++) >= 100)
-                {
-                    throw new SystemException("PrepareMyLocalTempDirInternal failed.");
-                }
-            }
-
             if (IsWindows)
             {
                 UnixMutantDir = Env.MyGlobalTempDir;
             }
-
-            // ロックファイルの作成
-            string lockFileName1 = Path.Combine(Env.MyGlobalTempDir, "LockFile.dat");
-            IO.FileCreate(lockFileName1, Env.IsUnix);
 
             Env.IsHostedByDotNetProcess = ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
 
@@ -371,6 +332,10 @@ namespace IPA.Cores.Basic
             {
                 Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
             }
+
+            // Global app temp dir
+            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, "Cores.NET_");
+            Env.MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
         }
 
         static string _MyLocalTempDir = null;
@@ -386,191 +351,14 @@ namespace IPA.Cores.Basic
                 {
                     if (_MyLocalTempDir == null)
                     {
-                        _MyLocalTempDir = PrepareMyAppRootLocalTempDirInternal();
+                        // Local app temp dir
+                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, "Cores.NET_");
+                        _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
+
+                        Env.PutGitIgnoreFileOnAppLocalDirectory();
                     }
 
                     return _MyLocalTempDir;
-                }
-            }
-        }
-
-
-        static string PrepareMyAppRootLocalTempDirInternal()
-        {
-            PutGitIgnoreFileOnAppLocalDirectory();
-
-            int num = 0;
-            string ret;
-            while (true)
-            {
-                byte[] rand = Secure.Rand(8);
-                string tmp2 = Str.ByteToStr(rand);
-
-                string tmp = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, "NET_" + tmp2);
-
-                if (IO.IsDirExists(tmp) == false && IO.MakeDir(tmp))
-                {
-                    ret = tmp;
-
-                    break;
-                }
-
-                if ((num++) >= 100)
-                {
-                    throw new SystemException("PrepareMyAppRootLocalTempDirInternal failed.");
-                }
-            }
-
-            string lockFileName2 = Path.Combine(ret, "LockFile.dat");
-            IO.FileCreate(lockFileName2, Env.IsUnix);
-
-            return ret;
-        }
-
-        static void DeleteUnusedTempDir()
-        {
-            DirEntry[] files;
-
-            files = IO.EnumDir(Env.TempDir);
-
-            foreach (DirEntry e in files)
-            {
-                if (e.IsFolder)
-                {
-                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 20)
-                    {
-                        string dirFullName = Path.Combine(Env.TempDir, e.fileName);
-                        string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
-                        bool deleteNow = false;
-
-                        try
-                        {
-                            IO io = IO.FileOpen(lockFileName);
-                            io.Close();
-
-                            try
-                            {
-                                io = IO.FileOpen(lockFileName, true);
-                                deleteNow = true;
-                                io.Close();
-                            }
-                            catch
-                            {
-                            }
-                        }
-                        catch
-                        {
-                            DirEntry[] files2;
-
-                            deleteNow = true;
-
-                            try
-                            {
-                                files2 = IO.EnumDir(dirFullName);
-
-                                foreach (DirEntry e2 in files2)
-                                {
-                                    if (e2.IsFolder == false)
-                                    {
-                                        string fullPath = Path.Combine(dirFullName, e2.fileName);
-
-                                        try
-                                        {
-                                            IO io2 = IO.FileOpen(fullPath, true);
-                                            io2.Close();
-                                        }
-                                        catch
-                                        {
-                                            deleteNow = false;
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                deleteNow = false;
-                            }
-                        }
-
-                        if (deleteNow)
-                        {
-                            IO.DeleteDir(dirFullName, true);
-                        }
-                    }
-                }
-            }
-        }
-
-        static void DeleteUnusedAppRootLocalTempDir()
-        {
-            DirEntry[] files;
-
-            files = IO.EnumDir(Env.AppRootLocalTempDirRoot_Internal);
-
-            foreach (DirEntry e in files)
-            {
-                if (e.IsFolder)
-                {
-                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 20)
-                    {
-                        string dirFullName = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, e.fileName);
-                        string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
-                        bool deleteNow = false;
-
-                        try
-                        {
-                            IO io = IO.FileOpen(lockFileName);
-                            io.Close();
-
-                            try
-                            {
-                                io = IO.FileOpen(lockFileName, true);
-                                deleteNow = true;
-                                io.Close();
-                            }
-                            catch
-                            {
-                            }
-                        }
-                        catch
-                        {
-                            DirEntry[] files2;
-
-                            deleteNow = true;
-
-                            try
-                            {
-                                files2 = IO.EnumDir(dirFullName);
-
-                                foreach (DirEntry e2 in files2)
-                                {
-                                    if (e2.IsFolder == false)
-                                    {
-                                        string fullPath = Path.Combine(dirFullName, e2.fileName);
-
-                                        try
-                                        {
-                                            IO io2 = IO.FileOpen(fullPath, true);
-                                            io2.Close();
-                                        }
-                                        catch
-                                        {
-                                            deleteNow = false;
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                deleteNow = false;
-                            }
-                        }
-
-                        if (deleteNow)
-                        {
-                            IO.DeleteDir(dirFullName, true);
-                        }
-                    }
                 }
             }
         }
