@@ -863,7 +863,7 @@ namespace IPA.Cores.Basic
             try
             {
                 FileOptions options = FileOptions.None;
-                if (this.FileParams.Flags.Bit(FileOperationFlags.NoAsync) == false)
+                if (this.FileParams.Flags.Bit(FileOperationFlags.Async))
                     options |= FileOptions.Asynchronous;
 
                 if (Env.IsWindows)

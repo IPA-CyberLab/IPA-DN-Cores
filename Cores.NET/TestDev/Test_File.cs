@@ -415,7 +415,7 @@ namespace IPA.TestDev
                 for (int i = 0; i < 3; i++)
                 {
                     FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
-                    if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.NoAsync;
+                    if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.Async;
                     if (Util.RandBool()) flags |= FileOperationFlags.BackupMode;
 
                     using (var normal = Lfs.OpenOrCreate(normalFn, flags: flags))

@@ -135,6 +135,7 @@ namespace IPA.TestDev
         const int Benchmark_CountForVeryFast = 200000000;
         const int Benchmark_CountForFast = 10000000;
         const int Benchmark_CountForNormal = 10000;
+        const int Benchmark_CountForFile = 1000;
         const int Benchmark_CountForSlow = 100;
         const int Benchmark_CountForVerySlow = 10;
 
@@ -182,11 +183,11 @@ namespace IPA.TestDev
             FileStream nativeSyncFileStream = new FileStream(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
                 FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, false);
 
-            FileObject coresAsyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+            FileObject coresSyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
                 flags: FileOperationFlags.None);
 
-            FileObject coresSyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
-                flags: FileOperationFlags.NoAsync);
+            FileObject coresAsyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+                flags: FileOperationFlags.Async);
 
             Memory<byte> testFileWriteData = new byte[4096];
             Util.Rand(testFileWriteData.Span);
@@ -194,7 +195,7 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Async", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Async", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
@@ -206,7 +207,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Sync", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Sync", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
@@ -218,7 +219,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Sync", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Sync", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartSyncTaskAsync(() =>
                 {
@@ -230,7 +231,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Async", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Async", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartSyncTaskAsync(() =>
                 {
@@ -242,7 +243,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Async", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Async", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
@@ -254,7 +255,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Sync", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Sync", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
                 {
@@ -266,7 +267,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Sync", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Sync", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartSyncTaskAsync(() =>
                 {
@@ -278,7 +279,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Async", Benchmark_CountForSlow, count =>
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Async", Benchmark_CountForFile, count =>
             {
                 TaskUtil.StartSyncTaskAsync(() =>
                 {

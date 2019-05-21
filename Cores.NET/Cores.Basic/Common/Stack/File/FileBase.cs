@@ -428,7 +428,7 @@ namespace IPA.Cores.Basic
         ForceClearReadOnlyOrHiddenBitsOnNeed = 64,
         OnCreateSetCompressionFlag = 128,
         OnCreateRemoveCompressionFlag = 256,
-        NoAsync = 512,
+        Async = 512,
         SparseFile = 1024,
         WriteOnlyIfChanged = 2048,
     }
