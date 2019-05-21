@@ -479,7 +479,7 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                if (await io.WriteAsync(b.Memory) == false)
+                                if (io.Write(b.Memory) == false)
                                 {
                                     io.Close(this.NoFlush);
                                     io = null;
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
                                 }
                                 else
                                 {
-                                    if (await io.WriteAsync(b.Memory) == false)
+                                    if (io.Write(b.Memory) == false)
                                     {
                                         io.Close(this.NoFlush);
                                         io = null;
@@ -599,7 +599,7 @@ namespace IPA.Cores.Basic
                                 {
                                     if ((this.CurrentFilePointer + b.Length) <= this.MaxLogSize)
                                     {
-                                        if (await io.WriteAsync(b.Memory) == false)
+                                        if (io.Write(b.Memory) == false)
                                         {
                                             io.Close(this.NoFlush);
                                             b.Clear();
@@ -626,7 +626,7 @@ namespace IPA.Cores.Basic
                             currentFileName = fileName;
                             try
                             {
-                                io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
+                                io = IO.FileOpen(fileName, writeMode: true, useAsync: false);
                                 this.CurrentFilePointer = io.FileSize64;
                                 io.Seek(SeekOrigin.End, 0);
                             }
@@ -644,7 +644,7 @@ namespace IPA.Cores.Basic
                                 }
                                 try
                                 {
-                                    io = IO.FileCreate(fileName, useAsync: true);
+                                    io = IO.FileCreate(fileName, useAsync: false);
                                     await io.WriteAsync(NewFilePreamble);
                                 }
                                 catch (Exception ex)
@@ -662,7 +662,7 @@ namespace IPA.Cores.Basic
                         currentFileName = fileName;
                         try
                         {
-                            io = IO.FileOpen(fileName, writeMode: true, useAsync: true);
+                            io = IO.FileOpen(fileName, writeMode: true, useAsync: false);
                             this.CurrentFilePointer = io.FileSize64;
                             io.Seek(SeekOrigin.End, 0);
                         }
@@ -681,7 +681,7 @@ namespace IPA.Cores.Basic
                             this.CurrentFilePointer = 0;
                             try
                             {
-                                io = IO.FileCreate(fileName, useAsync: true);
+                                io = IO.FileCreate(fileName, useAsync: false);
                                 await io.WriteAsync(NewFilePreamble);
                             }
                             catch (Exception ex)

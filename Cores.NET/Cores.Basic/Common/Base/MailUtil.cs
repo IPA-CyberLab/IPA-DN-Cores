@@ -301,7 +301,7 @@ namespace IPA.Cores.Basic
                     }
 
                     // 追加: メールアドレスのみをキーにする
-                    s = DestMailUser.MailAddress.ToUpperInvariant();
+                    s = DestMailUser.MailAddress.ToUpper();
 
                     hashCache = Str.ByteToStr(Str.HashStr(s));
                 }

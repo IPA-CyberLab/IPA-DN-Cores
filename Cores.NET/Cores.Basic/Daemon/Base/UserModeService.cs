@@ -147,8 +147,8 @@ namespace IPA.Cores.Basic
 
                 // Start the TelnetLogWatcher
                 TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                    new IPEndPoint(IPAddress.Loopback, HiveData.Data.LocalLogWatchPort),
-                    new IPEndPoint(IPAddress.IPv6Loopback, HiveData.Data.LocalLogWatchPort),
+                    new IPEndPoint(IPAddress.Loopback, HiveData.ManagedData.LocalLogWatchPort),
+                    new IPEndPoint(IPAddress.IPv6Loopback, HiveData.ManagedData.LocalLogWatchPort),
                     new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
                     new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
 
@@ -156,8 +156,8 @@ namespace IPA.Cores.Basic
 
                 lock (HiveData.DataLock)
                 {
-                    HiveData.Data.Pid = Env.ProcessId;
-                    HiveData.Data.EventName = eventName;
+                    HiveData.ManagedData.Pid = Env.ProcessId;
+                    HiveData.ManagedData.EventName = eventName;
                 }
 
                 HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
 
                     lock (HiveData.DataLock)
                     {
-                        HiveData.Data.Pid = 0;
+                        HiveData.ManagedData.Pid = 0;
                     }
 
                     HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
@@ -265,8 +265,8 @@ namespace IPA.Cores.Basic
         {
             HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile, true);
 
-            long pid = HiveData.Data.Pid;
-            int port = HiveData.Data.LocalLogWatchPort;
+            long pid = HiveData.ManagedData.Pid;
+            int port = HiveData.ManagedData.LocalLogWatchPort;
 
             if (pid != 0 && port != 0)
             {
@@ -339,7 +339,7 @@ namespace IPA.Cores.Basic
         {
             HiveData.SyncWithStorage(HiveSyncFlags.LoadFromFile, true);
 
-            long pid = HiveData.Data.Pid;
+            long pid = HiveData.ManagedData.Pid;
 
             if (pid != 0)
             {
@@ -363,7 +363,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (ManualResetEvent.TryOpenExisting(HiveData.Data.EventName, out EventWaitHandle eventHandle))
+                    if (ManualResetEvent.TryOpenExisting(HiveData.ManagedData.EventName, out EventWaitHandle eventHandle))
                     {
                         try
                         {

@@ -488,8 +488,8 @@ namespace IPA.Cores.Basic
 
         public static string GenerateInternalName(string name)
         {
-            name = name.Trim().ToUpperInvariant();
-            return "dnmutant_" + Str.ByteToStr(Str.HashStr(name)).ToLowerInvariant();
+            name = name.Trim().ToLower();
+            return "dnmutant_" + Str.ByteToStr(Str.HashStr(name)).ToLower();
         }
 
         public abstract void Lock(bool nonBlock = false);
@@ -538,7 +538,7 @@ namespace IPA.Cores.Basic
             string NormalizeName(string name)
             {
                 Str.NormalizeString(ref name);
-                name = name.ToUpperInvariant();
+                name = name.ToUpper();
                 return name;
             }
 

@@ -2534,7 +2534,10 @@ namespace IPA.Cores.Basic
                 var srcFilePath = new FilePath(Res.Cores, "190521_LocalGitIgnore.txt");
                 var destFilePath = dir.Combine(".gitignore");
 
-                FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: flags));
+                if (destFilePath.IsFileExists() == false)
+                {
+                    FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: flags));
+                }
             }
             catch { }
         }

@@ -1225,18 +1225,18 @@ namespace IPA.Cores.Basic
 
                 if (a.AddressFamily == AddressFamily.InterNetworkV6)
                 {
-                    return a.ToString().ToLowerInvariant();
+                    return a.ToString().ToLower();
                 }
                 else if (a.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    return a.ToString().ToLowerInvariant();
+                    return a.ToString().ToLower();
                 }
             }
             catch
             {
             }
 
-            return str.ToLowerInvariant();
+            return str.ToLower();
         }
 
         // MAC アドレスをバイト配列に変換する
@@ -1268,11 +1268,11 @@ namespace IPA.Cores.Basic
 
             if (linuxStyle == false)
             {
-                ret = ret.ToUpperInvariant();
+                ret = ret.ToUpper();
             }
             else
             {
-                ret = ret.ToLowerInvariant();
+                ret = ret.ToLower();
             }
 
             return ret;
@@ -1291,7 +1291,7 @@ namespace IPA.Cores.Basic
 
             if (a.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                return a.ToString().ToLowerInvariant();
+                return a.ToString().ToLower();
             }
 
             throw new ApplicationException("a.AddressFamily != AddressFamily.InterNetworkV6");
@@ -1304,7 +1304,7 @@ namespace IPA.Cores.Basic
 
             if (a.AddressFamily == AddressFamily.InterNetwork)
             {
-                return a.ToString().ToLowerInvariant();
+                return a.ToString().ToLower();
             }
 
             throw new ApplicationException("a.AddressFamily != AddressFamily.InterNetwork");

@@ -96,12 +96,27 @@ namespace IPA.TestDev
 
     class TestHiveData1
     {
+        public string Str;
+        public string Date;
     }
 
     static class TestClass
     {
         public static void Test()
         {
+            HiveData<TestHiveData1> d = new HiveData<TestHiveData1>(Hive.SharedLocalConfigHive, "TestHiveData1", () => new TestHiveData1() { Str = "Init" }, HiveSyncPolicy.AutoReadWriteFile,
+                 HiveSerializerSelection.RichJson);
+
+            while (true)
+            {
+                lock (d.DataLock)
+                {
+                    d.ManagedData.Date = DateTime.Now.ToString();
+                    Con.WriteLine("data = " + d.ManagedData.Str);
+                }
+
+                Sleep(4000);
+            }
         }
     }
 }

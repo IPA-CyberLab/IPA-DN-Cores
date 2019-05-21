@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
 
             lock (Config.DataLock)
             {
-                LocalLogRouter.BufferedLogRoute.SetKind(Config.Data.Filters);
+                LocalLogRouter.BufferedLogRoute.SetKind(Config.ManagedData.Filters);
             }
 
             return LocalLogRouter.BufferedLogRoute.Subscribe();

@@ -44,6 +44,19 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class ConfigHiveOptions
+        {
+            public static readonly Copenhagen<int> SyncIntervalMsec = 2 * 1000;
+        }
+
+        public static partial class DefaultHiveOptions
+        {
+            public static readonly Copenhagen<int> SyncIntervalMsec = 2 * 1000;
+        }
+    }
+
     [Flags]
     enum HiveSerializerSelection
     {
@@ -123,6 +136,8 @@ namespace IPA.Cores.Basic
     {
         public bool SingleInstance { get; }
         public FileSystem FileSystem { get; }
+        public bool PutGitIgnore { get; }
+
         public Copenhagen<string> RootDirectoryPath { get; }
         public Copenhagen<FileOperationFlags> OperationFlags { get; }
         public Copenhagen<string> FileExtension { get; } = ".json";
@@ -130,13 +145,15 @@ namespace IPA.Cores.Basic
         public Copenhagen<string> TmpFileExtension { get; } = ".tmp";
         public Copenhagen<string> DefaultDataName { get; } = "default";
 
-        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged, int maxDataSize = int.MaxValue, bool singleInstance = false)
+        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged,
+            int maxDataSize = int.MaxValue, bool singleInstance = false, bool putGitIgnore = false)
             : base(maxDataSize)
         {
             this.FileSystem = fileSystem;
             this.RootDirectoryPath = rootDirectoryPath;
             this.OperationFlags = operationFlags;
             this.SingleInstance = singleInstance;
+            this.PutGitIgnore = putGitIgnore;
         }
     }
 
@@ -227,8 +244,10 @@ namespace IPA.Cores.Basic
                 {
                     await FileSystem.CreateDirectoryAsync(directoryName, Options.OperationFlags, cancel);
 
+                    Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
+
                     await FileSystem.WriteDataToFileAsync(newFilename, data, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
-                    
+
                     try
                     {
                         await FileSystem.DeleteFileAsync(filename, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
@@ -294,7 +313,10 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    await FileSystem.MoveFileAsync(newFilename, filename);
+                    if (await FileSystem.IsFileExistsAsync(newFilename, cancel))
+                    {
+                        await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                    }
                 }
                 catch { }
 
@@ -320,19 +342,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static partial class CoresConfig
-    {
-        public static partial class ConfigHiveOptions
-        {
-            public static readonly Copenhagen<int> SyncIntervalMsec = 2 * 1000;
-        }
-
-        public static partial class DefaultHiveOptions
-        {
-            public static readonly Copenhagen<int> SyncIntervalMsec = 2 * 1000;
-        }
-    }
-
     class HiveOptions
     {
         public const int MinSyncIntervalMsec = 2 * 1000;
@@ -342,8 +351,8 @@ namespace IPA.Cores.Basic
 
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
-        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance)), enableManagedSync, syncInterval) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore)), enableManagedSync, syncInterval) { }
 
         public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null)
         {
@@ -374,7 +383,9 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
         public static Hive SharedLocalConfigHive { get; private set; } = null;
+        public static Hive SharedConfigHive { get; private set; } = null;
 
+        static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config");
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
 
         static void InitModule()
@@ -382,8 +393,9 @@ namespace IPA.Cores.Basic
             Module.AddAfterInitAction(() =>
             {
                 // Create shared config hive
-                SharedLocalConfigHive = new Hive(new HiveOptions(Lfs.PathParser.Combine(Env.AppRootDir, LocalConfigHiveDirName), true,
-                    CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
+                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
+
+                SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true));
             });
         }
 
@@ -408,7 +420,7 @@ namespace IPA.Cores.Basic
 
         // Instance states and methods
         public HiveOptions Options { get; }
-        
+
         public HiveStorageProvider StorageProvider => Options.StorageProvider;
 
         readonly Dictionary<string, IHiveData> RegisteredHiveData = new Dictionary<string, IHiveData>();
@@ -483,6 +495,7 @@ namespace IPA.Cores.Basic
                 if (hive.IsReadOnly == false)
                     flags |= HiveSyncFlags.SaveToFile;
 
+                // no worry for error
                 await hive.SyncWithStorageAsync(flags, true, cancel);
             }
         }
@@ -578,6 +591,7 @@ namespace IPA.Cores.Basic
         None = 0,
         LoadFromFile = 1,
         SaveToFile = 2,
+        ForceUpdate = 4,
     }
 
     [Flags]
@@ -587,6 +601,8 @@ namespace IPA.Cores.Basic
         ReadOnly = 1,
         AutoReadFromFile = 2,
         AutoWriteToFile = 4,
+
+        AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile,
     }
 
     interface IHiveData
@@ -604,7 +620,7 @@ namespace IPA.Cores.Basic
         void Normalize();
     }
 
-    class HiveData<T> : IHiveData where T: class, new()
+    class HiveData<T> : IHiveData where T : class, new()
     {
         public HiveSyncPolicy Policy { get; private set; }
         public string DataName { get; }
@@ -679,7 +695,7 @@ namespace IPA.Cores.Basic
             }
 
             // Ensure to load the initial data from the storage (or create empty one)
-            GetData();
+            GetManagedData();
 
             // Initializing the managed hive
             if (this.IsManaged)
@@ -688,9 +704,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T Data { get => GetData(); }
+        public T ManagedData { get => GetManagedData(); }
 
-        public T GetData()
+        T GetManagedData()
         {
             lock (DataLock)
             {
@@ -737,14 +753,23 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T GetDataSnapshot()
+        public T GetManagedDataSnapshot()
         {
             lock (DataLock)
             {
-                T currentData = GetData();
+                T currentData = GetManagedData();
 
-                return currentData._CloneDeep();
+                Memory<byte> mem = Serializer.Serialize<T>(currentData);
+
+                return Serializer.Deserialize<T>(mem);
             }
+        }
+
+        T CloneData(T data)
+        {
+            Memory<byte> mem = Serializer.Serialize<T>(data);
+
+            return Serializer.Deserialize<T>(mem);
         }
 
         public void SyncWithStorage(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
@@ -776,14 +801,14 @@ namespace IPA.Cores.Basic
 
             using (await StorageAsyncLock.LockWithAwait(cancel))
             {
-                T dataSnapshot = GetDataSnapshot();
+                T dataSnapshot = GetManagedDataSnapshot();
                 HiveDataState dataSnapshotState = GetDataState(dataSnapshot);
 
                 bool skipLoadFromFile = false;
 
                 if (flag.Bit(HiveSyncFlags.SaveToFile))
                 {
-                    if (this.StorageHash != dataSnapshotState.Hash)
+                    if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                     {
                         await SaveDataCoreAsync(dataSnapshotState.SerializedData, false, cancel);
 
@@ -797,15 +822,32 @@ namespace IPA.Cores.Basic
                 {
                     HiveDataState loadDataState = await LoadDataCoreAsync(cancel);
 
-                    if (loadDataState.Hash != dataSnapshotState.Hash)
+                    if (loadDataState.Hash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                     {
                         lock (DataLock)
                         {
                             this.DataInternal = loadDataState.Data;
+                            this.StorageHash = loadDataState.Hash;
                         }
-
-                        this.StorageHash = loadDataState.Hash;
                     }
+                }
+            }
+        }
+
+        async Task ReplaceDataAsync(T data, CancellationToken cancel = default)
+        {
+            if (this.IsReadOnly)
+                throw new ApplicationException("IsReadOnly is set.");
+
+            data = CloneData(data);
+
+            HiveDataState dataState = GetDataState(data);
+
+            using (await StorageAsyncLock.LockWithAwait(cancel))
+            {
+                lock (DataLock)
+                {
+                    this.DataInternal = dataState.Data;
                 }
             }
         }
@@ -879,6 +921,32 @@ namespace IPA.Cores.Basic
         async Task SaveDataCoreAsync(ReadOnlyMemory<byte> serializedData, bool doNotOverwrite, CancellationToken cancel = default)
         {
             await Hive.StorageProvider.SaveAsync(this.DataName, serializedData, doNotOverwrite, cancel);
+        }
+
+        AsyncLock LoadSaveLock = new AsyncLock();
+
+        public async Task<T> LoadDataAsync(CancellationToken cancel = default)
+        {
+            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed.");
+
+            using (await LoadSaveLock.LockWithAwait(cancel))
+            {
+                await SyncWithStorageAsync(HiveSyncFlags.LoadFromFile | HiveSyncFlags.ForceUpdate, false, cancel);
+
+                return this.ManagedData;
+            }
+        }
+
+        public async Task SaveDataAsync(T data, CancellationToken cancel = default)
+        {
+            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed.");
+
+            using (await LoadSaveLock.LockWithAwait(cancel))
+            {
+                await ReplaceDataAsync(data, cancel);
+
+                await SyncWithStorageAsync(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate, false, cancel);
+            }
         }
     }
 }

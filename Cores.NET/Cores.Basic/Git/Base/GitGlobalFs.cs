@@ -133,7 +133,7 @@ namespace IPA.Cores.Basic
             {
                 lock (Data.DataLock)
                 {
-                    foreach (var repo in Data.Data.RepositoryList)
+                    foreach (var repo in Data.ManagedData.RepositoryList)
                     {
                         repo.Repository._DisposeSafe();
                     }
@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic
 
             lock (Data.DataLock)
             {
-                GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                 if (repoData == null || repoData.Repository == null)
                     throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
@@ -245,7 +245,7 @@ namespace IPA.Cores.Basic
 
                 lock (Data.DataLock)
                 {
-                    GitGlobalFsRepository repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                    GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                     L_RETRY:
 
@@ -273,7 +273,7 @@ namespace IPA.Cores.Basic
                             Repository = gitRepo,
                         };
 
-                        Data.Data.RepositoryList.Add(repoData);
+                        Data.ManagedData.RepositoryList.Add(repoData);
                     }
                     else
                     {
@@ -294,7 +294,7 @@ namespace IPA.Cores.Basic
                                 Con.WriteDebug($"Repository local dir \"{dirFullPath}\" load error: {ex.ToString()}");
                                 Con.WriteDebug($"Trying to clone as a new local dir.");
 
-                                Data.Data.RepositoryList.Remove(repoData);
+                                Data.ManagedData.RepositoryList.Remove(repoData);
                                 Data.SyncWithStorage(HiveSyncFlags.SaveToFile, false);
 
                                 repoData = null;
@@ -317,7 +317,7 @@ namespace IPA.Cores.Basic
             List<string> urlList;
             lock (Data.DataLock)
             {
-                urlList = Data.Data.RepositoryList.Select(x => x.Url).ToList();
+                urlList = Data.ManagedData.RepositoryList.Select(x => x.Url).ToList();
             }
 
             foreach (string url in urlList)
@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
                 GitGlobalFsRepository repoData;
                 lock (Data.DataLock)
                 {
-                    repoData = Data.Data.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                    repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
                 }
                 if (repoData == null || repoData.Repository == null)
                     throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");

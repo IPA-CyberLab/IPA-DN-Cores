@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
             void NormalizeName(ref string name)
             {
                 Str.NormalizeString(ref name);
-                name = name.ToUpperInvariant();
+                name = name.ToUpper();
                 if (Str.InStr(name, "="))
                 {
                     throw new InvalidDataException(name);
@@ -890,19 +890,19 @@ namespace IPA.Cores.Basic
             string e = (Secure.RandUInt64() % 100000UL).ToString("D5");
             string f = (((ulong)((now - new DateTime(2015, 8, 10)).TotalSeconds / 9600.0)) % 100000UL).ToString("D5");
             string g = (Secure.RandUInt64() % 100000UL).ToString("D5");
-            string hash_str = a + b + d + e + f + g + prefix.ToUpperInvariant();
+            string hash_str = a + b + d + e + f + g + prefix.ToUpper();
             byte[] hash = Secure.HashSHA1(Str.AsciiEncoding.GetBytes(hash_str));
             Buf buf = new Buf(hash);
             string c = (buf.ReadInt64() % 100000UL).ToString("D5");
 
-            return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpperInvariant() + "-" + f + "-" + g;
+            return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpper() + "-" + f + "-" + g;
         }
 
         // ID 文字列を短縮する
         public static string GetShortId(string fullId)
         {
             Str.NormalizeString(ref fullId);
-            fullId = fullId.ToUpperInvariant();
+            fullId = fullId.ToUpper();
 
             if (fullId.StartsWith("ID-") == false)
             {
@@ -2722,7 +2722,7 @@ namespace IPA.Cores.Basic
                 foreach (string s in ret)
                 {
                     string t = s;
-                    if (distinctCaseSensitive == false) t = s.ToUpperInvariant();
+                    if (distinctCaseSensitive == false) t = s.ToUpper();
                     if (tmp.Add(t))
                     {
                         ret2.Add(t);
@@ -3567,7 +3567,7 @@ namespace IPA.Cores.Basic
         // SHA-256 パスワードハッシュ
         public static string HashPasswordSHA256(string password)
         {
-            return Str.ByteToHex(Secure.HashSHA256(Str.Utf8Encoding.GetBytes(password))).ToUpperInvariant();
+            return Str.ByteToHex(Secure.HashSHA256(Str.Utf8Encoding.GetBytes(password))).ToUpper();
         }
 
         // バイト列を文字列に変換

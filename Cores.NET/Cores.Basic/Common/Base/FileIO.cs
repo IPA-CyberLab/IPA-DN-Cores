@@ -1546,13 +1546,14 @@ namespace IPA.Cores.Basic
             // ファイルに書き込む
             public bool Write(byte[] buf) => Write(buf, 0, buf.Length);
             public bool Write(byte[] buf, int size) => Write(buf, 0, size);
-            public bool Write(byte[] buf, int offset, int size)
+            public bool Write(byte[] buf, int offset, int size) => Write(new ReadOnlyMemory<byte>(buf, offset, size));
+            public bool Write(ReadOnlyMemory<byte> memory, bool flush = false)
             {
                 if (writeMode == false)
                 {
                     return false;
                 }
-                if (size == 0)
+                if (memory.Length == 0)
                 {
                     return true;
                 }
@@ -1563,12 +1564,18 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
-                            p.Write(buf, offset, size);
+                            p.Write(memory.Span);
+
+                            if (flush)
+                            {
+                                p.Flush();
+                            }
 
                             return true;
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            Con.WriteDebug($"IO.Write('{this.Name}') failed. {ex.Message}");
                             return false;
                         }
                     }
@@ -1610,7 +1617,7 @@ namespace IPA.Cores.Basic
                         }
                         catch (Exception ex)
                         {
-                            Dbg.Where($"IO.WriteAsync('{this.Name}') failed. {ex.Message}");
+                            Con.WriteDebug($"IO.WriteAsync('{this.Name}') failed. {ex.Message}");
                             return false;
                         }
                     }

@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            if (eventId.ToString().IndexOf("CommandExecuting", StringComparison.InvariantCultureIgnoreCase) == -1)
+            if (eventId.ToString().IndexOf("CommandExecuting", StringComparison.OrdinalIgnoreCase) == -1)
             {
                 return;
             }
@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
                 int i;
                 for (i = 0; i < this.FieldList.Length; i++)
                 {
-                    if (this.FieldList[i].Equals(name, StringComparison.InvariantCultureIgnoreCase))
+                    if (this.FieldList[i].Equals(name, StringComparison.OrdinalIgnoreCase))
                     {
                         return this.ValueList[i];
                     }

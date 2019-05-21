@@ -231,14 +231,14 @@ namespace IPA.Cores.Basic
             }
             if (Str.IsEmptyStr(HomeDir) == false)
             {
-                UnixMutantDir = Path.Combine(HomeDir, ".dnmutant");
+                UnixMutantDir = Path.Combine(HomeDir, ".Cores.Net.Mutex");
             }
             else
             {
                 HomeDir = AppRootDir;
                 if (IsUnix)
                 {
-                    UnixMutantDir = Path.Combine("/tmp", ".dnmutant");
+                    UnixMutantDir = Path.Combine("/tmp", ".Cores.Net.Mutex");
                 }
             }
             if (IsWindows) UnixMutantDir = "";
@@ -403,7 +403,7 @@ namespace IPA.Cores.Basic
             string ret;
             while (true)
             {
-                byte[] rand = Secure.Rand(6);
+                byte[] rand = Secure.Rand(8);
                 string tmp2 = Str.ByteToStr(rand);
 
                 string tmp = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, "NET_" + tmp2);
@@ -437,7 +437,7 @@ namespace IPA.Cores.Basic
             {
                 if (e.IsFolder)
                 {
-                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 16)
+                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 20)
                     {
                         string dirFullName = Path.Combine(Env.TempDir, e.fileName);
                         string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
             {
                 if (e.IsFolder)
                 {
-                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 16)
+                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 20)
                     {
                         string dirFullName = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, e.fileName);
                         string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
