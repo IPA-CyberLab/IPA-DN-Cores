@@ -34,322 +34,318 @@ using System;
 using System.Collections.Generic;
 
 using IPA.Cores.Basic;
-using IPA.Cores.Basic.PackData;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    namespace PackData
+    // 値
+    class PackValue : IComparable
     {
-        // 値
-        class Value : IComparable
+        uint index;             // インデックス
+        public uint Index
         {
-            uint index;             // インデックス
-            public uint Index
-            {
-                get { return index; }
-            }
-
-            object data;            // データ
-
-            // 比較
-            int IComparable.CompareTo(object obj)
-            {
-                Value v = (Value)obj;
-
-                return this.index.CompareTo(v.index);
-            }
-
-            // コンストラクタ
-            public Value(uint index, uint intValue)
-            {
-                this.index = index;
-                this.data = intValue;
-            }
-            public Value(uint index, ulong int64Value)
-            {
-                this.index = index;
-                this.data = int64Value;
-            }
-            public Value(uint index, string str)
-            {
-                this.index = index;
-                this.data = str;
-            }
-            public Value(uint index, byte[] data)
-            {
-                this.index = index;
-                this.data = data;
-            }
-
-            // デフォルトの値
-            public static Value GetDefaultValue(uint index, PackValueType type)
-            {
-                switch (type)
-                {
-                    case PackValueType.Int:
-                        return new Value(index, 0);
-
-                    case PackValueType.Int64:
-                        return new Value(index, 0);
-
-                    case PackValueType.Str:
-                        return new Value(index, "");
-
-                    case PackValueType.UniStr:
-                        return new Value(index, "");
-
-                    case PackValueType.Data:
-                        return new Value(index, new byte[0]);
-                }
-
-                return null;
-            }
-
-            // データの取得
-            public uint IntValue
-            {
-                get { return (uint)data; }
-            }
-            public ulong Int64Value
-            {
-                get { return (ulong)data; }
-            }
-            public string StrValue
-            {
-                get { return (string)data; }
-            }
-            public byte[] Data
-            {
-                get { return (byte[])data; }
-            }
-            public bool BoolValue
-            {
-                get { return (IntValue == 0 ? false : true); }
-            }
-
-            // 読み込む
-            public static Value CreateFromBuf(Buf b, uint index, PackValueType type)
-            {
-                switch (type)
-                {
-                    case PackValueType.Int:
-                        return new Value(index, b.ReadInt());
-
-                    case PackValueType.Int64:
-                        return new Value(index, b.ReadInt64());
-
-                    case PackValueType.Str:
-                        return new Value(index, b.ReadStr().Trim());
-
-                    case PackValueType.UniStr:
-                        uint len = b.ReadInt();
-                        if (len == 0)
-                        {
-                            return new Value(index, "");
-                        }
-                        else
-                        {
-                            byte[] data = b.Read(len - 1);
-                            b.Read(1);
-                            return new Value(index, Str.Utf8Encoding.GetString(data).Trim());
-
-                        }
-
-                    case PackValueType.Data:
-                        uint size = b.ReadInt();
-                        return new Value(index, b.Read(size));
-                }
-
-                return null;
-            }
-
-            // 書き出す
-            public void WriteToBuf(Buf b, PackValueType type)
-            {
-                switch (type)
-                {
-                    case PackValueType.Int:
-                        b.WriteInt(IntValue);
-                        break;
-
-                    case PackValueType.Int64:
-                        b.WriteInt64(Int64Value);
-                        break;
-
-                    case PackValueType.Data:
-                        b.WriteInt((uint)Data.Length);
-                        b.Write(Data);
-                        break;
-
-                    case PackValueType.Str:
-                        b.WriteStr(StrValue.Trim());
-                        break;
-
-                    case PackValueType.UniStr:
-                        byte[] data = Str.Utf8Encoding.GetBytes(StrValue.Trim());
-                        b.WriteInt((uint)data.Length + 1);
-                        b.Write(data);
-                        b.WriteByte(0);
-                        break;
-                }
-            }
+            get { return index; }
         }
 
-        // 要素の型
-        enum PackValueType
+        object data;            // データ
+
+        // 比較
+        int IComparable.CompareTo(object obj)
         {
-            Int = 0,                // 整数型
-            Data = 1,               // データ型
-            Str = 2,                // ANSI 文字列型
-            UniStr = 3,             // Unicode 文字列型
-            Int64 = 4,              // 64 bit 整数型
+            PackValue v = (PackValue)obj;
+
+            return this.index.CompareTo(v.index);
         }
 
-        // 要素
-        class Element : IComparable
+        // コンストラクタ
+        public PackValue(uint index, uint intValue)
         {
-            string name;            // 要素名
-            PackValueType type;         // 型
-                                        //List<Value> values;		// 値リスト
-            Dictionary<uint, Value> values;
-            uint maxIndex;
+            this.index = index;
+            this.data = intValue;
+        }
+        public PackValue(uint index, ulong int64Value)
+        {
+            this.index = index;
+            this.data = int64Value;
+        }
+        public PackValue(uint index, string str)
+        {
+            this.index = index;
+            this.data = str;
+        }
+        public PackValue(uint index, byte[] data)
+        {
+            this.index = index;
+            this.data = data;
+        }
 
-            // コンストラクタ
-            public Element(string name, PackValueType type)
+        // デフォルトの値
+        public static PackValue GetDefaultValue(uint index, PackValueType type)
+        {
+            switch (type)
             {
-                this.name = name;
-                this.type = type;
-                maxIndex = 0;
-                this.values = new Dictionary<uint, Value>();
+                case PackValueType.Int:
+                    return new PackValue(index, 0);
+
+                case PackValueType.Int64:
+                    return new PackValue(index, 0);
+
+                case PackValueType.Str:
+                    return new PackValue(index, "");
+
+                case PackValueType.UniStr:
+                    return new PackValue(index, "");
+
+                case PackValueType.Data:
+                    return new PackValue(index, new byte[0]);
             }
 
-            // 値の取得
-            public Value GetValue(uint index)
+            return null;
+        }
+
+        // データの取得
+        public uint IntValue
+        {
+            get { return (uint)data; }
+        }
+        public ulong Int64Value
+        {
+            get { return (ulong)data; }
+        }
+        public string StrValue
+        {
+            get { return (string)data; }
+        }
+        public byte[] Data
+        {
+            get { return (byte[])data; }
+        }
+        public bool BoolValue
+        {
+            get { return (IntValue == 0 ? false : true); }
+        }
+
+        // 読み込む
+        public static PackValue CreateFromBuf(Buf b, uint index, PackValueType type)
+        {
+            switch (type)
             {
-                bool tmp;
-                return GetValue(index, out tmp);
-            }
-            public Value GetValue(uint index, out bool exists)
-            {
-                if (values.ContainsKey(index) == false)
-                {
-                    exists = false;
-                    return Value.GetDefaultValue(index, this.type);
-                }
-                else
-                {
-                    exists = true;
-                    return values[index];
-                }
-            }
+                case PackValueType.Int:
+                    return new PackValue(index, b.ReadInt());
 
-            // 値の追加
-            public void AddValue(Value value)
-            {
-                bool exists;
-                Value existValue = GetValue(value.Index, out exists);
+                case PackValueType.Int64:
+                    return new PackValue(index, b.ReadInt64());
 
-                if (exists)
-                {
-                    values.Remove(value.Index);
-                }
+                case PackValueType.Str:
+                    return new PackValue(index, b.ReadStr().Trim());
 
-                values.Add(value.Index, value);
-
-                if (maxIndex < value.Index)
-                {
-                    maxIndex = value.Index;
-                }
-            }
-
-            // 型のチェック
-            public bool CheckType(PackValueType type)
-            {
-                return this.type == type;
-            }
-
-            // 値の個数の取得
-            public uint Count
-            {
-                get
-                {
-                    if (values.Count >= 1)
+                case PackValueType.UniStr:
+                    uint len = b.ReadInt();
+                    if (len == 0)
                     {
-
-                        return maxIndex + 1;
+                        return new PackValue(index, "");
                     }
                     else
                     {
-                        return 0;
+                        byte[] data = b.Read(len - 1);
+                        b.Read(1);
+                        return new PackValue(index, Str.Utf8Encoding.GetString(data).Trim());
+
                     }
-                }
+
+                case PackValueType.Data:
+                    uint size = b.ReadInt();
+                    return new PackValue(index, b.Read(size));
             }
 
-            int IComparable.CompareTo(object obj)
-            {
-                Element e = (Element)obj;
+            return null;
+        }
 
-                return this.name.ToUpper().CompareTo(e.name.ToUpper());
+        // 書き出す
+        public void WriteToBuf(Buf b, PackValueType type)
+        {
+            switch (type)
+            {
+                case PackValueType.Int:
+                    b.WriteInt(IntValue);
+                    break;
+
+                case PackValueType.Int64:
+                    b.WriteInt64(Int64Value);
+                    break;
+
+                case PackValueType.Data:
+                    b.WriteInt((uint)Data.Length);
+                    b.Write(Data);
+                    break;
+
+                case PackValueType.Str:
+                    b.WriteStr(StrValue.Trim());
+                    break;
+
+                case PackValueType.UniStr:
+                    byte[] data = Str.Utf8Encoding.GetBytes(StrValue.Trim());
+                    b.WriteInt((uint)data.Length + 1);
+                    b.Write(data);
+                    b.WriteByte(0);
+                    break;
+            }
+        }
+    }
+
+    // 要素の型
+    enum PackValueType
+    {
+        Int = 0,                // 整数型
+        Data = 1,               // データ型
+        Str = 2,                // ANSI 文字列型
+        UniStr = 3,             // Unicode 文字列型
+        Int64 = 4,              // 64 bit 整数型
+    }
+
+    // 要素
+    class PackElement : IComparable
+    {
+        string name;            // 要素名
+        PackValueType type;         // 型
+                                //List<Value> values;		// 値リスト
+        Dictionary<uint, PackValue> values;
+        uint maxIndex;
+
+        // コンストラクタ
+        public PackElement(string name, PackValueType type)
+        {
+            this.name = name;
+            this.type = type;
+            maxIndex = 0;
+            this.values = new Dictionary<uint, PackValue>();
+        }
+
+        // 値の取得
+        public PackValue GetValue(uint index)
+        {
+            bool tmp;
+            return GetValue(index, out tmp);
+        }
+        public PackValue GetValue(uint index, out bool exists)
+        {
+            if (values.ContainsKey(index) == false)
+            {
+                exists = false;
+                return PackValue.GetDefaultValue(index, this.type);
+            }
+            else
+            {
+                exists = true;
+                return values[index];
+            }
+        }
+
+        // 値の追加
+        public void AddValue(PackValue value)
+        {
+            bool exists;
+            PackValue existValue = GetValue(value.Index, out exists);
+
+            if (exists)
+            {
+                values.Remove(value.Index);
             }
 
-            // 読み込む
-            public static Element CreateFromBuf(Buf b)
+            values.Add(value.Index, value);
+
+            if (maxIndex < value.Index)
             {
-                // 名前
-                string name = b.ReadStr(true);
+                maxIndex = value.Index;
+            }
+        }
 
-                // 種類
-                PackValueType type = (PackValueType)b.ReadInt();
+        // 型のチェック
+        public bool CheckType(PackValueType type)
+        {
+            return this.type == type;
+        }
 
-                // 項目数
-                uint num = b.ReadInt();
-
-                Element e = new Element(name, type);
-
-                // 値
-                uint i;
-                for (i = 0; i < num; i++)
+        // 値の個数の取得
+        public uint Count
+        {
+            get
+            {
+                if (values.Count >= 1)
                 {
-                    Value v = Value.CreateFromBuf(b, i, type);
 
-                    e.AddValue(v);
+                    return maxIndex + 1;
                 }
+                else
+                {
+                    return 0;
+                }
+            }
+        }
 
-                return e;
+        int IComparable.CompareTo(object obj)
+        {
+            PackElement e = (PackElement)obj;
+
+            return this.name.ToUpper().CompareTo(e.name.ToUpper());
+        }
+
+        // 読み込む
+        public static PackElement CreateFromBuf(Buf b)
+        {
+            // 名前
+            string name = b.ReadStr(true);
+
+            // 種類
+            PackValueType type = (PackValueType)b.ReadInt();
+
+            // 項目数
+            uint num = b.ReadInt();
+
+            PackElement e = new PackElement(name, type);
+
+            // 値
+            uint i;
+            for (i = 0; i < num; i++)
+            {
+                PackValue v = PackValue.CreateFromBuf(b, i, type);
+
+                e.AddValue(v);
             }
 
-            // 書き出す
-            public void WriteToBuf(Buf b)
+            return e;
+        }
+
+        // 書き出す
+        public void WriteToBuf(Buf b)
+        {
+            // 名前
+            b.WriteStr(this.name, true);
+
+            // 種類
+            b.WriteInt((uint)this.type);
+
+            // 項目数
+            b.WriteInt(this.Count);
+
+            // 値
+            uint i;
+            if (this.Count > Pack.MaxValueNum)
             {
-                // 名前
-                b.WriteStr(this.name, true);
+                throw new OverflowException();
+            }
+            for (i = 0; i < this.Count; i++)
+            {
+                PackValue v = this.GetValue(i);
 
-                // 種類
-                b.WriteInt((uint)this.type);
-
-                // 項目数
-                b.WriteInt(this.Count);
-
-                // 値
-                uint i;
-                if (this.Count > Pack.MaxValueNum)
-                {
-                    throw new OverflowException();
-                }
-                for (i = 0; i < this.Count; i++)
-                {
-                    Value v = this.GetValue(i);
-
-                    v.WriteToBuf(b, this.type);
-                }
+                v.WriteToBuf(b, this.type);
             }
         }
     }
 
     // Pack の値
-    class PackValue
+    class PackValueAccessor
     {
         public string StrValue = null;
         public string UniStrValue = null;
@@ -363,25 +359,25 @@ namespace IPA.Cores.Basic
     // Pack
     partial class Pack
     {
-        List<Element> elements; // 要素リスト
+        List<PackElement> elements; // 要素リスト
         bool elementsSorted;
         public const uint MaxValueNum = 65536 * 4;      // 1 つの ELEMENT に格納できる最大 VALUE 数
         public const uint MaxElementNum = 131072 * 4;   // 1 つの PACK に格納できる最大 ELEMENT 数
         public const uint MaxPackSize = (64 * 1024 * 1024 * 4); // シリアル化された PACK の最大サイズ
 
         // インデクサ
-        public PackValue this[string name]
+        public PackValueAccessor this[string name]
         {
             get
             {
                 return this[name, 0];
             }
         }
-        public PackValue this[string name, uint index]
+        public PackValueAccessor this[string name, uint index]
         {
             get
             {
-                PackValue p = new PackValue();
+                PackValueAccessor p = new PackValueAccessor();
                 p.IntValue = GetInt(name, index);
                 p.Int64Value = GetInt64(name, index);
                 p.StrValue = GetStr(name, index);
@@ -404,7 +400,7 @@ namespace IPA.Cores.Basic
         // コンストラクタ
         public Pack()
         {
-            elements = new List<Element>();
+            elements = new List<PackElement>();
             elementsSorted = true;
         }
 
@@ -434,7 +430,7 @@ namespace IPA.Cores.Basic
         }
 
         // 要素の追加
-        void addElement(Element e)
+        void addElement(PackElement e)
         {
             elements.Add(e);
             elementsSorted = false;
@@ -445,8 +441,8 @@ namespace IPA.Cores.Basic
         }
         public void AddStr(string name, string strValue, uint index)
         {
-            Element e = getElementAndCreateIfNotExists(name, PackValueType.Str);
-            e.AddValue(new Value(index, strValue));
+            PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Str);
+            e.AddValue(new PackValue(index, strValue));
         }
 
         public void AddUniStr(string name, string strValue)
@@ -455,8 +451,8 @@ namespace IPA.Cores.Basic
         }
         public void AddUniStr(string name, string strValue, uint index)
         {
-            Element e = getElementAndCreateIfNotExists(name, PackValueType.UniStr);
-            e.AddValue(new Value(index, strValue));
+            PackElement e = getElementAndCreateIfNotExists(name, PackValueType.UniStr);
+            e.AddValue(new PackValue(index, strValue));
         }
 
         public void AddInt(string name, uint intValue)
@@ -465,8 +461,8 @@ namespace IPA.Cores.Basic
         }
         public void AddInt(string name, uint intValue, uint index)
         {
-            Element e = getElementAndCreateIfNotExists(name, PackValueType.Int);
-            e.AddValue(new Value(index, intValue));
+            PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Int);
+            e.AddValue(new PackValue(index, intValue));
         }
 
         public void AddBool(string name, bool boolValue)
@@ -493,8 +489,8 @@ namespace IPA.Cores.Basic
         }
         public void AddInt64(string name, ulong int64Value, uint index)
         {
-            Element e = getElementAndCreateIfNotExists(name, PackValueType.Int64);
-            e.AddValue(new Value(index, int64Value));
+            PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Int64);
+            e.AddValue(new PackValue(index, int64Value));
         }
 
         public void AddData(string name, byte[] data)
@@ -503,14 +499,14 @@ namespace IPA.Cores.Basic
         }
         public void AddData(string name, byte[] data, uint index)
         {
-            Element e = getElementAndCreateIfNotExists(name, PackValueType.Data);
-            e.AddValue(new Value(index, data));
+            PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Data);
+            e.AddValue(new PackValue(index, data));
         }
 
         // 要素の取得
-        Element getElement(string name)
+        PackElement getElement(string name)
         {
-            Element t = new Element(name, PackValueType.Int);
+            PackElement t = new PackElement(name, PackValueType.Int);
             if (elementsSorted == false)
             {
                 elements.Sort();
@@ -526,15 +522,15 @@ namespace IPA.Cores.Basic
                 return elements[i];
             }
         }
-        Element getElementAndCreateIfNotExists(string name, PackValueType type)
+        PackElement getElementAndCreateIfNotExists(string name, PackValueType type)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e != null)
             {
                 return e;
             }
 
-            e = new Element(name, type);
+            e = new PackElement(name, type);
             addElement(e);
 
             return e;
@@ -542,7 +538,7 @@ namespace IPA.Cores.Basic
 
         public uint GetCount(string name)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -556,7 +552,7 @@ namespace IPA.Cores.Basic
         }
         public string GetStr(string name, uint index)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -565,7 +561,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            Value v = e.GetValue(index);
+            PackValue v = e.GetValue(index);
             if (v == null)
             {
                 return null;
@@ -579,7 +575,7 @@ namespace IPA.Cores.Basic
         }
         public string GetUniStr(string name, uint index)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -588,7 +584,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            Value v = e.GetValue(index);
+            PackValue v = e.GetValue(index);
             if (v == null)
             {
                 return null;
@@ -602,7 +598,7 @@ namespace IPA.Cores.Basic
         }
         public uint GetInt(string name, uint index)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -611,7 +607,7 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-            Value v = e.GetValue(index);
+            PackValue v = e.GetValue(index);
             if (v == null)
             {
                 return 0;
@@ -634,7 +630,7 @@ namespace IPA.Cores.Basic
         }
         public ulong GetInt64(string name, uint index)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -643,7 +639,7 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-            Value v = e.GetValue(index);
+            PackValue v = e.GetValue(index);
             if (v == null)
             {
                 return 0;
@@ -657,7 +653,7 @@ namespace IPA.Cores.Basic
         }
         public byte[] GetData(string name, uint index)
         {
-            Element e = getElement(name);
+            PackElement e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -666,7 +662,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            Value v = e.GetValue(index);
+            PackValue v = e.GetValue(index);
             if (v == null)
             {
                 return null;
@@ -694,7 +690,7 @@ namespace IPA.Cores.Basic
 
             for (i = 0; i < num; i++)
             {
-                p.addElement(Element.CreateFromBuf(b));
+                p.addElement(PackElement.CreateFromBuf(b));
             }
 
             return p;
@@ -709,7 +705,7 @@ namespace IPA.Cores.Basic
             b.WriteInt((uint)elements.Count);
 
             // 要素
-            foreach (Element e in elements)
+            foreach (PackElement e in elements)
             {
                 e.WriteToBuf(b);
             }
