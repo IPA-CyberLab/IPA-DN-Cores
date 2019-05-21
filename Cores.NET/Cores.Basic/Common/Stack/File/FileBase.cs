@@ -1142,7 +1142,7 @@ namespace IPA.Cores.Basic
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
             => ReadRandomAsync(position, data, cancel)._GetResult();
 
-        public void Write(Memory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel)._GetResult();
+        public void Write(ReadOnlyMemory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel)._GetResult();
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => WriteRandomAsync(position, data, cancel)._GetResult();
 

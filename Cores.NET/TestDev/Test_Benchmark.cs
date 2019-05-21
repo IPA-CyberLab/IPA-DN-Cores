@@ -136,6 +136,7 @@ namespace IPA.TestDev
         const int Benchmark_CountForFast = 10000000;
         const int Benchmark_CountForNormal = 10000;
         const int Benchmark_CountForSlow = 100;
+        const int Benchmark_CountForVerySlow = 10;
 
         static void BenchMark_Test1()
         {
@@ -175,14 +176,119 @@ namespace IPA.TestDev
 
             int isZeroTestSize = 4;
 
+            FileStream nativeAsyncFileStream = new FileStream(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+                FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, true);
+
+            FileStream nativeSyncFileStream = new FileStream(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+                FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, false);
+
+            FileObject coresAsyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+                flags: FileOperationFlags.None);
+
+            FileObject coresSyncFile = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"),
+                flags: FileOperationFlags.NoAsync);
+
+            Memory<byte> testFileWriteData = new byte[4096];
+            Util.Rand(testFileWriteData.Span);
+
             var queue = new MicroBenchmarkQueue()
 
-            //.Add(new MicroBenchmark($"File Write Small - .NET Native", Benchmark_CountForSlow, count =>
-            //{
-            //    for (int c = 0; c < count; c++)
-            //    {
-            //    }
-            //}), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Async", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await coresAsyncFile.WriteAsync(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Async for Sync", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await coresSyncFile.WriteAsync(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Sync", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartSyncTaskAsync(() =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        coresSyncFile.Write(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - Cores Object - Sync for Async", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartSyncTaskAsync(() =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        coresAsyncFile.Write(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Async", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await nativeAsyncFileStream.WriteAsync(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Async for Sync", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await nativeSyncFileStream.WriteAsync(testFileWriteData);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Sync", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartSyncTaskAsync(() =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        nativeSyncFileStream.Write(testFileWriteData.Span);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"File Write Small - .NET Native - Sync for Async", Benchmark_CountForSlow, count =>
+            {
+                TaskUtil.StartSyncTaskAsync(() =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        nativeAsyncFileStream.Write(testFileWriteData.Span);
+                    }
+                }, false, false)._GetResult();
+
+            }), enabled: true, priority: 190521)
 
             .Add(new MicroBenchmark($"BitAny", Benchmark_CountForVeryFast, count =>
             {

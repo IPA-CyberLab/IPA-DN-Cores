@@ -3159,6 +3159,41 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class SingletonSlim<TObject> where TObject : class
+    {
+        readonly Func<TObject> CreateProc;
+        TObject Object = null;
+        public bool IsCreated { get; private set; }
+
+        public SingletonSlim(Func<TObject> createProc)
+        {
+            this.CreateProc = createProc;
+        }
+
+        public static implicit operator TObject(SingletonSlim<TObject> singleton) => singleton.CreateOrGet();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TObject CreateOrGet()
+        {
+            if (this.Object != null)
+            {
+                return this.Object;
+            }
+            else
+            {
+                this.Object = this.CreateProc();
+                this.IsCreated = true;
+                return this.Object;
+            }
+        }
+
+        public void Clear()
+        {
+            this.Object = null;
+            IsCreated = false;
+        }
+    }
+
     class Singleton<TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
@@ -3549,6 +3584,9 @@ namespace IPA.Cores.Basic
 
         public T Get()
         {
+            if (IsCached)
+                return CachedValue;
+
             lock (LockObj)
             {
                 if (IsCached)
@@ -3577,16 +3615,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T GetFast()
-        {
-            if (IsCached)
-                return CachedValue;
-
-            return Get();
-        }
-
         public T Value { get => Get(); set => Set(value); }
-        public T ValueFast { get => GetFast(); }
 
         public static implicit operator T(CachedProperty<T> r) => r.Value;
     }

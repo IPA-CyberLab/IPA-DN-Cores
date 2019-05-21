@@ -21,3 +21,9 @@ _internal_CopyToTestLXDContainer.cmd
 cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run
 
 
+ベンチマーク
+
+cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run -c Release BenchMark
+
+
+
