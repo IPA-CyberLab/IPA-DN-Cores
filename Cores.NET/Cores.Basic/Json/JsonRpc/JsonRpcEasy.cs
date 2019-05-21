@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_BASIC_JSON
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,3 +57,6 @@ namespace IPA.Cores.Basic
         }
     }
 }
+
+#endif // CORES_BASIC_JSON
+

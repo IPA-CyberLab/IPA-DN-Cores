@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_BASIC_JSON
+
 using System;
 using System.Threading.Tasks;
 using System.Text;
@@ -88,4 +90,6 @@ namespace IPA.Cores.Basic
             => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic));
     }
 }
+
+#endif  // CORES_BASIC_JSON
 

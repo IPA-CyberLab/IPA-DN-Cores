@@ -13343,7 +13343,10 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x0600016F RID: 367 RVA: 0x0003618C File Offset: 0x0001618C
-        public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#endif
+        public int Read(Span<byte> buffer)
         {
             int num = this._content.Length - this._position;
             if (num <= 0 || buffer.Length == 0)
@@ -13373,7 +13376,10 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x06000171 RID: 369 RVA: 0x0003626C File Offset: 0x0001626C
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#endif
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (!cancellationToken.IsCancellationRequested)
             {
@@ -13395,6 +13401,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x06000174 RID: 372 RVA: 0x000362B4 File Offset: 0x000162B4
+#if !CORES_NETFX
         public override void CopyTo(Stream destination, int bufferSize)
         {
             StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
@@ -13403,6 +13410,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                 destination.Write(this._content.Span.Slice(this._position));
             }
         }
+#endif
 
         // Token: 0x06000175 RID: 373 RVA: 0x000362FC File Offset: 0x000162FC
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
@@ -16102,7 +16110,12 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x060003C2 RID: 962 RVA: 0x0003EFF3 File Offset: 0x0001EFF3
-        public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public int Read(Span<byte> buffer)
         {
             return this._innerStream.Read(buffer);
         }
@@ -16120,7 +16133,12 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x060003C5 RID: 965 RVA: 0x0003F020 File Offset: 0x0001F020
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
         {
             return this._innerStream.ReadAsync(buffer, cancellationToken);
         }
@@ -16162,7 +16180,12 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x060003CC RID: 972 RVA: 0x0003F08A File Offset: 0x0001F08A
-        public override void Write(ReadOnlySpan<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public void Write(ReadOnlySpan<byte> buffer)
         {
             this._innerStream.Write(buffer);
         }
@@ -16180,7 +16203,12 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x060003CF RID: 975 RVA: 0x0003F0B8 File Offset: 0x0001F0B8
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
         {
             return this._innerStream.WriteAsync(buffer, cancellationToken);
         }
@@ -16335,7 +16363,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x04000483 RID: 1155
+#if !CORES_NETFX
         private static readonly DiagnosticListener s_diagnosticListener = new DiagnosticListener("HttpHandlerDiagnosticListener");
+#endif
     }
 
 
@@ -19240,7 +19270,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600044A RID: 1098 RVA: 0x00042200 File Offset: 0x00022200
-            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -19622,7 +19655,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600045D RID: 1117 RVA: 0x00042DC0 File Offset: 0x00022DC0
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ignored)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ignored)
             {
                 return (buffer.Length == 0) ? this._connection.FlushAsync() : new ValueTask(this.WriteChunkAsync(buffer));
             }
@@ -19663,7 +19699,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000466 RID: 1126 RVA: 0x000431D4 File Offset: 0x000231D4
-            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 CancellationHelper.ThrowIfCancellationRequested(cancellationToken);
                 int result;
@@ -19767,7 +19806,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600046F RID: 1135 RVA: 0x00043658 File Offset: 0x00023658
-            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 CancellationHelper.ThrowIfCancellationRequested(cancellationToken);
                 int result;
@@ -19955,7 +19997,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000480 RID: 1152 RVA: 0x00043E02 File Offset: 0x00023E02
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ignored)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ignored)
             {
                 return new ValueTask(this._connection.WriteAsync(buffer));
             }
@@ -19997,13 +20042,19 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000487 RID: 1159 RVA: 0x000356C2 File Offset: 0x000156C2
-            public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#endif
+            public int Read(Span<byte> buffer)
             {
                 return 0;
             }
 
             // Token: 0x06000488 RID: 1160 RVA: 0x00043E36 File Offset: 0x00023E36
-            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (!cancellationToken.IsCancellationRequested)
                 {
@@ -20145,7 +20196,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600049C RID: 1180 RVA: 0x00036351 File Offset: 0x00016351
-            public sealed override void Write(ReadOnlySpan<byte> source)
+#if !CORES_NETFX
+        sealed override
+#endif
+            public void Write(ReadOnlySpan<byte> source)
             {
                 throw new NotSupportedException();
             }
@@ -20157,7 +20211,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600049E RID: 1182 RVA: 0x0004408C File Offset: 0x0002408C
-            public sealed override ValueTask WriteAsync(ReadOnlyMemory<byte> destination, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        sealed override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> destination, CancellationToken cancellationToken)
             {
                 throw new NotSupportedException();
             }
@@ -20177,10 +20234,12 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060004A1 RID: 1185 RVA: 0x00044108 File Offset: 0x00024108
+#if !CORES_NETFX
             public sealed override void CopyTo(Stream destination, int bufferSize)
             {
                 this.CopyToAsync(destination, bufferSize, CancellationToken.None).GetAwaiter().GetResult();
             }
+#endif
 
             // Token: 0x170000EC RID: 236
             // (get) Token: 0x060004A2 RID: 1186 RVA: 0x000356C2 File Offset: 0x000156C2
@@ -20312,7 +20371,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060004B3 RID: 1203 RVA: 0x000443E4 File Offset: 0x000243E4
-            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 CancellationHelper.ThrowIfCancellationRequested(cancellationToken);
                 int result;
@@ -20406,7 +20468,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060004B7 RID: 1207 RVA: 0x000444F4 File Offset: 0x000244F4
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -22521,7 +22586,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060002BE RID: 702 RVA: 0x0003C00E File Offset: 0x0001C00E
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
                 this.CheckSize(buffer.Length);
                 return base.WriteAsync(buffer, cancellationToken);
@@ -22649,7 +22717,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060002CB RID: 715 RVA: 0x0003C244 File Offset: 0x0001C244
-            public override void Write(ReadOnlySpan<byte> buffer)
+#if !CORES_NETFX
+        override
+#endif
+            public void Write(ReadOnlySpan<byte> buffer)
             {
                 this.EnsureCapacity(this._length + buffer.Length);
                 buffer.CopyTo(new Span<byte>(this._buffer, this._length, buffer.Length));
@@ -22664,7 +22735,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x060002CD RID: 717 RVA: 0x0003C2A8 File Offset: 0x0001C2A8
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
                 this.Write(buffer.Span);
                 return default(ValueTask);
@@ -22854,10 +22928,12 @@ namespace IPA.Cores.Basic.HttpClientCore
         }
 
         // Token: 0x06000575 RID: 1397 RVA: 0x0004B874 File Offset: 0x0002B874
+#if !CORES_NETFX
         public sealed override void CopyTo(Stream destination, int bufferSize)
         {
             this.CopyToAsync(destination, bufferSize, CancellationToken.None).GetAwaiter().GetResult();
         }
+#endif
     }
 
 
@@ -23587,7 +23663,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             _method = method;
         }
 
-        #region IEquatable<HttpMethod> Members
+#region IEquatable<HttpMethod> Members
 
         public bool Equals(HttpMethod other)
         {
@@ -23606,7 +23682,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             return string.Equals(_method, other._method, StringComparison.OrdinalIgnoreCase);
         }
 
-        #endregion
+#endregion
 
         public override bool Equals(object obj)
         {
@@ -25446,7 +25522,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000370 RID: 880 RVA: 0x0003DFF4 File Offset: 0x0001DFF4
-            public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#endif
+            public int Read(Span<byte> buffer)
             {
                 if (buffer.Length == 0)
                 {
@@ -25485,7 +25564,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000372 RID: 882 RVA: 0x0003E09D File Offset: 0x0001E09D
-            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
                 return this.ReadAsyncPrivate(buffer, cancellationToken);
             }
@@ -25653,7 +25735,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x0600037E RID: 894 RVA: 0x00036351 File Offset: 0x00016351
-            public override void Write(ReadOnlySpan<byte> buffer)
+#if !CORES_NETFX
+        override
+#endif
+            public void Write(ReadOnlySpan<byte> buffer)
             {
                 throw new NotSupportedException();
             }
@@ -25665,7 +25750,10 @@ namespace IPA.Cores.Basic.HttpClientCore
             }
 
             // Token: 0x06000380 RID: 896 RVA: 0x00036351 File Offset: 0x00016351
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
+#if !CORES_NETFX
+        override
+#endif
+            public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
                 throw new NotSupportedException();
             }

@@ -1082,14 +1082,25 @@ namespace IPA.Cores.Basic
         public override Task FlushAsync(CancellationToken cancellationToken)
             => Task.CompletedTask;
 
-        public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public int Read(Span<byte> buffer)
         {
             var readSpan = BaseBuffer.Read(buffer.Length, true);
             readSpan.CopyTo(buffer);
             return readSpan.Length;
         }
 
-        public override void Write(ReadOnlySpan<byte> buffer)
+
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public void Write(ReadOnlySpan<byte> buffer)
         {
             BaseBuffer.Write(buffer);
         }
@@ -1104,7 +1115,13 @@ namespace IPA.Cores.Basic
             return Task.FromResult(this.Read(buffer, offset, count));
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return this.Read(buffer.Span);
@@ -1116,7 +1133,12 @@ namespace IPA.Cores.Basic
             this.Write(buffer, offset, count);
         }
 
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             this.Write(buffer.Span);

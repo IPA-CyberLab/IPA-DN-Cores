@@ -483,7 +483,9 @@ namespace IPA.Cores.Basic
 
         public override bool IsAsync => true;
 
+#if !CORES_NETFX
         public override string Name => File.FileParams.Path;
+#endif
 
         public override SafeFileHandle SafeFileHandle => null;
 
@@ -534,6 +536,7 @@ namespace IPA.Cores.Basic
         public override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public override void Close() => Dispose(true);
 
+#if !CORES_NETFX
         public override void CopyTo(Stream destination, int bufferSize)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(bufferSize);
@@ -550,6 +553,7 @@ namespace IPA.Cores.Basic
                 ArrayPool<byte>.Shared.Return(array, false);
             }
         }
+#endif
 
         public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
@@ -579,7 +583,12 @@ namespace IPA.Cores.Basic
         [Obsolete]
         protected override void ObjectInvariant() { }
 
-        public override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public int Read(Span<byte> buffer)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
             int result;
@@ -600,7 +609,12 @@ namespace IPA.Cores.Basic
             return result;
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             using (cancellationToken.Register(() => File.Close()))
             {
@@ -618,7 +632,12 @@ namespace IPA.Cores.Basic
             return (int)array[0];
         }
 
-        public override void Write(ReadOnlySpan<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public void Write(ReadOnlySpan<byte> buffer)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
             try
@@ -632,7 +651,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             using (cancellationToken.Register(() => File.Close()))
             {

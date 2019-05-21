@@ -1769,6 +1769,7 @@ namespace IPA.Cores.Basic
         public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public sealed override void Close() => Dispose(true);
 
+#if !CORES_NETFX
         public sealed override void CopyTo(Stream destination, int bufferSize)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(bufferSize);
@@ -1785,6 +1786,7 @@ namespace IPA.Cores.Basic
                 ArrayPool<byte>.Shared.Return(array, false);
             }
         }
+#endif
 
         public sealed override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
@@ -1814,7 +1816,12 @@ namespace IPA.Cores.Basic
         [Obsolete]
         protected sealed override void ObjectInvariant() { }
 
-        public sealed override int Read(Span<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public int Read(Span<byte> buffer)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
             int result;
@@ -1835,7 +1842,12 @@ namespace IPA.Cores.Basic
             return result;
         }
 
-        public sealed override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
             => await ReadImplAsync(buffer, cancellationToken);
 
         public sealed override int ReadByte()
@@ -1848,7 +1860,12 @@ namespace IPA.Cores.Basic
             return (int)array[0];
         }
 
-        public sealed override void Write(ReadOnlySpan<byte> buffer)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public void Write(ReadOnlySpan<byte> buffer)
         {
             byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
             try
@@ -1862,7 +1879,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public sealed override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+#if !CORES_NETFX
+        override
+#else
+        virtual
+#endif
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
             => await WriteImplAsync(buffer, cancellationToken);
 
         public sealed override void WriteByte(byte value)
