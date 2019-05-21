@@ -2185,6 +2185,11 @@ namespace IPA.Cores.Basic
     {
         CriticalSection _LockObj;
 
+        public void EnsureCreated()
+        {
+            Limbo.ObjectVolatileSlow = this.LockObj;
+        }
+
         public CriticalSection LockObj
         {
             get

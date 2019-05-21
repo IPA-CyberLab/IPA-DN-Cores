@@ -231,14 +231,14 @@ namespace IPA.Cores.Basic
             }
             if (Str.IsEmptyStr(HomeDir) == false)
             {
-                UnixMutantDir = Path.Combine(HomeDir, ".Cores.Net.Mutex");
+                UnixMutantDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.Mutex");
             }
             else
             {
                 HomeDir = AppRootDir;
                 if (IsUnix)
                 {
-                    UnixMutantDir = Path.Combine("/tmp", ".Cores.Net.Mutex");
+                    UnixMutantDir = Path.Combine("/tmp", ".dotnet_temp/.Cores.NET.Mutex");
                 }
             }
             if (IsWindows) UnixMutantDir = "";
@@ -272,7 +272,7 @@ namespace IPA.Cores.Basic
                 Win32_WindowsDrive = "/";
                 if (Str.IsEmptyStr(HomeDir) == false)
                 {
-                    TempDir = Path.Combine(HomeDir, ".Cores.NET.Temp");
+                    TempDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.PerProcess.Temp");
                 }
                 else
                 {

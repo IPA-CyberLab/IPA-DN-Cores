@@ -170,7 +170,7 @@ namespace IPA.Cores.Helper.Basic
         public static DateTime _ToDate(this string str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
         public static DateTime _ToTime(this string s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToTime(s, toUtc, emptyToZeroDateTime);
         public static DateTime _ToDateTime(this string s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDateTime(s, toUtc, emptyToZeroDateTime);
-        public static object _ToEnum(this string s, object defaultValue) => Str.StrToEnum(s, defaultValue);
+        public static object _ToEnum(this string s, object defaultValue, bool exactOnly = false) => Str.StrToEnum(s, defaultValue, exactOnly);
         public static int _ToInt(this string s) => Str.StrToInt(s);
         public static long _ToLong(this string s) => Str.StrToLong(s);
         public static uint _ToUInt(this string s) => Str.StrToUInt(s);

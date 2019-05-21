@@ -34,6 +34,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -244,7 +245,8 @@ namespace IPA.Cores.Basic
                 {
                     await FileSystem.CreateDirectoryAsync(directoryName, Options.OperationFlags, cancel);
 
-                    Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
+                    if (Options.PutGitIgnore)
+                        Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
 
                     await FileSystem.WriteDataToFileAsync(newFilename, data, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
 
@@ -382,11 +384,42 @@ namespace IPA.Cores.Basic
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
-        public static Hive SharedLocalConfigHive { get; private set; } = null;
-        public static Hive SharedConfigHive { get; private set; } = null;
-
         static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config");
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
+        static readonly string UserConfigHiveDirName = Path.Combine(Env.HomeDir, ".Cores.NET/Config");
+
+        public static Hive SharedLocalConfigHive { get; private set; } = null;
+        public static Hive SharedConfigHive { get; private set; } = null;
+        public static Hive SharedUserConfigHive { get; private set; } = null;
+
+
+        // Normal runtime hive data
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> LocalAppSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedLocalConfigHive, "AppSettings/" + appName,
+                serializer: HiveSerializerSelection.DefaultRuntimeJson));
+
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> AppSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedConfigHive, "AppSettings/" + appName,
+                serializer: HiveSerializerSelection.DefaultRuntimeJson));
+
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> UserSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppUserSettings/" + appName,
+                serializer: HiveSerializerSelection.DefaultRuntimeJson));
+
+
+        // Rich hive data
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichLocalAppSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedLocalConfigHive, "RichAppSettings/" + appName,
+                serializer: HiveSerializerSelection.RichJson));
+
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichAppSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedConfigHive, "RichAppSettings/" + appName,
+                serializer: HiveSerializerSelection.RichJson));
+
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichUserSettings =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "RichAppUserSettings/" + appName,
+                serializer: HiveSerializerSelection.RichJson));
+
 
         static void InitModule()
         {
@@ -396,11 +429,15 @@ namespace IPA.Cores.Basic
                 SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
 
                 SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true));
+
+                SharedUserConfigHive = new Hive(new HiveOptions(UserConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
             });
         }
 
         static void FreeModule()
         {
+            LocalAppSettings.Clear();
+
             Hive[] runningHives;
             lock (RunningHivesListLockObj)
             {
@@ -646,9 +683,10 @@ namespace IPA.Cores.Basic
             public long Hash;
         }
 
-        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer customSerializer = null)
+        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc = null, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer customSerializer = null)
         {
-            if (getDefaultDataFunc == null) throw new ArgumentNullException("getDefaultDataFunc");
+            if (getDefaultDataFunc == null)
+                getDefaultDataFunc = () => new T();
 
             switch (serializer)
             {
@@ -925,9 +963,11 @@ namespace IPA.Cores.Basic
 
         AsyncLock LoadSaveLock = new AsyncLock();
 
+        AsyncLock AccessLock = new AsyncLock();
+
         public async Task<T> LoadDataAsync(CancellationToken cancel = default)
         {
-            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed.");
+            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed. LoadDataAsync() is not supported.");
 
             using (await LoadSaveLock.LockWithAwait(cancel))
             {
@@ -937,9 +977,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public T LoadData(CancellationToken cancel = default)
+            => LoadDataAsync(cancel)._GetResult();
+
         public async Task SaveDataAsync(T data, CancellationToken cancel = default)
         {
-            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed.");
+            if (this.IsManaged) throw new ApplicationException($"The HiveData \"{this.DataName}\" is managed. SaveDataAsync() is not supported.");
 
             using (await LoadSaveLock.LockWithAwait(cancel))
             {
@@ -947,6 +990,156 @@ namespace IPA.Cores.Basic
 
                 await SyncWithStorageAsync(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate, false, cancel);
             }
+        }
+        public void SaveData(T data, CancellationToken cancel = default)
+            => SaveDataAsync(data, cancel)._GetResult();
+
+        public async Task AccessDataAsync(bool writeMode, Func<T, Task> proc, CancellationToken cancel = default)
+        {
+            using (await AccessLock.LockWithAwait(cancel))
+            {
+                T data = await LoadDataAsync(cancel);
+
+                await proc(data);
+
+                if (writeMode)
+                {
+                    await SaveDataAsync(data, cancel);
+                }
+            }
+        }
+
+        public void AccessData(bool writeMode, Action<T> proc, CancellationToken cancel = default)
+            => AccessDataAsync(writeMode, (data) => { proc(data); return Task.CompletedTask; }, cancel)._GetResult();
+    }
+
+    [Serializable]
+    [DataContract]
+    class HiveKeyValue : INormalizable
+    {
+        public HiveKeyValue() => Normalize();
+
+        LazyCriticalSection LockObj;
+
+        [DataMember(IsRequired = true)]
+        public SortedDictionary<string, object> Root = new SortedDictionary<string, object>(StrComparer.IgnoreCaseComparer);
+
+        public void Normalize()
+        {
+            this.LockObj.EnsureCreated();
+
+            if (this.Root == null) this.Root = new SortedDictionary<string, object>();
+        }
+
+        static string NormalizeKeyName(string keyName)
+        {
+            keyName = keyName._NonNullTrim();
+            return keyName;
+        }
+
+        public bool SetObject(string keyName, object value)
+        {
+            keyName = NormalizeKeyName(keyName);
+
+            if (value == null)
+            {
+                return DeleteObject(keyName);
+            }
+
+            lock (LockObj.LockObj)
+            {
+                if (Root.ContainsKey(keyName))
+                {
+                    Root[keyName] = value;
+                    return true;
+                }
+                else
+                {
+                    Root.Add(keyName, value);
+                    return false;
+                }
+            }
+        }
+
+        public object GetObject(string keyName, object defaultValue = null)
+        {
+            keyName = NormalizeKeyName(keyName);
+            lock (LockObj.LockObj)
+            {
+                if (Root.ContainsKey(keyName) == false)
+                {
+                    return defaultValue;
+                }
+                else
+                {
+                    return Root[keyName];
+                }
+            }
+        }
+
+        public bool DeleteObject(string keyName)
+        {
+            keyName = NormalizeKeyName(keyName);
+            lock (LockObj.LockObj)
+            {
+                if (Root.ContainsKey(keyName))
+                {
+                    Root.Remove(keyName);
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        public bool IsObjectExists(string keyName)
+        {
+            keyName = NormalizeKeyName(keyName);
+            lock (LockObj.LockObj)
+            {
+                return Root.ContainsKey(keyName);
+            }
+        }
+
+        public bool Set<T>(string keyName, T value)
+            => SetObject(keyName, value);
+
+        public T Get<T>(string keyName, T defaultValue = default)
+        {
+            object obj = GetObject(keyName, defaultValue);
+            if (obj == null) obj = defaultValue;
+
+#if CORES_BASIC_JSON
+            if (obj is Newtonsoft.Json.Linq.JObject jobj)
+            {
+                return jobj.ToObject<T>();
+            }
+#endif  // CORES_BASIC_JSON
+
+            return (T)obj;
+        }
+
+        public bool Delete<T>(string keyName)
+        {
+            Get<T>(keyName);
+            return DeleteObject(keyName);
+        }
+
+        public bool SetStr(string key, string value) => Set(key, value._NonNull());
+        public string GetStr(string key, string defaultValue = null) => Get(key, defaultValue)._NonNull();
+
+        public bool SetSInt32(string key, int value) => Set(key, value);
+        public int GetSInt32(string key, int defaultValue = 0) => Get(key, defaultValue);
+
+        public bool SetSInt64(string key, long value) => Set(key, value);
+        public long GetSInt64(string key, long defaultValue = 0) => Get(key, defaultValue);
+
+        public bool SetEnum<T>(string key, T value) where T : Enum => SetStr(key, value.ToString());
+        public T GetEnum<T>(string key, T defaultValue = default) where T : Enum
+        {
+            string str = GetStr(key);
+            if (str._IsEmpty()) return defaultValue;
+            return str._ParseEnum<T>(defaultValue);
         }
     }
 }

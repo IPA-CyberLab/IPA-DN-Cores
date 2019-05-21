@@ -3703,17 +3703,17 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue) where T: Enum
+        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false) where T: Enum
         {
-            return (T)StrToEnum(str, defaultValue);
+            return (T)StrToEnum(str, defaultValue, exactOnly);
         }
-        public static object ParseEnum(object value, object defaultValue)
+        public static object ParseEnum(object value, object defaultValue, bool exactOnly = false)
         {
-            return ParseEnum(value.ToString(), defaultValue);
+            return ParseEnum(value.ToString(), defaultValue, exactOnly);
         }
-        public static object ParseEnum(string str, object defaultValue)
+        public static object ParseEnum(string str, object defaultValue, bool exactOnly = false)
         {
-            return StrToEnum(str, defaultValue);
+            return StrToEnum(str, defaultValue, exactOnly);
         }
 
         static Singleton<Type, Dictionary<string, object>> EnumCacheCaseSensitive = new Singleton<Type, Dictionary<string, object>>(t =>
@@ -3738,7 +3738,7 @@ namespace IPA.Cores.Basic
             return d;
         });
 
-        public static object StrToEnum(string str, object defaultValue)
+        public static object StrToEnum(string str, object defaultValue, bool exactOnly = false)
         {
             Type type = defaultValue.GetType();
             if (EnumCacheCaseSensitive[type].TryGetValue(str, out object ret))
@@ -3748,6 +3748,13 @@ namespace IPA.Cores.Basic
             if (EnumCacheCaseIgnore[type].TryGetValue(str, out object ret2))
             {
                 return ret2;
+            }
+            if (exactOnly == false)
+            {
+                if (Enum.TryParse(type, str, out object ret3))
+                {
+                    return ret3;
+                }
             }
             return defaultValue;
         }

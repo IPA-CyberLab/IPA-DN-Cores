@@ -98,14 +98,38 @@ namespace IPA.TestDev
     {
         public string Str;
         public string Date;
+        public List<string> StrList = new List<string>();
     }
 
     static class TestClass
     {
         public static void Test()
         {
-            Con.WriteLine(Env.MyGlobalTempDir);
-            Con.WriteLine(Env.MyLocalTempDir);
+            //Hive.LocalRegistry.AccessData(true, data =>
+            //{
+            //    TestHiveData1 d1 = new TestHiveData1() { Str = "A", Date = "B" };
+            //    d1.StrList.Add("neko");
+            //    d1.StrList.Add("inu");
+            //    data.Set("", "value");
+
+            //    data.Set("d2", d1);
+            //    data.SetStr("S1", "aa");
+
+            //    //TestHiveData1 d1 = data.Get<TestHiveData1>("d1");
+
+            //    //d1._PrintAsJson();
+            //});
+
+            Hive.UserSettings["app1"].AccessData(true, data =>
+            {
+                data.Set("a", "hello");
+
+                data.Set("obj", new TestHiveData1());
+
+                data.SetSInt32("i", data.GetSInt32("i") + 1);
+
+                data._PrintAsJson();
+            });
         }
     }
 }
