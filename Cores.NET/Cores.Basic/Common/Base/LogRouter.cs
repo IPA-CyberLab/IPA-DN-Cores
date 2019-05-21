@@ -356,8 +356,6 @@ namespace IPA.Cores.Basic
             {
                 throw new ApplicationException("Failed to initialize the Unique log process id.");
             }
-
-            Console.WriteLine($"UniqueLogProcessId = {UniqueLogProcessId}");
         }
 
         static void ModuleInit()

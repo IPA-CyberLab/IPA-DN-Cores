@@ -444,13 +444,15 @@ namespace IPA.Cores.Basic
 
     class MutantUnixImpl : MutantBase
     {
+        const string Extension = ".lock";
+
         string Filename;
         int LockedCount = 0;
         IntPtr FileHandle;
 
         public MutantUnixImpl(string name)
         {
-            Filename = Path.Combine(Env.UnixMutantDir, MutantBase.GenerateInternalName(name) + ".lock");
+            Filename = Path.Combine(Env.UnixMutantDir, MutantBase.GenerateInternalName(name) + Extension);
             IO.MakeDirIfNotExists(Env.UnixMutantDir);
         }
 
@@ -489,6 +491,57 @@ namespace IPA.Cores.Basic
                 this.FileHandle = IntPtr.Zero;
             }
             LockedCount--;
+        }
+
+        public static void DeleteUnusedMutantFiles()
+        {
+            if (Env.IsUnix == false) return;
+
+            try
+            {
+                string[] fileFullPathList = Directory.GetFiles(Env.UnixMutantDir);
+
+                foreach (string fileFullPath in fileFullPathList)
+                {
+                    try
+                    {
+                        if (fileFullPath.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
+
+                            bool okToDelete = false;
+
+                            IntPtr fd = UnixApi.Open(fileFullPath, UnixApi.OpenFlags.O_CREAT, (int)perm);
+
+                            if (fd.ToInt64() >= 0)
+                            {
+                                try
+                                {
+                                    if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX | UnixApi.LockOperations.LOCK_NB) != -1)
+                                    {
+                                        okToDelete = true;
+                                    }
+                                }
+                                finally
+                                {
+                                    UnixApi.Close(fd);
+                                }
+                            }
+
+                            if (okToDelete)
+                            {
+                                try
+                                {
+                                    File.Delete(fileFullPath);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
     }
 
@@ -569,7 +622,7 @@ namespace IPA.Cores.Basic
         public static string GenerateInternalName(string name)
         {
             name = name.Trim().ToLower();
-            return "dnmutant_" + Str.ByteToStr(Str.HashStr(name)).ToLower();
+            return "Cores_DotNet_Mutex_" + Str.ByteToStr(Str.HashStr(name)).ToLower();
         }
 
         public abstract void Lock(bool nonBlock = false);

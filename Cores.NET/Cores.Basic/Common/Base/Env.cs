@@ -272,7 +272,7 @@ namespace IPA.Cores.Basic
                 Win32_WindowsDrive = "/";
                 if (Str.IsEmptyStr(HomeDir) == false)
                 {
-                    TempDir = Path.Combine(HomeDir, ".dntmp");
+                    TempDir = Path.Combine(HomeDir, ".Cores.NET.Temp");
                 }
                 else
                 {
@@ -333,8 +333,13 @@ namespace IPA.Cores.Basic
                 Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
             }
 
+            if (IsUnix)
+            {
+                MutantUnixImpl.DeleteUnusedMutantFiles();
+            }
+
             // Global app temp dir
-            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, "Cores.NET_");
+            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, "Cores.NET");
             Env.MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
         }
 
@@ -352,7 +357,7 @@ namespace IPA.Cores.Basic
                     if (_MyLocalTempDir == null)
                     {
                         // Local app temp dir
-                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, "Cores.NET_");
+                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, "Cores.NET");
                         _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
 
                         Env.PutGitIgnoreFileOnAppLocalDirectory();
