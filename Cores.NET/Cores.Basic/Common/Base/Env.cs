@@ -100,6 +100,7 @@ namespace IPA.Cores.Basic
         static public string WindowsDir { get; }
         static public string SystemDir { get; }
         static public string TempDir { get; }
+        static string AppRootLocalTempDirRoot_Internal { get; }
         static public string WinTempDir { get; }
         static public string WindowsDrive { get; }
         static public string ProgramFilesDir { get; }
@@ -124,7 +125,7 @@ namespace IPA.Cores.Basic
         public static bool IsBigEndian => !IsLittleEndian;
         public static bool IsAdmin { get; }
         public static long ProcessId { get; }
-        public static string MyTempDir { get; }
+        public static string MyGlobalTempDir { get; }
         public static string PathSeparator { get; }
         public static char PathSeparatorChar { get; }
         public static string StartupCurrentDir { get; }
@@ -141,8 +142,6 @@ namespace IPA.Cores.Basic
         public static int NumCpus { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
-
-        static IO lockFile;
 
         public static bool Is64BitProcess => (IntPtr.Size == 8);
         public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
@@ -249,6 +248,7 @@ namespace IPA.Cores.Basic
                 SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
                 WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(SystemDir));
                 TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
+                AppRootLocalTempDirRoot_Internal = Path.Combine(IO.RemoveLastEnMark(AppRootDir), @"Local\Temp");
                 WinTempDir = IO.RemoveLastEnMark(Path.Combine(WindowsDir, "Temp"));
                 IO.MakeDir(WinTempDir);
                 if (WindowsDir.Length >= 2 && WindowsDir[1] == ':')
@@ -274,6 +274,7 @@ namespace IPA.Cores.Basic
                 {
                     TempDir = "/tmp";
                 }
+                AppRootLocalTempDirRoot_Internal = Path.Combine(IO.RemoveLastEnMark(AppRootDir), "Local/Temp");
                 WinTempDir = TempDir;
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
@@ -319,42 +320,46 @@ namespace IPA.Cores.Basic
             // 自分用の temp ディレクトリの初期化
             try
             {
-                deleteUnusedTempDir();
+                DeleteUnusedTempDir();
             }
-            catch
+            catch { }
+
+            try
             {
+                DeleteUnusedAppRootLocalTempDir();
             }
+            catch { }
 
             int num = 0;
 
             while (true)
             {
-                byte[] rand = Secure.Rand(2);
+                byte[] rand = Secure.Rand(8);
                 string tmp2 = Str.ByteToStr(rand);
 
                 string tmp = Path.Combine(Env.TempDir, "NET_" + tmp2);
 
                 if (IO.IsDirExists(tmp) == false && IO.MakeDir(tmp))
                 {
-                    Env.MyTempDir = tmp;
+                    Env.MyGlobalTempDir = tmp;
 
                     break;
                 }
 
                 if ((num++) >= 100)
                 {
-                    throw new SystemException();
+                    throw new SystemException("PrepareMyLocalTempDirInternal failed.");
                 }
             }
 
             if (IsWindows)
             {
-                UnixMutantDir = Env.MyTempDir;
+                UnixMutantDir = Env.MyGlobalTempDir;
             }
 
             // ロックファイルの作成
-            string lockFileName = Path.Combine(Env.MyTempDir, "LockFile.dat");
-            lockFile = IO.FileCreate(lockFileName, Env.IsUnix);
+            string lockFileName1 = Path.Combine(Env.MyGlobalTempDir, "LockFile.dat");
+            IO.FileCreate(lockFileName1, Env.IsUnix);
 
             Env.IsHostedByDotNetProcess = ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
 
@@ -364,8 +369,59 @@ namespace IPA.Cores.Basic
             }
         }
 
+        static string _MyLocalTempDir = null;
+        static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
 
-        static void deleteUnusedTempDir()
+        public static string MyLocalTempDir
+        {
+            get
+            {
+                if (_MyLocalTempDir != null) return _MyLocalTempDir;
+
+                lock (MyLocalTempDirInitLock)
+                {
+                    if (_MyLocalTempDir == null)
+                    {
+                        _MyLocalTempDir = PrepareMyAppRootLocalTempDirInternal();
+                    }
+
+                    return _MyLocalTempDir;
+                }
+            }
+        }
+
+
+        static string PrepareMyAppRootLocalTempDirInternal()
+        {
+            int num = 0;
+            string ret;
+            while (true)
+            {
+                byte[] rand = Secure.Rand(6);
+                string tmp2 = Str.ByteToStr(rand);
+
+                string tmp = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, "NET_" + tmp2);
+
+                if (IO.IsDirExists(tmp) == false && IO.MakeDir(tmp))
+                {
+                    ret = tmp;
+
+                    break;
+                }
+
+                if ((num++) >= 100)
+                {
+                    throw new SystemException("PrepareMyAppRootLocalTempDirInternal failed.");
+                }
+            }
+
+            string lockFileName2 = Path.Combine(ret, "LockFile.dat");
+            IO.FileCreate(lockFileName2, Env.IsUnix);
+
+            return ret;
+        }
+
+        static void DeleteUnusedTempDir()
         {
             DirEntry[] files;
 
@@ -375,9 +431,83 @@ namespace IPA.Cores.Basic
             {
                 if (e.IsFolder)
                 {
-                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 8)
+                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 16)
                     {
                         string dirFullName = Path.Combine(Env.TempDir, e.fileName);
+                        string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
+                        bool deleteNow = false;
+
+                        try
+                        {
+                            IO io = IO.FileOpen(lockFileName);
+                            io.Close();
+
+                            try
+                            {
+                                io = IO.FileOpen(lockFileName, true);
+                                deleteNow = true;
+                                io.Close();
+                            }
+                            catch
+                            {
+                            }
+                        }
+                        catch
+                        {
+                            DirEntry[] files2;
+
+                            deleteNow = true;
+
+                            try
+                            {
+                                files2 = IO.EnumDir(dirFullName);
+
+                                foreach (DirEntry e2 in files2)
+                                {
+                                    if (e2.IsFolder == false)
+                                    {
+                                        string fullPath = Path.Combine(dirFullName, e2.fileName);
+
+                                        try
+                                        {
+                                            IO io2 = IO.FileOpen(fullPath, true);
+                                            io2.Close();
+                                        }
+                                        catch
+                                        {
+                                            deleteNow = false;
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                deleteNow = false;
+                            }
+                        }
+
+                        if (deleteNow)
+                        {
+                            IO.DeleteDir(dirFullName, true);
+                        }
+                    }
+                }
+            }
+        }
+
+        static void DeleteUnusedAppRootLocalTempDir()
+        {
+            DirEntry[] files;
+
+            files = IO.EnumDir(Env.AppRootLocalTempDirRoot_Internal);
+
+            foreach (DirEntry e in files)
+            {
+                if (e.IsFolder)
+                {
+                    if (e.FileName.StartsWith("NET_", StringComparison.OrdinalIgnoreCase) && e.FileName.Length == 16)
+                    {
+                        string dirFullName = Path.Combine(Env.AppRootLocalTempDirRoot_Internal, e.fileName);
                         string lockFileName = Path.Combine(dirFullName, "LockFile.dat");
                         bool deleteNow = false;
 

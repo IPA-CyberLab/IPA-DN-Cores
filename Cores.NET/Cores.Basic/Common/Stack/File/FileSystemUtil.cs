@@ -299,8 +299,8 @@ namespace IPA.Cores.Basic
         Singleton<string, string> EasyAccessFileNameCache;
         void InitEasyFileAccessSingleton()
         {
-            EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath), LeakCounterKind.DoNotTrack);
-            EasyAccessFileNameCache = new Singleton<string, string>(name => FindEasyAccessFilePathFromNameImpl(name), LeakCounterKind.DoNotTrack);
+            EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath));
+            EasyAccessFileNameCache = new Singleton<string, string>(name => FindEasyAccessFilePathFromNameImpl(name));
         }
 
         protected virtual string FindEasyAccessFilePathFromNameImpl(string name)
@@ -487,7 +487,7 @@ namespace IPA.Cores.Basic
         {
             this.FileSystem = fileSystem;
             this.FilePath = filePath;
-            this.CachedData = new Singleton<EasyFileAccessType, object>(type => this.InternalReadData(type), LeakCounterKind.DoNotTrack);
+            this.CachedData = new Singleton<EasyFileAccessType, object>(type => this.InternalReadData(type));
         }
 
         public object GetData(EasyFileAccessType type) => this.CachedData[type];
@@ -567,12 +567,71 @@ namespace IPA.Cores.Basic
             => this.BaseAccess.WriteRandomAsync(position, data, cancel);
     }
 
-    class FilePath
+    abstract class FileSystemPath
     {
-        public string FileName { get; }
+        public string PathString { get; }
         public FileSystem FileSystem { get; }
         public FileOperationFlags OperationFlags { get; }
 
+        public FileSystemPath(string pathString, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None)
+        {
+            if (fileSystem == null) fileSystem = Lfs;
+
+            this.FileSystem = fileSystem;
+            this.OperationFlags = operationFlags;
+
+            this.PathString = this.FileSystem.NormalizePath(pathString);
+        }
+
+        public override string ToString() => this.PathString;
+    }
+
+    class DirectoryPath : FileSystemPath
+    {
+        public DirectoryPath(string pathString, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None) : base(pathString, fileSystem, operationFlags)
+        {
+        }
+
+        public Task CreateDirectoryAsync(CancellationToken cancel = default)
+            => this.FileSystem.CreateDirectoryAsync(this.PathString, this.OperationFlags, cancel);
+        public void CreateDirectory(CancellationToken cancel = default)
+            => CreateDirectoryAsync(cancel)._GetResult();
+
+        public Task DeleteDirectoryAsync(bool recursive = false, CancellationToken cancel = default)
+            => this.FileSystem.DeleteDirectoryAsync(this.PathString, recursive, cancel);
+        public void DeleteDirectory(bool recursive = false, CancellationToken cancel = default)
+            => DeleteDirectoryAsync(recursive, cancel)._GetResult();
+
+        public Task<FileSystemEntity[]> EnumDirectoryAsync(bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+            => this.FileSystem.EnumDirectoryAsync(this.PathString, recursive, flags, cancel);
+        public FileSystemEntity[] EnumDirectory(bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+            => EnumDirectoryAsync(recursive, flags, cancel)._GetResult();
+
+        public Task<FileMetadata> GetDirectoryMetadataAsync(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+            => this.FileSystem.GetDirectoryMetadataAsync(this.PathString, flags, cancel);
+        public FileMetadata GetDirectoryMetadata(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+            => GetDirectoryMetadataAsync(flags, cancel)._GetResult();
+
+        public Task<bool> IsDirectoryExistsAsync(CancellationToken cancel = default)
+            => this.FileSystem.IsDirectoryExistsAsync(this.PathString, cancel);
+        public bool IsDirectoryExists(CancellationToken cancel = default)
+            => IsDirectoryExistsAsync(cancel)._GetResult();
+
+        public Task SetDirectoryMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
+             => this.FileSystem.SetDirectoryMetadataAsync(this.PathString, metadata, cancel);
+        public void SetDirectoryMetadata(FileMetadata metadata, CancellationToken cancel = default)
+            => SetDirectoryMetadataAsync(metadata, cancel)._GetResult();
+
+        public Task MoveDirectoryAsync(string destPath, CancellationToken cancel = default)
+            => this.FileSystem.MoveDirectoryAsync(this.PathString, destPath, cancel);
+        public void MoveDirectory(string destPath, CancellationToken cancel = default)
+            => MoveDirectoryAsync(destPath, cancel)._GetResult();
+
+        public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
+    }
+
+    class FilePath : FileSystemPath
+    {
         readonly Singleton<EasyFileAccess> EasyAccessSingleton;
 
         public EasyFileAccess EasyAccess => this.EasyAccessSingleton;
@@ -580,24 +639,16 @@ namespace IPA.Cores.Basic
         public FilePath(ResourceFileSystem resFs, string partOfPath, bool exact = false, string rootDir = "/", FileOperationFlags operationFlags = FileOperationFlags.None, CancellationToken cancel = default)
             : this((resFs ?? Res.Cores).EasyFindSingleFile(partOfPath, exact, rootDir, cancel), (resFs ?? Res.Cores)) { }
 
-        public FilePath(string fileName, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None)
+        public FilePath(string pathString, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None)
+             : base(pathString, fileSystem, operationFlags)
         {
-            if (fileSystem == null) fileSystem = Lfs;
-
-            this.FileSystem = fileSystem;
-            this.OperationFlags = operationFlags;
-
-            this.FileName = this.FileSystem.NormalizePath(fileName);
-
-            this.EasyAccessSingleton = new Singleton<EasyFileAccess>(() => new EasyFileAccess(this.FileSystem, this.FileName), LeakCounterKind.DoNotTrack);
+            this.EasyAccessSingleton = new Singleton<EasyFileAccess>(() => new EasyFileAccess(this.FileSystem, this.PathString));
         }
-
-        public override string ToString() => this.FileName;
 
         public static implicit operator FilePath(string fileName) => new FilePath(fileName);
 
         public Task<FileObject> CreateFileAsync(FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => this.FileSystem.CreateFileAsync(new FileParameters(this.FileName, mode, access, share, this.OperationFlags | additionalFlags), cancel);
+            => this.FileSystem.CreateFileAsync(new FileParameters(this.PathString, mode, access, share, this.OperationFlags | additionalFlags), cancel);
 
         public FileObject CreateFile(FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => CreateFileAsync(mode, access, share, additionalFlags, cancel)._GetResult();
@@ -628,61 +679,61 @@ namespace IPA.Cores.Basic
             => OpenOrCreateAppendAsync(noShare, additionalFlags, cancel)._GetResult();
 
         public Task<FileMetadata> GetFileMetadataAsync(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-            => this.FileSystem.GetFileMetadataAsync(this.FileName, flags, cancel);
+            => this.FileSystem.GetFileMetadataAsync(this.PathString, flags, cancel);
 
         public FileMetadata GetFileMetadata(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => GetFileMetadataAsync(flags, cancel)._GetResult();
 
         public Task<bool> IsFileExistsAsync(CancellationToken cancel = default)
-            => this.FileSystem.IsFileExistsAsync(this.FileName, cancel);
+            => this.FileSystem.IsFileExistsAsync(this.PathString, cancel);
 
         public bool IsFileExists(CancellationToken cancel = default)
             => IsFileExistsAsync(cancel)._GetResult();
 
         public Task SetFileMetadataAsync(FileMetadata metadata, CancellationToken cancel = default)
-            => this.FileSystem.SetFileMetadataAsync(this.FileName, metadata, cancel);
+            => this.FileSystem.SetFileMetadataAsync(this.PathString, metadata, cancel);
 
         public void SetFileMetadata(FileMetadata metadata, CancellationToken cancel = default)
             => SetFileMetadataAsync(metadata, cancel)._GetResult();
 
         public Task DeleteFileAsync(FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => this.FileSystem.DeleteFileAsync(this.FileName, this.OperationFlags | additionalFlags, cancel);
+            => this.FileSystem.DeleteFileAsync(this.PathString, this.OperationFlags | additionalFlags, cancel);
 
         public void DeleteFile(FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => DeleteFileAsync(this.OperationFlags | additionalFlags, cancel)._GetResult();
 
         public Task MoveFileAsync(string destPath, CancellationToken cancel = default)
-            => this.FileSystem.MoveFileAsync(this.FileName, destPath, cancel);
+            => this.FileSystem.MoveFileAsync(this.PathString, destPath, cancel);
 
         public Task<bool> TryAddOrRemoveAttributeFromExistingFile(FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
-            => this.FileSystem.TryAddOrRemoveAttributeFromExistingFile(this.FileName, attributesToAdd, attributesToRemove, cancel);
+            => this.FileSystem.TryAddOrRemoveAttributeFromExistingFile(this.PathString, attributesToAdd, attributesToRemove, cancel);
 
         public Task<int> WriteDataToFileAsync(ReadOnlyMemory<byte> srcMemory, FileOperationFlags additionalFlags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-            => this.FileSystem.WriteDataToFileAsync(this.FileName, srcMemory, this.OperationFlags | additionalFlags, doNotOverwrite, cancel);
+            => this.FileSystem.WriteDataToFileAsync(this.PathString, srcMemory, this.OperationFlags | additionalFlags, doNotOverwrite, cancel);
 
         public int WriteDataToFile(ReadOnlyMemory<byte> data, FileOperationFlags additionalFlags = FileOperationFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => WriteDataToFileAsync(data, additionalFlags, doNotOverwrite, cancel)._GetResult();
 
         public Task<int> WriteStringToFileAsync(string srcString, FileOperationFlags additionalFlags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
-            => this.FileSystem.WriteStringToFileAsync(this.FileName, srcString, this.OperationFlags | additionalFlags, doNotOverwrite, encoding, writeBom, cancel);
+            => this.FileSystem.WriteStringToFileAsync(this.PathString, srcString, this.OperationFlags | additionalFlags, doNotOverwrite, encoding, writeBom, cancel);
 
         public int WriteStringToFile(string srcString, FileOperationFlags additionalFlags = FileOperationFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(srcString, additionalFlags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
         public Task AppendDataToFileAsync(Memory<byte> srcMemory, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => this.FileSystem.AppendDataToFileAsync(this.FileName, srcMemory, this.OperationFlags | additionalFlags, cancel);
+            => this.FileSystem.AppendDataToFileAsync(this.PathString, srcMemory, this.OperationFlags | additionalFlags, cancel);
 
         public void AppendDataToFile(Memory<byte> srcMemory, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => AppendDataToFileAsync(srcMemory, additionalFlags, cancel)._GetResult();
 
         public Task<int> ReadDataFromFileAsync(Memory<byte> destMemory, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => this.FileSystem.ReadDataFromFileAsync(this.FileName, destMemory, this.OperationFlags | additionalFlags, cancel);
+            => this.FileSystem.ReadDataFromFileAsync(this.PathString, destMemory, this.OperationFlags | additionalFlags, cancel);
 
         public int ReadDataFromFile(Memory<byte> destMemory, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(destMemory, additionalFlags, cancel)._GetResult();
 
         public Task<string> ReadStringFromFileAsync(Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
-            => this.FileSystem.ReadStringFromFileAsync(this.FileName, encoding, maxSize, this.OperationFlags | additionalFlags, cancel);
+            => this.FileSystem.ReadStringFromFileAsync(this.PathString, encoding, maxSize, this.OperationFlags | additionalFlags, cancel);
 
         public string ReadStringFromFile(Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => ReadStringFromFileAsync(encoding, maxSize, additionalFlags, cancel)._GetResult();

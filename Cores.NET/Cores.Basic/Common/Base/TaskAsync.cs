@@ -1742,6 +1742,7 @@ namespace IPA.Cores.Basic
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueHolder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.DisposeProc = disposeProc;
@@ -2177,6 +2178,23 @@ namespace IPA.Cores.Basic
         protected override async Task CleanupImplAsync(Exception ex)
         {
             await MainTask;
+        }
+    }
+
+    struct LazyCriticalSection
+    {
+        CriticalSection _LockObj;
+
+        public CriticalSection LockObj
+        {
+            get
+            {
+                if (_LockObj == null)
+                {
+                    _LockObj = new CriticalSection();
+                }
+                return _LockObj;
+            }
         }
     }
 

@@ -115,7 +115,6 @@ namespace IPA.Cores.Basic
                 GitRepository repository = GetRepository(repoUrl);
                 return new GitFileSystem(new GitFileSystemParams(repository, commitId));
             },
-            LeakCounterKind.DoNotTrack,
             StrComparer.IgnoreCaseComparer);
         }
 

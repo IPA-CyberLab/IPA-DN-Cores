@@ -726,8 +726,8 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BitAny<T>(this T value, T flags) where T : Enum
         {
-            ulong value1 = Convert.ToUInt64(value);
-            ulong value2 = Convert.ToUInt64(flags);
+            ulong value1 = value._RawReadValueUInt64();
+            ulong value2 = flags._RawReadValueUInt64();
             if (value2 == 0) return true;
 
             return ((value1 & value2) == 0) ? false : true;
@@ -747,10 +747,10 @@ namespace IPA.Cores.Helper.Basic
         public static bool IsAnyOfThem<T>(T value, params T[] flags) where T : Enum
         {
             if (flags == null || flags.Length == 0) return false;
-            ulong value1 = Convert.ToUInt64(value);
+            ulong value1 = value._RawReadValueUInt64();
             foreach (T flag in flags)
             {
-                ulong value2 = Convert.ToUInt64(flag);
+                ulong value2 = flag._RawReadValueUInt64();
                 if (value1 == value2) return true;
             }
 
@@ -1114,7 +1114,6 @@ namespace IPA.Cores.Helper.Basic
 
         public static async Task<long> ReceiveSInt64Async(this Stream stream, CancellationToken cancel = default)
             => (await stream._ReadAllAsync(8, cancel))._GetSInt64();
-
     }
 }
 

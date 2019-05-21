@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly Singleton<PalX509Certificate> TestSampleCertSingleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert.p12")), LeakCounterKind.DoNotTrack);
+        static readonly Singleton<PalX509Certificate> TestSampleCertSingleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert.p12")));
         public static PalX509Certificate TestSampleCert => TestSampleCertSingleton;
     }
 }

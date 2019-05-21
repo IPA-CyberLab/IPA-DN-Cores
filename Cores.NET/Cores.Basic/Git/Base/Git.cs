@@ -101,13 +101,13 @@ namespace IPA.Cores.Basic
             this.Repository = repository;
             this.Commit = commit;
 
-            this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
-            this.DirectoryItemsCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), GitRepository.PathParser.PathStringComparer);
+            this.DirectoryItemsCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), GitRepository.PathParser.PathStringComparer);
 
-            this.FileTreeCache = new Singleton<string, Blob>(path => GetFileInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.FileTreeCache = new Singleton<string, Blob>(path => GetFileInternal(path), GitRepository.PathParser.PathStringComparer);
 
-            this.DirectoryMetadataCache = new Singleton<string, FileMetadata>(path => GetDirectoryMetadataInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
-            this.FileMetadataCache = new Singleton<string, FileMetadata>(path => GetFileMetadataInternal(path), LeakCounterKind.DoNotTrack, GitRepository.PathParser.PathStringComparer);
+            this.DirectoryMetadataCache = new Singleton<string, FileMetadata>(path => GetDirectoryMetadataInternal(path), GitRepository.PathParser.PathStringComparer);
+            this.FileMetadataCache = new Singleton<string, FileMetadata>(path => GetFileMetadataInternal(path), GitRepository.PathParser.PathStringComparer);
         }
 
         public FileSystemEntity[] GetDirectoryItems(string dirPath)
@@ -388,7 +388,7 @@ namespace IPA.Cores.Basic
                     }
 
                     return ret.ToArray();
-                }, LeakCounterKind.DoNotTrack);
+                });
             }
             catch (Exception ex)
             {

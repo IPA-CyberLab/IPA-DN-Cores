@@ -523,6 +523,13 @@ namespace IPA.Cores.Basic
             CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
             => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored)._GetResult();
 
+
+        public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+            => CopyFileAsync(src.FileSystem, src.PathString, dest.FileSystem, dest.PathString, param, state, cancel, readErrorIgnored);
+
+        public static void CopyFile(FilePath src, FilePath dest, CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+            => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored)._GetResult();
+
         static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored)
         {
             readErrorIgnored.Set(false);

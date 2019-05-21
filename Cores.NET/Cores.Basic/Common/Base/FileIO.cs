@@ -841,7 +841,7 @@ namespace IPA.Cores.Basic
             // 一時ファイル名を作成する
             public static string CreateTempFileName(string name)
             {
-                return Path.Combine(Env.MyTempDir, name);
+                return Path.Combine(Env.MyGlobalTempDir, name);
             }
 
             // サブディレクトリを含んだディレクトリの列挙 (キャンセル可能)

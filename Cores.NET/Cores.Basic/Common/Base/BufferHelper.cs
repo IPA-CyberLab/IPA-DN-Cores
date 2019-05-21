@@ -1261,5 +1261,92 @@ namespace IPA.Cores.Helper.Basic
             fixed (void* ptr = &data.Span.Slice(0, minSize)[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _RawReadValueSInt8<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _RawReadValueSInt16<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _RawReadValueSInt32<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 4) return *((int*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _RawReadValueSInt64<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 8) return *((long*)ptr);
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _RawReadValueUInt8<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _RawReadValueUInt16<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _RawReadValueUInt32<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _RawReadValueUInt64<T>(this T value, long pointerOffset = 0)
+        {
+            int size = Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref value)) + pointerOffset;
+            if (size >= 8) return *((ulong*)ptr);
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
     }
 }

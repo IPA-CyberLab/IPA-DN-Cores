@@ -53,6 +53,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
@@ -1593,7 +1594,7 @@ namespace IPA.Cores.Basic
         }
 
         // Enum の値一覧を取得する
-        public static T[] GetEnumValuesList<T>()
+        public static T[] GetEnumValuesList<T>() where T : Enum
         {
             List<T> ret = new List<T>();
             return (T[])Enum.GetValues(typeof(T));
@@ -2157,7 +2158,7 @@ namespace IPA.Cores.Basic
                 endLong = (endLong / 8) * 8;
 
                 int blockSizeCount = (minZeroBlockSize / 8);
-                
+
                 int count = 0;
 
                 bool hasSparse = false;
@@ -2165,7 +2166,7 @@ namespace IPA.Cores.Basic
 
                 for (long i = startLong; i < endLong; i += 8)
                 {
-                    if (*((long *)i) == 0)
+                    if (*((long*)i) == 0)
                     {
                         count++;
                         if (count >= blockSizeCount)
@@ -2524,6 +2525,13 @@ namespace IPA.Cores.Basic
             }
 
             return ret.ToArray();
+        }
+
+        public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir)
+        {
+            FileUtil.CopyFile(new FilePath(Res.Cores, "190521_LocalGitIgnore.txt"), new FilePath(Lfs.PathParser.Combine(Env.AppRootDir, LocalGitIgnoreFileName)),
+       new CopyFileParams(overwrite: false));
+
         }
     }
 
@@ -2995,26 +3003,177 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class SingletonFastArraySlim<TKey, TObject>
+    where TObject : class
+    where TKey : Enum
+    {
+        public const int MaxElements = 8_000_000; // Max 64Mbytes
+
+        readonly Func<TKey, TObject> CreateProc;
+        TObject[] ObjectList;
+        public int Count { get; private set; }
+
+        int MaxValue;
+
+        public SingletonFastArraySlim(Func<TKey, TObject> createProc)
+            : this(createProc, Util.GetMaxEnumValue<TKey>()) { }
+
+        public SingletonFastArraySlim(Func<TKey, TObject> createProc, TKey maxValue)
+        {
+            this.CreateProc = createProc;
+
+            ulong tmp = maxValue._RawReadValueUInt64();
+
+            if (tmp >= MaxElements)
+                throw new ArgumentException($"The maxValue is {tmp} while the allowed max elements is {MaxElements}.");
+
+            this.MaxValue = (int)tmp;
+
+            this.ObjectList = new TObject[this.MaxValue + 1];
+
+            this.Count = 0;
+        }
+
+        public TObject this[TKey key] => CreateOrGet(key);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TObject CreateOrGet(TKey key)
+        {
+            ulong value = key._RawReadValueUInt64();
+            if (value > (ulong)MaxValue)
+                throw new ArgumentException($"The key value is {value} while the allowed max value is {MaxValue}.");
+            int valueInt = (int)value;
+
+            if (this.ObjectList[valueInt] != null)
+            {
+                return this.ObjectList[valueInt];
+            }
+            else
+            {
+                this.ObjectList[valueInt] = this.CreateProc(key);
+                this.Count++;
+            }
+            return this.ObjectList[valueInt];
+        }
+
+        public void Clear()
+        {
+            Array.Clear(this.ObjectList, 0, this.ObjectList.Length);
+
+            this.Count = 0;
+        }
+    }
+
+
+    class SingletonFastArray<TKey, TObject> : IDisposable
+        where TObject : class
+        where TKey : Enum
+    {
+        public const int MaxElements = 8_000_000; // Max 64Mbytes
+
+        readonly CriticalSection LockObj = new CriticalSection();
+        readonly Func<TKey, TObject> CreateProc;
+        TObject[] ObjectList;
+        public int Count { get; private set; }
+
+        int MaxValue;
+
+        public SingletonFastArray(Func<TKey, TObject> createProc)
+            : this(createProc, Util.GetMaxEnumValue<TKey>()) { }
+
+        public SingletonFastArray(Func<TKey, TObject> createProc, TKey maxValue)
+        {
+            this.CreateProc = createProc;
+
+            ulong tmp = maxValue._RawReadValueUInt64();
+
+            if (tmp >= MaxElements)
+                throw new ArgumentException($"The maxValue is {tmp} while the allowed max elements is {MaxElements}.");
+
+            this.MaxValue = (int)tmp;
+
+            this.ObjectList = new TObject[this.MaxValue + 1];
+
+            this.Count = 0;
+        }
+
+        public TObject this[TKey key] => CreateOrGet(key);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TObject CreateOrGet(TKey key)
+        {
+            ulong value = key._RawReadValueUInt64();
+            if (value > (ulong)MaxValue)
+                throw new ArgumentException($"The key value is {value} while the allowed max value is {MaxValue}.");
+            int valueInt = (int)value;
+
+            if (DisposeFlag) throw new ObjectDisposedException("SingletonFastArray");
+
+            if (this.ObjectList[valueInt] != null) return this.ObjectList[valueInt];
+
+            lock (LockObj)
+            {
+                if (DisposeFlag) throw new ObjectDisposedException("SingletonFastArray");
+
+                if (this.ObjectList[valueInt] == null)
+                {
+                    this.ObjectList[valueInt] = this.CreateProc(key);
+                    this.Count++;
+                }
+                return this.ObjectList[valueInt];
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            Clear();
+        }
+
+        public void Clear()
+        {
+            List<IDisposable> disposalList = new List<IDisposable>();
+
+            lock (LockObj)
+            {
+                for (int i = 0; i < this.ObjectList.Length; i++)
+                    if (this.ObjectList[i] != null)
+                        if (this.ObjectList[i] is IDisposable disposable)
+                            disposalList.Add(disposable);
+
+                Array.Clear(this.ObjectList, 0, this.ObjectList.Length);
+
+                this.Count = 0;
+            }
+
+            foreach (var disposable in disposalList)
+                disposable._DisposeSafe();
+        }
+    }
+
     class Singleton<TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TObject> CreateProc;
         TObject Object = null;
-        readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
-        IHolder LeakHolder = null;
         public bool IsCreated { get; private set; }
 
-        public Singleton(Func<TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton2)
+        public Singleton(Func<TObject> createProc)
         {
             this.CreateProc = createProc;
-            this.LeakKind = leakKind;
         }
 
         public static implicit operator TObject(Singleton<TObject> singleton) => singleton.CreateOrGet();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TObject CreateOrGet()
         {
             if (DisposeFlag) throw new ObjectDisposedException("Singleton");
+
+            if (this.Object != null) return this.Object;
 
             lock (LockObj)
             {
@@ -3024,10 +3183,6 @@ namespace IPA.Cores.Basic
                 {
                     this.Object = this.CreateProc();
                     this.IsCreated = true;
-                    if (this.Object != null)
-                    {
-                        LeakHolder = LeakChecker.Enter(this.LeakKind);
-                    }
                 }
                 return this.Object;
             }
@@ -3040,8 +3195,6 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
             Clear();
-
-            LeakHolder._DisposeSafe();
         }
 
         public void Clear()
@@ -3065,11 +3218,9 @@ namespace IPA.Cores.Basic
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
-        readonly LeakCounterKind LeakKind = LeakCounterKind.OthersCounter;
-        IHolder LeakHolder = null;
         public IEnumerable<TKey> Keys => this.Table.Keys;
 
-        public Singleton(Func<TKey, TObject> createProc, LeakCounterKind leakKind = LeakCounterKind.Singleton1, IEqualityComparer<TKey> keyComparer = null)
+        public Singleton(Func<TKey, TObject> createProc, IEqualityComparer<TKey> keyComparer = null)
         {
             this.CreateProc = createProc;
 
@@ -3077,8 +3228,6 @@ namespace IPA.Cores.Basic
                 this.Table = new Dictionary<TKey, TObject>();
             else
                 this.Table = new Dictionary<TKey, TObject>(keyComparer);
-
-            this.LeakKind = leakKind;
         }
 
         public TObject this[TKey key] => CreateOrGet(key);
@@ -3093,8 +3242,6 @@ namespace IPA.Cores.Basic
 
                 if (this.Table.TryGetValue(key, out TObject obj) == false)
                 {
-                    LeakHolder = LeakChecker.Enter(this.LeakKind);
-
                     obj = this.CreateProc(key);
                     this.Table.Add(key, obj);
                 }
@@ -3109,8 +3256,6 @@ namespace IPA.Cores.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
             Clear();
-
-            LeakHolder._DisposeSafe();
         }
 
         public void Clear()
@@ -3443,11 +3588,16 @@ namespace IPA.Cores.Basic
 
     static class Limbo
     {
+        public static bool Bool = false;
         public static long SInt64 = 0;
         public static ulong UInt64 = 0;
+        public static int SInt32 = 0;
+        public static uint UInt32 = 0;
+
+        public volatile static bool BoolVolatile = false;
         public volatile static int SInt32Volatile = 0;
         public volatile static uint UInt32Volatile = 0;
-        public volatile static object ObjectSlow = null;
+        public volatile static object ObjectVolatileSlow = null;
     }
 
     static class GlobalMicroBenchmark
@@ -4321,8 +4471,8 @@ namespace IPA.Cores.Basic
         public IReadOnlyList<string> FieldOrPropertyNamesList { get; }
         public IReadOnlyList<string> MethodNamesList { get; }
 
-        static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false), LeakCounterKind.DoNotTrack);
-        static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true), LeakCounterKind.DoNotTrack);
+        static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false));
+        static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true));
 
         public FieldReaderWriter(Type targetType, bool includePrivate = false)
         {

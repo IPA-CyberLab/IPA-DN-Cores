@@ -81,6 +81,19 @@ namespace IPA.TestDev
         }
     }
 
+    static class EnumTestClass
+    {
+        public static int GetValue<TKey>(TKey src) where TKey : Enum
+        {
+            return src.GetHashCode();
+        }
+        public static unsafe int GetValue2<TKey>(TKey src) where TKey : Enum
+        {
+            void* ptr = Unsafe.AsPointer(ref src);
+            return *((int*)ptr);
+        }
+    }
+
     static class TestClass
     {
         unsafe struct A
@@ -91,8 +104,13 @@ namespace IPA.TestDev
 
         public static void Test()
         {
-//            Lfs.CopyDir(@"C:\tmp\iso\test1", @"C:\tmp\iso\test2", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite));
-            Lfs.CopyDir(@"C:\sec\SENet\AntiGfw", @"d:\tmp\antigfw", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite | CopyDirectoryFlags.Recursive));
+            string dir = Env.MyLocalTempDir;
+
+            Con.WriteLine(dir);
+
+
+            //            Lfs.CopyDir(@"C:\tmp\iso\test1", @"C:\tmp\iso\test2", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite));
+            //Lfs.CopyDir(@"C:\sec\SENet\AntiGfw", @"d:\tmp\antigfw", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite | CopyDirectoryFlags.Recursive));
         }
     }
 }

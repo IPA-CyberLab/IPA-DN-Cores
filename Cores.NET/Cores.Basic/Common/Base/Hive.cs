@@ -372,6 +372,8 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
         public static Hive SharedConfigHive { get; private set; } = null;
+
+        const string LocalGitIgnoreFileName = "Local/.gitignore";
         const string ConfigHiveDirName = "Local/Config";
 
         static void InitModule()
@@ -383,6 +385,14 @@ namespace IPA.Cores.Basic
                     CoresConfig.ConfigHiveOptions.SyncIntervalMsec,
                     null));
             });
+
+            // Create the .gitignore file on the "Local" directory
+            try
+            {
+                FileUtil.CopyFile(new FilePath(Res.Cores, "190521_LocalGitIgnore.txt"), new FilePath(Lfs.PathParser.Combine(Env.AppRootDir, LocalGitIgnoreFileName)),
+                    new CopyFileParams(overwrite: false));
+            }
+            catch { }
         }
 
         static void FreeModule()

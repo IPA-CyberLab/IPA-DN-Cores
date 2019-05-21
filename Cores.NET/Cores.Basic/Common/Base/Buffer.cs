@@ -1163,22 +1163,24 @@ namespace IPA.Cores.Basic
             return new MemoryBuffer<byte>(baseMemory);
         }
 
-        CriticalSection PinLockObj = new CriticalSection();
+        LazyCriticalSection PinLockObj;
         int PinLockedCounter = 0;
         MemoryHandle PinHandle;
         public bool IsPinLocked() => (PinLockedCounter != 0);
         public ValueHolder PinLock()
         {
-            lock (PinLockObj)
+            lock (PinLockObj.LockObj)
             {
                 if (PinLockedCounter == 0)
+                {
                     PinHandle = InternalBuffer.Pin();
+                }
                 PinLockedCounter++;
             }
 
             return new ValueHolder(() =>
             {
-                lock (PinLockObj)
+                lock (PinLockObj.LockObj)
                 {
                     Debug.Assert(PinLockedCounter >= 1);
                     PinLockedCounter--;

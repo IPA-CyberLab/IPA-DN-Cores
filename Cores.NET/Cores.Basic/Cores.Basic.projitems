@@ -133,4 +133,7 @@
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\SampleDefaultCert\SampleDefaultCert.p12" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\CoresInternal\190521_LocalGitIgnore.txt" />
+  </ItemGroup>
 </Project>

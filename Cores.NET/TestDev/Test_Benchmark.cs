@@ -122,6 +122,14 @@ namespace IPA.TestDev
         public int A, B, C;
     }
 
+    class TestClass2<TKey> where TKey: Enum
+    {
+        public long GetValue(TKey src)
+        {
+            return src.GetHashCode();
+        }
+    }
+
     partial class TestDevCommands
     {
         const int Benchmark_CountForVeryFast = 200000000;
@@ -169,7 +177,106 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            //.Add(new MicroBenchmark($"File Write Small - .NET Native", Benchmark_CountForSlow, count =>
+            //{
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //    }
+            //}), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"BitAny", Benchmark_CountForVeryFast, count =>
+            {
+                var t1 = IPAddressType.GlobalUnicast | IPAddressType.IPv4_APIPA | IPAddressType.IPv6_AllRouterMulticast;
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.BoolVolatile = t1.BitAny(IPAddressType.GlobalUnicast);
+                }
+            }), enabled: true, priority: 190520)
+
+            .Add(new MicroBenchmark($"Convert Enum to Long", Benchmark_CountForVeryFast, count =>
+            {
+                var value1 = IPAddressType.IPv4_APIPA;
+                var value2 = LeakCounterKind.CancelWatcher;
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += (int)value1._RawReadValueSInt64();
+                    Limbo.SInt32 += (int)value2._RawReadValueSInt64();
+                }
+            }), enabled: true, priority: 190520)
+            
+            .Add(new MicroBenchmark($"SingletonFastArraySlim Get", Benchmark_CountForFast, count =>
+            {
+                SingletonFastArraySlim<LeakCounterKind, string> singletonObj = new SingletonFastArraySlim<LeakCounterKind, string>((x) => "Hello");
+                for (int c = 0; c < count; c++)
+                {
+                    string str = singletonObj[LeakCounterKind.StartDaemon];
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"SingletonFastArray Get", Benchmark_CountForFast, count =>
+            {
+                SingletonFastArray<LeakCounterKind, string> singletonObj = new SingletonFastArray<LeakCounterKind, string>((x) => "Hello");
+                for (int c = 0; c < count; c++)
+                {
+                    string str = singletonObj[LeakCounterKind.StartDaemon];
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"SingletonSlim Get", Benchmark_CountForFast, count =>
+            {
+                SingletonSlim<int, string> singletonObj = new SingletonSlim<int, string>((x) => "Hello");
+                for (int c = 0; c < count; c++)
+                {
+                    string str = singletonObj[0];
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"Singleton2 Get", Benchmark_CountForFast, count =>
+            {
+                Singleton<int, string> singletonObj = new Singleton<int, string>((x) => "Hello");
+                for (int c = 0; c < count; c++)
+                {
+                    string str = singletonObj[0];
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"Singleton1 Get", Benchmark_CountForFast, count =>
+            {
+                Singleton<string> singletonObj = new Singleton<string>(() => "Hello");
+                for (int c = 0; c < count; c++)
+                {
+                    string str = singletonObj;
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"New MemoryBuffer", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    new MemoryBuffer<byte>();
+                }
+            }), enabled: true, priority: 190521)
+
+            .Add(new MicroBenchmark($"MemoryBuffer Pin Lock / Unlock", Benchmark_CountForNormal, count =>
+            {
+                var buf = new MemoryBuffer<byte>();
+                for (int c = 0; c < count; c++)
+                {
+                    using (buf.PinLock())
+                    {
+                    }
+                }
+            }), enabled: true, priority: 190521)
+
             .Add(new MicroBenchmark($"New Packet", Benchmark_CountForFast, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Packet newPacket = new Packet();
+                }
+            }), enabled: true, priority: 190519)
+
+            .Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
             {
                 Memory<byte> hello = new byte[1500];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
                 for (int c = 0; c < count; c++)
@@ -419,25 +526,25 @@ namespace IPA.TestDev
             .Add(new MicroBenchmark("Read the String_ReadOnly value", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)
-                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_ReadOnly;
+                    Limbo.ObjectVolatileSlow = BenchmarkTestTarget1.String_ReadOnly;
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Read the String_GetOnly value", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)
-                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_GetOnly;
+                    Limbo.ObjectVolatileSlow = BenchmarkTestTarget1.String_GetOnly;
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Read the String_Copenhagen_ReadOnly value", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)
-                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_Copenhagen_ReadOnly;
+                    Limbo.ObjectVolatileSlow = BenchmarkTestTarget1.String_Copenhagen_ReadOnly;
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Read the String_Copenhagen_GetOnly value", Benchmark_CountForFast, count =>
             {
                 for (int c = 0; c < count; c++)
-                    Limbo.ObjectSlow = BenchmarkTestTarget1.String_Copenhagen_GetOnly;
+                    Limbo.ObjectVolatileSlow = BenchmarkTestTarget1.String_Copenhagen_GetOnly;
             }), enabled: true, priority: 190505)
 
             .Add(new MicroBenchmark("Read the Int_ReadOnly value", Benchmark_CountForVeryFast, count =>

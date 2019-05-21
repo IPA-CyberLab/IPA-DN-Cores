@@ -3725,7 +3725,7 @@ namespace IPA.Cores.Basic
                 d.Add(name, Enum.Parse(t, name));
             }
             return d;
-        }, LeakCounterKind.DoNotTrack);
+        });
 
         static Singleton<Type, Dictionary<string, object>> EnumCacheCaseIgnore = new Singleton<Type, Dictionary<string, object>>(t =>
         {
@@ -3736,7 +3736,7 @@ namespace IPA.Cores.Basic
                 d.Add(name, Enum.Parse(t, name));
             }
             return d;
-        }, LeakCounterKind.DoNotTrack);
+        });
 
         public static object StrToEnum(string str, object defaultValue)
         {
