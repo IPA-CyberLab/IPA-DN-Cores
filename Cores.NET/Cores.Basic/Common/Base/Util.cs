@@ -2529,9 +2529,14 @@ namespace IPA.Cores.Basic
 
         public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir)
         {
-            FileUtil.CopyFile(new FilePath(Res.Cores, "190521_LocalGitIgnore.txt"), new FilePath(Lfs.PathParser.Combine(Env.AppRootDir, LocalGitIgnoreFileName)),
-       new CopyFileParams(overwrite: false));
+            try
+            {
+                var srcFilePath = new FilePath(Res.Cores, "190521_LocalGitIgnore.txt");
+                var destFilePath = dir.Combine(".gitignore");
 
+                FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: FileOperationFlags.AutoCreateDirectory));
+            }
+            catch { }
         }
     }
 

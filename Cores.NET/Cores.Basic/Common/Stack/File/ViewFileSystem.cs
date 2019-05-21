@@ -135,7 +135,7 @@ namespace IPA.Cores.Basic
     {
         public FileSystem UnderlayFileSystem { get; }
 
-        public ViewFileSystemParams(FileSystem underlayFileSystem, FileSystemPathParser pathParser, FileSystemMode mode = FileSystemMode.Default) : base(pathParser, mode)
+        public ViewFileSystemParams(FileSystem underlayFileSystem, PathParser pathParser, FileSystemMode mode = FileSystemMode.Default) : base(pathParser, mode)
         {
             this.UnderlayFileSystem = underlayFileSystem;
         }
@@ -144,7 +144,7 @@ namespace IPA.Cores.Basic
     class ViewFileSystem : FileSystem
     {
         public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
-        protected FileSystemPathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;
+        protected PathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;
 
         protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
 

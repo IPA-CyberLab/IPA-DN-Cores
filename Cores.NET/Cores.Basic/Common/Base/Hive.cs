@@ -160,8 +160,8 @@ namespace IPA.Cores.Basic
         public new FileHiveStorageOptions Options => (FileHiveStorageOptions)base.Options;
 
         FileSystem FileSystem => Options.FileSystem;
-        FileSystemPathParser PathParser => FileSystem.PathParser;
-        FileSystemPathParser SafePathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Windows);
+        PathParser PathParser => FileSystem.PathParser;
+        PathParser SafePathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
         AsyncLock LockObj = new AsyncLock();
 
@@ -373,8 +373,8 @@ namespace IPA.Cores.Basic
 
         public static Hive SharedConfigHive { get; private set; } = null;
 
-        const string LocalGitIgnoreFileName = "Local/.gitignore";
-        const string ConfigHiveDirName = "Local/Config";
+        const string LocalDirName = "Local";
+        const string ConfigHiveDirName = LocalDirName + "/Config";
 
         static void InitModule()
         {
@@ -387,12 +387,7 @@ namespace IPA.Cores.Basic
             });
 
             // Create the .gitignore file on the "Local" directory
-            try
-            {
-                FileUtil.CopyFile(new FilePath(Res.Cores, "190521_LocalGitIgnore.txt"), new FilePath(Lfs.PathParser.Combine(Env.AppRootDir, LocalGitIgnoreFileName)),
-                    new CopyFileParams(overwrite: false));
-            }
-            catch { }
+            Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppRootDir, LocalDirName));
         }
 
         static void FreeModule()

@@ -104,9 +104,11 @@ namespace IPA.TestDev
 
         public static void Test()
         {
-            string dir = Env.MyLocalTempDir;
+            /*string dir = Env.MyLocalTempDir;
 
-            Con.WriteLine(dir);
+            Con.WriteLine(dir);*/
+
+            Util.PutGitIgnoreFileOnDirectory(@"c:\tmp\aaa1");
 
 
             //            Lfs.CopyDir(@"C:\tmp\iso\test1", @"C:\tmp\iso\test2", param: new CopyDirectoryParams(CopyDirectoryFlags.IgnoreReadError | CopyDirectoryFlags.Overwrite));

@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
         public static readonly string HiveDir = Env.LocalPathParser.Combine(LocalCacheRootDir, "State");
         public static readonly string RepoDir = Env.LocalPathParser.Combine(LocalCacheRootDir, "Repo");
 
-        static readonly FileSystemPathParser LinuxParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
+        static readonly PathParser LinuxParser = PathParser.GetInstance(FileSystemStyle.Linux);
 
         public const string HiveDataName = "RepositoryList";
 

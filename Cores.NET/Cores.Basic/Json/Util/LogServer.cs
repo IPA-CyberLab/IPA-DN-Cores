@@ -238,7 +238,7 @@ namespace IPA.Cores.Basic
         public static void DefaultSetDestinationsProc(LogServerReceivedData data, LogServerOptions options)
         {
             FileSystem fs = options.DestFileSystem;
-            FileSystemPathParser parser = fs.PathParser;
+            PathParser parser = fs.PathParser;
             string root = options.DestRootDirName;
             LogPriority priority = data.JsonData.Priority._ParseEnum(LogPriority.None);
             LogJsonData d = data.JsonData;

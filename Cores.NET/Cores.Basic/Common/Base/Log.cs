@@ -138,7 +138,7 @@ namespace IPA.Cores.Basic
         public string TypeName;
         public object Data;
 
-        static readonly FileSystemPathParser WinParser = FileSystemPathParser.GetInstance(FileSystemStyle.Windows);
+        static readonly PathParser WinParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
         public void NormalizeReceivedLog(string defaultSrcMachineName)
         {

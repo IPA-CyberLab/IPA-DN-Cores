@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
         public string CommitId { get; }
 
         public GitFileSystemParams(GitRepository repository, string commitId = null)
-            : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux), FileSystemMode.ReadOnly)
+            : base(PathParser.GetInstance(FileSystemStyle.Linux), FileSystemMode.ReadOnly)
         {
             this.Repository = repository;
             if (commitId._IsEmpty()) commitId = repository.OriginMasterBranchCommitId;
@@ -105,7 +105,7 @@ namespace IPA.Cores.Basic
         public GitCommit Commit { get; }
         public DateTimeOffset TimeStamp => Commit.TimeStamp;
 
-        static readonly FileSystemPathParser Parser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
+        static readonly PathParser Parser = PathParser.GetInstance(FileSystemStyle.Linux);
 
         public GitFileSystem(GitFileSystemParams param) : base(param)
         {

@@ -697,11 +697,11 @@ namespace IPA.Cores.Basic
         LocalSystem = 31,
     }
 
-    class FileSystemPathParser
+    class PathParser
     {
         public static FileSystemStyle LocalSystemStyle { get; } = Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux);
 
-        readonly static FileSystemPathParser[] Cached = new FileSystemPathParser[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
+        readonly static PathParser[] Cached = new PathParser[(int)Util.GetMaxEnumValue<FileSystemStyle>() + 1];
 
         public FileSystemStyle Style { get; }
         public char DirectorySeparator { get; }
@@ -712,14 +712,14 @@ namespace IPA.Cores.Basic
         readonly char[] InvalidPathChars;
         readonly char[] InvalidFileNameChars;
 
-        public static FileSystemPathParser GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
+        public static PathParser GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
         {
             if (style == FileSystemStyle.LocalSystem)
                 style = LocalSystemStyle;
 
             if (Cached[(int)style] == null)
             {
-                FileSystemPathParser newObj = new FileSystemPathParser(style);
+                PathParser newObj = new PathParser(style);
                 Cached[(int)style] = newObj;
                 return newObj;
             }
@@ -729,7 +729,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        private FileSystemPathParser(FileSystemStyle style)
+        private PathParser(FileSystemStyle style)
         {
             Debug.Assert(style != FileSystemStyle.LocalSystem);
 
@@ -837,7 +837,7 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        public bool IsLastCharDirectoryDirectorySeparator(string path)
+        public bool IsLastCharDirectorySeparator(string path)
         {
             path = path._NonNull();
 
@@ -953,7 +953,7 @@ namespace IPA.Cores.Basic
             return srcPath;
         }
 
-        public string ConvertDirectorySeparatorToOtherSystem(string srcPath, FileSystemPathParser destPathParser)
+        public string ConvertDirectorySeparatorToOtherSystem(string srcPath, PathParser destPathParser)
         {
             srcPath = srcPath._NonNull();
 
@@ -1386,11 +1386,11 @@ namespace IPA.Cores.Basic
 
     class FileSystemParams
     {
-        public FileSystemPathParser PathParser { get; }
+        public PathParser PathParser { get; }
         public Copenhagen<EasyAccessPathFindMode> EasyAccessPathFindMode { get; } = new Copenhagen<EasyAccessPathFindMode>(Basic.EasyAccessPathFindMode.NotSupported);
         public FileSystemMode Mode { get; }
 
-        public FileSystemParams(FileSystemPathParser pathParser, FileSystemMode mode = FileSystemMode.Default)
+        public FileSystemParams(PathParser pathParser, FileSystemMode mode = FileSystemMode.Default)
         {
             this.PathParser = pathParser;
             this.Mode = mode;
@@ -1400,7 +1400,7 @@ namespace IPA.Cores.Basic
     abstract partial class FileSystem : AsyncService
     {
         public DirectoryWalker DirectoryWalker { get; }
-        public FileSystemPathParser PathParser { get; }
+        public PathParser PathParser { get; }
         protected FileSystemParams Params { get; }
         public bool CanWrite => Params.Mode.Bit(FileSystemMode.Writeable);
 

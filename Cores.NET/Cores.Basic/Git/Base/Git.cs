@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
         public string WorkDir { get; }
         Repository Repository { get; }
 
-        public static readonly FileSystemPathParser PathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Linux);
+        public static readonly PathParser PathParser = PathParser.GetInstance(FileSystemStyle.Linux);
 
         public string OriginMasterBranchCommitId => this.EnumRef()._GetOriginMasterBranch().CommitId;
 

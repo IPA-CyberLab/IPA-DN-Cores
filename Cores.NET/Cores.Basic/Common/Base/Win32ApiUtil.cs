@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
 {
     static partial class Win32ApiUtil
     {
-        static readonly FileSystemPathParser WindowsPathParser = FileSystemPathParser.GetInstance(FileSystemStyle.Windows);
+        static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
         public static bool IsUncServerRootPath(string path, out string normalizedPath)
         {

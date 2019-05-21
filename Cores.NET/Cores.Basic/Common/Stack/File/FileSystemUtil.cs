@@ -572,9 +572,12 @@ namespace IPA.Cores.Basic
         public string PathString { get; }
         public FileSystem FileSystem { get; }
         public FileOperationFlags OperationFlags { get; }
+        public PathParser PathParser => this.FileSystem.PathParser;
 
         public FileSystemPath(string pathString, FileSystem fileSystem = null, FileOperationFlags operationFlags = FileOperationFlags.None)
         {
+            if (pathString == null || pathString == "") throw new ArgumentNullException("pathString");
+
             if (fileSystem == null) fileSystem = Lfs;
 
             this.FileSystem = fileSystem;
@@ -582,6 +585,10 @@ namespace IPA.Cores.Basic
 
             this.PathString = this.FileSystem.NormalizePath(pathString);
         }
+
+        public bool IsAbsolutePath() => PathParser.IsAbsolutePath(this.PathString);
+
+        public DirectoryPath GetParentDirectory() => new DirectoryPath(PathParser.GetDirectoryName(this.PathString), this.FileSystem, this.OperationFlags);
 
         public override string ToString() => this.PathString;
     }
@@ -626,6 +633,18 @@ namespace IPA.Cores.Basic
             => this.FileSystem.MoveDirectoryAsync(this.PathString, destPath, cancel);
         public void MoveDirectory(string destPath, CancellationToken cancel = default)
             => MoveDirectoryAsync(destPath, cancel)._GetResult();
+
+        public string GetParentDirectoryName() => PathParser.GetDirectoryName(this.PathString);
+        public string GetThisDirectoryName() => PathParser.GetFileName(this.PathString);
+        public void SepareteParentDirectoryAndThisDirectory(out string parentPath, out string thisDirectoryName) => PathParser.SepareteDirectoryAndFileName(this.PathString, out parentPath, out thisDirectoryName);
+
+        public FilePath Combine(string path2) => new FilePath(PathParser.Combine(this.PathString, path2), this.FileSystem, this.OperationFlags);
+        public FilePath Combine(string path2, bool path2NeverAbsolutePath = false) => new FilePath(PathParser.Combine(this.PathString, path2, path2NeverAbsolutePath), this.FileSystem, this.OperationFlags);
+        public FilePath Combine(params string[] pathList)
+        {
+            if (pathList == null || pathList.Length == 0) return new FilePath(this.PathString, this.FileSystem, this.OperationFlags);
+            return new FilePath(PathParser.Combine(this.PathString._SingleArray().Concat(pathList)._ToArrayList()), this.FileSystem, this.OperationFlags);
+        }
 
         public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
     }
@@ -737,5 +756,10 @@ namespace IPA.Cores.Basic
 
         public string ReadStringFromFile(Encoding encoding = null, int maxSize = int.MaxValue, FileOperationFlags additionalFlags = FileOperationFlags.None, CancellationToken cancel = default)
             => ReadStringFromFileAsync(encoding, maxSize, additionalFlags, cancel)._GetResult();
+
+        public string GetFileNameWithoutExtension(bool longExtension = false) => this.PathParser.GetFileNameWithoutExtension(this.PathString, longExtension);
+        public string GetExtension(string path, bool longExtension = false) => this.PathParser.GetExtension(this.PathString, longExtension);
+        public string GetFileName() => PathParser.GetFileName(this.PathString);
+        public void SepareteDirectoryAndFileName(out string dirPath, out string fileName) => PathParser.SepareteDirectoryAndFileName(this.PathString, out dirPath, out fileName);
     }
 }

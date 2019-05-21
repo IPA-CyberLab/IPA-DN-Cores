@@ -554,11 +554,11 @@ namespace IPA.Cores.Basic
 
     class VfsPathParserContext : IDisposable
     {
-        readonly FileSystemPathParser Parser;
+        readonly PathParser Parser;
         public readonly string SpecifiedPath;
         public readonly Queue<string> RemainingPathElements = new Queue<string>();
 
-        public VfsPathParserContext(FileSystemPathParser parser, string[] pathElements, VfsEntity root)
+        public VfsPathParserContext(PathParser parser, string[] pathElements, VfsEntity root)
         {
             this.Parser = parser;
             foreach (string element in pathElements)
@@ -598,7 +598,7 @@ namespace IPA.Cores.Basic
 
     class VirtualFileSystemParams : FileSystemParams
     {
-        public VirtualFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(FileSystemPathParser.GetInstance(FileSystemStyle.Linux), mode) { }
+        public VirtualFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(PathParser.GetInstance(FileSystemStyle.Linux), mode) { }
     }
 
     class VirtualFileSystem : FileSystem
