@@ -47,9 +47,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    unsafe struct GenericHeader
+    {
+    }
+
     [Flags]
     enum EthernetTpid : ushort
     {
+        Unknown = 0,
         ARPv4 = 0x0806,
         IPv4 = 0x0800,
         IPv6 = 0x86dd,
@@ -67,7 +73,7 @@ namespace IPA.Cores.Basic
     [Flags]
     enum IPProtocolNumber : byte
     {
-        None = 0,
+        Unknown = 0,
         TCP = 0x06,
         UDP = 0x11,
         ESP = 50,

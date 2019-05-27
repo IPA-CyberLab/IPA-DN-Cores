@@ -5193,3 +5193,1348 @@
 2019/05/24 11:52:11.157 +09:00 AsyncCallMethodFromSyncMethod: 17.26 ns, 57,933,488 / sec
 2019/05/24 11:52:11.796 +09:00 Lock for readonly object: 17.43 ns, 57,373,903 / sec
 2019/05/24 11:52:12.430 +09:00 Lock for get property object: 17.13 ns, 58,380,632 / sec
+2019/05/27 14:19:46.759 +09:00 ----- Start new benchmark -----
+2019/05/27 14:19:46.817 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:19:46.817 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:19:46.817 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:19:46.817 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:19:46.817 +09:00 Host: PC34
+2019/05/27 14:19:50.773 +09:00 new array init with initial value test #1: 16.37 ns, 61,071,546 / sec
+2019/05/27 14:20:01.059 +09:00 ----- Start new benchmark -----
+2019/05/27 14:20:01.105 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:20:01.105 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:20:01.105 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:20:01.105 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:20:01.105 +09:00 Host: PC34
+2019/05/27 14:20:01.873 +09:00 new array init with initial value test #1: 20.10 ns, 49,746,229 / sec
+2019/05/27 14:20:02.495 +09:00 new array init with initial value test #2: 16.67 ns, 59,987,671 / sec
+2019/05/27 14:20:03.064 +09:00 File Write Small - Cores Object - Async: 10,592.87 ns, 94,403 / sec
+2019/05/27 14:20:03.592 +09:00 File Write Small - .NET Native - Sync: 6,904.74 ns, 144,827 / sec
+2019/05/27 14:20:06.473 +09:00 ----- Start new benchmark -----
+2019/05/27 14:20:06.523 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:20:06.523 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:20:06.523 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:20:06.523 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:20:06.523 +09:00 Host: PC34
+2019/05/27 14:20:07.305 +09:00 new array init with initial value test #1: 19.41 ns, 51,518,697 / sec
+2019/05/27 14:20:07.920 +09:00 new array init with initial value test #2: 16.37 ns, 61,085,223 / sec
+2019/05/27 14:21:15.574 +09:00 ----- Start new benchmark -----
+2019/05/27 14:21:15.621 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:21:15.621 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:21:15.621 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:21:15.621 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:21:15.621 +09:00 Host: PC34
+2019/05/27 14:21:16.239 +09:00 new array init with initial value test #1: 27.22 ns, 36,732,086 / sec
+2019/05/27 14:21:16.861 +09:00 new array init with initial value test #2: 16.83 ns, 59,419,105 / sec
+2019/05/27 14:23:16.857 +09:00 ----- Start new benchmark -----
+2019/05/27 14:23:16.913 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:23:16.913 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:23:16.913 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:23:16.913 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:23:16.913 +09:00 Host: PC34
+2019/05/27 14:23:17.615 +09:00 new array init with initial value test #1: 34.10 ns, 29,327,803 / sec
+2019/05/27 14:23:18.165 +09:00 new array init with initial value test #2: 28.26 ns, 35,383,958 / sec
+2019/05/27 14:23:18.687 +09:00 File Write Small - Cores Object - Async: 9,021.47 ns, 110,846 / sec
+2019/05/27 14:23:19.208 +09:00 File Write Small - .NET Native - Sync: 6,724.12 ns, 148,718 / sec
+2019/05/27 14:23:19.715 +09:00 SingletonFastArraySlim Get: 1.02 ns, 984,305,138 / sec
+2019/05/27 14:23:20.253 +09:00 SingletonFastArray Get: 1.59 ns, 629,850,725 / sec
+2019/05/27 14:23:20.806 +09:00 SingletonSlim Get: 8.12 ns, 123,143,155 / sec
+2019/05/27 14:23:21.569 +09:00 Singleton2 Get: 23.42 ns, 42,690,107 / sec
+2019/05/27 14:23:42.469 +09:00 ----- Start new benchmark -----
+2019/05/27 14:23:42.517 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:23:42.517 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:23:42.517 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:23:42.517 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:23:42.517 +09:00 Host: PC34
+2019/05/27 14:23:43.213 +09:00 new array init with initial value test #1: 31.51 ns, 31,734,728 / sec
+2019/05/27 14:23:43.754 +09:00 new array init with initial value test #2: 27.10 ns, 36,893,942 / sec
+2019/05/27 14:23:44.442 +09:00 new array init with initial value test #3: 20.26 ns, 49,366,850 / sec
+2019/05/27 14:23:44.949 +09:00 File Write Small - Cores Object - Async: 12,728.99 ns, 78,560 / sec
+2019/05/27 14:23:45.512 +09:00 File Write Small - .NET Native - Sync: 7,789.35 ns, 128,380 / sec
+2019/05/27 14:23:46.024 +09:00 SingletonFastArraySlim Get: 1.01 ns, 986,974,262 / sec
+2019/05/27 14:23:46.567 +09:00 SingletonFastArray Get: 1.60 ns, 625,497,587 / sec
+2019/05/27 14:23:47.115 +09:00 SingletonSlim Get: 8.15 ns, 122,627,671 / sec
+2019/05/27 14:23:47.630 +09:00 Singleton2 Get: 24.22 ns, 41,289,292 / sec
+2019/05/27 14:23:48.149 +09:00 Singleton1 Get: 0.39 ns, 2,576,608,336 / sec
+2019/05/27 14:23:48.669 +09:00 New MemoryBuffer: 11.54 ns, 86,621,941 / sec
+2019/05/27 14:23:49.172 +09:00 MemoryBuffer Pin Lock / Unlock: 143.99 ns, 6,945,099 / sec
+2019/05/27 14:23:49.760 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 14:23:50.671 +09:00 Convert Enum to Long: 1.54 ns, 649,023,608 / sec
+2019/05/27 14:23:51.226 +09:00 New Packet: 8.38 ns, 119,384,537 / sec
+2019/05/27 14:23:51.919 +09:00 New Packet with Data: 20.20 ns, 49,496,229 / sec
+2019/05/27 14:23:52.685 +09:00 Packet struct I/O: 49.68 ns, 20,127,311 / sec
+2019/05/27 14:23:53.188 +09:00 IsZero - NonSparse: 0.65 ns, 1,537,108,416 / sec
+2019/05/27 14:23:53.691 +09:00 IsZero - All Zero Sparse: 1.74 ns, 574,449,816 / sec
+2019/05/27 14:23:54.199 +09:00 GetSparseChunks - NonSparse: 75,692.32 ns, 13,211 / sec
+2019/05/27 14:23:54.743 +09:00 GetSparseChunks - Sparse: 1,453,687.48 ns, 687 / sec
+2019/05/27 14:23:55.258 +09:00 GetSparseChunks - All Zero Sparse: 131,197.99 ns, 7,622 / sec
+2019/05/27 14:23:55.761 +09:00 Util.Rand(): 281.25 ns, 3,555,593 / sec
+2019/05/27 14:23:56.264 +09:00 Secure.Rand(): 276.64 ns, 3,614,830 / sec
+2019/05/27 14:23:56.767 +09:00 ParseEnum: 66.87 ns, 14,953,549 / sec
+2019/05/27 14:23:58.420 +09:00 GetSparseChunks: 13,997,226.50 ns, 71 / sec
+2019/05/27 14:23:58.965 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 971,463.17 ns, 1,029 / sec
+2019/05/27 14:23:59.488 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 901,365.16 ns, 1,109 / sec
+2019/05/27 14:24:00.056 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,050,873.52 ns, 951 / sec
+2019/05/27 14:24:00.830 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,216,823.48 ns, 191 / sec
+2019/05/27 14:24:02.077 +09:00 Memory Copy by Span loop 10,000,000 bytes: 9,949,791.53 ns, 100 / sec
+2019/05/27 14:24:02.936 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 6,058,587.52 ns, 165 / sec
+2019/05/27 14:24:03.674 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 4,850,148.52 ns, 206 / sec
+2019/05/27 14:24:22.490 +09:00 ----- Start new benchmark -----
+2019/05/27 14:24:22.535 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:24:22.535 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:24:22.535 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:24:22.535 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:24:22.535 +09:00 Host: PC34
+2019/05/27 14:24:23.206 +09:00 new array init with initial value test #1: 29.87 ns, 33,479,969 / sec
+2019/05/27 14:24:23.720 +09:00 new array init with initial value test #2: 24.19 ns, 41,336,608 / sec
+2019/05/27 14:24:24.430 +09:00 new array init with initial value test #3: 20.98 ns, 47,671,434 / sec
+2019/05/27 14:24:25.000 +09:00 File Write Small - Cores Object - Async: 10,641.51 ns, 93,971 / sec
+2019/05/27 14:24:39.555 +09:00 ----- Start new benchmark -----
+2019/05/27 14:24:39.605 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:24:39.605 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:24:39.605 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:24:39.605 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:24:39.605 +09:00 Host: PC34
+2019/05/27 14:24:40.291 +09:00 new array init with initial value test #1: 31.94 ns, 31,307,891 / sec
+2019/05/27 14:24:40.832 +09:00 new array init with initial value test #2: 27.34 ns, 36,578,933 / sec
+2019/05/27 14:24:41.522 +09:00 new array init with initial value test #3: 20.38 ns, 49,066,958 / sec
+2019/05/27 14:24:42.147 +09:00 new array init with initial value test #4: 16.89 ns, 59,210,062 / sec
+2019/05/27 14:24:42.662 +09:00 File Write Small - Cores Object - Async: 13,149.42 ns, 76,048 / sec
+2019/05/27 14:24:43.166 +09:00 File Write Small - .NET Native - Sync: 8,384.31 ns, 119,270 / sec
+2019/05/27 14:25:02.956 +09:00 ----- Start new benchmark -----
+2019/05/27 14:25:03.011 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:25:03.011 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:25:03.011 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:25:03.011 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:25:03.011 +09:00 Host: PC34
+2019/05/27 14:25:03.684 +09:00 new array init with initial value test #1: 30.75 ns, 32,521,405 / sec
+2019/05/27 14:25:04.251 +09:00 new array init with initial value test #2: 28.78 ns, 34,747,209 / sec
+2019/05/27 14:25:04.931 +09:00 new array init with initial value test #3: 19.35 ns, 51,682,616 / sec
+2019/05/27 14:25:05.513 +09:00 new array init with initial value test #4: 14.48 ns, 69,057,003 / sec
+2019/05/27 14:25:06.071 +09:00 File Write Small - Cores Object - Async: 10,226.67 ns, 97,783 / sec
+2019/05/27 14:25:06.627 +09:00 File Write Small - .NET Native - Sync: 7,614.02 ns, 131,336 / sec
+2019/05/27 14:25:13.307 +09:00 ----- Start new benchmark -----
+2019/05/27 14:25:13.356 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:25:13.356 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:25:13.356 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:25:13.356 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:25:13.356 +09:00 Host: PC34
+2019/05/27 14:25:14.061 +09:00 new array init with initial value test #1: 32.63 ns, 30,648,039 / sec
+2019/05/27 14:25:14.608 +09:00 new array init with initial value test #2: 26.91 ns, 37,163,518 / sec
+2019/05/27 14:25:15.294 +09:00 new array init with initial value test #3: 20.23 ns, 49,429,773 / sec
+2019/05/27 14:25:15.890 +09:00 new array init with initial value test #4: 15.38 ns, 65,032,251 / sec
+2019/05/27 14:25:16.402 +09:00 File Write Small - Cores Object - Async: 13,010.09 ns, 76,863 / sec
+2019/05/27 14:25:16.918 +09:00 File Write Small - .NET Native - Sync: 8,826.93 ns, 113,289 / sec
+2019/05/27 14:25:26.589 +09:00 ----- Start new benchmark -----
+2019/05/27 14:25:26.636 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:25:26.636 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:25:26.636 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:25:26.636 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:25:26.636 +09:00 Host: PC34
+2019/05/27 14:25:27.361 +09:00 new array init with initial value test #1: 34.72 ns, 28,804,339 / sec
+2019/05/27 14:25:27.896 +09:00 new array init with initial value test #2: 26.85 ns, 37,239,969 / sec
+2019/05/27 14:25:28.583 +09:00 new array init with initial value test #3: 20.00 ns, 50,007,277 / sec
+2019/05/27 14:25:29.255 +09:00 new array init with initial value test #4: 19.09 ns, 52,390,658 / sec
+2019/05/27 14:25:38.607 +09:00 ----- Start new benchmark -----
+2019/05/27 14:25:38.658 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:25:38.658 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:25:38.658 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:25:38.658 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:25:38.658 +09:00 Host: PC34
+2019/05/27 14:25:39.337 +09:00 new array init with initial value test #1: 32.65 ns, 30,631,937 / sec
+2019/05/27 14:25:39.874 +09:00 new array init with initial value test #2: 26.18 ns, 38,194,260 / sec
+2019/05/27 14:25:40.382 +09:00 new array init with initial value test #3: 23.55 ns, 42,470,477 / sec
+2019/05/27 14:25:40.970 +09:00 new array init with initial value test #4: 14.94 ns, 66,948,218 / sec
+2019/05/27 14:25:48.476 +09:00 ----- Start new benchmark -----
+2019/05/27 14:25:48.522 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:25:48.522 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:25:48.522 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:25:48.522 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:25:48.522 +09:00 Host: PC34
+2019/05/27 14:25:49.147 +09:00 new array init with initial value test #1: 26.74 ns, 37,397,901 / sec
+2019/05/27 14:25:49.665 +09:00 new array init with initial value test #2: 24.14 ns, 41,426,200 / sec
+2019/05/27 14:25:50.367 +09:00 new array init with initial value test #3: 20.78 ns, 48,132,724 / sec
+2019/05/27 14:25:50.963 +09:00 new array init with initial value test #4: 15.51 ns, 64,478,655 / sec
+2019/05/27 14:26:06.589 +09:00 ----- Start new benchmark -----
+2019/05/27 14:26:06.639 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:26:06.639 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:26:06.639 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:26:06.640 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:26:06.640 +09:00 Host: PC34
+2019/05/27 14:26:07.341 +09:00 new array init with initial value test #1: 34.69 ns, 28,827,717 / sec
+2019/05/27 14:26:07.896 +09:00 new array init with initial value test #2: 28.35 ns, 35,268,032 / sec
+2019/05/27 14:26:08.577 +09:00 new array init with initial value test #3: 19.87 ns, 50,328,021 / sec
+2019/05/27 14:26:09.247 +09:00 new array init with initial value test #4: 18.85 ns, 53,059,031 / sec
+2019/05/27 14:26:09.758 +09:00 File Write Small - Cores Object - Async: 12,960.97 ns, 77,154 / sec
+2019/05/27 14:26:10.270 +09:00 File Write Small - .NET Native - Sync: 8,658.27 ns, 115,496 / sec
+2019/05/27 14:26:39.073 +09:00 ----- Start new benchmark -----
+2019/05/27 14:26:39.121 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:26:39.121 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:26:39.121 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:26:39.121 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:26:39.121 +09:00 Host: PC34
+2019/05/27 14:26:39.829 +09:00 new array init with initial value test #1: 34.06 ns, 29,358,462 / sec
+2019/05/27 14:26:40.352 +09:00 new array init with initial value test #2: 24.67 ns, 40,527,350 / sec
+2019/05/27 14:26:41.037 +09:00 new array init with initial value test #3: 20.25 ns, 49,392,430 / sec
+2019/05/27 14:26:41.721 +09:00 new array init with initial value test #4: 19.83 ns, 50,420,308 / sec
+2019/05/27 14:27:00.528 +09:00 ----- Start new benchmark -----
+2019/05/27 14:27:00.576 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:27:00.576 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:27:00.576 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:27:00.576 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:27:00.576 +09:00 Host: PC34
+2019/05/27 14:27:01.234 +09:00 new array init with initial value test #1: 28.89 ns, 34,611,679 / sec
+2019/05/27 14:27:01.771 +09:00 new array init with initial value test #2: 25.75 ns, 38,841,565 / sec
+2019/05/27 14:27:02.454 +09:00 new array init with initial value test #3: 19.85 ns, 50,383,806 / sec
+2019/05/27 14:27:03.114 +09:00 new array init with initial value test #4: 18.73 ns, 53,398,354 / sec
+2019/05/27 14:27:03.617 +09:00 File Write Small - Cores Object - Async: 12,604.64 ns, 79,335 / sec
+2019/05/27 14:27:04.139 +09:00 File Write Small - .NET Native - Sync: 8,986.15 ns, 111,282 / sec
+2019/05/27 14:27:16.142 +09:00 ----- Start new benchmark -----
+2019/05/27 14:27:16.189 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:27:16.189 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:27:16.189 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:27:16.189 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:27:16.189 +09:00 Host: PC34
+2019/05/27 14:27:16.876 +09:00 new array init with initial value test #1: 31.36 ns, 31,888,279 / sec
+2019/05/27 14:27:17.636 +09:00 new array init with initial value test #2: 23.52 ns, 42,512,682 / sec
+2019/05/27 14:27:18.174 +09:00 new array init with initial value test #3: 26.84 ns, 37,252,476 / sec
+2019/05/27 14:27:18.771 +09:00 new array init with initial value test #4: 15.38 ns, 65,038,534 / sec
+2019/05/27 14:27:19.286 +09:00 File Write Small - Cores Object - Async: 13,201.77 ns, 75,747 / sec
+2019/05/27 14:27:19.809 +09:00 File Write Small - .NET Native - Sync: 9,011.74 ns, 110,966 / sec
+2019/05/27 14:29:02.956 +09:00 ----- Start new benchmark -----
+2019/05/27 14:29:03.003 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:29:03.003 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:29:03.003 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:29:03.003 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:29:03.003 +09:00 Host: PC34
+2019/05/27 14:29:03.639 +09:00 new array init with initial value test #1: 26.71 ns, 37,437,275 / sec
+2019/05/27 14:29:04.179 +09:00 new array init with initial value test #2: 26.48 ns, 37,765,335 / sec
+2019/05/27 14:29:04.911 +09:00 new array init with initial value test #3: 22.10 ns, 45,248,362 / sec
+2019/05/27 14:29:05.506 +09:00 new array init with initial value test #4: 15.01 ns, 66,637,205 / sec
+2019/05/27 14:29:06.036 +09:00 File Write Small - Cores Object - Async: 13,959.60 ns, 71,635 / sec
+2019/05/27 14:29:06.550 +09:00 File Write Small - .NET Native - Sync: 8,725.62 ns, 114,605 / sec
+2019/05/27 14:29:07.072 +09:00 SingletonFastArraySlim Get: 0.99 ns, 1,007,595,909 / sec
+2019/05/27 14:29:07.580 +09:00 SingletonFastArray Get: 1.65 ns, 605,506,745 / sec
+2019/05/27 14:29:08.150 +09:00 SingletonSlim Get: 8.72 ns, 114,663,558 / sec
+2019/05/27 14:29:08.670 +09:00 Singleton2 Get: 24.57 ns, 40,697,187 / sec
+2019/05/27 14:29:09.186 +09:00 Singleton1 Get: 0.47 ns, 2,147,187,674 / sec
+2019/05/27 14:29:09.722 +09:00 New MemoryBuffer: 12.03 ns, 83,096,654 / sec
+2019/05/27 14:29:10.225 +09:00 MemoryBuffer Pin Lock / Unlock: 147.97 ns, 6,758,094 / sec
+2019/05/27 14:29:10.990 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 14:29:11.893 +09:00 Convert Enum to Long: 1.52 ns, 657,247,650 / sec
+2019/05/27 14:29:12.450 +09:00 New Packet: 8.41 ns, 118,928,385 / sec
+2019/05/27 14:29:13.130 +09:00 New Packet with Data: 19.18 ns, 52,129,055 / sec
+2019/05/27 14:29:13.862 +09:00 Packet struct I/O: 46.13 ns, 21,676,674 / sec
+2019/05/27 14:29:14.364 +09:00 IsZero - NonSparse: 0.90 ns, 1,105,769,009 / sec
+2019/05/27 14:29:14.866 +09:00 IsZero - All Zero Sparse: 1.87 ns, 534,393,831 / sec
+2019/05/27 14:29:15.375 +09:00 GetSparseChunks - NonSparse: 111,784.44 ns, 8,945 / sec
+2019/05/27 14:29:15.914 +09:00 GetSparseChunks - Sparse: 1,431,721.52 ns, 698 / sec
+2019/05/27 14:29:16.420 +09:00 GetSparseChunks - All Zero Sparse: 78,998.69 ns, 12,658 / sec
+2019/05/27 14:29:16.923 +09:00 Util.Rand(): 283.30 ns, 3,529,879 / sec
+2019/05/27 14:29:17.426 +09:00 Secure.Rand(): 271.20 ns, 3,687,254 / sec
+2019/05/27 14:29:17.929 +09:00 ParseEnum: 67.36 ns, 14,846,103 / sec
+2019/05/27 14:51:55.454 +09:00 ----- Start new benchmark -----
+2019/05/27 14:51:55.502 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:51:55.502 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:51:55.502 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:51:55.502 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:51:55.502 +09:00 Host: PC34
+2019/05/27 14:51:56.106 +09:00 new UDPv4PseudoHeader test1: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 14:51:56.649 +09:00 new array init with initial value test #1: 27.40 ns, 36,496,016 / sec
+2019/05/27 14:52:15.739 +09:00 ----- Start new benchmark -----
+2019/05/27 14:52:15.789 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:52:15.789 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:52:15.789 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:52:15.789 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:52:15.789 +09:00 Host: PC34
+2019/05/27 14:52:16.372 +09:00 new UDPv4PseudoHeader test1: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 14:52:16.918 +09:00 new array init with initial value test #1: 26.81 ns, 37,292,585 / sec
+2019/05/27 14:52:33.312 +09:00 ----- Start new benchmark -----
+2019/05/27 14:52:33.360 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:52:33.360 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:52:33.360 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:52:33.360 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:52:33.360 +09:00 Host: PC34
+2019/05/27 14:52:33.945 +09:00 new UDPv4PseudoHeader test1: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 14:52:34.513 +09:00 new array init with initial value test #1: 28.93 ns, 34,565,064 / sec
+2019/05/27 14:55:19.979 +09:00 ----- Start new benchmark -----
+2019/05/27 14:55:20.024 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:55:20.024 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:55:20.024 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:55:20.024 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:55:20.024 +09:00 Host: PC34
+2019/05/27 14:55:20.683 +09:00 new UDPv4PseudoHeader test1: 6.72 ns, 148,881,025 / sec
+2019/05/27 14:55:21.211 +09:00 File Write Small - Cores Object - Async: 13,792.32 ns, 72,504 / sec
+2019/05/27 14:57:43.813 +09:00 ----- Start new benchmark -----
+2019/05/27 14:57:43.859 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:57:43.859 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:57:43.859 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:57:43.859 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:57:43.859 +09:00 Host: PC34
+2019/05/27 14:57:44.569 +09:00 new UDPv4PseudoHeader test1: 10.79 ns, 92,709,184 / sec
+2019/05/27 14:57:45.094 +09:00 File Write Small - Cores Object - Async: 13,691.41 ns, 73,038 / sec
+2019/05/27 14:57:50.953 +09:00 ----- Start new benchmark -----
+2019/05/27 14:57:51.003 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:57:51.003 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:57:51.003 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:57:51.003 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:57:51.003 +09:00 Host: PC34
+2019/05/27 14:57:51.618 +09:00 new UDPv4PseudoHeader test1: 11.35 ns, 88,112,190 / sec
+2019/05/27 14:57:52.240 +09:00 File Write Small - Cores Object - Async: 12,360.35 ns, 80,903 / sec
+2019/05/27 14:57:52.745 +09:00 File Write Small - .NET Native - Sync: 12,704.35 ns, 78,713 / sec
+2019/05/27 14:57:53.263 +09:00 SingletonFastArraySlim Get: 1.11 ns, 898,823,508 / sec
+2019/05/27 14:58:24.774 +09:00 ----- Start new benchmark -----
+2019/05/27 14:58:24.823 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:58:24.823 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:58:24.823 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:58:24.823 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:58:24.823 +09:00 Host: PC34
+2019/05/27 14:58:25.477 +09:00 new UDPv4PseudoHeader test1: 13.37 ns, 74,777,105 / sec
+2019/05/27 14:58:26.085 +09:00 File Write Small - Cores Object - Async: 11,904.40 ns, 84,002 / sec
+2019/05/27 14:58:28.745 +09:00 ----- Start new benchmark -----
+2019/05/27 14:58:28.792 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:58:28.792 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:58:28.792 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:58:28.792 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:58:28.792 +09:00 Host: PC34
+2019/05/27 14:58:29.422 +09:00 new UDPv4PseudoHeader test1: 12.20 ns, 81,983,789 / sec
+2019/05/27 14:58:29.959 +09:00 File Write Small - Cores Object - Async: 14,292.00 ns, 69,969 / sec
+2019/05/27 14:58:35.881 +09:00 ----- Start new benchmark -----
+2019/05/27 14:58:35.929 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:58:35.929 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:58:35.929 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:58:35.929 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:58:35.929 +09:00 Host: PC34
+2019/05/27 14:58:36.552 +09:00 new UDPv4PseudoHeader test1: 12.60 ns, 79,386,140 / sec
+2019/05/27 14:58:37.057 +09:00 File Write Small - Cores Object - Async: 12,683.76 ns, 78,840 / sec
+2019/05/27 14:59:51.548 +09:00 ----- Start new benchmark -----
+2019/05/27 14:59:51.597 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:59:51.597 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:59:51.597 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:59:51.597 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:59:51.597 +09:00 Host: PC34
+2019/05/27 14:59:52.255 +09:00 new UDPv4PseudoHeader test1: 8.68 ns, 115,167,800 / sec
+2019/05/27 14:59:59.385 +09:00 ----- Start new benchmark -----
+2019/05/27 14:59:59.433 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 14:59:59.433 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 14:59:59.433 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 14:59:59.433 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 14:59:59.433 +09:00 Host: PC34
+2019/05/27 15:00:00.099 +09:00 new UDPv4PseudoHeader test1: 8.17 ns, 122,373,536 / sec
+2019/05/27 15:00:00.716 +09:00 File Write Small - Cores Object - Async: 12,168.80 ns, 82,177 / sec
+2019/05/27 15:00:25.577 +09:00 ----- Start new benchmark -----
+2019/05/27 15:00:25.625 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:00:25.625 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:00:25.625 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:00:25.625 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:00:25.625 +09:00 Host: PC34
+2019/05/27 15:00:26.310 +09:00 new UDPv4PseudoHeader test1: 10.08 ns, 99,246,167 / sec
+2019/05/27 15:00:26.851 +09:00 File Write Small - Cores Object - Async: 14,473.70 ns, 69,090 / sec
+2019/05/27 15:00:55.945 +09:00 ----- Start new benchmark -----
+2019/05/27 15:00:55.993 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:00:55.993 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:00:55.993 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:00:55.993 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:00:55.993 +09:00 Host: PC34
+2019/05/27 15:00:57.168 +09:00 new UDPv4PseudoHeader test1: 81.00 ns, 12,346,310 / sec
+2019/05/27 15:02:53.089 +09:00 ----- Start new benchmark -----
+2019/05/27 15:02:53.136 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:02:53.136 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:02:53.136 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:02:53.136 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:02:53.136 +09:00 Host: PC34
+2019/05/27 15:02:53.750 +09:00 new UDPv4PseudoHeader test1: 7.59 ns, 131,728,651 / sec
+2019/05/27 15:02:54.287 +09:00 File Write Small - Cores Object - Async: 14,241.65 ns, 70,216 / sec
+2019/05/27 15:05:06.442 +09:00 ----- Start new benchmark -----
+2019/05/27 15:05:06.489 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:05:06.489 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:05:06.489 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:05:06.489 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:05:06.489 +09:00 Host: PC34
+2019/05/27 15:05:07.105 +09:00 new UDPv4PseudoHeader test1: 7.43 ns, 134,631,767 / sec
+2019/05/27 15:05:07.659 +09:00 File Write Small - Cores Object - Async: 10,092.65 ns, 99,081 / sec
+2019/05/27 15:05:36.627 +09:00 ----- Start new benchmark -----
+2019/05/27 15:05:36.672 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:05:36.672 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:05:36.672 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:05:36.672 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:05:36.672 +09:00 Host: PC34
+2019/05/27 15:05:37.342 +09:00 new UDPv4PseudoHeader test1: 8.94 ns, 111,858,925 / sec
+2019/05/27 15:05:37.882 +09:00 File Write Small - Cores Object - Async: 14,465.02 ns, 69,132 / sec
+2019/05/27 15:06:24.150 +09:00 ----- Start new benchmark -----
+2019/05/27 15:06:24.197 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:06:24.197 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:06:24.197 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:06:24.197 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:06:24.197 +09:00 Host: PC34
+2019/05/27 15:06:24.893 +09:00 new UDPv4PseudoHeader test1: 10.02 ns, 99,767,303 / sec
+2019/05/27 15:06:25.424 +09:00 File Write Small - Cores Object - Async: 13,973.81 ns, 71,562 / sec
+2019/05/27 15:06:45.704 +09:00 ----- Start new benchmark -----
+2019/05/27 15:06:45.757 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 15:06:45.757 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 15:06:45.757 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 15:06:45.757 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 15:06:45.757 +09:00 Host: PC34
+2019/05/27 15:06:46.408 +09:00 new UDPv4PseudoHeader test1: 8.46 ns, 118,189,383 / sec
+2019/05/27 15:06:46.923 +09:00 File Write Small - Cores Object - Async: 13,211.98 ns, 75,688 / sec
+2019/05/27 17:17:32.624 +09:00 ----- Start new benchmark -----
+2019/05/27 17:17:32.675 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:17:32.675 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:17:32.675 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:17:32.675 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:17:32.675 +09:00 Host: PC34
+2019/05/27 17:17:33.382 +09:00 new UDPv4PseudoHeader test1: 10.61 ns, 94,259,966 / sec
+2019/05/27 17:17:33.975 +09:00 New Packet: 9.53 ns, 104,880,317 / sec
+2019/05/27 17:17:44.415 +09:00 ----- Start new benchmark -----
+2019/05/27 17:17:44.471 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:17:44.471 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:17:44.471 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:17:44.471 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:17:44.471 +09:00 Host: PC34
+2019/05/27 17:17:45.104 +09:00 New Packet: 12.04 ns, 83,073,744 / sec
+2019/05/27 17:17:45.672 +09:00 new UDPv4PseudoHeader test1: 8.73 ns, 114,607,576 / sec
+2019/05/27 17:17:58.937 +09:00 ----- Start new benchmark -----
+2019/05/27 17:17:58.982 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:17:58.982 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:17:58.982 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:17:58.982 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:17:58.982 +09:00 Host: PC34
+2019/05/27 17:17:59.712 +09:00 New Packet: 18.12 ns, 55,182,862 / sec
+2019/05/27 17:18:00.236 +09:00 new UDPv4PseudoHeader test1: 7.51 ns, 133,168,973 / sec
+2019/05/27 17:18:02.350 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:02.396 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:02.396 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:02.396 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:02.396 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:02.396 +09:00 Host: PC34
+2019/05/27 17:18:03.106 +09:00 New Packet: 17.42 ns, 57,421,086 / sec
+2019/05/27 17:18:03.624 +09:00 new UDPv4PseudoHeader test1: 6.96 ns, 143,763,306 / sec
+2019/05/27 17:18:05.948 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:05.999 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:05.999 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:05.999 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:05.999 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:05.999 +09:00 Host: PC34
+2019/05/27 17:18:06.734 +09:00 New Packet: 17.33 ns, 57,698,194 / sec
+2019/05/27 17:18:07.274 +09:00 new UDPv4PseudoHeader test1: 7.48 ns, 133,624,932 / sec
+2019/05/27 17:18:14.508 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:14.555 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:14.555 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:14.555 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:14.555 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:14.555 +09:00 Host: PC34
+2019/05/27 17:18:15.159 +09:00 New Packet: 11.26 ns, 88,796,665 / sec
+2019/05/27 17:18:15.702 +09:00 new UDPv4PseudoHeader test1: 8.00 ns, 125,053,874 / sec
+2019/05/27 17:18:35.229 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:35.276 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:35.276 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:35.276 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:35.276 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:35.276 +09:00 Host: PC34
+2019/05/27 17:18:35.911 +09:00 New Packet: 28.33 ns, 35,295,502 / sec
+2019/05/27 17:18:36.449 +09:00 new UDPv4PseudoHeader test1: 7.59 ns, 131,719,063 / sec
+2019/05/27 17:18:38.787 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:38.833 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:38.833 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:38.833 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:38.833 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:38.833 +09:00 Host: PC34
+2019/05/27 17:18:39.471 +09:00 New Packet: 28.16 ns, 35,509,630 / sec
+2019/05/27 17:18:40.004 +09:00 new UDPv4PseudoHeader test1: 7.70 ns, 129,861,029 / sec
+2019/05/27 17:18:40.536 +09:00 File Write Small - Cores Object - Async: 14,017.36 ns, 71,340 / sec
+2019/05/27 17:18:41.061 +09:00 File Write Small - .NET Native - Sync: 9,095.49 ns, 109,944 / sec
+2019/05/27 17:18:41.589 +09:00 SingletonFastArraySlim Get: 1.15 ns, 868,228,805 / sec
+2019/05/27 17:18:42.302 +09:00 SingletonFastArray Get: 1.77 ns, 565,974,244 / sec
+2019/05/27 17:18:48.082 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:48.139 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:48.139 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:48.139 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:48.139 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:48.139 +09:00 Host: PC34
+2019/05/27 17:18:48.785 +09:00 New Packet: 12.85 ns, 77,798,767 / sec
+2019/05/27 17:18:49.349 +09:00 new UDPv4PseudoHeader test1: 8.71 ns, 114,779,553 / sec
+2019/05/27 17:18:50.321 +09:00 File Write Small - Cores Object - Async: 15,300.91 ns, 65,355 / sec
+2019/05/27 17:18:59.114 +09:00 ----- Start new benchmark -----
+2019/05/27 17:18:59.161 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:18:59.161 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:18:59.161 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:18:59.161 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:18:59.161 +09:00 Host: PC34
+2019/05/27 17:18:59.904 +09:00 New Packet: 17.80 ns, 56,177,544 / sec
+2019/05/27 17:19:00.449 +09:00 new UDPv4PseudoHeader test1: 8.02 ns, 124,617,792 / sec
+2019/05/27 17:19:30.321 +09:00 ----- Start new benchmark -----
+2019/05/27 17:19:30.366 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:19:30.366 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:19:30.366 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:19:30.366 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:19:30.366 +09:00 Host: PC34
+2019/05/27 17:19:30.996 +09:00 New Packet: 27.87 ns, 35,875,781 / sec
+2019/05/27 17:19:31.526 +09:00 new UDPv4PseudoHeader test1: 7.68 ns, 130,259,162 / sec
+2019/05/27 17:19:59.464 +09:00 ----- Start new benchmark -----
+2019/05/27 17:19:59.512 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:19:59.512 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:19:59.512 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:19:59.512 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:19:59.512 +09:00 Host: PC34
+2019/05/27 17:20:00.297 +09:00 New Packet: 43.02 ns, 23,242,867 / sec
+2019/05/27 17:20:00.820 +09:00 new UDPv4PseudoHeader test1: 7.41 ns, 134,937,584 / sec
+2019/05/27 17:20:14.088 +09:00 ----- Start new benchmark -----
+2019/05/27 17:20:14.133 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:20:14.133 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:20:14.133 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:20:14.133 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:20:14.133 +09:00 Host: PC34
+2019/05/27 17:20:15.039 +09:00 New Packet: 54.95 ns, 18,198,269 / sec
+2019/05/27 17:20:15.565 +09:00 new UDPv4PseudoHeader test1: 7.18 ns, 139,329,381 / sec
+2019/05/27 17:20:18.222 +09:00 ----- Start new benchmark -----
+2019/05/27 17:20:18.268 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:20:18.268 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:20:18.268 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:20:18.268 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:20:18.268 +09:00 Host: PC34
+2019/05/27 17:20:19.202 +09:00 New Packet: 57.26 ns, 17,464,758 / sec
+2019/05/27 17:20:19.726 +09:00 new UDPv4PseudoHeader test1: 7.06 ns, 141,563,341 / sec
+2019/05/27 17:20:52.437 +09:00 ----- Start new benchmark -----
+2019/05/27 17:20:52.492 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:20:52.492 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:20:52.492 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:20:52.492 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:20:52.492 +09:00 Host: PC34
+2019/05/27 17:20:53.466 +09:00 New Packet: 61.99 ns, 16,131,720 / sec
+2019/05/27 17:20:54.026 +09:00 new UDPv4PseudoHeader test1: 8.40 ns, 118,999,599 / sec
+2019/05/27 17:20:54.578 +09:00 File Write Small - Cores Object - Async: 15,027.18 ns, 66,546 / sec
+2019/05/27 17:20:55.113 +09:00 File Write Small - .NET Native - Sync: 9,451.55 ns, 105,802 / sec
+2019/05/27 17:20:55.638 +09:00 SingletonFastArraySlim Get: 1.29 ns, 773,802,075 / sec
+2019/05/27 17:20:56.151 +09:00 SingletonFastArray Get: 1.60 ns, 623,943,511 / sec
+2019/05/27 17:20:56.699 +09:00 SingletonSlim Get: 7.97 ns, 125,538,486 / sec
+2019/05/27 17:20:57.216 +09:00 Singleton2 Get: 23.91 ns, 41,823,149 / sec
+2019/05/27 17:20:57.741 +09:00 Singleton1 Get: 0.51 ns, 1,966,157,710 / sec
+2019/05/27 17:20:58.266 +09:00 New MemoryBuffer: 11.69 ns, 85,569,049 / sec
+2019/05/27 17:20:58.769 +09:00 MemoryBuffer Pin Lock / Unlock: 143.96 ns, 6,946,469 / sec
+2019/05/27 17:20:59.364 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 17:20:59.990 +09:00 Convert Enum to Long: 0.04 ns, 24,126,034,403 / sec
+2019/05/27 17:21:12.085 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:12.134 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:12.134 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:12.134 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:12.134 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:12.134 +09:00 Host: PC34
+2019/05/27 17:21:13.262 +09:00 New Packet: 76.59 ns, 13,057,344 / sec
+2019/05/27 17:21:19.332 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:19.385 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:19.385 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:19.385 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:19.385 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:19.385 +09:00 Host: PC34
+2019/05/27 17:21:20.345 +09:00 New Packet: 61.07 ns, 16,374,039 / sec
+2019/05/27 17:21:23.230 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:23.277 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:23.277 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:23.277 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:23.277 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:23.277 +09:00 Host: PC34
+2019/05/27 17:21:24.164 +09:00 New Packet: 54.12 ns, 18,477,316 / sec
+2019/05/27 17:21:24.672 +09:00 new UDPv4PseudoHeader test1: 6.93 ns, 144,363,958 / sec
+2019/05/27 17:21:47.194 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:47.239 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:47.239 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:47.239 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:47.239 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:47.239 +09:00 Host: PC34
+2019/05/27 17:21:48.251 +09:00 New Packet: 65.67 ns, 15,226,783 / sec
+2019/05/27 17:21:50.580 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:50.625 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:50.625 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:50.625 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:50.625 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:50.625 +09:00 Host: PC34
+2019/05/27 17:21:51.594 +09:00 New Packet: 62.27 ns, 16,059,520 / sec
+2019/05/27 17:21:59.801 +09:00 ----- Start new benchmark -----
+2019/05/27 17:21:59.856 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:21:59.856 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:21:59.856 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:21:59.856 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:21:59.856 +09:00 Host: PC34
+2019/05/27 17:22:00.837 +09:00 New Packet: 63.14 ns, 15,838,543 / sec
+2019/05/27 17:45:49.227 +09:00 ----- Start new benchmark -----
+2019/05/27 17:45:49.272 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:45:49.272 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:45:49.272 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:45:49.272 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:45:49.273 +09:00 Host: PC34
+2019/05/27 17:45:49.861 +09:00 SingletonSlim Get: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 17:48:57.621 +09:00 ----- Start new benchmark -----
+2019/05/27 17:48:57.670 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:48:57.670 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:48:57.670 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:48:57.670 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:48:57.670 +09:00 Host: PC34
+2019/05/27 17:48:58.275 +09:00 ZeroedReadOnlyStruct: 2.41 ns, 414,589,596 / sec
+2019/05/27 17:48:58.882 +09:00 New Packet: 10.49 ns, 95,329,935 / sec
+2019/05/27 17:49:07.567 +09:00 ----- Start new benchmark -----
+2019/05/27 17:49:07.614 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:49:07.614 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:49:07.614 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:49:07.614 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:49:07.614 +09:00 Host: PC34
+2019/05/27 17:49:08.202 +09:00 ZeroedReadOnlyStruct: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 17:49:08.801 +09:00 New Packet: 9.88 ns, 101,164,464 / sec
+2019/05/27 17:49:35.060 +09:00 ----- Start new benchmark -----
+2019/05/27 17:49:35.112 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 17:49:35.112 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 17:49:35.112 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 17:49:35.112 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 17:49:35.112 +09:00 Host: PC34
+2019/05/27 17:49:35.714 +09:00 ZeroedReadOnlyStruct: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 17:49:36.314 +09:00 New Packet: 10.10 ns, 99,004,573 / sec
+2019/05/27 18:08:53.968 +09:00 ----- Start new benchmark -----
+2019/05/27 18:08:54.014 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:08:54.014 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:08:54.014 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:08:54.014 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:08:54.014 +09:00 Host: PC34
+2019/05/27 18:08:54.715 +09:00 sizeof(T): 0.13 ns, 7,806,218,433 / sec
+2019/05/27 18:08:55.305 +09:00 Util.SizeOfStruct(T): 0.05 ns, 20,449,270,472 / sec
+2019/05/27 18:08:55.817 +09:00 New Packet: 11.43 ns, 87,481,405 / sec
+2019/05/27 18:08:56.350 +09:00 new UDPv4PseudoHeader test1: 7.69 ns, 130,078,477 / sec
+2019/05/27 18:08:56.867 +09:00 File Write Small - Cores Object - Async: 13,253.55 ns, 75,451 / sec
+2019/05/27 18:08:57.396 +09:00 File Write Small - .NET Native - Sync: 9,230.62 ns, 108,335 / sec
+2019/05/27 18:08:57.912 +09:00 SingletonFastArraySlim Get: 1.36 ns, 733,407,658 / sec
+2019/05/27 18:08:58.437 +09:00 SingletonFastArray Get: 1.75 ns, 570,133,644 / sec
+2019/05/27 18:09:01.295 +09:00 ----- Start new benchmark -----
+2019/05/27 18:09:01.341 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:09:01.341 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:09:01.341 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:09:01.341 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:09:01.341 +09:00 Host: PC34
+2019/05/27 18:09:02.042 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:09:02.642 +09:00 Util.SizeOfStruct(T): 0.01 ns, 178,715,038,870 / sec
+2019/05/27 18:09:03.258 +09:00 New Packet: 10.38 ns, 96,335,819 / sec
+2019/05/27 18:09:03.795 +09:00 new UDPv4PseudoHeader test1: 7.91 ns, 126,393,453 / sec
+2019/05/27 18:11:03.843 +09:00 ----- Start new benchmark -----
+2019/05/27 18:11:03.893 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:11:03.893 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:11:03.893 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:11:03.893 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:11:03.893 +09:00 Host: PC34
+2019/05/27 18:11:04.533 +09:00 sizeof(T): 0.03 ns, 30,664,499,708 / sec
+2019/05/27 18:11:05.750 +09:00 _IsZeroFastStruct: 3.21 ns, 311,754,954 / sec
+2019/05/27 18:11:06.344 +09:00 Util.SizeOfStruct(T): 0.08 ns, 12,129,813,261 / sec
+2019/05/27 18:11:06.975 +09:00 New Packet: 10.61 ns, 94,264,010 / sec
+2019/05/27 18:11:07.494 +09:00 new UDPv4PseudoHeader test1: 7.16 ns, 139,750,841 / sec
+2019/05/27 18:11:08.125 +09:00 File Write Small - Cores Object - Async: 12,660.18 ns, 78,987 / sec
+2019/05/27 18:12:46.764 +09:00 ----- Start new benchmark -----
+2019/05/27 18:12:46.811 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:12:46.811 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:12:46.811 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:12:46.811 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:12:46.811 +09:00 Host: PC34
+2019/05/27 18:12:48.278 +09:00 _IsZeroFastStruct: 3.79 ns, 263,810,791 / sec
+2019/05/27 18:12:48.901 +09:00 sizeof(T): 0.01 ns, 140,419,855,367 / sec
+2019/05/27 18:12:49.496 +09:00 Util.SizeOfStruct(T): 0.01 ns, 85,157,114,876 / sec
+2019/05/27 18:13:03.627 +09:00 ----- Start new benchmark -----
+2019/05/27 18:13:03.676 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:13:03.676 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:13:03.676 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:13:03.676 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:13:03.676 +09:00 Host: PC34
+2019/05/27 18:13:05.065 +09:00 _IsZeroFastStruct: 3.75 ns, 266,737,974 / sec
+2019/05/27 18:13:16.777 +09:00 ----- Start new benchmark -----
+2019/05/27 18:13:16.825 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:13:16.825 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:13:16.825 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:13:16.825 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:13:16.825 +09:00 Host: PC34
+2019/05/27 18:13:18.251 +09:00 _IsZeroFastStruct: 3.77 ns, 265,551,350 / sec
+2019/05/27 18:13:29.504 +09:00 ----- Start new benchmark -----
+2019/05/27 18:13:29.554 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:13:29.554 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:13:29.554 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:13:29.554 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:13:29.554 +09:00 Host: PC34
+2019/05/27 18:13:33.034 +09:00 _IsZeroFastStruct: 14.09 ns, 70,963,703 / sec
+2019/05/27 18:15:58.416 +09:00 ----- Start new benchmark -----
+2019/05/27 18:15:58.461 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:15:58.461 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:15:58.461 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:15:58.461 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:15:58.461 +09:00 Host: PC34
+2019/05/27 18:15:59.962 +09:00 _IsZeroFastStruct: 4.07 ns, 245,565,094 / sec
+2019/05/27 18:16:02.379 +09:00 ----- Start new benchmark -----
+2019/05/27 18:16:02.424 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:16:02.424 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:16:02.424 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:16:02.424 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:16:02.424 +09:00 Host: PC34
+2019/05/27 18:16:03.798 +09:00 _IsZeroFastStruct: 3.48 ns, 287,128,104 / sec
+2019/05/27 18:16:11.749 +09:00 ----- Start new benchmark -----
+2019/05/27 18:16:11.797 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:16:11.797 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:16:11.797 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:16:11.797 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:16:11.797 +09:00 Host: PC34
+2019/05/27 18:16:13.185 +09:00 _IsZeroFastStruct: 3.62 ns, 276,217,646 / sec
+2019/05/27 18:16:33.272 +09:00 ----- Start new benchmark -----
+2019/05/27 18:16:33.316 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:16:33.316 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:16:33.316 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:16:33.316 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:16:33.316 +09:00 Host: PC34
+2019/05/27 18:16:34.691 +09:00 _IsZeroFastStruct: 3.47 ns, 288,424,778 / sec
+2019/05/27 18:16:35.299 +09:00 sizeof(T): 0.01 ns, 88,350,929,893 / sec
+2019/05/27 18:16:35.892 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:16:36.473 +09:00 New Packet: 9.42 ns, 106,197,867 / sec
+2019/05/27 18:16:37.023 +09:00 new UDPv4PseudoHeader test1: 8.04 ns, 124,394,400 / sec
+2019/05/27 18:16:37.543 +09:00 File Write Small - Cores Object - Async: 13,439.23 ns, 74,409 / sec
+2019/05/27 18:16:38.075 +09:00 File Write Small - .NET Native - Sync: 9,336.70 ns, 107,104 / sec
+2019/05/27 18:16:38.602 +09:00 SingletonFastArraySlim Get: 1.06 ns, 943,726,845 / sec
+2019/05/27 18:16:39.135 +09:00 SingletonFastArray Get: 1.56 ns, 642,176,092 / sec
+2019/05/27 18:16:39.679 +09:00 SingletonSlim Get: 7.92 ns, 126,303,776 / sec
+2019/05/27 18:16:40.197 +09:00 Singleton2 Get: 24.59 ns, 40,668,915 / sec
+2019/05/27 18:16:40.715 +09:00 Singleton1 Get: 0.42 ns, 2,405,035,644 / sec
+2019/05/27 18:16:41.236 +09:00 New MemoryBuffer: 11.79 ns, 84,826,153 / sec
+2019/05/27 18:16:41.739 +09:00 MemoryBuffer Pin Lock / Unlock: 139.92 ns, 7,146,964 / sec
+2019/05/27 18:16:42.383 +09:00 BitAny: 0.21 ns, 4,833,813,492 / sec
+2019/05/27 18:16:43.295 +09:00 Convert Enum to Long: 1.53 ns, 654,749,784 / sec
+2019/05/27 18:16:43.971 +09:00 New Packet with Data: 19.22 ns, 52,037,883 / sec
+2019/05/27 18:16:44.699 +09:00 Packet struct I/O: 45.68 ns, 21,893,713 / sec
+2019/05/27 18:16:45.201 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:16:45.703 +09:00 IsZero - All Zero Sparse: 2.02 ns, 495,554,815 / sec
+2019/05/27 18:16:46.208 +09:00 GetSparseChunks - NonSparse: 76,255.25 ns, 13,113 / sec
+2019/05/27 18:16:46.784 +09:00 GetSparseChunks - Sparse: 1,616,869.49 ns, 618 / sec
+2019/05/27 18:16:47.294 +09:00 GetSparseChunks - All Zero Sparse: 135,683.44 ns, 7,370 / sec
+2019/05/27 18:16:47.798 +09:00 Util.Rand(): 290.02 ns, 3,448,051 / sec
+2019/05/27 18:16:48.301 +09:00 Secure.Rand(): 281.38 ns, 3,553,900 / sec
+2019/05/27 18:16:48.804 +09:00 ParseEnum: 69.95 ns, 14,295,095 / sec
+2019/05/27 18:16:50.600 +09:00 GetSparseChunks: 15,424,555.53 ns, 64 / sec
+2019/05/27 18:16:51.154 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,004,481.48 ns, 995 / sec
+2019/05/27 18:16:51.682 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 914,320.53 ns, 1,093 / sec
+2019/05/27 18:16:52.233 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 993,952.15 ns, 1,006 / sec
+2019/05/27 18:16:53.025 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,396,657.49 ns, 185 / sec
+2019/05/27 18:16:54.273 +09:00 Memory Copy by Span loop 10,000,000 bytes: 9,956,654.52 ns, 100 / sec
+2019/05/27 18:16:54.990 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 4,647,316.50 ns, 215 / sec
+2019/05/27 18:16:55.801 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 5,587,954.47 ns, 178 / sec
+2019/05/27 18:16:56.629 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,759,297.49 ns, 173 / sec
+2019/05/27 18:16:57.352 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,696,871.50 ns, 212 / sec
+2019/05/27 18:16:57.873 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 381,563.50 ns, 2,620 / sec
+2019/05/27 18:16:58.607 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 4,810,928.51 ns, 207 / sec
+2019/05/27 18:16:59.109 +09:00 CallAsyncWithAwait: 30.17 ns, 33,149,637 / sec
+2019/05/27 18:16:59.612 +09:00 CallAsyncWithNonAwait: 10.47 ns, 95,476,398 / sec
+2019/05/27 18:17:00.116 +09:00 Rand[16]: 155.53 ns, 6,429,674 / sec
+2019/05/27 18:17:00.621 +09:00 Guid.NewGuid().ToString(): 219.78 ns, 4,550,071 / sec
+2019/05/27 18:17:01.149 +09:00 Read the String_ReadOnly value: 0.71 ns, 1,400,027,533 / sec
+2019/05/27 18:17:01.682 +09:00 Read the String_GetOnly value: 0.70 ns, 1,428,700,892 / sec
+2019/05/27 18:17:02.200 +09:00 Read the String_Copenhagen_ReadOnly value: 0.42 ns, 2,385,804,957 / sec
+2019/05/27 18:17:02.722 +09:00 Read the String_Copenhagen_GetOnly value: 0.99 ns, 1,011,159,392 / sec
+2019/05/27 18:17:03.331 +09:00 Read the Int_ReadOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:17:04.143 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:17:04.656 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.78 ns, 1,275,329,614 / sec
+2019/05/27 18:17:05.166 +09:00 Read the Int_Copenhagen_GetOnly value: 0.78 ns, 1,283,706,740 / sec
+2019/05/27 18:17:05.669 +09:00 AsyncCallMethodFromAsyncMethod: 20.78 ns, 48,123,453 / sec
+2019/05/27 18:17:06.173 +09:00 AsyncCallMethodFromSyncMethod: 15.79 ns, 63,317,316 / sec
+2019/05/27 18:17:06.809 +09:00 Lock for readonly object: 17.04 ns, 58,701,421 / sec
+2019/05/27 18:17:07.438 +09:00 Lock for get property object: 16.96 ns, 58,973,318 / sec
+2019/05/27 18:20:08.979 +09:00 ----- Start new benchmark -----
+2019/05/27 18:20:09.031 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:20:09.031 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:20:09.031 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:20:09.031 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:20:09.031 +09:00 Host: PC34
+2019/05/27 18:20:10.436 +09:00 _IsZeroFastStruct: 3.62 ns, 276,184,004 / sec
+2019/05/27 18:20:22.566 +09:00 ----- Start new benchmark -----
+2019/05/27 18:20:22.615 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:20:22.615 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:20:22.615 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:20:22.615 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:20:22.615 +09:00 Host: PC34
+2019/05/27 18:20:24.000 +09:00 _IsZeroFastStruct: 3.66 ns, 272,893,626 / sec
+2019/05/27 18:21:17.888 +09:00 ----- Start new benchmark -----
+2019/05/27 18:21:17.936 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:21:17.936 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:21:17.936 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:21:17.936 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:21:17.936 +09:00 Host: PC34
+2019/05/27 18:21:18.710 +09:00 _IsZeroFastStruct: 0.48 ns, 2,093,120,853 / sec
+2019/05/27 18:21:19.309 +09:00 sizeof(T): 0.03 ns, 33,641,149,854 / sec
+2019/05/27 18:21:26.025 +09:00 ----- Start new benchmark -----
+2019/05/27 18:21:26.073 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:21:26.073 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:21:26.074 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:21:26.074 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:21:26.074 +09:00 Host: PC34
+2019/05/27 18:21:27.354 +09:00 _IsZeroFastStruct: 3.03 ns, 330,570,862 / sec
+2019/05/27 18:21:27.948 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:21:28.536 +09:00 Util.SizeOfStruct(T): 0.10 ns, 10,061,728,705 / sec
+2019/05/27 18:22:17.943 +09:00 ----- Start new benchmark -----
+2019/05/27 18:22:17.994 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:22:17.994 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:22:17.994 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:22:17.994 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:22:17.994 +09:00 Host: PC34
+2019/05/27 18:22:18.753 +09:00 _IsZeroFastStruct: 0.34 ns, 2,969,337,140 / sec
+2019/05/27 18:22:19.344 +09:00 sizeof(T): 0.04 ns, 22,395,664,199 / sec
+2019/05/27 18:22:44.370 +09:00 ----- Start new benchmark -----
+2019/05/27 18:22:44.418 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:22:44.418 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:22:44.418 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:22:44.418 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:22:44.418 +09:00 Host: PC34
+2019/05/27 18:22:45.163 +09:00 _IsZeroFastStruct: 0.30 ns, 3,328,933,592 / sec
+2019/05/27 18:22:45.773 +09:00 sizeof(T): 0.01 ns, 119,310,385,969 / sec
+2019/05/27 18:23:35.950 +09:00 ----- Start new benchmark -----
+2019/05/27 18:23:35.999 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:23:35.999 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:23:35.999 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:23:35.999 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:23:35.999 +09:00 Host: PC34
+2019/05/27 18:23:37.368 +09:00 _IsZeroFastStruct: 3.53 ns, 282,993,345 / sec
+2019/05/27 18:24:07.447 +09:00 ----- Start new benchmark -----
+2019/05/27 18:24:07.496 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:24:07.496 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:24:07.496 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:24:07.496 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:24:07.496 +09:00 Host: PC34
+2019/05/27 18:24:08.222 +09:00 _IsZeroFastStruct: 0.22 ns, 4,511,678,479 / sec
+2019/05/27 18:24:08.814 +09:00 sizeof(T): 0.09 ns, 10,632,416,110 / sec
+2019/05/27 18:24:48.086 +09:00 ----- Start new benchmark -----
+2019/05/27 18:24:48.134 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:24:48.134 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:24:48.134 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:24:48.134 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:24:48.134 +09:00 Host: PC34
+2019/05/27 18:24:48.894 +09:00 _IsZeroFastStruct: 0.34 ns, 2,932,375,033 / sec
+2019/05/27 18:24:49.485 +09:00 sizeof(T): 0.11 ns, 9,228,838,273 / sec
+2019/05/27 18:25:21.685 +09:00 ----- Start new benchmark -----
+2019/05/27 18:25:21.733 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:25:21.733 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:25:21.733 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:25:21.733 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:25:21.733 +09:00 Host: PC34
+2019/05/27 18:25:22.511 +09:00 _IsZeroFastStruct: 0.52 ns, 1,913,414,181 / sec
+2019/05/27 18:25:23.109 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:25:40.159 +09:00 ----- Start new benchmark -----
+2019/05/27 18:25:40.206 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:25:40.206 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:25:40.206 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:25:40.206 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:25:40.206 +09:00 Host: PC34
+2019/05/27 18:25:41.687 +09:00 _IsZeroFastStruct: 4.15 ns, 240,806,866 / sec
+2019/05/27 18:25:42.255 +09:00 sizeof(T): 0.13 ns, 7,528,561,480 / sec
+2019/05/27 18:25:42.856 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 18:25:46.037 +09:00 ----- Start new benchmark -----
+2019/05/27 18:25:46.084 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:25:46.084 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:25:46.084 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:25:46.084 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:25:46.084 +09:00 Host: PC34
+2019/05/27 18:25:47.681 +09:00 _IsZeroFastStruct: 4.38 ns, 228,495,045 / sec
+2019/05/27 18:26:01.204 +09:00 ----- Start new benchmark -----
+2019/05/27 18:26:01.255 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:26:01.255 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:26:01.255 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:26:01.255 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:26:01.255 +09:00 Host: PC34
+2019/05/27 18:26:02.627 +09:00 _IsZeroFastStruct: 3.56 ns, 280,519,623 / sec
+2019/05/27 18:26:34.256 +09:00 ----- Start new benchmark -----
+2019/05/27 18:26:34.304 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:26:34.304 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:26:34.304 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:26:34.304 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:26:34.304 +09:00 Host: PC34
+2019/05/27 18:26:35.959 +09:00 _IsZeroFastStruct: 5.07 ns, 197,293,897 / sec
+2019/05/27 18:26:39.599 +09:00 ----- Start new benchmark -----
+2019/05/27 18:26:39.645 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:26:39.645 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:26:39.645 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:26:39.645 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:26:39.645 +09:00 Host: PC34
+2019/05/27 18:26:41.166 +09:00 _IsZeroFastStruct: 4.17 ns, 239,669,064 / sec
+2019/05/27 18:26:47.159 +09:00 ----- Start new benchmark -----
+2019/05/27 18:26:47.206 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:26:47.206 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:26:47.206 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:26:47.206 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:26:47.206 +09:00 Host: PC34
+2019/05/27 18:26:48.813 +09:00 _IsZeroFastStruct: 4.66 ns, 214,514,938 / sec
+2019/05/27 18:26:50.994 +09:00 ----- Start new benchmark -----
+2019/05/27 18:26:51.042 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 18:26:51.042 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 18:26:51.042 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 18:26:51.042 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 18:26:51.042 +09:00 Host: PC34
+2019/05/27 18:26:52.602 +09:00 _IsZeroFastStruct: 4.39 ns, 227,532,761 / sec
+2019/05/27 20:08:28.843 +09:00 ----- Start new benchmark -----
+2019/05/27 20:08:28.897 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:08:28.897 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:08:28.897 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:08:28.897 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:08:28.897 +09:00 Host: PC34
+2019/05/27 20:08:29.579 +09:00 readonly struct interface access: 0.06 ns, 18,114,465,306 / sec
+2019/05/27 20:08:31.024 +09:00 _IsZeroFastStruct: 4.24 ns, 235,932,495 / sec
+2019/05/27 20:11:02.892 +09:00 ----- Start new benchmark -----
+2019/05/27 20:11:02.945 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:11:02.945 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:11:02.945 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:11:02.945 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:11:02.945 +09:00 Host: PC34
+2019/05/27 20:11:03.789 +09:00 readonly struct interface access: 0.81 ns, 1,230,007,761 / sec
+2019/05/27 20:11:05.148 +09:00 _IsZeroFastStruct: 3.76 ns, 266,280,666 / sec
+2019/05/27 20:11:25.374 +09:00 ----- Start new benchmark -----
+2019/05/27 20:11:25.420 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:11:25.420 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:11:25.420 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:11:25.420 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:11:25.420 +09:00 Host: PC34
+2019/05/27 20:11:26.210 +09:00 readonly struct interface access: 0.46 ns, 2,176,328,294 / sec
+2019/05/27 20:11:26.827 +09:00 readonly struct direct access: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 20:11:28.208 +09:00 _IsZeroFastStruct: 4.07 ns, 245,558,220 / sec
+2019/05/27 20:11:28.824 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 20:11:29.441 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 20:11:30.012 +09:00 New Packet: 8.70 ns, 114,986,797 / sec
+2019/05/27 20:11:30.634 +09:00 File Write Small - Cores Object - Async: 12,348.27 ns, 80,982 / sec
+2019/05/27 20:11:31.205 +09:00 File Write Small - .NET Native - Sync: 10,648.95 ns, 93,905 / sec
+2019/05/27 20:11:31.721 +09:00 SingletonFastArraySlim Get: 1.00 ns, 1,004,277,157 / sec
+2019/05/27 20:11:32.240 +09:00 SingletonFastArray Get: 1.70 ns, 588,224,633 / sec
+2019/05/27 20:11:32.791 +09:00 SingletonSlim Get: 8.05 ns, 124,266,846 / sec
+2019/05/27 20:11:35.666 +09:00 ----- Start new benchmark -----
+2019/05/27 20:11:35.713 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:11:35.713 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:11:35.713 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:11:35.713 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:11:35.713 +09:00 Host: PC34
+2019/05/27 20:11:36.535 +09:00 readonly struct interface access: 0.52 ns, 1,933,387,081 / sec
+2019/05/27 20:11:37.143 +09:00 readonly struct direct access: 0.01 ns, 81,722,714,828 / sec
+2019/05/27 20:11:55.022 +09:00 ----- Start new benchmark -----
+2019/05/27 20:11:55.073 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:11:55.073 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:11:55.073 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:11:55.073 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:11:55.073 +09:00 Host: PC34
+2019/05/27 20:11:56.219 +09:00 readonly struct interface access: 2.41 ns, 415,446,465 / sec
+2019/05/27 20:11:59.212 +09:00 ----- Start new benchmark -----
+2019/05/27 20:11:59.258 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:11:59.258 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:11:59.258 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:11:59.258 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:11:59.258 +09:00 Host: PC34
+2019/05/27 20:12:00.336 +09:00 readonly struct interface access: 1.92 ns, 520,417,405 / sec
+2019/05/27 20:13:43.845 +09:00 ----- Start new benchmark -----
+2019/05/27 20:13:43.892 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:13:43.892 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:13:43.892 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:13:43.892 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:13:43.892 +09:00 Host: PC34
+2019/05/27 20:14:06.417 +09:00 ----- Start new benchmark -----
+2019/05/27 20:14:06.464 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:14:06.464 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:14:06.464 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:14:06.464 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:14:06.464 +09:00 Host: PC34
+2019/05/27 20:14:12.116 +09:00 ----- Start new benchmark -----
+2019/05/27 20:14:12.165 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:14:12.165 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:14:12.165 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:14:12.165 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:14:12.165 +09:00 Host: PC34
+2019/05/27 20:14:13.262 +09:00 readonly struct interface access: 2.00 ns, 499,915,639 / sec
+2019/05/27 20:22:39.727 +09:00 ----- Start new benchmark -----
+2019/05/27 20:22:39.776 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:22:39.776 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:22:39.776 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:22:39.776 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:22:39.776 +09:00 Host: PC34
+2019/05/27 20:22:40.443 +09:00 readonly struct interface access: 0.15 ns, 6,867,518,696 / sec
+2019/05/27 20:22:41.037 +09:00 readonly struct direct access: 0.13 ns, 7,643,360,785 / sec
+2019/05/27 20:36:20.442 +09:00 ----- Start new benchmark -----
+2019/05/27 20:36:20.492 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:36:20.492 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:36:20.492 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:36:20.492 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:36:20.492 +09:00 Host: PC34
+2019/05/27 20:36:21.198 +09:00 readonly struct interface access: 0.06 ns, 15,393,733,211 / sec
+2019/05/27 20:36:21.828 +09:00 readonly struct direct access: 0.01 ns, 86,831,936,786 / sec
+2019/05/27 20:36:36.163 +09:00 ----- Start new benchmark -----
+2019/05/27 20:36:36.210 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 20:36:36.210 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 20:36:36.210 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 20:36:36.210 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 20:36:36.210 +09:00 Host: PC34
+2019/05/27 20:36:36.909 +09:00 readonly struct interface access: 0.04 ns, 24,901,328,485 / sec
+2019/05/27 20:36:37.518 +09:00 readonly struct direct access: 0.01 ns, 82,118,661,465 / sec
+2019/05/27 21:27:51.744 +09:00 ----- Start new benchmark -----
+2019/05/27 21:27:51.792 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:27:51.792 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:27:51.792 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:27:51.792 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:27:51.792 +09:00 Host: PC34
+2019/05/27 21:27:52.368 +09:00 ParsePacket #1: 360.75 ns, 2,772,032 / sec
+2019/05/27 21:27:53.824 +09:00 _IsZeroFastStruct: 4.20 ns, 237,871,978 / sec
+2019/05/27 21:28:05.597 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:05.649 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:05.649 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:05.649 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:05.649 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:05.649 +09:00 Host: PC34
+2019/05/27 21:28:06.225 +09:00 ParsePacket #1: 324.01 ns, 3,086,277 / sec
+2019/05/27 21:28:07.603 +09:00 _IsZeroFastStruct: 3.97 ns, 251,795,617 / sec
+2019/05/27 21:28:24.913 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:24.962 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:24.962 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:24.962 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:24.962 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:24.962 +09:00 Host: PC34
+2019/05/27 21:28:25.538 +09:00 ParsePacket #1: 431.71 ns, 2,316,372 / sec
+2019/05/27 21:28:27.013 +09:00 _IsZeroFastStruct: 4.48 ns, 223,203,299 / sec
+2019/05/27 21:28:28.502 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:28.551 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:28.551 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:28.551 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:28.551 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:28.551 +09:00 Host: PC34
+2019/05/27 21:28:29.135 +09:00 ParsePacket #1: 302.89 ns, 3,301,561 / sec
+2019/05/27 21:28:30.646 +09:00 _IsZeroFastStruct: 4.54 ns, 220,327,236 / sec
+2019/05/27 21:28:32.612 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:32.659 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:32.660 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:32.660 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:32.660 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:32.660 +09:00 Host: PC34
+2019/05/27 21:28:33.238 +09:00 ParsePacket #1: 343.67 ns, 2,909,751 / sec
+2019/05/27 21:28:34.722 +09:00 _IsZeroFastStruct: 4.50 ns, 222,251,905 / sec
+2019/05/27 21:28:35.336 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:28:35.947 +09:00 Util.SizeOfStruct(T): 0.02 ns, 60,749,650,689 / sec
+2019/05/27 21:28:36.580 +09:00 New Packet: 17.42 ns, 57,413,327 / sec
+2019/05/27 21:28:37.169 +09:00 File Write Small - Cores Object - Async: 11,214.02 ns, 89,174 / sec
+2019/05/27 21:28:45.299 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:45.349 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:45.349 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:45.349 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:45.349 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:45.349 +09:00 Host: PC34
+2019/05/27 21:28:45.957 +09:00 ParsePacket #1: 358.42 ns, 2,790,010 / sec
+2019/05/27 21:28:46.515 +09:00 _IsZeroFastStruct: 4.48 ns, 223,307,825 / sec
+2019/05/27 21:28:47.126 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:28:47.748 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:28:50.107 +09:00 ----- Start new benchmark -----
+2019/05/27 21:28:50.154 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:28:50.154 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:28:50.154 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:28:50.154 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:28:50.154 +09:00 Host: PC34
+2019/05/27 21:28:50.735 +09:00 ParsePacket #1: 352.82 ns, 2,834,300 / sec
+2019/05/27 21:28:51.277 +09:00 _IsZeroFastStruct: 4.34 ns, 230,677,189 / sec
+2019/05/27 21:29:05.660 +09:00 ----- Start new benchmark -----
+2019/05/27 21:29:05.706 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:29:05.706 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:29:05.706 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:29:05.706 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:29:05.706 +09:00 Host: PC34
+2019/05/27 21:29:06.286 +09:00 ParsePacket #1: 40.74 ns, 24,547,833 / sec
+2019/05/27 21:29:06.827 +09:00 _IsZeroFastStruct: 4.13 ns, 242,213,022 / sec
+2019/05/27 21:29:11.332 +09:00 ----- Start new benchmark -----
+2019/05/27 21:29:11.379 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:29:11.379 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:29:11.379 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:29:11.379 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:29:11.379 +09:00 Host: PC34
+2019/05/27 21:29:11.963 +09:00 ParsePacket #1: 40.66 ns, 24,593,148 / sec
+2019/05/27 21:29:12.500 +09:00 _IsZeroFastStruct: 4.06 ns, 246,334,848 / sec
+2019/05/27 21:29:29.110 +09:00 ----- Start new benchmark -----
+2019/05/27 21:29:29.158 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:29:29.158 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:29:29.158 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:29:29.158 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:29:29.158 +09:00 Host: PC34
+2019/05/27 21:29:29.737 +09:00 ParsePacket #1: 14.07 ns, 71,082,314 / sec
+2019/05/27 21:29:30.290 +09:00 _IsZeroFastStruct: 4.43 ns, 225,910,222 / sec
+2019/05/27 21:30:05.028 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:05.074 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:05.074 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:05.074 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:05.074 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:05.074 +09:00 Host: PC34
+2019/05/27 21:30:05.655 +09:00 ParsePacket #1: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:30:06.193 +09:00 _IsZeroFastStruct: 4.15 ns, 240,727,468 / sec
+2019/05/27 21:30:06.799 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:30:07.400 +09:00 Util.SizeOfStruct(T): 0.03 ns, 30,825,665,449 / sec
+2019/05/27 21:30:15.859 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:15.906 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:15.906 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:15.906 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:15.906 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:15.906 +09:00 Host: PC34
+2019/05/27 21:30:16.486 +09:00 ParsePacket #1: 347.60 ns, 2,876,895 / sec
+2019/05/27 21:30:17.047 +09:00 _IsZeroFastStruct: 4.59 ns, 217,740,184 / sec
+2019/05/27 21:30:22.316 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:22.361 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:22.361 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:22.361 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:22.361 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:22.361 +09:00 Host: PC34
+2019/05/27 21:30:22.943 +09:00 ParsePacket #1: 339.80 ns, 2,942,904 / sec
+2019/05/27 21:30:23.452 +09:00 _IsZeroFastStruct: 4.75 ns, 210,508,992 / sec
+2019/05/27 21:30:28.534 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:28.581 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:28.581 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:28.581 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:28.581 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:28.581 +09:00 Host: PC34
+2019/05/27 21:30:29.161 +09:00 ParsePacket #1: 25.03 ns, 39,946,363 / sec
+2019/05/27 21:30:29.686 +09:00 _IsZeroFastStruct: 3.92 ns, 255,103,503 / sec
+2019/05/27 21:30:46.650 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:46.697 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:46.697 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:46.697 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:46.697 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:46.697 +09:00 Host: PC34
+2019/05/27 21:30:47.275 +09:00 ParsePacket #1: 5.18 ns, 192,950,235 / sec
+2019/05/27 21:30:47.789 +09:00 _IsZeroFastStruct: 3.71 ns, 269,338,214 / sec
+2019/05/27 21:30:53.118 +09:00 ----- Start new benchmark -----
+2019/05/27 21:30:53.165 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:30:53.165 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:30:53.165 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:30:53.165 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:30:53.165 +09:00 Host: PC34
+2019/05/27 21:30:53.741 +09:00 ParsePacket #1: 5.61 ns, 178,345,103 / sec
+2019/05/27 21:30:54.281 +09:00 _IsZeroFastStruct: 4.12 ns, 242,509,308 / sec
+2019/05/27 21:31:00.104 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:00.153 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:00.153 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:00.153 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:00.153 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:00.153 +09:00 Host: PC34
+2019/05/27 21:31:00.732 +09:00 ParsePacket #1: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:31:01.240 +09:00 _IsZeroFastStruct: 4.79 ns, 208,917,296 / sec
+2019/05/27 21:31:06.369 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:06.417 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:06.417 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:06.417 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:06.417 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:06.417 +09:00 Host: PC34
+2019/05/27 21:31:06.996 +09:00 ParsePacket #1: 6.02 ns, 166,249,235 / sec
+2019/05/27 21:31:07.545 +09:00 _IsZeroFastStruct: 4.25 ns, 235,567,506 / sec
+2019/05/27 21:31:13.342 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:13.390 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:13.390 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:13.390 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:13.390 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:13.390 +09:00 Host: PC34
+2019/05/27 21:31:13.968 +09:00 ParsePacket #1: 33.66 ns, 29,712,225 / sec
+2019/05/27 21:31:14.537 +09:00 _IsZeroFastStruct: 4.68 ns, 213,863,292 / sec
+2019/05/27 21:31:16.801 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:16.847 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:16.847 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:16.847 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:16.847 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:16.847 +09:00 Host: PC34
+2019/05/27 21:31:17.424 +09:00 ParsePacket #1: 34.57 ns, 28,928,790 / sec
+2019/05/27 21:31:20.112 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:20.159 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:20.159 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:20.159 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:20.159 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:20.159 +09:00 Host: PC34
+2019/05/27 21:31:20.734 +09:00 ParsePacket #1: 36.91 ns, 27,095,332 / sec
+2019/05/27 21:31:21.279 +09:00 _IsZeroFastStruct: 4.33 ns, 231,209,325 / sec
+2019/05/27 21:31:51.576 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:51.624 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:51.624 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:51.624 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:51.624 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:51.624 +09:00 Host: PC34
+2019/05/27 21:31:52.201 +09:00 ParsePacket #1: 25.99 ns, 38,475,518 / sec
+2019/05/27 21:31:52.747 +09:00 _IsZeroFastStruct: 4.27 ns, 234,312,134 / sec
+2019/05/27 21:31:57.027 +09:00 ----- Start new benchmark -----
+2019/05/27 21:31:57.074 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:31:57.074 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:31:57.074 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:31:57.074 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:31:57.074 +09:00 Host: PC34
+2019/05/27 21:31:57.653 +09:00 ParsePacket #1: 322.62 ns, 3,099,578 / sec
+2019/05/27 21:31:58.193 +09:00 _IsZeroFastStruct: 4.01 ns, 249,546,800 / sec
+2019/05/27 21:34:21.873 +09:00 ----- Start new benchmark -----
+2019/05/27 21:34:21.920 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:34:21.920 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:34:21.920 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:34:21.920 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:34:21.920 +09:00 Host: PC34
+2019/05/27 21:34:22.494 +09:00 ParsePacket #1: 307.96 ns, 3,247,148 / sec
+2019/05/27 21:34:23.020 +09:00 _IsZeroFastStruct: 3.76 ns, 265,993,492 / sec
+2019/05/27 21:34:23.644 +09:00 sizeof(T): 0.00 ns, 204,039,991,838 / sec
+2019/05/27 21:34:24.266 +09:00 Util.SizeOfStruct(T): 0.02 ns, 42,932,274,337 / sec
+2019/05/27 21:34:24.879 +09:00 New Packet: 16.08 ns, 62,200,727 / sec
+2019/05/27 21:34:25.382 +09:00 File Write Small - Cores Object - Async: 12,612.70 ns, 79,285 / sec
+2019/05/27 21:34:25.899 +09:00 File Write Small - .NET Native - Sync: 8,830.13 ns, 113,248 / sec
+2019/05/27 21:34:26.423 +09:00 SingletonFastArraySlim Get: 1.05 ns, 948,065,739 / sec
+2019/05/27 21:34:26.968 +09:00 SingletonFastArray Get: 1.56 ns, 640,706,683 / sec
+2019/05/27 21:34:27.525 +09:00 SingletonSlim Get: 8.53 ns, 117,275,829 / sec
+2019/05/27 21:34:28.045 +09:00 Singleton2 Get: 23.88 ns, 41,879,625 / sec
+2019/05/27 21:34:28.575 +09:00 Singleton1 Get: 0.55 ns, 1,805,153,378 / sec
+2019/05/27 21:34:29.100 +09:00 New MemoryBuffer: 11.78 ns, 84,919,697 / sec
+2019/05/27 21:34:29.603 +09:00 MemoryBuffer Pin Lock / Unlock: 145.29 ns, 6,882,835 / sec
+2019/05/27 21:34:30.202 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:34:30.822 +09:00 Convert Enum to Long: 0.03 ns, 39,057,160,153 / sec
+2019/05/27 21:34:31.392 +09:00 New Packet with Data: 29.49 ns, 33,905,846 / sec
+2019/05/27 21:34:32.269 +09:00 Packet struct I/O: 59.63 ns, 16,769,508 / sec
+2019/05/27 21:34:32.772 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:34:33.274 +09:00 IsZero - All Zero Sparse: 1.89 ns, 530,245,431 / sec
+2019/05/27 21:34:33.784 +09:00 GetSparseChunks - NonSparse: 75,713.65 ns, 13,207 / sec
+2019/05/27 21:34:34.330 +09:00 GetSparseChunks - Sparse: 1,469,846.93 ns, 680 / sec
+2019/05/27 21:34:34.834 +09:00 GetSparseChunks - All Zero Sparse: 132,704.65 ns, 7,535 / sec
+2019/05/27 21:34:35.338 +09:00 Util.Rand(): 290.00 ns, 3,448,228 / sec
+2019/05/27 21:34:35.841 +09:00 Secure.Rand(): 278.79 ns, 3,586,894 / sec
+2019/05/27 21:34:36.344 +09:00 ParseEnum: 66.50 ns, 15,038,600 / sec
+2019/05/27 21:35:34.069 +09:00 ----- Start new benchmark -----
+2019/05/27 21:35:34.115 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:35:34.115 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:35:34.115 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:35:34.115 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:35:34.115 +09:00 Host: PC34
+2019/05/27 21:35:34.725 +09:00 ParsePacket #1: 419.04 ns, 2,386,414 / sec
+2019/05/27 21:35:35.253 +09:00 _IsZeroFastStruct: 4.07 ns, 245,515,798 / sec
+2019/05/27 21:35:37.228 +09:00 ----- Start new benchmark -----
+2019/05/27 21:35:37.274 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:35:37.274 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:35:37.274 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:35:37.274 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:35:37.274 +09:00 Host: PC34
+2019/05/27 21:35:37.852 +09:00 ParsePacket #1: 383.21 ns, 2,609,559 / sec
+2019/05/27 21:35:38.378 +09:00 _IsZeroFastStruct: 3.75 ns, 266,790,641 / sec
+2019/05/27 21:35:40.583 +09:00 ----- Start new benchmark -----
+2019/05/27 21:35:40.631 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:35:40.631 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:35:40.631 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:35:40.631 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:35:40.631 +09:00 Host: PC34
+2019/05/27 21:35:41.216 +09:00 ParsePacket #1: 357.79 ns, 2,794,928 / sec
+2019/05/27 21:35:41.769 +09:00 _IsZeroFastStruct: 4.45 ns, 224,521,900 / sec
+2019/05/27 21:35:57.064 +09:00 ----- Start new benchmark -----
+2019/05/27 21:35:57.129 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:35:57.129 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:35:57.129 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:35:57.129 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:35:57.129 +09:00 Host: PC34
+2019/05/27 21:35:57.719 +09:00 ParsePacket #1: 556.74 ns, 1,796,165 / sec
+2019/05/27 21:35:58.276 +09:00 _IsZeroFastStruct: 5.87 ns, 170,471,382 / sec
+2019/05/27 21:36:00.684 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:00.743 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:00.743 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:00.743 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:00.743 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:00.743 +09:00 Host: PC34
+2019/05/27 21:36:01.332 +09:00 ParsePacket #1: 481.16 ns, 2,078,328 / sec
+2019/05/27 21:36:01.843 +09:00 _IsZeroFastStruct: 4.88 ns, 205,083,542 / sec
+2019/05/27 21:36:03.354 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:03.402 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:03.402 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:03.402 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:03.402 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:03.402 +09:00 Host: PC34
+2019/05/27 21:36:03.985 +09:00 ParsePacket #1: 440.35 ns, 2,270,920 / sec
+2019/05/27 21:36:04.518 +09:00 _IsZeroFastStruct: 3.96 ns, 252,521,093 / sec
+2019/05/27 21:36:08.314 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:08.368 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:08.368 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:08.368 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:08.368 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:08.368 +09:00 Host: PC34
+2019/05/27 21:36:08.946 +09:00 ParsePacket #1: 391.49 ns, 2,554,356 / sec
+2019/05/27 21:36:09.468 +09:00 _IsZeroFastStruct: 3.94 ns, 253,897,111 / sec
+2019/05/27 21:36:11.622 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:11.668 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:11.668 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:11.668 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:11.668 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:11.668 +09:00 Host: PC34
+2019/05/27 21:36:12.247 +09:00 ParsePacket #1: 420.20 ns, 2,379,824 / sec
+2019/05/27 21:36:12.808 +09:00 _IsZeroFastStruct: 4.69 ns, 212,999,062 / sec
+2019/05/27 21:36:14.213 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:14.260 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:14.260 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:14.260 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:14.260 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:14.260 +09:00 Host: PC34
+2019/05/27 21:36:14.849 +09:00 ParsePacket #1: 481.81 ns, 2,075,521 / sec
+2019/05/27 21:36:15.379 +09:00 _IsZeroFastStruct: 3.82 ns, 261,653,726 / sec
+2019/05/27 21:36:21.824 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:21.873 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:21.873 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:21.873 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:21.873 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:21.873 +09:00 Host: PC34
+2019/05/27 21:36:22.455 +09:00 ParsePacket #1: 43.77 ns, 22,848,222 / sec
+2019/05/27 21:36:23.001 +09:00 _IsZeroFastStruct: 4.11 ns, 243,435,656 / sec
+2019/05/27 21:36:24.351 +09:00 ----- Start new benchmark -----
+2019/05/27 21:36:24.396 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:36:24.396 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:36:24.396 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:36:24.396 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:36:24.396 +09:00 Host: PC34
+2019/05/27 21:36:24.974 +09:00 ParsePacket #1: 38.71 ns, 25,830,562 / sec
+2019/05/27 21:36:25.916 +09:00 _IsZeroFastStruct: 4.06 ns, 246,143,246 / sec
+2019/05/27 21:37:33.534 +09:00 ----- Start new benchmark -----
+2019/05/27 21:37:33.588 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:37:33.588 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:37:33.588 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:37:33.588 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:37:33.588 +09:00 Host: PC34
+2019/05/27 21:37:34.163 +09:00 ParsePacket #1: 51.29 ns, 19,496,183 / sec
+2019/05/27 21:37:34.678 +09:00 _IsZeroFastStruct: 3.74 ns, 267,646,492 / sec
+2019/05/27 21:37:37.728 +09:00 ----- Start new benchmark -----
+2019/05/27 21:37:37.779 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:37:37.779 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:37:37.779 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:37:37.779 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:37:37.779 +09:00 Host: PC34
+2019/05/27 21:37:38.361 +09:00 ParsePacket #1: 40.16 ns, 24,902,072 / sec
+2019/05/27 21:37:38.919 +09:00 _IsZeroFastStruct: 3.46 ns, 289,153,519 / sec
+2019/05/27 21:37:44.350 +09:00 ----- Start new benchmark -----
+2019/05/27 21:37:44.396 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:37:44.396 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:37:44.396 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:37:44.396 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:37:44.396 +09:00 Host: PC34
+2019/05/27 21:37:44.971 +09:00 ParsePacket #1: 42.11 ns, 23,746,292 / sec
+2019/05/27 21:37:45.523 +09:00 _IsZeroFastStruct: 4.49 ns, 222,471,541 / sec
+2019/05/27 21:37:56.097 +09:00 ----- Start new benchmark -----
+2019/05/27 21:37:56.148 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:37:56.148 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:37:56.148 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:37:56.148 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:37:56.148 +09:00 Host: PC34
+2019/05/27 21:37:56.731 +09:00 ParsePacket #1: 44.23 ns, 22,608,666 / sec
+2019/05/27 21:37:57.252 +09:00 _IsZeroFastStruct: 3.88 ns, 257,923,047 / sec
+2019/05/27 21:38:18.257 +09:00 ----- Start new benchmark -----
+2019/05/27 21:38:18.307 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:38:18.307 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:38:18.307 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:38:18.307 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:38:18.307 +09:00 Host: PC34
+2019/05/27 21:38:18.894 +09:00 ParsePacket #1: 381.48 ns, 2,621,397 / sec
+2019/05/27 21:38:19.433 +09:00 _IsZeroFastStruct: 4.15 ns, 240,900,627 / sec
+2019/05/27 21:38:20.034 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/27 21:38:20.652 +09:00 Util.SizeOfStruct(T): 0.01 ns, 88,683,930,471 / sec
+2019/05/27 21:38:22.575 +09:00 ----- Start new benchmark -----
+2019/05/27 21:38:22.621 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:38:22.621 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:38:22.621 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:38:22.621 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:38:22.621 +09:00 Host: PC34
+2019/05/27 21:38:23.200 +09:00 ParsePacket #1: 348.64 ns, 2,868,280 / sec
+2019/05/27 21:38:23.730 +09:00 _IsZeroFastStruct: 3.85 ns, 259,683,474 / sec
+2019/05/27 21:39:56.275 +09:00 ----- Start new benchmark -----
+2019/05/27 21:39:56.322 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:39:56.322 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:39:56.322 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:39:56.322 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:39:56.322 +09:00 Host: PC34
+2019/05/27 21:39:56.906 +09:00 ParsePacket #1: 351.23 ns, 2,847,170 / sec
+2019/05/27 21:39:57.437 +09:00 _IsZeroFastStruct: 3.89 ns, 257,374,560 / sec
+2019/05/27 21:40:05.635 +09:00 ----- Start new benchmark -----
+2019/05/27 21:40:05.680 +09:00 Commit: 55cd5bef30739d2457dbdb2a8562448771dbe2bf
+2019/05/27 21:40:05.680 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/27 21:40:05.680 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/27 21:40:05.680 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/27 21:40:05.680 +09:00 Host: PC34
+2019/05/27 21:40:06.259 +09:00 ParsePacket #1: 368.53 ns, 2,713,456 / sec
+2019/05/27 21:40:06.789 +09:00 _IsZeroFastStruct: 3.89 ns, 256,849,721 / sec

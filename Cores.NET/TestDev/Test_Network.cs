@@ -105,9 +105,9 @@ namespace IPA.TestDev
 
             //Net_Test8_Http_Upload_Async()._GetResult();
 
-            //Net_Test9_WebServer();
+            Net_Test9_WebServer();
 
-            Net_Test10_SslServer();
+            //Net_Test10_SslServer();
 
             return 0;
         }

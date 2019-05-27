@@ -128,6 +128,7 @@ namespace IPA.Cores
             public static partial class Res
             {
                 public static readonly ResourceFileSystem Cores = ResourceFileSystem.Singleton[typeof(Res).Assembly];
+                public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
             }
 
             public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;

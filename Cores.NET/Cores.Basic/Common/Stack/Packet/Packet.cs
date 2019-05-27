@@ -583,9 +583,19 @@ namespace IPA.Cores.Basic
         public static implicit operator Packet(byte[] data) => data.AsMemory();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ref readonly T AsReadOnlyStruct<T>(int pin, int? size = null)
+        public bool IsSafeToRead(int pin, int size)
         {
-            Memory<byte> data = this.GetContiguous(pin, size ?? Unsafe.SizeOf<T>(), false);
+            if ((pin + size) > PinTail) return false;
+            if (pin < PinHead) return false;
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref readonly T AsReadOnlyStruct<T>(int pin, int? size = null) where T : struct
+        {
+            int size2 = size ?? Unsafe.SizeOf<T>();
+
+            Memory<byte> data = this.GetContiguous(pin, size2, false);
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
@@ -599,66 +609,140 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> GetHeader<T>(int pin, int? size = null) where T : unmanaged
-            => new PacketPin<T>(this, pin, size);
+        public PacketPin<T> GetHeader<T>(int pin, int? size = null, int maxPacketSize = int.MaxValue) where T : struct
+            => new PacketPin<T>(this, pin, size, maxPacketSize);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> InsertHeaderHead<T>(Memory<byte> data) where T : unmanaged
+        public PacketPin<T> InsertHeaderHead<T>(Memory<byte> data) where T : struct
         {
             InsertBefore(data);
             return new PacketPin<T>(this, this.PinHead, data.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int ?size = null) where T : unmanaged
+        public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int ?size = null) where T : struct
         {
-            int size2 = size ?? sizeof(T);
-            Memory<byte> data = new byte[size2];
-            fixed (void* ptr = &data.Span[0])
-            {
+            int size2 = size ?? Unsafe.SizeOf<T>();
+            byte[] data = new byte[size2];
+            fixed (void* ptr = data)
                 (Unsafe.AsRef<T>(ptr)) = value;
-            }
+
             return InsertHeaderHead<T>(data);
         }
     }
 
-    readonly unsafe struct PacketPin<T> where T : unmanaged
+    interface IPacketPin : IEmptyChecker
     {
-        public readonly Packet Packet;
-        public readonly int Pin;
-        public readonly int Size;
+        Packet Packet { get; }
+        int Pin { get; }
+        int HeaderSize { get; }
+        bool IsEmpty { get; }
+        bool IsFilled { get; }
+        PacketPin<TNext> GetNextHeader<TNext>(int? size = null) where TNext : struct;
+        ReadOnlyMemory<byte> MemoryRead { get; }
+        Memory<byte> Memory { get; }
+    }
+
+    readonly unsafe struct PacketPin<T> : IPacketPin where T : struct
+    {
+        public Packet Packet { get; }
+        public int Pin { get; }
+        public int HeaderSize { get; }
+
+        readonly int MaxTotalSize;
+
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (Packet == null) return true;
+                if (Packet.IsSafeToRead(this.Pin, this.HeaderSize) == false) return true;
+                return false;
+            }
+        }
+
+        public bool IsFilled
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => !IsEmpty;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin(Packet packet, int pin, int? size = null)
+        public bool IsThisEmpty() => IsEmpty;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin(Packet packet, int pin, int? headerSize = null, int maxPacketSize = int.MaxValue)
         {
             this.Packet = packet;
             this.Pin = pin;
-            this.Size = size ?? sizeof(T);
+            this.HeaderSize = headerSize ?? Unsafe.SizeOf<T>();
+            this.MaxTotalSize = Math.Max(maxPacketSize, 0);
+        }
+
+        public int TotalPacketSizeRaw
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Math.Max(Packet.PinTail - this.Pin, 0);
+        }
+
+        public int TotalPacketSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Math.Min(Math.Max(Packet.PinTail - this.Pin, 0), this.MaxTotalSize);
+        }
+
+        public int PayloadSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Math.Max(0, TotalPacketSize - this.HeaderSize);
         }
 
         public unsafe ref readonly T ValueRead
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Packet.AsReadOnlyStruct<T>(this.Pin, this.Size);
+            get => ref Packet.AsReadOnlyStruct<T>(this.Pin, this.HeaderSize);
         }
 
         public unsafe ref T Value
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Packet.AsStruct<T>(this.Pin, this.Size);
+            get => ref Packet.AsStruct<T>(this.Pin, this.HeaderSize);
+        }
+
+        public unsafe T _ValueDebug
+        {
+            get => ValueRead;
         }
 
         public ReadOnlyMemory<byte> MemoryRead
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Packet.GetContiguous(this.Pin, this.Size, false);
+            get => Packet.GetContiguous(this.Pin, this.HeaderSize, false);
         }
 
         public Memory<byte> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Packet.PutContiguous(this.Pin, this.Size, true);
+            get => Packet.PutContiguous(this.Pin, this.HeaderSize, true);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> GetNextHeader<TNext>(int? size = null) where TNext : struct
+        {
+            return Packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, this.PayloadSize);
+        }
+    }
+
+    static class PacketPinHelper
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref readonly PacketPin<GenericHeader> ToGenericHeader<TFrom>(this ref PacketPin<TFrom> src) where TFrom : struct
+            => ref Unsafe.As<PacketPin<TFrom>, PacketPin<GenericHeader>>(ref src);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref readonly PacketPin<TTo> ToOtherTypeHeader<TTo>(this ref PacketPin<GenericHeader> src) where TTo: struct
+            => ref Unsafe.As<PacketPin<GenericHeader>, PacketPin<TTo>>(ref src);
     }
 }
 

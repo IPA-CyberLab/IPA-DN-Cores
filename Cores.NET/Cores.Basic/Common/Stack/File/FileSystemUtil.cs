@@ -467,6 +467,7 @@ namespace IPA.Cores.Basic
     {
         String,
         Binary,
+        HexParsedBinary,
     }
 
     class EasyFileAccess
@@ -474,6 +475,7 @@ namespace IPA.Cores.Basic
         // Properties
         public string String => (string)this[EasyFileAccessType.String];
         public ReadOnlyMemory<byte> Binary => (ReadOnlyMemory<byte>)this[EasyFileAccessType.Binary];
+        public ReadOnlyMemory<byte> HexParsedBinary => (ReadOnlyMemory<byte>)this[EasyFileAccessType.HexParsedBinary];
 
         // Implementation
         public FileSystem FileSystem { get; }
@@ -501,6 +503,9 @@ namespace IPA.Cores.Basic
 
                 case EasyFileAccessType.Binary:
                     return (ReadOnlyMemory<byte>)FileSystem.ReadDataFromFile(this.FilePath);
+
+                case EasyFileAccessType.HexParsedBinary:
+                    return (ReadOnlyMemory<byte>)FileSystem.ReadStringFromFile(this.FilePath)._GetHexBytes();
 
                 default:
                     throw new ArgumentOutOfRangeException("type");

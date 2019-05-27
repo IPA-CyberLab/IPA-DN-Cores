@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
 
         public void WriteZero(int length)
         {
-            var zeroSpan = ZeroedSharedMemory<T>.Memory.Span;
+            var zeroSpan = ZeroedMemory<T>.Memory.Span;
             while (length >= 1)
             {
                 int currentSize = Math.Min(length, zeroSpan.Length);
@@ -614,7 +614,7 @@ namespace IPA.Cores.Basic
 
         public void WriteZero(int length)
         {
-            var zeroSpan = ZeroedSharedMemory<T>.Memory.Span;
+            var zeroSpan = ZeroedMemory<T>.Memory.Span;
             while (length >= 1)
             {
                 int currentSize = Math.Min(length, zeroSpan.Length);
@@ -1329,7 +1329,7 @@ namespace IPA.Cores.Basic
 
         public void WriteZero(int length)
         {
-            var zeroSpan = ZeroedSharedMemory<T>.Memory.Span;
+            var zeroSpan = ZeroedMemory<T>.Memory.Span;
             while (length >= 1)
             {
                 int currentSize = Math.Min(length, zeroSpan.Length);

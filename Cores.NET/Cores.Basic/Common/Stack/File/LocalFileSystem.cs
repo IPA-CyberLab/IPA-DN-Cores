@@ -69,6 +69,8 @@ namespace IPA.Cores.Basic
 
         public static Utf8BomViewFileSystem LocalUtf8 { get; private set; }
 
+        public static ChrootViewFileSystem AppRoot { get; private set; }
+
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -77,10 +79,17 @@ namespace IPA.Cores.Basic
             Local = new LocalFileSystem();
 
             LocalUtf8 = new Utf8BomViewFileSystem(new Utf8BomViewFileSystemParam(Local));
+
+            var opt = new ChrootViewFileSystemParam(Local, Local.PathParser.Combine(Env.AppRootDir, "TestData"), FileSystemMode.ReadOnly);
+            opt.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
+            AppRoot = new ChrootViewFileSystem(opt);
         }
 
         static void ModuleFree()
         {
+            AppRoot._DisposeSafe();
+            AppRoot = null;
+
             LocalUtf8._DisposeSafe();
             LocalUtf8 = null;
 
@@ -1146,7 +1155,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedSharedMemory<byte>.Memory;
+        static readonly ReadOnlyMemory<byte> FillZeroBlockSize = ZeroedMemory<byte>.Memory;
         async Task FileZeroClearDataAsync(long position, long size, CancellationToken cancel = default)
         {
             checked

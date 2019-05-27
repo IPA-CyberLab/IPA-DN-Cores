@@ -1047,20 +1047,26 @@ namespace IPA.Cores.Basic
         }
 
         // byte[] 配列がオールゼロかどうか検査する
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsZero(byte[] data)
         {
             if (data == null) return true;
             return IsZero(data, 0, data.Length);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsZero(byte[] data, int offset, int size)
         {
             if (data == null) return true;
             return IsZero(new ReadOnlySpan<byte>(data, offset, size));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsZero(ReadOnlySpan<byte> data)
         {
             int i;
+            if (data.Length <= 0) return true;
+            if (data[0] != 0) return false;
             for (i = 0; i < data.Length; i++)
             {
                 if (data[i] != 0)
@@ -1070,52 +1076,121 @@ namespace IPA.Cores.Basic
             }
             return true;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsZero(ReadOnlyMemory<byte> data) => IsZero(data.Span);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe bool IsZero(byte* ptr, int size)
+        {
+            int i;
+            if (size <= 0) return true;
+            if (ptr[0] != 0) return false;
+            for (i = 0; i < size; i++)
+            {
+                if (ptr[i] != 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe bool IsZeroStruct<T>(T value, int? size = 0)
+        {
+            int size2 = size ?? Unsafe.SizeOf<T>();
+            byte* ptr = (byte *)Unsafe.AsPointer<T>(ref value);
+            return IsZero(ptr, size2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static unsafe bool IsZeroFast(byte *ptr, int size)
+        {
+            int skipSize = 0;
+
+            if (size <= 0) return true;
+            if (size >= 8)
+            {
+                if (*((ulong*)&ptr[0]) != 0) return false;
+                skipSize = 8;
+            }
+            else if (size >= 4)
+            {
+                if (*((uint*)&ptr[0]) != 0) return false;
+                skipSize = 4;
+            }
+            else
+            {
+                if (ptr[0] != 0) return false;
+                skipSize = 1;
+            }
+
+            byte* srcPointer = ptr;
+            long startLong = (long)srcPointer;
+            long srcLen = size;
+            long endLong = startLong + srcLen;
+
+            startLong = ((startLong + 7) / 8) * 8;
+            endLong = (endLong / 8) * 8;
+
+            for (byte* p = srcPointer + skipSize; p < (byte*)startLong; p++)
+                if (*p != 0) return false;
+
+            byte* endP = srcPointer + srcLen;
+
+            for (byte* p = (byte*)endLong; p < endP; p++)
+                if (*p != 0) return false;
+
+            for (long i = startLong; i < endLong; i += 8)
+            {
+                if (*((long*)i) != 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static unsafe bool IsZeroFast(ReadOnlySpan<byte> srcMemory)
         {
             fixed (byte* srcPointer = srcMemory)
             {
-                long startLong = (long)srcPointer;
-                long srcLen = srcMemory.Length;
-                long endLong = startLong + srcLen;
-
-                startLong = ((startLong + 7) / 8) * 8;
-                endLong = (endLong / 8) * 8;
-
-                for (byte* p = srcPointer; p < (byte*)startLong; p++)
-                    if (*p != 0) return false;
-
-                byte* endP = srcPointer + srcLen;
-
-                for (byte* p = (byte*)endLong; p < endP; p++)
-                    if (*p != 0) return false;
-
-                for (long i = startLong; i < endLong; i += 8)
-                {
-                    if (*((long*)i) != 0)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                return IsZeroFast(srcPointer, srcMemory.Length);
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(ReadOnlyMemory<byte> data) => IsZeroFast(data.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(byte[] data)
         {
             if (data == null) return true;
             return IsZeroFast(data, 0, data.Length);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(byte[] data, int offset, int size)
         {
             if (data == null) return true;
             return IsZeroFast(new ReadOnlySpan<byte>(data, offset, size));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Recommended to byte array more than 16 bytes.</summary>
+        public static unsafe bool IsZeroFastStruct<T>(T value, int? size = 0)
+        {
+            int size2 = size ?? Unsafe.SizeOf<T>();
+            byte* ptr = (byte*)Unsafe.AsPointer(ref value);
+            return IsZeroFast(ptr, size2);
         }
 
         // byte[] 配列同士を比較する
@@ -2728,7 +2803,7 @@ namespace IPA.Cores.Basic
             if (this.IsSparse == false)
                 return this.Memory;
             else
-                return ZeroedSharedMemory<byte>.GetZeroFilledMemory(this.Size);
+                return ZeroedMemory<byte>.GetZeroFilledMemory(this.Size);
         }
     }
 
@@ -2760,7 +2835,7 @@ namespace IPA.Cores.Basic
             if (this.IsSparse == false)
                 return this.Memory;
             else
-                return ZeroedSharedMemory<T>.GetZeroFilledMemory(this.Size);
+                return ZeroedMemory<T>.GetZeroFilledMemory(this.Size);
         }
     }
 
@@ -4458,7 +4533,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class ZeroedSharedMemory<T>
+    static class ZeroedReadOnlyStruct<T> where T : struct
+    {
+        static readonly T ZeroedValue;
+
+        public static unsafe ref readonly T Value
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return ref ZeroedValue;
+            }
+        }
+
+    }
+
+    static class ZeroedMemory<T>
     {
         const int Size = 65536;
         public static readonly ReadOnlyMemory<T> Memory = new T[Size];

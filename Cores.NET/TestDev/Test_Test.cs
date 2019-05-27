@@ -48,6 +48,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.InteropServices;
 
 
 
@@ -103,9 +104,15 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static void Test()
+        public static unsafe void Test()
         {
-            Con.WriteLine(Env.MyLocalTempDir);
+            Con.WriteLine(Unsafe.SizeOf<L2>());
+
+            var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+
+            Packet packet = new Packet(packetMem._CloneMemory());
+
+            packet.ParsePacket();
         }
     }
 }

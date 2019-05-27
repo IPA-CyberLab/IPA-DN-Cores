@@ -46,6 +46,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -188,6 +189,55 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"ParsePacket #1", Benchmark_CountForNormal, count =>
+            {
+                var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+
+                Packet packet = new Packet(packetMem._CloneMemory());
+
+                //h.SrcPort = 3;
+                for (int c = 0; c < count; c++)
+                {
+                    packet.ParsePacket();
+                }
+
+            }), enabled: true, priority: 190528)
+
+            .Add(new MicroBenchmark($"_IsZeroFastStruct", Benchmark_CountForFast, count =>
+            {
+                TCPHeader h = new TCPHeader();
+                //h.SrcPort = 3;
+                for (int c = 0; c < count; c++)
+                {
+                    h._IsZeroStruct();
+                }
+
+            }), enabled: true, priority: 190528)
+
+
+            .Add(new MicroBenchmark($"sizeof(T)", Benchmark_CountForVeryFast, count =>
+            {
+                unsafe
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.SInt32 += sizeof(IPv4Header);
+                    }
+                }
+
+            }), enabled: true, priority: 190528)
+            .Add(new MicroBenchmark($"Util.SizeOfStruct(T)", Benchmark_CountForVeryFast, count =>
+            {
+                unsafe
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.SInt32 += Util.SizeOfStruct<IPv4Header>();
+                    }
+                }
+
+            }), enabled: true, priority: 190528)
+
             .Add(new MicroBenchmark($"File Write Small - Cores Object - Async", Benchmark_CountForNormal, count =>
             {
                 TaskUtil.StartAsyncTaskAsync(async () =>
@@ -303,7 +353,7 @@ namespace IPA.TestDev
                 {
                     Packet newPacket = new Packet();
                 }
-            }), enabled: true, priority: 190519)
+            }), enabled: true, priority: 190528)
 
             .Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
             {
