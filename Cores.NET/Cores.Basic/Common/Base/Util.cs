@@ -354,6 +354,7 @@ namespace IPA.Cores.Basic
         T _InitialValue;
         CriticalSection LockObj;
         volatile bool Determined;
+        public bool IsDetermined => Determined;
         bool IsValueType;
 
         public Copenhagen(T initialValue)

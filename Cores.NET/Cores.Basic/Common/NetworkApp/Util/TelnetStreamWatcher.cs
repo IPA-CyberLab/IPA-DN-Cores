@@ -143,20 +143,26 @@ namespace IPA.Cores.Basic
     class TelnetLocalLogWatcher : TelnetStreamWatcherBase
     {
         public readonly static StaticModule Module = new StaticModule(InitModule, FreeModule);
-        static HiveData<TelnetLocalLogWatcherConfig> Config;
+        static Singleton<HiveData<TelnetLocalLogWatcherConfig>> _ConfigSingleton;
+        static HiveData<TelnetLocalLogWatcherConfig> Config => _ConfigSingleton;
 
         static void InitModule()
         {
-            Config = new HiveData<TelnetLocalLogWatcherConfig>(Hive.SharedLocalConfigHive, "DebugSettings/LocalLogWatcher",
+            _ConfigSingleton = new Singleton<HiveData<TelnetLocalLogWatcherConfig>>(() =>
+            {
+                return new HiveData<TelnetLocalLogWatcherConfig>(Hive.SharedLocalConfigHive, "DebugSettings/LocalLogWatcher",
                 () =>
                 {
                     return new TelnetLocalLogWatcherConfig() { Filters = LocalLogRouter.BufferedLogRoute.KindHash.ToArray()._Combine(",") };
                 },
                  HiveSyncPolicy.None);
+            });
         }
 
         static void FreeModule()
         {
+            _ConfigSingleton._DisposeSafe();
+            _ConfigSingleton = null;
         }
 
         public TelnetLocalLogWatcher(TelnetStreamWatcherOptions options) : base(options)

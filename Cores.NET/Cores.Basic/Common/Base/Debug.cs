@@ -66,8 +66,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<LogPriority> LogMinimalDebugLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalInfoLevel = LogPriority.Info;
             public static readonly Copenhagen<LogPriority> LogMinimalErrorLevel = LogPriority.Error;
-
             public static readonly Copenhagen<LogPriority> LogMinimalStatLevel = LogPriority.Debug;
+
             public static readonly Copenhagen<LogPriority> LogMinimalDataLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalAccessLevel = LogPriority.Debug;
             public static readonly Copenhagen<LogPriority> LogMinimalSocketLevel = LogPriority.Debug;
@@ -89,6 +89,7 @@ namespace IPA.Cores.Basic
                         LogMinimalDebugLevel.Set(LogPriority.Trace);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
+                        LogMinimalStatLevel.Set(LogPriority.Trace);
 
                         ConsoleMinimalLevel.Set(LogPriority.Trace);
                         break;
@@ -97,6 +98,7 @@ namespace IPA.Cores.Basic
                         LogMinimalDebugLevel.Set(LogPriority.Debug);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
+                        LogMinimalStatLevel.Set(LogPriority.Debug);
 
                         ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
@@ -105,6 +107,7 @@ namespace IPA.Cores.Basic
                         LogMinimalDebugLevel.Set(LogPriority.Debug);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
+                        LogMinimalStatLevel.Set(LogPriority.Debug);
 
                         ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
@@ -113,6 +116,7 @@ namespace IPA.Cores.Basic
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
+                        LogMinimalStatLevel.Set(LogPriority.Debug);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
@@ -121,6 +125,7 @@ namespace IPA.Cores.Basic
                         LogMinimalDebugLevel.Set(LogPriority.None);
                         LogMinimalInfoLevel.Set(LogPriority.None);
                         LogMinimalErrorLevel.Set(LogPriority.None);
+                        LogMinimalStatLevel.Set(LogPriority.None);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;

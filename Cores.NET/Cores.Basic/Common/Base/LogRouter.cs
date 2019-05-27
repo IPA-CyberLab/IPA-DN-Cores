@@ -320,7 +320,7 @@ namespace IPA.Cores.Basic
 
     static class LocalLogRouter
     {
-        public static int UniqueLogProcessId { get; private set; } = 0;
+        public static int UniqueLogProcessId { get; private set; } = -1;
 
         public static LogRouter Router { get; private set; }
 
@@ -328,24 +328,24 @@ namespace IPA.Cores.Basic
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
-        static LocalLogRouter()
+        static int DetermineUniqueLogProcessId()
         {
-            // Unique log process id
-            UniqueLogProcessId = 0;
+            int ret = 0;
 
             bool ok = false;
 
             for (int uid = 0; uid < CoresConfig.BasicConfig.MaxPossibleConcurrentProcessCounts; uid++)
             {
-                string uniqueName = $"UlogName_{Env.AppRootDir}_{uid}";
+                string libName = CoresLib.Mode == CoresMode.Application ? "" : CoresLib.AppName;
+                string uniqueName = $"UlogName_{Env.AppRootDir}_{CoresLib.Mode}_{libName}_{uid}";
 
-                SingleInstance instance = SingleInstance.TryGet(uniqueName, true, false, true);
+                SingleInstance instance = SingleInstance.TryGet(uniqueName, true);
                 if (instance != null)
                 {
                     // Suppress GC
                     Util.AddToBlackhole(instance);
 
-                    UniqueLogProcessId = uid;
+                    ret = uid;
 
                     ok = true;
                     break;
@@ -356,10 +356,31 @@ namespace IPA.Cores.Basic
             {
                 throw new ApplicationException("Failed to initialize the Unique log process id.");
             }
+
+            return ret;
         }
 
         static void ModuleInit()
         {
+            // Determine the Unique Log Process Id
+            if (UniqueLogProcessId == -1)
+            {
+                UniqueLogProcessId = DetermineUniqueLogProcessId();
+            }
+
+            // Determine the destination directory
+            if (CoresConfig.LocalLogRouterSettings.LogRootDir.IsDetermined == false)
+            {
+                string logDestDir = Path.Combine(Env.AppRootDir, "Log");
+
+                if (CoresLib.Mode == CoresMode.Library)
+                {
+                    logDestDir = Path.Combine(Env.AppRootDir, "Log", "_Lib", CoresLib.AppNameFnSafe);
+                }
+
+                CoresConfig.LocalLogRouterSettings.LogRootDir.Set(logDestDir);
+            }
+
             Router = new LogRouter();
 
             // Console log

@@ -244,18 +244,15 @@ namespace IPA.Cores.Basic
     class SingleInstance : IDisposable
     {
         readonly string NameOfMutant;
-        Mutant Mutant;
-        MutantBase MutantFastSingleThread;
+        MutantBase Mutant;
 
         static readonly CriticalSection LockObj = new CriticalSection();
 
         static readonly HashSet<string> ProcessWideSingleInstanceHashSet = new HashSet<string>();
 
-        public bool FastSingleThreadMode { get; }
-
-        public static bool IsExistsAndLocked(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
+        public static bool IsExistsAndLocked(string name, bool ignoreCase = true)
         {
-            SingleInstance si = TryGet(name, ignoreCase, selfThread, fastSingleThreadMode);
+            SingleInstance si = TryGet(name, ignoreCase);
 
             if (si == null) return true;
 
@@ -264,11 +261,11 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public static SingleInstance TryGet(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
+        public static SingleInstance TryGet(string name, bool ignoreCase = true)
         {
             try
             {
-                return new SingleInstance(name, ignoreCase, selfThread, fastSingleThreadMode);
+                return new SingleInstance(name, ignoreCase);
             }
             catch
             {
@@ -276,10 +273,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public SingleInstance(string name, bool ignoreCase = true, bool selfThread = false, bool fastSingleThreadMode = false)
+        public SingleInstance(string name, bool ignoreCase = true)
         {
-            this.FastSingleThreadMode = fastSingleThreadMode;
-
             NameOfMutant = $"SingleInstance_" + name._NonNullTrim();
 
             if (ignoreCase)
@@ -290,33 +285,17 @@ namespace IPA.Cores.Basic
                 if (ProcessWideSingleInstanceHashSet.Contains(NameOfMutant))
                     throw new ApplicationException($"The single instance is already existing with this process.");
 
-                if (FastSingleThreadMode == false)
+                MutantBase mb = MutantBase.Create(NameOfMutant, true);
+                try
                 {
-                    this.Mutant = new Mutant(NameOfMutant, true, selfThread);
-                    try
-                    {
-                        this.Mutant.Lock();
-                    }
-                    catch
-                    {
-                        this.Mutant._DisposeSafe();
-                        throw;
-                    }
-                }
-                else
-                {
-                    MutantBase mb = MutantBase.Create(NameOfMutant);
-                    try
-                    {
-                        mb.Lock(true);
+                    mb.Lock(true);
 
-                        MutantFastSingleThread = mb;
-                    }
-                    catch
-                    {
-                        mb._DisposeSafe();
-                        throw;
-                    }
+                    Mutant = mb;
+                }
+                catch
+                {
+                    mb._DisposeSafe();
+                    throw;
                 }
 
                 ProcessWideSingleInstanceHashSet.Add(NameOfMutant);
@@ -336,13 +315,6 @@ namespace IPA.Cores.Basic
                     this.Mutant.Unlock();
                     this.Mutant._DisposeSafe();
                     this.Mutant = null;
-                }
-
-                if (this.MutantFastSingleThread != null)
-                {
-                    this.MutantFastSingleThread.Unlock();
-                    this.MutantFastSingleThread._DisposeSafe();
-                    this.MutantFastSingleThread = null;
                 }
             }
             finally
@@ -679,7 +651,7 @@ namespace IPA.Cores.Basic
         public abstract void Lock(bool nonBlock = false);
         public abstract void Unlock();
 
-        public static MutantBase Create(string name)
+        public static MutantBase Create(string name, bool forSingleInstance = false)
         {
             if (IsWindows)
             {

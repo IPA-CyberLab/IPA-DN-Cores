@@ -50,7 +50,7 @@ namespace IPA.TestDev
 {
     class DaemonTest : Daemon
     {
-        public DaemonTest() : base(new DaemonOptions("Test", "Test Service", true, telnetLogWatcherPort: 23))
+        public DaemonTest() : base(new DaemonOptions("Test", "Test Service", true, telnetLogWatcherPort: 2323))
         {
         }
 

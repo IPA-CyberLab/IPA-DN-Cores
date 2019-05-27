@@ -402,25 +402,24 @@ namespace IPA.Cores.Basic
         public static string AppRootLocalTempDirRoot_Internal { get; private set; }
         public static string MyGlobalTempDir { get; private set; }
 
-        public static string AppNameFnSafe { get; private set; }
-
         static void InitModule()
         {
-            AppNameFnSafe = PathParser.Local.MakeSafeFileName(CoresLib.AppName);
-
             string dirPrefix = "App";
 
             if (CoresLib.Mode == CoresMode.Library) dirPrefix = "Lib";
 
-            AppLocalDir = Path.Combine(Env.AppRootDir, "Local", $"{dirPrefix}_{AppNameFnSafe}");
+            AppLocalDir = Path.Combine(Env.AppRootDir, "Local", $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
 
             AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
 
             _MyLocalTempDir = null;
 
             // Global app temp dir
-            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, $"Cores.NET_{dirPrefix}_{AppNameFnSafe}");
-            MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+            if (MyGlobalTempDir == null)
+            {
+                SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
+                MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+            }
         }
 
         static void FreeModule()
@@ -438,7 +437,7 @@ namespace IPA.Cores.Basic
                     if (_MyLocalTempDir == null)
                     {
                         // Local app temp dir
-                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, AppNameFnSafe);
+                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, CoresLib.AppNameFnSafe);
                         _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
 
                         Env.PutGitIgnoreFileOnAppLocalDirectory();

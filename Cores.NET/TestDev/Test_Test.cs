@@ -105,9 +105,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            MutantWin32ForSingleInstanceImpl a = new MutantWin32ForSingleInstanceImpl("x");
-
-            a.Lock(true);
+            Con.WriteLine(Env.MyLocalTempDir);
         }
     }
 }

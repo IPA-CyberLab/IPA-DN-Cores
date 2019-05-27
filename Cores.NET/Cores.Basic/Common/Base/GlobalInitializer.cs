@@ -108,6 +108,7 @@ namespace IPA.Cores.Basic
         public static CoresLibOptions Options { get; private set; }
 
         public static string AppName { get; private set; }
+        public static string AppNameFnSafe { get; private set; }
         public static CoresMode Mode { get; private set; }
 
         public static string[] Init(CoresLibOptions options, params string[] args)
@@ -122,6 +123,7 @@ namespace IPA.Cores.Basic
                 options = (CoresLibOptions)options.Clone();
 
                 CoresLib.AppName = options.AppName;
+                CoresLib.AppNameFnSafe = PathParser.Windows.MakeSafeFileName(CoresLib.AppName);
                 CoresLib.Mode = options.Mode;
 
                 string[] newArgs = options.OverrideOptionsByArgs(args);
@@ -131,7 +133,7 @@ namespace IPA.Cores.Basic
                     Dbg.SetDebugMode(options.DebugMode, options.PrintStatToConsole, options.RecordLeakFullStack);
                 }
 
-                InitModule(options);
+                InitModules(options);
 
                 Inited = true;
 
@@ -149,7 +151,7 @@ namespace IPA.Cores.Basic
             {
                 if (Inited == false) throw new ApplicationException("CoresLib is not inited yet.");
 
-                var ret = FreeModule();
+                var ret = FreeModules();
 
                 Inited = false;
 
@@ -160,7 +162,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static void InitModule(CoresLibOptions options)
+        static void InitModules(CoresLibOptions options)
         {
             // Initialize
             LeakChecker.Module.Init();
@@ -195,7 +197,7 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PutGitIgnoreFileOnLogDirectory();
         }
 
-        static CoresLibraryResult FreeModule()
+        static CoresLibraryResult FreeModules()
         {
             // Finalize
             TelnetLocalLogWatcher.Module.Free();

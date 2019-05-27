@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
                     continue;
                 }
 
-                SingleInstance si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true, fastSingleThreadMode: true);
+                SingleInstance si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true);
                 if (si != null)
                 {
                     // Add the SingleInstance object to the blackhole so that it will not be the target of GC.
@@ -198,7 +198,7 @@ namespace IPA.Cores.Basic
                         {
                             if (dirName.Length == this.DirLength)
                             {
-                                if (SingleInstance.IsExistsAndLocked(GenerateSingleInstanceName(dirFullPath), true, fastSingleThreadMode: true) == false)
+                                if (SingleInstance.IsExistsAndLocked(GenerateSingleInstanceName(dirFullPath), true) == false)
                                 {
                                     try
                                     {
