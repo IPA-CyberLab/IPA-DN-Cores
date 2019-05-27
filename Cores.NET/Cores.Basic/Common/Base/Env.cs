@@ -97,11 +97,10 @@ namespace IPA.Cores.Basic
         static public string ExeFileName { get; }
         static public string ExeFileDir { get; }
         static public string AppRootDir { get; }
-        static public string AppLocalDir { get; }
+        static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
         static public string Win32_WindowsDir { get; }
         static public string Win32_SystemDir { get; }
         static public string TempDir { get; }
-        static string AppRootLocalTempDirRoot_Internal { get; }
         static public string Win32_WinTempDir { get; }
         static public string Win32_WindowsDrive { get; }
         static public string Win32_ProgramFilesDir { get; }
@@ -126,7 +125,7 @@ namespace IPA.Cores.Basic
         public static bool IsBigEndian => !IsLittleEndian;
         public static bool IsAdmin { get; }
         public static long ProcessId { get; }
-        public static string MyGlobalTempDir { get; }
+        public static string MyGlobalTempDir => CoresLocalDirs.MyGlobalTempDir;
         public static string PathSeparator { get; }
         public static char PathSeparatorChar { get; }
         public static string StartupCurrentDir { get; }
@@ -136,7 +135,7 @@ namespace IPA.Cores.Basic
         public static string ExeAssemblyFullName { get; }
         public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
         public static StrComparer FilePathStringComparer { get; }
-        public static PathParser LocalPathParser { get; }
+        public static PathParser LocalPathParser => PathParser.Local;
         public static bool IsCoresLibraryDebugBuild { get; }
         public static bool IsHostedByDotNetProcess { get; }
         public static string DotNetHostProcessExeName { get; }
@@ -222,8 +221,6 @@ namespace IPA.Cores.Basic
                 AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
             }
 
-            AppLocalDir = Path.Combine(AppRootDir, "Local");
-
             HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
             if (Str.IsEmptyStr(HomeDir))
             {
@@ -252,7 +249,6 @@ namespace IPA.Cores.Basic
                 Win32_SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
                 Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir));
                 TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
-                AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
                 Win32_WinTempDir = IO.RemoveLastEnMark(Path.Combine(Win32_WindowsDir, "Temp"));
                 IO.MakeDir(Win32_WinTempDir);
                 if (Win32_WindowsDir.Length >= 2 && Win32_WindowsDir[1] == ':')
@@ -278,11 +274,9 @@ namespace IPA.Cores.Basic
                 {
                     TempDir = "/tmp";
                 }
-                AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
                 Win32_WinTempDir = TempDir;
             }
             FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
-            LocalPathParser = PathParser.GetInstance(FileSystemStyle.LocalSystem);
             Win32_ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             Win32_PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             Win32_PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
@@ -321,11 +315,6 @@ namespace IPA.Cores.Basic
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
             IsAdmin = checkIsAdmin();
 
-            if (IsWindows)
-            {
-                UnixMutantDir = Env.MyGlobalTempDir;
-            }
-
             Env.IsHostedByDotNetProcess = ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
 
             if (Env.IsHostedByDotNetProcess)
@@ -337,36 +326,9 @@ namespace IPA.Cores.Basic
             {
                 MutantUnixImpl.DeleteUnusedMutantFiles();
             }
-
-            // Global app temp dir
-            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, "Cores.NET");
-            Env.MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
         }
 
-        static string _MyLocalTempDir = null;
-        static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
-
-        public static string MyLocalTempDir
-        {
-            get
-            {
-                if (_MyLocalTempDir != null) return _MyLocalTempDir;
-
-                lock (MyLocalTempDirInitLock)
-                {
-                    if (_MyLocalTempDir == null)
-                    {
-                        // Local app temp dir
-                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, "Cores.NET");
-                        _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
-
-                        Env.PutGitIgnoreFileOnAppLocalDirectory();
-                    }
-
-                    return _MyLocalTempDir;
-                }
-            }
-        }
+        public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
 
         static bool checkIsAdmin()
         {
@@ -425,6 +387,66 @@ namespace IPA.Cores.Basic
         public static void PutGitIgnoreFileOnAppLocalDirectory()
         {
             Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
+        }
+    }
+
+
+    static class CoresLocalDirs
+    {
+        static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
+        public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
+
+        static string _MyLocalTempDir;
+
+        public static string AppLocalDir { get; private set; }
+        public static string AppRootLocalTempDirRoot_Internal { get; private set; }
+        public static string MyGlobalTempDir { get; private set; }
+
+        public static string AppNameFnSafe { get; private set; }
+
+        static void InitModule()
+        {
+            AppNameFnSafe = PathParser.Local.MakeSafeFileName(CoresLib.AppName);
+
+            string dirPrefix = "App";
+
+            if (CoresLib.Mode == CoresMode.Library) dirPrefix = "Lib";
+
+            AppLocalDir = Path.Combine(Env.AppRootDir, "Local", $"{dirPrefix}_{AppNameFnSafe}");
+
+            AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
+
+            _MyLocalTempDir = null;
+
+            // Global app temp dir
+            SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Env.TempDir, $"Cores.NET_{dirPrefix}_{AppNameFnSafe}");
+            MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+        }
+
+        static void FreeModule()
+        {
+        }
+
+        public static string MyLocalTempDir
+        {
+            get
+            {
+                if (_MyLocalTempDir != null) return _MyLocalTempDir;
+
+                lock (MyLocalTempDirInitLock)
+                {
+                    if (_MyLocalTempDir == null)
+                    {
+                        // Local app temp dir
+                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, AppNameFnSafe);
+                        _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
+
+                        Env.PutGitIgnoreFileOnAppLocalDirectory();
+                    }
+
+                    return _MyLocalTempDir;
+                }
+            }
         }
     }
 }

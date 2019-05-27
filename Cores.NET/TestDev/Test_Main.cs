@@ -67,9 +67,9 @@ namespace IPA.TestDev
 
             //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
 
-            Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
+            //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
 
-            CoresLibrary.Main.Init();
+            CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
 
             try
             {
@@ -77,7 +77,7 @@ namespace IPA.TestDev
             }
             finally
             {
-                CoresLibrary.Main.Free();
+                CoresLib.Free();
             }
 
             return ret;
@@ -105,7 +105,7 @@ namespace IPA.TestDev
                 new ConsoleParam("CSV", null, null, null, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args, noErrorOnUnknownArg: true);
 
             string cmdline = vl["CMD"].StrValue;
 

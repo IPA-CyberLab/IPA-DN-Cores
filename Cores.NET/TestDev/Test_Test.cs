@@ -105,31 +105,9 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            //Hive.LocalRegistry.AccessData(true, data =>
-            //{
-            //    TestHiveData1 d1 = new TestHiveData1() { Str = "A", Date = "B" };
-            //    d1.StrList.Add("neko");
-            //    d1.StrList.Add("inu");
-            //    data.Set("", "value");
+            MutantWin32ForSingleInstanceImpl a = new MutantWin32ForSingleInstanceImpl("x");
 
-            //    data.Set("d2", d1);
-            //    data.SetStr("S1", "aa");
-
-            //    //TestHiveData1 d1 = data.Get<TestHiveData1>("d1");
-
-            //    //d1._PrintAsJson();
-            //});
-
-            Hive.UserSettings["app1"].AccessData(true, data =>
-            {
-                data.Set("a", "hello");
-
-                data.Set("obj", new TestHiveData1());
-
-                data.SetSInt32("i", data.GetSInt32("i") + 1);
-
-                data._PrintAsJson();
-            });
+            a.Lock(true);
         }
     }
 }

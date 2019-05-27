@@ -65,12 +65,12 @@ namespace IPA.Cores.Helper.Basic
     {
         public static class AspNet
         {
-            public static void DoMain<TStartup>(HttpServerOptions httpServerOptions = null) where TStartup : class
+            public static void DoMain<TStartup>(CoresLibOptions coresOptions, HttpServerOptions httpServerOptions = null, params string[] args) where TStartup : class
             {
                 if (httpServerOptions == null)
                     httpServerOptions = new HttpServerOptions();
 
-                CoresLibrary.Main.Init();
+                CoresLib.Init(coresOptions, args);
 
                 try
                 {
@@ -81,7 +81,7 @@ namespace IPA.Cores.Helper.Basic
                 }
                 finally
                 {
-                    if (CoresLibrary.Main.Free().LeakCheckerResult.HasLeak && Dbg.IsConsoleDebugMode)
+                    if (CoresLib.Free()?.LeakCheckerResult.HasLeak ?? false && Dbg.IsConsoleDebugMode)
                     {
                         Console.ReadKey();
                     }

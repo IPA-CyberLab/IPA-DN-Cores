@@ -54,6 +54,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 
 namespace IPA.Cores.Basic
 {
@@ -5018,6 +5019,13 @@ namespace IPA.Cores.Basic
             this.InternalList.Clear();
             this.CurrentTotalSize = 0;
         }
+    }
+
+    class ConcurrentHashSet<T> : ConcurrentDictionary<T, int>
+    {
+        public bool Add(T item) => TryAdd(item, 0);
+        public bool Remove(T item) => TryRemove(item, out _);
+        public bool Contains(T item) => ContainsKey(item);
     }
 }
 

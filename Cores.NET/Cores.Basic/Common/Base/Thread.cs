@@ -545,6 +545,57 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class MutantWin32ForSingleInstanceImpl : MutantBase
+    {
+        readonly string InternalName;
+
+        int LockedCount = 0;
+
+        Mutex CurrentMutexObj = null;
+
+        readonly static ConcurrentHashSet<object> MutexList = new ConcurrentHashSet<object>();
+
+        public MutantWin32ForSingleInstanceImpl(string name)
+        {
+            InternalName = @"Global\si_" + MutantBase.GenerateInternalName(name);
+        }
+
+        public override void Lock(bool nonBlock = false)
+        {
+            if (nonBlock == false) throw new ArgumentException("nonBlock must be true.");
+
+            if (LockedCount == 0)
+            {
+                Mutex mutex = new Mutex(false, InternalName, out bool createdNew);
+
+                if (createdNew == false)
+                {
+                    mutex._DisposeSafe();
+                    throw new ApplicationException($"Cannot create the new mutex object.");
+                }
+
+                MutexList.Add(mutex);
+
+                CurrentMutexObj = mutex;
+            }
+
+            LockedCount++;
+        }
+
+        public override void Unlock()
+        {
+            if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
+            if (LockedCount == 1)
+            {
+                MutexList.Remove(CurrentMutexObj);
+
+                CurrentMutexObj._DisposeSafe();
+                CurrentMutexObj = null;
+            }
+            LockedCount--;
+        }
+    }
+
     class MutantWin32Impl : MutantBase
     {
         Mutex MutexObj;

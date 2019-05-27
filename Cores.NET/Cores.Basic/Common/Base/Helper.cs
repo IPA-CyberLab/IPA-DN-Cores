@@ -208,6 +208,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _NonNull(this string s) { if (s == null) return ""; else return s; }
         public static string _NonNullTrim(this string s) { if (s == null) return ""; else return s.Trim(); }
         public static string _TrimNonNull(this string s) => s._NonNullTrim();
+        public static bool _TryTrimStartWith(this string srcStr, out string outStr, StringComparison comparison, params string[] keys) => Str.TryTrimStartWith(srcStr, out outStr, comparison, keys);
         public static string _NoSpace(this string s, string replaceWith = "_") => s._NonNull()._ReplaceStr(" ", replaceWith, false);
         public static string _NormalizeSoftEther(this string s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
         public static string[] _DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
@@ -733,14 +734,14 @@ namespace IPA.Cores.Helper.Basic
             return ((value1 & value2) == 0) ? false : true;
         }
 
-        public static T Parse<T>(this T defaultValue, string str) where T : Enum
+        public static T ParseAsDefault<T>(this T defaultValue, string str, bool exactOnly = false, bool noMatchError = false) where T : Enum
         {
-            return Str.ParseEnum<T>(str, defaultValue);
+            return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
         
-        public static T _ParseEnum<T>(this string str, T defaultValue) where T : Enum
+        public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : Enum
         {
-            return Str.ParseEnum<T>(str, defaultValue);
+            return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

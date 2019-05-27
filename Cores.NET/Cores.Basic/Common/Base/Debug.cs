@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<StatisticsReporterLogTypes> CoresStatLogType = StatisticsReporterLogTypes.Snapshot;
             public static readonly Copenhagen<bool> CoresStatPrintToConsole = false;
 
-            public static void SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
+            public static void SetDebugModeInternal(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
             {
                 switch (mode)
                 {
@@ -205,11 +205,17 @@ namespace IPA.Cores.Basic
             Dbg.IsJsonSupported = isJsonSupported;
         }
 
-        public static void SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
+        public static bool SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
         {
-            CoresConfig.DebugSettings.SetDebugMode(mode, printStatToConsole, leakFullStack);
-
-            GlobalInitializer.Ensure();
+            try
+            {
+                CoresConfig.DebugSettings.SetDebugModeInternal(mode, printStatToConsole, leakFullStack);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public static bool IsDebugMode => CoresConfig.DebugSettings.IsDebugMode();

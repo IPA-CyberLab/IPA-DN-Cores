@@ -3703,17 +3703,17 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false) where T: Enum
+        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T: Enum
         {
-            return (T)StrToEnum(str, defaultValue, exactOnly);
+            return (T)StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
-        public static object ParseEnum(object value, object defaultValue, bool exactOnly = false)
+        public static object ParseEnum(object value, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
-            return ParseEnum(value.ToString(), defaultValue, exactOnly);
+            return ParseEnum(value.ToString(), defaultValue, exactOnly, noMatchError);
         }
-        public static object ParseEnum(string str, object defaultValue, bool exactOnly = false)
+        public static object ParseEnum(string str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
-            return StrToEnum(str, defaultValue, exactOnly);
+            return StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
 
         static Singleton<Type, Dictionary<string, object>> EnumCacheCaseSensitive = new Singleton<Type, Dictionary<string, object>>(t =>
@@ -3738,7 +3738,7 @@ namespace IPA.Cores.Basic
             return d;
         });
 
-        public static object StrToEnum(string str, object defaultValue, bool exactOnly = false)
+        public static object StrToEnum(string str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
             Type type = defaultValue.GetType();
             if (EnumCacheCaseSensitive[type].TryGetValue(str, out object ret))
@@ -3756,6 +3756,8 @@ namespace IPA.Cores.Basic
                     return ret3;
                 }
             }
+            if (noMatchError)
+                throw new ArgumentException($"The string \"{str}\' doesn't match to any items of the type \"{type.Name}\".");
             return defaultValue;
         }
 
@@ -5360,6 +5362,26 @@ namespace IPA.Cores.Basic
             fqdn = fqdn._NonNullTrim();
             if (fqdn._IsEmpty()) return "";
             return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)[0];
+        }
+
+        public static bool TryTrimStartWith(string srcStr, out string outStr, StringComparison comparison, params string[] keys)
+        {
+            outStr = srcStr;
+            if (keys.Length == 0 || keys == null) return false;
+
+            foreach (string key in keys)
+            {
+                if (key._IsEmpty() == false)
+                {
+                    if (srcStr.StartsWith(key, comparison))
+                    {
+                        outStr = srcStr.Substring(key.Length);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 

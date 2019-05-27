@@ -712,6 +712,11 @@ namespace IPA.Cores.Basic
         readonly char[] InvalidPathChars;
         readonly char[] InvalidFileNameChars;
 
+        public static PathParser Local { get => PathParser.GetInstance(FileSystemStyle.LocalSystem); }
+        public static PathParser Windows { get => PathParser.GetInstance(FileSystemStyle.Windows); }
+        public static PathParser Linux { get => PathParser.GetInstance(FileSystemStyle.Linux); }
+        public static PathParser Mac { get => PathParser.GetInstance(FileSystemStyle.Mac); }
+
         public static PathParser GetInstance(FileSystemStyle style = FileSystemStyle.LocalSystem)
         {
             if (style == FileSystemStyle.LocalSystem)

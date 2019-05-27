@@ -1137,11 +1137,7 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドの実行
-        public bool DispatchCommand(string execCommandOrNull, string prompt, Type commandClass)
-        {
-            return DispatchCommand(execCommandOrNull, prompt, commandClass, null);
-        }
-        public bool DispatchCommand(string execCommandOrNull, string prompt, Type commandClass, object invokerInstance)
+        public bool DispatchCommand(string execCommandOrNull, string prompt, Type commandClass, object invokerInstance = null, bool ignoreUnsupportedOptions = false)
         {
             SortedList<string, ConsoleCommand> cmdList = GetCommandList(commandClass);
 
@@ -1673,9 +1669,9 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドリストをパースする
-        public ConsoleParamValueList ParseCommandList(string cmdName, string command, ConsoleParam[] param)
+        public ConsoleParamValueList ParseCommandList(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
         {
-            ConsoleParamValueList ret = parseCommandLineMain(cmdName, command, param);
+            ConsoleParamValueList ret = ParseCommandLineInternalMain(cmdName, command, param, noErrorOnUnknownArg);
 
             if (ret == null)
             {
@@ -1684,7 +1680,7 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
-        private ConsoleParamValueList parseCommandLineMain(string cmdName, string command, ConsoleParam[] param)
+        private ConsoleParamValueList ParseCommandLineInternalMain(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
         {
             int i;
             ConsoleParamValueList o;
@@ -1793,12 +1789,15 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    this.write(Str.FormatC((CoreStr.CON_INVALID_PARAM),
-                        param_list[i],
-                        cmdName,
-                        cmdName), LogPriority.Error);
+                    if (noErrorOnUnknownArg == false)
+                    {
+                        this.write(Str.FormatC((CoreStr.CON_INVALID_PARAM),
+                            param_list[i],
+                            cmdName,
+                            cmdName), LogPriority.Error);
 
-                    ok = false;
+                        ok = false;
+                    }
                 }
             }
 
