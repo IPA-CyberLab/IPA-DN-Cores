@@ -139,6 +139,18 @@ namespace IPA.TestDev
         const int Benchmark_CountForSlow = 100;
         const int Benchmark_CountForVerySlow = 10;
 
+        static void BenchMask_BoostUp_PacketParser(string name)
+        {
+            var packetMem = Res.AppRoot[name].HexParsedBinary;
+
+            Packet packet = new Packet(packetMem._CloneMemory());
+
+            for (int c = 0; c < 100; c++)
+            {
+                packet.ParsePacket();
+            }
+        }
+
         static void BenchMark_Test1()
         {
             MemoryBuffer<byte> sparseTest1 = new MemoryBuffer<byte>();
@@ -186,7 +198,26 @@ namespace IPA.TestDev
             Memory<byte> testFileWriteData = new byte[4096];
             Util.Rand(testFileWriteData.Span);
 
+
+            BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
+            BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
+
+
             var queue = new MicroBenchmarkQueue()
+
+
+            .Add(new MicroBenchmark($"ParsePacket #2", Benchmark_CountForNormal, count =>
+            {
+                var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
+
+                Packet packet = new Packet(packetMem._CloneMemory());
+
+                for (int c = 0; c < count; c++)
+                {
+                    packet.ParsePacket();
+                }
+
+            }), enabled: true, priority: 190528)
 
 
             .Add(new MicroBenchmark($"ParsePacket #1", Benchmark_CountForNormal, count =>
@@ -195,7 +226,6 @@ namespace IPA.TestDev
 
                 Packet packet = new Packet(packetMem._CloneMemory());
 
-                //h.SrcPort = 3;
                 for (int c = 0; c < count; c++)
                 {
                     packet.ParsePacket();

@@ -180,7 +180,7 @@ namespace IPA.Cores.Basic
 
             this.L2 = new L2(ether);
 
-            switch (ether.ValueRead.Protocol._Endian16())
+            switch (ether.RefValueRead.Protocol._Endian16())
             {
                 case EthernetTpid.IPv4:
                     return ParseL3_IPv4();
@@ -198,7 +198,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly IPv4Header data = ref ipv4.ValueRead;
+            ref readonly IPv4Header data = ref ipv4.RefValueRead;
 
             if (data.Version != 4)
             {
@@ -222,11 +222,28 @@ namespace IPA.Cores.Basic
 
             this.L3 = new L3(ipv4full);
 
-            switch (ipv4full.ValueRead.Protocol)
+            switch (ipv4full.RefValueRead.Protocol)
             {
                 case IPProtocolNumber.TCP:
                     return ParseL4_TCP();
+
+                case IPProtocolNumber.UDP:
+                    return ParseL4_UDP();
             }
+
+            return true;
+        }
+
+        public bool ParseL4_UDP()
+        {
+            PacketPin<UDPHeader> udp = this.L3.Generic.GetNextHeader<UDPHeader>();
+            if (udp.IsEmpty)
+            {
+                SetError("Insufficient header data");
+                return false;
+            }
+
+            this.L4 = new L4(udp);
 
             return true;
         }
@@ -240,7 +257,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly TCPHeader data = ref tcp.ValueRead;
+            ref readonly TCPHeader data = ref tcp.RefValueRead;
 
             int headerLen = data.HeaderSize * 4;
             if (headerLen < Util.SizeOfStruct<TCPHeader>())

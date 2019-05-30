@@ -108,7 +108,8 @@ namespace IPA.TestDev
         {
             Con.WriteLine(Unsafe.SizeOf<L2>());
 
-            var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
 
             Packet packet = new Packet(packetMem._CloneMemory());
 

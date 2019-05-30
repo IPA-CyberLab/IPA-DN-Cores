@@ -698,13 +698,13 @@ namespace IPA.Cores.Basic
             get => Math.Max(0, TotalPacketSize - this.HeaderSize);
         }
 
-        public unsafe ref readonly T ValueRead
+        public unsafe ref readonly T RefValueRead
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref Packet.AsReadOnlyStruct<T>(this.Pin, this.HeaderSize);
         }
 
-        public unsafe ref T Value
+        public unsafe ref T RefValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref Packet.AsStruct<T>(this.Pin, this.HeaderSize);
@@ -712,7 +712,7 @@ namespace IPA.Cores.Basic
 
         public unsafe T _ValueDebug
         {
-            get => ValueRead;
+            get => RefValueRead;
         }
 
         public ReadOnlyMemory<byte> MemoryRead
