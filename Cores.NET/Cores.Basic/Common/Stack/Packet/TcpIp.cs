@@ -70,6 +70,19 @@ namespace IPA.Cores.Basic
         public EthernetTpid Protocol;
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct TagVLanHeader
+    {
+        public ushort TagAndVLanId;
+        public EthernetTpid Protocol;
+
+        public int VLanId
+        {
+            get => this.TagAndVLanId._Endian16() & 0xFFF;
+//            set => this.TagAndVLanId = this.TagAndVLanId._Endian16() 
+        }
+    }
+
     [Flags]
     enum IPProtocolNumber : byte
     {

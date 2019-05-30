@@ -75,6 +75,16 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
+    readonly struct L2_1
+    {
+        [FieldOffset(0)]
+        public readonly EthernetTpid Type;
+
+        [FieldOffset(8)]
+        public readonly PacketPin<GenericHeader> Generic;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Pack = 8)]
     readonly struct L3
     {
         [FieldOffset(0)]

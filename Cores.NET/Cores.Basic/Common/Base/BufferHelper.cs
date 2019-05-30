@@ -1459,6 +1459,124 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _GetBitsUInt8(this byte src, byte bitMask)
+            => (byte)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _GetBitsUInt16(this ushort src, ushort bitMask)
+            => (ushort)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _GetBitsUInt32(this uint src, uint bitMask)
+            => (uint)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _GetBitsUInt64(this ulong src, ulong bitMask)
+            => (ulong)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _GetBitsSInt8(this sbyte src, sbyte bitMask)
+            => (sbyte)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _GetBitsSInt16(this short src, short bitMask)
+            => (short)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _GetBitsSInt32(this int src, int bitMask)
+            => (int)(src & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _GetBitsSInt64(this long src, long bitMask)
+            => (long)(src & ~bitMask);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _GetBitsUInt16Endian(this ushort src, ushort bitMask)
+            => (ushort)(src._Endian16() & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _GetBitsUInt32Endian(this uint src, uint bitMask)
+            => (uint)(src._Endian32() & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _GetBitsUInt64Endian(this ulong src, ulong bitMask)
+            => (ulong)(src._Endian64() & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _GetBitsSInt16Endian(this short src, short bitMask)
+            => (short)(src._Endian16() & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _GetBitsSInt32Endian(this int src, int bitMask)
+            => (int)(src._Endian32() & ~bitMask);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _GetBitsSInt64Endian(this long src, long bitMask)
+            => (long)(src._Endian64() & ~bitMask);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _UpdateBitsUInt8(this byte src, byte bitMask, byte value)
+            => (byte)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _UpdateBitsUInt16(this ushort src, ushort bitMask, ushort value)
+            => (ushort)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _UpdateBitsUInt32(this uint src, uint bitMask, uint value)
+            => (uint)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _UpdateBitsUInt64(this ulong src, ulong bitMask, ulong value)
+            => (ulong)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _UpdateBitsSInt8(this sbyte src, sbyte bitMask, sbyte value)
+            => (sbyte)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _UpdateBitsSInt16(this short src, short bitMask, short value)
+            => (short)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _UpdateBitsSInt32(this int src, int bitMask, int value)
+            => (int)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _UpdateBitsSInt64(this long src, long bitMask, long value)
+            => (long)((src & ~bitMask) | (value & bitMask));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _UpdateBitsUInt16Endian(this ushort src, ushort bitMask, ushort value)
+            => _UpdateBitsUInt16(src._Endian16(), bitMask, value)._Endian16();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _UpdateBitsUInt32Endian(this uint src, uint bitMask, uint value)
+            => _UpdateBitsUInt32(src._Endian32(), bitMask, value)._Endian32();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _UpdateBitsUInt64Endian(this ulong src, ulong bitMask, ulong value)
+            => _UpdateBitsUInt64(src._Endian64(), bitMask, value)._Endian64();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _UpdateBitsSInt16Endian(this short src, short bitMask, short value)
+            => _UpdateBitsSInt16(src._Endian16(), bitMask, value)._Endian16();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _UpdateBitsSInt32Endian(this int src, int bitMask, int value)
+            => _UpdateBitsSInt32(src._Endian32(), bitMask, value)._Endian32();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _UpdateBitsSInt64Endian(this long src, long bitMask, long value)
+            => _UpdateBitsSInt64(src._Endian64(), bitMask, value)._Endian64();
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe bool _IsZeroStruct<T>(this T value, int? size = null)
         {
