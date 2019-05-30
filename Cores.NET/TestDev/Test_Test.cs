@@ -108,12 +108,16 @@ namespace IPA.TestDev
         {
             Con.WriteLine(Unsafe.SizeOf<L2>());
 
-            //var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
-            var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
             Packet packet = new Packet(packetMem._CloneMemory());
 
             packet.ParsePacket();
+
+            //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
         }
     }
 }

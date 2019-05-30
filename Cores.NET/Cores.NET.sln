@@ -10,6 +10,9 @@ EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic", "Cores.Basic\Cores.Basic.shproj", "{1C674893-7C84-4E7C-834E-6E2370225DA0}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Cores.Basic\Cores.Basic.projitems*{1c674893-7c84-4e7c-834e-6e2370225da0}*SharedItemsImports = 13
 	EndGlobalSection

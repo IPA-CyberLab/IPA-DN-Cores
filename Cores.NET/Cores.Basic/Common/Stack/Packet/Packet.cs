@@ -511,9 +511,15 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (List.First == null) throw new ArgumentOutOfRangeException("Buffer is empty.");
+                    ByteLinkedListNode firstList = List.First;
+                    if (firstList == null) throw new ArgumentOutOfRangeException("Buffer is empty.");
                     if (pinStart < PinHead) throw new ArgumentOutOfRangeException("pinStart < PinHead");
                     if (pinEnd > PinTail) throw new ArgumentOutOfRangeException("pinEnd > PinTail");
+
+                    if (firstList.Next == null)
+                    {
+                        return firstList.Value.Slice(pinStart - PinHead, pinEnd - pinStart);
+                    }
                 }
 
                 GetOverlappedNodes(pinStart, pinEnd,

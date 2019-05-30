@@ -1463,60 +1463,60 @@ namespace IPA.Cores.Helper.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe byte _GetBitsUInt8(this byte src, byte bitMask)
-            => (byte)(src & ~bitMask);
+            => (byte)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ushort _GetBitsUInt16(this ushort src, ushort bitMask)
-            => (ushort)(src & ~bitMask);
+            => (ushort)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe uint _GetBitsUInt32(this uint src, uint bitMask)
-            => (uint)(src & ~bitMask);
+            => (uint)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ulong _GetBitsUInt64(this ulong src, ulong bitMask)
-            => (ulong)(src & ~bitMask);
+            => (ulong)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe sbyte _GetBitsSInt8(this sbyte src, sbyte bitMask)
-            => (sbyte)(src & ~bitMask);
+            => (sbyte)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe short _GetBitsSInt16(this short src, short bitMask)
-            => (short)(src & ~bitMask);
+            => (short)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int _GetBitsSInt32(this int src, int bitMask)
-            => (int)(src & ~bitMask);
+            => (int)(src & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe long _GetBitsSInt64(this long src, long bitMask)
-            => (long)(src & ~bitMask);
+            => (long)(src & bitMask);
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ushort _GetBitsUInt16Endian(this ushort src, ushort bitMask)
-            => (ushort)(src._Endian16() & ~bitMask);
+            => (ushort)(src._Endian16() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe uint _GetBitsUInt32Endian(this uint src, uint bitMask)
-            => (uint)(src._Endian32() & ~bitMask);
+            => (uint)(src._Endian32() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ulong _GetBitsUInt64Endian(this ulong src, ulong bitMask)
-            => (ulong)(src._Endian64() & ~bitMask);
+            => (ulong)(src._Endian64() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe short _GetBitsSInt16Endian(this short src, short bitMask)
-            => (short)(src._Endian16() & ~bitMask);
+            => (short)(src._Endian16() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int _GetBitsSInt32Endian(this int src, int bitMask)
-            => (int)(src._Endian32() & ~bitMask);
+            => (int)(src._Endian32() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe long _GetBitsSInt64Endian(this long src, long bitMask)
-            => (long)(src._Endian64() & ~bitMask);
+            => (long)(src._Endian64() & bitMask);
 
 
 

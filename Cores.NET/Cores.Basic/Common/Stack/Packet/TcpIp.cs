@@ -78,8 +78,8 @@ namespace IPA.Cores.Basic
 
         public int VLanId
         {
-            get => this.TagAndVLanId._Endian16() & 0xFFF;
-//            set => this.TagAndVLanId = this.TagAndVLanId._Endian16() 
+            get => this.TagAndVLanId._GetBitsUInt16Endian(0xfff);
+            set => this.TagAndVLanId._UpdateBitsUInt16Endian(0xfff, (ushort)value);
         }
     }
 
