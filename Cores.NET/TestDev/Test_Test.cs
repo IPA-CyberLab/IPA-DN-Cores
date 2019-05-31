@@ -106,6 +106,29 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
+            CoresConfig.ElasticBufferConfig.PostAllocationSize.Set(1);
+            CoresConfig.ElasticBufferConfig.PreAllocationSize.Set(1);
+
+            ElasticBuffer buf = new ElasticBuffer();
+
+            buf.InsertHead("01 02 03"._GetHexBytes());
+            buf.Span._GetHexString(" ")._Print();
+
+            buf.InsertHead("04 05 06 07"._GetHexBytes());
+            buf.Span._GetHexString(" ")._Print();
+
+            buf.InsertTail("08 09"._GetHexBytes());
+            buf.Span._GetHexString(" ")._Print();
+
+            buf.InsertHead("10 11 12"._GetHexBytes());
+            buf.Span._GetHexString(" ")._Print();
+
+            buf.InsertTail("13 14 15"._GetHexBytes());
+            buf.Span._GetHexString(" ")._Print();
+        }
+
+        public static unsafe void Test_()
+        {
             Con.WriteLine(Unsafe.SizeOf<L2>());
 
             var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;

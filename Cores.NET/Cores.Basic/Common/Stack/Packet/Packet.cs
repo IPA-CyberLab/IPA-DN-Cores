@@ -46,6 +46,118 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class ElasticBufferConfig
+        {
+            public static readonly Copenhagen<int> PreAllocationSize = 32;
+            public static readonly Copenhagen<int> PostAllocationSize = 32;
+        }
+    }
+
+    ref struct ElasticBuffer
+    {
+        static readonly int PreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
+        static readonly int PostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
+        Span<byte> Buffer;
+        public int DataLength { get; private set; }
+        int PreSize;
+        int PostSize;
+
+        public ReadOnlySpan<byte> Span => Buffer.Slice(PreSize, DataLength);
+
+        public void Clear()
+        {
+            Buffer = Span<byte>.Empty;
+            DataLength = 0;
+            PreSize = 0;
+            PostSize = 0;
+        }
+
+        public void InsertHead(ReadOnlySpan<byte> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PreSize < data.Length)
+                EnsurePreSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
+            PreSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        public void InsertTail(ReadOnlySpan<byte> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PostSize < data.Length)
+                EnsurePostSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize + DataLength, data.Length));
+            PostSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        public void Insert(ReadOnlySpan<byte> data, int pos)
+        {
+            if (data.IsEmpty) return;
+
+            if (pos < 0 || pos >= DataLength) throw new ArgumentException("pos");
+
+            int newDataLength = DataLength + data.Length;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Span<byte> newBuffer = new byte[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, DataLength - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, DataLength - pos));
+            data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
+            Buffer = newBuffer;
+            DataLength = newDataLength;
+        }
+
+        void EnsurePreSize(int newPreSize)
+        {
+            if (PreSize >= newPreSize) return;
+            newPreSize = newPreSize + PreAllocationSize;
+
+            int newBufferLength = newPreSize + DataLength + PostSize;
+            Span<byte> newBuffer = new byte[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(newPreSize, DataLength));
+            PreSize = newPreSize;
+            Buffer = newBuffer;
+        }
+
+        void EnsurePostSize(int newPostSize)
+        {
+            if (PostSize >= newPostSize) return;
+            newPostSize = newPostSize + PostAllocationSize;
+
+            int newBufferLength = PreSize + DataLength + newPostSize;
+            Span<byte> newBuffer = new byte[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(PreSize, DataLength));
+            PostSize = newPostSize;
+            Buffer = newBuffer;
+        }
+    }
+
+    ref struct Packet2
+    {
+        public int PinHead { get; private set; }
+        public int PinTail { get; private set; }
+        public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
+
+        //Span<byte> Buffer;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void InsertHeadInternal(Span<byte> data)
+        {
+            checked
+            {
+                if (data.IsEmpty) return;
+            }
+        }
+    }
+
     partial class Packet
     {
         ByteLinkedList List = new ByteLinkedList();
@@ -626,7 +738,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int ?size = null) where T : struct
+        public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int? size = null) where T : struct
         {
             int size2 = size ?? Unsafe.SizeOf<T>();
             byte[] data = new byte[size2];
@@ -637,19 +749,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IPacketPin : IEmptyChecker
-    {
-        Packet Packet { get; }
-        int Pin { get; }
-        int HeaderSize { get; }
-        bool IsEmpty { get; }
-        bool IsFilled { get; }
-        PacketPin<TNext> GetNextHeader<TNext>(int? size = null) where TNext : struct;
-        ReadOnlyMemory<byte> MemoryRead { get; }
-        Memory<byte> Memory { get; }
-    }
-
-    readonly unsafe struct PacketPin<T> : IPacketPin where T : struct
+    readonly unsafe struct PacketPin<T> where T : struct
     {
         public Packet Packet { get; }
         public int Pin { get; }
@@ -747,7 +847,7 @@ namespace IPA.Cores.Basic
             => ref Unsafe.As<PacketPin<TFrom>, PacketPin<GenericHeader>>(ref src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref readonly PacketPin<TTo> ToOtherTypeHeader<TTo>(this ref PacketPin<GenericHeader> src) where TTo: struct
+        public static ref readonly PacketPin<TTo> ToOtherTypeHeader<TTo>(this ref PacketPin<GenericHeader> src) where TTo : struct
             => ref Unsafe.As<PacketPin<GenericHeader>, PacketPin<TTo>>(ref src);
     }
 }
