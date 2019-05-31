@@ -7853,3 +7853,21 @@
 {"TimeStamp":"2019-05-31T17:13:35.564985+09:00","Tag":"result","Data":{"TestName":"Span memory copy 400 bytes","Ret":9.6208272549019611,"PerSecond":103941165}}
 {"TimeStamp":"2019-05-31T17:13:36.0672043+09:00","Tag":"result","Data":{"TestName":"ParsePacket #4","Ret":114.19294852201354,"PerSecond":8757108}}
 {"TimeStamp":"2019-05-31T17:13:36.5690384+09:00","Tag":"result","Data":{"TestName":"ParsePacket #3","Ret":137.53117579056504,"PerSecond":7271078}}
+{"TimeStamp":"2019-05-31T17:17:51.5005507+09:00","Tag":"text","Data":"----- Start new benchmark -----"}
+{"TimeStamp":"2019-05-31T17:17:51.5474872+09:00","Tag":"text","Data":"Commit: fcdf3414a77adbddbc4ea09cf8c9684e9db6a147"}
+{"TimeStamp":"2019-05-31T17:17:51.5475392+09:00","Tag":"text","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\TestDev\\bin\\Release\\netcoreapp2.1\\TestDev.dll"}
+{"TimeStamp":"2019-05-31T17:17:51.5475448+09:00","Tag":"text","Data":"OS: Microsoft Windows 10.0.18362"}
+{"TimeStamp":"2019-05-31T17:17:51.5475682+09:00","Tag":"text","Data":"Framework: .NET Core 4.6.27019.06"}
+{"TimeStamp":"2019-05-31T17:17:51.5475717+09:00","Tag":"text","Data":"Host: PC37"}
+{"TimeStamp":"2019-05-31T17:17:52.448266+09:00","Tag":"result","Data":{"TestName":"Span memory copy 1600 bytes","Ret":49.435871176470592,"PerSecond":20228226}}
+{"TimeStamp":"2019-05-31T17:17:53.0400903+09:00","Tag":"result","Data":{"TestName":"Span memory copy 400 bytes","Ret":9.6135350980392147,"PerSecond":104020008}}
+{"TimeStamp":"2019-05-31T17:17:53.5423891+09:00","Tag":"result","Data":{"TestName":"ParsePacket #4","Ret":315.576843914256,"PerSecond":3168800}}
+{"TimeStamp":"2019-05-31T17:17:54.0456311+09:00","Tag":"result","Data":{"TestName":"ParsePacket #3","Ret":321.27478956675509,"PerSecond":3112600}}
+{"TimeStamp":"2019-05-31T17:17:54.5493945+09:00","Tag":"result","Data":{"TestName":"ParsePacket #2","Ret":210.47255413506866,"PerSecond":4751213}}
+{"TimeStamp":"2019-05-31T17:17:55.0543858+09:00","Tag":"result","Data":{"TestName":"ParsePacket #1","Ret":241.81504473771852,"PerSecond":4135391}}
+{"TimeStamp":"2019-05-31T17:17:55.608705+09:00","Tag":"result","Data":{"TestName":"_IsZeroFastStruct","Ret":4.3121408235294112,"PerSecond":231903372}}
+{"TimeStamp":"2019-05-31T17:17:56.2170194+09:00","Tag":"result","Data":{"TestName":"sizeof(T)","Ret":0.007652500000000062,"PerSecond":130676249591}}
+{"TimeStamp":"2019-05-31T17:17:56.8273015+09:00","Tag":"result","Data":{"TestName":"Util.SizeOfStruct(T)","Ret":0.0,"PerSecond":9999999999999}}
+{"TimeStamp":"2019-05-31T17:17:57.4570329+09:00","Tag":"result","Data":{"TestName":"New Packet","Ret":16.823278529411763,"PerSecond":59441445}}
+{"TimeStamp":"2019-05-31T17:17:57.9947473+09:00","Tag":"result","Data":{"TestName":"File Write Small - Cores Object - Async","Ret":14279.301332065284,"PerSecond":70031}}
+{"TimeStamp":"2019-05-31T17:17:58.5787463+09:00","Tag":"result","Data":{"TestName":"File Write Small - .NET Native - Sync","Ret":11080.881184054811,"PerSecond":90245}}

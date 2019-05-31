@@ -7856,3 +7856,21 @@
 2019/05/31 17:13:35.565 +09:00 Span memory copy 400 bytes: 9.62 ns, 103,941,165 / sec
 2019/05/31 17:13:36.067 +09:00 ParsePacket #4: 114.19 ns, 8,757,108 / sec
 2019/05/31 17:13:36.569 +09:00 ParsePacket #3: 137.53 ns, 7,271,078 / sec
+2019/05/31 17:17:51.500 +09:00 ----- Start new benchmark -----
+2019/05/31 17:17:51.547 +09:00 Commit: fcdf3414a77adbddbc4ea09cf8c9684e9db6a147
+2019/05/31 17:17:51.547 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 17:17:51.547 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 17:17:51.547 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 17:17:51.547 +09:00 Host: PC37
+2019/05/31 17:17:52.448 +09:00 Span memory copy 1600 bytes: 49.44 ns, 20,228,226 / sec
+2019/05/31 17:17:53.040 +09:00 Span memory copy 400 bytes: 9.61 ns, 104,020,008 / sec
+2019/05/31 17:17:53.542 +09:00 ParsePacket #4: 315.58 ns, 3,168,800 / sec
+2019/05/31 17:17:54.045 +09:00 ParsePacket #3: 321.27 ns, 3,112,600 / sec
+2019/05/31 17:17:54.549 +09:00 ParsePacket #2: 210.47 ns, 4,751,213 / sec
+2019/05/31 17:17:55.054 +09:00 ParsePacket #1: 241.82 ns, 4,135,391 / sec
+2019/05/31 17:17:55.608 +09:00 _IsZeroFastStruct: 4.31 ns, 231,903,372 / sec
+2019/05/31 17:17:56.217 +09:00 sizeof(T): 0.01 ns, 130,676,249,591 / sec
+2019/05/31 17:17:56.827 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:17:57.457 +09:00 New Packet: 16.82 ns, 59,441,445 / sec
+2019/05/31 17:17:57.994 +09:00 File Write Small - Cores Object - Async: 14,279.30 ns, 70,031 / sec
+2019/05/31 17:17:58.578 +09:00 File Write Small - .NET Native - Sync: 11,080.88 ns, 90,245 / sec
