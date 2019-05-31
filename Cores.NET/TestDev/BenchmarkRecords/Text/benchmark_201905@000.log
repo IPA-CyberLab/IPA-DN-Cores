@@ -7777,3 +7777,82 @@
 2019/05/31 09:30:07.715 +09:00 AsyncCallMethodFromSyncMethod: 15.61 ns, 64,058,471 / sec
 2019/05/31 09:30:08.350 +09:00 Lock for readonly object: 17.44 ns, 57,332,593 / sec
 2019/05/31 09:30:08.973 +09:00 Lock for get property object: 16.80 ns, 59,517,309 / sec
+2019/05/31 17:12:53.790 +09:00 ----- Start new benchmark -----
+2019/05/31 17:12:53.841 +09:00 Commit: 567b84f93cfa1e1e059d1b4c630433f29be8cb74
+2019/05/31 17:12:53.841 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 17:12:53.841 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 17:12:53.841 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 17:12:53.841 +09:00 Host: PC37
+2019/05/31 17:12:54.690 +09:00 Span memory copy 1600 bytes: 40.80 ns, 24,507,709 / sec
+2019/05/31 17:12:55.244 +09:00 Span memory copy 400 bytes: 13.07 ns, 76,513,719 / sec
+2019/05/31 17:12:55.746 +09:00 ParsePacket #4: 116.87 ns, 8,556,376 / sec
+2019/05/31 17:12:56.249 +09:00 ParsePacket #3: 135.94 ns, 7,356,363 / sec
+2019/05/31 17:12:56.751 +09:00 ParsePacket #2: 89.63 ns, 11,157,542 / sec
+2019/05/31 17:12:57.253 +09:00 ParsePacket #1: 103.91 ns, 9,623,328 / sec
+2019/05/31 17:12:57.779 +09:00 _IsZeroFastStruct: 3.76 ns, 266,268,954 / sec
+2019/05/31 17:12:58.400 +09:00 sizeof(T): 0.01 ns, 128,443,902,125 / sec
+2019/05/31 17:12:59.005 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:12:59.518 +09:00 New Packet: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:00.042 +09:00 File Write Small - Cores Object - Async: 13,615.40 ns, 73,446 / sec
+2019/05/31 17:13:00.613 +09:00 File Write Small - .NET Native - Sync: 10,631.96 ns, 94,056 / sec
+2019/05/31 17:13:01.141 +09:00 SingletonFastArraySlim Get: 1.08 ns, 925,550,311 / sec
+2019/05/31 17:13:01.682 +09:00 SingletonFastArray Get: 1.61 ns, 620,604,608 / sec
+2019/05/31 17:13:02.238 +09:00 SingletonSlim Get: 8.22 ns, 121,726,979 / sec
+2019/05/31 17:13:02.756 +09:00 Singleton2 Get: 23.63 ns, 42,314,995 / sec
+2019/05/31 17:13:03.287 +09:00 Singleton1 Get: 0.51 ns, 1,946,684,624 / sec
+2019/05/31 17:13:03.882 +09:00 New MemoryBuffer: 9.56 ns, 104,646,435 / sec
+2019/05/31 17:13:04.385 +09:00 MemoryBuffer Pin Lock / Unlock: 142.12 ns, 7,036,231 / sec
+2019/05/31 17:13:05.161 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:06.082 +09:00 Convert Enum to Long: 1.51 ns, 662,034,850 / sec
+2019/05/31 17:13:07.674 +09:00 New Packet with Data: 131.01 ns, 7,632,879 / sec
+2019/05/31 17:13:10.418 +09:00 ----- Start new benchmark -----
+2019/05/31 17:13:10.472 +09:00 Commit: 567b84f93cfa1e1e059d1b4c630433f29be8cb74
+2019/05/31 17:13:10.472 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 17:13:10.472 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 17:13:10.472 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 17:13:10.472 +09:00 Host: PC37
+2019/05/31 17:13:11.261 +09:00 Span memory copy 1600 bytes: 36.57 ns, 27,345,688 / sec
+2019/05/31 17:13:11.832 +09:00 Span memory copy 400 bytes: 9.10 ns, 109,870,870 / sec
+2019/05/31 17:13:12.334 +09:00 ParsePacket #4: 142.66 ns, 7,009,620 / sec
+2019/05/31 17:13:12.836 +09:00 ParsePacket #3: 143.01 ns, 6,992,670 / sec
+2019/05/31 17:13:13.340 +09:00 ParsePacket #2: 107.72 ns, 9,283,188 / sec
+2019/05/31 17:13:13.842 +09:00 ParsePacket #1: 124.53 ns, 8,030,323 / sec
+2019/05/31 17:13:14.358 +09:00 _IsZeroFastStruct: 3.68 ns, 271,583,542 / sec
+2019/05/31 17:13:14.974 +09:00 sizeof(T): 0.01 ns, 151,125,887,864 / sec
+2019/05/31 17:13:15.578 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:16.094 +09:00 New Packet: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:16.657 +09:00 File Write Small - Cores Object - Async: 15,605.23 ns, 64,081 / sec
+2019/05/31 17:13:17.231 +09:00 File Write Small - .NET Native - Sync: 10,726.40 ns, 93,227 / sec
+2019/05/31 17:13:18.703 +09:00 SingletonFastArraySlim Get: 1.09 ns, 921,562,476 / sec
+2019/05/31 17:13:21.408 +09:00 ----- Start new benchmark -----
+2019/05/31 17:13:21.460 +09:00 Commit: 567b84f93cfa1e1e059d1b4c630433f29be8cb74
+2019/05/31 17:13:21.460 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 17:13:21.460 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 17:13:21.460 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 17:13:21.460 +09:00 Host: PC37
+2019/05/31 17:13:22.251 +09:00 Span memory copy 1600 bytes: 36.73 ns, 27,222,653 / sec
+2019/05/31 17:13:22.782 +09:00 Span memory copy 400 bytes: 11.78 ns, 84,902,160 / sec
+2019/05/31 17:13:23.285 +09:00 ParsePacket #4: 118.91 ns, 8,409,906 / sec
+2019/05/31 17:13:23.787 +09:00 ParsePacket #3: 125.33 ns, 7,978,706 / sec
+2019/05/31 17:13:24.290 +09:00 ParsePacket #2: 90.93 ns, 10,997,792 / sec
+2019/05/31 17:13:24.792 +09:00 ParsePacket #1: 111.11 ns, 9,000,209 / sec
+2019/05/31 17:13:25.336 +09:00 _IsZeroFastStruct: 4.12 ns, 242,585,890 / sec
+2019/05/31 17:13:25.985 +09:00 sizeof(T): 0.06 ns, 17,168,118,803 / sec
+2019/05/31 17:13:26.615 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:27.131 +09:00 New Packet: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 17:13:27.688 +09:00 File Write Small - Cores Object - Async: 15,279.07 ns, 65,448 / sec
+2019/05/31 17:13:28.311 +09:00 File Write Small - .NET Native - Sync: 12,382.02 ns, 80,762 / sec
+2019/05/31 17:13:28.841 +09:00 SingletonFastArraySlim Get: 1.10 ns, 908,513,784 / sec
+2019/05/31 17:13:29.345 +09:00 SingletonFastArray Get: 1.58 ns, 634,084,498 / sec
+2019/05/31 17:13:30.284 +09:00 SingletonSlim Get: 8.77 ns, 114,043,831 / sec
+2019/05/31 17:13:30.810 +09:00 Singleton2 Get: 25.19 ns, 39,696,149 / sec
+2019/05/31 17:13:34.015 +09:00 ----- Start new benchmark -----
+2019/05/31 17:13:34.065 +09:00 Commit: 567b84f93cfa1e1e059d1b4c630433f29be8cb74
+2019/05/31 17:13:34.065 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 17:13:34.065 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 17:13:34.065 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 17:13:34.065 +09:00 Host: PC37
+2019/05/31 17:13:34.969 +09:00 Span memory copy 1600 bytes: 47.66 ns, 20,981,308 / sec
+2019/05/31 17:13:35.565 +09:00 Span memory copy 400 bytes: 9.62 ns, 103,941,165 / sec
+2019/05/31 17:13:36.067 +09:00 ParsePacket #4: 114.19 ns, 8,757,108 / sec
+2019/05/31 17:13:36.569 +09:00 ParsePacket #3: 137.53 ns, 7,271,078 / sec

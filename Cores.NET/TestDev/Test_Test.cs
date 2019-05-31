@@ -104,7 +104,7 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test()
+        public static unsafe void Test_()
         {
             CoresConfig.ElasticBufferConfig.PostAllocationSize.Set(1);
             CoresConfig.ElasticBufferConfig.PreAllocationSize.Set(1);
@@ -125,22 +125,25 @@ namespace IPA.TestDev
 
             buf.InsertTail("13 14 15"._GetHexBytes());
             buf.Span._GetHexString(" ")._Print();
+
+            buf.Insert("16 17 18"._GetHexBytes(), 4);
+            buf.Span._GetHexString(" ")._Print();
         }
 
-        public static unsafe void Test_()
+        public static unsafe void Test()
         {
-            Con.WriteLine(Unsafe.SizeOf<L2>());
-
             var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneMemory());
+            Packet packet = new Packet(packetMem.Span);
 
             packet.ParsePacket();
 
-            //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
+            //PacketParsed pp =
+
+            Con.WriteLine(packet.L3.Type);
         }
     }
 }

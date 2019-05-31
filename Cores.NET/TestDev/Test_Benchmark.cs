@@ -143,7 +143,7 @@ namespace IPA.TestDev
         {
             var packetMem = Res.AppRoot[name].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneMemory());
+            Packet packet = new Packet(packetMem.Span);
 
             for (int c = 0; c < 100; c++)
             {
@@ -238,7 +238,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem.Span);
 
                 for (int c = 0; c < count; c++)
                 {
@@ -253,7 +253,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem.Span);
 
                 for (int c = 0; c < count; c++)
                 {
@@ -268,7 +268,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem.Span);
 
                 for (int c = 0; c < count; c++)
                 {
@@ -282,7 +282,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem.Span);
 
                 for (int c = 0; c < count; c++)
                 {
@@ -446,20 +446,10 @@ namespace IPA.TestDev
             .Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
             {
                 Memory<byte> hello = new byte[1500];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
+                var span = hello.Span;
                 for (int c = 0; c < count; c++)
                 {
-                    Packet newPacket = new Packet(hello);
-                }
-            }), enabled: true, priority: 190519)
-
-            .Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
-            {
-                Memory<byte> hello = "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-                long v = 8;
-                for (int c = 0; c < count; c++)
-                {
-                    Packet newPacket = new Packet(hello);
-                    newPacket.InsertHeaderHead(v);
+                    Packet newPacket = new Packet(span);
                 }
             }), enabled: true, priority: 190519)
 
