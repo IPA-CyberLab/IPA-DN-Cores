@@ -208,6 +208,32 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"Span memory copy 1600 bytes", Benchmark_CountForFast, count =>
+            {
+                int size = 1600;
+                Span<byte> src = new byte[size * 4];
+                src.Fill(3);
+                Span<byte> dst = new byte[size * 4];
+                for (int c = 0; c < count; c++)
+                {
+                    src.Slice(size / 2, size).CopyTo(dst.Slice(size / 2));
+                }
+
+            }), enabled: true, priority: 190528)
+
+            .Add(new MicroBenchmark($"Span memory copy 400 bytes", Benchmark_CountForFast, count =>
+            {
+                int size = 400;
+                Span<byte> src = new byte[size * 4];
+                src.Fill(3);
+                Span<byte> dst = new byte[size * 4];
+                for (int c = 0; c < count; c++)
+                {
+                    src.Slice(size / 2, size).CopyTo(dst.Slice(size / 2));
+                }
+
+            }), enabled: true, priority: 190528)
+
             .Add(new MicroBenchmark($"ParsePacket #4", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
