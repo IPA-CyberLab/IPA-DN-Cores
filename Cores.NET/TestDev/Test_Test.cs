@@ -112,7 +112,8 @@ namespace IPA.TestDev
             //var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
-            var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["190531_vlan_pppoe_udp.txt"].HexParsedBinary;
 
             Packet packet = new Packet(packetMem._CloneMemory());
 

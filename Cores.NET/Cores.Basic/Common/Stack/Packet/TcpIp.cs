@@ -53,6 +53,12 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    enum TCPWellknownPorts : ushort
+    {
+        L2TP = 1701,
+    }
+
+    [Flags]
     enum PPPProtocolId : ushort
     {
         Unknown = 0,

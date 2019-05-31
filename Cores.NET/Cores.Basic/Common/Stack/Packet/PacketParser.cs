@@ -168,6 +168,7 @@ namespace IPA.Cores.Basic
         Unknown = 0,
         GenericTCP,
         GenericUDP,
+        L2TP,
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
@@ -177,14 +178,62 @@ namespace IPA.Cores.Basic
         public readonly L7Type Type;
 
         [FieldOffset(8)]
+        public readonly L2TPPacketParsed L2TPPacketParsed;
+
+        [FieldOffset(16)]
         public readonly PacketPin<GenericHeader> Generic;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L7(PacketPin<GenericHeader> pin, L7Type type)
         {
+            this.L2TPPacketParsed = null;
+
             this.Generic = pin;
             this.Type = type;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public L7(PacketPin<GenericHeader> pin, L2TPPacketParsed l2tpPacketParsed)
+        {
+            this.L2TPPacketParsed = l2tpPacketParsed;
+
+            this.Generic = pin;
+            this.Type = L7Type.L2TP;
+        }
+    }
+
+    [Flags]
+    enum L2TPPacketType
+    {
+        Data = 0,
+        Control,
+    }
+
+    [Flags]
+    enum L2TPPacketFlag : byte
+    {
+        None = 0,
+        Priority = 0x01,
+        Offset = 0x02,
+        Sequence = 0x08,
+        Length = 0x40,
+        ControlMessage = 0x80,
+    }
+
+    class L2TPPacketParsed
+    {
+        public L2TPPacketFlag Flag;
+        public bool IsZLB;
+        public bool IsYamahaV3;
+        public int Length;
+        public uint TunnelId;
+        public uint SessionId;
+        public ushort Ns, Nr;
+        public int OffsetSize;
+        public PacketPin<GenericHeader> Data;
+
+        public bool IsControlMessage => Flag.Bit(L2TPPacketFlag.ControlMessage);
+        public bool IsDataMessage => !IsControlMessage;
     }
 
     class PacketParseOption
@@ -196,6 +245,15 @@ namespace IPA.Cores.Basic
     {
         Layer2 = 0,
         Layer3,
+    }
+
+    struct PacketInfo
+    {
+        public uint L3_SrcIPv4;
+        public uint L3_DestIPv4;
+
+        public ushort L4_SrcPort;
+        public ushort L4_DestPort;
     }
 
     struct PacketParsed
@@ -218,6 +276,8 @@ namespace IPA.Cores.Basic
 
         public L7 L7 { get; private set; }
 
+        public PacketInfo Info;
+
         public Ref<PacketParsed> InnerPacket { get; private set; }
 
         static readonly PacketParseOption DefaultOption = new PacketParseOption();
@@ -235,6 +295,7 @@ namespace IPA.Cores.Basic
             this.L3 = default;
             this.L4 = default;
             this.L7 = default;
+            this.Info = default;
 
             this.InnerPacket = null;
 
@@ -447,6 +508,8 @@ namespace IPA.Cores.Basic
             }
 
             this.L3 = new L3(ipv4full);
+            this.Info.L3_SrcIPv4 = data.SrcIP;
+            this.Info.L3_DestIPv4 = data.DstIP;
 
             switch (ipv4full.RefValueRead.Protocol)
             {
@@ -469,13 +532,16 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
+            ref readonly UDPHeader data = ref udp.RefValueRead;
+
             this.L4 = new L4(udp);
+
+            this.Info.L4_SrcPort = data.SrcPort;
+            this.Info.L4_DestPort = data.DstPort;
 
             PacketPin<GenericHeader> payload = udp.GetNextHeader<GenericHeader>(size: udp.PayloadSize);
 
-            this.L7 = new L7(payload, L7Type.GenericUDP);
-
-            return true;
+            return ParseL7_UDP(payload, in data);
         }
 
         bool ParseL4_TCP(PacketPin<GenericHeader> prevHeader)
@@ -505,11 +571,49 @@ namespace IPA.Cores.Basic
 
             this.L4 = new L4(tcpfull);
 
+            this.Info.L4_SrcPort = data.SrcPort._Endian16();
+            this.Info.L4_DestPort = data.DstPort._Endian16();
+
             PacketPin<GenericHeader> payload = tcpfull.GetNextHeader<GenericHeader>(size: tcpfull.PayloadSize);
 
             this.L7 = new L7(payload, L7Type.GenericTCP);
 
             return true;
+        }
+
+        bool ParseL7_UDP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
+        {
+            if (this.Info.L4_SrcPort == (ushort)TCPWellknownPorts.L2TP || this.Info.L4_DestPort == (ushort)TCPWellknownPorts.L2TP)
+            {
+                // L2TP
+                if (ParseL7_L2TP(payload, udpHeader))
+                {
+                    return true;
+                }
+            }
+
+            // Generic
+            this.L7 = new L7(payload, L7Type.GenericUDP);
+            return true;
+        }
+
+        bool ParseL7_L2TP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
+        {
+            ReadOnlySpanBuffer<byte> buf = payload.MemoryRead.Span;
+
+            L2TPPacketParsed parsed = new L2TPPacketParsed();
+
+            L2TPPacketFlag flags = (L2TPPacketFlag)buf.ReadUInt8();
+            byte version = buf.ReadUInt8();
+
+            if (version != 2)
+            {
+                return false;
+            }
+
+            if (flags.Bit(L2TPPacketFlag.Length))
+            {
+            }
         }
     }
 }
