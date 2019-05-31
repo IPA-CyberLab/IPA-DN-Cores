@@ -147,7 +147,7 @@ namespace IPA.TestDev
 
             for (int c = 0; c < 100; c++)
             {
-                packet.ParsePacket();
+                new PacketParsed(packet);
             }
         }
 
@@ -234,6 +234,20 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190528)
 
+            .Add(new MicroBenchmark($"ParsePacket #5", Benchmark_CountForNormal, count =>
+            {
+                var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
+
+                Packet packet = new Packet(packetMem._CloneMemory());
+
+                for (int c = 0; c < count; c++)
+                {
+                    new PacketParsed(packet);
+                }
+
+            }), enabled: true, priority: 190531)
+
+
             .Add(new MicroBenchmark($"ParsePacket #4", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
@@ -242,10 +256,10 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    packet.ParsePacket();
+                    new PacketParsed(packet);
                 }
 
-            }), enabled: true, priority: 190528)
+            }), enabled: true, priority: 190531)
 
 
 
@@ -257,10 +271,10 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    packet.ParsePacket();
+                    new PacketParsed(packet);
                 }
 
-            }), enabled: true, priority: 190528)
+            }), enabled: true, priority: 190531)
 
 
 
@@ -272,10 +286,10 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    packet.ParsePacket();
+                    new PacketParsed(packet);
                 }
 
-            }), enabled: true, priority: 190528)
+            }), enabled: true, priority: 190531)
 
 
             .Add(new MicroBenchmark($"ParsePacket #1", Benchmark_CountForNormal, count =>
@@ -286,10 +300,10 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    packet.ParsePacket();
+                    new PacketParsed(packet);
                 }
 
-            }), enabled: true, priority: 190528)
+            }), enabled: true, priority: 190531)
 
             .Add(new MicroBenchmark($"_IsZeroFastStruct", Benchmark_CountForFast, count =>
             {

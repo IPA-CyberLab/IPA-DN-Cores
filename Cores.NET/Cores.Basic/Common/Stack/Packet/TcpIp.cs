@@ -53,13 +53,27 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum EthernetTpid : ushort
+    enum PPPProtocolId : ushort
+    {
+        Unknown = 0,
+        LCP = 0xc021,
+        PAP = 0xc023,
+        IPCP = 0x8021,
+        CHAP = 0xc223,
+        IPv4 = 0x0021,
+        IPv6 = 0x0057,
+    }
+
+    [Flags]
+    enum EthernetProtocolId : ushort
     {
         Unknown = 0,
         ARPv4 = 0x0806,
         IPv4 = 0x0800,
         IPv6 = 0x86dd,
         TagVlan = 0x8100,
+        PPPoE_Discovery = 0x8863,
+        PPPoE_Session = 0x8864,
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -67,14 +81,47 @@ namespace IPA.Cores.Basic
     {
         public fixed byte DestAddress[6];
         public fixed byte SrcAddress[6];
-        public EthernetTpid Protocol;
+        public EthernetProtocolId Protocol;
+    }
+
+    [Flags]
+    enum PPPoECode : byte
+    {
+        Data = 0x00,
+        ActiveDiscoveryInitiation = 0x09,
+        ActiveDiscoveryOffer = 0x07,
+        ActiveDiscoveryRequest = 0x19,
+        ActiveDiscoverySessionConfirmation = 0x65,
+        ActiveDiscoveryTerminate = 0xa7,
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct PPPoESessionHeader
+    {
+        public byte VersionAndType;
+        public PPPoECode Code;
+        public ushort SessionId;
+        public ushort PayloadLength;
+        public PPPProtocolId PPPProtocolId;
+
+        public int Version
+        {
+            get => (this.VersionAndType._GetBitsUInt8(0xf0) >> 4);
+            set => this.VersionAndType._UpdateBitsUInt8(0xf0, (byte)(value << 4));
+        }
+
+        public int Type
+        {
+            get => this.VersionAndType._GetBitsUInt8(0x0f);
+            set => this.VersionAndType._UpdateBitsUInt8(0x0f, (byte)value);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct TagVLanHeader
     {
         public ushort TagAndVLanId;
-        public EthernetTpid Protocol;
+        public EthernetProtocolId Protocol;
 
         public int VLanId
         {
@@ -196,6 +243,24 @@ namespace IPA.Cores.Basic
         public ushort DstPort;
         public ushort PacketLength2;
         public ushort Checksum;
+    }
+
+    static class TcpIpPacketUtil
+    {
+        public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
+        {
+            switch (id)
+            {
+                case PPPProtocolId.IPv4:
+                    return EthernetProtocolId.IPv4;
+
+                case PPPProtocolId.IPv6:
+                    return EthernetProtocolId.IPv6;
+
+                default:
+                    return EthernetProtocolId.Unknown;
+            }
+        }
     }
 }
 

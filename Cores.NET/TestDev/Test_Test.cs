@@ -106,18 +106,21 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Con.WriteLine(Unsafe.SizeOf<L2>());
+            Con.WriteLine(Unsafe.SizeOf<GenericHeader>());
 
-            var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
+            //var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
 
             Packet packet = new Packet(packetMem._CloneMemory());
 
-            packet.ParsePacket();
+            PacketParsed parsed = new PacketParsed(packet);
 
             //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
+
+            NoOp();
         }
     }
 }

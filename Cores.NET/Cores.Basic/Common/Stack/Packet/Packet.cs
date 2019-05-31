@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class Packet
+    class Packet
     {
         ByteLinkedList List = new ByteLinkedList();
         public int PinHead { get; private set; } = 0;
@@ -637,19 +637,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IPacketPin : IEmptyChecker
-    {
-        Packet Packet { get; }
-        int Pin { get; }
-        int HeaderSize { get; }
-        bool IsEmpty { get; }
-        bool IsFilled { get; }
-        PacketPin<TNext> GetNextHeader<TNext>(int? size = null) where TNext : struct;
-        ReadOnlyMemory<byte> MemoryRead { get; }
-        Memory<byte> Memory { get; }
-    }
-
-    readonly unsafe struct PacketPin<T> : IPacketPin where T : struct
+    readonly unsafe struct PacketPin<T> where T : struct
     {
         public Packet Packet { get; }
         public int Pin { get; }
@@ -734,9 +722,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> GetNextHeader<TNext>(int? size = null) where TNext : struct
+        public PacketPin<TNext> GetNextHeader<TNext>(int? size = null, int maxPacketSize = int.MaxValue) where TNext : struct
         {
-            return Packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, this.PayloadSize);
+            return Packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, Math.Min(this.PayloadSize, maxPacketSize));
         }
     }
 

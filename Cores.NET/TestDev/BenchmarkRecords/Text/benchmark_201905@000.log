@@ -7874,3 +7874,203 @@
 2019/05/31 17:17:57.457 +09:00 New Packet: 16.82 ns, 59,441,445 / sec
 2019/05/31 17:17:57.994 +09:00 File Write Small - Cores Object - Async: 14,279.30 ns, 70,031 / sec
 2019/05/31 17:17:58.578 +09:00 File Write Small - .NET Native - Sync: 11,080.88 ns, 90,245 / sec
+2019/05/31 18:32:24.881 +09:00 ----- Start new benchmark -----
+2019/05/31 18:32:24.931 +09:00 Commit: ef0f052a99c8fb2b76b9fb41ea18c397fd2d502e
+2019/05/31 18:32:24.931 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 18:32:24.931 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 18:32:24.931 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 18:32:24.931 +09:00 Host: PC37
+2019/05/31 18:32:25.613 +09:00 ParsePacket #4: 333.15 ns, 3,001,692 / sec
+2019/05/31 18:32:26.118 +09:00 ParsePacket #3: 299.27 ns, 3,341,477 / sec
+2019/05/31 18:32:26.619 +09:00 ParsePacket #2: 224.63 ns, 4,451,759 / sec
+2019/05/31 18:32:27.121 +09:00 ParsePacket #1: 283.43 ns, 3,528,164 / sec
+2019/05/31 18:32:27.726 +09:00 Span memory copy 1600 bytes: 32.39 ns, 30,876,362 / sec
+2019/05/31 18:32:28.309 +09:00 Span memory copy 400 bytes: 9.05 ns, 110,512,880 / sec
+2019/05/31 18:32:31.650 +09:00 ----- Start new benchmark -----
+2019/05/31 18:32:31.702 +09:00 Commit: ef0f052a99c8fb2b76b9fb41ea18c397fd2d502e
+2019/05/31 18:32:31.702 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 18:32:31.702 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 18:32:31.702 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 18:32:31.702 +09:00 Host: PC37
+2019/05/31 18:32:32.343 +09:00 ParsePacket #4: 294.66 ns, 3,393,790 / sec
+2019/05/31 18:32:32.846 +09:00 ParsePacket #3: 317.48 ns, 3,149,826 / sec
+2019/05/31 20:18:59.375 +09:00 ----- Start new benchmark -----
+2019/05/31 20:18:59.424 +09:00 Commit: ef0f052a99c8fb2b76b9fb41ea18c397fd2d502e
+2019/05/31 20:18:59.424 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 20:18:59.424 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 20:18:59.424 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 20:18:59.424 +09:00 Host: PC37
+2019/05/31 20:19:00.084 +09:00 ParsePacket #5: 726.49 ns, 1,376,482 / sec
+2019/05/31 20:19:00.586 +09:00 ParsePacket #4: 311.68 ns, 3,208,411 / sec
+2019/05/31 20:19:01.090 +09:00 ParsePacket #3: 392.59 ns, 2,547,164 / sec
+2019/05/31 20:19:01.594 +09:00 ParsePacket #2: 250.65 ns, 3,989,569 / sec
+2019/05/31 20:19:02.098 +09:00 ParsePacket #1: 285.23 ns, 3,505,902 / sec
+2019/05/31 20:19:02.676 +09:00 Span memory copy 1600 bytes: 30.18 ns, 33,138,333 / sec
+2019/05/31 20:19:03.254 +09:00 Span memory copy 400 bytes: 9.03 ns, 110,764,954 / sec
+2019/05/31 20:19:03.795 +09:00 _IsZeroFastStruct: 4.04 ns, 247,830,296 / sec
+2019/05/31 20:19:04.419 +09:00 sizeof(T): 0.01 ns, 179,420,471,875 / sec
+2019/05/31 20:19:05.026 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:19:05.544 +09:00 New Packet: 7.14 ns, 139,977,199 / sec
+2019/05/31 20:19:06.183 +09:00 File Write Small - Cores Object - Async: 12,917.35 ns, 77,415 / sec
+2019/05/31 20:19:06.764 +09:00 File Write Small - .NET Native - Sync: 10,985.45 ns, 91,029 / sec
+2019/05/31 20:19:07.282 +09:00 SingletonFastArraySlim Get: 1.07 ns, 937,328,132 / sec
+2019/05/31 20:19:07.800 +09:00 SingletonFastArray Get: 1.61 ns, 620,879,086 / sec
+2019/05/31 20:19:08.362 +09:00 SingletonSlim Get: 8.51 ns, 117,488,678 / sec
+2019/05/31 20:19:08.881 +09:00 Singleton2 Get: 24.00 ns, 41,660,090 / sec
+2019/05/31 20:19:09.406 +09:00 Singleton1 Get: 0.44 ns, 2,269,342,861 / sec
+2019/05/31 20:19:10.018 +09:00 New MemoryBuffer: 9.95 ns, 100,476,071 / sec
+2019/05/31 20:19:10.521 +09:00 MemoryBuffer Pin Lock / Unlock: 140.53 ns, 7,116,078 / sec
+2019/05/31 20:19:11.295 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:19:12.223 +09:00 Convert Enum to Long: 1.55 ns, 645,729,740 / sec
+2019/05/31 20:19:12.883 +09:00 New Packet with Data: 18.11 ns, 55,208,990 / sec
+2019/05/31 20:19:13.618 +09:00 Packet struct I/O: 45.75 ns, 21,858,209 / sec
+2019/05/31 20:19:14.122 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:19:14.625 +09:00 IsZero - All Zero Sparse: 1.93 ns, 518,411,048 / sec
+2019/05/31 20:19:15.132 +09:00 GetSparseChunks - NonSparse: 81,186.02 ns, 12,317 / sec
+2019/05/31 20:19:15.667 +09:00 GetSparseChunks - Sparse: 1,413,736.99 ns, 707 / sec
+2019/05/31 20:19:16.171 +09:00 GetSparseChunks - All Zero Sparse: 81,159.01 ns, 12,321 / sec
+2019/05/31 20:19:16.675 +09:00 Util.Rand(): 295.78 ns, 3,380,916 / sec
+2019/05/31 20:19:17.178 +09:00 Secure.Rand(): 285.55 ns, 3,501,956 / sec
+2019/05/31 20:19:17.682 +09:00 ParseEnum: 69.53 ns, 14,382,317 / sec
+2019/05/31 20:19:19.269 +09:00 GetSparseChunks: 13,355,323.49 ns, 74 / sec
+2019/05/31 20:19:19.836 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,045,593.44 ns, 956 / sec
+2019/05/31 20:19:20.381 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 975,435.81 ns, 1,025 / sec
+2019/05/31 20:19:20.940 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,018,435.11 ns, 981 / sec
+2019/05/31 20:19:21.744 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,485,890.47 ns, 182 / sec
+2019/05/31 20:19:23.029 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,331,452.48 ns, 96 / sec
+2019/05/31 20:19:23.763 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 4,807,808.44 ns, 207 / sec
+2019/05/31 20:19:24.588 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 5,729,334.49 ns, 174 / sec
+2019/05/31 20:19:25.425 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,830,343.46 ns, 171 / sec
+2019/05/31 20:19:26.159 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,795,921.48 ns, 208 / sec
+2019/05/31 20:19:26.689 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 396,072.76 ns, 2,524 / sec
+2019/05/31 20:19:27.426 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 4,843,752.47 ns, 206 / sec
+2019/05/31 20:19:27.929 +09:00 CallAsyncWithAwait: 30.06 ns, 33,266,426 / sec
+2019/05/31 20:19:28.432 +09:00 CallAsyncWithNonAwait: 13.44 ns, 74,381,810 / sec
+2019/05/31 20:19:28.935 +09:00 Rand[16]: 156.62 ns, 6,384,766 / sec
+2019/05/31 20:19:29.441 +09:00 Guid.NewGuid().ToString(): 221.70 ns, 4,510,587 / sec
+2019/05/31 20:19:29.962 +09:00 Read the String_ReadOnly value: 1.02 ns, 983,427,624 / sec
+2019/05/31 20:19:30.465 +09:00 Read the String_GetOnly value: 0.71 ns, 1,405,132,069 / sec
+2019/05/31 20:19:30.977 +09:00 Read the String_Copenhagen_ReadOnly value: 0.76 ns, 1,324,007,787 / sec
+2019/05/31 20:19:31.506 +09:00 Read the String_Copenhagen_GetOnly value: 1.03 ns, 969,179,907 / sec
+2019/05/31 20:19:32.123 +09:00 Read the Int_ReadOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:19:32.733 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:19:33.267 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.76 ns, 1,322,201,948 / sec
+2019/05/31 20:19:33.788 +09:00 Read the Int_Copenhagen_GetOnly value: 0.74 ns, 1,347,038,550 / sec
+2019/05/31 20:19:34.291 +09:00 AsyncCallMethodFromAsyncMethod: 19.63 ns, 50,943,606 / sec
+2019/05/31 20:19:34.795 +09:00 AsyncCallMethodFromSyncMethod: 14.47 ns, 69,119,440 / sec
+2019/05/31 20:19:35.438 +09:00 Lock for readonly object: 17.33 ns, 57,687,360 / sec
+2019/05/31 20:19:36.082 +09:00 Lock for get property object: 17.22 ns, 58,063,035 / sec
+2019/05/31 20:19:59.399 +09:00 ----- Start new benchmark -----
+2019/05/31 20:19:59.450 +09:00 Commit: ef0f052a99c8fb2b76b9fb41ea18c397fd2d502e
+2019/05/31 20:19:59.450 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 20:19:59.450 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 20:19:59.450 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 20:19:59.450 +09:00 Host: PC37
+2019/05/31 20:20:00.126 +09:00 ParsePacket #5: 747.24 ns, 1,338,258 / sec
+2019/05/31 20:20:00.631 +09:00 ParsePacket #4: 319.96 ns, 3,125,397 / sec
+2019/05/31 20:20:01.136 +09:00 ParsePacket #3: 354.84 ns, 2,818,155 / sec
+2019/05/31 20:20:01.642 +09:00 ParsePacket #2: 274.67 ns, 3,640,740 / sec
+2019/05/31 20:20:02.146 +09:00 ParsePacket #1: 285.15 ns, 3,506,873 / sec
+2019/05/31 20:20:02.753 +09:00 Span memory copy 1600 bytes: 32.36 ns, 30,899,891 / sec
+2019/05/31 20:20:03.322 +09:00 Span memory copy 400 bytes: 8.63 ns, 115,841,510 / sec
+2019/05/31 20:20:03.850 +09:00 _IsZeroFastStruct: 3.74 ns, 267,344,122 / sec
+2019/05/31 20:20:04.467 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:20:05.080 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:20:05.607 +09:00 New Packet: 7.35 ns, 135,978,910 / sec
+2019/05/31 20:20:06.158 +09:00 File Write Small - Cores Object - Async: 14,956.44 ns, 66,860 / sec
+2019/05/31 20:20:06.707 +09:00 File Write Small - .NET Native - Sync: 9,931.74 ns, 100,687 / sec
+2019/05/31 20:20:07.233 +09:00 SingletonFastArraySlim Get: 1.05 ns, 948,479,434 / sec
+2019/05/31 20:20:07.755 +09:00 SingletonFastArray Get: 1.66 ns, 602,801,448 / sec
+2019/05/31 20:20:08.310 +09:00 SingletonSlim Get: 8.20 ns, 121,879,805 / sec
+2019/05/31 20:20:08.828 +09:00 Singleton2 Get: 23.68 ns, 42,221,215 / sec
+2019/05/31 20:20:09.354 +09:00 Singleton1 Get: 0.45 ns, 2,236,411,347 / sec
+2019/05/31 20:20:09.957 +09:00 New MemoryBuffer: 9.73 ns, 102,822,541 / sec
+2019/05/31 20:20:10.460 +09:00 MemoryBuffer Pin Lock / Unlock: 145.80 ns, 6,858,480 / sec
+2019/05/31 20:20:11.119 +09:00 BitAny: 0.21 ns, 4,732,585,269 / sec
+2019/05/31 20:20:12.055 +09:00 Convert Enum to Long: 1.56 ns, 640,514,256 / sec
+2019/05/31 20:20:12.707 +09:00 New Packet with Data: 17.84 ns, 56,068,793 / sec
+2019/05/31 20:20:13.464 +09:00 Packet struct I/O: 47.99 ns, 20,835,516 / sec
+2019/05/31 20:20:13.967 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:20:14.470 +09:00 IsZero - All Zero Sparse: 1.27 ns, 789,445,639 / sec
+2019/05/31 20:20:14.975 +09:00 GetSparseChunks - NonSparse: 76,463.05 ns, 13,078 / sec
+2019/05/31 20:20:15.529 +09:00 GetSparseChunks - Sparse: 1,506,902.45 ns, 663 / sec
+2019/05/31 20:20:16.043 +09:00 GetSparseChunks - All Zero Sparse: 130,614.55 ns, 7,656 / sec
+2019/05/31 20:20:16.546 +09:00 Util.Rand(): 296.39 ns, 3,373,979 / sec
+2019/05/31 20:20:17.049 +09:00 Secure.Rand(): 283.48 ns, 3,527,642 / sec
+2019/05/31 20:20:17.553 +09:00 ParseEnum: 73.80 ns, 13,549,370 / sec
+2019/05/31 20:20:19.224 +09:00 GetSparseChunks: 14,193,763.44 ns, 70 / sec
+2019/05/31 20:20:19.792 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,050,058.15 ns, 952 / sec
+2019/05/31 20:20:20.328 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 943,731.80 ns, 1,059 / sec
+2019/05/31 20:20:20.890 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,026,856.13 ns, 973 / sec
+2019/05/31 20:20:21.682 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,398,151.46 ns, 185 / sec
+2019/05/31 20:20:22.951 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,165,526.49 ns, 98 / sec
+2019/05/31 20:20:23.819 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 6,160,800.47 ns, 162 / sec
+2019/05/31 20:20:24.556 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 4,846,443.47 ns, 206 / sec
+2019/05/31 20:20:25.398 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 5,902,460.47 ns, 169 / sec
+2019/05/31 20:20:26.129 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,787,821.45 ns, 208 / sec
+2019/05/31 20:21:33.245 +09:00 ----- Start new benchmark -----
+2019/05/31 20:21:33.296 +09:00 Commit: ef0f052a99c8fb2b76b9fb41ea18c397fd2d502e
+2019/05/31 20:21:33.296 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/05/31 20:21:33.296 +09:00 OS: Microsoft Windows 10.0.18362
+2019/05/31 20:21:33.296 +09:00 Framework: .NET Core 4.6.27019.06
+2019/05/31 20:21:33.296 +09:00 Host: PC37
+2019/05/31 20:21:33.971 +09:00 ParsePacket #5: 702.24 ns, 1,424,012 / sec
+2019/05/31 20:21:34.475 +09:00 ParsePacket #4: 310.16 ns, 3,224,185 / sec
+2019/05/31 20:21:34.979 +09:00 ParsePacket #3: 348.22 ns, 2,871,763 / sec
+2019/05/31 20:21:35.483 +09:00 ParsePacket #2: 264.82 ns, 3,776,116 / sec
+2019/05/31 20:21:35.988 +09:00 ParsePacket #1: 284.87 ns, 3,510,396 / sec
+2019/05/31 20:21:36.628 +09:00 Span memory copy 1600 bytes: 36.21 ns, 27,613,655 / sec
+2019/05/31 20:21:37.208 +09:00 Span memory copy 400 bytes: 9.02 ns, 110,841,160 / sec
+2019/05/31 20:21:37.749 +09:00 _IsZeroFastStruct: 4.01 ns, 249,399,636 / sec
+2019/05/31 20:21:38.361 +09:00 sizeof(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:21:38.966 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:21:39.491 +09:00 New Packet: 7.08 ns, 141,321,434 / sec
+2019/05/31 20:21:40.047 +09:00 File Write Small - Cores Object - Async: 15,186.38 ns, 65,848 / sec
+2019/05/31 20:21:40.628 +09:00 File Write Small - .NET Native - Sync: 11,005.07 ns, 90,867 / sec
+2019/05/31 20:21:41.143 +09:00 SingletonFastArraySlim Get: 1.28 ns, 779,126,339 / sec
+2019/05/31 20:21:41.659 +09:00 SingletonFastArray Get: 1.67 ns, 597,144,394 / sec
+2019/05/31 20:21:42.220 +09:00 SingletonSlim Get: 8.52 ns, 117,356,345 / sec
+2019/05/31 20:21:42.740 +09:00 Singleton2 Get: 23.94 ns, 41,770,450 / sec
+2019/05/31 20:21:43.261 +09:00 Singleton1 Get: 0.62 ns, 1,608,901,071 / sec
+2019/05/31 20:21:43.858 +09:00 New MemoryBuffer: 9.71 ns, 102,964,910 / sec
+2019/05/31 20:21:44.362 +09:00 MemoryBuffer Pin Lock / Unlock: 141.34 ns, 7,075,172 / sec
+2019/05/31 20:21:44.972 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:21:45.914 +09:00 Convert Enum to Long: 1.50 ns, 665,011,010 / sec
+2019/05/31 20:21:46.561 +09:00 New Packet with Data: 17.58 ns, 56,874,572 / sec
+2019/05/31 20:21:47.259 +09:00 Packet struct I/O: 42.09 ns, 23,756,894 / sec
+2019/05/31 20:21:47.762 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:21:48.265 +09:00 IsZero - All Zero Sparse: 1.80 ns, 555,014,085 / sec
+2019/05/31 20:21:48.772 +09:00 GetSparseChunks - NonSparse: 81,999.45 ns, 12,195 / sec
+2019/05/31 20:21:49.370 +09:00 GetSparseChunks - Sparse: 1,718,818.44 ns, 581 / sec
+2019/05/31 20:21:49.878 +09:00 GetSparseChunks - All Zero Sparse: 142,205.22 ns, 7,032 / sec
+2019/05/31 20:21:50.381 +09:00 Util.Rand(): 289.22 ns, 3,457,602 / sec
+2019/05/31 20:21:50.882 +09:00 Secure.Rand(): 287.08 ns, 3,483,308 / sec
+2019/05/31 20:21:51.384 +09:00 ParseEnum: 67.13 ns, 14,896,246 / sec
+2019/05/31 20:21:53.212 +09:00 GetSparseChunks: 15,759,784.48 ns, 63 / sec
+2019/05/31 20:21:53.777 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 1,044,035.15 ns, 957 / sec
+2019/05/31 20:21:54.315 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 954,680.13 ns, 1,047 / sec
+2019/05/31 20:21:54.878 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 1,037,064.39 ns, 964 / sec
+2019/05/31 20:21:55.669 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 5,392,805.42 ns, 185 / sec
+2019/05/31 20:21:56.928 +09:00 Memory Copy by Span loop 10,000,000 bytes: 10,078,207.49 ns, 99 / sec
+2019/05/31 20:21:57.657 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 4,769,761.44 ns, 209 / sec
+2019/05/31 20:21:58.489 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 5,794,152.50 ns, 172 / sec
+2019/05/31 20:21:59.345 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 6,047,063.50 ns, 165 / sec
+2019/05/31 20:22:00.082 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 4,847,887.47 ns, 206 / sec
+2019/05/31 20:22:00.598 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 441,045.62 ns, 2,267 / sec
+2019/05/31 20:22:01.359 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 5,085,953.49 ns, 196 / sec
+2019/05/31 20:22:01.861 +09:00 CallAsyncWithAwait: 30.58 ns, 32,700,652 / sec
+2019/05/31 20:22:02.364 +09:00 CallAsyncWithNonAwait: 11.01 ns, 90,825,610 / sec
+2019/05/31 20:22:02.868 +09:00 Rand[16]: 157.11 ns, 6,364,840 / sec
+2019/05/31 20:22:03.372 +09:00 Guid.NewGuid().ToString(): 220.03 ns, 4,544,805 / sec
+2019/05/31 20:22:03.893 +09:00 Read the String_ReadOnly value: 1.03 ns, 968,544,025 / sec
+2019/05/31 20:22:04.429 +09:00 Read the String_GetOnly value: 0.68 ns, 1,469,893,553 / sec
+2019/05/31 20:22:04.939 +09:00 Read the String_Copenhagen_ReadOnly value: 0.79 ns, 1,268,008,260 / sec
+2019/05/31 20:22:05.459 +09:00 Read the String_Copenhagen_GetOnly value: 1.01 ns, 994,732,540 / sec
+2019/05/31 20:22:06.079 +09:00 Read the Int_ReadOnly value: 0.02 ns, 49,259,870,446 / sec
+2019/05/31 20:22:06.681 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2019/05/31 20:22:07.199 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.75 ns, 1,339,047,365 / sec
+2019/05/31 20:22:07.712 +09:00 Read the Int_Copenhagen_GetOnly value: 0.80 ns, 1,257,749,451 / sec
+2019/05/31 20:22:08.214 +09:00 AsyncCallMethodFromAsyncMethod: 16.98 ns, 58,900,085 / sec
+2019/05/31 20:22:08.716 +09:00 AsyncCallMethodFromSyncMethod: 14.11 ns, 70,871,463 / sec
+2019/05/31 20:22:09.357 +09:00 Lock for readonly object: 17.72 ns, 56,437,701 / sec
+2019/05/31 20:22:10.011 +09:00 Lock for get property object: 18.04 ns, 55,440,357 / sec
