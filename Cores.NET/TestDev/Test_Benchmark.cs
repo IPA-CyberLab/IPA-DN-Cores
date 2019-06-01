@@ -494,17 +494,6 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190519)
 
-            .Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
-            {
-                Memory<byte> hello = "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-                long v = 8;
-                for (int c = 0; c < count; c++)
-                {
-                    Packet newPacket = new Packet(hello);
-                    newPacket.InsertHeaderHead(v);
-                }
-            }), enabled: true, priority: 190519)
-
             .Add(new MicroBenchmark($"Util.Rand()", Benchmark_CountForSlow, count =>
             {
                 Span<byte> dest = new byte[100];
