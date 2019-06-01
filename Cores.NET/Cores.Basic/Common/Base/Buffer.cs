@@ -2846,5 +2846,177 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    sealed class UnmanagedMemory : IDisposable
+    {
+        UnmanagedMemoryPool Pool;
+        public IntPtr Ptr { get; }
+        public int Size { get; }
+        internal int UnitSizeIndex { get; }
+
+        internal UnmanagedMemory(UnmanagedMemoryPool pool, IntPtr ptr, int size, int unitSizeIndex)
+        {
+            this.Pool = pool;
+            this.Ptr = ptr;
+            this.Size = size;
+            this.UnitSizeIndex = UnitSizeIndex;
+        }
+
+        private bool disposedValue = false;
+        void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                this.Pool.Free(this);
+
+                disposedValue = true;
+            }
+        }
+
+        ~UnmanagedMemory()
+        {
+            Dispose(false);
+        }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    class FastStack<T>
+    {
+        public int Count { get; private set; }
+
+        T[] InternalArray;
+        int InternalCount;
+
+        public FastStack()
+        {
+            this.InternalArray = new T[8];
+            this.InternalCount = 8;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Push(T t)
+        {
+            int newCount = Count + 1;
+
+            if (this.InternalCount < newCount)
+            {
+                int newSize = this.InternalCount * 2;
+                this.InternalArray = this.InternalArray._ReAlloc(newSize);
+            }
+
+            this.InternalArray[Count] = t;
+
+            Count++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryPop(out T ret)
+        {
+            if (this.Count == 0)
+            {
+                ret = default;
+                return false;
+            }
+
+            ret = this.InternalArray[Count - 1];
+
+            Count--;
+
+            return true;
+        }
+
+        public T[] ToArray()
+        {
+            return this.InternalArray.AsSpan(0, Count).ToArray();
+        }
+    }
+
+    class UnmanagedMemoryPool : IDisposable
+    {
+        public const int SizeUnit = 100;
+        public const int MaxSize = 536_870_912;
+
+        CriticalSection LockObj = new CriticalSection();
+
+        FastStack<IntPtr>[] PoolsBySize;
+
+        public UnmanagedMemoryPool()
+        {
+            PoolsBySize = new FastStack<IntPtr>[32];
+            for (int i = 0; i < PoolsBySize.Length; i++)
+            {
+                PoolsBySize[i] = new FastStack<IntPtr>();
+            }
+        }
+
+        public UnmanagedMemory Allocate(int size)
+        {
+            int unitSize = GetSizeBase(size, out int index);
+
+            IntPtr ptr = IntPtr.Zero;
+
+            lock (LockObj)
+            {
+                FastStack<IntPtr> list = PoolsBySize[index];
+                if (list.TryPop(out ptr) == false)
+                {
+                    ptr = IntPtr.Zero;
+                }
+            }
+
+            if (ptr == IntPtr.Zero)
+            {
+                ptr = Marshal.AllocHGlobal(unitSize);
+
+                if (ptr == IntPtr.Zero)
+                {
+                    throw new ApplicationException("Marshal.AllocHGlobal returned null.");
+                }
+            }
+
+            return new UnmanagedMemory(this, ptr, size, index);
+        }
+
+        public void Free(UnmanagedMemory m)
+        {
+            lock (LockObj)
+            {
+                PoolsBySize[m.UnitSizeIndex].Push(m.Ptr);
+            }
+        }
+
+        public static int GetSizeBase(int size, out int index)
+        {
+            if (size < 0 || size > MaxSize) throw new ArgumentOutOfRangeException("size");
+
+            int b = SizeUnit;
+            for (index = 0; ; index++)
+            {
+                if (b >= size)
+                    return b;
+                b *= 2;
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            foreach (var pool in PoolsBySize)
+            {
+                IntPtr[] ptrs = pool.ToArray();
+
+                ptrs._DoForEach(x => Marshal.FreeHGlobal(x));
+            }
+        }
+    }
 }
 

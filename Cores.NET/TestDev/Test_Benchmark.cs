@@ -236,6 +236,20 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190528)
 
+
+            .Add(new MicroBenchmark($"UnmanagedMemoryPool", Benchmark_CountForNormal, count =>
+            {
+                using (UnmanagedMemoryPool p = new UnmanagedMemoryPool())
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        p.Allocate(64).Dispose();
+                    }
+                }
+
+            }), enabled: true, priority: 190531)
+
+
             .Add(new MicroBenchmark($"ParsePacket #7", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_udp.txt"].HexParsedBinary;
