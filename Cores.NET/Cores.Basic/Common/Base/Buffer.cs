@@ -54,6 +54,12 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultSegmentSize = 10_000_000;
             //public static readonly Copenhagen<int> DefaultSegmentSize = 10;
         }
+
+        public static partial class ElasticBufferConfig
+        {
+            public static readonly Copenhagen<int> PreAllocationSize = 32;
+            public static readonly Copenhagen<int> PostAllocationSize = 32;
+        }
     }
 
     ref struct SpanBuffer<T>
@@ -2844,6 +2850,194 @@ namespace IPA.Cores.Basic
                 else
                     return Memory<T>.Empty;
             }
+        }
+    }
+
+    ref struct ElasticSpan<T>
+    {
+        static readonly int PreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
+        static readonly int PostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
+        Span<T> Buffer;
+        public int DataLength { get; private set; }
+        int PreSize;
+        int PostSize;
+
+        public ReadOnlySpan<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Buffer.Slice(PreSize, DataLength);
+        }
+
+        public void Clear()
+        {
+            Buffer = Span<T>.Empty;
+            DataLength = 0;
+            PreSize = 0;
+            PostSize = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void InsertHead(ReadOnlySpan<T> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PreSize < data.Length)
+                EnsurePreSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
+            PreSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void InsertTail(ReadOnlySpan<T> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PostSize < data.Length)
+                EnsurePostSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize + DataLength, data.Length));
+            PostSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(ReadOnlySpan<T> data, int pos)
+        {
+            if (data.IsEmpty) return;
+
+            if (pos < 0 || pos >= DataLength) throw new ArgumentException("pos");
+
+            int newDataLength = DataLength + data.Length;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, DataLength - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, DataLength - pos));
+            data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
+            Buffer = newBuffer;
+            DataLength = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePreSize(int newPreSize)
+        {
+            if (PreSize >= newPreSize) return;
+            newPreSize = newPreSize + PreAllocationSize;
+
+            int newBufferLength = newPreSize + DataLength + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(newPreSize, DataLength));
+            PreSize = newPreSize;
+            Buffer = newBuffer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePostSize(int newPostSize)
+        {
+            if (PostSize >= newPostSize) return;
+            newPostSize = newPostSize + PostAllocationSize;
+
+            int newBufferLength = PreSize + DataLength + newPostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(PreSize, DataLength));
+            PostSize = newPostSize;
+            Buffer = newBuffer;
+        }
+    }
+
+    class ElasticMemory<T>
+    {
+        static readonly int PreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
+        static readonly int PostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
+        Memory<T> Buffer;
+        public int DataLength { get; private set; }
+        int PreSize;
+        int PostSize;
+
+        public Memory<T> Memory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Buffer.Slice(PreSize, DataLength);
+        }
+
+        public void Clear()
+        {
+            Buffer = Memory<T>.Empty;
+            DataLength = 0;
+            PreSize = 0;
+            PostSize = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void InsertHead(ReadOnlyMemory<T> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PreSize < data.Length)
+                EnsurePreSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
+            PreSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void InsertTail(ReadOnlyMemory<T> data)
+        {
+            if (data.IsEmpty) return;
+
+            if (PostSize < data.Length)
+                EnsurePostSize(data.Length);
+
+            data.CopyTo(Buffer.Slice(PreSize + DataLength, data.Length));
+            PostSize -= data.Length;
+            DataLength += data.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(ReadOnlyMemory<T> data, int pos)
+        {
+            if (data.IsEmpty) return;
+
+            if (pos < 0 || pos >= DataLength) throw new ArgumentException("pos");
+
+            int newDataLength = DataLength + data.Length;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Memory<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, DataLength - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, DataLength - pos));
+            data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
+            Buffer = newBuffer;
+            DataLength = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePreSize(int newPreSize)
+        {
+            if (PreSize >= newPreSize) return;
+            newPreSize = newPreSize + PreAllocationSize;
+
+            int newBufferLength = newPreSize + DataLength + PostSize;
+            Memory<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(newPreSize, DataLength));
+            PreSize = newPreSize;
+            Buffer = newBuffer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePostSize(int newPostSize)
+        {
+            if (PostSize >= newPostSize) return;
+            newPostSize = newPostSize + PostAllocationSize;
+
+            int newBufferLength = PreSize + DataLength + newPostSize;
+            Memory<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(PreSize, DataLength));
+            PostSize = newPostSize;
+            Buffer = newBuffer;
         }
     }
 }
