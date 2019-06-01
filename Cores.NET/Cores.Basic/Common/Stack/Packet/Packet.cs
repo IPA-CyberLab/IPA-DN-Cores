@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
 {
     class Packet
     {
-        ElasticMemory<byte> Memory;
+        ElasticMemory<byte> Elastic;
         public int PinHead { get; private set; } = 0;
         public int PinTail { get; private set; } = 0;
         public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
@@ -57,9 +57,9 @@ namespace IPA.Cores.Basic
 
         public Packet(Memory<byte> initialContents, bool copyInitialContents = true)
         {
-            this.Memory = new ElasticMemory<byte>(initialContents, copyInitialContents);
+            this.Elastic = new ElasticMemory<byte>(initialContents, copyInitialContents);
             this.PinHead = 0;
-            this.PinTail = this.Memory.Length;
+            this.PinTail = this.Elastic.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                Memory = new ElasticMemory<byte>();
+                Elastic = new ElasticMemory<byte>();
                 PinTail = PinHead;
             }
         }
@@ -94,17 +94,17 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory<byte> GetContiguous(int pin, int size, bool allowPartial = false)
+        public Memory<byte> GetContiguous(int pin, int size)
         {
-            return this.Memory.Memory.Slice(pin - PinHead, size);
+            return this.Elastic.Memory.Slice(pin - PinHead, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ref readonly T AsReadOnlyStruct<T>(int pin, int? size = null) where T : struct
+        public unsafe ref T AsStruct<T>(int pin, int? size = null) where T : struct
         {
             int size2 = size ?? Unsafe.SizeOf<T>();
 
-            Memory<byte> data = this.GetContiguous(pin, size2, false);
+            Memory<byte> data = this.GetContiguous(pin, size2);
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
@@ -169,27 +169,21 @@ namespace IPA.Cores.Basic
             get => Math.Max(0, TotalPacketSize - this.HeaderSize);
         }
 
-        public unsafe ref readonly T RefValueRead
+        public unsafe ref T RefValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Packet.AsReadOnlyStruct<T>(this.Pin, this.HeaderSize);
+            get => ref Packet.AsStruct<T>(this.Pin, this.HeaderSize);
         }
-
-        //public unsafe ref T RefValue
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get => ref Packet.AsStruct<T>(this.Pin, this.HeaderSize);
-        //}
 
         public unsafe T _ValueDebug
         {
-            get => RefValueRead;
+            get => RefValue;
         }
 
         public ReadOnlyMemory<byte> MemoryRead
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Packet.GetContiguous(this.Pin, this.HeaderSize, false);
+            get => Packet.GetContiguous(this.Pin, this.HeaderSize);
         }
 
         //public Memory<byte> Memory

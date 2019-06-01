@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic
 
             this.L2 = new L2(ether);
 
-            EthernetProtocolId tpid = ether.RefValueRead.Protocol._Endian16();
+            EthernetProtocolId tpid = ether.RefValue.Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.TagVlan)
                 return ParseL2_TagVLan1(this.L2.Ethernet, tpid);
@@ -316,7 +316,7 @@ namespace IPA.Cores.Basic
 
             this.L2_TagVLan1 = new L2_TagVLan(tagVLan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValueRead.Protocol._Endian16();
+            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.TagVlan)
                 return ParseL2_TagVLan2(this.L2.Ethernet, tpid);
@@ -335,7 +335,7 @@ namespace IPA.Cores.Basic
 
             this.L2_TagVLan2 = new L2_TagVLan(tagVLan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValueRead.Protocol._Endian16();
+            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.TagVlan)
                 return ParseL2_TagVLan3(this.L2.Ethernet, tpid);
@@ -354,7 +354,7 @@ namespace IPA.Cores.Basic
 
             this.L2_TagVLan3 = new L2_TagVLan(tagVLan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValueRead.Protocol._Endian16();
+            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.TagVlan)
             {
@@ -390,7 +390,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly PPPoESessionHeader data = ref pppoe.RefValueRead;
+            ref PPPoESessionHeader data = ref pppoe.RefValue;
 
             if (data.Version != 1)
             {
@@ -445,7 +445,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly IPv4Header data = ref ipv4.RefValueRead;
+            ref IPv4Header data = ref ipv4.RefValue;
 
             if (data.Version != 4)
             {
@@ -478,7 +478,7 @@ namespace IPA.Cores.Basic
             this.Info.L3_SrcIPv4 = data.SrcIP;
             this.Info.L3_DestIPv4 = data.DstIP;
 
-            switch (ipv4full.RefValueRead.Protocol)
+            switch (ipv4full.RefValue.Protocol)
             {
                 case IPProtocolNumber.TCP:
                     return ParseL4_TCP(this.L3.Generic);
@@ -499,7 +499,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly UDPHeader data = ref udp.RefValueRead;
+            ref UDPHeader data = ref udp.RefValue;
 
             this.L4 = new L4(udp);
 
@@ -520,7 +520,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            ref readonly TCPHeader data = ref tcp.RefValueRead;
+            ref TCPHeader data = ref tcp.RefValue;
 
             int headerLen = data.HeaderSize * 4;
             if (headerLen < Util.SizeOfStruct<TCPHeader>())
@@ -627,7 +627,7 @@ namespace IPA.Cores.Basic
         bool ParseL7_L2TP_PPPData(PacketPin<GenericHeader> payload, L2TPPacketParsed l2tp)
         {
             PacketPin<PPPDataHeader> pppHeader = l2tp.Data.GetInnerHeader<PPPDataHeader>(0);
-            ref readonly PPPDataHeader h = ref pppHeader.RefValueRead;
+            ref PPPDataHeader h = ref pppHeader.RefValue;
 
             if (h.Address != 0xff) return false;
             if (h.Control != 0x03) return false;
