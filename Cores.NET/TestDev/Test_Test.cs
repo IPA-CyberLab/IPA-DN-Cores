@@ -108,56 +108,65 @@ namespace IPA.TestDev
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 
-            PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(Unsafe.SizeOf<TCPHeader>() + 4);
-            ref TCPHeader tcpValue = ref tcp.RefValue;
+            PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(
+                new TCPHeader()
+                {
+                    AckNumber = 123U._Endian32(),
+                    SeqNumber = 456U._Endian32(),
+                    Checksum = 0x1234U._Endian16(),
+                    SrcPort = 80U._Endian16(),
+                    DstPort = 443U._Endian16(),
+                    Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
+                    HeaderSize = (byte)((Unsafe.SizeOf<TCPHeader>() + 4) / 4),
+                    WindowSize = 1234U._Endian16(),
+                },
+                Unsafe.SizeOf<TCPHeader>() + 4);
 
-            tcpValue.AckNumber = 123U._Endian32();
-            tcpValue.SeqNumber = 456U._Endian32();
-            tcpValue.Checksum = 0x1234U._Endian16();
-            tcpValue.SrcPort = 80U._Endian16();
-            tcpValue.DstPort = 443U._Endian16();
-            tcpValue.Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst;
-            tcpValue.HeaderSize = (byte)((Unsafe.SizeOf<TCPHeader>() + 4) / 4);
-            tcpValue.WindowSize = 1234U._Endian16();
+            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(
+                new IPv4Header()
+                {
+                    SrcIP = 0x12345678,
+                    DstIP = 0xdeadbeef,
+                    Checksum = 0x1234U._Endian16(),
+                    Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
+                    HeaderLen = (byte)(Unsafe.SizeOf<IPv4Header>() / 4),
+                    Identification = 0x1234U._Endian16(),
+                    Protocol = IPProtocolNumber.TCP,
+                    TimeToLive = 12,
+                    TotalLength = (ushort)(Unsafe.SizeOf<IPv4Header>() + tcp.HeaderSize),
+                    Version = 4,
+                });
 
-            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>();
-            ref IPv4Header ipValue = ref ip.RefValue;
+            p.Memory._GetHexString(" ")._Print(); ""._Print();
 
-            ipValue.SrcIP = 0x12345678;
-            ipValue.DstIP = 0xdeadbeef;
-            ipValue.Checksum = 0x1234U._Endian16();
-            ipValue.Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments;
-            ipValue.HeaderLen = (byte)(Unsafe.SizeOf<IPv4Header>() / 4);
-            ipValue.Identification = 0x1234U._Endian16();
-            ipValue.Protocol = IPProtocolNumber.TCP;
-            ipValue.TimeToLive = 12;
-            ipValue.TotalLength = (ushort)(ip.HeaderSize + ip.PayloadSize);
-            ipValue.Version = 4;
+            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(
+                new VLanHeader()
+                {
+                    VLanId = 12345U._Endian16(),
+                    Protocol = EthernetProtocolId.IPv4._Endian16(),
+                });
 
-            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>();
-            ref VLanHeader vlanValue = ref vlan.RefValue;
+            EthernetHeader etherHeaderData = new EthernetHeader()
+            {
+                Protocol = EthernetProtocolId.VLan._Endian16(),
+            };
 
-            vlanValue.VLanId = 12345U._Endian16();
-            vlanValue.Protocol = EthernetProtocolId.IPv4._Endian16();
+            etherHeaderData.SrcAddress[0] = 0x00; etherHeaderData.SrcAddress[1] = 0xAC; etherHeaderData.SrcAddress[2] = 0x01;
+            etherHeaderData.SrcAddress[3] = 0x23; etherHeaderData.SrcAddress[4] = 0x45; etherHeaderData.SrcAddress[5] = 0x47;
 
-            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>();
-            ref EthernetHeader etherValue = ref ether.RefValue;
-            etherValue.Protocol = EthernetProtocolId.VLan._Endian16();
-            etherValue.SrcAddress[0] = 0x00;
-            etherValue.SrcAddress[1] = 0xAC;
-            etherValue.SrcAddress[2] = 0x01;
-            etherValue.SrcAddress[3] = 0x23;
-            etherValue.SrcAddress[4] = 0x45;
-            etherValue.SrcAddress[5] = 0x47;
-            etherValue.DestAddress[0] = 0x00;
-            etherValue.DestAddress[1] = 0x98;
-            etherValue.DestAddress[2] = 0x21;
-            etherValue.DestAddress[3] = 0x33;
-            etherValue.DestAddress[4] = 0x89;
-            etherValue.DestAddress[5] = 0x01;
+            etherHeaderData.DestAddress[0] = 0x00; etherHeaderData.DestAddress[1] = 0x98; etherHeaderData.DestAddress[2] = 0x21;
+            etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
 
-            ""._Print();
-            p.Memory._GetHexString(" ")._Print();
+            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(in etherHeaderData);
+
+            var d = p.Memory.ToArray();
+
+            var packet2 = new Packet(d);
+            PacketParsed parsed = new PacketParsed(packet2);
+
+            //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
+
+            NoOp();
         }
 
         public static unsafe void Test_()

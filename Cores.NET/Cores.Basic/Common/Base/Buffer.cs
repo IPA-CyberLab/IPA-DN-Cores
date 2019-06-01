@@ -3015,16 +3015,19 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Prepend(ReadOnlySpan<T> data)
+        public void Prepend(ReadOnlySpan<T> data, int? size = null)
         {
-            if (data.IsEmpty) return;
+            int size2 = size ?? data.Length;
 
-            if (PreSize < data.Length)
-                EnsurePreSize(data.Length);
+            if (size2 == 0) return;
+            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
 
-            data.CopyTo(Buffer.Span.Slice(PreSize - data.Length, data.Length));
-            PreSize -= data.Length;
-            Length += data.Length;
+            if (PreSize < size2)
+                EnsurePreSize(size2);
+
+            data.CopyTo(Buffer.Span.Slice(PreSize - size2, data.Length));
+            PreSize -= size2;
+            Length += size2;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3041,16 +3044,19 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Append(ReadOnlySpan<T> data)
+        public void Append(ReadOnlySpan<T> data, int? size = null)
         {
-            if (data.IsEmpty) return;
+            int size2 = size ?? data.Length;
 
-            if (PostSize < data.Length)
-                EnsurePostSize(data.Length);
+            if (size2 == 0) return;
+            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PostSize < size2)
+                EnsurePostSize(size2);
 
             data.CopyTo(Buffer.Span.Slice(PreSize + Length, data.Length));
-            PostSize -= data.Length;
-            Length += data.Length;
+            PostSize -= size2;
+            Length += size2;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3067,29 +3073,31 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(ReadOnlySpan<T> data, int pos)
+        public void Insert(ReadOnlySpan<T> data, int pos, int? size = null)
         {
-            if (data.IsEmpty) return;
+            int size2 = size ?? data.Length;
+            if (size2 == 0) return;
+            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
 
             if (pos < 0 || pos > Length) throw new ArgumentException("pos");
 
             if (pos == 0)
             {
-                Prepend(data);
+                Prepend(data, size2);
                 return;
             }
             else if (pos == Length)
             {
-                Append(data);
+                Append(data, size2);
                 return;
             }
 
-            int newDataLength = Length + data.Length;
+            int newDataLength = Length + size2;
             int newBufferLength = PreSize + newDataLength + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, Length - pos));
-            data.CopyTo(newBuffer.Span.Slice(PreSize + pos, data.Length));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size2, Length - pos));
+            data.CopyTo(newBuffer.Span.Slice(PreSize + pos, size2));
             Buffer = newBuffer;
             Length = newDataLength;
         }

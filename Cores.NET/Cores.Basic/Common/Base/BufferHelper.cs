@@ -118,7 +118,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short _Endian16(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _Endian32(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _Endian32(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
@@ -1501,7 +1501,23 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void* _AsPointer<T>(this ref T target) where T : struct
+            => Unsafe.AsPointer(ref target);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe Span<byte> _AsByteSpan<T>(this ref T target) where T : struct
+        {
+            void *ptr = Unsafe.AsPointer(ref target);
+            return new Span<byte>(ptr, Unsafe.SizeOf<T>());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ReadOnlySpan<byte> _AsReadOnlyByteSpan<T>(this ref T target) where T : struct
+        {
+            void* ptr = Unsafe.AsPointer(ref target);
+            return new ReadOnlySpan<byte>(ptr, Unsafe.SizeOf<T>());
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe byte _GetBitsUInt8(this byte src, byte bitMask)

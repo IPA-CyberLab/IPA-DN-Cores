@@ -43,6 +43,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
@@ -125,12 +126,27 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> PrependHeader<T>(ReadOnlySpan<byte> data) where T : struct
+        public unsafe PacketPin<T> PrependHeader<T>(in T data, int? size = null) where T : struct
         {
-            this.Elastic.Prepend(data);
-            this.PinHead -= data.Length;
+            int size2 = size ?? Unsafe.SizeOf<T>();
 
-            return new PacketPin<T>(this, this.PinHead, data.Length);
+            var x = Unsafe.AsRef(in data)._AsReadOnlyByteSpan();
+
+            this.Elastic.Prepend(Unsafe.AsRef(in data)._AsReadOnlyByteSpan(), size2);
+            this.PinHead -= size2;
+
+            return new PacketPin<T>(this, this.PinHead, size2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<T> PrependHeader<T>(ReadOnlySpan<byte> data, int? size = null) where T : struct
+        {
+            int size2 = size ?? data.Length;
+
+            this.Elastic.Prepend(data, size2);
+            this.PinHead -= size2;
+
+            return new PacketPin<T>(this, this.PinHead, size2);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -147,14 +163,29 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> AppendHeader<T>(ReadOnlySpan<byte> data) where T : struct
+        public PacketPin<T> AppendHeader<T>(in T data, int? size = null) where T : struct
         {
+            int size2 = size ?? Unsafe.SizeOf<T>();
+
             int oldPinTail = this.PinTail;
 
-            this.Elastic.Append(data);
-            this.PinTail += data.Length;
+            this.Elastic.Append(Unsafe.AsRef(in data)._AsReadOnlyByteSpan(), size2);
+            this.PinTail += size2;
 
-            return new PacketPin<T>(this, oldPinTail, data.Length);
+            return new PacketPin<T>(this, oldPinTail, size2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<T> AppendHeader<T>(ReadOnlySpan<byte> data, int? size = null) where T : struct
+        {
+            int size2 = size ?? data.Length;
+
+            int oldPinTail = this.PinTail;
+
+            this.Elastic.Append(data, size2);
+            this.PinTail += size2;
+
+            return new PacketPin<T>(this, oldPinTail, size2);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -178,16 +209,43 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<T> InsertHeader<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data) where T : struct
+        public PacketPin<T> InsertHeader<T>(PacketInsertMode mode, int pos, in T data, int? size = null) where T : struct
         {
-            this.Elastic.Insert(data, pos);
+            int size2 = size ?? Unsafe.SizeOf<T>();
+
+            this.Elastic.Insert(Unsafe.AsRef(in data)._AsReadOnlyByteSpan(), pos - this.PinHead, size2);
 
             if (mode == PacketInsertMode.MoveHead)
-                this.PinHead -= data.Length;
+            {
+                this.PinHead -= size2;
+                pos -= size2;
+            }
             else
-                this.PinTail += data.Length;
+            {
+                this.PinTail += size2;
+            }
 
-            return new PacketPin<T>(this, pos, data.Length);
+            return new PacketPin<T>(this, pos, size2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<T> InsertHeader<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int? size = null) where T : struct
+        {
+            int size2 = size ?? data.Length;
+
+            this.Elastic.Insert(data, pos - this.PinHead, size2);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size2;
+                pos -= size2;
+            }
+            else
+            {
+                this.PinTail += size2;
+            }
+
+            return new PacketPin<T>(this, pos, size2);
         }
     }
 
@@ -271,16 +329,24 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> PrependHeader<TNext>(ReadOnlySpan<byte> data) where TNext : struct
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data);
+        public PacketPin<TNext> PrependHeader<TNext>(ReadOnlySpan<byte> data, int? size = null) where TNext : struct
+            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> PrependHeader<TNext>(in TNext data, int? size = null) where TNext : struct
+            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<TNext> PrependHeader<TNext>(int? size = null) where TNext : struct
             => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> AppendHeader<TNext>(ReadOnlySpan<byte> data) where TNext : struct
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data);
+        public PacketPin<TNext> AppendHeader<TNext>(ReadOnlySpan<byte> data, int? size = null) where TNext : struct
+            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> AppendHeader<TNext>(in TNext data, int? size = null) where TNext : struct
+            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<TNext> AppendHeader<TNext>(int? size = null) where TNext : struct
@@ -294,7 +360,7 @@ namespace IPA.Cores.Basic
             => ref Unsafe.As<PacketPin<TFrom>, PacketPin<GenericHeader>>(ref src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref readonly PacketPin<TTo> ToOtherTypeHeader<TTo>(this ref PacketPin<GenericHeader> src) where TTo: struct
+        public static ref readonly PacketPin<TTo> ToOtherTypeHeader<TTo>(this ref PacketPin<GenericHeader> src) where TTo : struct
             => ref Unsafe.As<PacketPin<GenericHeader>, PacketPin<TTo>>(ref src);
     }
 }
