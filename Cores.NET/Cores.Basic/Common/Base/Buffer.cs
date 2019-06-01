@@ -2863,7 +2863,7 @@ namespace IPA.Cores.Basic
         int PreSize;
         int PostSize;
 
-        public ReadOnlySpan<T> Span
+        public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Buffer.Slice(PreSize, DataLength);
