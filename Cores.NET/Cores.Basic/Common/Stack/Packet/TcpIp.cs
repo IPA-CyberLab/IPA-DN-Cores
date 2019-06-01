@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
         ARPv4 = 0x0806,
         IPv4 = 0x0800,
         IPv6 = 0x86dd,
-        TagVlan = 0x8100,
+        VLan = 0x8100,
         PPPoE_Discovery = 0x8863,
         PPPoE_Session = 0x8864,
     }
@@ -110,13 +110,13 @@ namespace IPA.Cores.Basic
         public ushort PayloadLength;
         public PPPProtocolId PPPProtocolId;
 
-        public int Version
+        public byte Version
         {
-            get => (this.VersionAndType._GetBitsUInt8(0xf0) >> 4);
+            get => (byte)(this.VersionAndType._GetBitsUInt8(0xf0) >> 4);
             set => this.VersionAndType._UpdateBitsUInt8(0xf0, (byte)(value << 4));
         }
 
-        public int Type
+        public byte Type
         {
             get => this.VersionAndType._GetBitsUInt8(0x0f);
             set => this.VersionAndType._UpdateBitsUInt8(0x0f, (byte)value);
@@ -124,12 +124,12 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct TagVLanHeader
+    struct VLanHeader
     {
         public ushort TagAndVLanId;
         public EthernetProtocolId Protocol;
 
-        public int VLanId
+        public ushort VLanId
         {
             get => this.TagAndVLanId._GetBitsUInt16Endian(0xfff);
             set => this.TagAndVLanId._UpdateBitsUInt16Endian(0xfff, (ushort)value);
@@ -147,6 +147,14 @@ namespace IPA.Cores.Basic
         L2TPv3 = 115,
     }
 
+    [Flags]
+    enum IPv4Flags : byte
+    {
+        MoreFragments = 1,
+        DontFragment = 2,
+        Reserved = 4,
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     unsafe struct IPv4Header
     {
@@ -161,27 +169,27 @@ namespace IPA.Cores.Basic
         public uint SrcIP;
         public uint DstIP;
 
-        public int Version
+        public byte Version
         {
-            get => this.VersionAndHeaderLength >> 4 & 0x0f;
+            get => (byte)(this.VersionAndHeaderLength >> 4 & 0x0f);
             set => VersionAndHeaderLength |= (byte)(((value) & 0x0f) << 4);
         }
 
-        public int HeaderLen
+        public byte HeaderLen
         {
-            get => VersionAndHeaderLength & 0x0f;
+            get => (byte)(VersionAndHeaderLength & 0x0f);
             set => VersionAndHeaderLength |= (byte)((value) & 0x0f);
         }
 
-        public int Flags
+        public IPv4Flags Flags
         {
-            get => (FlagsAndFlagmentOffset[0] >> 5) & 0x07;
-            set => FlagsAndFlagmentOffset[0] |= (byte)(((value) & 0x07) << 5);
+            get => (IPv4Flags)((FlagsAndFlagmentOffset[0] >> 5) & 0x07);
+            set => FlagsAndFlagmentOffset[0] |= (byte)((((byte)(value)) & 0x07) << 5);
         }
 
-        public int Offset
+        public ushort Offset
         {
-            get => ((FlagsAndFlagmentOffset[0] & 0x1f) * 256 + (FlagsAndFlagmentOffset[1]));
+            get => (ushort)(((FlagsAndFlagmentOffset[0] & 0x1f) * 256 + (FlagsAndFlagmentOffset[1])));
             set { FlagsAndFlagmentOffset[0] |= (byte)((value) / 256); FlagsAndFlagmentOffset[1] = (byte)((value) % 256); }
         }
     }
@@ -220,9 +228,9 @@ namespace IPA.Cores.Basic
         public ushort Checksum;
         public ushort UrgentPointer;
 
-        public int HeaderSize
+        public byte HeaderSize
         {
-            get => (this.HeaderSizeAndReserved >> 4) & 0x0f;
+            get => (byte)((this.HeaderSizeAndReserved >> 4) & 0x0f);
             set => this.HeaderSizeAndReserved = (byte)((value & 0x0f) << 4);
         }
     }

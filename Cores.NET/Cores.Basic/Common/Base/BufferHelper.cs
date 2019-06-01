@@ -106,15 +106,27 @@ namespace IPA.Cores.Helper.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort _Endian16(this ushort v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort _Endian16(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort _Endian16(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short _Endian16(this short v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static short _Endian16(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static short _Endian16(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _Endian32(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint _Endian32(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _Endian32(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _Endian32(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((int)v) : (int)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong _Endian64(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
@@ -1551,61 +1563,84 @@ namespace IPA.Cores.Helper.Basic
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe byte _UpdateBitsUInt8(this byte src, byte bitMask, byte value)
-            => (byte)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsUInt8(this ref byte src, byte bitMask, byte value)
+            => src = (byte)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort _UpdateBitsUInt16(this ushort src, ushort bitMask, ushort value)
-            => (ushort)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsUInt16(this ref ushort src, ushort bitMask, ushort value)
+            => src = (ushort)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe uint _UpdateBitsUInt32(this uint src, uint bitMask, uint value)
-            => (uint)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsUInt32(this ref uint src, uint bitMask, uint value)
+            => src = (uint)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ulong _UpdateBitsUInt64(this ulong src, ulong bitMask, ulong value)
-            => (ulong)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsUInt64(this ref ulong src, ulong bitMask, ulong value)
+            => src = (ulong)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe sbyte _UpdateBitsSInt8(this sbyte src, sbyte bitMask, sbyte value)
-            => (sbyte)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsSInt8(this ref sbyte src, sbyte bitMask, sbyte value)
+            => src = (sbyte)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe short _UpdateBitsSInt16(this short src, short bitMask, short value)
-            => (short)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsSInt16(this ref short src, short bitMask, short value)
+            => src = (short)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _UpdateBitsSInt32(this int src, int bitMask, int value)
-            => (int)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsSInt32(this ref int src, int bitMask, int value)
+            => src = (int)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe long _UpdateBitsSInt64(this long src, long bitMask, long value)
-            => (long)((src & ~bitMask) | (value & bitMask));
+        public static unsafe void _UpdateBitsSInt64(this ref long src, long bitMask, long value)
+            => src = (long)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort _UpdateBitsUInt16Endian(this ushort src, ushort bitMask, ushort value)
-            => _UpdateBitsUInt16(src._Endian16(), bitMask, value)._Endian16();
+        public static unsafe void _UpdateBitsUInt16Endian(this ref ushort src, ushort bitMask, ushort value)
+        {
+            src = src._Endian16();
+            _UpdateBitsUInt16(ref src, bitMask, value);
+            src = src._Endian16();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe uint _UpdateBitsUInt32Endian(this uint src, uint bitMask, uint value)
-            => _UpdateBitsUInt32(src._Endian32(), bitMask, value)._Endian32();
+        public static unsafe void _UpdateBitsUInt32Endian(this ref uint src, uint bitMask, uint value)
+        {
+            src = src._Endian32();
+            _UpdateBitsUInt32(ref src, bitMask, value);
+            src = src._Endian32();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ulong _UpdateBitsUInt64Endian(this ulong src, ulong bitMask, ulong value)
-            => _UpdateBitsUInt64(src._Endian64(), bitMask, value)._Endian64();
+        public static unsafe void _UpdateBitsUInt64Endian(this ref ulong src, ulong bitMask, ulong value)
+        {
+            src = src._Endian64();
+            _UpdateBitsUInt64(ref src, bitMask, value);
+            src = src._Endian64();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe short _UpdateBitsSInt16Endian(this short src, short bitMask, short value)
-            => _UpdateBitsSInt16(src._Endian16(), bitMask, value)._Endian16();
+        public static unsafe void _UpdateBitsSInt16Endian(this ref short src, short bitMask, short value)
+        {
+            src = src._Endian16();
+            _UpdateBitsSInt16(ref src, bitMask, value);
+            src = src._Endian16();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _UpdateBitsSInt32Endian(this int src, int bitMask, int value)
-            => _UpdateBitsSInt32(src._Endian32(), bitMask, value)._Endian32();
+        public static unsafe void _UpdateBitsSInt32Endian(this ref int src, int bitMask, int value)
+        {
+            src = src._Endian32();
+            _UpdateBitsSInt32(ref src, bitMask, value);
+            src = src._Endian32();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe long _UpdateBitsSInt64Endian(this long src, long bitMask, long value)
-            => _UpdateBitsSInt64(src._Endian64(), bitMask, value)._Endian64();
-
+        public static unsafe void _UpdateBitsSInt64Endian(this ref long src, long bitMask, long value)
+        {
+            src = src._Endian64();
+            _UpdateBitsSInt64(ref src, bitMask, value);
+            src = src._Endian64();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe bool _IsZeroStruct<T>(this T value, int? size = null)

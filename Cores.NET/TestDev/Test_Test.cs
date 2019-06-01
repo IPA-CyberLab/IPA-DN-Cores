@@ -106,6 +106,62 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
+            Packet p = new Packet("Hello"._GetBytes_Ascii());
+
+            PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(Unsafe.SizeOf<TCPHeader>() + 4);
+            ref TCPHeader tcpValue = ref tcp.RefValue;
+
+            tcpValue.AckNumber = 123U._Endian32();
+            tcpValue.SeqNumber = 456U._Endian32();
+            tcpValue.Checksum = 0x1234U._Endian16();
+            tcpValue.SrcPort = 80U._Endian16();
+            tcpValue.DstPort = 443U._Endian16();
+            tcpValue.Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst;
+            tcpValue.HeaderSize = (byte)((Unsafe.SizeOf<TCPHeader>() + 4) / 4);
+            tcpValue.WindowSize = 1234U._Endian16();
+
+            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>();
+            ref IPv4Header ipValue = ref ip.RefValue;
+
+            ipValue.SrcIP = 0x12345678;
+            ipValue.DstIP = 0xdeadbeef;
+            ipValue.Checksum = 0x1234U._Endian16();
+            ipValue.Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments;
+            ipValue.HeaderLen = (byte)(Unsafe.SizeOf<IPv4Header>() / 4);
+            ipValue.Identification = 0x1234U._Endian16();
+            ipValue.Protocol = IPProtocolNumber.TCP;
+            ipValue.TimeToLive = 12;
+            ipValue.TotalLength = (ushort)(ip.HeaderSize + ip.PayloadSize);
+            ipValue.Version = 4;
+
+            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>();
+            ref VLanHeader vlanValue = ref vlan.RefValue;
+
+            vlanValue.VLanId = 12345U._Endian16();
+            vlanValue.Protocol = EthernetProtocolId.IPv4._Endian16();
+
+            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>();
+            ref EthernetHeader etherValue = ref ether.RefValue;
+            etherValue.Protocol = EthernetProtocolId.VLan._Endian16();
+            etherValue.SrcAddress[0] = 0x00;
+            etherValue.SrcAddress[1] = 0xAC;
+            etherValue.SrcAddress[2] = 0x01;
+            etherValue.SrcAddress[3] = 0x23;
+            etherValue.SrcAddress[4] = 0x45;
+            etherValue.SrcAddress[5] = 0x47;
+            etherValue.DestAddress[0] = 0x00;
+            etherValue.DestAddress[1] = 0x98;
+            etherValue.DestAddress[2] = 0x21;
+            etherValue.DestAddress[3] = 0x33;
+            etherValue.DestAddress[4] = 0x89;
+            etherValue.DestAddress[5] = 0x01;
+
+            ""._Print();
+            p.Memory._GetHexString(" ")._Print();
+        }
+
+        public static unsafe void Test_()
+        {
             Con.WriteLine(Unsafe.SizeOf<PacketParsed>());
 
             //var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;

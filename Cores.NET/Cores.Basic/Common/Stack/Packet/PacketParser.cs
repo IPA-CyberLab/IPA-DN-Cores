@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L2_TagVLan
+    readonly struct L2_VLan
     {
         [FieldOffset(0)]
         public readonly EthernetProtocolId Type;
@@ -84,9 +84,9 @@ namespace IPA.Cores.Basic
         [FieldOffset(8)]
         public readonly PacketPin<GenericHeader> Generic;
         [FieldOffset(8)]
-        public readonly PacketPin<TagVLanHeader> TagVlan;
+        public readonly PacketPin<VLanHeader> TagVlan;
 
-        public L2_TagVLan(PacketPin<TagVLanHeader> pin, EthernetProtocolId tpid)
+        public L2_VLan(PacketPin<VLanHeader> pin, EthernetProtocolId tpid)
         {
             this.TagVlan = default;
 
@@ -235,9 +235,9 @@ namespace IPA.Cores.Basic
         public bool IsError => !IsOk;
 
         public L2 L2 { get; private set; }
-        public L2_TagVLan L2_TagVLan1 { get; private set; }
-        public L2_TagVLan L2_TagVLan2 { get; private set; }
-        public L2_TagVLan L2_TagVLan3 { get; private set; }
+        public L2_VLan L2_VLan1 { get; private set; }
+        public L2_VLan L2_VLan2 { get; private set; }
+        public L2_VLan L2_VLan3 { get; private set; }
 
         public L3 L3 { get; private set; }
 
@@ -299,71 +299,71 @@ namespace IPA.Cores.Basic
 
             EthernetProtocolId tpid = ether.RefValue.Protocol._Endian16();
 
-            if (tpid == EthernetProtocolId.TagVlan)
-                return ParseL2_TagVLan1(this.L2.Ethernet, tpid);
+            if (tpid == EthernetProtocolId.VLan)
+                return ParseL2_VLan1(this.L2.Ethernet, tpid);
             else
                 return ParseL3(this.L2.Generic, tpid);
         }
 
-        bool ParseL2_TagVLan1(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan1(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<TagVLanHeader> tagVLan = prevHeader.GetNextHeader<TagVLanHeader>();
-            if (tagVLan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
+            if (vlan.IsEmpty)
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            this.L2_TagVLan1 = new L2_TagVLan(tagVLan, thisTpid);
+            this.L2_VLan1 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
 
-            if (tpid == EthernetProtocolId.TagVlan)
-                return ParseL2_TagVLan2(this.L2.Ethernet, tpid);
+            if (tpid == EthernetProtocolId.VLan)
+                return ParseL2_VLan2(this.L2.Ethernet, tpid);
             else
-                return ParseL3(this.L2_TagVLan1.Generic, tpid);
+                return ParseL3(this.L2_VLan1.Generic, tpid);
         }
 
-        bool ParseL2_TagVLan2(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan2(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<TagVLanHeader> tagVLan = prevHeader.GetNextHeader<TagVLanHeader>();
-            if (tagVLan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
+            if (vlan.IsEmpty)
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            this.L2_TagVLan2 = new L2_TagVLan(tagVLan, thisTpid);
+            this.L2_VLan2 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
 
-            if (tpid == EthernetProtocolId.TagVlan)
-                return ParseL2_TagVLan3(this.L2.Ethernet, tpid);
+            if (tpid == EthernetProtocolId.VLan)
+                return ParseL2_VLan3(this.L2.Ethernet, tpid);
             else
-                return ParseL3(this.L2_TagVLan2.Generic, tpid);
+                return ParseL3(this.L2_VLan2.Generic, tpid);
         }
 
-        bool ParseL2_TagVLan3(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan3(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<TagVLanHeader> tagVLan = prevHeader.GetNextHeader<TagVLanHeader>();
-            if (tagVLan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
+            if (vlan.IsEmpty)
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            this.L2_TagVLan3 = new L2_TagVLan(tagVLan, thisTpid);
+            this.L2_VLan3 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = tagVLan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
 
-            if (tpid == EthernetProtocolId.TagVlan)
+            if (tpid == EthernetProtocolId.VLan)
             {
                 SetError("Too many tagged VLAN headers stacking");
                 return false;
             }
             else
             {
-                return ParseL3(this.L2_TagVLan3.Generic, tpid);
+                return ParseL3(this.L2_VLan3.Generic, tpid);
             }
         }
 

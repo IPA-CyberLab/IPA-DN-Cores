@@ -2882,7 +2882,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    InsertHead(initialContents);
+                    Prepend(initialContents);
                 }
             }
         }
@@ -2902,7 +2902,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertHead(ReadOnlySpan<T> data)
+        public void Prepend(ReadOnlySpan<T> data)
         {
             if (data.IsEmpty) return;
 
@@ -2915,7 +2915,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertTail(ReadOnlySpan<T> data)
+        public void Append(ReadOnlySpan<T> data)
         {
             if (data.IsEmpty) return;
 
@@ -2995,7 +2995,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    InsertHead(initialContents);
+                    Prepend(initialContents.Span);
                 }
             }
         }
@@ -3015,44 +3015,109 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertHead(ReadOnlyMemory<T> data)
+        public void Prepend(ReadOnlySpan<T> data)
         {
             if (data.IsEmpty) return;
 
             if (PreSize < data.Length)
                 EnsurePreSize(data.Length);
 
-            data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
+            data.CopyTo(Buffer.Span.Slice(PreSize - data.Length, data.Length));
             PreSize -= data.Length;
             Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void InsertTail(ReadOnlyMemory<T> data)
+        public void Prepend(int size)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PreSize < size)
+                EnsurePreSize(size);
+
+            PreSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Append(ReadOnlySpan<T> data)
         {
             if (data.IsEmpty) return;
 
             if (PostSize < data.Length)
                 EnsurePostSize(data.Length);
 
-            data.CopyTo(Buffer.Slice(PreSize + Length, data.Length));
+            data.CopyTo(Buffer.Span.Slice(PreSize + Length, data.Length));
             PostSize -= data.Length;
             Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(ReadOnlyMemory<T> data, int pos)
+        public void Append(int size)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PostSize < size)
+                EnsurePostSize(size);
+
+            PostSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(ReadOnlySpan<T> data, int pos)
         {
             if (data.IsEmpty) return;
 
-            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
+            if (pos < 0 || pos > Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(data);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(data);
+                return;
+            }
 
             int newDataLength = Length + data.Length;
             int newBufferLength = PreSize + newDataLength + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
             Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, Length - pos));
-            data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
+            data.CopyTo(newBuffer.Span.Slice(PreSize + pos, data.Length));
+            Buffer = newBuffer;
+            Length = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(int size, int pos)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(size);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(size);
+                return;
+            }
+
+            int newDataLength = Length + size;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Memory<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
             Buffer = newBuffer;
             Length = newDataLength;
         }

@@ -163,6 +163,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string _GetHexString(this Span<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string _GetHexString(this ReadOnlySpan<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
+        public static string _GetHexString(this Memory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
+        public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static byte[] _GetHexBytes(this string str) => Str.HexToByte(str);
 
         public static bool _ToBool(this string str) => Str.StrToBool(str);
