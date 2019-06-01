@@ -109,35 +109,9 @@ namespace IPA.Cores.Basic
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public unsafe ref T AsStruct<T>(int pin, int? size = null)
-        //{
-        //    Memory<byte> data = this.PutContiguous(pin, size ?? Unsafe.SizeOf<T>(), true);
-        //    fixed (void* ptr = &data.Span[0])
-        //        return ref Unsafe.AsRef<T>(ptr);
-        //}
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<T> GetHeader<T>(int pin, int? size = null, int maxPacketSize = int.MaxValue) where T : struct
             => new PacketPin<T>(this, pin, size, maxPacketSize);
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public PacketPin<T> InsertHeaderHead<T>(Memory<byte> data) where T : struct
-        //{
-        //    InsertBefore(data);
-        //    return new PacketPin<T>(this, this.PinHead, data.Length);
-        //}
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public unsafe PacketPin<T> InsertHeaderHead<T>(in T value, int ?size = null) where T : struct
-        //{
-        //    int size2 = size ?? Unsafe.SizeOf<T>();
-        //    byte[] data = new byte[size2];
-        //    fixed (void* ptr = data)
-        //        (Unsafe.AsRef<T>(ptr)) = value;
-
-        //    return InsertHeaderHead<T>(data);
-        //}
     }
 
     readonly unsafe struct PacketPin<T> where T : struct
