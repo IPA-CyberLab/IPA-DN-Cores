@@ -2855,15 +2855,26 @@ namespace IPA.Cores.Basic
 
     ref struct ElasticSpan<T>
     {
-        static readonly int PreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
-        static readonly int PostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+        public int PreAllocationSize { get; }
+        public int PostAllocationSize { get; }
 
         Span<T> Buffer;
         public int DataLength { get; private set; }
         int PreSize;
         int PostSize;
 
-        public ReadOnlySpan<T> Span
+        public ElasticSpan(int? preAllocationSize = null, int? postAllocationSize = null)
+        {
+            this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
+            this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
+            Buffer = default;
+            DataLength = 0;
+            PreSize = 0;
+            PostSize = 0;
+        }
+
+        public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Buffer.Slice(PreSize, DataLength);
@@ -2949,13 +2960,19 @@ namespace IPA.Cores.Basic
 
     class ElasticMemory<T>
     {
-        static readonly int PreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
-        static readonly int PostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+        public int PreAllocationSize { get; }
+        public int PostAllocationSize { get; }
 
         Memory<T> Buffer;
         public int DataLength { get; private set; }
         int PreSize;
         int PostSize;
+
+        public ElasticMemory(int? preAllocationSize = null, int? postAllocationSize = null)
+        {
+            this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
+            this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
+        }
 
         public Memory<T> Memory
         {
