@@ -203,6 +203,8 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
             BenchMask_BoostUp_PacketParser("190527_vlan_simple_udp");
             BenchMask_BoostUp_PacketParser("190527_vlan_simple_tcp");
+            BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_tcp");
+            BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
 
 
             var queue = new MicroBenchmarkQueue()
@@ -233,6 +235,32 @@ namespace IPA.TestDev
                 }
 
             }), enabled: true, priority: 190528)
+
+            .Add(new MicroBenchmark($"ParsePacket #7", Benchmark_CountForNormal, count =>
+            {
+                var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_udp.txt"].HexParsedBinary;
+
+                Packet packet = new Packet(packetMem._CloneMemory());
+
+                for (int c = 0; c < count; c++)
+                {
+                    new PacketParsed(packet);
+                }
+
+            }), enabled: true, priority: 190531)
+
+            .Add(new MicroBenchmark($"ParsePacket #6", Benchmark_CountForNormal, count =>
+            {
+                var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
+
+                Packet packet = new Packet(packetMem._CloneMemory());
+
+                for (int c = 0; c < count; c++)
+                {
+                    new PacketParsed(packet);
+                }
+
+            }), enabled: true, priority: 190531)
 
             .Add(new MicroBenchmark($"ParsePacket #5", Benchmark_CountForNormal, count =>
             {

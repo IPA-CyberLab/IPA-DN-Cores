@@ -726,6 +726,13 @@ namespace IPA.Cores.Basic
         {
             return Packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, Math.Min(this.PayloadSize, maxPacketSize));
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> GetInnerHeader<TNext>(int offset, int? size = null, int maxPacketSize = int.MaxValue) where TNext : struct
+        {
+            if (offset > TotalPacketSize) throw new ArgumentOutOfRangeException("offset > TotalPacketSize");
+            return Packet.GetHeader<TNext>(this.Pin + offset, size, Math.Min(TotalPacketSize - offset, maxPacketSize));
+        }
     }
 
     static class PacketPinHelper

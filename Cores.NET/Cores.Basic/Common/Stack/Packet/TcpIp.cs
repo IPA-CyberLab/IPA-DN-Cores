@@ -251,6 +251,52 @@ namespace IPA.Cores.Basic
         public ushort Checksum;
     }
 
+
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct PPPDataHeader
+    {
+        public byte Address;
+        public byte Control;
+        public PPPProtocolId Protocol;
+    }
+
+    [Flags]
+    enum L2TPPacketType
+    {
+        Data = 0,
+        Control,
+    }
+
+    [Flags]
+    enum L2TPPacketFlag : byte
+    {
+        None = 0,
+        Priority = 0x01,
+        Offset = 0x02,
+        Sequence = 0x08,
+        Length = 0x40,
+        ControlMessage = 0x80,
+    }
+
+    class L2TPPacketParsed
+    {
+        public int Version;
+        public L2TPPacketFlag Flag;
+        public bool IsZLB;
+        public bool IsYamahaV3;
+        public int Length;
+        public uint TunnelId;
+        public uint SessionId;
+        public ushort Ns, Nr;
+        public int OffsetSize;
+        public PacketPin<GenericHeader> Data;
+
+        public bool IsControlMessage => Flag.Bit(L2TPPacketFlag.ControlMessage);
+        public bool IsDataMessage => !IsControlMessage;
+    }
+
+
     static class TcpIpPacketUtil
     {
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)

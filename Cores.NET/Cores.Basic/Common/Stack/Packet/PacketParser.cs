@@ -202,40 +202,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    [Flags]
-    enum L2TPPacketType
-    {
-        Data = 0,
-        Control,
-    }
-
-    [Flags]
-    enum L2TPPacketFlag : byte
-    {
-        None = 0,
-        Priority = 0x01,
-        Offset = 0x02,
-        Sequence = 0x08,
-        Length = 0x40,
-        ControlMessage = 0x80,
-    }
-
-    class L2TPPacketParsed
-    {
-        public L2TPPacketFlag Flag;
-        public bool IsZLB;
-        public bool IsYamahaV3;
-        public int Length;
-        public uint TunnelId;
-        public uint SessionId;
-        public ushort Ns, Nr;
-        public int OffsetSize;
-        public PacketPin<GenericHeader> Data;
-
-        public bool IsControlMessage => Flag.Bit(L2TPPacketFlag.ControlMessage);
-        public bool IsDataMessage => !IsControlMessage;
-    }
-
     class PacketParseOption
     {
     }
@@ -536,8 +502,8 @@ namespace IPA.Cores.Basic
 
             this.L4 = new L4(udp);
 
-            this.Info.L4_SrcPort = data.SrcPort;
-            this.Info.L4_DestPort = data.DstPort;
+            this.Info.L4_SrcPort = data.SrcPort._Endian16();
+            this.Info.L4_DestPort = data.DstPort._Endian16();
 
             PacketPin<GenericHeader> payload = udp.GetNextHeader<GenericHeader>(size: udp.PayloadSize);
 
@@ -611,9 +577,63 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
+            parsed.Version = version;
+            parsed.Flag = flags;
+
             if (flags.Bit(L2TPPacketFlag.Length))
             {
+                parsed.Length = buf.ReadUInt16();
+
+                if (parsed.Length > buf.Length || parsed.Length <= buf.CurrentPosition)
+                {
+                    return false;
+                }
+
+                buf = buf.Slice(0, parsed.Length);
             }
+
+            parsed.TunnelId = buf.ReadUInt16();
+
+            parsed.SessionId = buf.ReadUInt16();
+
+            if (flags.Bit(L2TPPacketFlag.Sequence))
+            {
+                parsed.Ns = buf.ReadUInt16();
+                parsed.Nr = buf.ReadUInt16();
+            }
+
+            if (flags.Bit(L2TPPacketFlag.Offset))
+            {
+                parsed.OffsetSize = buf.ReadUInt16();
+
+                buf.Read(parsed.OffsetSize);
+            }
+
+            parsed.Data = payload.GetInnerHeader<GenericHeader>(buf.CurrentPosition);
+
+            this.L7 = new L7(payload, parsed);
+
+            if (parsed.IsControlMessage)
+            {
+                return true;
+            }
+            else
+            {
+                return ParseL7_L2TP_PPPData(payload, parsed);
+            }
+        }
+
+        bool ParseL7_L2TP_PPPData(PacketPin<GenericHeader> payload, L2TPPacketParsed l2tp)
+        {
+            PacketPin<PPPDataHeader> pppHeader = l2tp.Data.GetInnerHeader<PPPDataHeader>(0);
+            ref readonly PPPDataHeader h = ref pppHeader.RefValueRead;
+
+            if (h.Address != 0xff) return false;
+            if (h.Control != 0x03) return false;
+
+            ParsePPP_AsOverlay(pppHeader.ToGenericHeader(), h.Protocol._Endian16(), pppHeader.PayloadSize);
+
+            return true;
         }
     }
 }
