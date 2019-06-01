@@ -1,4 +1,5 @@
-﻿// 
+﻿// IPA Cores.NET
+// 
 // Copyright (c) 2018-2019 IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
 // Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
