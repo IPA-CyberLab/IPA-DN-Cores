@@ -104,24 +104,52 @@ namespace IPA.Cores.Helper.Basic
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start) => segment.AsSpan(start);
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start, int length) => array.AsSpan(start, length);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort _Endian16(this ushort v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short _Endian16(this short v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _Endian32(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _Endian32(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong _Endian64(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long _Endian64(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _Endian16<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian16(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _Endian32<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian32(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _Endian64<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian64(v) : v;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort _ReverseEndian16(this ushort v) => BinaryPrimitives.ReverseEndianness(v);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short _ReverseEndian16(this short v) => BinaryPrimitives.ReverseEndianness(v);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _ReverseEndian32(this uint v) => BinaryPrimitives.ReverseEndianness(v);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ReverseEndian32(this int v) => BinaryPrimitives.ReverseEndianness(v);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong _ReverseEndian64(this ulong v) => BinaryPrimitives.ReverseEndianness(v);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long _ReverseEndian64(this long v) => BinaryPrimitives.ReverseEndianness(v);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T _ReverseEndian16<T>(this T v) where T : Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
@@ -129,6 +157,7 @@ namespace IPA.Cores.Helper.Basic
             return v;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T _ReverseEndian32<T>(this T v) where T : Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
@@ -136,6 +165,7 @@ namespace IPA.Cores.Helper.Basic
             return v;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T _ReverseEndian64<T>(this T v) where T : Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
