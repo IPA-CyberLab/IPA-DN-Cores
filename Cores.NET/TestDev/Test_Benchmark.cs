@@ -240,7 +240,7 @@ namespace IPA.TestDev
                 Memory<byte> initialData = "Hello"._GetBytes_Ascii();
                 for (int c = 0; c < count; c++)
                 {
-                    Packet p = new Packet(initialData, true);
+                    Packet p = new Packet(initialData, false);
 
                     PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(
                         new TCPHeader()
@@ -543,15 +543,17 @@ namespace IPA.TestDev
                 for (int c = 0; c < count; c++)
                 {
                     Packet newPacket = new Packet();
+                    Limbo.ObjectVolatileSlow = newPacket;
                 }
             }), enabled: true, priority: 190528)
 
             .Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
             {
-                Memory<byte> hello = new byte[1500];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
+                Memory<byte> hello = new byte[64];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
                 for (int c = 0; c < count; c++)
                 {
                     Packet newPacket = new Packet(hello);
+                    Limbo.ObjectVolatileSlow = newPacket;
                 }
             }), enabled: true, priority: 190519)
 

@@ -125,12 +125,10 @@ namespace IPA.Cores.Basic
             return new PacketPin<T>(this, this.PinHead, size2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe PacketPin<T> PrependHeader<T>(in T data, int? size = null) where T : struct
         {
             int size2 = size ?? Unsafe.SizeOf<T>();
-
-            var x = Unsafe.AsRef(in data)._AsReadOnlyByteSpan();
 
             this.Elastic.Prepend(Unsafe.AsRef(in data)._AsReadOnlyByteSpan(), size2);
             this.PinHead -= size2;

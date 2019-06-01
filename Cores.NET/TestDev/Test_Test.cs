@@ -137,8 +137,6 @@ namespace IPA.TestDev
                     Version = 4,
                 });
 
-            p.Memory._GetHexString(" ")._Print(); ""._Print();
-
             PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(
                 new VLanHeader()
                 {

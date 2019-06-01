@@ -57,8 +57,8 @@ namespace IPA.Cores.Basic
 
         public static partial class ElasticBufferConfig
         {
-            public static readonly Copenhagen<int> PreAllocationSize = 32;
-            public static readonly Copenhagen<int> PostAllocationSize = 32;
+            public static readonly Copenhagen<int> PreAllocationSize = 64;
+            public static readonly Copenhagen<int> PostAllocationSize = 64;
         }
     }
 
@@ -2973,6 +2973,9 @@ namespace IPA.Cores.Basic
 
     class ElasticMemory<T>
     {
+        static readonly int DefaultPreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
+        static readonly int DefaultPostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
         public int PreAllocationSize { get; }
         public int PostAllocationSize { get; }
 
@@ -2983,8 +2986,8 @@ namespace IPA.Cores.Basic
 
         public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int? preAllocationSize = null, int? postAllocationSize = null)
         {
-            this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
-            this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
+            this.PreAllocationSize = preAllocationSize ?? DefaultPreAllocationSize;
+            this.PostAllocationSize = postAllocationSize ?? DefaultPostAllocationSize;
 
             if (initialContents.IsEmpty == false)
             {
@@ -3136,11 +3139,17 @@ namespace IPA.Cores.Basic
             if (PreSize >= newPreSize) return;
             newPreSize = newPreSize + PreAllocationSize;
 
+            if (PreSize != 0)
+            {
+                Con.WriteLine($"{PreSize} --> {newPreSize}");
+            }
+
             int newBufferLength = newPreSize + Length + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PreSize = newPreSize;
             Buffer = newBuffer;
+
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
