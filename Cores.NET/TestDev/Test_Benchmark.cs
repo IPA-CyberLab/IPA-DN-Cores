@@ -236,7 +236,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190528)
 
-            .Add(new MicroBenchmark($"ParsePacket #7", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_udp.txt"].HexParsedBinary;
 
@@ -249,7 +249,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190531)
 
-            .Add(new MicroBenchmark($"ParsePacket #6", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
 
@@ -262,7 +262,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190531)
 
-            .Add(new MicroBenchmark($"ParsePacket #5", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #5 - 190531_vlan_pppoe_tcp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
 
@@ -276,7 +276,7 @@ namespace IPA.TestDev
             }), enabled: true, priority: 190531)
 
 
-            .Add(new MicroBenchmark($"ParsePacket #4", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #4 - 190527_vlan_simple_udp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
@@ -291,7 +291,7 @@ namespace IPA.TestDev
 
 
 
-            .Add(new MicroBenchmark($"ParsePacket #3", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #3 - 190527_vlan_simple_tcp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
 
@@ -306,7 +306,7 @@ namespace IPA.TestDev
 
 
 
-            .Add(new MicroBenchmark($"ParsePacket #2", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #2 - 190527_novlan_simple_udp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
 
@@ -320,7 +320,7 @@ namespace IPA.TestDev
             }), enabled: true, priority: 190531)
 
 
-            .Add(new MicroBenchmark($"ParsePacket #1", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"ParsePacket #1 - 190527_novlan_simple_tcp", Benchmark_CountForNormal, count =>
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
 
@@ -494,16 +494,16 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190519)
 
-            .Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
-            {
-                Memory<byte> hello = "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-                long v = 8;
-                for (int c = 0; c < count; c++)
-                {
-                    Packet newPacket = new Packet(hello);
-                    newPacket.InsertHeaderHead(v);
-                }
-            }), enabled: true, priority: 190519)
+            //.Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
+            //{
+            //    Memory<byte> hello = "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
+            //    long v = 8;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Packet newPacket = new Packet(hello);
+            //        newPacket.InsertHeaderHead(v);
+            //    }
+            //}), enabled: true, priority: 190519)
 
             .Add(new MicroBenchmark($"Util.Rand()", Benchmark_CountForSlow, count =>
             {
