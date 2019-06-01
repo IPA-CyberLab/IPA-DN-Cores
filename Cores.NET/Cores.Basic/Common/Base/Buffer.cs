@@ -2859,31 +2859,44 @@ namespace IPA.Cores.Basic
         public int PostAllocationSize { get; }
 
         Span<T> Buffer;
-        public int DataLength { get; private set; }
+        public int Length { get; private set; }
         int PreSize;
         int PostSize;
 
-        public ElasticSpan(int? preAllocationSize = null, int? postAllocationSize = null)
+        public ElasticSpan(Span<T> initialContents = default, bool copyInitialContents = false, int? preAllocationSize = null, int? postAllocationSize = null)
         {
             this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
             this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
 
             Buffer = default;
-            DataLength = 0;
+            Length = 0;
             PreSize = 0;
             PostSize = 0;
+
+            if (initialContents.IsEmpty == false)
+            {
+                if (copyInitialContents == false)
+                {
+                    this.Buffer = initialContents;
+                    this.Length = initialContents.Length;
+                }
+                else
+                {
+                    InsertHead(initialContents);
+                }
+            }
         }
 
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Buffer.Slice(PreSize, DataLength);
+            get => Buffer.Slice(PreSize, Length);
         }
 
         public void Clear()
         {
             Buffer = Span<T>.Empty;
-            DataLength = 0;
+            Length = 0;
             PreSize = 0;
             PostSize = 0;
         }
@@ -2898,7 +2911,7 @@ namespace IPA.Cores.Basic
 
             data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
             PreSize -= data.Length;
-            DataLength += data.Length;
+            Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2909,9 +2922,9 @@ namespace IPA.Cores.Basic
             if (PostSize < data.Length)
                 EnsurePostSize(data.Length);
 
-            data.CopyTo(Buffer.Slice(PreSize + DataLength, data.Length));
+            data.CopyTo(Buffer.Slice(PreSize + Length, data.Length));
             PostSize -= data.Length;
-            DataLength += data.Length;
+            Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2919,16 +2932,16 @@ namespace IPA.Cores.Basic
         {
             if (data.IsEmpty) return;
 
-            if (pos < 0 || pos >= DataLength) throw new ArgumentException("pos");
+            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
 
-            int newDataLength = DataLength + data.Length;
+            int newDataLength = Length + data.Length;
             int newBufferLength = PreSize + newDataLength + PostSize;
             Span<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, DataLength - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, DataLength - pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, Length - pos));
             data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
             Buffer = newBuffer;
-            DataLength = newDataLength;
+            Length = newDataLength;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2937,9 +2950,9 @@ namespace IPA.Cores.Basic
             if (PreSize >= newPreSize) return;
             newPreSize = newPreSize + PreAllocationSize;
 
-            int newBufferLength = newPreSize + DataLength + PostSize;
+            int newBufferLength = newPreSize + Length + PostSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(newPreSize, DataLength));
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PreSize = newPreSize;
             Buffer = newBuffer;
         }
@@ -2950,9 +2963,9 @@ namespace IPA.Cores.Basic
             if (PostSize >= newPostSize) return;
             newPostSize = newPostSize + PostAllocationSize;
 
-            int newBufferLength = PreSize + DataLength + newPostSize;
+            int newBufferLength = PreSize + Length + newPostSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(PreSize, DataLength));
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(PreSize, Length));
             PostSize = newPostSize;
             Buffer = newBuffer;
         }
@@ -2964,26 +2977,39 @@ namespace IPA.Cores.Basic
         public int PostAllocationSize { get; }
 
         Memory<T> Buffer;
-        public int DataLength { get; private set; }
+        public int Length { get; private set; }
         int PreSize;
         int PostSize;
 
-        public ElasticMemory(int? preAllocationSize = null, int? postAllocationSize = null)
+        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int? preAllocationSize = null, int? postAllocationSize = null)
         {
             this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
             this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
+
+            if (initialContents.IsEmpty == false)
+            {
+                if (copyInitialContents == false)
+                {
+                    this.Buffer = initialContents;
+                    this.Length = initialContents.Length;
+                }
+                else
+                {
+                    InsertHead(initialContents);
+                }
+            }
         }
 
         public Memory<T> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Buffer.Slice(PreSize, DataLength);
+            get => Buffer.Slice(PreSize, Length);
         }
 
         public void Clear()
         {
             Buffer = Memory<T>.Empty;
-            DataLength = 0;
+            Length = 0;
             PreSize = 0;
             PostSize = 0;
         }
@@ -2998,7 +3024,7 @@ namespace IPA.Cores.Basic
 
             data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
             PreSize -= data.Length;
-            DataLength += data.Length;
+            Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3009,9 +3035,9 @@ namespace IPA.Cores.Basic
             if (PostSize < data.Length)
                 EnsurePostSize(data.Length);
 
-            data.CopyTo(Buffer.Slice(PreSize + DataLength, data.Length));
+            data.CopyTo(Buffer.Slice(PreSize + Length, data.Length));
             PostSize -= data.Length;
-            DataLength += data.Length;
+            Length += data.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3019,16 +3045,16 @@ namespace IPA.Cores.Basic
         {
             if (data.IsEmpty) return;
 
-            if (pos < 0 || pos >= DataLength) throw new ArgumentException("pos");
+            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
 
-            int newDataLength = DataLength + data.Length;
+            int newDataLength = Length + data.Length;
             int newBufferLength = PreSize + newDataLength + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, DataLength - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, DataLength - pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, Length - pos));
             data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
             Buffer = newBuffer;
-            DataLength = newDataLength;
+            Length = newDataLength;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3037,9 +3063,9 @@ namespace IPA.Cores.Basic
             if (PreSize >= newPreSize) return;
             newPreSize = newPreSize + PreAllocationSize;
 
-            int newBufferLength = newPreSize + DataLength + PostSize;
+            int newBufferLength = newPreSize + Length + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(newPreSize, DataLength));
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PreSize = newPreSize;
             Buffer = newBuffer;
         }
@@ -3050,9 +3076,9 @@ namespace IPA.Cores.Basic
             if (PostSize >= newPostSize) return;
             newPostSize = newPostSize + PostAllocationSize;
 
-            int newBufferLength = PreSize + DataLength + newPostSize;
+            int newBufferLength = PreSize + Length + newPostSize;
             Memory<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, DataLength).CopyTo(newBuffer.Slice(PreSize, DataLength));
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(PreSize, Length));
             PostSize = newPostSize;
             Buffer = newBuffer;
         }

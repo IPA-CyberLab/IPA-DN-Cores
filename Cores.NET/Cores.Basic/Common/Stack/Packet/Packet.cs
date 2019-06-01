@@ -48,16 +48,16 @@ namespace IPA.Cores.Basic
 {
     class Packet
     {
-        Memory<byte> Memory;
+        ElasticMemory<byte> Memory;
         public int PinHead { get; private set; } = 0;
         public int PinTail { get; private set; } = 0;
         public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
 
         public Packet() { }
 
-        public Packet(Memory<byte> baseMemory)
+        public Packet(Memory<byte> initialContents, bool copyInitialContents = true)
         {
-            this.Memory = baseMemory;
+            this.Memory = new ElasticMemory<byte>(initialContents, copyInitialContents);
             this.PinHead = 0;
             this.PinTail = this.Memory.Length;
         }
@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                Memory = Memory<byte>.Empty;
+                Memory = new ElasticMemory<byte>();
                 PinTail = PinHead;
             }
         }
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Memory<byte> GetContiguous(int pin, int size, bool allowPartial = false)
         {
-            return this.Memory.Slice(pin - PinHead, size);
+            return this.Memory.Memory.Slice(pin - PinHead, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
