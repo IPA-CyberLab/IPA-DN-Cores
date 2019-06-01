@@ -222,8 +222,10 @@ namespace IPA.Cores.Basic
         public ushort L4_DestPort;
     }
 
-    struct PacketParsed
+    class PacketParsed
     {
+        static readonly PacketParseOption DefaultOption = new PacketParseOption();
+
         public Packet Packet { get; private set; }
         public PacketParseOption ParseOption { get; private set; }
 
@@ -244,26 +246,24 @@ namespace IPA.Cores.Basic
 
         public PacketInfo Info;
 
-        public Ref<PacketParsed> InnerPacket { get; private set; }
-
-        static readonly PacketParseOption DefaultOption = new PacketParseOption();
+        public PacketParsed InnerPacket { get; private set; }
 
         public PacketParsed(Packet packet, int? startPin = null, PacketParseOption options = null, int? maxPacketSize = null, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
         {
             this.Packet = packet;
             this.ParseOption = options ?? DefaultOption;
 
-            this.ErrorStr = null;
-            this.L2 = default;
-            this.L2_TagVLan1 = default;
-            this.L2_TagVLan2 = default;
-            this.L2_TagVLan3 = default;
-            this.L3 = default;
-            this.L4 = default;
-            this.L7 = default;
-            this.Info = default;
+            //this.ErrorStr = null;
+            //this.L2 = default;
+            //this.L2_TagVLan1 = default;
+            //this.L2_TagVLan2 = default;
+            //this.L2_TagVLan3 = default;
+            //this.L3 = default;
+            //this.L4 = default;
+            //this.L7 = default;
+            //this.Info = default;
 
-            this.InnerPacket = null;
+            //this.InnerPacket = null;
 
             switch (mode)
             {

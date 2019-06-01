@@ -106,7 +106,7 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Con.WriteLine(Unsafe.SizeOf<GenericHeader>());
+            Con.WriteLine(Unsafe.SizeOf<PacketParsed>());
 
             //var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
             //var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
