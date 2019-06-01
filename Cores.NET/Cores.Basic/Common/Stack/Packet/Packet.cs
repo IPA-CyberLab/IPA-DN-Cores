@@ -180,17 +180,11 @@ namespace IPA.Cores.Basic
             get => RefValue;
         }
 
-        public ReadOnlyMemory<byte> MemoryRead
+        public Memory<byte> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Packet.GetContiguous(this.Pin, this.HeaderSize);
         }
-
-        //public Memory<byte> Memory
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get => Packet.PutContiguous(this.Pin, this.HeaderSize, true);
-        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<TNext> GetNextHeader<TNext>(int? size = null, int maxPacketSize = int.MaxValue) where TNext : struct

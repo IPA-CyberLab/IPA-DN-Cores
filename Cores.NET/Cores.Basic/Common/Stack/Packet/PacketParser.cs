@@ -566,7 +566,7 @@ namespace IPA.Cores.Basic
 
         bool ParseL7_L2TP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
         {
-            ReadOnlySpanBuffer<byte> buf = payload.MemoryRead.Span;
+            SpanBuffer<byte> buf = payload.Memory.Span;
 
             L2TPPacketParsed parsed = new L2TPPacketParsed();
 
