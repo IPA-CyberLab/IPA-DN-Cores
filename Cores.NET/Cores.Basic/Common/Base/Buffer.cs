@@ -2863,25 +2863,6 @@ namespace IPA.Cores.Basic
         int PreSize;
         int PostSize;
 
-        //public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = ElasticConsts.DefaultPreAllocationSize, int postAllocationSize = ElasticConsts.DefaultPostAllocationSize)
-        //{
-        //    this.PreAllocationSize = preAllocationSize;
-        //    this.PostAllocationSize = postAllocationSize;
-
-        //    if (initialContents.IsEmpty == false)
-        //    {
-        //        if (copyInitialContents == false)
-        //        {
-        //            this.Buffer = initialContents;
-        //            this.Length = initialContents.Length;
-        //        }
-        //        else
-        //        {
-        //            Prepend(initialContents.Span);
-        //        }
-        //    }
-        //}
-
         public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
         {
             this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
@@ -3042,7 +3023,6 @@ namespace IPA.Cores.Basic
             Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PreSize = newPreSize;
             Buffer = newBuffer;
-
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
