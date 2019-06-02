@@ -2853,6 +2853,251 @@ namespace IPA.Cores.Basic
         public const int DefaultPostAllocationSize = 64;
     }
 
+    ref struct ElasticSpan<T> where T : unmanaged
+    {
+        public int PreAllocationSize { get; }
+        public int PostAllocationSize { get; }
+
+        Span<T> Buffer;
+        public int Length { get; private set; }
+        int PreSize;
+        int PostSize;
+
+        public ElasticSpan(Span<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
+        {
+            this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
+            this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
+            this.Buffer = default;
+            this.Length = default;
+            this.PreSize = default;
+            this.PostSize = default;
+
+            if (initialContents.IsEmpty == false)
+            {
+                if (copyInitialContents == false)
+                {
+                    this.Buffer = initialContents;
+                    this.Length = initialContents.Length;
+                }
+                else
+                {
+                    Prepend(initialContents);
+                }
+            }
+        }
+
+        public Span<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Buffer.Slice(PreSize, Length);
+        }
+
+        public void Clear()
+        {
+            Buffer = Span<T>.Empty;
+            Length = 0;
+            PreSize = 0;
+            PostSize = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Prepend(ReadOnlySpan<T> data, int size = DefaultSize)
+        {
+            fixed (T* src = &data[0])
+                Prepend(src, data.Length, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Prepend(T* data, int dataLength, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
+
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PreSize < size)
+                EnsurePreSize(size);
+
+            fixed (T* dst = &Buffer[PreSize - size])
+            {
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+            }
+
+            PreSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Prepend(int size)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PreSize < size)
+                EnsurePreSize(size);
+
+            PreSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Append(ReadOnlySpan<T> data, int size = DefaultSize)
+        {
+            fixed (T* src = &data[0])
+                Append(src, data.Length, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Append(T* data, int dataLength, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
+
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PostSize < size)
+                EnsurePostSize(size);
+
+            fixed (T* dst = &Buffer[PreSize + Length])
+            {
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+            }
+
+            PostSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Append(int size)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (PostSize < size)
+                EnsurePostSize(size);
+
+            PostSize -= size;
+            Length += size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
+        {
+            size = size._DefaultSize(data.Length);
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (pos < 0 || pos > Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(data, size);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(data, size);
+                return;
+            }
+
+            int newDataLength = Length + size;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+            data.CopyTo(newBuffer.Slice(PreSize + pos, size));
+            Buffer = newBuffer;
+            Length = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Insert(T* data, int dataLength, int pos, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (pos < 0 || pos > Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(data, dataLength, size);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(data, dataLength, size);
+                return;
+            }
+
+            int newDataLength = Length + size;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+
+            fixed (T* dst = &newBuffer[PreSize + pos])
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+
+            Buffer = newBuffer;
+            Length = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(int size, int pos)
+        {
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(size);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(size);
+                return;
+            }
+
+            int newDataLength = Length + size;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+            Buffer = newBuffer;
+            Length = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePreSize(int newPreSize)
+        {
+            if (PreSize >= newPreSize) return;
+            newPreSize = newPreSize + PreAllocationSize;
+
+            int newBufferLength = newPreSize + Length + PostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
+            PreSize = newPreSize;
+            Buffer = newBuffer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsurePostSize(int newPostSize)
+        {
+            if (PostSize >= newPostSize) return;
+            newPostSize = newPostSize + PostAllocationSize;
+
+            int newBufferLength = PreSize + Length + newPostSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(PreSize, Length));
+            PostSize = newPostSize;
+            Buffer = newBuffer;
+        }
+    }
+
     class ElasticMemory<T> where T: unmanaged
     {
         public int PreAllocationSize { get; }
