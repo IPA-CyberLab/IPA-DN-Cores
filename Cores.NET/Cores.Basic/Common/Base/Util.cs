@@ -1097,11 +1097,11 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool IsZeroStruct<T>(T value, int? size = 0)
+        public static unsafe bool IsZeroStruct<T>(T value, int size = DefaultSize)
         {
-            int size2 = size ?? Unsafe.SizeOf<T>();
+            size = size._DefaultSize(Unsafe.SizeOf<T>());
             byte* ptr = (byte *)Unsafe.AsPointer<T>(ref value);
-            return IsZero(ptr, size2);
+            return IsZero(ptr, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1186,11 +1186,11 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
-        public static unsafe bool IsZeroFastStruct<T>(T value, int? size = 0)
+        public static unsafe bool IsZeroFastStruct<T>(T value, int size = DefaultSize)
         {
-            int size2 = size ?? Unsafe.SizeOf<T>();
+            size = size._DefaultSize(Unsafe.SizeOf<T>());
             byte* ptr = (byte*)Unsafe.AsPointer(ref value);
-            return IsZeroFast(ptr, size2);
+            return IsZeroFast(ptr, size);
         }
 
         // byte[] 配列同士を比較する

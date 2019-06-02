@@ -988,13 +988,13 @@ namespace IPA.Cores.Helper.Basic
             return currentPin - compareTargetPin;
         }
 
-        public static Memory<T> _SliceWithPin<T>(this Memory<T> memory, int pin, int? size = null)
+        public static Memory<T> _SliceWithPin<T>(this Memory<T> memory, int pin, int size = DefaultSize)
         {
             if (size == 0) return Memory<T>.Empty;
             if (pin < 0) throw new ArgumentOutOfRangeException("pin");
 
             ArraySegment<T> a = memory._AsSegment();
-            if (size == null)
+            if (size == DefaultSize)
             {
                 size = a.Offset + a.Count - pin;
             }
@@ -1008,17 +1008,17 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size ?? 0);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
             return b.AsMemory();
         }
 
-        public static ReadOnlyMemory<T> _SliceWithPin<T>(this ReadOnlyMemory<T> memory, int pin, int? size = null)
+        public static ReadOnlyMemory<T> _SliceWithPin<T>(this ReadOnlyMemory<T> memory, int pin, int size = DefaultSize)
         {
             if (size == 0) return Memory<T>.Empty;
             if (pin < 0) throw new ArgumentOutOfRangeException("pin");
 
             ArraySegment<T> a = memory._AsSegment();
-            if (size == null)
+            if (size == DefaultSize)
             {
                 size = a.Offset + a.Count - pin;
             }
@@ -1032,7 +1032,7 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size ?? 0);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
             return b.AsMemory();
         }
 
@@ -1659,18 +1659,18 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool _IsZeroStruct<T>(this T value, int? size = null)
+        public static unsafe bool _IsZeroStruct<T>(this T value, int size = DefaultSize)
         {
-            if (size == null)
+            if (size == DefaultSize)
             {
                 if (Unsafe.SizeOf<T>() <= 16)
-                    return Util.IsZeroStruct(value, null);
+                    return Util.IsZeroStruct(value, DefaultSize);
                 else
-                    return Util.IsZeroFastStruct(value, null);
+                    return Util.IsZeroFastStruct(value, DefaultSize);
             }
             else
             {
-                if (size.Value <= 16)
+                if (size <= 16)
                     return Util.IsZeroStruct(value, size);
                 else
                     return Util.IsZeroFastStruct(value, size);
