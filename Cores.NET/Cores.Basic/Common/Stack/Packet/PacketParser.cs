@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
 
         public PacketParsed InnerPacket { get; private set; }
 
-        public PacketParsed(Packet packet, int? startPin = null, PacketParseOption options = null, int? maxPacketSize = null, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
+        public PacketParsed(Packet packet, int startPin = DefaultSize, PacketParseOption options = null, int maxPacketSize = DefaultSize, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
         {
             this.Packet = packet;
             this.ParseOption = options ?? DefaultOption;
@@ -269,12 +269,12 @@ namespace IPA.Cores.Basic
             switch (mode)
             {
                 case PacketParseMode.Layer2:
-                    PacketPin<EthernetHeader> ether = Packet.GetHeader<EthernetHeader>(startPin ?? packet.PinHead, maxPacketSize: maxPacketSize ?? packet.Length);
+                    PacketPin<EthernetHeader> ether = Packet.GetHeader<EthernetHeader>(startPin._DefaultSize(packet.PinHead), maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
                     ParseL2_Ethernet(ether);
                     break;
 
                 case PacketParseMode.Layer3:
-                    PacketPin<GenericHeader> generic = Packet.GetHeader<GenericHeader>(startPin ?? packet.PinHead, size: 0, maxPacketSize: maxPacketSize ?? packet.Length);
+                    PacketPin<GenericHeader> generic = Packet.GetHeader<GenericHeader>(startPin._DefaultSize(packet.PinHead), size: 0, maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
                     ParseL3(generic, layer3ProtocolId);
                     break;
             }

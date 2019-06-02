@@ -148,7 +148,7 @@ namespace IPA.Cores.Basic
 
         public void Write(Memory<T> data) => Write(data.Span);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
-        public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsSpan(offset, length ?? data.Length - offset));
+        public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
 
         public void Write(Span<T> data)
         {
@@ -236,20 +236,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -442,20 +442,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -596,7 +596,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsSpan(offset, length ?? data.Length - offset));
+        public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
         public void Write(Memory<T> data) => Write(data.Span);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
 
@@ -714,20 +714,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -735,20 +735,20 @@ namespace IPA.Cores.Basic
         public int Read(T[] dest, int offset, int size, bool allowPartial = false) => Read(dest.AsSpan(offset, size), size, allowPartial);
         public int Peek(T[] dest, int offset, int size, bool allowPartial = false) => Peek(dest.AsSpan(offset, size), size, allowPartial);
 
-        public int Read(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -984,20 +984,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1005,20 +1005,20 @@ namespace IPA.Cores.Basic
         public int Read(T[] dest, int offset, int size, bool allowPartial = false) => Read(dest.AsSpan(offset, size), size, allowPartial);
         public int Peek(T[] dest, int offset, int size, bool allowPartial = false) => Peek(dest.AsSpan(offset, size), size, allowPartial);
 
-        public int Read(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = ReadAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = ReadAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1293,7 +1293,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsSpan(offset, length ?? data.Length - offset));
+        public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
         public void Write(Memory<T> data) => Write(data.Span);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
 
@@ -1439,20 +1439,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1460,20 +1460,20 @@ namespace IPA.Cores.Basic
         public int Read(T[] dest, int offset, int size, bool allowPartial = false) => Read(dest.AsSpan(offset, size), size, allowPartial);
         public int Peek(T[] dest, int offset, int size, bool allowPartial = false) => Peek(dest.AsSpan(offset, size), size, allowPartial);
 
-        public int Read(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1727,20 +1727,20 @@ namespace IPA.Cores.Basic
             return this;
         }
 
-        public int Read(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Read(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Read(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Span<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Span<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = Peek(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = Peek(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1748,20 +1748,20 @@ namespace IPA.Cores.Basic
         public int Read(T[] dest, int offset, int size, bool allowPartial = false) => Read(dest.AsSpan(offset, size), size, allowPartial);
         public int Peek(T[] dest, int offset, int size, bool allowPartial = false) => Peek(dest.AsSpan(offset, size), size, allowPartial);
 
-        public int Read(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Read(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = ReadAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = ReadAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
 
-        public int Peek(Memory<T> dest, int? size = null, bool allowPartial = false)
+        public int Peek(Memory<T> dest, int size = DefaultSize, bool allowPartial = false)
         {
-            int size2 = size ?? dest.Length;
-            if (dest.Length < size2) throw new ArgumentException("dest.Length < size");
-            var span = PeekAsMemory(size2, allowPartial);
+            size = size._DefaultSize(dest.Length);
+            if (dest.Length < size) throw new ArgumentException("dest.Length < size");
+            var span = PeekAsMemory(size, allowPartial);
             span.CopyTo(dest);
             return span.Length;
         }
@@ -1852,7 +1852,7 @@ namespace IPA.Cores.Basic
         public static implicit operator HugeMemoryBuffer<T>(Memory<T> memory) => new HugeMemoryBuffer<T>(initialContents: memory);
         public static implicit operator HugeMemoryBuffer<T>(T[] array) => new HugeMemoryBuffer<T>(initialContents: array);
 
-        public void Write(T[] data, int offset = 0, int? length = null) => Write(data.AsMemory(offset, length ?? data.Length - offset));
+        public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsMemory(offset, length._DefaultSize(data.Length - offset)));
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
 
         public void WriteRandom(long position, ReadOnlySpan<T> data)
@@ -2882,10 +2882,10 @@ namespace IPA.Cores.Basic
         //    }
         //}
 
-        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = -1, int postAllocationSize = -1)
+        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
         {
-            this.PreAllocationSize = preAllocationSize._DefaultOrPositive(ElasticConsts.DefaultPreAllocationSize);
-            this.PostAllocationSize = postAllocationSize._DefaultOrPositive(ElasticConsts.DefaultPostAllocationSize);
+            this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
+            this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
 
             if (initialContents.IsEmpty == false)
             {
@@ -2916,19 +2916,19 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Prepend(ReadOnlySpan<T> data, int? size = null)
+        public void Prepend(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            int size2 = size ?? data.Length;
+            size = size._DefaultSize(data.Length);
 
-            if (size2 == 0) return;
-            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PreSize < size2)
-                EnsurePreSize(size2);
+            if (PreSize < size)
+                EnsurePreSize(size);
 
-            data.CopyTo(Buffer.Span.Slice(PreSize - size2, data.Length));
-            PreSize -= size2;
-            Length += size2;
+            data.CopyTo(Buffer.Span.Slice(PreSize - size, data.Length));
+            PreSize -= size;
+            Length += size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2945,19 +2945,19 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Append(ReadOnlySpan<T> data, int? size = null)
+        public void Append(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            int size2 = size ?? data.Length;
+            size = size._DefaultSize(data.Length);
 
-            if (size2 == 0) return;
-            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PostSize < size2)
-                EnsurePostSize(size2);
+            if (PostSize < size)
+                EnsurePostSize(size);
 
             data.CopyTo(Buffer.Span.Slice(PreSize + Length, data.Length));
-            PostSize -= size2;
-            Length += size2;
+            PostSize -= size;
+            Length += size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2974,31 +2974,31 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(ReadOnlySpan<T> data, int pos, int? size = null)
+        public void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
         {
-            int size2 = size ?? data.Length;
-            if (size2 == 0) return;
-            if (size2 < 0) throw new ArgumentOutOfRangeException("size");
+            size = size._DefaultSize(data.Length);
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
 
             if (pos < 0 || pos > Length) throw new ArgumentException("pos");
 
             if (pos == 0)
             {
-                Prepend(data, size2);
+                Prepend(data, size);
                 return;
             }
             else if (pos == Length)
             {
-                Append(data, size2);
+                Append(data, size);
                 return;
             }
 
-            int newDataLength = Length + size2;
+            int newDataLength = Length + size;
             int newBufferLength = PreSize + newDataLength + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size2, Length - pos));
-            data.CopyTo(newBuffer.Span.Slice(PreSize + pos, size2));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+            data.CopyTo(newBuffer.Span.Slice(PreSize + pos, size));
             Buffer = newBuffer;
             Length = newDataLength;
         }

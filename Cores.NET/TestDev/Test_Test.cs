@@ -104,7 +104,7 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test_()
+        public static unsafe void Test__()
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 

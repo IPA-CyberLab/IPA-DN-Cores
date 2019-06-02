@@ -1119,22 +1119,7 @@ namespace IPA.Cores.Helper.Basic
             => (await stream._ReadAllAsync(8, cancel))._GetSInt64();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static sbyte _DefaultOrPositive(this sbyte target, sbyte defaultValue) => target >= 0 ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static short _DefaultOrPositive(this short target, short defaultValue) => target >= 0 ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _DefaultOrPositive(this int target, int defaultValue) => target >= 0 ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long _DefaultOrPositive(this long target, long defaultValue) => target >= 0 ? target : defaultValue;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte _DefaultOrPositive(this byte target, byte defaultValue) => target != 0xffu ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ushort _DefaultOrPositive(this ushort target, ushort defaultValue) => target != 0xffffu ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint _DefaultOrPositive(this uint target, uint defaultValue) => target != 0xffffffffu ? target : defaultValue;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong _DefaultOrPositive(this ulong target, ulong defaultValue) => target != 0xfffffffffffffffful ? target : defaultValue;
+        public static int _DefaultSize(this int target, int defaultValue) => target != DefaultSize ? target : defaultValue;
     }
 }
 
