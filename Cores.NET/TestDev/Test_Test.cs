@@ -164,7 +164,7 @@ namespace IPA.TestDev
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 
-            PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(
+            PacketSpan<TCPHeader> tcp = p.PrependHeader<TCPHeader>(
                 new TCPHeader()
                 {
                     AckNumber = 123U._Endian32(),
@@ -178,7 +178,7 @@ namespace IPA.TestDev
                 },
                 sizeof(TCPHeader) + 4);
 
-            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(ref p,
+            PacketSpan<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(ref p,
                 new IPv4Header()
                 {
                     SrcIP = 0x12345678,
@@ -193,7 +193,7 @@ namespace IPA.TestDev
                     Version = 4,
                 });
 
-            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(ref p,
+            PacketSpan<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(ref p,
                 new VLanHeader()
                 {
                     VLanId = 12345U._Endian16(),
@@ -211,7 +211,7 @@ namespace IPA.TestDev
             etherHeaderData.DestAddress[0] = 0x00; etherHeaderData.DestAddress[1] = 0x98; etherHeaderData.DestAddress[2] = 0x21;
             etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
 
-            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(ref p, in etherHeaderData);
+            PacketSpan<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(ref p, in etherHeaderData);
 
             var d = p.Span.ToArray();
 

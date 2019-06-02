@@ -334,10 +334,10 @@ namespace IPA.TestDev
                         v4Hedaer.TotalLength = (ushort)(sizeof(IPv4Header) + sizeof(TCPHeader) + 4);
                         v4Hedaer.Version = 4;
 
-                        ref var vlanHeader = ref p.PrependHeader<VLanHeader>();
+                        //ref var vlanHeader = ref p.PrependHeader<VLanHeader>();
 
-                        vlanHeader.VLanId = 12345U._Endian16();
-                        vlanHeader.Protocol = EthernetProtocolId.IPv4._Endian16();
+                        //vlanHeader.VLanId = 12345U._Endian16();
+                        //vlanHeader.Protocol = EthernetProtocolId.IPv4._Endian16();
 
                         ref var etherHeaderData = ref p.PrependHeader<EthernetHeader>();
 

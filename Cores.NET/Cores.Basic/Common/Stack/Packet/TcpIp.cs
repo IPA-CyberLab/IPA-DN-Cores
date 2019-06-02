@@ -306,7 +306,7 @@ namespace IPA.Cores.Basic
         public uint SessionId;
         public ushort Ns, Nr;
         public int OffsetSize;
-        public PacketPin<GenericHeader> Data;
+        public PacketSpan<GenericHeader> Data;
 
         public bool IsControlMessage => Flag.Bit(L2TPPacketFlag.ControlMessage);
         public bool IsDataMessage => !IsControlMessage;
