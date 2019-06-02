@@ -1097,9 +1097,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool IsZeroStruct<T>(T value, int size = DefaultSize)
+        public static unsafe bool IsZeroStruct<T>(T value, int size = DefaultSize) where T: unmanaged
         {
-            size = size._DefaultSize(Unsafe.SizeOf<T>());
+            size = size._DefaultSize(sizeof(T));
             byte* ptr = (byte *)Unsafe.AsPointer<T>(ref value);
             return IsZero(ptr, size);
         }
@@ -1186,9 +1186,9 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
-        public static unsafe bool IsZeroFastStruct<T>(T value, int size = DefaultSize)
+        public static unsafe bool IsZeroFastStruct<T>(T value, int size = DefaultSize) where T: unmanaged
         {
-            size = size._DefaultSize(Unsafe.SizeOf<T>());
+            size = size._DefaultSize(sizeof(T));
             byte* ptr = (byte*)Unsafe.AsPointer(ref value);
             return IsZeroFast(ptr, size);
         }
@@ -1636,8 +1636,8 @@ namespace IPA.Cores.Basic
             => Marshal.SizeOf(type);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOfStruct<T>()
-            => Unsafe.SizeOf<T>();
+        public static unsafe int SizeOfStruct<T>() where T: unmanaged
+            => sizeof(T);
 
         // オブジェクトから XML とスキーマを生成
         public static XmlAndXsd GenerateXmlAndXsd(object obj)
@@ -3092,7 +3092,7 @@ namespace IPA.Cores.Basic
 
     class SingletonFastArraySlim<TKey, TObject>
     where TObject : class
-    where TKey : Enum
+    where TKey : unmanaged, Enum
     {
         public const int MaxElements = 8_000_000; // Max 64Mbytes
 
@@ -3154,7 +3154,7 @@ namespace IPA.Cores.Basic
 
     class SingletonFastArray<TKey, TObject> : IDisposable
         where TObject : class
-        where TKey : Enum
+        where TKey : unmanaged, Enum
     {
         public const int MaxElements = 8_000_000; // Max 64Mbytes
 

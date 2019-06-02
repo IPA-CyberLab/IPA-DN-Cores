@@ -117,10 +117,10 @@ namespace IPA.TestDev
                     SrcPort = 80U._Endian16(),
                     DstPort = 443U._Endian16(),
                     Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
-                    HeaderSize = (byte)((Unsafe.SizeOf<TCPHeader>() + 4) / 4),
+                    HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4),
                     WindowSize = 1234U._Endian16(),
                 },
-                Unsafe.SizeOf<TCPHeader>() + 4);
+                sizeof(TCPHeader) + 4);
 
             PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(
                 new IPv4Header()
@@ -129,11 +129,11 @@ namespace IPA.TestDev
                     DstIP = 0xdeadbeef,
                     Checksum = 0x1234U._Endian16(),
                     Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
-                    HeaderLen = (byte)(Unsafe.SizeOf<IPv4Header>() / 4),
+                    HeaderLen = (byte)(sizeof(IPv4Header) / 4),
                     Identification = 0x1234U._Endian16(),
                     Protocol = IPProtocolNumber.TCP,
                     TimeToLive = 12,
-                    TotalLength = (ushort)(Unsafe.SizeOf<IPv4Header>() + tcp.HeaderSize),
+                    TotalLength = (ushort)(sizeof(IPv4Header) + tcp.HeaderSize),
                     Version = 4,
                 });
 

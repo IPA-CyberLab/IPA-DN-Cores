@@ -1283,54 +1283,57 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T _AsStruct<T>(this ref byte data) => ref Unsafe.As<byte, T>(ref data);
+        public static ref T _AsStruct<T>(this ref byte data) where T: unmanaged
+            => ref Unsafe.As<byte, T>(ref data);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T _AsStruct<T>(this Span<byte> data) => ref Unsafe.As<byte, T>(ref data[0]);
+        public static ref T _AsStruct<T>(this Span<byte> data) where T : unmanaged
+            => ref Unsafe.As<byte, T>(ref data[0]);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ref readonly T _AsStruct<T>(this ReadOnlySpan<byte> data)
+        public static unsafe ref readonly T _AsStruct<T>(this ReadOnlySpan<byte> data) where T : unmanaged
         {
             fixed (void* ptr = &data[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T _AsStruct<T>(this Memory<byte> data) => ref Unsafe.As<byte, T>(ref data.Span[0]);
+        public static ref T _AsStruct<T>(this Memory<byte> data) where T : unmanaged
+            => ref Unsafe.As<byte, T>(ref data.Span[0]);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ref readonly T _AsStruct<T>(this ReadOnlyMemory<byte> data)
+        public static unsafe ref readonly T _AsStruct<T>(this ReadOnlyMemory<byte> data) where T : unmanaged
         {
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T _AsStructSafe<T>(this Span<byte> data, int minSize = 0)
+        public static unsafe ref T _AsStructSafe<T>(this Span<byte> data, int minSize = 0) where T : unmanaged
         {
-            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            if (minSize <= 0) minSize = sizeof(T);
             return ref Unsafe.As<byte, T>(ref data.Slice(0, minSize)[0]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlySpan<byte> data, int minSize = 0)
+        public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlySpan<byte> data, int minSize = 0) where T : unmanaged
         {
-            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            if (minSize <= 0) minSize = sizeof(T);
             fixed (void* ptr = &data.Slice(0, minSize)[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ref T _AsStructSafe<T>(this Memory<byte> data, int minSize = 0)
+        public static unsafe ref T _AsStructSafe<T>(this Memory<byte> data, int minSize = 0) where T : unmanaged
         {
-            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            if (minSize <= 0) minSize = sizeof(T);
             return ref Unsafe.As<byte, T>(ref data.Span.Slice(0, minSize)[0]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlyMemory<byte> data, int minSize = 0)
+        public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlyMemory<byte> data, int minSize = 0) where T : unmanaged
         {
-            if (minSize <= 0) minSize = Unsafe.SizeOf<T>();
+            if (minSize <= 0) minSize = sizeof(T);
             fixed (void* ptr = &data.Span.Slice(0, minSize)[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
@@ -1341,26 +1344,26 @@ namespace IPA.Cores.Helper.Basic
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt8<T>(this T target, sbyte value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueSInt8<T>(this T target, sbyte value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 1) *((sbyte*)ptr) = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt16<T>(this T target, short value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueSInt16<T>(this T target, short value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) *((short*)ptr) = value;
             if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt32<T>(this T target, int value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueSInt32<T>(this T target, int value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) *((int*)ptr) = value;
             if (size >= 2) *((ushort*)ptr) = (ushort)value;
@@ -1368,9 +1371,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt64<T>(this T target, long value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueSInt64<T>(this T target, long value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) *((long*)ptr) = value;
             if (size >= 4) *((uint*)ptr) = (uint)value;
@@ -1379,26 +1382,26 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt8<T>(this T target, byte value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueUInt8<T>(this T target, byte value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 1) *((byte*)ptr) = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt16<T>(this T target, ushort value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueUInt16<T>(this T target, ushort value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) *((ushort*)ptr) = value;
             if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt32<T>(this T target, uint value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueUInt32<T>(this T target, uint value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) *((uint*)ptr) = value;
             if (size >= 2) *((ushort*)ptr) = (ushort)value;
@@ -1406,9 +1409,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt64<T>(this T target, ulong value, long pointerOffset = 0)
+        public static unsafe void _RawWriteValueUInt64<T>(this T target, ulong value, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) *((ulong*)ptr) = value;
             if (size >= 4) *((uint*)ptr) = (uint)value;
@@ -1418,18 +1421,18 @@ namespace IPA.Cores.Helper.Basic
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe sbyte _RawReadValueSInt8<T>(this T target, long pointerOffset = 0)
+        public static unsafe sbyte _RawReadValueSInt8<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 1) return *((sbyte*)ptr);
             return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe short _RawReadValueSInt16<T>(this T target, long pointerOffset = 0)
+        public static unsafe short _RawReadValueSInt16<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) return *((short*)ptr);
             if (size >= 1) return *((byte*)ptr);
@@ -1437,9 +1440,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _RawReadValueSInt32<T>(this T target, long pointerOffset = 0)
+        public static unsafe int _RawReadValueSInt32<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) return *((int*)ptr);
             if (size >= 2) return *((ushort*)ptr);
@@ -1448,9 +1451,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe long _RawReadValueSInt64<T>(this T target, long pointerOffset = 0)
+        public static unsafe long _RawReadValueSInt64<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) return *((long*)ptr);
             if (size >= 4) return *((uint*)ptr);
@@ -1460,18 +1463,18 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe byte _RawReadValueUInt8<T>(this T target, long pointerOffset = 0)
+        public static unsafe byte _RawReadValueUInt8<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort _RawReadValueUInt16<T>(this T target, long pointerOffset = 0)
+        public static unsafe ushort _RawReadValueUInt16<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) return *((ushort*)ptr);
             if (size >= 1) return *((byte*)ptr);
@@ -1479,9 +1482,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe uint _RawReadValueUInt32<T>(this T target, long pointerOffset = 0)
+        public static unsafe uint _RawReadValueUInt32<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) return *((uint*)ptr);
             if (size >= 2) return *((ushort*)ptr);
@@ -1490,9 +1493,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ulong _RawReadValueUInt64<T>(this T target, long pointerOffset = 0)
+        public static unsafe ulong _RawReadValueUInt64<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
+            int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) return *((ulong*)ptr);
             if (size >= 4) return *((uint*)ptr);
@@ -1502,21 +1505,21 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void* _AsPointer<T>(this ref T target) where T : struct
+        public static unsafe void* _AsPointer<T>(this ref T target) where T : unmanaged
             => Unsafe.AsPointer(ref target);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Span<byte> _AsByteSpan<T>(this ref T target) where T : struct
+        public static unsafe Span<byte> _AsByteSpan<T>(this ref T target) where T : unmanaged
         {
             void *ptr = Unsafe.AsPointer(ref target);
-            return new Span<byte>(ptr, Unsafe.SizeOf<T>());
+            return new Span<byte>(ptr, sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ReadOnlySpan<byte> _AsReadOnlyByteSpan<T>(this ref T target) where T : struct
+        public static unsafe ReadOnlySpan<byte> _AsReadOnlyByteSpan<T>(this ref T target) where T : unmanaged
         {
             void* ptr = Unsafe.AsPointer(ref target);
-            return new ReadOnlySpan<byte>(ptr, Unsafe.SizeOf<T>());
+            return new ReadOnlySpan<byte>(ptr, sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1659,11 +1662,11 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool _IsZeroStruct<T>(this T value, int size = DefaultSize)
+        public static unsafe bool _IsZeroStruct<T>(this T value, int size = DefaultSize) where T: unmanaged
         {
             if (size == DefaultSize)
             {
-                if (Unsafe.SizeOf<T>() <= 16)
+                if (sizeof(T) <= 16)
                     return Util.IsZeroStruct(value, DefaultSize);
                 else
                     return Util.IsZeroFastStruct(value, DefaultSize);

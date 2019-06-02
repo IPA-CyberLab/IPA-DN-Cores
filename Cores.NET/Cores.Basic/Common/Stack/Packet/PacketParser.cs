@@ -223,7 +223,7 @@ namespace IPA.Cores.Basic
         public ushort L4_DestPort;
     }
 
-    class PacketParsed
+    unsafe class PacketParsed
     {
         static readonly PacketParseOption DefaultOption = new PacketParseOption();
 
@@ -454,7 +454,7 @@ namespace IPA.Cores.Basic
             }
 
             int headerLen = data.HeaderLen * 4;
-            if (headerLen < Util.SizeOfStruct<IPv4Header>())
+            if (headerLen < sizeof(IPv4Header))
             {
                 SetError($"Invalid HeaderLen: {headerLen}");
                 return false;
@@ -523,7 +523,7 @@ namespace IPA.Cores.Basic
             ref TCPHeader data = ref tcp.RefValue;
 
             int headerLen = data.HeaderSize * 4;
-            if (headerLen < Util.SizeOfStruct<TCPHeader>())
+            if (headerLen < sizeof(TCPHeader))
             {
                 SetError($"Invalid HeaderLen: {headerLen}");
                 return false;
@@ -590,7 +590,7 @@ namespace IPA.Cores.Basic
                 // Suitable for standard data packet: parse with the structure for faster processing
                 parsed.Length = std.Length._Endian16();
 
-                if (parsed.Length > span.Length || parsed.Length < Unsafe.SizeOf<L2TPHeaderForStdData>())
+                if (parsed.Length > span.Length || parsed.Length < sizeof(L2TPHeaderForStdData))
                 {
                     return false;
                 }
@@ -599,7 +599,7 @@ namespace IPA.Cores.Basic
 
                 parsed.SessionId = std.SessionId._Endian16();
 
-                parsed.Data = payload.GetInnerHeader<GenericHeader>(Unsafe.SizeOf<L2TPHeaderForStdData>(), parsed.Length - Unsafe.SizeOf<L2TPHeaderForStdData>());
+                parsed.Data = payload.GetInnerHeader<GenericHeader>(sizeof(L2TPHeaderForStdData), parsed.Length - sizeof(L2TPHeaderForStdData));
             }
             else
             {

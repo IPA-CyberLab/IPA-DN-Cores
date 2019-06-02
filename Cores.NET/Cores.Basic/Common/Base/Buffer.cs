@@ -77,9 +77,9 @@ namespace IPA.Cores.Basic
             Length = baseSpan.Length;
         }
 
-        public static SpanBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe SpanBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new SpanBuffer<byte>(baseMemory.Span);
@@ -370,9 +370,9 @@ namespace IPA.Cores.Basic
             Length = baseSpan.Length;
         }
 
-        public static ReadOnlySpanBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe ReadOnlySpanBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new ReadOnlySpanBuffer<byte>(baseMemory.Span);
@@ -511,9 +511,9 @@ namespace IPA.Cores.Basic
             InternalSpan = InternalBuffer.Span;
         }
 
-        public static FastMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe FastMemoryBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new FastMemoryBuffer<byte>(baseMemory);
@@ -842,9 +842,9 @@ namespace IPA.Cores.Basic
             InternalSpan = InternalBuffer.Span;
         }
 
-        public static FastReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe FastReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new FastReadOnlyMemoryBuffer<byte>(baseMemory);
@@ -1177,9 +1177,9 @@ namespace IPA.Cores.Basic
             Length = baseMemory.Length;
         }
 
-        public static MemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe MemoryBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new MemoryBuffer<byte>(baseMemory);
@@ -1556,9 +1556,9 @@ namespace IPA.Cores.Basic
             Length = baseMemory.Length;
         }
 
-        public static ReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src)
+        public static unsafe ReadOnlyMemoryBuffer<byte> FromStruct<TStruct>(TStruct src) where TStruct : unmanaged
         {
-            Memory<byte> baseMemory = new byte[Util.SizeOfStruct<TStruct>()];
+            Memory<byte> baseMemory = new byte[sizeof(TStruct)];
             ref TStruct dst = ref baseMemory._AsStruct<TStruct>();
             dst = src;
             return new ReadOnlyMemoryBuffer<byte>(baseMemory);
