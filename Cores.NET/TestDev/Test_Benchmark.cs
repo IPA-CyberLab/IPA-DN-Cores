@@ -123,7 +123,7 @@ namespace IPA.TestDev
         public int A, B, C;
     }
 
-    class TestClass2<TKey> where TKey: Enum
+    class TestClass2<TKey> where TKey : Enum
     {
         public long GetValue(TKey src)
         {
@@ -278,41 +278,49 @@ namespace IPA.TestDev
                     {
                         Packet p = new Packet(initialData, false);
 
+                        var tcpHeader = new TCPHeader()
+                        {
+                            AckNumber = 123U._Endian32(),
+                            SeqNumber = 456U._Endian32(),
+                            Checksum = 0x1234U._Endian16(),
+                            SrcPort = 80U._Endian16(),
+                            DstPort = 443U._Endian16(),
+                            Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
+                            HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4),
+                            WindowSize = 1234U._Endian16(),
+                        };
+
                         PacketPin<TCPHeader> tcp = p.PrependHeader<TCPHeader>(
-                            new TCPHeader()
-                            {
-                                AckNumber = 123U._Endian32(),
-                                SeqNumber = 456U._Endian32(),
-                                Checksum = 0x1234U._Endian16(),
-                                SrcPort = 80U._Endian16(),
-                                DstPort = 443U._Endian16(),
-                                Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
-                                HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4),
-                                WindowSize = 1234U._Endian16(),
-                            },
+                            &tcpHeader,
                             sizeof(TCPHeader) + 4);
 
+                        var v4Header = new IPv4Header()
+                        {
+                            SrcIP = 0x12345678,
+                            DstIP = 0xdeadbeef,
+                            Checksum = 0x1234U._Endian16(),
+                            Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
+                            HeaderLen = (byte)(sizeof(IPv4Header) / 4),
+                            Identification = 0x1234U._Endian16(),
+                            Protocol = IPProtocolNumber.TCP,
+                            TimeToLive = 12,
+                            TotalLength = (ushort)(sizeof(IPv4Header) + tcp.HeaderSize),
+                            Version = 4,
+                        };
+
                         PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(
-                            new IPv4Header()
-                            {
-                                SrcIP = 0x12345678,
-                                DstIP = 0xdeadbeef,
-                                Checksum = 0x1234U._Endian16(),
-                                Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
-                                HeaderLen = (byte)(sizeof(IPv4Header) / 4),
-                                Identification = 0x1234U._Endian16(),
-                                Protocol = IPProtocolNumber.TCP,
-                                TimeToLive = 12,
-                                TotalLength = (ushort)(sizeof(IPv4Header) + tcp.HeaderSize),
-                                Version = 4,
-                            });
+                            &v4Header
+                            );
+
+                        var vlanHeader = new VLanHeader()
+                        {
+                            VLanId = 12345U._Endian16(),
+                            Protocol = EthernetProtocolId.IPv4._Endian16(),
+                        };
 
                         PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(
-                            new VLanHeader()
-                            {
-                                VLanId = 12345U._Endian16(),
-                                Protocol = EthernetProtocolId.IPv4._Endian16(),
-                            });
+                            &vlanHeader
+                            );
 
                         EthernetHeader etherHeaderData = new EthernetHeader()
                         {
@@ -328,7 +336,7 @@ namespace IPA.TestDev
                             etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
                         }
 
-                        PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(in etherHeaderData);
+                        PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(&etherHeaderData);
                     }
                 }
 
@@ -510,7 +518,7 @@ namespace IPA.TestDev
                     Limbo.SInt32 += (int)value2._RawReadValueSInt64();
                 }
             }), enabled: true, priority: 190520)
-            
+
             .Add(new MicroBenchmark($"SingletonFastArraySlim Get", Benchmark_CountForFast, count =>
             {
                 SingletonFastArraySlim<LeakCounterKind, string> singletonObj = new SingletonFastArraySlim<LeakCounterKind, string>((x) => "Hello");

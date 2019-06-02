@@ -2853,7 +2853,7 @@ namespace IPA.Cores.Basic
         public const int DefaultPostAllocationSize = 64;
     }
 
-    class ElasticMemory<T>
+    class ElasticMemory<T> where T: unmanaged
     {
         public int PreAllocationSize { get; }
         public int PostAllocationSize { get; }
@@ -2882,6 +2882,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public Span<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Buffer.Span.Slice(PreSize, Length);
+        }
+
         public Memory<T> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2897,9 +2903,16 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Prepend(ReadOnlySpan<T> data, int size = DefaultSize)
+        public unsafe void Prepend(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            size = size._DefaultSize(data.Length);
+            fixed (T* src = &data[0])
+                Prepend(src, data.Length, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Prepend(T *data, int dataLength, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
 
             if (size == 0) return;
             if (size < 0) throw new ArgumentOutOfRangeException("size");
@@ -2907,7 +2920,11 @@ namespace IPA.Cores.Basic
             if (PreSize < size)
                 EnsurePreSize(size);
 
-            data.CopyTo(Buffer.Span.Slice(PreSize - size, data.Length));
+            fixed (T* dst = &Buffer.Span[PreSize - size])
+            {
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+            }
+
             PreSize -= size;
             Length += size;
         }
@@ -2926,9 +2943,16 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Append(ReadOnlySpan<T> data, int size = DefaultSize)
+        public unsafe void Append(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            size = size._DefaultSize(data.Length);
+            fixed (T* src = &data[0])
+                Append(src, data.Length, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Append(T *data, int dataLength, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
 
             if (size == 0) return;
             if (size < 0) throw new ArgumentOutOfRangeException("size");
@@ -2936,7 +2960,11 @@ namespace IPA.Cores.Basic
             if (PostSize < size)
                 EnsurePostSize(size);
 
-            data.CopyTo(Buffer.Span.Slice(PreSize + Length, data.Length));
+            fixed (T* dst = &Buffer.Span[PreSize + Length])
+            {
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+            }
+
             PostSize -= size;
             Length += size;
         }
@@ -2955,7 +2983,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
+        public unsafe void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
         {
             size = size._DefaultSize(data.Length);
             if (size == 0) return;
@@ -2980,6 +3008,39 @@ namespace IPA.Cores.Basic
             Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
             Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
             data.CopyTo(newBuffer.Span.Slice(PreSize + pos, size));
+            Buffer = newBuffer;
+            Length = newDataLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Insert(T *data, int dataLength, int pos, int size = DefaultSize)
+        {
+            size = size._DefaultSize(dataLength);
+            if (size == 0) return;
+            if (size < 0) throw new ArgumentOutOfRangeException("size");
+
+            if (pos < 0 || pos > Length) throw new ArgumentException("pos");
+
+            if (pos == 0)
+            {
+                Prepend(data, dataLength, size);
+                return;
+            }
+            else if (pos == Length)
+            {
+                Append(data, dataLength, size);
+                return;
+            }
+
+            int newDataLength = Length + size;
+            int newBufferLength = PreSize + newDataLength + PostSize;
+            Memory<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
+            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+
+            fixed (T* dst = &newBuffer.Span[PreSize + pos])
+                Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
+
             Buffer = newBuffer;
             Length = newDataLength;
         }

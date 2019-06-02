@@ -104,7 +104,7 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test__()
+        public static unsafe void Test()
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 
@@ -167,7 +167,7 @@ namespace IPA.TestDev
             NoOp();
         }
 
-        public static unsafe void Test()
+        public static unsafe void Test_()
         {
             Con.WriteLine(Unsafe.SizeOf<PacketParsed>());
 

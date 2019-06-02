@@ -566,7 +566,7 @@ namespace IPA.Cores.Basic
 
         bool ParseL7_L2TP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
         {
-            Span<byte> span = payload.Memory.Span;
+            Span<byte> span = payload.Span;
 
             if (span.Length < 6) return false;
 
