@@ -54,12 +54,6 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultSegmentSize = 10_000_000;
             //public static readonly Copenhagen<int> DefaultSegmentSize = 10;
         }
-
-        public static partial class ElasticBufferConfig
-        {
-            public static readonly Copenhagen<int> PreAllocationSize = 64;
-            public static readonly Copenhagen<int> PostAllocationSize = 64;
-        }
     }
 
     ref struct SpanBuffer<T>
@@ -2853,129 +2847,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct ElasticSpan<T>
+    static class ElasticConsts
     {
-        public int PreAllocationSize { get; }
-        public int PostAllocationSize { get; }
-
-        Span<T> Buffer;
-        public int Length { get; private set; }
-        int PreSize;
-        int PostSize;
-
-        public ElasticSpan(Span<T> initialContents = default, bool copyInitialContents = false, int? preAllocationSize = null, int? postAllocationSize = null)
-        {
-            this.PreAllocationSize = preAllocationSize ?? CoresConfig.ElasticBufferConfig.PreAllocationSize;
-            this.PostAllocationSize = postAllocationSize ?? CoresConfig.ElasticBufferConfig.PostAllocationSize;
-
-            Buffer = default;
-            Length = 0;
-            PreSize = 0;
-            PostSize = 0;
-
-            if (initialContents.IsEmpty == false)
-            {
-                if (copyInitialContents == false)
-                {
-                    this.Buffer = initialContents;
-                    this.Length = initialContents.Length;
-                }
-                else
-                {
-                    Prepend(initialContents);
-                }
-            }
-        }
-
-        public Span<T> Span
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Buffer.Slice(PreSize, Length);
-        }
-
-        public void Clear()
-        {
-            Buffer = Span<T>.Empty;
-            Length = 0;
-            PreSize = 0;
-            PostSize = 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Prepend(ReadOnlySpan<T> data)
-        {
-            if (data.IsEmpty) return;
-
-            if (PreSize < data.Length)
-                EnsurePreSize(data.Length);
-
-            data.CopyTo(Buffer.Slice(PreSize - data.Length, data.Length));
-            PreSize -= data.Length;
-            Length += data.Length;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Append(ReadOnlySpan<T> data)
-        {
-            if (data.IsEmpty) return;
-
-            if (PostSize < data.Length)
-                EnsurePostSize(data.Length);
-
-            data.CopyTo(Buffer.Slice(PreSize + Length, data.Length));
-            PostSize -= data.Length;
-            Length += data.Length;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(ReadOnlySpan<T> data, int pos)
-        {
-            if (data.IsEmpty) return;
-
-            if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
-
-            int newDataLength = Length + data.Length;
-            int newBufferLength = PreSize + newDataLength + PostSize;
-            Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + data.Length, Length - pos));
-            data.CopyTo(newBuffer.Slice(PreSize + pos, data.Length));
-            Buffer = newBuffer;
-            Length = newDataLength;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void EnsurePreSize(int newPreSize)
-        {
-            if (PreSize >= newPreSize) return;
-            newPreSize = newPreSize + PreAllocationSize;
-
-            int newBufferLength = newPreSize + Length + PostSize;
-            Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
-            PreSize = newPreSize;
-            Buffer = newBuffer;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void EnsurePostSize(int newPostSize)
-        {
-            if (PostSize >= newPostSize) return;
-            newPostSize = newPostSize + PostAllocationSize;
-
-            int newBufferLength = PreSize + Length + newPostSize;
-            Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(PreSize, Length));
-            PostSize = newPostSize;
-            Buffer = newBuffer;
-        }
+        public const int DefaultPreAllocationSize = 64;
+        public const int DefaultPostAllocationSize = 64;
     }
 
     class ElasticMemory<T>
     {
-        static readonly int DefaultPreAllocationSize = CoresConfig.ElasticBufferConfig.PreAllocationSize;
-        static readonly int DefaultPostAllocationSize = CoresConfig.ElasticBufferConfig.PostAllocationSize;
-
         public int PreAllocationSize { get; }
         public int PostAllocationSize { get; }
 
@@ -2984,10 +2863,10 @@ namespace IPA.Cores.Basic
         int PreSize;
         int PostSize;
 
-        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int? preAllocationSize = null, int? postAllocationSize = null)
+        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = ElasticConsts.DefaultPreAllocationSize, int postAllocationSize = ElasticConsts.DefaultPostAllocationSize)
         {
-            this.PreAllocationSize = preAllocationSize ?? DefaultPreAllocationSize;
-            this.PostAllocationSize = postAllocationSize ?? DefaultPostAllocationSize;
+            this.PreAllocationSize = preAllocationSize;
+            this.PostAllocationSize = postAllocationSize;
 
             if (initialContents.IsEmpty == false)
             {
