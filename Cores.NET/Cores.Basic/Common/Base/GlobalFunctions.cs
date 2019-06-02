@@ -133,7 +133,7 @@ namespace IPA.Cores
 
             public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
 
-            public const int DefaultSize = unchecked((int)0xDEADBEEFu);
+            public const int DefaultSize = int.MinValue;
         }
     }
 }

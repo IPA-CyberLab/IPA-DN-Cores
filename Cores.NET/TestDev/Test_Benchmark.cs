@@ -310,7 +310,7 @@ namespace IPA.TestDev
                     {
                         Packet p = new Packet(initialData._CloneSpan(), false);
 
-                        ref var tcpHeader = ref p.PrependHeader<TCPHeader>(out PacketPin<TCPHeader> tcp, sizeof(TCPHeader) + 4);
+                        ref var tcpHeader = ref p.PrependHeader<TCPHeader>(out _, sizeof(TCPHeader) + 4);
 
                         tcpHeader.AckNumber = 123U._Endian32();
                         tcpHeader.SeqNumber = 456U._Endian32();
@@ -321,7 +321,7 @@ namespace IPA.TestDev
                         tcpHeader.HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4);
                         tcpHeader.WindowSize = 1234U._Endian16();
 
-                        ref var v4Hedaer = ref tcp.PrependHeader<IPv4Header>(ref p, out PacketPin<IPv4Header> ip);
+                        ref var v4Hedaer = ref p.PrependHeader<IPv4Header>(out _);
 
                         v4Hedaer.SrcIP = 0x12345678;
                         v4Hedaer.DstIP = 0xdeadbeef;
@@ -334,12 +334,12 @@ namespace IPA.TestDev
                         v4Hedaer.TotalLength = (ushort)(sizeof(IPv4Header) + sizeof(TCPHeader) + 4);
                         v4Hedaer.Version = 4;
 
-                        ref var vlanHeader = ref ip.PrependHeader<VLanHeader>(ref p, out PacketPin<VLanHeader> vlan);
+                        ref var vlanHeader = ref p.PrependHeader<VLanHeader>(out _);
 
                         vlanHeader.VLanId = 12345U._Endian16();
                         vlanHeader.Protocol = EthernetProtocolId.IPv4._Endian16();
 
-                        ref var etherHeaderData = ref vlan.PrependHeader<EthernetHeader>(ref p, out PacketPin<EthernetHeader> ether);
+                        ref var etherHeaderData = ref p.PrependHeader<EthernetHeader>(out _);
 
                         etherHeaderData.Protocol = EthernetProtocolId.VLan._Endian16();
 

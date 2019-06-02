@@ -339,6 +339,17 @@ namespace IPA.Cores.Basic
             return ref Unsafe.As<byte, T>(ref b);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref T PrependHeader<T>(int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            ref byte b = ref this.Elastic.Prepend(size);
+            this.PinHead -= size;
+
+            return ref Unsafe.As<byte, T>(ref b);
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe PacketPin<T> PrependHeader<T>(in T data, int size = DefaultSize) where T : unmanaged
         {
@@ -385,6 +396,19 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref T AppendHeader<T>(int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            int oldPinTail = this.PinTail;
+
+            ref byte b = ref this.Elastic.Append(size);
+            this.PinTail += size;
+
+            return ref Unsafe.As<byte, T>(ref b);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe PacketPin<T> AppendHeader<T>(in T data, int size = DefaultSize) where T : unmanaged
         {
             fixed (T* ptr = &data)
@@ -419,7 +443,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ref T InsertHeader<T>(PacketInsertMode mode, int pos, out PacketPin<T> retPacketPin, int size = DefaultSize) where T : unmanaged
+        public unsafe ref T InsertHeader<T>(out PacketPin<T> retPacketPin, PacketInsertMode mode, int pos, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
@@ -570,7 +594,7 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref TNext PrependHeader<TNext>(ref Packet packet, out PacketPin<TNext> retPacketPin, int size = DefaultSize) where TNext : unmanaged
-            => ref packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, out retPacketPin, size);
+            => ref packet.InsertHeader<TNext>(out retPacketPin, PacketInsertMode.MoveHead, this.Pin, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<TNext> AppendHeader<TNext>(ref Packet packet, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
@@ -586,7 +610,7 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref TNext AppendHeader<TNext>(ref Packet packet, out PacketPin<TNext> retPacketPin, int size = DefaultSize) where TNext : unmanaged
-            => ref packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, out retPacketPin, size);
+            => ref packet.InsertHeader<TNext>(out retPacketPin, PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, size);
     }
 
     static class PacketPinHelper
