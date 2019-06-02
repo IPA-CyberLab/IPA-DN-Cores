@@ -259,14 +259,22 @@ namespace IPA.Cores.Basic
         public ushort Checksum;
     }
 
-
-
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     struct PPPDataHeader
     {
         public byte Address;
         public byte Control;
         public PPPProtocolId Protocol;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct L2TPHeaderForStdData
+    {
+        public L2TPPacketFlag Flag;
+        public byte ReservedAndVersion;
+        public ushort Length;
+        public ushort TunnelId;
+        public ushort SessionId;
     }
 
     [Flags]

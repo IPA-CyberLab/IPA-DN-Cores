@@ -566,51 +566,79 @@ namespace IPA.Cores.Basic
 
         bool ParseL7_L2TP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
         {
-            SpanBuffer<byte> buf = payload.Memory.Span;
+            Span<byte> span = payload.Memory.Span;
 
-            L2TPPacketParsed parsed = new L2TPPacketParsed();
+            if (span.Length < 6) return false;
 
-            L2TPPacketFlag flags = (L2TPPacketFlag)buf.ReadUInt8();
-            byte version = buf.ReadUInt8();
+            ref L2TPHeaderForStdData std = ref span._AsStruct<L2TPHeaderForStdData>();
 
+            L2TPPacketFlag flags = std.Flag;
+            byte version = (byte)(std.ReservedAndVersion & 0x0F);
             if (version != 2)
             {
                 return false;
             }
 
+            L2TPPacketParsed parsed = new L2TPPacketParsed();
+
             parsed.Version = version;
             parsed.Flag = flags;
 
-            if (flags.Bit(L2TPPacketFlag.Length))
+            if (flags.Bit(L2TPPacketFlag.Length) && flags.Bit(L2TPPacketFlag.ControlMessage) == false && flags.Bit(L2TPPacketFlag.Offset) == false &&
+                flags.Bit(L2TPPacketFlag.Sequence) == false)
             {
-                parsed.Length = buf.ReadUInt16();
+                // Suitable for standard data packet: parse with the structure for faster processing
+                parsed.Length = std.Length._Endian16();
 
-                if (parsed.Length > buf.Length || parsed.Length <= buf.CurrentPosition)
+                if (parsed.Length > span.Length || parsed.Length < Unsafe.SizeOf<L2TPHeaderForStdData>())
                 {
                     return false;
                 }
 
-                buf = buf.Slice(0, parsed.Length);
+                parsed.TunnelId = std.TunnelId._Endian16();
+
+                parsed.SessionId = std.SessionId._Endian16();
+
+                parsed.Data = payload.GetInnerHeader<GenericHeader>(Unsafe.SizeOf<L2TPHeaderForStdData>(), parsed.Length - Unsafe.SizeOf<L2TPHeaderForStdData>());
             }
-
-            parsed.TunnelId = buf.ReadUInt16();
-
-            parsed.SessionId = buf.ReadUInt16();
-
-            if (flags.Bit(L2TPPacketFlag.Sequence))
+            else
             {
-                parsed.Ns = buf.ReadUInt16();
-                parsed.Nr = buf.ReadUInt16();
+                // Other packets: parse normally
+                SpanBuffer<byte> buf = span;
+
+                buf.Walk(2);
+
+                if (flags.Bit(L2TPPacketFlag.Length))
+                {
+                    parsed.Length = buf.ReadUInt16();
+
+                    if (parsed.Length > buf.Length || parsed.Length < buf.CurrentPosition)
+                    {
+                        return false;
+                    }
+
+                    buf = buf.Slice(0, parsed.Length);
+                }
+
+                parsed.TunnelId = buf.ReadUInt16();
+
+                parsed.SessionId = buf.ReadUInt16();
+
+                if (flags.Bit(L2TPPacketFlag.Sequence))
+                {
+                    parsed.Ns = buf.ReadUInt16();
+                    parsed.Nr = buf.ReadUInt16();
+                }
+
+                if (flags.Bit(L2TPPacketFlag.Offset))
+                {
+                    parsed.OffsetSize = buf.ReadUInt16();
+
+                    buf.Read(parsed.OffsetSize);
+                }
+
+                parsed.Data = payload.GetInnerHeader<GenericHeader>(buf.CurrentPosition, buf.Length - buf.CurrentPosition);
             }
-
-            if (flags.Bit(L2TPPacketFlag.Offset))
-            {
-                parsed.OffsetSize = buf.ReadUInt16();
-
-                buf.Read(parsed.OffsetSize);
-            }
-
-            parsed.Data = payload.GetInnerHeader<GenericHeader>(buf.CurrentPosition);
 
             this.L7 = new L7(payload, parsed);
 
