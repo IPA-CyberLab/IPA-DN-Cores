@@ -3037,11 +3037,6 @@ namespace IPA.Cores.Basic
             if (PreSize >= newPreSize) return;
             newPreSize = newPreSize + PreAllocationSize;
 
-            if (PreSize != 0)
-            {
-                Con.WriteLine($"{PreSize} --> {newPreSize}");
-            }
-
             int newBufferLength = newPreSize + Length + PostSize;
             Memory<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
