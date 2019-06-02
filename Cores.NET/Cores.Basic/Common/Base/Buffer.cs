@@ -2863,10 +2863,29 @@ namespace IPA.Cores.Basic
         int PreSize;
         int PostSize;
 
-        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = ElasticConsts.DefaultPreAllocationSize, int postAllocationSize = ElasticConsts.DefaultPostAllocationSize)
+        //public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = ElasticConsts.DefaultPreAllocationSize, int postAllocationSize = ElasticConsts.DefaultPostAllocationSize)
+        //{
+        //    this.PreAllocationSize = preAllocationSize;
+        //    this.PostAllocationSize = postAllocationSize;
+
+        //    if (initialContents.IsEmpty == false)
+        //    {
+        //        if (copyInitialContents == false)
+        //        {
+        //            this.Buffer = initialContents;
+        //            this.Length = initialContents.Length;
+        //        }
+        //        else
+        //        {
+        //            Prepend(initialContents.Span);
+        //        }
+        //    }
+        //}
+
+        public ElasticMemory(Memory<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = -1, int postAllocationSize = -1)
         {
-            this.PreAllocationSize = preAllocationSize;
-            this.PostAllocationSize = postAllocationSize;
+            this.PreAllocationSize = preAllocationSize._DefaultOrPositive(ElasticConsts.DefaultPreAllocationSize);
+            this.PostAllocationSize = postAllocationSize._DefaultOrPositive(ElasticConsts.DefaultPostAllocationSize);
 
             if (initialContents.IsEmpty == false)
             {
