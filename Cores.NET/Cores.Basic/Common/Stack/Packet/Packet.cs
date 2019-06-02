@@ -113,14 +113,14 @@ namespace IPA.Cores.Basic
         //    => new PacketPin<T>(this, pin, size, maxPacketSize);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int PrependHeader<T>(int size = DefaultSize) where T : unmanaged
+        public unsafe ref T PrependHeader<T>(int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
-            this.Elastic.Prepend(size);
+            ref byte b = ref this.Elastic.Prepend(size);
             this.PinHead -= size;
 
-            return this.PinHead;
+            return ref Unsafe.As<byte, T>(ref b);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -154,16 +154,16 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int AppendHeader<T>(int size = DefaultSize) where T : unmanaged
+        public unsafe ref T AppendHeader<T>(int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
             int oldPinTail = this.PinTail;
 
-            this.Elastic.Append(size);
+            ref byte b = ref this.Elastic.Append(size);
             this.PinTail += size;
 
-            return oldPinTail;
+            return ref Unsafe.As<byte, T>(ref b);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -201,11 +201,11 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int InsertHeader<T>(PacketInsertMode mode, int pos, int size = DefaultSize) where T : unmanaged
+        public unsafe ref T InsertHeader<T>(PacketInsertMode mode, int pos, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
-            this.Elastic.Insert(size, pos - this.PinHead);
+            ref byte b = ref this.Elastic.Insert(size, pos - this.PinHead);
 
             if (mode == PacketInsertMode.MoveHead)
             {
@@ -217,7 +217,7 @@ namespace IPA.Cores.Basic
                 this.PinTail += size;
             }
 
-            return pos;
+            return ref Unsafe.As<byte, T>(ref b);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

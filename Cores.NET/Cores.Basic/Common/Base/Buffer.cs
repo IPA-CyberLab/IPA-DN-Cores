@@ -2928,9 +2928,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Prepend(int size)
+        public ref T Prepend(int size)
         {
-            if (size == 0) return;
+            if (size == 0) return ref this.Buffer[PreSize];
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
             if (PreSize < size)
@@ -2938,6 +2938,8 @@ namespace IPA.Cores.Basic
 
             PreSize -= size;
             Length += size;
+
+            return ref this.Buffer[PreSize];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2968,9 +2970,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Append(int size)
+        public ref T Append(int size)
         {
-            if (size == 0) return;
+            if (size == 0) return ref this.Buffer[PreSize + Length];
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
             if (PostSize < size)
@@ -2978,6 +2980,8 @@ namespace IPA.Cores.Basic
 
             PostSize -= size;
             Length += size;
+
+            return ref this.Buffer[PreSize + Length];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3044,22 +3048,20 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(int size, int pos)
+        public ref T Insert(int size, int pos)
         {
-            if (size == 0) return;
+            if (size == 0) return ref this.Buffer[pos];
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
             if (pos < 0 || pos >= Length) throw new ArgumentException("pos");
 
             if (pos == 0)
             {
-                Prepend(size);
-                return;
+                return ref Prepend(size);
             }
             else if (pos == Length)
             {
-                Append(size);
-                return;
+                return ref Append(size);
             }
 
             int newDataLength = Length + size;
@@ -3069,6 +3071,8 @@ namespace IPA.Cores.Basic
             Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
             Buffer = newBuffer;
             Length = newDataLength;
+
+            return ref this.Buffer[pos];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
