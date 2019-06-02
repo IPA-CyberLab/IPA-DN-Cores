@@ -68,10 +68,10 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L2(PacketPin<EthernetHeader> pin)
         {
-            this.Generic = default;
+            this.Ethernet = default;
 
             this.Type = PacketL2Type.Ethernet;
-            this.Ethernet = pin;
+            this.Generic = pin.ToGenericHeader();
         }
     }
 
@@ -88,10 +88,10 @@ namespace IPA.Cores.Basic
 
         public L2_VLan(PacketPin<VLanHeader> pin, EthernetProtocolId tpid)
         {
-            this.Generic = default;
+            this.TagVlan = default;
 
             this.Type = tpid;
-            this.TagVlan = pin;
+            this.Generic = pin.ToGenericHeader();
         }
     }
 
@@ -111,22 +111,21 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L3(PacketPin<IPv4Header> pin)
         {
-            this.Generic = default;
             this.IPv4 = default;
             this.PPPoE = default;
 
             this.Type = EthernetProtocolId.IPv4;
-            this.IPv4 = pin;
+            this.Generic = pin.ToGenericHeader();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L3(PacketPin<PPPoESessionHeader> pin)
         {
-            this.Generic = default;
             this.IPv4 = default;
+            this.PPPoE = default;
 
             this.Type = EthernetProtocolId.PPPoE_Session;
-            this.PPPoE = pin;
+            this.Generic = pin.ToGenericHeader();
         }
     }
 
@@ -146,21 +145,21 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L4(PacketPin<TCPHeader> pin)
         {
-            this.Generic = default;
+            this.TCP = default;
             this.UDP = default;
 
             this.Type = IPProtocolNumber.TCP;
-            this.TCP = pin;
+            this.Generic = pin.ToGenericHeader();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L4(PacketPin<UDPHeader> pin)
         {
-            this.Generic = default;
             this.TCP = default;
+            this.UDP = default;
 
             this.Type = IPProtocolNumber.UDP;
-            this.UDP = pin;
+            this.Generic = pin.ToGenericHeader();
         }
     }
 
