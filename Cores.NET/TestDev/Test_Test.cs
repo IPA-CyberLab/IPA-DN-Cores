@@ -104,7 +104,7 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test()
+        public static unsafe void Test_()
         {
             PacketBuilder p = new PacketBuilder("Hello"._GetBytes_Ascii());
 
@@ -153,14 +153,14 @@ namespace IPA.TestDev
             var d = p.Span.ToArray();
 
             var packet2 = new Packet(d);
-            PacketParsed parsed = new PacketParsed(packet2);
+            PacketParsed parsed = new PacketParsed(ref packet2);
 
             //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
 
             NoOp();
         }
 
-        public static unsafe void Test___()
+        public static unsafe void Test()
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 
@@ -178,7 +178,7 @@ namespace IPA.TestDev
                 },
                 sizeof(TCPHeader) + 4);
 
-            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(
+            PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(ref p,
                 new IPv4Header()
                 {
                     SrcIP = 0x12345678,
@@ -193,7 +193,7 @@ namespace IPA.TestDev
                     Version = 4,
                 });
 
-            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(
+            PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(ref p,
                 new VLanHeader()
                 {
                     VLanId = 12345U._Endian16(),
@@ -211,19 +211,19 @@ namespace IPA.TestDev
             etherHeaderData.DestAddress[0] = 0x00; etherHeaderData.DestAddress[1] = 0x98; etherHeaderData.DestAddress[2] = 0x21;
             etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
 
-            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(in etherHeaderData);
+            PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(ref p, in etherHeaderData);
 
-            var d = p.Memory.ToArray();
+            var d = p.Span.ToArray();
 
             var packet2 = new Packet(d);
-            PacketParsed parsed = new PacketParsed(packet2);
+            PacketParsed parsed = new PacketParsed(ref packet2);
 
             //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
 
             NoOp();
         }
 
-        public static unsafe void Test_()
+        public static unsafe void Test_zx()
         {
             Con.WriteLine(Unsafe.SizeOf<PacketParsed>());
 
@@ -235,9 +235,9 @@ namespace IPA.TestDev
             //var packetMem = Res.AppRoot["190531_vlan_pppoe_udp.txt"].HexParsedBinary;
             var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneMemory());
+            Packet packet = new Packet(packetMem._CloneSpan());
 
-            PacketParsed parsed = new PacketParsed(packet);
+            PacketParsed parsed = new PacketParsed(ref packet);
 
             //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
 

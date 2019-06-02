@@ -268,18 +268,16 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Packet
+    ref struct Packet
     {
-        ElasticMemory<byte> Elastic;
-        public int PinHead { get; private set; } = 0;
-        public int PinTail { get; private set; } = 0;
+        ElasticSpan<byte> Elastic;
+        public int PinHead { get; private set; }
+        public int PinTail { get; private set; }
         public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
 
-        public Packet() { }
-
-        public Packet(Memory<byte> initialContents, bool copyInitialContents = true)
+        public Packet(Span<byte> initialContents, bool copyInitialContents = true)
         {
-            this.Elastic = new ElasticMemory<byte>(initialContents, copyInitialContents);
+            this.Elastic = new ElasticSpan<byte>(initialContents, copyInitialContents);
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }
@@ -289,15 +287,15 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                Elastic = new ElasticMemory<byte>();
+                Elastic = new ElasticSpan<byte>();
                 PinTail = PinHead;
             }
         }
 
-        public Memory<byte> Memory
+        public Span<byte> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.Elastic.Memory;
+            get => this.Elastic.Span;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -315,12 +313,6 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory<byte> GetContiguousMemory(int pin, int size)
-        {
-            return this.Elastic.Memory.Slice(pin - PinHead, size);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe ref T AsStruct<T>(int pin, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
@@ -332,7 +324,7 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PacketPin<T> GetHeader<T>(int pin, int size = DefaultSize, int maxPacketSize = int.MaxValue) where T : unmanaged
-            => new PacketPin<T>(this, pin, size, maxPacketSize);
+            => new PacketPin<T>(pin, size, maxPacketSize);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe PacketPin<T> PrependHeader<T>(int size = DefaultSize) where T : unmanaged
@@ -342,7 +334,7 @@ namespace IPA.Cores.Basic
             this.Elastic.Prepend(size);
             this.PinHead -= size;
 
-            return new PacketPin<T>(this, this.PinHead, size);
+            return new PacketPin<T>(this.PinHead, size);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -361,7 +353,7 @@ namespace IPA.Cores.Basic
 
             this.PinHead -= size;
 
-            return new PacketPin<T>(this, this.PinHead, size);
+            return new PacketPin<T>(this.PinHead, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -372,7 +364,7 @@ namespace IPA.Cores.Basic
             this.Elastic.Prepend(data, size);
             this.PinHead -= size;
 
-            return new PacketPin<T>(this, this.PinHead, size);
+            return new PacketPin<T>(this.PinHead, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -385,7 +377,7 @@ namespace IPA.Cores.Basic
             this.Elastic.Append(size);
             this.PinTail += size;
 
-            return new PacketPin<T>(this, oldPinTail, size);
+            return new PacketPin<T>(oldPinTail, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -406,7 +398,7 @@ namespace IPA.Cores.Basic
 
             this.PinTail += size;
 
-            return new PacketPin<T>(this, oldPinTail, size);
+            return new PacketPin<T>(oldPinTail, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -419,7 +411,7 @@ namespace IPA.Cores.Basic
             this.Elastic.Append(data, size);
             this.PinTail += size;
 
-            return new PacketPin<T>(this, oldPinTail, size);
+            return new PacketPin<T>(oldPinTail, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -439,7 +431,7 @@ namespace IPA.Cores.Basic
                 this.PinTail += size;
             }
 
-            return new PacketPin<T>(this, pos, size);
+            return new PacketPin<T>(pos, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -466,7 +458,7 @@ namespace IPA.Cores.Basic
                 this.PinTail += size;
             }
 
-            return new PacketPin<T>(this, pos, size);
+            return new PacketPin<T>(pos, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -486,126 +478,109 @@ namespace IPA.Cores.Basic
                 this.PinTail += size;
             }
 
-            return new PacketPin<T>(this, pos, size);
+            return new PacketPin<T>(pos, size);
         }
     }
 
     readonly unsafe struct PacketPin<T> where T : unmanaged
     {
-        public Packet Packet { get; }
         public int Pin { get; }
         public int HeaderSize { get; }
 
         readonly int MaxTotalSize;
 
-        public bool IsEmpty
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsEmpty(ref Packet packet)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (Packet == null) return true;
-                if (Packet.IsSafeToRead(this.Pin, this.HeaderSize) == false) return true;
-                return false;
-            }
+            if (packet.IsSafeToRead(this.Pin, this.HeaderSize) == false) return true;
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsThisEmpty() => IsEmpty;
+        public bool IsThisEmpty(ref Packet packet) => IsEmpty(ref packet);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketPin(Packet packet, int pin, int headerSize = DefaultSize, int maxPacketSize = int.MaxValue)
+        public unsafe PacketPin(int pin, int headerSize = DefaultSize, int maxPacketSize = int.MaxValue)
         {
-            this.Packet = packet;
             this.Pin = pin;
             this.HeaderSize = headerSize._DefaultSize(sizeof(T));
             this.MaxTotalSize = Math.Max(maxPacketSize, 0);
         }
 
-        public int TotalPacketSizeRaw
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int TotalPacketSizeRaw(ref Packet packet)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Math.Max(Packet.PinTail - this.Pin, 0);
-        }
-
-        public int TotalPacketSize
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Math.Min(Math.Max(Packet.PinTail - this.Pin, 0), this.MaxTotalSize);
-        }
-
-        public int PayloadSize
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Math.Max(0, TotalPacketSize - this.HeaderSize);
-        }
-
-        public unsafe ref T RefValue
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Packet.AsStruct<T>(this.Pin, this.HeaderSize);
-        }
-
-        public unsafe T _ValueDebug
-        {
-            get => RefValue;
-        }
-
-        public Span<byte> Span
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Packet.GetContiguousSpan(this.Pin, this.HeaderSize);
-        }
-
-        public Memory<byte> Memory
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Packet.GetContiguousMemory(this.Pin, this.HeaderSize);
+            return Math.Max(packet.PinTail - this.Pin, 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> GetNextHeader<TNext>(int size = DefaultSize, int maxPacketSize = int.MaxValue) where TNext : unmanaged
+        public int TotalPacketSize(ref Packet packet)
         {
-            return Packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, Math.Min(this.PayloadSize, maxPacketSize));
+            return Math.Min(Math.Max(packet.PinTail - this.Pin, 0), this.MaxTotalSize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> GetInnerHeader<TNext>(int offset, int size = DefaultSize, int maxPacketSize = int.MaxValue) where TNext : unmanaged
+        public int PayloadSize(ref Packet packet)
         {
-            if (offset > TotalPacketSize) throw new ArgumentOutOfRangeException("offset > TotalPacketSize");
-            return Packet.GetHeader<TNext>(this.Pin + offset, size, Math.Min(TotalPacketSize - offset, maxPacketSize));
+            return Math.Max(0, TotalPacketSize(ref packet) - this.HeaderSize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> PrependHeader<TNext>(ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
+        public unsafe ref T RefValue(ref Packet packet)
+        {
+            return ref packet.AsStruct<T>(this.Pin, this.HeaderSize);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> PrependHeader<TNext>(in TNext data, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
+        public Span<byte> Span(ref Packet packet)
+        {
+            return packet.GetContiguousSpan(this.Pin, this.HeaderSize);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> PrependHeader<TNext>(TNext *ptr, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, ptr, size);
+        public PacketPin<TNext> GetNextHeader<TNext>(ref Packet packet, int size = DefaultSize, int maxPacketSize = int.MaxValue) where TNext : unmanaged
+        {
+            return packet.GetHeader<TNext>(this.Pin + this.HeaderSize, size, Math.Min(this.PayloadSize(ref packet), maxPacketSize));
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> PrependHeader<TNext>(int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, size);
+        public PacketPin<TNext> GetInnerHeader<TNext>(ref Packet packet, int offset, int size = DefaultSize, int maxPacketSize = int.MaxValue) where TNext : unmanaged
+        {
+            if (offset > TotalPacketSize(ref packet)) throw new ArgumentOutOfRangeException("offset > TotalPacketSize");
+            return packet.GetHeader<TNext>(this.Pin + offset, size, Math.Min(TotalPacketSize(ref packet) - offset, maxPacketSize));
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> AppendHeader<TNext>(ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+        public PacketPin<TNext> PrependHeader<TNext>(ref Packet packet, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> AppendHeader<TNext>(in TNext data, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+        public PacketPin<TNext> PrependHeader<TNext>(ref Packet packet, in TNext data, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> AppendHeader<TNext>(TNext *ptr, int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, ptr, size);
+        public PacketPin<TNext> PrependHeader<TNext>(ref Packet packet, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, ptr, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketPin<TNext> AppendHeader<TNext>(int size = DefaultSize) where TNext : unmanaged
-            => this.Packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, size);
+        public PacketPin<TNext> PrependHeader<TNext>(ref Packet packet, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveHead, this.Pin, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> AppendHeader<TNext>(ref Packet packet, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> AppendHeader<TNext>(ref Packet packet, in TNext data, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> AppendHeader<TNext>(ref Packet packet, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, ptr, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public PacketPin<TNext> AppendHeader<TNext>(ref Packet packet, int size = DefaultSize) where TNext : unmanaged
+            => packet.InsertHeader<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, size);
     }
 
     static class PacketPinHelper

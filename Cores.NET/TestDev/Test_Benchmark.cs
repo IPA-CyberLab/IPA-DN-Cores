@@ -166,11 +166,11 @@ namespace IPA.TestDev
         {
             var packetMem = Res.AppRoot[name].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneMemory());
+            Packet packet = new Packet(packetMem._CloneSpan());
 
             for (int c = 0; c < 100; c++)
             {
-                new PacketParsed(packet);
+                new PacketParsed(ref packet);
             }
         }
 
@@ -333,7 +333,7 @@ namespace IPA.TestDev
                     Memory<byte> initialData = "Hello"._GetBytes_Ascii();
                     for (int c = 0; c < count; c++)
                     {
-                        Packet p = new Packet(initialData, false);
+                        Packet p = new Packet(initialData._CloneSpan(), false);
 
                         var tcpHeader = new TCPHeader()
                         {
@@ -365,7 +365,7 @@ namespace IPA.TestDev
                             Version = 4,
                         };
 
-                        PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(
+                        PacketPin<IPv4Header> ip = tcp.PrependHeader<IPv4Header>(ref p,
                             &v4Header
                             );
 
@@ -375,7 +375,7 @@ namespace IPA.TestDev
                             Protocol = EthernetProtocolId.IPv4._Endian16(),
                         };
 
-                        PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(
+                        PacketPin<VLanHeader> vlan = ip.PrependHeader<VLanHeader>(ref p,
                             &vlanHeader
                             );
 
@@ -393,7 +393,7 @@ namespace IPA.TestDev
                             etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
                         }
 
-                        PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(&etherHeaderData);
+                        PacketPin<EthernetHeader> ether = vlan.PrependHeader<EthernetHeader>(ref p, &etherHeaderData);
                     }
                 }
 
@@ -403,11 +403,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -416,11 +416,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -429,11 +429,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -443,11 +443,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -458,11 +458,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -473,11 +473,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -487,11 +487,11 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneMemory());
+                Packet packet = new Packet(packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
-                    new PacketParsed(packet);
+                    new PacketParsed(ref packet);
                 }
 
             }), enabled: true, priority: 190531)
@@ -640,24 +640,24 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 190521)
 
-            .Add(new MicroBenchmark($"New Packet", Benchmark_CountForFast, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    Packet newPacket = new Packet();
-                    Limbo.ObjectVolatileSlow = newPacket;
-                }
-            }), enabled: true, priority: 190528)
+            //.Add(new MicroBenchmark($"New Packet", Benchmark_CountForFast, count =>
+            //{
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Packet newPacket = new Packet();
+            //        Limbo.ObjectVolatileSlow = newPacket;
+            //    }
+            //}), enabled: true, priority: 190528)
 
-            .Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
-            {
-                Memory<byte> hello = new byte[64];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-                for (int c = 0; c < count; c++)
-                {
-                    Packet newPacket = new Packet(hello);
-                    Limbo.ObjectVolatileSlow = newPacket;
-                }
-            }), enabled: true, priority: 190519)
+            //.Add(new MicroBenchmark($"New Packet with Data", Benchmark_CountForFast, count =>
+            //{
+            //    Memory<byte> hello = new byte[64];// "Hello World Hello World Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Packet newPacket = new Packet(hello);
+            //        Limbo.ObjectVolatileSlow = newPacket;
+            //    }
+            //}), enabled: true, priority: 190519)
 
             //.Add(new MicroBenchmark($"Packet struct I/O", Benchmark_CountForFast, count =>
             //{

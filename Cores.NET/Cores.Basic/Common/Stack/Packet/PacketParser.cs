@@ -68,10 +68,10 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L2(PacketPin<EthernetHeader> pin)
         {
-            this.Ethernet = default;
+            this.Generic = default;
 
             this.Type = PacketL2Type.Ethernet;
-            this.Generic = pin.ToGenericHeader();
+            this.Ethernet = pin;
         }
     }
 
@@ -88,10 +88,10 @@ namespace IPA.Cores.Basic
 
         public L2_VLan(PacketPin<VLanHeader> pin, EthernetProtocolId tpid)
         {
-            this.TagVlan = default;
+            this.Generic = default;
 
             this.Type = tpid;
-            this.Generic = pin.ToGenericHeader();
+            this.TagVlan = pin;
         }
     }
 
@@ -111,21 +111,22 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L3(PacketPin<IPv4Header> pin)
         {
+            this.Generic = default;
             this.IPv4 = default;
             this.PPPoE = default;
 
             this.Type = EthernetProtocolId.IPv4;
-            this.Generic = pin.ToGenericHeader();
+            this.IPv4 = pin;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L3(PacketPin<PPPoESessionHeader> pin)
         {
+            this.Generic = default;
             this.IPv4 = default;
-            this.PPPoE = default;
 
             this.Type = EthernetProtocolId.PPPoE_Session;
-            this.Generic = pin.ToGenericHeader();
+            this.PPPoE = pin;
         }
     }
 
@@ -145,21 +146,21 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L4(PacketPin<TCPHeader> pin)
         {
-            this.TCP = default;
+            this.Generic = default;
             this.UDP = default;
 
             this.Type = IPProtocolNumber.TCP;
-            this.Generic = pin.ToGenericHeader();
+            this.TCP = pin;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public L4(PacketPin<UDPHeader> pin)
         {
+            this.Generic = default;
             this.TCP = default;
-            this.UDP = default;
 
             this.Type = IPProtocolNumber.UDP;
-            this.Generic = pin.ToGenericHeader();
+            this.UDP = pin;
         }
     }
 
@@ -227,7 +228,6 @@ namespace IPA.Cores.Basic
     {
         static readonly PacketParseOption DefaultOption = new PacketParseOption();
 
-        public Packet Packet { get; private set; }
         public PacketParseOption ParseOption { get; private set; }
 
         public string ErrorStr { get; private set; }
@@ -249,9 +249,8 @@ namespace IPA.Cores.Basic
 
         public PacketParsed InnerPacket { get; private set; }
 
-        public PacketParsed(Packet packet, int startPin = DefaultSize, PacketParseOption options = null, int maxPacketSize = DefaultSize, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
+        public PacketParsed(ref Packet packet, int startPin = DefaultSize, PacketParseOption options = null, int maxPacketSize = DefaultSize, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
         {
-            this.Packet = packet;
             this.ParseOption = options ?? DefaultOption;
 
             //this.ErrorStr = null;
@@ -269,13 +268,13 @@ namespace IPA.Cores.Basic
             switch (mode)
             {
                 case PacketParseMode.Layer2:
-                    PacketPin<EthernetHeader> ether = Packet.GetHeader<EthernetHeader>(startPin._DefaultSize(packet.PinHead), maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
-                    ParseL2_Ethernet(ether);
+                    PacketPin<EthernetHeader> ether = packet.GetHeader<EthernetHeader>(startPin._DefaultSize(packet.PinHead), maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
+                    ParseL2_Ethernet(ref packet, ether);
                     break;
 
                 case PacketParseMode.Layer3:
-                    PacketPin<GenericHeader> generic = Packet.GetHeader<GenericHeader>(startPin._DefaultSize(packet.PinHead), size: 0, maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
-                    ParseL3(generic, layer3ProtocolId);
+                    PacketPin<GenericHeader> generic = packet.GetHeader<GenericHeader>(startPin._DefaultSize(packet.PinHead), size: 0, maxPacketSize: maxPacketSize._DefaultSize(packet.Length));
+                    ParseL3(ref packet, generic, layer3ProtocolId);
                     break;
             }
         }
@@ -287,9 +286,9 @@ namespace IPA.Cores.Basic
             this.ErrorStr = $"{caller}: {err}";
         }
 
-        bool ParseL2_Ethernet(PacketPin<EthernetHeader> ether)
+        bool ParseL2_Ethernet(ref Packet packet, PacketPin<EthernetHeader> ether)
         {
-            if (ether.IsEmpty)
+            if (ether.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
@@ -297,18 +296,18 @@ namespace IPA.Cores.Basic
 
             this.L2 = new L2(ether);
 
-            EthernetProtocolId tpid = ether.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = ether.RefValue(ref packet).Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.VLan)
-                return ParseL2_VLan1(this.L2.Ethernet, tpid);
+                return ParseL2_VLan1(ref packet, this.L2.Ethernet, tpid);
             else
-                return ParseL3(this.L2.Generic, tpid);
+                return ParseL3(ref packet, this.L2.Generic, tpid);
         }
 
-        bool ParseL2_VLan1(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan1(ref Packet packet, PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
-            if (vlan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>(ref packet);
+            if (vlan.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
@@ -316,18 +315,18 @@ namespace IPA.Cores.Basic
 
             this.L2_VLan1 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue(ref packet).Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.VLan)
-                return ParseL2_VLan2(this.L2.Ethernet, tpid);
+                return ParseL2_VLan2(ref packet, this.L2.Ethernet, tpid);
             else
-                return ParseL3(this.L2_VLan1.Generic, tpid);
+                return ParseL3(ref packet, this.L2_VLan1.Generic, tpid);
         }
 
-        bool ParseL2_VLan2(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan2(ref Packet packet, PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
-            if (vlan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>(ref packet);
+            if (vlan.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
@@ -335,18 +334,18 @@ namespace IPA.Cores.Basic
 
             this.L2_VLan2 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue(ref packet).Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.VLan)
-                return ParseL2_VLan3(this.L2.Ethernet, tpid);
+                return ParseL2_VLan3(ref packet, this.L2.Ethernet, tpid);
             else
-                return ParseL3(this.L2_VLan2.Generic, tpid);
+                return ParseL3(ref packet, this.L2_VLan2.Generic, tpid);
         }
 
-        bool ParseL2_VLan3(PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
+        bool ParseL2_VLan3(ref Packet packet, PacketPin<EthernetHeader> prevHeader, EthernetProtocolId thisTpid)
         {
-            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>();
-            if (vlan.IsEmpty)
+            PacketPin<VLanHeader> vlan = prevHeader.GetNextHeader<VLanHeader>(ref packet);
+            if (vlan.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
@@ -354,7 +353,7 @@ namespace IPA.Cores.Basic
 
             this.L2_VLan3 = new L2_VLan(vlan, thisTpid);
 
-            EthernetProtocolId tpid = vlan.RefValue.Protocol._Endian16();
+            EthernetProtocolId tpid = vlan.RefValue(ref packet).Protocol._Endian16();
 
             if (tpid == EthernetProtocolId.VLan)
             {
@@ -363,34 +362,34 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return ParseL3(this.L2_VLan3.Generic, tpid);
+                return ParseL3(ref packet, this.L2_VLan3.Generic, tpid);
             }
         }
 
-        bool ParseL3(PacketPin<GenericHeader> prevHeader, EthernetProtocolId tpid)
+        bool ParseL3(ref Packet packet, PacketPin<GenericHeader> prevHeader, EthernetProtocolId tpid)
         {
             switch (tpid)
             {
                 case EthernetProtocolId.IPv4:
-                    return ParseL3_IPv4(prevHeader);
+                    return ParseL3_IPv4(ref packet, prevHeader);
 
                 case EthernetProtocolId.PPPoE_Session:
-                    return ParseL3_PPPoESession(prevHeader);
+                    return ParseL3_PPPoESession(ref packet, prevHeader);
             }
 
             return true;
         }
 
-        bool ParseL3_PPPoESession(PacketPin<GenericHeader> prevHeader)
+        bool ParseL3_PPPoESession(ref Packet packet, PacketPin<GenericHeader> prevHeader)
         {
-            PacketPin<PPPoESessionHeader> pppoe = prevHeader.GetNextHeader<PPPoESessionHeader>();
-            if (pppoe.IsEmpty)
+            PacketPin<PPPoESessionHeader> pppoe = prevHeader.GetNextHeader<PPPoESessionHeader>(ref packet);
+            if (pppoe.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            ref PPPoESessionHeader data = ref pppoe.RefValue;
+            ref PPPoESessionHeader data = ref pppoe.RefValue(ref packet);
 
             if (data.Version != 1)
             {
@@ -420,32 +419,32 @@ namespace IPA.Cores.Basic
 
             this.L3 = new L3(pppoe);
 
-            ParsePPP_AsOverlay(this.L3.Generic, data.PPPProtocolId._Endian16(), payloadSize);
+            ParsePPP_AsOverlay(ref packet, this.L3.Generic, data.PPPProtocolId._Endian16(), payloadSize);
 
             return true;
         }
 
-        void ParsePPP_AsOverlay(PacketPin<GenericHeader> prevHeader, PPPProtocolId pppProtocolId, int size)
+        void ParsePPP_AsOverlay(ref Packet packet, PacketPin<GenericHeader> prevHeader, PPPProtocolId pppProtocolId, int size)
         {
             EthernetProtocolId etherProtocolId = pppProtocolId.ConvertPPPToEthernetProtocolId();
 
-            PacketPin<GenericHeader> innerPacket = prevHeader.GetNextHeader<GenericHeader>(size);
+            PacketPin<GenericHeader> innerPacket = prevHeader.GetNextHeader<GenericHeader>(ref packet, size);
 
-            PacketParsed innerPacketParsed = new PacketParsed(this.Packet, innerPacket.Pin, this.ParseOption, innerPacket.HeaderSize, PacketParseMode.Layer3, etherProtocolId);
+            PacketParsed innerPacketParsed = new PacketParsed(ref packet, innerPacket.Pin, this.ParseOption, innerPacket.HeaderSize, PacketParseMode.Layer3, etherProtocolId);
 
             this.InnerPacket = innerPacketParsed;
         }
 
-        bool ParseL3_IPv4(PacketPin<GenericHeader> prevHeader)
+        bool ParseL3_IPv4(ref Packet packet, PacketPin<GenericHeader> prevHeader)
         {
-            PacketPin<IPv4Header> ipv4 = prevHeader.GetNextHeader<IPv4Header>();
-            if (ipv4.IsEmpty)
+            PacketPin<IPv4Header> ipv4 = prevHeader.GetNextHeader<IPv4Header>(ref packet);
+            if (ipv4.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            ref IPv4Header data = ref ipv4.RefValue;
+            ref IPv4Header data = ref ipv4.RefValue(ref packet);
 
             if (data.Version != 4)
             {
@@ -467,8 +466,8 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            PacketPin<IPv4Header> ipv4full = prevHeader.GetNextHeader<IPv4Header>(headerLen, totalLen);
-            if (ipv4full.IsEmpty)
+            PacketPin<IPv4Header> ipv4full = prevHeader.GetNextHeader<IPv4Header>(ref packet, headerLen, totalLen);
+            if (ipv4full.IsEmpty(ref packet))
             {
                 SetError($"Insufficient header data. HeaderLen: {headerLen}");
                 return false;
@@ -478,49 +477,49 @@ namespace IPA.Cores.Basic
             this.Info.L3_SrcIPv4 = data.SrcIP;
             this.Info.L3_DestIPv4 = data.DstIP;
 
-            switch (ipv4full.RefValue.Protocol)
+            switch (ipv4full.RefValue(ref packet).Protocol)
             {
                 case IPProtocolNumber.TCP:
-                    return ParseL4_TCP(this.L3.Generic);
+                    return ParseL4_TCP(ref packet, this.L3.Generic);
 
                 case IPProtocolNumber.UDP:
-                    return ParseL4_UDP(this.L3.Generic);
+                    return ParseL4_UDP(ref packet, this.L3.Generic);
             }
 
             return true;
         }
 
-        bool ParseL4_UDP(PacketPin<GenericHeader> prevHeader)
+        bool ParseL4_UDP(ref Packet packet, PacketPin<GenericHeader> prevHeader)
         {
-            PacketPin<UDPHeader> udp = prevHeader.GetNextHeader<UDPHeader>();
-            if (udp.IsEmpty)
+            PacketPin<UDPHeader> udp = prevHeader.GetNextHeader<UDPHeader>(ref packet);
+            if (udp.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            ref UDPHeader data = ref udp.RefValue;
+            ref UDPHeader data = ref udp.RefValue(ref packet);
 
             this.L4 = new L4(udp);
 
             this.Info.L4_SrcPort = data.SrcPort._Endian16();
             this.Info.L4_DestPort = data.DstPort._Endian16();
 
-            PacketPin<GenericHeader> payload = udp.GetNextHeader<GenericHeader>(size: udp.PayloadSize);
+            PacketPin<GenericHeader> payload = udp.GetNextHeader<GenericHeader>(ref packet, size: udp.PayloadSize(ref packet));
 
-            return ParseL7_UDP(payload, in data);
+            return ParseL7_UDP(ref packet, payload, in data);
         }
 
-        bool ParseL4_TCP(PacketPin<GenericHeader> prevHeader)
+        bool ParseL4_TCP(ref Packet packet, PacketPin<GenericHeader> prevHeader)
         {
-            PacketPin<TCPHeader> tcp = prevHeader.GetNextHeader<TCPHeader>();
-            if (tcp.IsEmpty)
+            PacketPin<TCPHeader> tcp = prevHeader.GetNextHeader<TCPHeader>(ref packet);
+            if (tcp.IsEmpty(ref packet))
             {
                 SetError("Insufficient header data");
                 return false;
             }
 
-            ref TCPHeader data = ref tcp.RefValue;
+            ref TCPHeader data = ref tcp.RefValue(ref packet);
 
             int headerLen = data.HeaderSize * 4;
             if (headerLen < sizeof(TCPHeader))
@@ -529,8 +528,8 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            PacketPin<TCPHeader> tcpfull = prevHeader.GetNextHeader<TCPHeader>(headerLen);
-            if (tcpfull.IsEmpty)
+            PacketPin<TCPHeader> tcpfull = prevHeader.GetNextHeader<TCPHeader>(ref packet, headerLen);
+            if (tcpfull.IsEmpty(ref packet))
             {
                 SetError($"Insufficient header data. HeaderLen: {headerLen}");
                 return false;
@@ -541,19 +540,19 @@ namespace IPA.Cores.Basic
             this.Info.L4_SrcPort = data.SrcPort._Endian16();
             this.Info.L4_DestPort = data.DstPort._Endian16();
 
-            PacketPin<GenericHeader> payload = tcpfull.GetNextHeader<GenericHeader>(size: tcpfull.PayloadSize);
+            PacketPin<GenericHeader> payload = tcpfull.GetNextHeader<GenericHeader>(ref packet, size: tcpfull.PayloadSize(ref packet));
 
             this.L7 = new L7(payload, L7Type.GenericTCP);
 
             return true;
         }
 
-        bool ParseL7_UDP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
+        bool ParseL7_UDP(ref Packet packet, PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
         {
             if (this.Info.L4_SrcPort == (ushort)TCPWellknownPorts.L2TP || this.Info.L4_DestPort == (ushort)TCPWellknownPorts.L2TP)
             {
                 // L2TP
-                if (ParseL7_L2TP(payload, udpHeader))
+                if (ParseL7_L2TP(ref packet, payload, udpHeader))
                 {
                     return true;
                 }
@@ -564,9 +563,9 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        bool ParseL7_L2TP(PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
+        bool ParseL7_L2TP(ref Packet packet, PacketPin<GenericHeader> payload, in UDPHeader udpHeader)
         {
-            Span<byte> span = payload.Span;
+            Span<byte> span = payload.Span(ref packet);
 
             if (span.Length < 6) return false;
 
@@ -599,7 +598,7 @@ namespace IPA.Cores.Basic
 
                 parsed.SessionId = std.SessionId._Endian16();
 
-                parsed.Data = payload.GetInnerHeader<GenericHeader>(sizeof(L2TPHeaderForStdData), parsed.Length - sizeof(L2TPHeaderForStdData));
+                parsed.Data = payload.GetInnerHeader<GenericHeader>(ref packet, sizeof(L2TPHeaderForStdData), parsed.Length - sizeof(L2TPHeaderForStdData));
             }
             else
             {
@@ -637,7 +636,7 @@ namespace IPA.Cores.Basic
                     buf.Read(parsed.OffsetSize);
                 }
 
-                parsed.Data = payload.GetInnerHeader<GenericHeader>(buf.CurrentPosition, buf.Length - buf.CurrentPosition);
+                parsed.Data = payload.GetInnerHeader<GenericHeader>(ref packet, buf.CurrentPosition, buf.Length - buf.CurrentPosition);
             }
 
             this.L7 = new L7(payload, parsed);
@@ -648,19 +647,19 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return ParseL7_L2TP_PPPData(payload, parsed);
+                return ParseL7_L2TP_PPPData(ref packet, payload, parsed);
             }
         }
 
-        bool ParseL7_L2TP_PPPData(PacketPin<GenericHeader> payload, L2TPPacketParsed l2tp)
+        bool ParseL7_L2TP_PPPData(ref Packet packet, PacketPin<GenericHeader> payload, L2TPPacketParsed l2tp)
         {
-            PacketPin<PPPDataHeader> pppHeader = l2tp.Data.GetInnerHeader<PPPDataHeader>(0);
-            ref PPPDataHeader h = ref pppHeader.RefValue;
+            PacketPin<PPPDataHeader> pppHeader = l2tp.Data.GetInnerHeader<PPPDataHeader>(ref packet, 0);
+            ref PPPDataHeader h = ref pppHeader.RefValue(ref packet);
 
             if (h.Address != 0xff) return false;
             if (h.Control != 0x03) return false;
 
-            ParsePPP_AsOverlay(pppHeader.ToGenericHeader(), h.Protocol._Endian16(), pppHeader.PayloadSize);
+            ParsePPP_AsOverlay(ref packet, pppHeader.ToGenericHeader(), h.Protocol._Endian16(), pppHeader.PayloadSize(ref packet));
 
             return true;
         }
