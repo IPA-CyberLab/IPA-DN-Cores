@@ -131,28 +131,6 @@ namespace IPA.TestDev
         }
     }
 
-    class TestClass4
-    {
-        public int D, E, F;
-        public Memory<byte> Array;
-
-        public TestClass4(Memory<byte> src)
-        {
-            this.Array = src;
-        }
-    }
-
-    class TestClass3
-    {
-        public int A, B, C;
-        ElasticMemory<byte> Elastic;
-
-        public TestClass3(Memory<byte> src)
-        {
-            this.Elastic = new ElasticMemory<byte>(src, false);
-        }
-    }
-
 
     partial class TestDevCommands
     {
@@ -260,11 +238,8 @@ namespace IPA.TestDev
 
             .Add(new MicroBenchmark($"Generic Test", Benchmark_CountForNormal, count =>
             {
-                Memory<byte> initialData = "Hello"._GetBytes_Ascii();
                 for (int c = 0; c < count; c++)
                 {
-                    TestClass3 t3 = new TestClass3(initialData);
-                    //Limbo.ObjectVolatileSlow = t3;
                 }
 
             }), enabled: true, priority: 190531)
