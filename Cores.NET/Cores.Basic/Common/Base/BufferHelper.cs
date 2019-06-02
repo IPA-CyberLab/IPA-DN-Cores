@@ -89,6 +89,9 @@ namespace IPA.Cores.Helper.Basic
         public static Span<T> _CloneSpan<T>(this ReadOnlySpan<T> span) => span.ToArray();
         public static Span<T> _CloneSpan<T>(this Span<T> span) => span.ToArray();
 
+        public static Span<T> _CloneSpan<T>(this ReadOnlyMemory<T> memory) => memory.Span.ToArray();
+        public static Span<T> _CloneSpan<T>(this Memory<T> memory) => memory.Span.ToArray();
+
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this Span<T> span) => span;
 
