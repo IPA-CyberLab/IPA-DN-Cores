@@ -2984,7 +2984,7 @@ namespace IPA.Cores.Basic
             return ref this.Buffer[PreSize + Length];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
         {
             size = size._DefaultSize(data.Length);
@@ -3014,7 +3014,7 @@ namespace IPA.Cores.Basic
             Length = newDataLength;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void Insert(T* data, int dataLength, int pos, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
@@ -3047,7 +3047,7 @@ namespace IPA.Cores.Basic
             Length = newDataLength;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public ref T Insert(int size, int pos)
         {
             if (size == 0) return ref this.Buffer[pos];

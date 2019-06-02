@@ -445,6 +445,15 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe ref T InsertHeader<T>(out PacketPin<T> retPacketPin, PacketInsertMode mode, int pos, int size = DefaultSize) where T : unmanaged
         {
+            if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
+            {
+                return ref PrependHeader<T>(out retPacketPin, size);
+            }
+            else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
+            {
+                return ref AppendHeader<T>(out retPacketPin, size);
+            }
+
             size = size._DefaultSize(sizeof(T));
 
             ref byte b = ref this.Elastic.Insert(size, pos - this.PinHead);
@@ -474,6 +483,15 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe PacketPin<T> InsertHeader<T>(PacketInsertMode mode, int pos, T *ptr, int size = DefaultSize) where T : unmanaged
         {
+            if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
+            {
+                return PrependHeader<T>(ptr, size);
+            }
+            else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
+            {
+                return AppendHeader<T>(ptr, size);
+            }
+
             size = size._DefaultSize(sizeof(T));
 
             this.Elastic.Insert((byte *)ptr, sizeof(T), pos - this.PinHead, size);
@@ -494,6 +512,15 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe PacketPin<T> InsertHeader<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
         {
+            if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
+            {
+                return PrependHeader<T>(data, size);
+            }
+            else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
+            {
+                return AppendHeader<T>(data, size);
+            }
+
             size = size._DefaultSize(sizeof(T));
 
             this.Elastic.Insert(data, pos - this.PinHead, size);
