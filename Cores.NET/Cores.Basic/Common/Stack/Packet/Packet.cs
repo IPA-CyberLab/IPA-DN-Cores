@@ -54,6 +54,220 @@ namespace IPA.Cores.Basic
         MoveTail,
     }
 
+    ref struct PacketBuilder
+    {
+        ElasticSpan<byte> Elastic;
+        public int PinHead { get; private set; }
+        public int PinTail { get; private set; }
+        public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
+
+        public PacketBuilder(Span<byte> initialContents, bool copyInitialContents = true)
+        {
+            this.Elastic = new ElasticSpan<byte>(initialContents, copyInitialContents);
+            this.PinHead = 0;
+            this.PinTail = this.Elastic.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear()
+        {
+            checked
+            {
+                Elastic = new ElasticSpan<byte>();
+                PinTail = PinHead;
+            }
+        }
+
+        public Span<byte> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => this.Elastic.Span;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsSafeToRead(int pin, int size)
+        {
+            if ((pin + size) > PinTail) return false;
+            if (pin < PinHead) return false;
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<byte> GetContiguousSpan(int pin, int size)
+        {
+            return this.Elastic.Span.Slice(pin - PinHead, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe ref T AsStruct<T>(int pin, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            Span<byte> data = this.GetContiguousSpan(pin, size);
+            fixed (void* ptr = &data[0])
+                return ref Unsafe.AsRef<T>(ptr);
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public PacketPin<T> GetHeader<T>(int pin, int size = DefaultSize, int maxPacketSize = int.MaxValue) where T : unmanaged
+        //    => new PacketPin<T>(this, pin, size, maxPacketSize);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int PrependHeader<T>(int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Prepend(size);
+            this.PinHead -= size;
+
+            return this.PinHead;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public unsafe int PrependHeader<T>(in T data, int size = DefaultSize) where T : unmanaged
+        {
+            fixed (T* ptr = &data)
+                return PrependHeader(ptr, size);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public unsafe int PrependHeader<T>(T* data, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Prepend((byte*)data, sizeof(T), size);
+
+            this.PinHead -= size;
+
+            return this.PinHead;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int PrependHeader<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Prepend(data, size);
+            this.PinHead -= size;
+
+            return this.PinHead;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int AppendHeader<T>(int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            int oldPinTail = this.PinTail;
+
+            this.Elastic.Append(size);
+            this.PinTail += size;
+
+            return oldPinTail;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int AppendHeader<T>(in T data, int size = DefaultSize) where T : unmanaged
+        {
+            fixed (T* ptr = &data)
+                return AppendHeader(ptr, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int AppendHeader<T>(T* ptr, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            int oldPinTail = this.PinTail;
+
+            this.Elastic.Append((byte*)ptr, sizeof(T), size);
+
+            this.PinTail += size;
+
+            return oldPinTail;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int AppendHeader<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            int oldPinTail = this.PinTail;
+
+            this.Elastic.Append(data, size);
+            this.PinTail += size;
+
+            return oldPinTail;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertHeader<T>(PacketInsertMode mode, int pos, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Insert(size, pos - this.PinHead);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size;
+                pos -= size;
+            }
+            else
+            {
+                this.PinTail += size;
+            }
+
+            return pos;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertHeader<T>(PacketInsertMode mode, int pos, in T data, int size = DefaultSize) where T : unmanaged
+        {
+            fixed (T* ptr = &data)
+                return InsertHeader(mode, pos, ptr, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertHeader<T>(PacketInsertMode mode, int pos, T* ptr, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Insert((byte*)ptr, sizeof(T), pos - this.PinHead, size);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size;
+                pos -= size;
+            }
+            else
+            {
+                this.PinTail += size;
+            }
+
+            return pos;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertHeader<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+
+            this.Elastic.Insert(data, pos - this.PinHead, size);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size;
+                pos -= size;
+            }
+            else
+            {
+                this.PinTail += size;
+            }
+
+            return pos;
+        }
+    }
+
     class Packet
     {
         ElasticMemory<byte> Elastic;

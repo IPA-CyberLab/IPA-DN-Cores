@@ -269,7 +269,81 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190531)
 
-            .Add(new MicroBenchmark($"BuildPacket #1", Benchmark_CountForNormal, count =>
+            
+            .Add(new MicroBenchmark($"BuildPacket #2 - Span", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    Span<byte> initialData = "Hello"._GetBytes_Ascii();
+                    for (int c = 0; c < count; c++)
+                    {
+                        PacketBuilder p = new PacketBuilder(initialData);
+
+                        var tcpHeader = new TCPHeader()
+                        {
+                            AckNumber = 123U._Endian32(),
+                            SeqNumber = 456U._Endian32(),
+                            Checksum = 0x1234U._Endian16(),
+                            SrcPort = 80U._Endian16(),
+                            DstPort = 443U._Endian16(),
+                            Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
+                            HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4),
+                            WindowSize = 1234U._Endian16(),
+                        };
+
+                        int tcp = p.PrependHeader<TCPHeader>(
+                            &tcpHeader,
+                            sizeof(TCPHeader) + 4);
+
+                        var v4Header = new IPv4Header()
+                        {
+                            SrcIP = 0x12345678,
+                            DstIP = 0xdeadbeef,
+                            Checksum = 0x1234U._Endian16(),
+                            Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
+                            HeaderLen = (byte)(sizeof(IPv4Header) / 4),
+                            Identification = 0x1234U._Endian16(),
+                            Protocol = IPProtocolNumber.TCP,
+                            TimeToLive = 12,
+                            TotalLength = (ushort)(sizeof(IPv4Header) + sizeof(TCPHeader) + 4),
+                            Version = 4,
+                        };
+
+                        int ip = p.PrependHeader<IPv4Header>(
+                            &v4Header
+                            );
+
+                        var vlanHeader = new VLanHeader()
+                        {
+                            VLanId = 12345U._Endian16(),
+                            Protocol = EthernetProtocolId.IPv4._Endian16(),
+                        };
+
+                        int vlan = p.PrependHeader<VLanHeader>(
+                            &vlanHeader
+                            );
+
+                        EthernetHeader etherHeaderData = new EthernetHeader()
+                        {
+                            Protocol = EthernetProtocolId.VLan._Endian16(),
+                        };
+
+                        unsafe
+                        {
+                            etherHeaderData.SrcAddress[0] = 0x00; etherHeaderData.SrcAddress[1] = 0xAC; etherHeaderData.SrcAddress[2] = 0x01;
+                            etherHeaderData.SrcAddress[3] = 0x23; etherHeaderData.SrcAddress[4] = 0x45; etherHeaderData.SrcAddress[5] = 0x47;
+
+                            etherHeaderData.DestAddress[0] = 0x00; etherHeaderData.DestAddress[1] = 0x98; etherHeaderData.DestAddress[2] = 0x21;
+                            etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
+                        }
+
+                        int ether = p.PrependHeader<EthernetHeader>(&etherHeaderData);
+                    }
+                }
+
+            }), enabled: true, priority: 190531)
+
+            .Add(new MicroBenchmark($"BuildPacket #1 - Memory", Benchmark_CountForNormal, count =>
             {
                 unsafe
                 {
