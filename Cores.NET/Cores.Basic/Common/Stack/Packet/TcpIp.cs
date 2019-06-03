@@ -315,6 +315,7 @@ namespace IPA.Cores.Basic
 
     static class TcpIpPacketUtil
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
         {
             switch (id)
