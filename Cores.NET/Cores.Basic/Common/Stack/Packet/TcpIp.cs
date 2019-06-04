@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
         public ushort Checksum;
         public ushort UrgentPointer;
 
-        public byte HeaderSize
+        public byte HeaderLen
         {
             get => (byte)((this.HeaderSizeAndReserved >> 4) & 0x0f);
             set => this.HeaderSizeAndReserved = (byte)((value & 0x0f) << 4);
@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    static class TcpIpUtil
+    static partial class IPUtil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
@@ -329,6 +329,68 @@ namespace IPA.Cores.Basic
                 default:
                     return EthernetProtocolId.Unknown;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort CalcIPv4Checksum(this ref IPv4Header v4Header)
+        {
+            int headerLen = v4Header.HeaderLen * 4;
+
+            if (v4Header.Checksum == 0)
+            {
+                return IpChecksum(Unsafe.AsPointer(ref v4Header), headerLen);
+            }
+            else
+            {
+                return CalcIPv4ChecksumInternalWithZeroBackupRestore(ref v4Header, headerLen);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static unsafe ushort CalcIPv4ChecksumInternalWithZeroBackupRestore(this ref IPv4Header v4Header, int headerLen)
+        {
+            ushort checksumBackup = v4Header.Checksum;
+            v4Header.Checksum = 0;
+
+            ushort ret = IpChecksum(Unsafe.AsPointer(ref v4Header), headerLen);
+
+            v4Header.Checksum = checksumBackup;
+
+            return ret;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort CalcTcpUdpPseudoChecksum(void* ipHeaderPtr, void* ipPayloadPtr, int ipPayloadSize)
+        {
+            ushort pseudoChecksum = IPUtil.CalcPseudoTcpUdpHeaderChecksum(ipHeaderPtr, ipPayloadSize);
+
+            return IpChecksum(ipPayloadPtr, ipPayloadSize, pseudoChecksum);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref IPv4Header v4Header, void* ipPayloadPtr, int ipPayloadSize)
+        {
+            return CalcTcpUdpPseudoChecksum(Unsafe.AsPointer(ref v4Header), ipPayloadPtr, ipPayloadSize);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref TCPHeader tcpHeader, ref IPv4Header v4Header, Span<byte> tcpPayloadData)
+        {
+            ushort tcpPayloadChecksum;
+            ushort pseudoHeaderChecksum;
+            ushort tcpHeaderChecksum;
+
+            int tcpHeaderLen = tcpHeader.HeaderLen * 4;
+            int tcpPayloadDataLen = tcpPayloadData.Length;
+
+            pseudoHeaderChecksum = CalcPseudoTcpUdpHeaderChecksum(Unsafe.AsPointer(ref v4Header), tcpHeaderLen + tcpPayloadDataLen);
+
+            tcpHeaderChecksum = IpChecksumWithoutComplement(Unsafe.AsPointer(ref tcpHeader), tcpHeaderLen, pseudoHeaderChecksum);
+
+            fixed (byte* tcpPtr = &tcpPayloadData[0])
+                tcpPayloadChecksum = IpChecksum(tcpPtr, tcpPayloadDataLen, tcpHeaderChecksum);
+
+            return tcpPayloadChecksum;
         }
 
         // Use of this source code is governed by the Apache 2.0 license; see COPYING.
@@ -365,6 +427,37 @@ namespace IPA.Cores.Basic
             return ((ushort)~sum)/*._Endian16()*/;
         }
 
+        public static unsafe ushort IpChecksumWithoutComplement(void* ptr, int size, ushort initialValue = 0)
+        {
+            uint sum = initialValue/*._Endian16()*/;
+            ushort* u16 = (ushort*)ptr;
+
+            while (size >= (sizeof(ushort) * 4))
+            {
+                sum += u16[0];
+                sum += u16[1];
+                sum += u16[2];
+                sum += u16[3];
+                size -= sizeof(ushort) * 4;
+                u16 += 4;
+            }
+            while (size >= sizeof(ushort))
+            {
+                sum += *u16;
+                size -= sizeof(ushort);
+                u16 += 1;
+            }
+
+            /* if length is in odd bytes */
+            if (size == 1)
+                sum += *((byte*)u16);
+
+            while ((sum >> 16) != 0)
+                sum = (sum & 0xFFFF) + (sum >> 16);
+            return ((ushort)sum)/*._Endian16()*/;
+        }
+
+
         // calculates the initial checksum value resulting from
         // the pseudo header.
         // return values:
@@ -375,9 +468,9 @@ namespace IPA.Cores.Basic
         // * Generic checksm routine originally taken from DPDK: 
         // *   BSD license; (C) Intel 2010-2015, 6WIND 2014. 
         // From https://github.com/snabbco/snabb/blob/771b55c829f42a1a788002c2924c6d7047cd1568/src/lib/checksum.c
-        public static unsafe uint IpCalcPseudoHeader(void *ptr, int size)
+        public static unsafe ushort CalcPseudoTcpUdpHeaderChecksum(void *ipHeaderPtr, int ipPayloadTotalSizeWithoutIpHeader)
         {
-            byte* buf = (byte*)ptr;
+            byte* buf = (byte*)ipHeaderPtr;
             ushort* hwbuf = (ushort*)buf;
             byte ipv = (byte)((buf[0] & 0xF0) >> 4);
             byte proto = 0;
@@ -397,28 +490,26 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return 0xFFFF0001;
+                return (ushort)0xBEEF._Endian16();
             }
 
             if (proto == 6 || proto == 17)
             {
                 // TCP || UDP
                 uint sum = 0;
-                size -= headersize;
                 if (ipv == 4)
                 {
                     // IPv4
-                    if (IpChecksum((byte *)buf, headersize, 0) != 0)
-                    {
-                        return 0xFFFF0002;
-                    }
-                    sum = ((ushort)(size & 0x0000FFFF))._Endian16() + (uint)(proto << 8) + hwbuf[6] + hwbuf[7] + hwbuf[8] + hwbuf[9];
-
+                    //if (IpChecksum(buf, headersize, 0) != 0)
+                    //{
+                    //    return 0xFFFF0002;
+                    //}
+                    sum = ((ushort)(ipPayloadTotalSizeWithoutIpHeader))._Endian16() + (uint)(proto << 8) + hwbuf[6] + hwbuf[7] + hwbuf[8] + hwbuf[9];
                 }
                 else
                 {
                     // IPv6
-                    sum = hwbuf[2] + (uint)(proto << 8);
+                    sum = ((uint)ipPayloadTotalSizeWithoutIpHeader)._Endian32() /*hwbuf[2]*/ + (uint)(proto << 8);
                     int i;
                     for (i = 4; i < 20; i += 4)
                     {
@@ -427,16 +518,16 @@ namespace IPA.Cores.Basic
                 }
                 sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
                 sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
-                return (sum)/*._Endian16()*/;
+                return (ushort)(sum);
             }
-            return 0xFFFF0001;
+            return (ushort)0xDEAD._Endian16();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ushort IpChecksum(Span<byte> data, ushort initial = 0)
         {
             fixed (byte* ptr = &data[0])
-                return IpChecksum(data, initial);
+                return IpChecksum(ptr, data.Length, initial);
         }
     }
 }

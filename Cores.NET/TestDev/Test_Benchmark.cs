@@ -250,12 +250,27 @@ namespace IPA.TestDev
                 unsafe
                 {
                     Span<byte> src = Secure.Rand(48);
+                    int len = src.Length;
                     fixed (byte* ptr = &src[0])
                     {
                         for (int c = 0; c < count; c++)
                         {
-                            Limbo.SInt32Volatile += TcpIpUtil.IpChecksum(ptr, src.Length);
+                            Limbo.SInt32Volatile += IPUtil.IpChecksum(ptr, len);
                         }
+                    }
+                }
+
+            }), enabled: true, priority: 190531)
+
+            .Add(new MicroBenchmark($"CalcIPv4Checksum", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    IPv4Header h = new IPv4Header();
+                    h.HeaderLen = 5;
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.SInt32Volatile += h.CalcIPv4Checksum();
                     }
                 }
 
@@ -278,7 +293,7 @@ namespace IPA.TestDev
                         tcpHeader.SrcPort = 80U._Endian16();
                         tcpHeader.DstPort = 443U._Endian16();
                         tcpHeader.Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst;
-                        tcpHeader.HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4);
+                        tcpHeader.HeaderLen = (byte)((sizeof(TCPHeader) + 4) / 4);
                         tcpHeader.WindowSize = 1234U._Endian16();
 
                         ref var v4Hedaer = ref p.PrependSpan<IPv4Header>();

@@ -106,7 +106,7 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Packet p = new Packet("Hellc"._GetBytes_Ascii());
+            Packet p = new Packet("Helly"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
@@ -115,8 +115,8 @@ namespace IPA.TestDev
                     SeqNumber = 456U._Endian32(),
                     SrcPort = 80U._Endian16(),
                     DstPort = 443U._Endian16(),
-                    Flag = TCPFlags.Ack | TCPFlags.Psh | TCPFlags.Rst,
-                    HeaderSize = (byte)((sizeof(TCPHeader)) / 4),
+                    Flag = TCPFlags.Ack | TCPFlags.Psh,
+                    HeaderLen = (byte)((sizeof(TCPHeader)) / 4),
                     WindowSize = 1234U._Endian16(),
                 },
                 sizeof(TCPHeader));
@@ -138,10 +138,13 @@ namespace IPA.TestDev
             ref IPv4Header v4Header = ref ip.GetRefValue(ref p);
 
             ref TCPHeader tcpHeader = ref tcp.GetRefValue(ref p);
-            v4Header.Checksum = TcpIpUtil.IpChecksum(Unsafe.AsPointer(ref v4Header), ip.HeaderSize);
-            tcpHeader.Checksum = (ushort)TcpIpUtil.IpCalcPseudoHeader(Unsafe.AsPointer(ref v4Header), ip.GetTotalPacketSize(ref p));
 
-            PacketSpan<VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
+            v4Header.Checksum = v4Header.CalcIPv4Checksum();
+
+            //tcpHeader.Checksum = v4Header.CalcTcpUdpPseudoChecksum(Unsafe.AsPointer(ref tcpHeader), ip.GetPayloadSize(ref p));
+            tcpHeader.Checksum = tcpHeader.CalcTcpUdpPseudoChecksum(ref v4Header, "Helly"._GetBytes_Ascii());
+
+            PacketSpan <VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
                 new VLanHeader()
                 {
                     VLanId_EndianSafe = (ushort)1234,

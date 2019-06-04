@@ -501,7 +501,7 @@ namespace IPA.Cores.Basic
         {
             ref TCPHeader tcp = ref prevSpan.GetNextHeaderRefValue<TCPHeader>(ref pkt);
 
-            int headerLen = tcp.HeaderSize * 4;
+            int headerLen = tcp.HeaderLen * 4;
             if (headerLen < sizeof(TCPHeader))
             {
                 SetError($"Invalid HeaderLen: {headerLen}");

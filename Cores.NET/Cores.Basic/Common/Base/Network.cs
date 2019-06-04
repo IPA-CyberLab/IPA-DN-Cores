@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
     }
 
     // IP ユーティリティ
-    static class IPUtil
+    static partial class IPUtil
     {
         public static IPEndPoint[] GenerateListeningEndPointsList(bool localHostOnly, params int[] ports)
         {
