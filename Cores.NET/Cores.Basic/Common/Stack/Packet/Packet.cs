@@ -136,19 +136,28 @@ namespace IPA.Cores.Basic
             return ref Unsafe.As<byte, T>(ref b);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public unsafe PacketSpan<T> PrependSpan<T>(in T data, int size = DefaultSize) where T : unmanaged
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int PrependSpan(int size)
         {
-            fixed (T* ptr = &data)
-                return PrependSpan(ptr, size);
+            ref byte b = ref this.Elastic.Prepend(size);
+            this.PinHead -= size;
+
+            return this.PinHead;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public unsafe PacketSpan<T> PrependSpan<T>(T* data, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> PrependSpanWithData<T>(in T data, int size = DefaultSize) where T : unmanaged
+        {
+            fixed (T* ptr = &data)
+                return PrependSpanWithData(ptr, size);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public unsafe PacketSpan<T> PrependSpanWithData<T>(T* data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
             
-            this.Elastic.Prepend((byte*)data, sizeof(T), size);
+            this.Elastic.PrependWithData((byte*)data, sizeof(T), size);
 
             this.PinHead -= size;
 
@@ -156,14 +165,25 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> PrependSpan<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> PrependSpanWithData<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
-            this.Elastic.Prepend(data, size);
+            this.Elastic.PrependWithData(data, size);
             this.PinHead -= size;
 
             return new PacketSpan<T>(this.PinHead, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int PrependSpanWithData(ReadOnlySpan<byte> data, int size = DefaultSize)
+        {
+            size = size._DefaultSize(data.Length);
+
+            this.Elastic.PrependWithData(data, size);
+            this.PinHead -= size;
+
+            return this.PinHead;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -195,20 +215,31 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> AppendSpan<T>(in T data, int size = DefaultSize) where T : unmanaged
+        public unsafe int AppendSpan(int size)
+        {
+            int oldPinTail = this.PinTail;
+
+            ref byte b = ref this.Elastic.Append(size);
+            this.PinTail += size;
+
+            return oldPinTail;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe PacketSpan<T> AppendSpanWithData<T>(in T data, int size = DefaultSize) where T : unmanaged
         {
             fixed (T* ptr = &data)
-                return AppendSpan(ptr, size);
+                return AppendSpanWithData(ptr, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> AppendSpan<T>(T* ptr, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> AppendSpanWithData<T>(T* ptr, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
             int oldPinTail = this.PinTail;
 
-            this.Elastic.Append((byte*)ptr, sizeof(T), size);
+            this.Elastic.AppendWithData((byte*)ptr, sizeof(T), size);
 
             this.PinTail += size;
 
@@ -216,16 +247,56 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> AppendSpan<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> AppendSpanWithData<T>(ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
 
             int oldPinTail = this.PinTail;
 
-            this.Elastic.Append(data, size);
+            this.Elastic.AppendWithData(data, size);
             this.PinTail += size;
 
             return new PacketSpan<T>(oldPinTail, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int AppendSpanWithData(ReadOnlySpan<byte> data, int size = DefaultSize)
+        {
+            size = size._DefaultSize(data.Length);
+
+            int oldPinTail = this.PinTail;
+
+            this.Elastic.AppendWithData(data, size);
+            this.PinTail += size;
+
+            return oldPinTail;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertSpan(PacketInsertMode mode, int pos, int size)
+        {
+            if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
+            {
+                return PrependSpan(size);
+            }
+            else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
+            {
+                return AppendSpan(size);
+            }
+
+            ref byte b = ref this.Elastic.Insert(size, pos - this.PinHead);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size;
+                pos -= size;
+            }
+            else
+            {
+                this.PinTail += size;
+            }
+
+            return pos;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -260,27 +331,27 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> InsertSpan<T>(PacketInsertMode mode, int pos, in T data, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> InsertSpanWithData<T>(PacketInsertMode mode, int pos, in T data, int size = DefaultSize) where T : unmanaged
         {
             fixed (T* ptr = &data)
-                return InsertSpan(mode, pos, ptr, size);
+                return InsertSpanWithData(mode, pos, ptr, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> InsertSpan<T>(PacketInsertMode mode, int pos, T *ptr, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> InsertSpanWithData<T>(PacketInsertMode mode, int pos, T *ptr, int size = DefaultSize) where T : unmanaged
         {
             if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
             {
-                return PrependSpan<T>(ptr, size);
+                return PrependSpanWithData<T>(ptr, size);
             }
             else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
             {
-                return AppendSpan<T>(ptr, size);
+                return AppendSpanWithData<T>(ptr, size);
             }
 
             size = size._DefaultSize(sizeof(T));
 
-            this.Elastic.Insert((byte *)ptr, sizeof(T), pos - this.PinHead, size);
+            this.Elastic.InsertWithData((byte *)ptr, sizeof(T), pos - this.PinHead, size);
 
             if (mode == PacketInsertMode.MoveHead)
             {
@@ -296,20 +367,20 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe PacketSpan<T> InsertSpan<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
+        public unsafe PacketSpan<T> InsertSpanWithData<T>(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int size = DefaultSize) where T : unmanaged
         {
             if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
             {
-                return PrependSpan<T>(data, size);
+                return PrependSpanWithData<T>(data, size);
             }
             else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
             {
-                return AppendSpan<T>(data, size);
+                return AppendSpanWithData<T>(data, size);
             }
 
             size = size._DefaultSize(sizeof(T));
 
-            this.Elastic.Insert(data, pos - this.PinHead, size);
+            this.Elastic.InsertWithData(data, pos - this.PinHead, size);
 
             if (mode == PacketInsertMode.MoveHead)
             {
@@ -322,6 +393,35 @@ namespace IPA.Cores.Basic
             }
 
             return new PacketSpan<T>(pos, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int InsertSpanWithData(PacketInsertMode mode, int pos, ReadOnlySpan<byte> data, int size = DefaultSize)
+        {
+            if (pos == this.PinHead && mode == PacketInsertMode.MoveHead)
+            {
+                return PrependSpanWithData(data, size);
+            }
+            else if (pos == this.PinTail && mode == PacketInsertMode.MoveTail)
+            {
+                return AppendSpanWithData(data, size);
+            }
+
+            size = size._DefaultSize(data.Length);
+
+            this.Elastic.InsertWithData(data, pos - this.PinHead, size);
+
+            if (mode == PacketInsertMode.MoveHead)
+            {
+                this.PinHead -= size;
+                pos -= size;
+            }
+            else
+            {
+                this.PinTail += size;
+            }
+
+            return pos;
         }
     }
 
@@ -415,32 +515,32 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> PrependSpan<TNext>(ref Packet pkt, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
+        public PacketSpan<TNext> PrependSpanWithData<TNext>(ref Packet pkt, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> PrependSpan<TNext>(ref Packet pkt, in TNext data, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
+        public PacketSpan<TNext> PrependSpanWithData<TNext>(ref Packet pkt, in TNext data, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveHead, this.Pin, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> PrependSpan<TNext>(ref Packet pkt, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveHead, this.Pin, ptr, size);
+        public PacketSpan<TNext> PrependSpanWithData<TNext>(ref Packet pkt, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveHead, this.Pin, ptr, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref TNext PrependSpan<TNext>(ref Packet pkt, out PacketSpan<TNext> retPacketPin, int size = DefaultSize) where TNext : unmanaged
             => ref pkt.InsertSpan<TNext>(out retPacketPin, PacketInsertMode.MoveHead, this.Pin, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> AppendSpan<TNext>(ref Packet pkt, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+        public PacketSpan<TNext> AppendSpanWithData<TNext>(ref Packet pkt, ReadOnlySpan<byte> data, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> AppendSpan<TNext>(ref Packet pkt, in TNext data, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
+        public PacketSpan<TNext> AppendSpanWithData<TNext>(ref Packet pkt, in TNext data, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PacketSpan<TNext> AppendSpan<TNext>(ref Packet pkt, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
-            => pkt.InsertSpan<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, ptr, size);
+        public PacketSpan<TNext> AppendSpanWithData<TNext>(ref Packet pkt, TNext* ptr, int size = DefaultSize) where TNext : unmanaged
+            => pkt.InsertSpanWithData<TNext>(PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, ptr, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref TNext AppendSpan<TNext>(ref Packet pkt, out PacketSpan<TNext> retPacketPin, int size = DefaultSize) where TNext : unmanaged

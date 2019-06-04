@@ -244,7 +244,7 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190531)
 
-            
+
             .Add(new MicroBenchmark($"BuildPacket #1 - Memory", Benchmark_CountForNormal, count =>
             {
                 unsafe

@@ -129,10 +129,10 @@ namespace IPA.Cores.Basic
         public ushort TagAndVLanId;
         public EthernetProtocolId Protocol;
 
-        public ushort VLanId
+        public ushort VLanId_EndianSafe
         {
-            get => this.TagAndVLanId._GetBitsUInt16Endian(0xfff);
-            set => this.TagAndVLanId._UpdateBitsUInt16Endian(0xfff, (ushort)value);
+            get => this.TagAndVLanId._GetBitsUInt16_EndianSafe(0xfff);
+            set => this.TagAndVLanId._UpdateBitsUInt16_EndianSafe(0xfff, (ushort)value);
         }
     }
 
@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
             set => FlagsAndFlagmentOffset[0] |= (byte)((((byte)(value)) & 0x07) << 5);
         }
 
-        public ushort Offset
+        public ushort Offset_EndianSafe
         {
             get => (ushort)(((FlagsAndFlagmentOffset[0] & 0x1f) * 256 + (FlagsAndFlagmentOffset[1])));
             set { FlagsAndFlagmentOffset[0] |= (byte)((value) / 256); FlagsAndFlagmentOffset[1] = (byte)((value) % 256); }
@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    static class TcpIpPacketUtil
+    static class TcpIpUtil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
@@ -329,6 +329,112 @@ namespace IPA.Cores.Basic
                 default:
                     return EthernetProtocolId.Unknown;
             }
+        }
+
+        // Use of this source code is governed by the Apache 2.0 license; see COPYING.
+        // * Generic checksm routine originally taken from DPDK: 
+        // *   BSD license; (C) Intel 2010-2015, 6WIND 2014. 
+        // From https://github.com/snabbco/snabb/blob/771b55c829f42a1a788002c2924c6d7047cd1568/src/lib/checksum.c
+        public static unsafe ushort IpChecksum(void* ptr, int size, ushort initialValue = 0)
+        {
+            uint sum = initialValue/*._Endian16()*/;
+            ushort* u16 = (ushort*)ptr;
+
+            while (size >= (sizeof(ushort) * 4))
+            {
+                sum += u16[0];
+                sum += u16[1];
+                sum += u16[2];
+                sum += u16[3];
+                size -= sizeof(ushort) * 4;
+                u16 += 4;
+            }
+            while (size >= sizeof(ushort))
+            {
+                sum += *u16;
+                size -= sizeof(ushort);
+                u16 += 1;
+            }
+
+            /* if length is in odd bytes */
+            if (size == 1)
+                sum += *((byte*)u16);
+
+            while ((sum >> 16) != 0)
+                sum = (sum & 0xFFFF) + (sum >> 16);
+            return ((ushort)~sum)/*._Endian16()*/;
+        }
+
+        // calculates the initial checksum value resulting from
+        // the pseudo header.
+        // return values:
+        // 0x0000 - 0xFFFF : initial checksum (in host byte order).
+        // 0xFFFF0001 : unknown packet (non IPv4/6 or non TCP/UDP)
+        // 0xFFFF0002 : bad header
+        // Use of this source code is governed by the Apache 2.0 license; see COPYING.
+        // * Generic checksm routine originally taken from DPDK: 
+        // *   BSD license; (C) Intel 2010-2015, 6WIND 2014. 
+        // From https://github.com/snabbco/snabb/blob/771b55c829f42a1a788002c2924c6d7047cd1568/src/lib/checksum.c
+        public static unsafe uint IpCalcPseudoHeader(byte* buf, int len)
+        {
+            ushort* hwbuf = (ushort*)buf;
+            byte ipv = (byte)((buf[0] & 0xF0) >> 4);
+            byte proto = 0;
+            int headersize = 0;
+
+            if (ipv == 4)
+            {
+                // IPv4
+                proto = buf[9];
+                headersize = (buf[0] & 0x0F) * 4;
+            }
+            else if (ipv == 6)
+            {
+                // IPv6
+                proto = buf[6];
+                headersize = 40;
+            }
+            else
+            {
+                return 0xFFFF0001;
+            }
+
+            if (proto == 6 || proto == 17)
+            {
+                // TCP || UDP
+                uint sum = 0;
+                len -= headersize;
+                if (ipv == 4)
+                {
+                    // IPv4
+                    if (IpChecksum((byte *)buf, headersize, 0) != 0)
+                    {
+                        return 0xFFFF0002;
+                    }
+                    sum = ((ushort)(len & 0x0000FFFF))/*._Endian16()*/ + (uint)(proto << 8) + hwbuf[6] + hwbuf[7] + hwbuf[8] + hwbuf[9];
+
+                }
+                else
+                {
+                    // IPv6
+                    sum = hwbuf[2] + (uint)(proto << 8);
+                    int i;
+                    for (i = 4; i < 20; i += 4)
+                    {
+                        sum += (uint)(hwbuf[i] + hwbuf[i + 1] + hwbuf[i + 2] + hwbuf[i + 3]);
+                    }
+                }
+                sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+                sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+                return (sum)/*._Endian16()*/;
+            }
+            return 0xFFFF0001;
+        }
+
+        public static unsafe ushort IpChecksum(Span<byte> data, ushort initial = 0)
+        {
+            fixed (byte* ptr = &data[0])
+                return IpChecksum(data, initial);
         }
     }
 }

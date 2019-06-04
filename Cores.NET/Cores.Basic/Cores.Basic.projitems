@@ -74,6 +74,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\TcpIpSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Packet\Packet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Packet\PacketParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Packet\PCapNg.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Packet\TcpIp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\WebApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Win32Api.cs" />

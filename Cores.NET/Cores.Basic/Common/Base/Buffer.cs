@@ -2881,7 +2881,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    Prepend(initialContents);
+                    PrependWithData(initialContents);
                 }
             }
         }
@@ -2901,14 +2901,14 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void Prepend(ReadOnlySpan<T> data, int size = DefaultSize)
+        public unsafe void PrependWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
             fixed (T* src = &data[0])
-                Prepend(src, data.Length, size);
+                PrependWithData(src, data.Length, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void Prepend(T* data, int dataLength, int size = DefaultSize)
+        public unsafe void PrependWithData(T* data, int dataLength, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
 
@@ -2943,14 +2943,14 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void Append(ReadOnlySpan<T> data, int size = DefaultSize)
+        public unsafe void AppendWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
             fixed (T* src = &data[0])
-                Append(src, data.Length, size);
+                AppendWithData(src, data.Length, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void Append(T* data, int dataLength, int size = DefaultSize)
+        public unsafe void AppendWithData(T* data, int dataLength, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
 
@@ -2985,7 +2985,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public unsafe void Insert(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
+        public unsafe void InsertWithData(ReadOnlySpan<T> data, int pos, int size = DefaultSize)
         {
             size = size._DefaultSize(data.Length);
             if (size == 0) return;
@@ -2995,12 +2995,12 @@ namespace IPA.Cores.Basic
 
             if (pos == 0)
             {
-                Prepend(data, size);
+                PrependWithData(data, size);
                 return;
             }
             else if (pos == Length)
             {
-                Append(data, size);
+                AppendWithData(data, size);
                 return;
             }
 
@@ -3015,7 +3015,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public unsafe void Insert(T* data, int dataLength, int pos, int size = DefaultSize)
+        public unsafe void InsertWithData(T* data, int dataLength, int pos, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
             if (size == 0) return;
@@ -3025,12 +3025,12 @@ namespace IPA.Cores.Basic
 
             if (pos == 0)
             {
-                Prepend(data, dataLength, size);
+                PrependWithData(data, dataLength, size);
                 return;
             }
             else if (pos == Length)
             {
-                Append(data, dataLength, size);
+                AppendWithData(data, dataLength, size);
                 return;
             }
 

@@ -1559,27 +1559,27 @@ namespace IPA.Cores.Helper.Basic
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort _GetBitsUInt16Endian(this ushort src, ushort bitMask)
+        public static unsafe ushort _GetBitsUInt16_EndianSafe(this ushort src, ushort bitMask)
             => (ushort)(src._Endian16() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe uint _GetBitsUInt32Endian(this uint src, uint bitMask)
+        public static unsafe uint _GetBitsUInt32_EndianSafe(this uint src, uint bitMask)
             => (uint)(src._Endian32() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ulong _GetBitsUInt64Endian(this ulong src, ulong bitMask)
+        public static unsafe ulong _GetBitsUInt64_EndianSafe(this ulong src, ulong bitMask)
             => (ulong)(src._Endian64() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe short _GetBitsSInt16Endian(this short src, short bitMask)
+        public static unsafe short _GetBitsSInt16_EndianSafe(this short src, short bitMask)
             => (short)(src._Endian16() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _GetBitsSInt32Endian(this int src, int bitMask)
+        public static unsafe int _GetBitsSInt32_EndianSafe(this int src, int bitMask)
             => (int)(src._Endian32() & bitMask);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe long _GetBitsSInt64Endian(this long src, long bitMask)
+        public static unsafe long _GetBitsSInt64_EndianSafe(this long src, long bitMask)
             => (long)(src._Endian64() & bitMask);
 
 
@@ -1617,7 +1617,7 @@ namespace IPA.Cores.Helper.Basic
             => src = (long)((src & ~bitMask) | (value & bitMask));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsUInt16Endian(this ref ushort src, ushort bitMask, ushort value)
+        public static unsafe void _UpdateBitsUInt16_EndianSafe(this ref ushort src, ushort bitMask, ushort value)
         {
             src = src._Endian16();
             _UpdateBitsUInt16(ref src, bitMask, value);
@@ -1625,7 +1625,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsUInt32Endian(this ref uint src, uint bitMask, uint value)
+        public static unsafe void _UpdateBitsUInt32_EndianSafe(this ref uint src, uint bitMask, uint value)
         {
             src = src._Endian32();
             _UpdateBitsUInt32(ref src, bitMask, value);
@@ -1633,7 +1633,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsUInt64Endian(this ref ulong src, ulong bitMask, ulong value)
+        public static unsafe void _UpdateBitsUInt64_EndianSafe(this ref ulong src, ulong bitMask, ulong value)
         {
             src = src._Endian64();
             _UpdateBitsUInt64(ref src, bitMask, value);
@@ -1641,7 +1641,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsSInt16Endian(this ref short src, short bitMask, short value)
+        public static unsafe void _UpdateBitsSInt16_EndianSafe(this ref short src, short bitMask, short value)
         {
             src = src._Endian16();
             _UpdateBitsSInt16(ref src, bitMask, value);
@@ -1649,7 +1649,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsSInt32Endian(this ref int src, int bitMask, int value)
+        public static unsafe void _UpdateBitsSInt32_EndianSafe(this ref int src, int bitMask, int value)
         {
             src = src._Endian32();
             _UpdateBitsSInt32(ref src, bitMask, value);
@@ -1657,7 +1657,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _UpdateBitsSInt64Endian(this ref long src, long bitMask, long value)
+        public static unsafe void _UpdateBitsSInt64_EndianSafe(this ref long src, long bitMask, long value)
         {
             src = src._Endian64();
             _UpdateBitsSInt64(ref src, bitMask, value);

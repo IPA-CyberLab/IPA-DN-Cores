@@ -104,11 +104,11 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test__()
+        public static unsafe void Test()
         {
             Packet p = new Packet("Hello"._GetBytes_Ascii());
 
-            PacketSpan<TCPHeader> tcp = p.PrependSpan<TCPHeader>(
+            PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
                 {
                     AckNumber = 123U._Endian32(),
@@ -116,31 +116,33 @@ namespace IPA.TestDev
                     Checksum = 0x1234U._Endian16(),
                     SrcPort = 80U._Endian16(),
                     DstPort = 443U._Endian16(),
-                    Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst,
-                    HeaderSize = (byte)((sizeof(TCPHeader) + 4) / 4),
+                    Flag = TCPFlags.Ack | TCPFlags.Psh | TCPFlags.Rst,
+                    HeaderSize = (byte)((sizeof(TCPHeader)) / 4),
                     WindowSize = 1234U._Endian16(),
                 },
-                sizeof(TCPHeader) + 4);
+                sizeof(TCPHeader));
 
-            PacketSpan<IPv4Header> ip = tcp.PrependSpan<IPv4Header>(ref p,
+            PacketSpan<IPv4Header> ip = tcp.PrependSpanWithData<IPv4Header>(ref p,
                 new IPv4Header()
                 {
                     SrcIP = 0x12345678,
                     DstIP = 0xdeadbeef,
-                    Checksum = 0x1234U._Endian16(),
-                    Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments,
+                    Flags = IPv4Flags.DontFragment,
                     HeaderLen = (byte)(sizeof(IPv4Header) / 4),
                     Identification = 0x1234U._Endian16(),
                     Protocol = IPProtocolNumber.TCP,
                     TimeToLive = 12,
-                    TotalLength = (ushort)(sizeof(IPv4Header) + tcp.HeaderSize),
+                    TotalLength = ((ushort)(sizeof(IPv4Header) + tcp.GetTotalPacketSize(ref p)))._Endian16(),
                     Version = 4,
                 });
 
-            PacketSpan<VLanHeader> vlan = ip.PrependSpan<VLanHeader>(ref p,
+            ref IPv4Header v4Header = ref ip.GetRefValue(ref p);
+            v4Header.Checksum = TcpIpUtil.IpChecksum(Unsafe.AsPointer(ref v4Header), ip.HeaderSize);
+
+            PacketSpan<VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
                 new VLanHeader()
                 {
-                    VLanId = 12345U._Endian16(),
+                    VLanId_EndianSafe = (ushort)1234,
                     Protocol = EthernetProtocolId.IPv4._Endian16(),
                 });
 
@@ -155,19 +157,17 @@ namespace IPA.TestDev
             etherHeaderData.DestAddress[0] = 0x00; etherHeaderData.DestAddress[1] = 0x98; etherHeaderData.DestAddress[2] = 0x21;
             etherHeaderData.DestAddress[3] = 0x33; etherHeaderData.DestAddress[4] = 0x89; etherHeaderData.DestAddress[5] = 0x01;
 
-            PacketSpan<EthernetHeader> ether = vlan.PrependSpan<EthernetHeader>(ref p, in etherHeaderData);
+            PacketSpan<EthernetHeader> ether = vlan.PrependSpanWithData<EthernetHeader>(ref p, in etherHeaderData);
 
-            var d = p.Span.ToArray();
+            var spanBuffer = PCapNgUtil.GeneratePCapNgHeader();
+            p._PCapNgEncapsulateEnhancedPacketBlock(0);
+            spanBuffer.SeekToEnd();
+            spanBuffer.Write(p.Span);
 
-            var packet2 = new Packet(d);
-            PacketParsed parsed = new PacketParsed(ref packet2);
-
-            //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
-
-            NoOp();
+            Lfs.WriteDataToFile(@"c:\tmp\190604\test1.pcapng", spanBuffer.Span.ToArray(), FileOperationFlags.AutoCreateDirectory);
         }
 
-        public static unsafe void Test()
+        public static unsafe void Test__()
         {
             Con.WriteLine(Unsafe.SizeOf<PacketParsed>());
 
