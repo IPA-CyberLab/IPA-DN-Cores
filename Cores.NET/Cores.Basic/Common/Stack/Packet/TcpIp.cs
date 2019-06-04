@@ -375,8 +375,9 @@ namespace IPA.Cores.Basic
         // * Generic checksm routine originally taken from DPDK: 
         // *   BSD license; (C) Intel 2010-2015, 6WIND 2014. 
         // From https://github.com/snabbco/snabb/blob/771b55c829f42a1a788002c2924c6d7047cd1568/src/lib/checksum.c
-        public static unsafe uint IpCalcPseudoHeader(byte* buf, int len)
+        public static unsafe uint IpCalcPseudoHeader(void *ptr, int size)
         {
+            byte* buf = (byte*)ptr;
             ushort* hwbuf = (ushort*)buf;
             byte ipv = (byte)((buf[0] & 0xF0) >> 4);
             byte proto = 0;
@@ -403,7 +404,7 @@ namespace IPA.Cores.Basic
             {
                 // TCP || UDP
                 uint sum = 0;
-                len -= headersize;
+                size -= headersize;
                 if (ipv == 4)
                 {
                     // IPv4
@@ -411,7 +412,7 @@ namespace IPA.Cores.Basic
                     {
                         return 0xFFFF0002;
                     }
-                    sum = ((ushort)(len & 0x0000FFFF))/*._Endian16()*/ + (uint)(proto << 8) + hwbuf[6] + hwbuf[7] + hwbuf[8] + hwbuf[9];
+                    sum = ((ushort)(size & 0x0000FFFF))._Endian16() + (uint)(proto << 8) + hwbuf[6] + hwbuf[7] + hwbuf[8] + hwbuf[9];
 
                 }
                 else
@@ -431,6 +432,7 @@ namespace IPA.Cores.Basic
             return 0xFFFF0001;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ushort IpChecksum(Span<byte> data, ushort initial = 0)
         {
             fixed (byte* ptr = &data[0])

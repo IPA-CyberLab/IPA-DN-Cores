@@ -245,6 +245,22 @@ namespace IPA.TestDev
             }), enabled: true, priority: 190531)
 
 
+            .Add(new MicroBenchmark($"IpChecksum", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    Span<byte> src = Secure.Rand(48);
+                    fixed (byte* ptr = &src[0])
+                    {
+                        for (int c = 0; c < count; c++)
+                        {
+                            Limbo.SInt32Volatile += TcpIpUtil.IpChecksum(ptr, src.Length);
+                        }
+                    }
+                }
+
+            }), enabled: true, priority: 190531)
+
             .Add(new MicroBenchmark($"BuildPacket #1 - Memory", Benchmark_CountForNormal, count =>
             {
                 unsafe

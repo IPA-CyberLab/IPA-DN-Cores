@@ -106,14 +106,13 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Packet p = new Packet("Hello"._GetBytes_Ascii());
+            Packet p = new Packet("Hellc"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
                 {
                     AckNumber = 123U._Endian32(),
                     SeqNumber = 456U._Endian32(),
-                    Checksum = 0x1234U._Endian16(),
                     SrcPort = 80U._Endian16(),
                     DstPort = 443U._Endian16(),
                     Flag = TCPFlags.Ack | TCPFlags.Psh | TCPFlags.Rst,
@@ -137,7 +136,10 @@ namespace IPA.TestDev
                 });
 
             ref IPv4Header v4Header = ref ip.GetRefValue(ref p);
+
+            ref TCPHeader tcpHeader = ref tcp.GetRefValue(ref p);
             v4Header.Checksum = TcpIpUtil.IpChecksum(Unsafe.AsPointer(ref v4Header), ip.HeaderSize);
+            tcpHeader.Checksum = (ushort)TcpIpUtil.IpCalcPseudoHeader(Unsafe.AsPointer(ref v4Header), ip.GetTotalPacketSize(ref p));
 
             PacketSpan<VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
                 new VLanHeader()
