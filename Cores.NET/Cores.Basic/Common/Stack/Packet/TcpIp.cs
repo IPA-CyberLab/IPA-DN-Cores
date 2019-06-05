@@ -387,7 +387,7 @@ namespace IPA.Cores.Basic
 
             tcpHeaderChecksum = IpChecksumWithoutComplement(Unsafe.AsPointer(ref tcpHeader), tcpHeaderLen, pseudoHeaderChecksum);
 
-            fixed (byte* tcpPtr = &tcpPayloadData[0])
+            fixed (byte* tcpPtr = tcpPayloadData)
                 tcpPayloadChecksum = IpChecksum(tcpPtr, tcpPayloadDataLen, tcpHeaderChecksum);
 
             return tcpPayloadChecksum;
@@ -526,7 +526,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe ushort IpChecksum(Span<byte> data, ushort initial = 0)
         {
-            fixed (byte* ptr = &data[0])
+            fixed (byte* ptr = data)
                 return IpChecksum(ptr, data.Length, initial);
         }
     }

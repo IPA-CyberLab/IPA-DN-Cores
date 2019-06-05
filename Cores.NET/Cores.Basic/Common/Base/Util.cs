@@ -2622,61 +2622,30 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Compute32bitHashFast(int src)
+        public static int Compute32bitMagicHashFast(int src)
         {
-            return (int)((uint)src * 0x9E370001U);
+            return (int)(((uint)src * 0x9E370001U)._ReverseEndian32());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Compute32bitHashFast(void* src, int size)
+        public static unsafe int Compute32bitMagicHashFast(void* src, int size)
         {
-            uint ret = 0;
-            uint* ua = (uint*)src;
-            int i;
-            int arraySize = size / sizeof(uint);
-
-            for (i = 0; i < arraySize; i++)
-            {
-                ret += ua[i] * 0x9E370001U;
-            }
-
-            if ((arraySize * sizeof(uint)) != size)
-            {
-                int remainSize = size - arraySize * sizeof(uint);
-                byte* ba = (byte*)&ua[i];
-                if (remainSize == 3)
-                {
-                    ret += ba[0];
-                    ret += ba[1];
-                    ret += ba[2];
-                }
-                else if (remainSize == 2)
-                {
-                    ret += ba[0];
-                    ret += ba[1];
-                }
-                else if (remainSize == 1)
-                {
-                    ret += ba[0];
-                }
-            }
-
-            return (int)ret;
+            return Compute32bitMagicHashFast(IPUtil.IpChecksum(src, size, 0xdead));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Compute32bitHashFast<T>(ref T data, int size = DefaultSize) where T : unmanaged
+        public static unsafe int Compute32bitMagicHashFast<T>(ref T data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
-            return Compute32bitHashFast(Unsafe.AsPointer(ref data), size);
+            return Compute32bitMagicHashFast(Unsafe.AsPointer(ref data), size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Compute32bitHashFast<T>(ReadOnlySpan<T> span) where T : unmanaged
+        public static unsafe int Compute32bitMagicHashFast<T>(ReadOnlySpan<T> span) where T : unmanaged
         {
-            fixed (T* ptr = &span[0])
+            fixed (T* ptr = span)
             {
-                return Compute32bitHashFast((void*)ptr, span.Length * sizeof(T));
+                return Compute32bitMagicHashFast((void*)ptr, span.Length * sizeof(T));
             }
         }
     }

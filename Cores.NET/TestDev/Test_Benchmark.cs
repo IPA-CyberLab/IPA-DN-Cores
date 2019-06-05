@@ -248,9 +248,9 @@ namespace IPA.TestDev
                         for (int c = 0; c < count; c++)
                         {
                             //Limbo.SInt32Volatile += c._HashIntFast();
-                            //Limbo.SInt32 += (int)Util.Compute32bitHashFast(b, len);
+                            Limbo.SInt32 += (int)Util.Compute32bitMagicHashFast(b, len);
                             //Limbo.SInt32 += src._ComputeHash32();
-                            Limbo.SInt32 += IPUtil.IpChecksum(b, len);
+                            //Limbo.SInt32 += IPUtil.IpChecksum(b, len);
                         }
                     }
                 }

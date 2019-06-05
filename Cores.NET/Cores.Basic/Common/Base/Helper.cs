@@ -1122,27 +1122,30 @@ namespace IPA.Cores.Helper.Basic
         public static int _DefaultSize(this int target, int defaultValue) => target != DefaultSize ? target : defaultValue;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _Compute32bitHashFast(this int src) => Util.Compute32bitHashFast(src);
+        public static int _Compute32bitMagicHashFast(this int src) => Util.Compute32bitMagicHashFast(src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitHashFast<T>(this ref T data, int size = DefaultSize) where T : unmanaged
-            => Util.Compute32bitHashFast(ref data, size);
+        public static int _Compute32bitMagicHashFast(this uint src) => Util.Compute32bitMagicHashFast((int)src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitHashFast<T>(ReadOnlySpan<T> span) where T : unmanaged
-            => Util.Compute32bitHashFast(span);
+        public static unsafe int _Compute32bitMagicHashFast<T>(this ref T data, int size = DefaultSize) where T : unmanaged
+            => Util.Compute32bitMagicHashFast(ref data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitHashFast<T>(this T[] array, int start, int length) where T : unmanaged
-            => Util.Compute32bitHashFast(array._AsReadOnlySpan(start, length));
+        public static unsafe int _Compute32bitMagicHashFast<T>(ReadOnlySpan<T> span) where T : unmanaged
+            => Util.Compute32bitMagicHashFast(span);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitHashFast<T>(this T[] array) where T : unmanaged
-            => Util.Compute32bitHashFast(array._AsReadOnlySpan());
+        public static unsafe int _Compute32bitMagicHashFast<T>(this T[] array, int start, int length) where T : unmanaged
+            => Util.Compute32bitMagicHashFast(array._AsReadOnlySpan(start, length));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitHashFast<T>(Span<T> span) where T : unmanaged
-            => Util.Compute32bitHashFast(span._AsReadOnlySpan());
+        public static unsafe int _Compute32bitMagicHashFast<T>(this T[] array) where T : unmanaged
+            => Util.Compute32bitMagicHashFast(array._AsReadOnlySpan());
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _Compute32bitMagicHashFast<T>(Span<T> span) where T : unmanaged
+            => Util.Compute32bitMagicHashFast(span._AsReadOnlySpan());
     }
 }
 

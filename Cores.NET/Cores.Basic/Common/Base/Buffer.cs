@@ -2903,7 +2903,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void PrependWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            fixed (T* src = &data[0])
+            fixed (T* src = data)
                 PrependWithData(src, data.Length, size);
         }
 
@@ -2945,7 +2945,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void AppendWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
-            fixed (T* src = &data[0])
+            fixed (T* src = data)
                 AppendWithData(src, data.Length, size);
         }
 

@@ -110,7 +110,9 @@ namespace IPA.TestDev
             {
                 string line = Con.ReadLine();
 
-                int a = line._GetBytes_Ascii()._Compute32bitHashFast();
+                if (line == null) line = "";
+
+                int a = line._GetBytes_Ascii()._Compute32bitMagicHashFast();
                 Con.WriteLine($"{(uint)a:X}");
             }
             
