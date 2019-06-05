@@ -44,6 +44,7 @@ using System.Runtime.InteropServices;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Text;
 
 namespace IPA.Cores.Basic
 {
@@ -71,6 +72,13 @@ namespace IPA.Cores.Basic
         CustomBinary = 2989,
         CustomUtf8NonCopy = 19372,
         CustomBinaryNonCopy = 19373,
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    unsafe struct PCapNgOptionHeader
+    {
+        public PCapNgOptionCode OptionCode;
+        public ushort OptionLength;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -115,6 +123,8 @@ namespace IPA.Cores.Basic
 
     static class PCapNgUtil
     {
+        public const int ByteOrderMagic = 0x1A2B3C4D;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static ref T _PCapNgEncapsulateHeader<T>(this ref Packet pkt, out PacketSpan<T> retSpan, PCapNgBlockType blockType, ReadOnlySpan<byte> options = default) where T : unmanaged
         {
@@ -158,6 +168,51 @@ namespace IPA.Cores.Basic
             return ref ret;
         }
 
+        public unsafe static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, string comment)
+        {
+            int packetDataSize = pkt.Length;
+
+            Span<byte> option = stackalloc byte[32767 + sizeof(PCapNgOptionHeader)];
+
+            if (comment != null && comment.Length >= 1)
+            {
+                Encoder enc = Str.Utf8Encoding.GetEncoder();
+
+                int count = enc.GetBytes(comment, option.Slice(sizeof(PCapNgOptionHeader)), true);
+
+                if (count <= 32767)
+                {
+                    ref PCapNgOptionHeader optHeader = ref option[0]._AsStruct<PCapNgOptionHeader>();
+                    optHeader.OptionCode = PCapNgOptionCode.Comment;
+                    optHeader.OptionLength = (ushort)count;
+
+                    option = option.Slice(0, sizeof(PCapNgOptionHeader) + count);
+                }
+                else
+                {
+                    option = default;
+                }
+            }
+            else
+            {
+                option = default;
+            }
+
+            fixed (byte* optionPtr = option)
+            {
+                ref PCapNgEnhancedPacketBlock header = ref pkt._PCapNgEncapsulateHeader<PCapNgEnhancedPacketBlock>(out PacketSpan<PCapNgEnhancedPacketBlock> retSpan, PCapNgBlockType.EnhancedPacket,
+                    new ReadOnlySpan<byte>(optionPtr, option.Length)
+                    );
+
+                header.InterfaceId = interfaceId;
+
+                header.CapturePacketLength = packetDataSize;
+                header.OriginalPacketLength = packetDataSize;
+
+                return retSpan;
+            }
+        }
+
         public static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, ReadOnlySpan<byte> options = default)
         {
             int packetDataSize = pkt.Length;
@@ -177,7 +232,7 @@ namespace IPA.Cores.Basic
             Packet sectionHeaderPacket = new Packet();
             ref var section = ref sectionHeaderPacket._PCapNgEncapsulateHeader<PCapNgSectionHeaderBlock>(out _, PCapNgBlockType.SectionHeader);
 
-            section.ByteOrderMagic = 0x1A2B3C4D;
+            section.ByteOrderMagic = ByteOrderMagic;
             section.MajorVersion = 1;
             section.MinorVersion = 0;
             section.SectionLength = 0xffffffffffffffff;

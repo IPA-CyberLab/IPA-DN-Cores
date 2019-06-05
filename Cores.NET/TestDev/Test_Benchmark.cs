@@ -236,22 +236,16 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190528)
 
-            .Add(new MicroBenchmark($"Generic Test", Benchmark_CountForVeryFast, count =>
+            .Add(new MicroBenchmark($"Generic Test", Benchmark_CountForFast, count =>
             {
                 unsafe
                 {
-                    Span<byte> src = "Hello World Hello World Hello World Hello World "._GetBytes_Ascii();
-
-                    fixed (byte* b = &src[0])
+                    for (int c = 0; c < count; c++)
                     {
-                        int len = src.Length;
-                        for (int c = 0; c < count; c++)
-                        {
-                            //Limbo.SInt32Volatile += c._HashIntFast();
-                            Limbo.SInt32 += (int)Util.Compute32bitMagicHashFast(b, len);
-                            //Limbo.SInt32 += src._ComputeHash32();
-                            //Limbo.SInt32 += IPUtil.IpChecksum(b, len);
-                        }
+                        //var x = FastTick64.DateTimeOffsetUtcNow_Fast;
+                        //var y = DateTimeOffset.UtcNow;
+                        //var z = Time.SystemTime64;
+                        var a = FastTick64.SystemTimeNow_Fast;
                     }
                 }
 

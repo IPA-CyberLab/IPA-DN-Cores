@@ -106,18 +106,6 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            while (true)
-            {
-                string line = Con.ReadLine();
-
-                if (line == null) line = "";
-
-                int a = line._GetBytes_Ascii()._Compute32bitMagicHashFast();
-                Con.WriteLine($"{(uint)a:X}");
-            }
-            
-            return;
-
             Packet p = new Packet("Helly"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
@@ -177,7 +165,7 @@ namespace IPA.TestDev
             PacketSpan<EthernetHeader> ether = vlan.PrependSpanWithData<EthernetHeader>(ref p, in etherHeaderData);
 
             var spanBuffer = PCapNgUtil.GeneratePCapNgHeader();
-            p._PCapNgEncapsulateEnhancedPacketBlock(0);
+            p._PCapNgEncapsulateEnhancedPacketBlock(0, "Hello World");
             spanBuffer.SeekToEnd();
             spanBuffer.Write(p.Span);
 

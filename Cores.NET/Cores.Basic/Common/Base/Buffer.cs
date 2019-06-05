@@ -150,6 +150,14 @@ namespace IPA.Cores.Basic
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
         public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
 
+        public unsafe void Write(void* ptr, int size)
+        {
+            Span<T> span = Walk(size);
+            ref T t = ref span[0];
+            void *dst = Unsafe.AsPointer(ref t);
+            Unsafe.CopyBlock(dst, ptr, (uint)size);
+        }
+
         public void Write(Span<T> data)
         {
             var span = Walk(data.Length);
@@ -599,6 +607,14 @@ namespace IPA.Cores.Basic
         public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
         public void Write(Memory<T> data) => Write(data.Span);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
+
+        public unsafe void Write(void* ptr, int size)
+        {
+            Span<T> span = Walk(size);
+            ref T t = ref span[0];
+            void* dst = Unsafe.AsPointer(ref t);
+            Unsafe.CopyBlock(dst, ptr, (uint)size);
+        }
 
         public void Write(Span<T> data)
         {
@@ -1296,6 +1312,14 @@ namespace IPA.Cores.Basic
         public void Write(T[] data, int offset = 0, int length = DefaultSize) => Write(data.AsSpan(offset, length._DefaultSize(data.Length - offset)));
         public void Write(Memory<T> data) => Write(data.Span);
         public void Write(ReadOnlyMemory<T> data) => Write(data.Span);
+
+        public unsafe void Write(void* ptr, int size)
+        {
+            Span<T> span = Walk(size);
+            ref T t = ref span[0];
+            void* dst = Unsafe.AsPointer(ref t);
+            Unsafe.CopyBlock(dst, ptr, (uint)size);
+        }
 
         public void Write(Span<T> data)
         {
@@ -2343,6 +2367,11 @@ namespace IPA.Cores.Basic
 
     static class SpanMemoryBufferHelper
     {
+        public static unsafe void Write<T>(this ref SpanBuffer<byte> buf, in T value) where T : unmanaged
+            => buf.Write(Unsafe.AsPointer(ref Unsafe.AsRef(in value)), sizeof(T));
+        public static unsafe void Write<T>(this MemoryBuffer<byte> buf, in T value) where T : unmanaged
+            => buf.Write(Unsafe.AsPointer(ref Unsafe.AsRef(in value)), sizeof(T));
+
         public static void WriteBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));

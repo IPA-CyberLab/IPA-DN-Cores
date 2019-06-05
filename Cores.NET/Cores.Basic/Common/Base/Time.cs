@@ -248,6 +248,11 @@ namespace IPA.Cores.Basic
             return (long)value + 0x100000000L * (long)rotate16bit;
         }
 
+        public static long SystemTimeNow_Fast => Tick64ToTime64(Now);
+        public static DateTime DateTimeNow_Fast => Tick64ToDateTime(Now);
+        public static DateTimeOffset DateTimeOffsetUtcNow_Fast => Tick64ToDateTimeOffsetUtc(Now);
+        public static DateTimeOffset DateTimeOffsetLocalNow_Fast => Tick64ToDateTimeOffsetLocal(Now);
+
         public static long Tick64ToTime64(long tick) => History.Tick64ToTime64(tick);
         public static DateTime Tick64ToDateTime(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick));
         public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick))._AsDateTimeOffset(false);
@@ -336,5 +341,10 @@ namespace IPA.Cores.Basic
         public static DateTime Tick64ToDateTime(long tick) => FastTick64.Tick64ToDateTime(tick);
         public static DateTimeOffset Tick64ToDateTimeOffsetUtc(long tick) => FastTick64.Tick64ToDateTimeOffsetUtc(tick);
         public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => FastTick64.Tick64ToDateTimeOffsetLocal(tick);
+
+        public static long SystemTimeNow_Fast => FastTick64.Tick64ToTime64(FastTick64.Now);
+        public static DateTime DateTimeNow_Fast => FastTick64.Tick64ToDateTime(FastTick64.Now);
+        public static DateTimeOffset DateTimeOffsetUtcNow_Fast => FastTick64.Tick64ToDateTimeOffsetUtc(FastTick64.Now);
+        public static DateTimeOffset DateTimeOffsetLocalNow_Fast => FastTick64.Tick64ToDateTimeOffsetLocal(FastTick64.Now);
     }
 }
