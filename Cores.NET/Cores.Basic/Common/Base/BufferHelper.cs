@@ -92,19 +92,32 @@ namespace IPA.Cores.Helper.Basic
         public static Span<T> _CloneSpan<T>(this ReadOnlyMemory<T> memory) => memory.Span.ToArray();
         public static Span<T> _CloneSpan<T>(this Memory<T> memory) => memory.Span.ToArray();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this Span<T> span) => span;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment) => segment.AsMemory();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment, int start) => segment.AsMemory(start);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment, int start, int length) => segment.AsMemory(start, length);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array) => array.AsMemory();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start) => array.AsMemory(start);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start, int length) => array.AsMemory(start, length);
+
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start) => array.AsSpan(start);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array) => array.AsSpan();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start, int length) => segment.AsSpan(start, length);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start) => segment.AsSpan(start);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start, int length) => array.AsSpan(start, length);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

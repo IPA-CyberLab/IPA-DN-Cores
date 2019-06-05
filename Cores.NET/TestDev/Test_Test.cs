@@ -106,6 +106,16 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
+            while (true)
+            {
+                string line = Con.ReadLine();
+
+                int a = line._GetBytes_Ascii()._Compute32bitHashFast();
+                Con.WriteLine($"{(uint)a:X}");
+            }
+            
+            return;
+
             Packet p = new Packet("Helly"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(

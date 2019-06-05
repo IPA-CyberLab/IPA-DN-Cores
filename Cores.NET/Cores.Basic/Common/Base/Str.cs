@@ -3796,7 +3796,12 @@ namespace IPA.Cores.Basic
             {
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
-                return double.Parse(str);
+                if (double.TryParse(str, out double ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
@@ -3811,7 +3816,12 @@ namespace IPA.Cores.Basic
             {
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
-                return decimal.Parse(str);
+                if (decimal.TryParse(str, out decimal ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
@@ -3827,7 +3837,12 @@ namespace IPA.Cores.Basic
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
                 str = str.Replace(",", "");
-                return int.Parse(str);
+                if (int.TryParse(str, out int ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
@@ -3841,7 +3856,12 @@ namespace IPA.Cores.Basic
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
                 str = str.Replace(",", "");
-                return uint.Parse(str);
+                if (uint.TryParse(str, out uint ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
@@ -3857,7 +3877,12 @@ namespace IPA.Cores.Basic
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
                 str = str.Replace(",", "");
-                return long.Parse(str);
+                if (long.TryParse(str, out long ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
@@ -3871,7 +3896,12 @@ namespace IPA.Cores.Basic
                 Str.RemoveSpaceChar(ref str);
                 Str.NormalizeString(ref str, true, true, false, false);
                 str = str.Replace(",", "");
-                return ulong.Parse(str);
+                if (ulong.TryParse(str, out ulong ret))
+                {
+                    return ret;
+                }
+
+                return 0;
             }
             catch
             {
