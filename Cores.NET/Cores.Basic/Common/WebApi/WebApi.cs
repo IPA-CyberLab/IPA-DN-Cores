@@ -262,7 +262,7 @@ namespace IPA.Cores.Basic
             this.ClientHandler.AllowAutoRedirect = this.Settings.AllowAutoRedirect;
             this.ClientHandler.MaxAutomaticRedirections = this.Settings.MaxAutomaticRedirections;
             this.ClientHandler.MaxConnectionsPerServer = this.Settings.MaxConnectionPerServer;
-            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan((ulong)this.Settings.PooledConnectionLifeTime);
+            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan(this.Settings.PooledConnectionLifeTime);
 
             this.Client = new HttpClient(this.ClientHandler, true);
             this.MaxRecvSize = this.Settings.MaxRecvSize;

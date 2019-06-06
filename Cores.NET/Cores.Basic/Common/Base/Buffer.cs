@@ -3110,10 +3110,14 @@ namespace IPA.Cores.Basic
             if (PreSize >= newPreSize) return;
             newPreSize = newPreSize + PreAllocationSize;
 
-            int newBufferLength = newPreSize + Length + PostSize;
+            // Expand the post size by this chance
+            int newPostSize = Math.Max(PostSize, PostAllocationSize);
+
+            int newBufferLength = newPreSize + Length + newPostSize;
             Span<T> newBuffer = new T[newBufferLength];
             Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PreSize = newPreSize;
+            PostSize = newPostSize;
             Buffer = newBuffer;
         }
 
@@ -3123,10 +3127,14 @@ namespace IPA.Cores.Basic
             if (PostSize >= newPostSize) return;
             newPostSize = newPostSize + PostAllocationSize;
 
-            int newBufferLength = PreSize + Length + newPostSize;
+            // Expand the pre size by this change
+            int newPreSize = Math.Max(PreSize, PreAllocationSize);
+
+            int newBufferLength = newPreSize + Length + newPostSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(PreSize, Length));
+            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
             PostSize = newPostSize;
+            PreSize = newPreSize;
             Buffer = newBuffer;
         }
     }

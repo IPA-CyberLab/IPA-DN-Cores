@@ -1271,7 +1271,7 @@ namespace IPA.Cores.Basic
             return time64;
         }
 
-        // ulong を DateTime に変換
+        // long を DateTime に変換
         public static DateTime ConvertDateTime(long time64) => ConvertDateTime((ulong)time64);
         public static DateTime ConvertDateTime(ulong time64)
         {
@@ -1283,26 +1283,26 @@ namespace IPA.Cores.Basic
             return new DateTime(((long)time64 + 62135629200000L) * 10000L);
         }
 
-        // DateTime を ulong に変換
-        public static ulong ConvertDateTime(DateTime dt)
+        // DateTime を long に変換
+        public static long ConvertDateTime(DateTime dt)
         {
             if (dt.Ticks == 0)
             {
                 return 0;
             }
-            return (ulong)SafeTime64(dt.Ticks / 10000L - 62135629200000L);
+            return SafeTime64(dt.Ticks / 10000L - 62135629200000L);
         }
 
         // ulong を TimeSpan に変換
-        public static TimeSpan ConvertTimeSpan(ulong tick)
+        public static TimeSpan ConvertTimeSpan(long tick)
         {
-            return new TimeSpan((long)tick * 10000);
+            return new TimeSpan(tick * 10000);
         }
 
-        // TimeSpan を ulong に変換
-        public static ulong ConvertTimeSpan(TimeSpan span)
+        // TimeSpan を long に変換
+        public static long ConvertTimeSpan(TimeSpan span)
         {
-            return (ulong)span.Ticks / 10000;
+            return span.Ticks / 10000;
         }
 
         // DateTime を DOS の日付に変換
@@ -4164,7 +4164,7 @@ namespace IPA.Cores.Basic
             {
                 if (report.Type == ProgressReportType.InProgress && report.Eta != null)
                 {
-                    TimeSpan timeSpan = Util.ConvertTimeSpan((ulong)(report.Eta ?? 0));
+                    TimeSpan timeSpan = Util.ConvertTimeSpan(report.Eta ?? 0);
 
                     etaStr = $" ETA {timeSpan._ToTsStr()}";
                 }

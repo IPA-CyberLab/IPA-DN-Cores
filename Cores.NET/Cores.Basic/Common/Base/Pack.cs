@@ -480,7 +480,7 @@ namespace IPA.Cores.Basic
         }
         public void AddDateTime(string name, DateTime dt, uint index)
         {
-            AddInt64(name, Util.ConvertDateTime(dt), index);
+            AddInt64(name, (ulong)Util.ConvertDateTime(dt), index);
         }
 
         public void AddInt64(string name, ulong int64Value)

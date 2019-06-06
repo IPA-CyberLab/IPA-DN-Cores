@@ -125,6 +125,8 @@ namespace IPA.Cores.Basic
     {
         public const int ByteOrderMagic = 0x1A2B3C4D;
 
+        public static readonly ReadOnlyMemory<byte> StandardPCapNgHeader = GenerateStandardPCapNgHeader().Span.ToArray();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static ref T _PCapNgEncapsulateHeader<T>(this ref Packet pkt, out PacketSpan<T> retSpan, PCapNgBlockType blockType, ReadOnlySpan<byte> options = default) where T : unmanaged
         {
@@ -168,7 +170,7 @@ namespace IPA.Cores.Basic
             return ref ret;
         }
 
-        public unsafe static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, string comment)
+        public unsafe static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string comment)
         {
             int packetDataSize = pkt.Length;
 
@@ -200,20 +202,11 @@ namespace IPA.Cores.Basic
 
             fixed (byte* optionPtr = option)
             {
-                ref PCapNgEnhancedPacketBlock header = ref pkt._PCapNgEncapsulateHeader<PCapNgEnhancedPacketBlock>(out PacketSpan<PCapNgEnhancedPacketBlock> retSpan, PCapNgBlockType.EnhancedPacket,
-                    new ReadOnlySpan<byte>(optionPtr, option.Length)
-                    );
-
-                header.InterfaceId = interfaceId;
-
-                header.CapturePacketLength = packetDataSize;
-                header.OriginalPacketLength = packetDataSize;
-
-                return retSpan;
+                return _PCapNgEncapsulateEnhancedPacketBlock(ref pkt, interfaceId, timeStampUsecs, new ReadOnlySpan<byte>(optionPtr, option.Length));
             }
         }
 
-        public static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, ReadOnlySpan<byte> options = default)
+        public static unsafe PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, ReadOnlySpan<byte> options = default)
         {
             int packetDataSize = pkt.Length;
 
@@ -221,13 +214,41 @@ namespace IPA.Cores.Basic
 
             header.InterfaceId = interfaceId;
 
+            if (timeStampUsecs <= 0)
+            {
+                timeStampUsecs = PCapNgUtil.FastNow_TimeStampUsec;
+            }
+
+            if (BitConverter.IsLittleEndian)
+            {
+                header.TimeStampHigh = ((uint*)&timeStampUsecs)[1];
+                header.TimeStampLow = ((uint*)&timeStampUsecs)[0];
+            }
+            else
+            {
+                header.TimeStampHigh = ((uint*)&timeStampUsecs)[0];
+                header.TimeStampLow = ((uint*)&timeStampUsecs)[1];
+            }
+
             header.CapturePacketLength = packetDataSize;
             header.OriginalPacketLength = packetDataSize;
 
             return retSpan;
         }
 
-        public static SpanBuffer<byte> GeneratePCapNgHeader()
+        public static long FastNow_TimeStampUsec
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ConvertSystemTimeToTimeStampUsec(FastTick64.SystemTimeNow_Fast);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long ConvertSystemTimeToTimeStampUsec(long systemTime)
+        {
+            return (systemTime + (9L * 3600 * 1000)) * 1000L;
+        }
+
+        public static SpanBuffer<byte> GenerateStandardPCapNgHeader()
         {
             Packet sectionHeaderPacket = new Packet();
             ref var section = ref sectionHeaderPacket._PCapNgEncapsulateHeader<PCapNgSectionHeaderBlock>(out _, PCapNgBlockType.SectionHeader);

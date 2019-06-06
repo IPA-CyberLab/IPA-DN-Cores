@@ -106,6 +106,7 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
+
             Packet p = new Packet("Helly"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
@@ -155,7 +156,7 @@ namespace IPA.TestDev
             {
                 Protocol = EthernetProtocolId.VLan._Endian16(),
             };
-
+            
             etherHeaderData.SrcAddress[0] = 0x00; etherHeaderData.SrcAddress[1] = 0xAC; etherHeaderData.SrcAddress[2] = 0x01;
             etherHeaderData.SrcAddress[3] = 0x23; etherHeaderData.SrcAddress[4] = 0x45; etherHeaderData.SrcAddress[5] = 0x47;
 
@@ -164,8 +165,8 @@ namespace IPA.TestDev
 
             PacketSpan<EthernetHeader> ether = vlan.PrependSpanWithData<EthernetHeader>(ref p, in etherHeaderData);
 
-            var spanBuffer = PCapNgUtil.GeneratePCapNgHeader();
-            p._PCapNgEncapsulateEnhancedPacketBlock(0, "Hello World");
+            var spanBuffer = PCapNgUtil.GenerateStandardPCapNgHeader();
+            p._PCapNgEncapsulateEnhancedPacketBlock(0, 0, "Hello");
             spanBuffer.SeekToEnd();
             spanBuffer.Write(p.Span);
 

@@ -82,6 +82,8 @@ namespace IPA.Cores.Basic
 
         public const int DefaultInterval = 1000;
 
+        public int CurrentTimeZoneDiffMSec { get; private set; } = (int)(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow).Ticks / 10000);
+
         long Time64;
         long Tick64WithTime64;
         CriticalSection Lock = new CriticalSection();
@@ -148,6 +150,7 @@ namespace IPA.Cores.Basic
                 if (n >= 1000 || first == false)
                 {
                     long now = Time.SystemTime64;
+                    CurrentTimeZoneDiffMSec = (int)(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow).Ticks / 10000);
                     long diff = Math.Abs(((now - this.Time64) + this.Tick64WithTime64) - tick64);
 
                     if (now < this.Time64 || diff >= diffThreshold)
@@ -248,6 +251,8 @@ namespace IPA.Cores.Basic
             return (long)value + 0x100000000L * (long)rotate16bit;
         }
 
+        public static int CurrentTimeZoneDiffMSec => History.CurrentTimeZoneDiffMSec;
+
         public static long SystemTimeNow_Fast => Tick64ToTime64(Now);
         public static DateTime DateTimeNow_Fast => Tick64ToDateTime(Now);
         public static DateTimeOffset DateTimeOffsetUtcNow_Fast => Tick64ToDateTimeOffsetUtc(Now);
@@ -264,71 +269,20 @@ namespace IPA.Cores.Basic
         static TimeHelper h = new TimeHelper();
         static TimeSpan baseTimeSpan = new TimeSpan(0, 0, 1);
 
-        static public TimeSpan NowHighResTimeSpan
-        {
-            get
-            {
-                return h.Sw.Elapsed.Add(baseTimeSpan);
-            }
-        }
-
-        static public long NowHighResLong100Usecs
-        {
-            get
-            {
-                return NowHighResTimeSpan.Ticks;
-            }
-        }
-
-        static public long NowHighResLongMillisecs
-        {
-            get
-            {
-                return NowHighResLong100Usecs / 10000;
-            }
-        }
+        static public TimeSpan NowHighResTimeSpan => h.Sw.Elapsed.Add(baseTimeSpan);
+        static public long NowHighResLong100Usecs => NowHighResTimeSpan.Ticks;
+        static public long NowHighResLongMillisecs => NowHighResLong100Usecs / 10000;
 
         static public long Tick64 => FastTick64.Now;
 
-        static public long HighResTick64
-        {
-            get
-            {
-                return NowHighResLongMillisecs;
-            }
-        }
+        static public long HighResTick64 => NowHighResLongMillisecs;
 
-        static public double NowHighResDouble
-        {
-            get
-            {
-                return (double)NowHighResLong100Usecs / (double)10000000.0;
-            }
-        }
+        static public double NowHighResDouble => (double)NowHighResLong100Usecs / (double)10000000.0;
+        static public DateTime NowHighResDateTimeLocal => h.GetDateTimeOffset().LocalDateTime;
+        static public DateTime NowHighResDateTimeUtc => h.GetDateTimeOffset().UtcDateTime;
+        static public DateTimeOffset NowHighResDateTimeOffset => h.GetDateTimeOffset();
 
-        static public DateTime NowHighResDateTimeLocal
-        {
-            get
-            {
-                return h.GetDateTimeOffset().LocalDateTime;
-            }
-        }
-
-        static public DateTime NowHighResDateTimeUtc
-        {
-            get
-            {
-                return h.GetDateTimeOffset().UtcDateTime;
-            }
-        }
-
-        static public DateTimeOffset NowHighResDateTimeOffset
-        {
-            get
-            {
-                return h.GetDateTimeOffset();
-            }
-        }
+        public static int CurrentTimeZoneDiffMSec => FastTick64.CurrentTimeZoneDiffMSec;
 
         public static long DateTimeToTime64(DateTime dt) => (long)Util.ConvertDateTime(dt);
         public static DateTime Time64ToDateTime(long time64) => Util.ConvertDateTime((ulong)time64);

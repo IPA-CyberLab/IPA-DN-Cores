@@ -872,7 +872,7 @@ namespace IPA.Cores.Basic
             DateTime start_dt = new DateTime(2000, 1, 1);
             DateTime now = DateTime.Now;
 
-            ulong msecs = Util.ConvertTimeSpan(now - start_dt);
+            ulong msecs = (ulong)Util.ConvertTimeSpan(now - start_dt);
 
             lock (LockNewId)
             {
