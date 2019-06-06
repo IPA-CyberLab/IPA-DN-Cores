@@ -47,6 +47,46 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
+    readonly struct PacketSizeSet
+    {
+        public readonly int PreSize;
+        public readonly int PostSize;
+
+        public PacketSizeSet(int preSize, int postSize)
+        {
+            this.PreSize = preSize;
+            this.PostSize = postSize;
+        }
+
+        public bool IsDefault
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (PreSize == 0 && PostSize == 0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static PacketSizeSet operator +(PacketSizeSet a, PacketSizeSet b)
+            => new PacketSizeSet(a.PreSize + b.PreSize, a.PostSize + b.PostSize);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static PacketSizeSet operator +(PacketSizeSet a, int preSize)
+            => new PacketSizeSet(a.PreSize + preSize, a.PostSize);
+    }
+
+    static partial class PacketSizeSets
+    {
+        public static readonly PacketSizeSet NormalTcpIpPacket = new PacketSizeSet(14 + 4 + 40 + 24 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void UseDefault(this ref PacketSizeSet value)
+        {
+            if (value.IsDefault)
+            {
+                value = PacketSizeSets.NormalTcpIpPacket;
+            }
+        }
+    }
+
     [Flags]
     enum PacketInsertMode
     {
@@ -61,9 +101,20 @@ namespace IPA.Cores.Basic
         public int PinTail { get; private set; }
         public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
 
-        public Packet(Span<byte> initialContents, bool copyInitialContents = true)
+        public Packet(PacketSizeSet sizeSet, Span<byte> initialContents = default)
         {
-            this.Elastic = new ElasticSpan<byte>(initialContents, copyInitialContents);
+            sizeSet.UseDefault();
+
+            this.Elastic = new ElasticSpan<byte>(initialContents);
+            this.PinHead = 0;
+            this.PinTail = this.Elastic.Length;
+        }
+
+        public Packet(PacketSizeSet sizeSet, EnsureCopy yes, ReadOnlySpan<byte> initialContentsToCopy)
+        {
+            sizeSet.UseDefault();
+
+            this.Elastic = new ElasticSpan<byte>(EnsureCopy.Yes, initialContentsToCopy);
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }

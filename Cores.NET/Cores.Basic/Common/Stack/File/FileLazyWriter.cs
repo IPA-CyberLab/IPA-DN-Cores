@@ -48,57 +48,185 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class FileLazyWriterSettings
+        public static partial class LazyWriteBufferSettings
         {
             public static readonly Copenhagen<int> DefaultBufferSize = 4 * 1024 * 1024;
             public static readonly Copenhagen<int> DefaultDefragmentWriteBlockSize = 1 * 1024 * 1024;
             public static readonly Copenhagen<int> DefaultDelay = 250;
 
-            public static readonly Copenhagen<int> FileWriteErrorRetryIntervalStd = 1 * 1000;
-            public static readonly Copenhagen<int> FileWriteErrorRetryIntervalMax = 10 * 1000;
+            public static readonly Copenhagen<int> ErrorRetryIntervalStd = 1 * 1000;
+            public static readonly Copenhagen<int> ErrorRetryIntervalMax = 10 * 1000;
         }
     }
 
-    class FileLazyWriterOptions
+    class LazyBufferFileEmitterOptions : LazyBufferEmitterOptionsBase
     {
         public FilePath FilePath { get; }
-        public int BufferSize { get; }
-        public int DefragmentWriteBlockSize { get; }
-        public int Delay { get; }
         public bool AppendMode { get; }
-        public FastStreamNonStopWriteMode OverflowBehavior { get; }
+        public ReadOnlyMemory<byte> FileHeaderData { get; }
 
-        public FileLazyWriterOptions(FilePath filePath, bool appendMode = true, FastStreamNonStopWriteMode overflowBehavior = FastStreamNonStopWriteMode.DiscardWritingData, int delay = 0, int bufferSize = 0, int defragmentWriteBlockSize = 0)
+        public LazyBufferFileEmitterOptions(FilePath filePath, bool appendMode = true, int delay = 0, int defragmentWriteBlockSize = 0, ReadOnlyMemory<byte> fileHeaderData = default) : base(delay, defragmentWriteBlockSize)
         {
-            if (bufferSize <= 0) bufferSize = CoresConfig.FileLazyWriterSettings.DefaultBufferSize;
-            if (defragmentWriteBlockSize <= 0) defragmentWriteBlockSize = CoresConfig.FileLazyWriterSettings.DefaultDefragmentWriteBlockSize;
-            if (delay <= 0) delay = CoresConfig.FileLazyWriterSettings.DefaultDelay;
-
             this.FilePath = filePath;
-            this.OverflowBehavior = overflowBehavior;
-            this.DefragmentWriteBlockSize = defragmentWriteBlockSize;
-            this.BufferSize = bufferSize;
-            this.Delay = delay;
             this.AppendMode = appendMode;
+            this.FileHeaderData = fileHeaderData;
         }
     }
 
-    class FileLazyWriter : AsyncServiceWithMainLoop
+    abstract class LazyBufferEmitterOptionsBase
     {
-        public FileLazyWriterOptions Options { get; }
+        public int DefragmentWriteBlockSize { get; }
+        public int Delay { get; }
+
+        public LazyBufferEmitterOptionsBase(int delay = 0, int defragmentWriteBlockSize = 0)
+        {
+            if (defragmentWriteBlockSize <= 0) defragmentWriteBlockSize = CoresConfig.LazyWriteBufferSettings.DefaultDefragmentWriteBlockSize;
+            if (delay <= 0) delay = CoresConfig.LazyWriteBufferSettings.DefaultDelay;
+
+            this.DefragmentWriteBlockSize = defragmentWriteBlockSize;
+            this.Delay = delay;
+        }
+    }
+
+    class LazyBufferFileEmitter : LazyBufferEmitterBase
+    {
+        public new LazyBufferFileEmitterOptions Options => (LazyBufferFileEmitterOptions)base.Options;
+
+        FileObject file = null;
+
+        public LazyBufferFileEmitter(LazyBufferFileEmitterOptions options) : base(options) { }
+
+        public override async Task EmitAsync(IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite, CancellationToken cancel = default)
+        {
+            if (IsClosed) throw new ObjectDisposedException("LazyBufferFileEmitter");
+
+            bool firstOnFile = false;
+
+            if (file == null)
+            {
+                if (this.Options.AppendMode)
+                {
+                    file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                    if (file.Position == 0)
+                    {
+                        firstOnFile = true;
+                    }
+                }
+                else
+                {
+                    file = await this.Options.FilePath.CreateAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                    firstOnFile = true;
+                }
+            }
+
+            if (firstOnFile)
+            {
+                if (this.Options.FileHeaderData.IsEmpty == false)
+                {
+                    await file.WriteAsync(this.Options.FileHeaderData);
+                }
+            }
+
+            foreach (ReadOnlyMemory<byte> data in dataToWrite)
+            {
+                try
+                {
+                    await file.WriteAsync(data, cancel);
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteDebug($"LazyBufferFileEmitter -> EmitAsync: WriteAsync('{this.Options.FilePath.ToString()}' failed. error: {ex.ToString()}");
+                    await cancel._WaitUntilCanceledAsync(1000);
+                    file = null;
+                }
+            }
+        }
+
+        public override Task FlushAsync(CancellationToken cancel = default)
+        {
+            if (IsClosed) return Task.CompletedTask;
+            return file.FlushAsync(cancel);
+        }
+
+        bool IsClosed = false;
+
+        public override async Task CloseAsync()
+        {
+            IsClosed = true;
+
+            if (file != null)
+            {
+                await file.CloseAsync();
+                file._DisposeSafe();
+                file = null;
+            }
+        }
+    }
+
+    abstract class LazyBufferEmitterBase
+    {
+        public LazyBufferEmitterOptionsBase Options { get; }
+
+        public LazyBufferEmitterBase(LazyBufferEmitterOptionsBase options)
+        {
+            this.Options = options;
+        }
+
+        public abstract Task EmitAsync(IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite, CancellationToken cancel = default);
+        public abstract Task FlushAsync(CancellationToken cancel = default);
+        public abstract Task CloseAsync();
+    }
+
+    class LazyBufferOptions
+    {
+        public int BufferSize { get; }
+        public FastStreamNonStopWriteMode OverflowBehavior { get; }
+
+        public LazyBufferOptions(FastStreamNonStopWriteMode overflowBehavior = FastStreamNonStopWriteMode.DiscardWritingData, int bufferSize = 0)
+        {
+            if (bufferSize <= 0) bufferSize = CoresConfig.LazyWriteBufferSettings.DefaultBufferSize;
+
+            this.OverflowBehavior = overflowBehavior;
+            this.BufferSize = bufferSize;
+        }
+    }
+
+    class LazyBuffer : AsyncServiceWithMainLoop
+    {
+        public LazyBufferOptions Options { get; }
+
+        LazyBufferEmitterBase Emitter;
 
         PipeEnd Reader;
         PipeEnd Writer;
 
-        public FileLazyWriter(FileLazyWriterOptions options, CancellationToken cancel = default) : base(cancel)
+        public LazyBuffer(LazyBufferEmitterBase emitter, LazyBufferOptions options = null, CancellationToken cancel = default) : this(options, cancel)
         {
+            RegisterEmitter(emitter);
+        }
+
+        public LazyBuffer(LazyBufferOptions options = null, CancellationToken cancel = default) : base(cancel)
+        {
+            if (options == null) options = new LazyBufferOptions();
+
             this.Options = options;
 
             this.Reader = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, this.GrandCancel, Options.BufferSize);
 
             this.Writer = this.Reader.CounterPart;
+        }
 
-            this.StartMainLoop(MainLoop);
+        Once RegisterOnce;
+
+        public void RegisterEmitter(LazyBufferEmitterBase emitter)
+        {
+            if (emitter == null) throw new ArgumentNullException("emitter");
+            if (this.IsCanceled) throw new ApplicationException("The object is canceled.");
+            if (RegisterOnce.IsFirstCall() == false) throw new ApplicationException("RegisterReader is already called.");
+
+            this.Emitter = emitter;
+
+            this.StartMainLoop(ReadMainLoop);
         }
 
         public void Write(ReadOnlyMemory<byte> data)
@@ -115,9 +243,20 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        async Task MainLoop(CancellationToken cancel)
+        public IReadOnlyList<ReadOnlyMemory<byte>> DequeueAll(out long totalSize, int defragmentWriteBlockSize)
         {
-            FileObject file = null;
+            IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = this.Reader.StreamReader.DequeueAllWithLock(out totalSize);
+
+            if (totalSize >= 1)
+            {
+                dataToWrite = Util.DefragmentMemoryArrays(dataToWrite, defragmentWriteBlockSize);
+            }
+
+            return dataToWrite;
+        }
+
+        async Task ReadMainLoop(CancellationToken cancel)
+        {
             try
             {
                 var st = this.Reader.StreamReader;
@@ -125,9 +264,9 @@ namespace IPA.Cores.Basic
 
                 while (true)
                 {
-                    await TaskUtil.AwaitWithPoll(Timeout.Infinite, Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
+                    await TaskUtil.AwaitWithPoll(Timeout.Infinite, this.Emitter.Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
 
-                    IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = this.Reader.StreamReader.DequeueAllWithLock(out long totalSize);
+                    IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = DequeueAll(out long totalSize, this.Emitter.Options.DefragmentWriteBlockSize);
                     if (totalSize == 0)
                     {
                         if (cancel.IsCancellationRequested)
@@ -140,53 +279,42 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    dataToWrite = Util.DefragmentMemoryArrays(dataToWrite, this.Options.DefragmentWriteBlockSize);
+                    L_RETRY:
 
-                    LABEL_CREATE_FILE_RETRY:
-
-                    if (file == null)
+                    try
                     {
-                        try
-                        {
-                            if (this.Options.AppendMode)
-                                file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory);
-                            else
-                                file = await this.Options.FilePath.CreateAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory);
+                        await Emitter.EmitAsync(dataToWrite);
 
-                            numFailed = 0;
-                        }
-                        catch (Exception ex)
+                        numFailed = 0;
+
+                        if (this.Reader.StreamReader.IsReadyToRead() == false)
                         {
-                            Con.WriteDebug($"FileLazyWriter -> MainLoop: OpenOrCreateAppendAsync('{this.Options.FilePath.ToString()}' failed. error: {ex.ToString()}");
-                            numFailed++;
-                            await cancel._WaitUntilCanceledAsync(Util.GenRandIntervalWithRetry(CoresConfig.FileLazyWriterSettings.FileWriteErrorRetryIntervalStd, numFailed, CoresConfig.FileLazyWriterSettings.FileWriteErrorRetryIntervalMax));
-                            goto LABEL_CREATE_FILE_RETRY;
+                            await Emitter.FlushAsync();
                         }
                     }
-
-                    foreach (ReadOnlyMemory<byte> data in dataToWrite)
+                    catch
                     {
-                        try
-                        {
-                            await file.WriteAsync(data);
-                        }
-                        catch (Exception ex)
-                        {
-                            Con.WriteDebug($"FileLazyWriter -> MainLoop: WriteAsync('{this.Options.FilePath.ToString()}' failed. error: {ex.ToString()}");
-                            await cancel._WaitUntilCanceledAsync(1000);
-                            file = null;
-                        }
-                    }
+                        numFailed++;
 
-                    if (this.Reader.StreamReader.IsReadyToRead() == false)
-                    {
-                        await file.FlushAsync();
+                        if (cancel.IsCancellationRequested == false)
+                        {
+                            await cancel._WaitUntilCanceledAsync(Util.GenRandIntervalWithRetry(CoresConfig.LazyWriteBufferSettings.ErrorRetryIntervalStd, numFailed, CoresConfig.LazyWriteBufferSettings.ErrorRetryIntervalMax));
+                            goto L_RETRY;
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
             }
             finally
             {
-                file._DisposeSafe();
+                try
+                {
+                    await Emitter.CloseAsync();
+                }
+                catch { }
             }
         }
 
@@ -200,6 +328,21 @@ namespace IPA.Cores.Basic
             finally
             {
                 base.DisposeImpl(ex);
+            }
+        }
+
+        public void StartLazyFileEmitter(LazyBufferFileEmitterOptions options)
+        {
+            LazyBufferFileEmitter emit = new LazyBufferFileEmitter(options);
+
+            try
+            {
+                this.RegisterEmitter(emit);
+            }
+            catch
+            {
+                emit.CloseAsync()._TryGetResult(true);
+                throw;
             }
         }
     }

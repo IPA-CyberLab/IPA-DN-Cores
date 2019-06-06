@@ -106,8 +106,7 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-
-            Packet p = new Packet("Helly"._GetBytes_Ascii());
+            Packet p = new Packet(default, "Helly"._GetBytes_Ascii());
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
@@ -165,8 +164,8 @@ namespace IPA.TestDev
 
             PacketSpan<EthernetHeader> ether = vlan.PrependSpanWithData<EthernetHeader>(ref p, in etherHeaderData);
 
-            var spanBuffer = PCapNgUtil.GenerateStandardPCapNgHeader();
-            p._PCapNgEncapsulateEnhancedPacketBlock(0, 0, "Hello");
+            var spanBuffer = PCapUtil.GenerateStandardPCapNgHeader();
+            p._PCapEncapsulateEnhancedPacketBlock(0, 0, "Hello");
             spanBuffer.SeekToEnd();
             spanBuffer.Write(p.Span);
 
@@ -185,7 +184,7 @@ namespace IPA.TestDev
             //var packetMem = Res.AppRoot["190531_vlan_pppoe_udp.txt"].HexParsedBinary;
             var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneSpan());
+            Packet packet = new Packet(default, packetMem._CloneSpan());
 
             PacketParsed parsed = new PacketParsed(ref packet);
 

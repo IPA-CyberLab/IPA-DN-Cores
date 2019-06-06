@@ -144,7 +144,7 @@ namespace IPA.TestDev
         {
             var packetMem = Res.AppRoot[name].HexParsedBinary;
 
-            Packet packet = new Packet(packetMem._CloneSpan());
+            Packet packet = new Packet(default, packetMem._CloneSpan());
 
             for (int c = 0; c < 100; c++)
             {
@@ -290,7 +290,7 @@ namespace IPA.TestDev
                     Span<byte> initialData = "Hello"._GetBytes_Ascii();
                     for (int c = 0; c < count; c++)
                     {
-                        Packet p = new Packet(initialData, true);
+                        Packet p = new Packet(default, initialData);
 
                         ref var tcpHeader = ref p.PrependSpan<TCPHeader>(sizeof(TCPHeader) + 4);
 
@@ -342,7 +342,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -355,7 +355,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_l2tp_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -368,7 +368,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190531_vlan_pppoe_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -382,7 +382,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -397,7 +397,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_vlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -412,7 +412,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_udp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {
@@ -426,7 +426,7 @@ namespace IPA.TestDev
             {
                 var packetMem = Res.AppRoot["190527_novlan_simple_tcp.txt"].HexParsedBinary;
 
-                Packet packet = new Packet(packetMem._CloneSpan());
+                Packet packet = new Packet(default, packetMem._CloneSpan());
 
                 for (int c = 0; c < count; c++)
                 {

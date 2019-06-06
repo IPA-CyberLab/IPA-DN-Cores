@@ -5146,5 +5146,11 @@ namespace IPA.Cores.Basic
         public bool Remove(T item) => TryRemove(item, out _);
         public bool Contains(T item) => ContainsKey(item);
     }
+
+    [Flags]
+    enum EnsureCopy
+    {
+        Yes = 0,
+    }
 }
 

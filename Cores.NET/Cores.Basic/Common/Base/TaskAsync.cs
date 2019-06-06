@@ -1432,6 +1432,8 @@ namespace IPA.Cores.Basic
                 {
                     using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
                     {
+                        opCancel.ThrowIfCancellationRequested();
+
                         return await func(opCancel);
                     }
                 }
@@ -1455,6 +1457,8 @@ namespace IPA.Cores.Basic
                 {
                     using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
                     {
+                        opCancel.ThrowIfCancellationRequested();
+
                         await func(opCancel);
                     }
                 }
@@ -1466,7 +1470,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected Task<AsyncLock.LockHolder> CriticalProcessLockWithAsync(CancellationToken cancel = default)
+        protected Task<AsyncLock.LockHolder> CriticalProcessLockWithAwait(CancellationToken cancel = default)
             => CriticalProcessAsyncLock.LockWithAwait(cancel);
 
         protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)

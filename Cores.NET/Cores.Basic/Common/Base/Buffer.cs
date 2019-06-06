@@ -2892,7 +2892,7 @@ namespace IPA.Cores.Basic
         int PreSize;
         int PostSize;
 
-        public ElasticSpan(Span<T> initialContents = default, bool copyInitialContents = false, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
+        public ElasticSpan(Span<T> initialContents = default, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
         {
             this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
             this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
@@ -2903,15 +2903,23 @@ namespace IPA.Cores.Basic
 
             if (initialContents.IsEmpty == false)
             {
-                if (copyInitialContents == false)
-                {
-                    this.Buffer = initialContents;
-                    this.Length = initialContents.Length;
-                }
-                else
-                {
-                    PrependWithData(initialContents);
-                }
+                this.Buffer = initialContents;
+                this.Length = initialContents.Length;
+            }
+        }
+
+        public ElasticSpan(EnsureCopy yes, ReadOnlySpan<T> initialContentsToCopy, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
+        {
+            this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
+            this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
+            this.Buffer = default;
+            this.Length = default;
+            this.PreSize = default;
+            this.PostSize = default;
+
+            if (initialContentsToCopy.IsEmpty == false)
+            {
+                PrependWithData(initialContentsToCopy);
             }
         }
 

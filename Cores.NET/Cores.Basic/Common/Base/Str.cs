@@ -3514,16 +3514,8 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の最大長を指定してそこまで切り取る
-        public static string TruncStrEx(string str, int len)
+        public static string TruncStrEx(string str, int len, string appendCode = "...")
         {
-            return TruncStrEx(str, len, null);
-        }
-        public static string TruncStrEx(string str, int len, string appendCode)
-        {
-            if (Str.IsEmptyStr(appendCode))
-            {
-                appendCode = "...";
-            }
             if (str == null)
             {
                 return "";
@@ -3534,7 +3526,14 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                return str.Substring(0, len) + appendCode;
+                if (appendCode != null)
+                {
+                    return str.Substring(0, len) + appendCode;
+                }
+                else
+                {
+                    return str.Substring(0, len);
+                }
             }
         }
 

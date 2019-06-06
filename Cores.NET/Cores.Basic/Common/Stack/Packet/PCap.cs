@@ -48,8 +48,16 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class PCapSettings
+        {
+            public static readonly Copenhagen<int> DefaultBufferSize = 4 * 1024 * 1024;
+        }
+    }
+
     [Flags]
-    enum PCapNgBlockType : uint
+    enum PCapBlockType : uint
     {
         SectionHeader = 0x0A0D0D0A,
         InterfaceDescription = 0x00000001,
@@ -57,14 +65,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PCapNgLinkType : ushort
+    enum PCapLinkType : ushort
     {
         Loopback = 0,
         Ethernet = 1,
     }
 
     [Flags]
-    enum PCapNgOptionCode : ushort
+    enum PCapOptionCode : ushort
     {
         EndOfOption = 0,
         Comment = 1,
@@ -75,23 +83,23 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapNgOptionHeader
+    unsafe struct PCapOptionHeader
     {
-        public PCapNgOptionCode OptionCode;
+        public PCapOptionCode OptionCode;
         public ushort OptionLength;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapNgGenericBlock
+    unsafe struct PCapGenericBlock
     {
-        public PCapNgBlockType BlockType;
+        public PCapBlockType BlockType;
         public int BlockTotalLength;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapNgSectionHeaderBlock
+    unsafe struct PCapSectionHeaderBlock
     {
-        public PCapNgBlockType BlockType;
+        public PCapBlockType BlockType;
         public int BlockTotalLength;
         public uint ByteOrderMagic;
         public ushort MajorVersion;
@@ -100,19 +108,19 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapNgInterfaceDescriptionBlock
+    unsafe struct PCapInterfaceDescriptionBlock
     {
-        public PCapNgBlockType BlockType;
+        public PCapBlockType BlockType;
         public int BlockTotalLength;
-        public PCapNgLinkType LinkType;
+        public PCapLinkType LinkType;
         public ushort Reserved;
         public uint SnapLen;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapNgEnhancedPacketBlock
+    unsafe struct PCapEnhancedPacketBlock
     {
-        public PCapNgBlockType BlockType;
+        public PCapBlockType BlockType;
         public int BlockTotalLength;
         public int InterfaceId;
         public uint TimeStampHigh;
@@ -121,14 +129,84 @@ namespace IPA.Cores.Basic
         public int OriginalPacketLength;
     }
 
-    static class PCapNgUtil
+    static partial class PacketSizeSets
+    {
+        public static readonly PacketSizeSet PcapNgPacket = new PacketSizeSet(Unsafe.SizeOf<PCapEnhancedPacketBlock>(), 4);
+    }
+
+    class PCapFileEmitterOptions : LazyBufferFileEmitterOptions
+    {
+        public PCapFileEmitterOptions(FilePath filePath, bool appendMode = true, int delay = 0, int defragmentWriteBlockSize = 0)
+            : base(filePath, appendMode, delay, defragmentWriteBlockSize, PCapUtil.StandardPCapNgHeader)
+        {
+        }
+    }
+
+    class PCapFileEmitter : LazyBufferFileEmitter
+    {
+        public PCapFileEmitter(LazyBufferFileEmitterOptions options) : base(options)
+        {
+        }
+    }
+
+    class PCapBuffer : LazyBuffer
+    {
+        public PCapBuffer(LazyBufferOptions options = null, CancellationToken cancel = default) : base(options, cancel)
+        {
+        }
+
+        public PCapBuffer(PCapFileEmitter emitter, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+            : base(emitter, new LazyBufferOptions(discardMode, bufferSize._DefaultSize(CoresConfig.PCapSettings.DefaultBufferSize)), cancel)
+        {
+        }
+
+        public void WritePacket(ReadOnlySpan<byte> srcPacketData, long timeStampUsecs, string comment = null)
+        {
+            PacketSizeSet sizeSet = PacketSizeSets.PcapNgPacket;
+            if (comment != null && comment.Length >= 1)
+            {
+                comment._TruncStr(10000);
+                sizeSet += (8 + comment.Length * 3);
+            }
+
+            Packet pkt = new Packet(sizeSet, EnsureCopy.Yes, srcPacketData);
+
+            WritePacket(ref pkt, timeStampUsecs, comment);
+        }
+
+        public void WritePacket(ref Packet pktDiscardable, long timeStampUsecs, string comment = null)
+        {
+            ref Packet pkt = ref pktDiscardable;
+
+            pkt._PCapEncapsulateEnhancedPacketBlock(0, timeStampUsecs, comment);
+
+            base.Write(pkt.Span._CloneMemory());
+        }
+
+        public Packet NewPacketForPCap(PacketSizeSet sizeSetForInnerPacket, int commentLength = 0)
+        {
+            PacketSizeSet sizeSet = sizeSetForInnerPacket;
+            commentLength = Math.Min(commentLength, 10000);
+            if (commentLength >= 1)
+            {
+                sizeSet += (8 + commentLength * 3);
+            }
+            sizeSet += PacketSizeSets.PcapNgPacket;
+
+            Packet pkt = new Packet(sizeSet);
+
+            return pkt;
+        }
+    }
+
+    static class PCapUtil
     {
         public const int ByteOrderMagic = 0x1A2B3C4D;
 
         public static readonly ReadOnlyMemory<byte> StandardPCapNgHeader = GenerateStandardPCapNgHeader().Span.ToArray();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static ref T _PCapNgEncapsulateHeader<T>(this ref Packet pkt, out PacketSpan<T> retSpan, PCapNgBlockType blockType, ReadOnlySpan<byte> options = default) where T : unmanaged
+        public unsafe static ref T _PCapEncapsulateHeader<T>(this ref Packet pkt, out PacketSpan<T> retSpan, PCapBlockType blockType, ReadOnlySpan<byte> options = default) where T : unmanaged
         {
             int currentSize = pkt.Span.Length;
             int mod32 = currentSize % 4;
@@ -162,7 +240,7 @@ namespace IPA.Cores.Basic
             // Prepend the header
             ref T ret = ref pkt.PrependSpan<T>(out retSpan);
 
-            ref PCapNgGenericBlock generic = ref Unsafe.As<T, PCapNgGenericBlock>(ref ret);
+            ref PCapGenericBlock generic = ref Unsafe.As<T, PCapGenericBlock>(ref ret);
 
             generic.BlockType = blockType;
             generic.BlockTotalLength = blockTotalLength;
@@ -170,25 +248,25 @@ namespace IPA.Cores.Basic
             return ref ret;
         }
 
-        public unsafe static PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string comment)
+        public unsafe static PacketSpan<PCapEnhancedPacketBlock> _PCapEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string comment)
         {
             int packetDataSize = pkt.Length;
 
-            Span<byte> option = stackalloc byte[32767 + sizeof(PCapNgOptionHeader)];
+            Span<byte> option = stackalloc byte[32767 + sizeof(PCapOptionHeader)];
 
             if (comment != null && comment.Length >= 1)
             {
                 Encoder enc = Str.Utf8Encoding.GetEncoder();
 
-                int count = enc.GetBytes(comment, option.Slice(sizeof(PCapNgOptionHeader)), true);
+                int count = enc.GetBytes(comment, option.Slice(sizeof(PCapOptionHeader)), true);
 
                 if (count <= 32767)
                 {
-                    ref PCapNgOptionHeader optHeader = ref option[0]._AsStruct<PCapNgOptionHeader>();
-                    optHeader.OptionCode = PCapNgOptionCode.Comment;
+                    ref PCapOptionHeader optHeader = ref option[0]._AsStruct<PCapOptionHeader>();
+                    optHeader.OptionCode = PCapOptionCode.Comment;
                     optHeader.OptionLength = (ushort)count;
 
-                    option = option.Slice(0, sizeof(PCapNgOptionHeader) + count);
+                    option = option.Slice(0, sizeof(PCapOptionHeader) + count);
                 }
                 else
                 {
@@ -202,21 +280,21 @@ namespace IPA.Cores.Basic
 
             fixed (byte* optionPtr = option)
             {
-                return _PCapNgEncapsulateEnhancedPacketBlock(ref pkt, interfaceId, timeStampUsecs, new ReadOnlySpan<byte>(optionPtr, option.Length));
+                return _PCapEncapsulateEnhancedPacketBlock(ref pkt, interfaceId, timeStampUsecs, new ReadOnlySpan<byte>(optionPtr, option.Length));
             }
         }
 
-        public static unsafe PacketSpan<PCapNgEnhancedPacketBlock> _PCapNgEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, ReadOnlySpan<byte> options = default)
+        public static unsafe PacketSpan<PCapEnhancedPacketBlock> _PCapEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, ReadOnlySpan<byte> options = default)
         {
             int packetDataSize = pkt.Length;
 
-            ref PCapNgEnhancedPacketBlock header = ref pkt._PCapNgEncapsulateHeader<PCapNgEnhancedPacketBlock>(out PacketSpan<PCapNgEnhancedPacketBlock> retSpan, PCapNgBlockType.EnhancedPacket, options);
+            ref PCapEnhancedPacketBlock header = ref pkt._PCapEncapsulateHeader<PCapEnhancedPacketBlock>(out PacketSpan<PCapEnhancedPacketBlock> retSpan, PCapBlockType.EnhancedPacket, options);
 
             header.InterfaceId = interfaceId;
 
             if (timeStampUsecs <= 0)
             {
-                timeStampUsecs = PCapNgUtil.FastNow_TimeStampUsec;
+                timeStampUsecs = PCapUtil.FastNow_TimeStampUsec;
             }
 
             if (BitConverter.IsLittleEndian)
@@ -251,7 +329,7 @@ namespace IPA.Cores.Basic
         public static SpanBuffer<byte> GenerateStandardPCapNgHeader()
         {
             Packet sectionHeaderPacket = new Packet();
-            ref var section = ref sectionHeaderPacket._PCapNgEncapsulateHeader<PCapNgSectionHeaderBlock>(out _, PCapNgBlockType.SectionHeader);
+            ref var section = ref sectionHeaderPacket._PCapEncapsulateHeader<PCapSectionHeaderBlock>(out _, PCapBlockType.SectionHeader);
 
             section.ByteOrderMagic = ByteOrderMagic;
             section.MajorVersion = 1;
@@ -259,8 +337,8 @@ namespace IPA.Cores.Basic
             section.SectionLength = 0xffffffffffffffff;
 
             Packet interfaceDescriptionPacket = new Packet();
-            ref var inf = ref interfaceDescriptionPacket._PCapNgEncapsulateHeader<PCapNgInterfaceDescriptionBlock>(out _, PCapNgBlockType.InterfaceDescription);
-            inf.LinkType = PCapNgLinkType.Ethernet;
+            ref var inf = ref interfaceDescriptionPacket._PCapEncapsulateHeader<PCapInterfaceDescriptionBlock>(out _, PCapBlockType.InterfaceDescription);
+            inf.LinkType = PCapLinkType.Ethernet;
 
             SpanBuffer<byte> ret = new SpanBuffer<byte>();
             ret.Write(sectionHeaderPacket.Span);
