@@ -184,6 +184,10 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class PCapPacketRecorder
+    {
+    }
+
     static class PCapUtil
     {
         public const int ByteOrderMagic = 0x1A2B3C4D;

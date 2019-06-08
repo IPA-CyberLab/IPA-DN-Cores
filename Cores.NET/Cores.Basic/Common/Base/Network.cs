@@ -1478,6 +1478,20 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static byte[] GenerateRandomLocalMacAddress()
+        {
+            byte[] ret = Secure.Rand(6);
+
+            byte a = ret[0];
+
+            a |= 0x02;
+            a &= 0xFE;
+
+            ret[0] = a;
+
+            return ret;
+        }
+
         // マルチキャストアドレスに対応した MAC アドレスの生成
         public static byte[] GenerateMulticastMacAddress(IPAddress ip)
         {

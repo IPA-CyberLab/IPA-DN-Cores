@@ -242,10 +242,12 @@ namespace IPA.TestDev
                 {
                     for (int c = 0; c < count; c++)
                     {
-                        //var x = FastTick64.DateTimeOffsetUtcNow_Fast;
+                        var x = FastTick64.DateTimeOffsetUtcNow_Fast;
                         //var y = DateTimeOffset.UtcNow;
                         //var z = Time.SystemTime64;
-                        var a = FastTick64.SystemTimeNow_Fast;
+                        //var a = FastTick64.SystemTimeNow_Fast;
+                        //var a = Time.Tick64ToTime64(FastTick64.Now);
+                        //var a = FastTick64.Now;
                     }
                 }
 

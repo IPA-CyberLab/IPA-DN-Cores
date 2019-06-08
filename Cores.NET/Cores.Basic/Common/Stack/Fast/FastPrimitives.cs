@@ -52,19 +52,37 @@ namespace IPA.Cores.Basic
     class SocketDisconnectedException : DisconnectedException { }
     class BaseStreamDisconnectedException : DisconnectedException { }
 
+    [Flags]
+    enum DatagramFlag
+    {
+        None = 0,
+    }
+
     class Datagram
     {
         public Memory<byte> Data;
         public EndPoint EndPoint;
-        public byte Flag;
+        public DatagramFlag Flag;
+        public long TimeStamp;
 
         public IPEndPoint IPEndPoint { get => (IPEndPoint)EndPoint; set => EndPoint = value; }
 
-        public Datagram(Memory<byte> data, EndPoint endPoint, byte flag = 0)
+        // For UDP
+        public Datagram(Memory<byte> data, EndPoint udpEndPoint, DatagramFlag flag = 0)
         {
             Data = data;
-            EndPoint = endPoint;
+            EndPoint = udpEndPoint;
             Flag = flag;
+        }
+
+        // For Ethenet
+        public Datagram(Memory<byte> data, long ethernetTimeStamp = 0, DatagramFlag flag = 0)
+        {
+            if (ethernetTimeStamp <= 0) ethernetTimeStamp = Time.SystemTimeNow_Fast;
+
+            Data = data;
+            Flag = flag;
+            TimeStamp = ethernetTimeStamp;
         }
     }
 

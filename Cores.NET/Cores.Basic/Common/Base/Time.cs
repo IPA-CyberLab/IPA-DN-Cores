@@ -34,6 +34,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 using IPA.Cores.Basic;
@@ -88,6 +89,7 @@ namespace IPA.Cores.Basic
         long Tick64WithTime64;
         CriticalSection Lock = new CriticalSection();
         ImmutableList<History> HistoryList = ImmutableList<History>.Empty;
+        History LatestHistory = new History();
         public int Interval { get; }
         AsyncManualResetEvent HaltEvent = new AsyncManualResetEvent();
         bool HaltFlag = false;
@@ -134,6 +136,7 @@ namespace IPA.Cores.Basic
                     this.Tick64WithTime64 = tick64;
                     this.Time64 = t.Time;
                     HistoryList = HistoryList.Add(t);
+                    LatestHistory = t;
 
                     InitCompletedEvent.Set();
                     createFirstEntry = false;
@@ -160,6 +163,7 @@ namespace IPA.Cores.Basic
                         t.Time = now;
 
                         HistoryList = HistoryList.Add(t);
+                        LatestHistory = t;
 
                         Dbg.WriteLine(new { AdjustTime = new { Diff = diff, Tick = t.Tick, Time = t.Time, HistoryCount = HistoryList.Count } });
 
@@ -187,7 +191,7 @@ namespace IPA.Cores.Basic
         public long Tick64ToTime64(long tick)
         {
             long ret = 0;
-            if (tick == 0) return 0;
+            if (tick <= 0) return 0;
             var List = this.HistoryList;
             for (int i = List.Count - 1; i >= 0; i--)
             {
@@ -197,6 +201,20 @@ namespace IPA.Cores.Basic
                     ret = t.Time + (tick - t.Tick);
                     break;
                 }
+            }
+            if (ret == 0) ret = 1;
+            return ret;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long Tick64ToTime64Latest(long tick)
+        {
+            long ret = 0;
+            if (tick <= 0) return 0;
+            History t = this.LatestHistory;
+            if (t.Tick <= tick)
+            {
+                ret = t.Time + (tick - t.Tick);
             }
             if (ret == 0) ret = 1;
             return ret;
@@ -253,10 +271,29 @@ namespace IPA.Cores.Basic
 
         public static int CurrentTimeZoneDiffMSec => History.CurrentTimeZoneDiffMSec;
 
-        public static long SystemTimeNow_Fast => Tick64ToTime64(Now);
-        public static DateTime DateTimeNow_Fast => Tick64ToDateTime(Now);
-        public static DateTimeOffset DateTimeOffsetUtcNow_Fast => Tick64ToDateTimeOffsetUtc(Now);
-        public static DateTimeOffset DateTimeOffsetLocalNow_Fast => Tick64ToDateTimeOffsetLocal(Now);
+        public static long SystemTimeNow_Fast
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => History.Tick64ToTime64Latest(Now);
+        }
+
+        public static DateTime DateTimeNow_Fast
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now));
+        }
+
+        public static DateTimeOffset DateTimeOffsetUtcNow_Fast
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now))._AsDateTimeOffset(false);
+        }
+
+        public static DateTimeOffset DateTimeOffsetLocalNow_Fast
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now))._AsDateTimeOffset(true);
+        }
 
         public static long Tick64ToTime64(long tick) => History.Tick64ToTime64(tick);
         public static DateTime Tick64ToDateTime(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick));

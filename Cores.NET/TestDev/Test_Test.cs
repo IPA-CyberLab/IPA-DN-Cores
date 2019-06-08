@@ -177,9 +177,10 @@ namespace IPA.TestDev
             using (PCapBuffer pcap = new PCapBuffer(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190607\pcap1.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
                 appendMode: false))))
             {
-                pcap.WritePacket(ref p, 0, "あいう");
+                //pcap.WritePacket(ref p, 0, "あいう");
+                pcap.WritePacket(p.Span, 0, "ねこ");
 
-                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
+//                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
             }
         }
 

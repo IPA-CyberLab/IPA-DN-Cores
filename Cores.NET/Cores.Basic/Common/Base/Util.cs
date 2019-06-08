@@ -5152,5 +5152,18 @@ namespace IPA.Cores.Basic
     {
         Yes = 0,
     }
+
+    [Flags]
+    enum EnsureInternal
+    {
+        Yes = 0,
+    }
+
+    [Flags]
+    enum Direction
+    {
+        Send = 0,
+        Recv,
+    }
 }
 

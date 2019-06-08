@@ -137,6 +137,14 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short _Endian16(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort _Endian16_U(this short v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort _Endian16_U(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort _Endian16_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint _Endian32(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -148,10 +156,18 @@ namespace IPA.Cores.Helper.Basic
         public static int _Endian32(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((int)v) : (int)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint _Endian32_U(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint _Endian32_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong _Endian64(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long _Endian64(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong _Endian64_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ulong)v) : (ulong)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _Endian16<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian16(v) : v;

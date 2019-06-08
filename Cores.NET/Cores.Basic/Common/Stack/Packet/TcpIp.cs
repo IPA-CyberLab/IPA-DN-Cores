@@ -88,6 +88,30 @@ namespace IPA.Cores.Basic
         public fixed byte DestAddress[6];
         public fixed byte SrcAddress[6];
         public EthernetProtocolId Protocol;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetDestAddress(ReadOnlySpan<byte> addr)
+        {
+            fixed (byte* d = this.DestAddress)
+            fixed (byte* s = addr)
+                Unsafe.CopyBlock(d, s, 6);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetSrcAddress(ReadOnlySpan<byte> addr)
+        {
+            fixed (byte* d = this.DestAddress)
+            fixed (byte* s = addr)
+                Unsafe.CopyBlock(d, s, 6);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set(ReadOnlySpan<byte> dest, ReadOnlySpan<byte> src, EthernetProtocolId protocol)
+        {
+            SetDestAddress(dest);
+            SetSrcAddress(src);
+            this.Protocol = protocol;
+        }
     }
 
     [Flags]
@@ -468,7 +492,7 @@ namespace IPA.Cores.Basic
         // * Generic checksm routine originally taken from DPDK: 
         // *   BSD license; (C) Intel 2010-2015, 6WIND 2014. 
         // From https://github.com/snabbco/snabb/blob/771b55c829f42a1a788002c2924c6d7047cd1568/src/lib/checksum.c
-        public static unsafe ushort CalcPseudoTcpUdpHeaderChecksum(void *ipHeaderPtr, int ipPayloadTotalSizeWithoutIpHeader)
+        public static unsafe ushort CalcPseudoTcpUdpHeaderChecksum(void* ipHeaderPtr, int ipPayloadTotalSizeWithoutIpHeader)
         {
             byte* buf = (byte*)ipHeaderPtr;
             ushort* hwbuf = (ushort*)buf;
@@ -528,6 +552,131 @@ namespace IPA.Cores.Basic
         {
             fixed (byte* ptr = data)
                 return IpChecksum(ptr, data.Length, initial);
+        }
+    }
+
+    class TcpPseudoPacketGeneratorOptions
+    {
+        public IPAddress LocalIP { get; }
+        public ushort LocalPort { get; }
+        public IPAddress RemoteIP { get; }
+        public ushort RemotePort { get; }
+        public TcpDirectionType TcpDirection { get; }
+
+        public TcpPseudoPacketGeneratorOptions(TcpDirectionType direction, IPAddress localIP, int localPort, IPAddress remoteIP, int remotePort)
+        {
+            if (direction.EqualsAny(TcpDirectionType.Client, TcpDirectionType.Server) == false)
+                throw new ArgumentException("direction");
+
+            if (LocalIP.AddressFamily != RemoteIP.AddressFamily)
+                throw new ArgumentException("LocalIP.AddressFamily != RemoteIP.AddressFamily");
+
+            this.LocalIP = localIP;
+            this.LocalPort = (ushort)localPort;
+            this.RemoteIP = remoteIP;
+            this.RemotePort = (ushort)remotePort;
+        }
+    }
+
+    unsafe abstract class TcpPseudoPacketGeneratorBase : IDisposable
+    {
+        public TcpPseudoPacketGeneratorOptions Options { get; }
+
+        public ReadOnlyMemory<byte> LocalMacAddress { get; }
+        public ReadOnlyMemory<byte> RemoteMacAddress { get; }
+
+        readonly PacketSizeSet DefaultPacketSizeSet;
+
+        readonly uint LocalIP_IPv4;
+        readonly uint RemoteIP_IPv4;
+
+        readonly EthernetProtocolId ProtocolId;
+
+        ulong PacketIdSeed;
+
+        protected abstract void EmitPacket(ref Packet p);
+
+        public TcpPseudoPacketGeneratorBase(TcpPseudoPacketGeneratorOptions options)
+        {
+            this.Options = options;
+
+            this.LocalMacAddress = IPUtil.GenerateRandomLocalMacAddress();
+            this.RemoteMacAddress = IPUtil.GenerateRandomLocalMacAddress();
+
+            PacketSizeSet tcpPacketSizeSet;
+
+            if (Options.LocalIP.AddressFamily == AddressFamily.InterNetwork)
+            {
+                this.LocalIP_IPv4 = Options.LocalIP._Get_IPv4_UInt32_BigEndian();
+                this.RemoteIP_IPv4 = Options.RemoteIP._Get_IPv4_UInt32_BigEndian();
+                ProtocolId = EthernetProtocolId.IPv4;
+
+                tcpPacketSizeSet = PacketSizeSets.NormalTcpIpPacket_V4;
+            }
+            else
+            {
+                throw new ApplicationException("Unsupported AddressFamily");
+            }
+
+            DefaultPacketSizeSet = tcpPacketSizeSet + PacketSizeSets.PcapNgPacket;
+
+            if (Options.TcpDirection == TcpDirectionType.Client)
+            {
+                Packet syn = new Packet(DefaultPacketSizeSet);
+                ref TCPHeader synHeader = ref syn.AppendSpan<TCPHeader>();
+                synHeader.SrcPort = Options.LocalPort._Endian16();
+                synHeader.DstPort = Options.RemotePort._Endian16();
+                synHeader.SeqNumber = 0;
+                synHeader.AckNumber = 0;
+                synHeader.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                synHeader.Flag = TCPFlags.Syn;
+                synHeader.WindowSize = 0xffff;
+
+                EmitTcpPacket(ref syn, ref synHeader, default, Direction.Send);
+            }
+        }
+
+        void EmitTcpPacket(ref Packet p, ref TCPHeader tcp, Span<byte> tcpPayload, Direction direction)
+        {
+            ref IPv4Header ip = ref p.AppendSpan<IPv4Header>();
+            ip.Version = 4;
+            ip.TotalLength = (p.Length + sizeof(IPv4Header))._Endian16_U();
+            ip.Identification = (++PacketIdSeed)._Endian16();
+            ip.Flags = IPv4Flags.DontFragment;
+            ip.Protocol = IPProtocolNumber.TCP;
+
+            if (direction == Direction.Send)
+            {
+                ip.SrcIP = LocalIP_IPv4;
+                ip.DstIP = RemoteIP_IPv4;
+            }
+            else
+            {
+                ip.SrcIP = RemoteIP_IPv4;
+                ip.DstIP = LocalIP_IPv4;
+            }
+
+            tcp.Checksum = tcp.CalcTcpUdpPseudoChecksum(ref ip, tcpPayload);
+            ip.Checksum = ip.CalcIPv4Checksum();
+
+            ref EthernetHeader ether = ref p.AppendSpan<EthernetHeader>();
+            if (direction == Direction.Send)
+            {
+                ether.Set(this.RemoteMacAddress.Span, this.LocalMacAddress.Span, ProtocolId);
+            }
+            else
+            {
+                ether.Set(this.LocalMacAddress.Span, this.RemoteMacAddress.Span, ProtocolId);
+            }
+
+            EmitPacket(ref p);
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
         }
     }
 }

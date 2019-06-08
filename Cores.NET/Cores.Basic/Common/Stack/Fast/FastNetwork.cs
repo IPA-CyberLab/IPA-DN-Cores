@@ -48,6 +48,14 @@ using System.Buffers;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class DatagramExchange
+        {
+            public static readonly Copenhagen<int> DefaultMaxCount = 16000;
+        }
+    }
+
     class LayerInfo
     {
         SharedHierarchy<LayerInfoBase> Hierarchy = new SharedHierarchy<LayerInfoBase>();
@@ -1890,5 +1898,79 @@ namespace IPA.Cores.Basic
         public sealed override void WriteByte(byte value)
             => this.Write(new byte[] { value }, 0, 1);
     }
+
+    class DatagramExchangeSide : IDisposable
+    {
+        public int NumPipes { get; }
+        public PipeEndSide Side { get; }
+        public DatagramExchange Exchange { get; }
+        public IReadOnlyList<PipeEnd> PipeEndList { get; }
+
+        internal DatagramExchangeSide(EnsureInternal yes, DatagramExchange exchange, PipeEndSide side, IReadOnlyList<PipeEnd> pipeEndList)
+        {
+            this.Side = side;
+            this.Exchange = exchange;
+            this.PipeEndList = pipeEndList;
+            this.NumPipes = this.PipeEndList.Count;
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            foreach (PipeEnd pe in this.PipeEndList)
+            {
+                pe.Dispose();
+            }
+        }
+
+        public PipeEnd this[int index]
+        {
+            get => this.PipeEndList[index];
+        }
+    }
+
+    class DatagramExchange : IDisposable
+    {
+        public DatagramExchangeSide A { get; }
+        public DatagramExchangeSide B { get; }
+        public int NumPipes { get; }
+        public int MaxQueueLength { get; }
+
+        public DatagramExchange(CancellationToken grandCancel = default, int? maxQueueLength = null, int numPipes = 0)
+        {
+            if (numPipes <= 0) numPipes = Env.NumCpus;
+
+            this.NumPipes = numPipes;
+            this.MaxQueueLength = maxQueueLength ?? CoresConfig.DatagramExchange.DefaultMaxCount;
+            if (this.MaxQueueLength <= 0) this.MaxQueueLength = int.MaxValue;
+
+            List<PipeEnd> List_A = new List<PipeEnd>();
+            List<PipeEnd> List_B = new List<PipeEnd>();
+
+            for (int i = 0; i < numPipes; i++)
+            {
+                PipeEnd pe_A = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, grandCancel, null, this.MaxQueueLength);
+                PipeEnd pe_B = pe_A.CounterPart;
+
+                List_A.Add(pe_A);
+                List_B.Add(pe_B);
+            }
+
+            this.A = new DatagramExchangeSide(EnsureInternal.Yes, this, PipeEndSide.A_LowerSide, List_A);
+            this.B = new DatagramExchangeSide(EnsureInternal.Yes, this, PipeEndSide.B_UpperSide, List_B);
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.A._DisposeSafe();
+            this.B._DisposeSafe();
+        }
+    }
 }
+
 

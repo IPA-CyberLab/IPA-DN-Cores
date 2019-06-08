@@ -46,13 +46,6 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum SpeedTestDirection
-    {
-        Send,
-        Recv,
-    }
-
-    [Flags]
     enum SpeedTestModeFlag
     {
         Upload,
@@ -131,7 +124,7 @@ namespace IPA.Cores.Basic
 
                     ReadOnlyMemoryBuffer<byte> buf = await st.ReceiveAsync(17);
 
-                    SpeedTestDirection dir = buf.ReadBool8() ? SpeedTestDirection.Send : SpeedTestDirection.Recv;
+                    Direction dir = buf.ReadBool8() ? Direction.Send : Direction.Recv;
                     ulong sessionId = 0;
                     long timespan = 0;
 
@@ -149,7 +142,7 @@ namespace IPA.Cores.Basic
                     {
                         using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafe(new TimeoutException())))
                         {
-                            if (dir == SpeedTestDirection.Recv)
+                            if (dir == Direction.Recv)
                             {
                                 RefInt refTmp = new RefInt();
                                 long totalSize = 0;
@@ -301,13 +294,13 @@ namespace IPA.Cores.Basic
             {
                 for (int i = 0; i < NumConnection; i++)
                 {
-                    SpeedTestDirection dir;
+                    Direction dir;
                     if (Mode == SpeedTestModeFlag.Download)
-                        dir = SpeedTestDirection.Recv;
+                        dir = Direction.Recv;
                     else if (Mode == SpeedTestModeFlag.Upload)
-                        dir = SpeedTestDirection.Send;
+                        dir = Direction.Send;
                     else
-                        dir = ((i % 2) == 0) ? SpeedTestDirection.Recv : SpeedTestDirection.Send;
+                        dir = ((i % 2) == 0) ? Direction.Recv : Direction.Send;
 
                     AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
                     var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
@@ -391,7 +384,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        async Task<Result> ClientSingleConnectionAsync(SpeedTestDirection dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
+        async Task<Result> ClientSingleConnectionAsync(Direction dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
         {
             Result ret = new Result();
 
@@ -407,7 +400,7 @@ namespace IPA.Cores.Basic
 
                     PipeStream st = app.GetStream();
 
-                    if (dir == SpeedTestDirection.Recv)
+                    if (dir == Direction.Recv)
                         app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
 
                     try
@@ -432,13 +425,13 @@ namespace IPA.Cores.Basic
                         long tickEnd = tickStart + this.TimeSpan;
 
                         var sendData = new MemoryBuffer<byte>();
-                        sendData.WriteBool8(dir == SpeedTestDirection.Recv);
+                        sendData.WriteBool8(dir == Direction.Recv);
                         sendData.WriteUInt64(SessionId);
                         sendData.WriteSInt64(TimeSpan);
 
                         await st.SendAsync(sendData);
 
-                        if (dir == SpeedTestDirection.Recv)
+                        if (dir == Direction.Recv)
                         {
                             RefInt totalRecvSize = new RefInt();
                             while (true)

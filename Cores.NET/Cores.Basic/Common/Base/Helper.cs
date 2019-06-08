@@ -54,6 +54,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Diagnostics;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -876,8 +877,10 @@ namespace IPA.Cores.Helper.Basic
         public static Task<bool> _WaitUntilCanceledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
             => _WaitUntilCanceledAsync(cancel.Token, timeout);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static DateTime _OverwriteKind(this DateTime dt, DateTimeKind kind) => new DateTime(dt.Ticks, kind);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static DateTimeOffset _AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt._OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
 
         public static async Task _LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
@@ -1147,6 +1150,19 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int _Compute32bitMagicHashFast<T>(Span<T> span) where T : unmanaged
             => Util.Compute32bitMagicHashFast(span._AsReadOnlySpan());
+
+        public static unsafe uint _Get_IPv4_UInt32_BigEndian(this IPAddress address)
+        {
+            if (address.AddressFamily != AddressFamily.InterNetwork) throw new ArgumentException("address.AddressFamily != AddressFamily.InterNetwork");
+
+            Span<byte> data = address.GetAddressBytes();
+            Debug.Assert(data.Length == 4);
+
+            fixed (byte* ptr = data)
+            {
+                return *((uint*)ptr);
+            }
+        }
     }
 }
 
