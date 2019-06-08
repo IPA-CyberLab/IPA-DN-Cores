@@ -173,7 +173,7 @@ namespace IPA.Cores.Basic
         public void WritePacket(Datagram datagramDiscardable, string comment = null)
         {
             Packet pkt = datagramDiscardable.ToPacket();
-            WritePacket(ref pkt, datagramDiscardable.TimeStamp, comment);
+            WritePacket(ref pkt, PCapUtil.ConvertSystemTimeToTimeStampUsec(datagramDiscardable.TimeStamp), comment);
         }
 
         public void WritePacket(ref Packet pktDiscardable, long timeStampUsecs, string comment = null)
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
                     while (true)
                     {
                         IReadOnlyList<Datagram> packetList = await st.FastReceiveFromAsync();
-                        Con.WriteLine("packetList = " + packetList.Count);
+
                         foreach (Datagram datagram in packetList)
                         {
                             try
@@ -242,12 +242,20 @@ namespace IPA.Cores.Basic
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex._IsCancelException() == false)
                 {
                     Dbg.Where();
                     ex._Print();
                 }
+                catch
+                {
+                }
             }
+        }
+
+        public void RegisterEmitter(PCapFileEmitter emitter)
+        {
+            base.RegisterEmitter(emitter);
         }
 
         protected override void DisposeImpl(Exception ex)
@@ -389,6 +397,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long ConvertSystemTimeToTimeStampUsec(long systemTime)
         {
+            if (systemTime <= 0) return 0;
             return (systemTime + (9L * 3600 * 1000)) * 1000L;
         }
 

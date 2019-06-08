@@ -1163,6 +1163,11 @@ namespace IPA.Cores.Helper.Basic
                 return *((uint*)ptr);
             }
         }
+
+        public static bool _IsCancelException(this Exception ex)
+        {
+            return (ex is OperationCanceledException || ex is TaskCanceledException);
+        }
     }
 }
 

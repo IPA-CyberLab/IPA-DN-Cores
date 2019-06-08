@@ -75,8 +75,8 @@ namespace IPA.Cores.Basic
 
     static partial class PacketSizeSets
     {
-        public static readonly PacketSizeSet NormalTcpIpPacket_V4 = new PacketSizeSet(14 + 4 + 24 + 24 /* Ether + VLAN + IPv4 + IP_OPT + TCP + TCP_OPT */ , 0);
-        public static readonly PacketSizeSet NormalTcpIpPacket_V6 = new PacketSizeSet(14 + 4 + 40 + 24 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
+        public static readonly PacketSizeSet NormalTcpIpPacket_V4 = new PacketSizeSet(14 + 4 + 20 + 20 + 12 /* Ether + VLAN + IPv4 + TCP + TCP_OPT */ , 0);
+        public static readonly PacketSizeSet NormalTcpIpPacket_V6 = new PacketSizeSet(14 + 4 + 40 + 20 + 12 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void UseDefault(this ref PacketSizeSet value)

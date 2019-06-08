@@ -100,17 +100,17 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetSrcAddress(ReadOnlySpan<byte> addr)
         {
-            fixed (byte* d = this.DestAddress)
+            fixed (byte* d = this.SrcAddress)
             fixed (byte* s = addr)
                 Unsafe.CopyBlock(d, s, 6);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Set(ReadOnlySpan<byte> dest, ReadOnlySpan<byte> src, EthernetProtocolId protocol)
+        public void Set(ReadOnlySpan<byte> dest, ReadOnlySpan<byte> src, EthernetProtocolId protocol_EndianSafe)
         {
             SetDestAddress(dest);
             SetSrcAddress(src);
-            this.Protocol = protocol;
+            this.Protocol = protocol_EndianSafe._Endian16();
         }
     }
 
@@ -625,6 +625,10 @@ namespace IPA.Cores.Basic
             DefaultPacketSizeSet = tcpPacketSizeSet + PacketSizeSets.PcapNgPacket;
         }
 
+        public void EmitData(ReadOnlySpan<byte> data)
+        {
+        }
+
         public void EmitConnected()
         {
             SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
@@ -638,8 +642,8 @@ namespace IPA.Cores.Basic
                     ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
                     tcp.SrcPort = Options.LocalPort._Endian16();
                     tcp.DstPort = Options.RemotePort._Endian16();
-                    tcp.SeqNumber = 0;
-                    tcp.AckNumber = 0;
+                    tcp.SeqNumber = 0._Endian32_U();
+                    tcp.AckNumber = 0._Endian32_U();
                     tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
                     tcp.Flag = TCPFlags.Syn;
                     tcp.WindowSize = 0xffff;
@@ -656,8 +660,8 @@ namespace IPA.Cores.Basic
                     ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
                     tcp.SrcPort = Options.RemotePort._Endian16();
                     tcp.DstPort = Options.LocalPort._Endian16();
-                    tcp.SeqNumber = 0;
-                    tcp.AckNumber = 1;
+                    tcp.SeqNumber = 0._Endian32_U();
+                    tcp.AckNumber = 1._Endian32_U();
                     tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
                     tcp.Flag = TCPFlags.Syn | TCPFlags.Ack;
                     tcp.WindowSize = 0xffff;
@@ -674,8 +678,8 @@ namespace IPA.Cores.Basic
                     ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
                     tcp.SrcPort = Options.LocalPort._Endian16();
                     tcp.DstPort = Options.RemotePort._Endian16();
-                    tcp.SeqNumber = 1;
-                    tcp.AckNumber = 1;
+                    tcp.SeqNumber = 1._Endian32_U();
+                    tcp.AckNumber = 1._Endian32_U();
                     tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
                     tcp.Flag = TCPFlags.Ack;
                     tcp.WindowSize = 0xffff;
@@ -693,10 +697,12 @@ namespace IPA.Cores.Basic
         {
             ref IPv4Header ip = ref p.PrependSpan<IPv4Header>();
             ip.Version = 4;
-            ip.TotalLength = (p.Length + sizeof(IPv4Header))._Endian16_U();
+            ip.HeaderLen = (byte)(sizeof(IPv4Header) / 4);
+            ip.TotalLength = p.Length._Endian16_U();
             ip.Identification = (++PacketIdSeed)._Endian16();
             ip.Flags = IPv4Flags.DontFragment;
             ip.Protocol = IPProtocolNumber.TCP;
+            ip.TimeToLive = 63;
 
             if (direction == Direction.Send)
             {

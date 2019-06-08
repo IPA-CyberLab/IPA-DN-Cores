@@ -2876,10 +2876,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class ElasticConsts
-    {
-    }
-
     ref struct ElasticSpan<T> where T : unmanaged
     {
         public const int PreAllocationUnit = 40;
