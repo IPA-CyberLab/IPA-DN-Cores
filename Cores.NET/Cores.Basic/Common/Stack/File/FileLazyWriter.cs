@@ -197,8 +197,8 @@ namespace IPA.Cores.Basic
 
         LazyBufferEmitterBase Emitter;
 
-        PipeEnd Reader;
-        PipeEnd Writer;
+        PipePoint Reader;
+        PipePoint Writer;
 
         public LazyBuffer(LazyBufferEmitterBase emitter, LazyBufferOptions options = null, CancellationToken cancel = default) : this(options, cancel)
         {
@@ -211,7 +211,7 @@ namespace IPA.Cores.Basic
 
             this.Options = options;
 
-            this.Reader = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, this.GrandCancel, Options.BufferSize);
+            this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, this.GrandCancel, Options.BufferSize);
 
             this.Writer = this.Reader.CounterPart;
         }

@@ -183,16 +183,16 @@ namespace IPA.Cores.Basic
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo LayerInfo { get; } = new LayerInfo();
 
-        public PipeEnd A_LowerSide { get; }
-        public PipeEnd B_UpperSide { get; }
+        public PipePoint A_LowerSide { get; }
+        public PipePoint B_UpperSide { get; }
 
-        public PipeEnd this[PipeEndSide side]
+        public PipePoint this[PipePointSide side]
         {
             get
             {
-                if (side == PipeEndSide.A_LowerSide)
+                if (side == PipePointSide.A_LowerSide)
                     return A_LowerSide;
-                else if (side == PipeEndSide.B_UpperSide)
+                else if (side == PipePointSide.B_UpperSide)
                     return B_UpperSide;
                 else
                     throw new ArgumentOutOfRangeException("side");
@@ -234,8 +234,8 @@ namespace IPA.Cores.Basic
                 DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
                 DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
 
-                A_LowerSide = new PipeEnd(this, PipeEndSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
-                B_UpperSide = new PipeEnd(this, PipeEndSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
+                A_LowerSide = new PipePoint(this, PipePointSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
+                B_UpperSide = new PipePoint(this, PipePointSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
 
                 A_LowerSide._InternalSetCounterPart(B_UpperSide);
                 B_UpperSide._InternalSetCounterPart(A_LowerSide);
@@ -257,14 +257,14 @@ namespace IPA.Cores.Basic
             internal InstalledLayerHolder(Action<LayerInfoBase> disposeProc, LayerInfoBase userData = null) : base(disposeProc, userData) { }
         }
 
-        internal InstalledLayerHolder _InternalInstallLayerInfo(PipeEndSide side, LayerInfoBase info, bool uninstallOnDispose)
+        internal InstalledLayerHolder _InternalInstallLayerInfo(PipePointSide side, LayerInfoBase info, bool uninstallOnDispose)
         {
             if (info == null)
                 throw new ArgumentNullException("info");
 
             lock (LayerInfoLock)
             {
-                if (side == PipeEndSide.A_LowerSide)
+                if (side == PipePointSide.A_LowerSide)
                 {
                     if (LayerInfo_A_LowerSide != null) throw new ApplicationException("LayerInfo_A_LowerSide is already installed.");
                     LayerInfo.Install(info, LayerInfo_B_UpperSide, false);
@@ -281,7 +281,7 @@ namespace IPA.Cores.Basic
                 {
                     lock (LayerInfoLock)
                     {
-                        if (side == PipeEndSide.A_LowerSide)
+                        if (side == PipePointSide.A_LowerSide)
                         {
                             Debug.Assert(LayerInfo_A_LowerSide != null);
 
@@ -348,7 +348,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PipeEndSide
+    enum PipePointSide
     {
         A_LowerSide,
         B_UpperSide,
@@ -362,18 +362,18 @@ namespace IPA.Cores.Basic
         B_UpperSide,
     }
 
-    class PipeEnd : IAsyncService
+    class PipePoint : IAsyncService
     {
         public DuplexPipe Pipe { get; }
 
-        public PipeEndSide Side { get; }
+        public PipePointSide Side { get; }
 
         public FastStreamBuffer StreamWriter { get; }
         public FastStreamBuffer StreamReader { get; }
         public FastDatagramBuffer DatagramWriter { get; }
         public FastDatagramBuffer DatagramReader { get; }
 
-        public PipeEnd CounterPart { get; private set; }
+        public PipePoint CounterPart { get; private set; }
 
         public AsyncManualResetEvent OnDisconnectedEvent { get => Pipe.OnDisconnectedEvent; }
 
@@ -387,13 +387,13 @@ namespace IPA.Cores.Basic
                 Pipe.OnDisconnected.Add(action);
         }
 
-        public static PipeEnd NewDuplexPipeAndGetOneSide(PipeEndSide createNewPipeAndReturnThisSide, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
+        public static PipePoint NewDuplexPipeAndGetOneSide(PipePointSide createNewPipeAndReturnThisSide, CancellationToken cancel = default, long? thresholdLengthStream = null, long? thresholdLengthDatagram = null)
         {
             var pipe = new DuplexPipe(cancel, thresholdLengthStream, thresholdLengthDatagram);
             return pipe[createNewPipeAndReturnThisSide];
         }
 
-        internal PipeEnd(DuplexPipe pipe, PipeEndSide side,
+        internal PipePoint(DuplexPipe pipe, PipePointSide side,
             CancelWatcher cancelWatcher,
             FastStreamBuffer streamToWrite, FastStreamBuffer streamToRead,
             FastDatagramBuffer datagramToWrite, FastDatagramBuffer datagramToRead)
@@ -406,7 +406,7 @@ namespace IPA.Cores.Basic
             this.DatagramReader = datagramToRead;
         }
 
-        internal void _InternalSetCounterPart(PipeEnd p)
+        internal void _InternalSetCounterPart(PipePoint p)
             => this.CounterPart = p;
 
         internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
@@ -433,7 +433,7 @@ namespace IPA.Cores.Basic
 
     class AttachHandle : AsyncService
     {
-        public PipeEnd PipeEnd { get; }
+        public PipePoint PipePoint { get; }
         public object UserState { get; }
         public AttachDirection Direction { get; }
 
@@ -442,11 +442,11 @@ namespace IPA.Cores.Basic
         IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
-        public AttachHandle(PipeEnd end, AttachDirection attachDirection, object userState = null) : base()
+        public AttachHandle(PipePoint end, AttachDirection attachDirection, object userState = null) : base()
         {
             try
             {
-                if (end.Side == PipeEndSide.A_LowerSide)
+                if (end.Side == PipePointSide.A_LowerSide)
                     Direction = AttachDirection.A_LowerSide;
                 else
                     Direction = AttachDirection.B_UpperSide;
@@ -459,11 +459,11 @@ namespace IPA.Cores.Basic
                 lock (end._InternalAttachHandleLock)
                 {
                     if (end._InternalCurrentAttachHandle != null)
-                        throw new ApplicationException("The PipeEnd is already attached.");
+                        throw new ApplicationException("The PipePoint is already attached.");
 
                     this.UserState = userState;
-                    this.PipeEnd = end;
-                    this.PipeEnd._InternalCurrentAttachHandle = this;
+                    this.PipePoint = end;
+                    this.PipePoint._InternalCurrentAttachHandle = this;
                 }
 
                 Leak = LeakChecker.Enter();
@@ -486,7 +486,7 @@ namespace IPA.Cores.Basic
 
                 info._InternalSetProtocolStack(protocolStack);
 
-                InstalledLayerHolder = PipeEnd.Pipe._InternalInstallLayerInfo(PipeEnd.Side, info, uninstallOnDetach);
+                InstalledLayerHolder = PipePoint.Pipe._InternalInstallLayerInfo(PipePoint.Side, info, uninstallOnDetach);
             }
         }
 
@@ -510,7 +510,7 @@ namespace IPA.Cores.Basic
                 {
                     if (receiveTimeoutProcId != 0)
                     {
-                        PipeEnd.StreamReader.EventListeners.UnregisterCallback(receiveTimeoutProcId);
+                        PipePoint.StreamReader.EventListeners.UnregisterCallback(receiveTimeoutProcId);
                         receiveTimeoutProcId = 0;
                         receiveTimeoutDetector._DisposeSafe();
                     }
@@ -523,13 +523,13 @@ namespace IPA.Cores.Basic
 
                     receiveTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
                     {
-                        if (PipeEnd.StreamReader.IsReadyToWrite() == false)
+                        if (PipePoint.StreamReader.IsReadyToWrite() == false)
                             return true;
-                        PipeEnd.Pipe.Cancel(new TimeoutException("StreamReceiveTimeout"));
+                        PipePoint.Pipe.Cancel(new TimeoutException("StreamReceiveTimeout"));
                         return false;
                     });
 
-                    receiveTimeoutProcId = PipeEnd.StreamReader.EventListeners.RegisterCallback((buffer, type, state) =>
+                    receiveTimeoutProcId = PipePoint.StreamReader.EventListeners.RegisterCallback((buffer, type, state) =>
                     {
                         if (type == FastBufferCallbackEventType.Written || type == FastBufferCallbackEventType.NonEmptyToEmpty)
                             receiveTimeoutDetector.Keep();
@@ -552,7 +552,7 @@ namespace IPA.Cores.Basic
                 {
                     if (sendTimeoutProcId != 0)
                     {
-                        PipeEnd.StreamWriter.EventListeners.UnregisterCallback(sendTimeoutProcId);
+                        PipePoint.StreamWriter.EventListeners.UnregisterCallback(sendTimeoutProcId);
                         sendTimeoutProcId = 0;
                         sendTimeoutDetector._DisposeSafe();
                     }
@@ -565,14 +565,14 @@ namespace IPA.Cores.Basic
 
                     sendTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
                     {
-                        if (PipeEnd.StreamWriter.IsReadyToRead() == false)
+                        if (PipePoint.StreamWriter.IsReadyToRead() == false)
                             return true;
 
-                        PipeEnd.Pipe.Cancel(new TimeoutException("StreamSendTimeout"));
+                        PipePoint.Pipe.Cancel(new TimeoutException("StreamSendTimeout"));
                         return false;
                     });
 
-                    sendTimeoutProcId = PipeEnd.StreamWriter.EventListeners.RegisterCallback((buffer, type, state) =>
+                    sendTimeoutProcId = PipePoint.StreamWriter.EventListeners.RegisterCallback((buffer, type, state) =>
                     {
                         //                            WriteLine($"{type}  {buffer.Length}  {buffer.IsReadyToWrite}");
                         if (type == FastBufferCallbackEventType.Read || type == FastBufferCallbackEventType.EmptyToNonEmpty)
@@ -583,7 +583,7 @@ namespace IPA.Cores.Basic
         }
 
         public PipeStream GetStream(bool autoFlush = true)
-            => PipeEnd._InternalGetStream(autoFlush);
+            => PipePoint._InternalGetStream(autoFlush);
 
         protected override void CancelImpl(Exception ex)
         {
@@ -596,9 +596,9 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            lock (PipeEnd._InternalAttachHandleLock)
+            lock (PipePoint._InternalAttachHandleLock)
             {
-                PipeEnd._InternalCurrentAttachHandle = null;
+                PipePoint._InternalCurrentAttachHandle = null;
             }
         }
 
@@ -615,9 +615,9 @@ namespace IPA.Cores.Basic
     class PipeStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
-        public PipeEnd End { get; private set; }
+        public PipePoint End { get; private set; }
 
-        public PipeStream(PipeEnd end, bool autoFlush = true)
+        public PipeStream(PipePoint end, bool autoFlush = true)
         {
             end.CheckCanceled();
 
@@ -1143,17 +1143,17 @@ namespace IPA.Cores.Basic
         Datagram = 2,
     }
 
-    abstract class PipeEndAsyncObjectWrapperBase : AsyncServiceWithMainLoop
+    abstract class PipePointAsyncObjectWrapperBase : AsyncServiceWithMainLoop
     {
-        public PipeEnd PipeEnd { get; }
+        public PipePoint PipePoint { get; }
         public abstract PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public ExceptionQueue ExceptionQueue { get => PipeEnd.ExceptionQueue; }
-        public LayerInfo LayerInfo { get => PipeEnd.LayerInfo; }
+        public ExceptionQueue ExceptionQueue { get => PipePoint.ExceptionQueue; }
+        public LayerInfo LayerInfo { get => PipePoint.LayerInfo; }
 
-        public PipeEndAsyncObjectWrapperBase(PipeEnd pipeEnd, CancellationToken cancel = default) : base(cancel)
+        public PipePointAsyncObjectWrapperBase(PipePoint pipePoint, CancellationToken cancel = default) : base(cancel)
         {
-            PipeEnd = AddDirectDisposeLink(pipeEnd);
+            PipePoint = AddDirectDisposeLink(pipePoint);
         }
 
         protected Task StartBaseAsyncLoops()
@@ -1205,7 +1205,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var reader = PipeEnd.StreamReader;
+                    var reader = PipePoint.StreamReader;
                     while (true)
                     {
                         bool stateChanged;
@@ -1248,7 +1248,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var writer = PipeEnd.StreamWriter;
+                    var writer = PipePoint.StreamWriter;
                     while (true)
                     {
                         bool stateChanged;
@@ -1296,7 +1296,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var reader = PipeEnd.DatagramReader;
+                    var reader = PipePoint.DatagramReader;
                     while (true)
                     {
                         bool stateChanged;
@@ -1339,7 +1339,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var writer = PipeEnd.DatagramWriter;
+                    var writer = PipePoint.DatagramWriter;
                     while (true)
                     {
                         bool stateChanged;
@@ -1382,13 +1382,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipeEndSocketWrapper : PipeEndAsyncObjectWrapperBase
+    class PipePointSocketWrapper : PipePointAsyncObjectWrapperBase
     {
         public PalSocket Socket { get; }
         public int RecvTmpBufferSize { get; private set; }
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public PipeEndSocketWrapper(PipeEnd pipeEnd, PalSocket socket, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipePointSocketWrapper(PipePoint pipePoint, PalSocket socket, CancellationToken cancel = default) : base(pipePoint, cancel)
         {
             this.Socket = socket;
             SupportedDataTypes = (Socket.SocketType == SocketType.Stream) ? PipeSupportedDataTypes.Stream : PipeSupportedDataTypes.Datagram;
@@ -1421,7 +1421,7 @@ namespace IPA.Cores.Basic
 
         static readonly int MaxStreamBufferLength = CoresConfig.PipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndSocketWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointSocketWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1480,7 +1480,7 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
 
-        AsyncBulkReceiver<Datagram, PipeEndSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, PipeEndSocketWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<Datagram, PipePointSocketWrapper> DatagramBulkReceiver = new AsyncBulkReceiver<Datagram, PipePointSocketWrapper>(async (me, cancel) =>
         {
             Memory<byte> tmp = me.FastMemoryAllocatorForDatagram.Reserve(65536);
 
@@ -1518,14 +1518,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipeEndStreamWrapper : PipeEndAsyncObjectWrapperBase
+    class PipePointStreamWrapper : PipePointAsyncObjectWrapperBase
     {
         public Stream Stream { get; }
         public int RecvTmpBufferSize { get; private set; }
         public const int SendTmpBufferSize = 65536;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public PipeEndStreamWrapper(PipeEnd pipeEnd, Stream stream, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipePointStreamWrapper(PipePoint pipePoint, Stream stream, CancellationToken cancel = default) : base(pipePoint, cancel)
         {
             this.Stream = stream;
             SupportedDataTypes = PipeSupportedDataTypes.Stream;
@@ -1569,7 +1569,7 @@ namespace IPA.Cores.Basic
 
         static readonly int MaxStreamBufferLength = CoresConfig.PipeConfig.MaxStreamBufferLength;
 
-        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipeEndStreamWrapper>(async (me, cancel) =>
+        AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointStreamWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointStreamWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
@@ -1625,7 +1625,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipeEndDuplexPipeWrapper : PipeEndAsyncObjectWrapperBase
+    class PipePointDuplexPipeWrapper : PipePointAsyncObjectWrapperBase
     {
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
@@ -1635,7 +1635,7 @@ namespace IPA.Cores.Basic
         readonly PipeWriter PipeToWrite;
         readonly PipeReader PipeToRead;
 
-        public PipeEndDuplexPipeWrapper(PipeEnd pipeEnd, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(pipeEnd, cancel)
+        public PipePointDuplexPipeWrapper(PipePoint pipePoint, IDuplexPipe duplexPipe, CancellationToken cancel = default) : base(pipePoint, cancel)
         {
             this.SupportedDataTypes = PipeSupportedDataTypes.Stream;
 
@@ -1902,16 +1902,16 @@ namespace IPA.Cores.Basic
     class DatagramExchangeSide : IDisposable
     {
         public int NumPipes { get; }
-        public PipeEndSide Side { get; }
+        public PipePointSide Side { get; }
         public DatagramExchange Exchange { get; }
-        public IReadOnlyList<PipeEnd> PipeEndList { get; }
+        public IReadOnlyList<PipePoint> PipePointList { get; }
 
-        internal DatagramExchangeSide(EnsureInternal yes, DatagramExchange exchange, PipeEndSide side, IReadOnlyList<PipeEnd> pipeEndList)
+        internal DatagramExchangeSide(EnsureInternal yes, DatagramExchange exchange, PipePointSide side, IReadOnlyList<PipePoint> pipePointList)
         {
             this.Side = side;
             this.Exchange = exchange;
-            this.PipeEndList = pipeEndList;
-            this.NumPipes = this.PipeEndList.Count;
+            this.PipePointList = pipePointList;
+            this.NumPipes = this.PipePointList.Count;
         }
 
         public void Dispose() => Dispose(true);
@@ -1919,15 +1919,15 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            foreach (PipeEnd pe in this.PipeEndList)
+            foreach (PipePoint pe in this.PipePointList)
             {
                 pe.Dispose();
             }
         }
 
-        public PipeEnd this[int index]
+        public PipePoint this[int index]
         {
-            get => this.PipeEndList[index];
+            get => this.PipePointList[index];
         }
     }
 
@@ -1946,20 +1946,20 @@ namespace IPA.Cores.Basic
             this.MaxQueueLength = maxQueueLength ?? CoresConfig.DatagramExchange.DefaultMaxCount;
             if (this.MaxQueueLength <= 0) this.MaxQueueLength = int.MaxValue;
 
-            List<PipeEnd> List_A = new List<PipeEnd>();
-            List<PipeEnd> List_B = new List<PipeEnd>();
+            List<PipePoint> List_A = new List<PipePoint>();
+            List<PipePoint> List_B = new List<PipePoint>();
 
             for (int i = 0; i < numPipes; i++)
             {
-                PipeEnd pe_A = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, grandCancel, null, this.MaxQueueLength);
-                PipeEnd pe_B = pe_A.CounterPart;
+                PipePoint pe_A = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, grandCancel, null, this.MaxQueueLength);
+                PipePoint pe_B = pe_A.CounterPart;
 
                 List_A.Add(pe_A);
                 List_B.Add(pe_B);
             }
 
-            this.A = new DatagramExchangeSide(EnsureInternal.Yes, this, PipeEndSide.A_LowerSide, List_A);
-            this.B = new DatagramExchangeSide(EnsureInternal.Yes, this, PipeEndSide.B_UpperSide, List_B);
+            this.A = new DatagramExchangeSide(EnsureInternal.Yes, this, PipePointSide.A_LowerSide, List_A);
+            this.B = new DatagramExchangeSide(EnsureInternal.Yes, this, PipePointSide.B_UpperSide, List_B);
         }
 
         public void Dispose() => Dispose(true);

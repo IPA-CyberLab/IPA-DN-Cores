@@ -72,8 +72,8 @@ namespace IPA.Cores.Basic
 
         TcpIpSystem Net => Options.TcpIpSystem;
 
-        protected abstract Task<PipeEnd> SubscribeImplAsync();
-        protected abstract Task UnsubscribeImplAsync(PipeEnd pipe);
+        protected abstract Task<PipePoint> SubscribeImplAsync();
+        protected abstract Task UnsubscribeImplAsync(PipePoint pipe);
 
         public TelnetStreamWatcherBase(TelnetStreamWatcherOptions options)
         {
@@ -98,11 +98,11 @@ namespace IPA.Cores.Basic
                             return;
                         }
 
-                        using (var pipeEnd = await SubscribeImplAsync())
+                        using (var pipePoint = await SubscribeImplAsync())
                         {
                             try
                             {
-                                using (var pipeStub = pipeEnd.GetNetAppProtocolStub())
+                                using (var pipeStub = pipePoint.GetNetAppProtocolStub())
                                 using (var srcStream = pipeStub.GetStream())
                                 {
                                     await srcStream.CopyToAsync(destStream, sock.GrandCancel);
@@ -110,9 +110,9 @@ namespace IPA.Cores.Basic
                             }
                             finally
                             {
-                                await UnsubscribeImplAsync(pipeEnd);
+                                await UnsubscribeImplAsync(pipePoint);
 
-                                await pipeEnd.CleanupAsync(new DisconnectedException());
+                                await pipePoint.CleanupAsync(new DisconnectedException());
                             }
                         }
                     }
@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override async Task<PipeEnd> SubscribeImplAsync()
+        protected override async Task<PipePoint> SubscribeImplAsync()
         {
             await Config.SyncWithStorageAsync(HiveSyncFlags.LoadFromFile, true);
 
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic
             return LocalLogRouter.BufferedLogRoute.Subscribe();
         }
 
-        protected override Task UnsubscribeImplAsync(PipeEnd pipe)
+        protected override Task UnsubscribeImplAsync(PipePoint pipe)
         {
             LocalLogRouter.BufferedLogRoute.Unsubscribe(pipe);
             return Task.CompletedTask;

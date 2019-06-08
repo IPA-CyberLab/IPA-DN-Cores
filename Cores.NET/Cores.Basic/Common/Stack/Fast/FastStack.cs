@@ -61,12 +61,12 @@ namespace IPA.Cores.Basic
 
     abstract class NetAppStubBase : NetStackBase
     {
-        protected PipeEnd Lower { get; }
+        protected PipePoint Lower { get; }
         protected AttachHandle LowerAttach { get; private set; }
 
         public new NetAppStubOptionsBase Options => (NetAppStubOptionsBase)base.Options;
 
-        public NetAppStubBase(PipeEnd lower, NetAppStubOptionsBase options, CancellationToken cancel = default)
+        public NetAppStubBase(PipePoint lower, NetAppStubOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
             try
@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
     {
         public new NetAppStubOptions Options => (NetAppStubOptions)base.Options;
 
-        public NetAppStub(PipeEnd lower, CancellationToken cancel = default, NetAppStubOptions options = null)
+        public NetAppStub(PipePoint lower, CancellationToken cancel = default, NetAppStubOptions options = null)
             : base(lower, options ?? new NetAppStubOptions(), cancel)
         {
         }
@@ -112,8 +112,8 @@ namespace IPA.Cores.Basic
                 return StreamCache;
             }
         }
-
-        public PipeEnd GetPipeEnd()
+        
+        public PipePoint GetPipePoint()
         {
             Lower.CheckCanceled();
 
@@ -146,22 +146,22 @@ namespace IPA.Cores.Basic
 
     abstract class NetProtocolBase : NetStackBase
     {
-        protected PipeEnd Upper { get; }
+        protected PipePoint Upper { get; }
 
-        protected internal PipeEnd _InternalUpper { get => Upper; }
+        protected internal PipePoint _InternalUpper { get => Upper; }
 
         protected AttachHandle UpperAttach { get; private set; }
 
         public new NetProtocolOptionsBase Options => (NetProtocolOptionsBase)base.Options;
 
-        public NetProtocolBase(PipeEnd upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetProtocolBase(PipePoint upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
             try
             {
                 if (upper == null)
                 {
-                    upper = PipeEnd.NewDuplexPipeAndGetOneSide(PipeEndSide.A_LowerSide, cancel);
+                    upper = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
                 }
 
                 UpperAttach = upper.Attach(AttachDirection.A_LowerSide);
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
     {
         public new NetBottomProtocolOptionsBase Options => (NetBottomProtocolOptionsBase)base.Options;
 
-        public NetBottomProtocolStubBase(PipeEnd upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetBottomProtocolStubBase(PipePoint upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
     }
@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
 
         public new NetTcpProtocolOptionsBase Options => (NetTcpProtocolOptionsBase)base.Options;
 
-        public NetTcpProtocolStubBase(PipeEnd upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetTcpProtocolStubBase(PipePoint upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
 
@@ -284,11 +284,11 @@ namespace IPA.Cores.Basic
         public new NetPalTcpProtocolOptions Options => (NetPalTcpProtocolOptions)base.Options;
 
         PalSocket ConnectedSocket = null;
-        PipeEndSocketWrapper SocketWrapper = null;
+        PipePointSocketWrapper SocketWrapper = null;
 
         PalSocket ListeningSocket = null;
 
-        public NetPalTcpProtocolStub(PipeEnd upper = null, NetPalTcpProtocolOptions options = null, CancellationToken cancel = default)
+        public NetPalTcpProtocolStub(PipePoint upper = null, NetPalTcpProtocolOptions options = null, CancellationToken cancel = default)
             : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel)
         {
         }
@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic
         void InitSocketWrapperFromSocket(PalSocket s)
         {
             this.ConnectedSocket = s;
-            this.SocketWrapper = new PipeEndSocketWrapper(Upper, s, this.GrandCancel);
+            this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             UpperAttach.SetLayerInfo(new LayerInfo()
@@ -393,7 +393,7 @@ namespace IPA.Cores.Basic
 
         public NetProtocolBase Stack { get; }
         public DuplexPipe Pipe { get; }
-        public PipeEnd UpperEnd { get; }
+        public PipePoint UpperEnd { get; }
         public LayerInfo Info { get => this.Pipe.LayerInfo; }
         public string Guid { get; } = Str.NewGuid();
         public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
@@ -553,14 +553,14 @@ namespace IPA.Cores.Basic
 
     abstract class NetMiddleProtocolStackBase : NetProtocolBase
     {
-        protected PipeEnd Lower { get; }
+        protected PipePoint Lower { get; }
 
         CriticalSection LockObj = new CriticalSection();
         protected AttachHandle LowerAttach { get; private set; }
 
         public new NetMiddleProtocolOptionsBase Options => (NetMiddleProtocolOptionsBase)base.Options;
 
-        public NetMiddleProtocolStackBase(PipeEnd lower, PipeEnd upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetMiddleProtocolStackBase(PipePoint lower, PipePoint upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
             try
@@ -600,12 +600,12 @@ namespace IPA.Cores.Basic
             public PalX509Certificate RemoteCertificate { get; internal set; }
         }
 
-        public NetSslProtocolStack(PipeEnd lower, PipeEnd upper, NetSslProtocolOptions options,
+        public NetSslProtocolStack(PipePoint lower, PipePoint upper, NetSslProtocolOptions options,
             CancellationToken cancel = default) : base(lower, upper, options ?? new NetSslProtocolOptions(), cancel) { }
 
         PipeStream LowerStream = null;
         PalSslStream SslStream = null;
-        PipeEndStreamWrapper Wrapper = null;
+        PipePointStreamWrapper Wrapper = null;
 
         public async Task SslStartServerAsync(PalSslServerAuthenticationOptions sslServerAuthOption, CancellationToken cancel = default)
         {
@@ -639,7 +639,7 @@ namespace IPA.Cores.Basic
                         this.SslStream = ssl;
                         this.LowerStream = lowerStream;
 
-                        this.Wrapper = new PipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                        this.Wrapper = new PipePointStreamWrapper(UpperAttach.PipePoint, ssl, CancelWatcher.CancelToken);
 
                         AddIndirectDisposeLink(this.Wrapper); // Do not add Wrapper with AddChild(). It makes cyclic reference.
                     }
@@ -689,7 +689,7 @@ namespace IPA.Cores.Basic
                         this.SslStream = ssl;
                         this.LowerStream = lowerStream;
 
-                        this.Wrapper = new PipeEndStreamWrapper(UpperAttach.PipeEnd, ssl, CancelWatcher.CancelToken);
+                        this.Wrapper = new PipePointStreamWrapper(UpperAttach.PipePoint, ssl, CancelWatcher.CancelToken);
 
                         AddIndirectDisposeLink(this.Wrapper); // Do not add Wrapper with AddChild(). It makes cyclic reference.
                     }

@@ -170,8 +170,6 @@ namespace IPA.Cores.Basic
         readonly ConnSock Sock;
         readonly PipeScheduler Scheduler;
 
-        //FastPipeEndDuplexPipeWrapper Wrapper = null;
-
         public KestrelStackConnection(ConnSock sock, PipeScheduler scheduler)
         {
             this.Sock = sock;
@@ -190,7 +188,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var wrapper = new PipeEndDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
+                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
                 {
                     // Now wait for complete
                     await wrapper.MainLoopToWaitComplete;
