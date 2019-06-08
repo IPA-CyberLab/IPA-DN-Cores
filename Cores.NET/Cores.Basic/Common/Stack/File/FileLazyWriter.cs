@@ -292,8 +292,9 @@ namespace IPA.Cores.Basic
                             await Emitter.FlushAsync();
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        ex._Debug();
                         numFailed++;
 
                         if (cancel.IsCancellationRequested == false)

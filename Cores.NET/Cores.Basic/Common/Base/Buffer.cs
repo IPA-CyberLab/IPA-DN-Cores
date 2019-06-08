@@ -2884,22 +2884,24 @@ namespace IPA.Cores.Basic
 
     ref struct ElasticSpan<T> where T : unmanaged
     {
-        public int PreAllocationSize { get; }
-        public int PostAllocationSize { get; }
+        public int MaxPreAllocationSize { get; }
+        public int MaxPostAllocationSize { get; }
 
         Span<T> Buffer;
         public int Length { get; private set; }
-        int PreSize;
-        int PostSize;
+        public int PreAllocSize { get; private set; }
+        public int PostAllocSize { get; private set; }
+        public int NumRealloc {get; private set; }
 
-        public ElasticSpan(Span<T> initialContents = default, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
+        public ElasticSpan(Span<T> initialContents = default, int maxPreAllocationSize = DefaultSize, int maxPostAllocationSize = DefaultSize)
         {
-            this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
-            this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
+            this.MaxPreAllocationSize = maxPreAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
+            this.MaxPostAllocationSize = maxPostAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
             this.Buffer = default;
             this.Length = default;
-            this.PreSize = default;
-            this.PostSize = default;
+            this.PreAllocSize = default;
+            this.PostAllocSize = default;
+            this.NumRealloc = 0;
 
             if (initialContents.IsEmpty == false)
             {
@@ -2908,14 +2910,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public ElasticSpan(EnsureCopy yes, ReadOnlySpan<T> initialContentsToCopy, int preAllocationSize = DefaultSize, int postAllocationSize = DefaultSize)
+        public ElasticSpan(EnsureCopy yes, ReadOnlySpan<T> initialContentsToCopy, int maxPreAllocationSize = DefaultSize, int maxPostAllocationSize = DefaultSize)
         {
-            this.PreAllocationSize = preAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
-            this.PostAllocationSize = postAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
+            this.MaxPreAllocationSize = maxPreAllocationSize._DefaultSize(ElasticConsts.DefaultPreAllocationSize);
+            this.MaxPostAllocationSize = maxPostAllocationSize._DefaultSize(ElasticConsts.DefaultPostAllocationSize);
             this.Buffer = default;
             this.Length = default;
-            this.PreSize = default;
-            this.PostSize = default;
+            this.PreAllocSize = default;
+            this.PostAllocSize = default;
+            this.NumRealloc = 0;
 
             if (initialContentsToCopy.IsEmpty == false)
             {
@@ -2926,15 +2929,15 @@ namespace IPA.Cores.Basic
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Buffer.Slice(PreSize, Length);
+            get => Buffer.Slice(PreAllocSize, Length);
         }
 
         public void Clear()
         {
             Buffer = Span<T>.Empty;
             Length = 0;
-            PreSize = 0;
-            PostSize = 0;
+            PreAllocSize = 0;
+            PostAllocSize = 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2952,31 +2955,31 @@ namespace IPA.Cores.Basic
             if (size == 0) return;
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PreSize < size)
+            if (PreAllocSize < size)
                 EnsurePreSize(size);
 
-            fixed (T* dst = &Buffer[PreSize - size])
+            fixed (T* dst = &Buffer[PreAllocSize - size])
             {
                 Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
             }
 
-            PreSize -= size;
+            PreAllocSize -= size;
             Length += size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Prepend(int size)
         {
-            if (size == 0) return ref this.Buffer[PreSize];
+            if (size == 0) return ref this.Buffer[PreAllocSize];
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PreSize < size)
+            if (PreAllocSize < size)
                 EnsurePreSize(size);
 
-            PreSize -= size;
+            PreAllocSize -= size;
             Length += size;
 
-            return ref this.Buffer[PreSize];
+            return ref this.Buffer[PreAllocSize];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2994,31 +2997,31 @@ namespace IPA.Cores.Basic
             if (size == 0) return;
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PostSize < size)
+            if (PostAllocSize < size)
                 EnsurePostSize(size);
 
-            fixed (T* dst = &Buffer[PreSize + Length])
+            fixed (T* dst = &Buffer[PreAllocSize + Length])
             {
                 Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
             }
 
-            PostSize -= size;
+            PostAllocSize -= size;
             Length += size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Append(int size)
         {
-            if (size == 0) return ref this.Buffer[PreSize + Length];
+            if (size == 0) return ref this.Buffer[PreAllocSize + Length];
             if (size < 0) throw new ArgumentOutOfRangeException("size");
 
-            if (PostSize < size)
+            if (PostAllocSize < size)
                 EnsurePostSize(size);
 
-            PostSize -= size;
+            PostAllocSize -= size;
             Length += size;
 
-            return ref this.Buffer[PreSize + Length];
+            return ref this.Buffer[PreAllocSize + Length];
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -3041,12 +3044,14 @@ namespace IPA.Cores.Basic
                 return;
             }
 
+            if (Length >= 1) this.NumRealloc++;
+
             int newDataLength = Length + size;
-            int newBufferLength = PreSize + newDataLength + PostSize;
+            int newBufferLength = PreAllocSize + newDataLength + PostAllocSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
-            data.CopyTo(newBuffer.Slice(PreSize + pos, size));
+            Buffer.Slice(PreAllocSize, pos).CopyTo(newBuffer.Slice(PreAllocSize, pos));
+            Buffer.Slice(PreAllocSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreAllocSize + pos + size, Length - pos));
+            data.CopyTo(newBuffer.Slice(PreAllocSize + pos, size));
             Buffer = newBuffer;
             Length = newDataLength;
         }
@@ -3071,13 +3076,15 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            int newDataLength = Length + size;
-            int newBufferLength = PreSize + newDataLength + PostSize;
-            Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+            if (Length >= 1) this.NumRealloc++;
 
-            fixed (T* dst = &newBuffer[PreSize + pos])
+            int newDataLength = Length + size;
+            int newBufferLength = PreAllocSize + newDataLength + PostAllocSize;
+            Span<T> newBuffer = new T[newBufferLength];
+            Buffer.Slice(PreAllocSize, pos).CopyTo(newBuffer.Slice(PreAllocSize, pos));
+            Buffer.Slice(PreAllocSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreAllocSize + pos + size, Length - pos));
+
+            fixed (T* dst = &newBuffer[PreAllocSize + pos])
                 Unsafe.CopyBlock((void*)dst, (void*)data, (uint)(dataLength * sizeof(T)));
 
             Buffer = newBuffer;
@@ -3101,11 +3108,13 @@ namespace IPA.Cores.Basic
                 return ref Append(size);
             }
 
+            if (Length >= 1) this.NumRealloc++;
+
             int newDataLength = Length + size;
-            int newBufferLength = PreSize + newDataLength + PostSize;
+            int newBufferLength = PreAllocSize + newDataLength + PostAllocSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, pos).CopyTo(newBuffer.Slice(PreSize, pos));
-            Buffer.Slice(PreSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreSize + pos + size, Length - pos));
+            Buffer.Slice(PreAllocSize, pos).CopyTo(newBuffer.Slice(PreAllocSize, pos));
+            Buffer.Slice(PreAllocSize + pos, Length - pos).CopyTo(newBuffer.Slice(PreAllocSize + pos + size, Length - pos));
             Buffer = newBuffer;
             Length = newDataLength;
 
@@ -3115,34 +3124,38 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void EnsurePreSize(int newPreSize)
         {
-            if (PreSize >= newPreSize) return;
-            newPreSize = newPreSize + PreAllocationSize;
+            if (PreAllocSize >= newPreSize) return;
+            newPreSize = newPreSize + MaxPreAllocationSize;
 
             // Expand the post size by this chance
-            int newPostSize = Math.Max(PostSize, PostAllocationSize);
+            int newPostSize = Math.Max(PostAllocSize, MaxPostAllocationSize);
+
+            if (Length >= 1) this.NumRealloc++;
 
             int newBufferLength = newPreSize + Length + newPostSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
-            PreSize = newPreSize;
-            PostSize = newPostSize;
+            Buffer.Slice(PreAllocSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
+            PreAllocSize = newPreSize;
+            PostAllocSize = newPostSize;
             Buffer = newBuffer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void EnsurePostSize(int newPostSize)
         {
-            if (PostSize >= newPostSize) return;
-            newPostSize = newPostSize + PostAllocationSize;
+            if (PostAllocSize >= newPostSize) return;
+            newPostSize = newPostSize + MaxPostAllocationSize;
 
             // Expand the pre size by this change
-            int newPreSize = Math.Max(PreSize, PreAllocationSize);
+            int newPreSize = Math.Max(PreAllocSize, MaxPreAllocationSize);
+
+            if (Length >= 1) this.NumRealloc++;
 
             int newBufferLength = newPreSize + Length + newPostSize;
             Span<T> newBuffer = new T[newBufferLength];
-            Buffer.Slice(PreSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
-            PostSize = newPostSize;
-            PreSize = newPreSize;
+            Buffer.Slice(PreAllocSize, Length).CopyTo(newBuffer.Slice(newPreSize, Length));
+            PostAllocSize = newPostSize;
+            PreAllocSize = newPreSize;
             Buffer = newBuffer;
         }
     }

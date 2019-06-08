@@ -455,7 +455,11 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                await cancel._WaitUntilCanceledAsync((int)next_wait);
+                if (await cancel._WaitUntilCanceledAsync((int)next_wait))
+                {
+                    // Canceled
+                    return false;
+                }
             }
         }
 

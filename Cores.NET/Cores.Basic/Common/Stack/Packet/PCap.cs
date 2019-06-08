@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic
 
     static partial class PacketSizeSets
     {
-        public static readonly PacketSizeSet PcapNgPacket = new PacketSizeSet(Unsafe.SizeOf<PCapEnhancedPacketBlock>(), 4);
+        public static readonly PacketSizeSet PcapNgPacket = new PacketSizeSet(Unsafe.SizeOf<PCapEnhancedPacketBlock>(), 4 + 6 /* size + padding * 2 */ );
     }
 
     class PCapFileEmitterOptions : LazyBufferFileEmitterOptions
@@ -144,7 +144,7 @@ namespace IPA.Cores.Basic
 
     class PCapFileEmitter : LazyBufferFileEmitter
     {
-        public PCapFileEmitter(LazyBufferFileEmitterOptions options) : base(options)
+        public PCapFileEmitter(PCapFileEmitterOptions options) : base(options)
         {
         }
     }
@@ -181,21 +181,6 @@ namespace IPA.Cores.Basic
             pkt._PCapEncapsulateEnhancedPacketBlock(0, timeStampUsecs, comment);
 
             base.Write(pkt.Span._CloneMemory());
-        }
-
-        public Packet NewPacketForPCap(PacketSizeSet sizeSetForInnerPacket, int commentLength = 0)
-        {
-            PacketSizeSet sizeSet = sizeSetForInnerPacket;
-            commentLength = Math.Min(commentLength, 10000);
-            if (commentLength >= 1)
-            {
-                sizeSet += (8 + commentLength * 3);
-            }
-            sizeSet += PacketSizeSets.PcapNgPacket;
-
-            Packet pkt = new Packet(sizeSet);
-
-            return pkt;
         }
     }
 
@@ -345,6 +330,21 @@ namespace IPA.Cores.Basic
             ret.Write(interfaceDescriptionPacket.Span);
 
             return ret;
+        }
+
+        public static Packet NewEmptyPacketForPCap(PacketSizeSet sizeSetForInnerPacket, int commentLength = 0)
+        {
+            PacketSizeSet sizeSet = sizeSetForInnerPacket;
+            commentLength = Math.Min(commentLength, 10000);
+            if (commentLength >= 1)
+            {
+                sizeSet += (8 + commentLength * 3);
+            }
+            sizeSet += PacketSizeSets.PcapNgPacket;
+
+            Packet pkt = new Packet(sizeSet);
+
+            return pkt;
         }
     }
 }

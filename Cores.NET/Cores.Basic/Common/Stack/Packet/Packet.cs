@@ -75,14 +75,15 @@ namespace IPA.Cores.Basic
 
     static partial class PacketSizeSets
     {
-        public static readonly PacketSizeSet NormalTcpIpPacket = new PacketSizeSet(14 + 4 + 40 + 24 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
+        public static readonly PacketSizeSet NormalTcpIpPacket_V4 = new PacketSizeSet(14 + 4 + 24 + 24 /* Ether + VLAN + IPv4 + IP_OPT + TCP + TCP_OPT */ , 0);
+        public static readonly PacketSizeSet NormalTcpIpPacket_V6 = new PacketSizeSet(14 + 4 + 40 + 24 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void UseDefault(this ref PacketSizeSet value)
         {
             if (value.IsDefault)
             {
-                value = PacketSizeSets.NormalTcpIpPacket;
+                value = PacketSizeSets.NormalTcpIpPacket_V6;
             }
         }
     }
@@ -100,12 +101,15 @@ namespace IPA.Cores.Basic
         public int PinHead { get; private set; }
         public int PinTail { get; private set; }
         public int Length { get { int ret = checked(PinTail - PinHead); Debug.Assert(ret >= 0); return ret; } }
+        public int MemStat_NumRealloc => Elastic.NumRealloc;
+        public int MemStat_PreAllocSize => Elastic.PreAllocSize;
+        public int MemStat_PostAllocSize => Elastic.PostAllocSize;
 
         public Packet(PacketSizeSet sizeSet, Span<byte> initialContents = default)
         {
             sizeSet.UseDefault();
 
-            this.Elastic = new ElasticSpan<byte>(initialContents);
+            this.Elastic = new ElasticSpan<byte>(initialContents, sizeSet.PreSize, sizeSet.PostSize);
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }
@@ -114,7 +118,7 @@ namespace IPA.Cores.Basic
         {
             sizeSet.UseDefault();
 
-            this.Elastic = new ElasticSpan<byte>(EnsureCopy.Yes, initialContentsToCopy);
+            this.Elastic = new ElasticSpan<byte>(EnsureCopy.Yes, initialContentsToCopy, sizeSet.PreSize, sizeSet.PostSize);
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }

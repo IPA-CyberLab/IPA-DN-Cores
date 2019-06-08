@@ -106,7 +106,10 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Packet p = new Packet(default, "Helly"._GetBytes_Ascii());
+            Packet p = PCapUtil.NewEmptyPacketForPCap(PacketSizeSets.NormalTcpIpPacket_V4);
+
+            ref byte payloadDest = ref p.PrependSpan<byte>(5);
+            "Hello"._GetBytes_Ascii().CopyTo(new Span<byte>(Unsafe.AsPointer(ref payloadDest), 5));
 
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
@@ -164,12 +167,20 @@ namespace IPA.TestDev
 
             PacketSpan<EthernetHeader> ether = vlan.PrependSpanWithData<EthernetHeader>(ref p, in etherHeaderData);
 
-            var spanBuffer = PCapUtil.GenerateStandardPCapNgHeader();
+            /*var spanBuffer = PCapUtil.GenerateStandardPCapNgHeader();
             p._PCapEncapsulateEnhancedPacketBlock(0, 0, "Hello");
             spanBuffer.SeekToEnd();
             spanBuffer.Write(p.Span);
 
-            Lfs.WriteDataToFile(@"c:\tmp\190604\test1.pcapng", spanBuffer.Span.ToArray(), FileOperationFlags.AutoCreateDirectory);
+            Lfs.WriteDataToFile(@"c:\tmp\190604\test1.pcapng", spanBuffer.Span.ToArray(), FileOperationFlags.AutoCreateDirectory);*/
+
+            using (PCapBuffer pcap = new PCapBuffer(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190607\pcap1.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
+                appendMode: false))))
+            {
+                pcap.WritePacket(ref p, 0, null);
+
+                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
+            }
         }
 
         public static unsafe void Test__()
