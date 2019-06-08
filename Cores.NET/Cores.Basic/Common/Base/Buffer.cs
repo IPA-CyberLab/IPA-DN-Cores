@@ -54,6 +54,17 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultSegmentSize = 10_000_000;
             //public static readonly Copenhagen<int> DefaultSegmentSize = 10;
         }
+
+        public static partial class SpanBasedQueueSettings
+        {
+            public static readonly Copenhagen<int> DefaultInitialQueueLength = 8;
+            public static readonly Copenhagen<int> DefaultMaxQueueLength = 16000;
+        }
+    }
+
+    static class BufferConsts
+    {
+        public const int InitialBufferSize = 128;
     }
 
     ref struct SpanBuffer<T>
@@ -68,7 +79,7 @@ namespace IPA.Cores.Basic
         public Span<T> SpanBefore { get => Span.Slice(0, CurrentPosition); }
         public Span<T> SpanAfter { get => Span.Slice(CurrentPosition); }
 
-        public SpanBuffer(int size = 0) : this(new T[size]) { }
+        public SpanBuffer(int initialBufferSize) : this(new T[initialBufferSize]) { }
 
         public SpanBuffer(Span<T> baseSpan)
         {
@@ -269,18 +280,14 @@ namespace IPA.Cores.Basic
         {
             if (InternalSpan.Length >= newSize) return;
 
-            int newInternalSize = InternalSpan.Length;
-            while (newInternalSize < newSize)
-                newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(newSize, BufferConsts.InitialBufferSize));
 
             InternalSpan = InternalSpan._ReAlloc(newInternalSize, this.Length);
         }
 
         public void OptimizeInternalBufferSize()
         {
-            int newInternalSize = 128;
-            while (newInternalSize < this.Length)
-                newInternalSize = checked(newInternalSize * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(this.Length, BufferConsts.InitialBufferSize));
 
             if (this.InternalSpan.Length > newInternalSize)
                 InternalSpan = InternalSpan._ReAlloc(newInternalSize, this.Length);
@@ -296,9 +303,10 @@ namespace IPA.Cores.Basic
                 this.CurrentPosition = this.Length;
         }
 
-        public void Clear()
+        public void Clear(int initialBufferSize = 0)
         {
-            InternalSpan = new Span<T>();
+            initialBufferSize = Math.Max(0, initialBufferSize);
+            InternalSpan = new T[initialBufferSize];
             CurrentPosition = 0;
             Length = 0;
         }
@@ -773,9 +781,7 @@ namespace IPA.Cores.Basic
         {
             if (InternalBuffer.Length >= newSize) return;
 
-            int newInternalSize = InternalBuffer.Length;
-            while (newInternalSize < newSize)
-                newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(newSize, BufferConsts.InitialBufferSize));
 
             InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
             InternalSpan = InternalBuffer.Span;
@@ -783,9 +789,7 @@ namespace IPA.Cores.Basic
 
         public void OptimizeInternalBufferSize()
         {
-            int newInternalSize = 128;
-            while (newInternalSize < this.Length)
-                newInternalSize = checked(newInternalSize * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(this.Length, BufferConsts.InitialBufferSize));
 
             if (this.InternalBuffer.Length > newInternalSize)
             {
@@ -1506,9 +1510,7 @@ namespace IPA.Cores.Basic
         {
             if (InternalBuffer.Length >= newSize) return;
 
-            int newInternalSize = InternalBuffer.Length;
-            while (newInternalSize < newSize)
-                newInternalSize = checked(Math.Max(newInternalSize, 128) * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(newSize, BufferConsts.InitialBufferSize));
 
             if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
 
@@ -1519,9 +1521,7 @@ namespace IPA.Cores.Basic
         {
             if (IsPinLocked()) throw new ApplicationException("Memory pin is locked.");
 
-            int newInternalSize = 128;
-            while (newInternalSize < this.Length)
-                newInternalSize = checked(newInternalSize * 2);
+            int newInternalSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(this.Length, BufferConsts.InitialBufferSize));
 
             if (this.InternalBuffer.Length > newInternalSize)
                 InternalBuffer = InternalBuffer._ReAlloc(newInternalSize, this.Length);
@@ -3157,6 +3157,57 @@ namespace IPA.Cores.Basic
             PostAllocSize = newPostSize;
             PreAllocSize = newPreSize;
             Buffer = newBuffer;
+        }
+    }
+
+    ref struct SpanBasedQueue<T>
+    {
+        public int MaxQueueLength { get; }
+        public int InitialBufferLength { get; }
+
+        public int Count { get; private set; }
+
+        int BufferSize;
+        Span<T> Buffer;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SpanBasedQueue(int initialBufferLength, int maxQueueLength = DefaultSize)
+        {
+            this.MaxQueueLength = maxQueueLength._DefaultSize(CoresConfig.SpanBasedQueueSettings.DefaultMaxQueueLength);
+            this.MaxQueueLength = Math.Max(0, this.MaxQueueLength);
+
+            this.InitialBufferLength = initialBufferLength._DefaultSize(CoresConfig.SpanBasedQueueSettings.DefaultInitialQueueLength);
+
+            this.BufferSize = this.InitialBufferLength;
+            this.Buffer = new T[this.BufferSize];
+            this.Count = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void Enqueue(T item) /* 5 ns */
+        {
+            if (this.MaxQueueLength >= 1 && this.Count >= this.MaxQueueLength) return;
+
+            if (BufferSize <= this.Count)
+            {
+                BufferSize = Util.GetGreaterOrEqualOptimiedSizePowerOf2(Math.Max(this.Count + 1, this.InitialBufferLength));
+                this.Buffer = this.Buffer._ReAlloc(BufferSize);
+            }
+
+            this.Buffer[this.Count] = item;
+            this.Count++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> DequeueAll()
+        {
+            var ret = this.Buffer.Slice(0, this.Count);
+
+            this.Buffer = default;
+            this.BufferSize = 0;
+            this.Count = 0;
+
+            return ret;
         }
     }
 }

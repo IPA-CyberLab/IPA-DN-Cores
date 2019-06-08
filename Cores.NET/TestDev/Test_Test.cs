@@ -106,6 +106,11 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
+            while (true)
+            {
+                Util.GetGreaterOrEqualOptimiedSizePowerOf2(Con.ReadLine()._ToInt())._Print();
+            }
+
             Packet p = PCapUtil.NewEmptyPacketForPCap(PacketSizeSets.NormalTcpIpPacket_V4, 3);
 
             ref byte payloadDest = ref p.PrependSpan<byte>(5);

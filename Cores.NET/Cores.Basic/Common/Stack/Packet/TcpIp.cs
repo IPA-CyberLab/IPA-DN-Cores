@@ -578,12 +578,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    unsafe abstract class TcpPseudoPacketGeneratorBase : IDisposable
+    unsafe class TcpPseudoPacketGenerator : IDisposable
     {
         public TcpPseudoPacketGeneratorOptions Options { get; }
 
         public ReadOnlyMemory<byte> LocalMacAddress { get; }
         public ReadOnlyMemory<byte> RemoteMacAddress { get; }
+
+        public DatagramExchangePoint Output { get; }
 
         readonly PacketSizeSet DefaultPacketSizeSet;
 
@@ -594,10 +596,10 @@ namespace IPA.Cores.Basic
 
         ulong PacketIdSeed;
 
-        protected abstract void EmitPacket(ref Packet p);
-
-        public TcpPseudoPacketGeneratorBase(TcpPseudoPacketGeneratorOptions options)
+        public TcpPseudoPacketGenerator(DatagramExchangePoint output, TcpPseudoPacketGeneratorOptions options)
         {
+            this.Output = output;
+
             this.Options = options;
 
             this.LocalMacAddress = IPUtil.GenerateRandomLocalMacAddress();
@@ -670,6 +672,10 @@ namespace IPA.Cores.Basic
             }
 
             EmitPacket(ref p);
+        }
+
+        void EmitPacket(ref Packet p)
+        {
         }
 
         public void Dispose() => Dispose(true);

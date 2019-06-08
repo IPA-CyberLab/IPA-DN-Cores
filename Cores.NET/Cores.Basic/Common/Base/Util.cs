@@ -2648,6 +2648,33 @@ namespace IPA.Cores.Basic
                 return Compute32bitMagicHashFast((void*)ptr, span.Length * sizeof(T));
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetNextPowerOf2(ulong n)
+        {
+            --n;
+            n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16; n |= n >> 32;
+            return n + 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint GetNextPowerOf2(uint n)
+        {
+            --n;
+            n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16;
+            return n + 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetGreaterOrEqualOptimiedSizePowerOf2(int equalOrLargeThan)
+        {
+            if (equalOrLargeThan >= 1073741824) return 2147483647;
+            if (equalOrLargeThan <= 0) return 1;
+            uint n = (uint)equalOrLargeThan;
+            --n;
+            n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16;
+            return (int)(n + 1);
+        }
     }
 
 

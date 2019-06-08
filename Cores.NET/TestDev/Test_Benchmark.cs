@@ -236,18 +236,12 @@ namespace IPA.TestDev
 
             }), enabled: true, priority: 190528)
 
-            .Add(new MicroBenchmark($"Generic Test", Benchmark_CountForFast, count =>
+            .Add(new MicroBenchmark($"Generic Test", Benchmark_CountForNormal, count =>
             {
                 unsafe
                 {
                     for (int c = 0; c < count; c++)
                     {
-                        var x = FastTick64.DateTimeOffsetUtcNow_Fast;
-                        //var y = DateTimeOffset.UtcNow;
-                        //var z = Time.SystemTime64;
-                        //var a = FastTick64.SystemTimeNow_Fast;
-                        //var a = Time.Tick64ToTime64(FastTick64.Now);
-                        //var a = FastTick64.Now;
                     }
                 }
 

@@ -45,17 +45,10 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
-    {
-        public static partial class DatagramExchange
-        {
-            public static readonly Copenhagen<int> DefaultMaxCount = 16000;
-        }
-    }
-
     class LayerInfo
     {
         SharedHierarchy<LayerInfoBase> Hierarchy = new SharedHierarchy<LayerInfoBase>();
@@ -1899,14 +1892,14 @@ namespace IPA.Cores.Basic
             => this.Write(new byte[] { value }, 0, 1);
     }
 
-    class DatagramExchangeSide : IDisposable
+    class DatagramExchangePoint : IDisposable
     {
         public int NumPipes { get; }
         public PipePointSide Side { get; }
         public DatagramExchange Exchange { get; }
         public IReadOnlyList<PipePoint> PipePointList { get; }
 
-        internal DatagramExchangeSide(EnsureInternal yes, DatagramExchange exchange, PipePointSide side, IReadOnlyList<PipePoint> pipePointList)
+        internal DatagramExchangePoint(EnsureInternal yes, DatagramExchange exchange, PipePointSide side, IReadOnlyList<PipePoint> pipePointList)
         {
             this.Side = side;
             this.Exchange = exchange;
@@ -1919,22 +1912,23 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            foreach (PipePoint pe in this.PipePointList)
+            foreach (PipePoint pp in this.PipePointList)
             {
-                pe.Dispose();
+                pp.Dispose();
             }
         }
 
         public PipePoint this[int index]
         {
-            get => this.PipePointList[index];
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => this.PipePointList[(int)((uint)index % (uint)NumPipes)];
         }
     }
 
     class DatagramExchange : IDisposable
     {
-        public DatagramExchangeSide A { get; }
-        public DatagramExchangeSide B { get; }
+        public DatagramExchangePoint A { get; }
+        public DatagramExchangePoint B { get; }
         public int NumPipes { get; }
         public int MaxQueueLength { get; }
 
@@ -1943,7 +1937,7 @@ namespace IPA.Cores.Basic
             if (numPipes <= 0) numPipes = Env.NumCpus;
 
             this.NumPipes = numPipes;
-            this.MaxQueueLength = maxQueueLength ?? CoresConfig.DatagramExchange.DefaultMaxCount;
+            this.MaxQueueLength = maxQueueLength ?? CoresConfig.SpanBasedQueueSettings.DefaultMaxQueueLength;
             if (this.MaxQueueLength <= 0) this.MaxQueueLength = int.MaxValue;
 
             List<PipePoint> List_A = new List<PipePoint>();
@@ -1958,8 +1952,8 @@ namespace IPA.Cores.Basic
                 List_B.Add(pe_B);
             }
 
-            this.A = new DatagramExchangeSide(EnsureInternal.Yes, this, PipePointSide.A_LowerSide, List_A);
-            this.B = new DatagramExchangeSide(EnsureInternal.Yes, this, PipePointSide.B_UpperSide, List_B);
+            this.A = new DatagramExchangePoint(EnsureInternal.Yes, this, PipePointSide.A_LowerSide, List_A);
+            this.B = new DatagramExchangePoint(EnsureInternal.Yes, this, PipePointSide.B_UpperSide, List_B);
         }
 
         public void Dispose() => Dispose(true);
