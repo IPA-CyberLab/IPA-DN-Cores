@@ -166,7 +166,7 @@ namespace IPA.Cores.Basic
             if (comment != null && comment.Length >= 1)
             {
                 comment._TruncStr(10000);
-                sizeSet += (8 + comment.Length * 3);
+                sizeSet += new PacketSizeSet(0, 8 + comment.Length * 3);
             }
 
             Packet pkt = new Packet(sizeSet, EnsureCopy.Yes, srcPacketData);
@@ -338,7 +338,7 @@ namespace IPA.Cores.Basic
             commentLength = Math.Min(commentLength, 10000);
             if (commentLength >= 1)
             {
-                sizeSet += (8 + commentLength * 3);
+                sizeSet += new PacketSizeSet(0, 8 + commentLength * 3);
             }
             sizeSet += PacketSizeSets.PcapNgPacket;
 

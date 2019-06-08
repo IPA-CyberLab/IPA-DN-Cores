@@ -106,7 +106,7 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            Packet p = PCapUtil.NewEmptyPacketForPCap(PacketSizeSets.NormalTcpIpPacket_V4);
+            Packet p = PCapUtil.NewEmptyPacketForPCap(PacketSizeSets.NormalTcpIpPacket_V4, 3);
 
             ref byte payloadDest = ref p.PrependSpan<byte>(5);
             "Hello"._GetBytes_Ascii().CopyTo(new Span<byte>(Unsafe.AsPointer(ref payloadDest), 5));
@@ -145,7 +145,7 @@ namespace IPA.TestDev
             v4Header.Checksum = v4Header.CalcIPv4Checksum();
 
             //tcpHeader.Checksum = v4Header.CalcTcpUdpPseudoChecksum(Unsafe.AsPointer(ref tcpHeader), ip.GetPayloadSize(ref p));
-            tcpHeader.Checksum = tcpHeader.CalcTcpUdpPseudoChecksum(ref v4Header, "Helly"._GetBytes_Ascii());
+            tcpHeader.Checksum = tcpHeader.CalcTcpUdpPseudoChecksum(ref v4Header, "Hello"._GetBytes_Ascii());
 
             PacketSpan <VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
                 new VLanHeader()
@@ -177,7 +177,7 @@ namespace IPA.TestDev
             using (PCapBuffer pcap = new PCapBuffer(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190607\pcap1.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
                 appendMode: false))))
             {
-                pcap.WritePacket(ref p, 0, null);
+                pcap.WritePacket(ref p, 0, "あいう");
 
                 Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
             }
