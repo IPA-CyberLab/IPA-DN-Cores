@@ -106,10 +106,25 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-            while (true)
+
+            if (true)
             {
-                Util.GetGreaterOrEqualOptimiedSizePowerOf2(Con.ReadLine()._ToInt())._Print();
+                using (PCapPacketRecorder r = new PCapPacketRecorder(new TcpPseudoPacketGeneratorOptions(TcpDirectionType.Client, IPAddress.Parse("192.168.0.1"), 1, IPAddress.Parse("192.168.0.2"), 2)))
+                {
+                    r.TcpGen.EmitConnected();
+
+                    while (true)
+                    {
+                        var x = r.DequeueAll(out long _);
+
+                        //x.Count._Print();
+
+                        NoOp();
+                    }
+                }
+                return;
             }
+
 
             Packet p = PCapUtil.NewEmptyPacketForPCap(PacketSizeSets.NormalTcpIpPacket_V4, 3);
 
@@ -152,7 +167,7 @@ namespace IPA.TestDev
             //tcpHeader.Checksum = v4Header.CalcTcpUdpPseudoChecksum(Unsafe.AsPointer(ref tcpHeader), ip.GetPayloadSize(ref p));
             tcpHeader.Checksum = tcpHeader.CalcTcpUdpPseudoChecksum(ref v4Header, "Hello"._GetBytes_Ascii());
 
-            PacketSpan <VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
+            PacketSpan<VLanHeader> vlan = ip.PrependSpanWithData<VLanHeader>(ref p,
                 new VLanHeader()
                 {
                     VLanId_EndianSafe = (ushort)1234,
@@ -163,7 +178,7 @@ namespace IPA.TestDev
             {
                 Protocol = EthernetProtocolId.VLan._Endian16(),
             };
-            
+
             etherHeaderData.SrcAddress[0] = 0x00; etherHeaderData.SrcAddress[1] = 0xAC; etherHeaderData.SrcAddress[2] = 0x01;
             etherHeaderData.SrcAddress[3] = 0x23; etherHeaderData.SrcAddress[4] = 0x45; etherHeaderData.SrcAddress[5] = 0x47;
 
@@ -185,7 +200,7 @@ namespace IPA.TestDev
                 //pcap.WritePacket(ref p, 0, "あいう");
                 pcap.WritePacket(p.Span, 0, "ねこ");
 
-//                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
+                //                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
             }
         }
 

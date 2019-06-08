@@ -568,13 +568,15 @@ namespace IPA.Cores.Basic
             if (direction.EqualsAny(TcpDirectionType.Client, TcpDirectionType.Server) == false)
                 throw new ArgumentException("direction");
 
-            if (LocalIP.AddressFamily != RemoteIP.AddressFamily)
+            if (localIP.AddressFamily != remoteIP.AddressFamily)
                 throw new ArgumentException("LocalIP.AddressFamily != RemoteIP.AddressFamily");
 
             this.LocalIP = localIP;
             this.LocalPort = (ushort)localPort;
             this.RemoteIP = remoteIP;
             this.RemotePort = (ushort)remotePort;
+
+            this.TcpDirection = direction;
         }
     }
 
@@ -621,26 +623,75 @@ namespace IPA.Cores.Basic
             }
 
             DefaultPacketSizeSet = tcpPacketSizeSet + PacketSizeSets.PcapNgPacket;
+        }
+
+        public void EmitConnected()
+        {
+            SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
 
             if (Options.TcpDirection == TcpDirectionType.Client)
             {
-                Packet syn = new Packet(DefaultPacketSizeSet);
-                ref TCPHeader synHeader = ref syn.AppendSpan<TCPHeader>();
-                synHeader.SrcPort = Options.LocalPort._Endian16();
-                synHeader.DstPort = Options.RemotePort._Endian16();
-                synHeader.SeqNumber = 0;
-                synHeader.AckNumber = 0;
-                synHeader.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
-                synHeader.Flag = TCPFlags.Syn;
-                synHeader.WindowSize = 0xffff;
+                // SYN
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
 
-                EmitTcpPacket(ref syn, ref synHeader, default, Direction.Send);
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.LocalPort._Endian16();
+                    tcp.DstPort = Options.RemotePort._Endian16();
+                    tcp.SeqNumber = 0;
+                    tcp.AckNumber = 0;
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Syn;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Send);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
+
+                // SYN + ACK
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
+
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.RemotePort._Endian16();
+                    tcp.DstPort = Options.LocalPort._Endian16();
+                    tcp.SeqNumber = 0;
+                    tcp.AckNumber = 1;
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Syn | TCPFlags.Ack;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Recv);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
+
+                // ACK
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
+
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.LocalPort._Endian16();
+                    tcp.DstPort = Options.RemotePort._Endian16();
+                    tcp.SeqNumber = 1;
+                    tcp.AckNumber = 1;
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Ack;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Send);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
             }
+
+            this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void EmitTcpPacket(ref Packet p, ref TCPHeader tcp, Span<byte> tcpPayload, Direction direction)
+        void PrependIPHeader(ref Packet p, ref TCPHeader tcp, Span<byte> tcpPayload, Direction direction)
         {
-            ref IPv4Header ip = ref p.AppendSpan<IPv4Header>();
+            ref IPv4Header ip = ref p.PrependSpan<IPv4Header>();
             ip.Version = 4;
             ip.TotalLength = (p.Length + sizeof(IPv4Header))._Endian16_U();
             ip.Identification = (++PacketIdSeed)._Endian16();
@@ -661,7 +712,7 @@ namespace IPA.Cores.Basic
             tcp.Checksum = tcp.CalcTcpUdpPseudoChecksum(ref ip, tcpPayload);
             ip.Checksum = ip.CalcIPv4Checksum();
 
-            ref EthernetHeader ether = ref p.AppendSpan<EthernetHeader>();
+            ref EthernetHeader ether = ref p.PrependSpan<EthernetHeader>();
             if (direction == Direction.Send)
             {
                 ether.Set(this.RemoteMacAddress.Span, this.LocalMacAddress.Span, ProtocolId);
@@ -670,12 +721,6 @@ namespace IPA.Cores.Basic
             {
                 ether.Set(this.LocalMacAddress.Span, this.RemoteMacAddress.Span, ProtocolId);
             }
-
-            EmitPacket(ref p);
-        }
-
-        void EmitPacket(ref Packet p)
-        {
         }
 
         public void Dispose() => Dispose(true);
@@ -683,6 +728,7 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.Output._DisposeSafe();
         }
     }
 }

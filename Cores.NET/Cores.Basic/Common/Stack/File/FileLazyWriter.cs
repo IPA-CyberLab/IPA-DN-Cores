@@ -200,12 +200,7 @@ namespace IPA.Cores.Basic
         PipePoint Reader;
         PipePoint Writer;
 
-        public LazyBuffer(LazyBufferEmitterBase emitter, LazyBufferOptions options = null, CancellationToken cancel = default) : this(options, cancel)
-        {
-            RegisterEmitter(emitter);
-        }
-
-        public LazyBuffer(LazyBufferOptions options = null, CancellationToken cancel = default) : base(cancel)
+        public LazyBuffer(LazyBufferEmitterBase initialEmitter = null, LazyBufferOptions options = null, CancellationToken cancel = default) : base(cancel)
         {
             if (options == null) options = new LazyBufferOptions();
 
@@ -214,6 +209,11 @@ namespace IPA.Cores.Basic
             this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, this.GrandCancel, Options.BufferSize);
 
             this.Writer = this.Reader.CounterPart;
+
+            if (initialEmitter != null)
+            {
+                RegisterEmitter(initialEmitter);
+            }
         }
 
         Once RegisterOnce;
@@ -243,7 +243,7 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        public IReadOnlyList<ReadOnlyMemory<byte>> DequeueAll(out long totalSize, int defragmentWriteBlockSize)
+        public IReadOnlyList<ReadOnlyMemory<byte>> DequeueAll(out long totalSize, int defragmentWriteBlockSize = 0)
         {
             IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = this.Reader.StreamReader.DequeueAllWithLock(out totalSize);
 

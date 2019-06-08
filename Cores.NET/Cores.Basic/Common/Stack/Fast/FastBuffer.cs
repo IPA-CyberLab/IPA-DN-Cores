@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1)
+        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false)
         {
             sizeToRead = Math.Max(sizeToRead, 1);
 
@@ -132,7 +132,18 @@ namespace IPA.Cores.Basic
 
             while (reader.IsReadyToRead(sizeToRead) == false)
             {
-                if (FastTick64.Now >= timeoutTick) throw new TimeoutException();
+                if (FastTick64.Now >= timeoutTick)
+                {
+                    if (noTimeoutException == false)
+                    {
+                        throw new TimeoutException();
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
                 cancel.ThrowIfCancellationRequested();
 
                 await TaskUtil.WaitObjectsAsync(
@@ -151,7 +162,7 @@ namespace IPA.Cores.Basic
         void Clear();
         void Enqueue(T item);
         void EnqueueAll(ReadOnlySpan<T> itemList);
-        void EnqueueAllWithLock(ReadOnlySpan<T> itemList);
+        void EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false);
         IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueAll(out long totalReadSize);
@@ -653,10 +664,13 @@ namespace IPA.Cores.Basic
                 EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
         }
 
-        public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
+        public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = false)
         {
             lock (LockObj)
                 EnqueueAll(itemList);
+
+            if (completeWrite)
+                CompleteWrite();
         }
 
         public void EnqueueAll(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
@@ -1400,10 +1414,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void EnqueueAllWithLock(ReadOnlySpan<T> itemList)
+        public void EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false)
         {
             lock (LockObj)
                 EnqueueAll(itemList);
+
+            if (completeWrite)
+            {
+                this.CompleteWrite();
+            }
         }
 
         public void EnqueueAll(ReadOnlySpan<T> itemList)

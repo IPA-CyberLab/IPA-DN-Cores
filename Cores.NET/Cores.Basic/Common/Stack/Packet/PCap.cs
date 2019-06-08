@@ -151,12 +151,8 @@ namespace IPA.Cores.Basic
 
     class PCapBuffer : LazyBuffer
     {
-        public PCapBuffer(LazyBufferOptions options = null, CancellationToken cancel = default) : base(options, cancel)
-        {
-        }
-
-        public PCapBuffer(PCapFileEmitter emitter, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
-            : base(emitter, new LazyBufferOptions(discardMode, bufferSize._DefaultSize(CoresConfig.PCapSettings.DefaultBufferSize)), cancel)
+        public PCapBuffer(PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+            : base(initialEmitter, new LazyBufferOptions(discardMode, bufferSize._DefaultSize(CoresConfig.PCapSettings.DefaultBufferSize)), cancel)
         {
         }
 
@@ -169,9 +165,15 @@ namespace IPA.Cores.Basic
                 sizeSet += new PacketSizeSet(0, 8 + comment.Length * 3);
             }
 
-            Packet pkt = new Packet(sizeSet, EnsureCopy.Yes, srcPacketData);
+            Packet pkt = new Packet(sizeSet, srcPacketData);
 
             WritePacket(ref pkt, timeStampUsecs, comment);
+        }
+
+        public void WritePacket(Datagram datagramDiscardable, string comment = null)
+        {
+            Packet pkt = datagramDiscardable.ToPacket();
+            WritePacket(ref pkt, datagramDiscardable.TimeStamp, comment);
         }
 
         public void WritePacket(ref Packet pktDiscardable, long timeStampUsecs, string comment = null)
@@ -184,8 +186,83 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PCapPacketRecorder
+    class PCapPacketRecorder : PCapBuffer
     {
+        DatagramExchange Exchange;
+        DatagramExchangePoint MyPoint;
+
+        public TcpPseudoPacketGenerator TcpGen { get; }
+
+        Task MainLoop;
+
+        public PCapPacketRecorder(TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+            : base(initialEmitter, bufferSize, discardMode, cancel)
+        {
+            try
+            {
+                Exchange = new DatagramExchange(1);
+
+                MyPoint = Exchange.B;
+
+                DatagramExchangePoint yourPoint = Exchange.A;
+
+                this.TcpGen = new TcpPseudoPacketGenerator(yourPoint, tcpGenOptions);
+
+                MainLoop = RecvMainLoopAsync()._LeakCheck();
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        async Task RecvMainLoopAsync()
+        {
+            FastDatagramBuffer r = MyPoint[0].DatagramReader;
+            using (var stub = MyPoint[0].GetNetAppProtocolStub())
+            using (var st = stub.GetStream())
+            {
+                try
+                {
+                    while (true)
+                    {
+                        IReadOnlyList<Datagram> packetList = await st.FastReceiveFromAsync();
+                        Con.WriteLine("packetList = " + packetList.Count);
+                        foreach (Datagram datagram in packetList)
+                        {
+                            try
+                            {
+                                base.WritePacket(datagram);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Dbg.Where();
+                    ex._Print();
+                }
+            }
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                TcpGen._DisposeSafe();
+                Exchange._DisposeSafe();
+                MainLoop._TryWait();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
     }
 
     static class PCapUtil

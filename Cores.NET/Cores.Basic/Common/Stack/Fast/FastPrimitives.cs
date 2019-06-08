@@ -60,7 +60,12 @@ namespace IPA.Cores.Basic
 
     class Datagram
     {
-        public Memory<byte> Data;
+        Memory<byte> InternalBuffer;
+        int InternalStart;
+        int InternalSize;
+
+        public Memory<byte> Data => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
+
         public EndPoint EndPoint;
         public DatagramFlag Flag;
         public long TimeStamp;
@@ -70,20 +75,33 @@ namespace IPA.Cores.Basic
         // For UDP
         public Datagram(Memory<byte> data, EndPoint udpEndPoint, DatagramFlag flag = 0)
         {
-            Data = data;
+            this.InternalBuffer = data;
+            this.InternalStart = 0;
+            this.InternalSize = data.Length;
+
             EndPoint = udpEndPoint;
             Flag = flag;
         }
 
         // For Ethenet
-        public Datagram(Memory<byte> data, long ethernetTimeStamp = 0, DatagramFlag flag = 0)
+        public Datagram(in ElasticSpan<byte> elasticSpan, long ethernetTimeStamp = 0, DatagramFlag flag = 0)
         {
             if (ethernetTimeStamp <= 0) ethernetTimeStamp = Time.SystemTimeNow_Fast;
 
-            Data = data;
             Flag = flag;
             TimeStamp = ethernetTimeStamp;
+
+            this.InternalBuffer = elasticSpan.InternalBuffer._CloneMemory();
+            this.InternalStart = elasticSpan.PreAllocSize;
+            this.InternalSize = elasticSpan.Length;
         }
+
+        public ElasticSpan<byte> ToElasticSpan()
+        {
+            return new ElasticSpan<byte>(EnsureSpecial.Yes, this.InternalBuffer.Span, this.InternalStart, this.InternalSize);
+        }
+
+        public Packet ToPacket() => new Packet(this);
     }
 
     class FastLinkedListNode<T>

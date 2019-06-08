@@ -2553,7 +2553,7 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
-        public static IReadOnlyList<ReadOnlyMemory<T>> DefragmentMemoryArrays<T>(IEnumerable<ReadOnlyMemory<T>> srcDataList, int minBlockSize)
+        public static IReadOnlyList<ReadOnlyMemory<T>> DefragmentMemoryArrays<T>(IEnumerable<ReadOnlyMemory<T>> srcDataList, int minBlockSize = 0)
         {
             minBlockSize = Math.Max(minBlockSize, 1);
 
@@ -5175,7 +5175,19 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    enum EnsureCtor
+    {
+        Yes = 0,
+    }
+
+    [Flags]
     enum EnsureCopy
+    {
+        Yes = 0,
+    }
+
+    [Flags]
+    enum EnsureSpecial
     {
         Yes = 0,
     }

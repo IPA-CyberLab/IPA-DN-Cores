@@ -461,8 +461,9 @@ namespace IPA.Cores.Basic
 
                 Leak = LeakChecker.Enter();
             }
-            catch
+            catch (Exception ex)
             {
+                ex._Debug();
                 this._DisposeSafe();
                 throw;
             }
@@ -589,9 +590,12 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            lock (PipePoint._InternalAttachHandleLock)
+            if (PipePoint != null)
             {
-                PipePoint._InternalCurrentAttachHandle = null;
+                lock (PipePoint._InternalAttachHandleLock)
+                {
+                    PipePoint._InternalCurrentAttachHandle = null;
+                }
             }
         }
 
@@ -1932,9 +1936,9 @@ namespace IPA.Cores.Basic
         public int NumPipes { get; }
         public int MaxQueueLength { get; }
 
-        public DatagramExchange(CancellationToken grandCancel = default, int? maxQueueLength = null, int numPipes = 0)
+        public DatagramExchange(int numPipes, CancellationToken grandCancel = default, int? maxQueueLength = null)
         {
-            if (numPipes <= 0) numPipes = Env.NumCpus;
+            if (numPipes <= 0) throw new ArgumentOutOfRangeException("numPipes <= 0");
 
             this.NumPipes = numPipes;
             this.MaxQueueLength = maxQueueLength ?? CoresConfig.SpanBasedQueueSettings.DefaultMaxQueueLength;

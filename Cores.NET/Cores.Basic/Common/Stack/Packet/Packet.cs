@@ -105,20 +105,18 @@ namespace IPA.Cores.Basic
         public int MemStat_PreAllocSize => Elastic.PreAllocSize;
         public int MemStat_PostAllocSize => Elastic.PostAllocSize;
 
-        public Packet(PacketSizeSet sizeSet, Span<byte> initialContents = default)
+        public Packet(Datagram datagram)
         {
-            sizeSet.UseDefault();
-
-            this.Elastic = new ElasticSpan<byte>(initialContents, sizeSet.PreSize, sizeSet.PostSize);
+            this.Elastic = datagram.ToElasticSpan();
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }
 
-        public Packet(PacketSizeSet sizeSet, EnsureCopy yes, ReadOnlySpan<byte> initialContentsToCopy)
+        public Packet(PacketSizeSet sizeSet, ReadOnlySpan<byte> initialContentsToCopy = default)
         {
             sizeSet.UseDefault();
 
-            this.Elastic = new ElasticSpan<byte>(EnsureCopy.Yes, initialContentsToCopy, sizeSet.PreSize, sizeSet.PostSize);
+            this.Elastic = new ElasticSpan<byte>(initialContentsToCopy, sizeSet);
             this.PinHead = 0;
             this.PinTail = this.Elastic.Length;
         }
@@ -477,6 +475,11 @@ namespace IPA.Cores.Basic
             }
 
             return pos;
+        }
+
+        public Datagram ToDatagram(long timeStamp = 0, DatagramFlag flags = DatagramFlag.None)
+        {
+            return new Datagram(in this.Elastic, timeStamp, flags);
         }
     }
 
