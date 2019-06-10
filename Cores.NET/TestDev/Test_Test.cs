@@ -70,25 +70,13 @@ namespace IPA.TestDev
         public int C;
     }
 
-    class CapTest : FastStreamBufferCaptureBase<byte>
-    {
-        public CapTest(FastStreamBuffer<byte> target, CancellationToken cancel = default) : base(target, cancel)
-        {
-        }
-
-        protected override void CaptureCallbackImpl(long tick, FastBufferSegment<ReadOnlyMemory<byte>>[] segments, long totalSize)
-        {
-            Con.WriteLine($"Captured: {totalSize}");
-        }
-    }
-
     static class EnumTestClass
     {
-        public static int GetValue<TKey>(TKey src) where TKey : Enum
+        public static int GetValue<TKey>(TKey src) where TKey : unmanaged, Enum
         {
             return src.GetHashCode();
         }
-        public static unsafe int GetValue2<TKey>(TKey src) where TKey : Enum
+        public static unsafe int GetValue2<TKey>(TKey src) where TKey : unmanaged, Enum
         {
             void* ptr = Unsafe.AsPointer(ref src);
             return *((int*)ptr);

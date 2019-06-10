@@ -1134,8 +1134,8 @@ namespace IPA.Cores.Basic
         public bool SetSInt64(string key, long value) => Set(key, value);
         public long GetSInt64(string key, long defaultValue = 0) => Get(key, defaultValue);
 
-        public bool SetEnum<T>(string key, T value) where T : Enum => SetStr(key, value.ToString());
-        public T GetEnum<T>(string key, T defaultValue = default) where T : Enum
+        public bool SetEnum<T>(string key, T value) where T : unmanaged, Enum => SetStr(key, value.ToString());
+        public T GetEnum<T>(string key, T defaultValue = default) where T : unmanaged, Enum
         {
             string str = GetStr(key);
             if (str._IsEmpty()) return defaultValue;

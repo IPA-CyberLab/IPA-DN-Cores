@@ -392,7 +392,7 @@ namespace IPA.Cores.Basic
             {
                 await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                using (NetSock sock = new NetSock(tcp))
+                using (ConnSock sock = new ConnSock(tcp))
                 {
                     NetAppStub app = sock.GetNetAppProtocolStub();
 

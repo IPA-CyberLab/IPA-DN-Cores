@@ -740,12 +740,12 @@ namespace IPA.Cores.Helper.Basic
             return ((value1 & value2) == 0) ? false : true;
         }
 
-        public static T ParseAsDefault<T>(this T defaultValue, string str, bool exactOnly = false, bool noMatchError = false) where T : Enum
+        public static T ParseAsDefault<T>(this T defaultValue, string str, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
         
-        public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : Enum
+        public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
@@ -803,6 +803,18 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6, T v7, T v8, T v9, T v10) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T[] GetEnumValuesList<T>(this T sampleValue) where T : unmanaged, Enum
+            => Util.GetEnumValuesList<T>();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T GetMaxEnumValue<T>(this T sampleValue) where T : unmanaged, Enum
+            => Util.GetMaxEnumValue<T>();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetMaxEnumValueSInt32<T>(this T sampleValue) where T : unmanaged, Enum
+            => Util.GetMaxEnumValueSInt32<T>();
 
         public static Exception _GetSingleException(this Exception ex)
         {

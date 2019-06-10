@@ -123,7 +123,7 @@ namespace IPA.TestDev
         public int A, B, C;
     }
 
-    class TestClass2<TKey> where TKey : Enum
+    class TestClass2<TKey> where TKey : unmanaged, Enum
     {
         public long GetValue(TKey src)
         {

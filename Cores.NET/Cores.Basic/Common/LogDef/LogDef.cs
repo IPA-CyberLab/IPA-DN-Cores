@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
 
     class LogDefIPEndPoints
     {
-        public bool IsServerMode = false;
+        public TcpDirectionType Direction = TcpDirectionType.Client;
         public string LocalIP = null;
         public int LocalPort = 0;
         public string RemoteIP = null;

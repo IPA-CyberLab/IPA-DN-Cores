@@ -281,17 +281,26 @@ namespace IPA.Cores.Basic
 
         readonly CriticalSection LockObj = new CriticalSection();
 
-        long lastReadTail = long.MinValue;
+        long[] LastReadTailList;
 
         public PCapPipePointStreamRecorder(PipePoint targetPoint, TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default) : base(tcpGenOptions, initialEmitter, bufferSize, discardMode, cancel)
         {
             this.TargetPoint = targetPoint;
+
+            this.LastReadTailList = new long[Direction.Recv.GetMaxEnumValueSInt32() + 1];
+
+            for (int i = 0; i < LastReadTailList.Length; i++)
+                LastReadTailList[i] = long.MinValue;
 
             TcpGen.EmitConnected();
 
             EventRegister_Send = this.TargetPoint.StreamWriter.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Send);
             EventRegister_Recv = this.TargetPoint.StreamReader.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Recv);
         }
+
+        Once[] FinishedFlags = new Once[Direction.Recv.GetMaxEnumValueSInt32() + 1];
+
+        Once FinishedOrReset;
 
         void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object state)
         {
@@ -302,9 +311,9 @@ namespace IPA.Cores.Basic
             {
                 lock (LockObj)
                 {
-                    long readStart = Math.Max(lastReadTail, target.PinHead);
+                    long readStart = Math.Max(LastReadTailList[(int)direction], target.PinHead);
                     long readEnd = target.PinTail;
-                    lastReadTail = readStart;
+                    LastReadTailList[(int)direction] = readEnd;
 
                     if ((readEnd - readStart) >= 1)
                     {
@@ -321,8 +330,23 @@ namespace IPA.Cores.Basic
             {
                 if (target.IsDisconnected)
                 {
-                    TcpGen.EmitFinish(direction);
+                    Dbg.Where();
+                    if (FinishedFlags[(int)direction].IsFirstCall())
+                    {
+                        if (FinishedOrReset.IsFirstCall())
+                        {
+                            TcpGen.EmitFinish(direction);
+                        }
+                    }
                 }
+            }
+        }
+
+        public void EmitReset()
+        {
+            if (FinishedOrReset.IsFirstCall())
+            {
+                TcpGen.EmitReset(Direction.Send);
             }
         }
 
@@ -330,6 +354,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                TcpGen.EmitReset(Direction.Send);
+
                 EventRegister_Send._DisposeSafe();
                 EventRegister_Recv._DisposeSafe();
             }
@@ -342,16 +368,21 @@ namespace IPA.Cores.Basic
 
     class PCapConnSockRecorder : PCapPipePointStreamRecorder
     {
-        public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+        public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(targetSock.UpperPoint, GetTcpPseudoPacketGeneratorOptions(targetSock), initialEmitter, bufferSize, discardMode, cancel)
         {
         }
 
         static TcpPseudoPacketGeneratorOptions GetTcpPseudoPacketGeneratorOptions(ConnSock targetSock)
         {
-            var info = targetSock.EndPointInfo;
+            LogDefIPEndPoints info = targetSock.EndPointInfo;
 
-            return new TcpPseudoPacketGeneratorOptions(info.IsServerMode ? TcpDirectionType.Server : TcpDirectionType.Client,
+            if (targetSock is SslSock)
+            {
+                // Overwrite the port numbers
+            }
+
+            return new TcpPseudoPacketGeneratorOptions(info.Direction,
                 IPAddress.Parse(info.LocalIP), info.LocalPort, IPAddress.Parse(info.RemoteIP), info.RemotePort);
         }
     }

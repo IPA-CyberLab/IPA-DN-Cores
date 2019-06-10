@@ -813,6 +813,7 @@ namespace IPA.Cores.Basic
 
             if (Options.TcpDirection == TcpDirectionType.Client)
             {
+                // TCP Client
                 // SYN
                 {
                     Packet pkt = new Packet(DefaultPacketSizeSet);
@@ -863,6 +864,63 @@ namespace IPA.Cores.Basic
                     tcp.WindowSize = 0xffff;
 
                     PrependIPHeader(ref pkt, ref tcp, default, Direction.Send);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
+            }
+            else
+            {
+                // TCP Server
+                // SYN
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
+
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.RemotePort._Endian16();
+                    tcp.DstPort = Options.LocalPort._Endian16();
+                    tcp.SeqNumber = 0._Endian32_U();
+                    tcp.AckNumber = 0._Endian32_U();
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Syn;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Recv);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
+
+                // SYN + ACK
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
+
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.LocalPort._Endian16();
+                    tcp.DstPort = Options.RemotePort._Endian16();
+                    tcp.SeqNumber = 0._Endian32_U();
+                    tcp.AckNumber = 1._Endian32_U();
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Syn | TCPFlags.Ack;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Recv);
+
+                    queue.Enqueue(pkt.ToDatagram());
+                }
+
+                // ACK
+                {
+                    Packet pkt = new Packet(DefaultPacketSizeSet);
+
+                    ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+                    tcp.SrcPort = Options.RemotePort._Endian16();
+                    tcp.DstPort = Options.LocalPort._Endian16();
+                    tcp.SeqNumber = 1._Endian32_U();
+                    tcp.AckNumber = 1._Endian32_U();
+                    tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+                    tcp.Flag = TCPFlags.Ack;
+                    tcp.WindowSize = 0xffff;
+
+                    PrependIPHeader(ref pkt, ref tcp, default, Direction.Recv);
 
                     queue.Enqueue(pkt.ToDatagram());
                 }

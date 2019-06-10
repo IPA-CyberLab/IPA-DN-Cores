@@ -77,7 +77,7 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            Net_Test1_PlainTcp_Client();
+            //Net_Test1_PlainTcp_Client();
             //return 0;
 
             //Net_Test2_Ssl_Client();
@@ -86,16 +86,16 @@ namespace IPA.TestDev
             //return 0;
 
             //while (true)
-            //{
-            //    try
-            //    {
-            //        Net_Test4_SpeedTest_Client();
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        ex.ToString().Print();
-            //    }
-            //}
+            {
+                try
+                {
+                    Net_Test4_SpeedTest_Client();
+                }
+                catch (Exception ex)
+                {
+                    ex.ToString()._Print();
+                }
+            }
 
             //Net_Test5_SpeedTest_Server();
 
@@ -199,10 +199,10 @@ namespace IPA.TestDev
         static async Task Net_Test7_Http_Download_Async()
         {
             //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
-            string url = "http://speed.softether.com/001.1Mbytes.dat";
             //string url = "http://speed.softether.com/001.1Mbytes.dat";
+            string url = "http://speed.softether.com/008.10Tbytes.dat";
 
-            for (int j = 0; j < 10; j++)
+            for (int j = 0; j < 1; j++)
             {
                 using (WebApi api = new WebApi())
                 {
@@ -219,7 +219,7 @@ namespace IPA.TestDev
                                 if (r <= 0) break;
                                 total += r;
 
-                                Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
+                                //Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
                             }
                         }
                         Dbg.Where();
@@ -287,18 +287,18 @@ namespace IPA.TestDev
 
             CancellationTokenSource cts = new CancellationTokenSource();
 
-            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 2000, SpeedTestModeFlag.Upload, cts.Token);
+            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 1, 30000, SpeedTestModeFlag.Download, cts.Token);
 
             var task = client.RunClientAsync();
 
             //Con.ReadLine("Enter to stop>");
 
-            int wait = 2000 + Util.RandSInt32_Caution() % 1000;
-            Con.WriteLine("Waiting for " + wait);
-            ThreadObj.Sleep(wait);
+            ////int wait = 2000 + Util.RandSInt32_Caution() % 1000;
+            ////Con.WriteLine("Waiting for " + wait);
+            ////ThreadObj.Sleep(wait);
 
-            Con.WriteLine("Stopping...");
-            cts._TryCancelNoBlock();
+            //Con.WriteLine("Stopping...");
+            //cts._TryCancelNoBlock();
 
             task._GetResult()._PrintAsJson();
 
@@ -310,6 +310,7 @@ namespace IPA.TestDev
             using (var listener = LocalNet.CreateListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
+                        sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190611\" + Str.DateTimeToStrShortWithMilliSecs(DateTime.Now) + ".pcapng", flags: FileFlags.AutoCreateDirectory))));
                         var stream = sock.GetStream();
                         StreamWriter w = new StreamWriter(stream);
                         while (true)
@@ -333,6 +334,7 @@ namespace IPA.TestDev
             {
                 using (SslSock ssl = new SslSock(sock))
                 {
+                    //ssl.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false)));
                     var sslClientOptions = new PalSslClientAuthenticationOptions()
                     {
                         TargetHost = hostname,
@@ -372,7 +374,7 @@ namespace IPA.TestDev
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
 
-                using (var rec = new PCapConnSockRecorder(sock, new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false))))
+                sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false)));
                 {
                     var st = sock.GetStream();
                     //sock.DisposeSafe();

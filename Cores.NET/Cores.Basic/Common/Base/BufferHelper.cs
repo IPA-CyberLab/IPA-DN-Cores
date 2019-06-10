@@ -170,13 +170,13 @@ namespace IPA.Cores.Helper.Basic
         public static ulong _Endian64_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ulong)v) : (ulong)v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T _Endian16<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian16(v) : v;
+        public static T _Endian16<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian16(v) : v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T _Endian32<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian32(v) : v;
+        public static T _Endian32<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian32(v) : v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T _Endian64<T>(this T v) where T : Enum => BitConverter.IsLittleEndian ? _ReverseEndian64(v) : v;
+        public static T _Endian64<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian64(v) : v;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort _ReverseEndian16(this ushort v) => BinaryPrimitives.ReverseEndianness(v);
@@ -197,7 +197,7 @@ namespace IPA.Cores.Helper.Basic
         public static long _ReverseEndian64(this long v) => BinaryPrimitives.ReverseEndianness(v);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T _ReverseEndian16<T>(this T v) where T : Enum
+        public static unsafe T _ReverseEndian16<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
             *((ushort*)ptr) = BinaryPrimitives.ReverseEndianness(*((ushort*)ptr));
@@ -205,7 +205,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T _ReverseEndian32<T>(this T v) where T : Enum
+        public static unsafe T _ReverseEndian32<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
             *((uint*)ptr) = BinaryPrimitives.ReverseEndianness(*((uint*)ptr));
@@ -213,7 +213,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T _ReverseEndian64<T>(this T v) where T : Enum
+        public static unsafe T _ReverseEndian64<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
             *((ulong*)ptr) = BinaryPrimitives.ReverseEndianness(*((ulong*)ptr));

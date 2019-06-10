@@ -3702,7 +3702,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T: Enum
+        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T: unmanaged, Enum
         {
             return (T)StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }

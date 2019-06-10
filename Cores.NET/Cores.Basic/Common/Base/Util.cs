@@ -1673,15 +1673,21 @@ namespace IPA.Cores.Basic
         }
 
         // Enum の値一覧を取得する
-        public static T[] GetEnumValuesList<T>() where T : Enum
+        public static T[] GetEnumValuesList<T>() where T : unmanaged, Enum
         {
             List<T> ret = new List<T>();
             return (T[])Enum.GetValues(typeof(T));
         }
 
-        public static T GetMaxEnumValue<T>() where T : Enum
+        public static T GetMaxEnumValue<T>() where T : unmanaged, Enum
         {
             return GetEnumValuesList<T>().OrderBy(x => x).LastOrDefault();
+        }
+
+        public static int GetMaxEnumValueSInt32<T>() where T : unmanaged, Enum
+        {
+            T maxValue = GetMaxEnumValue<T>();
+            return maxValue._RawReadValueSInt32();
         }
 
 

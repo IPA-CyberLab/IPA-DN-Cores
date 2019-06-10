@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
                 return StreamCache;
             }
         }
-        
+
         public PipePoint GetPipePoint()
         {
             Lower.CheckCanceled();
@@ -387,7 +387,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetSock : AsyncService
+    abstract class NetSock : AsyncService
     {
         NetAppStub AppStub = null;
 
@@ -483,7 +483,27 @@ namespace IPA.Cores.Basic
 
                 RemoteIP = this.Info?.Ip?.RemoteIPAddress?.ToString() ?? "",
                 RemotePort = this.Info?.Tcp?.RemotePort ?? 0,
+
+                Direction = this.Info?.Tcp?.Direction ?? TcpDirectionType.Client,
             };
+        }
+
+        public PCapConnSockRecorder StartPCapRecorder(PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData)
+        {
+            var ret = new PCapConnSockRecorder(this, initialEmitter, bufferSize, discardMode);
+
+            this.AddOnCancelAction(() =>
+            {
+                try
+                {
+                    ret.EmitReset();
+                }
+                catch { }
+
+                TaskUtil.StartSyncTaskAsync(() => ret._DisposeSafe())._LaissezFaire();
+            });
+
+            return ret;
         }
     }
 
