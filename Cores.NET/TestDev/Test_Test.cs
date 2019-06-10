@@ -129,8 +129,9 @@ namespace IPA.TestDev
                     g.EmitData("3cccccc3"._GetBytes_Ascii(), Direction.Send);
                     g.EmitData("6fffffffffffffff6"._GetBytes_Ascii(), Direction.Recv);
 
-                    g.EmitDisconnected(Direction.Send);
+                    //g.EmitReset(Direction.Send);
 
+                    g.EmitFinish(Direction.Send);
                 }
                 return;
             }

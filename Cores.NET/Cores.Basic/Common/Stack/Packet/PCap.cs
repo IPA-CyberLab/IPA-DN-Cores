@@ -287,31 +287,41 @@ namespace IPA.Cores.Basic
         {
             this.TargetPoint = targetPoint;
 
+            TcpGen.EmitConnected();
+
             EventRegister_Send = this.TargetPoint.StreamWriter.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Send);
             EventRegister_Recv = this.TargetPoint.StreamReader.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Recv);
         }
 
         void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object state)
         {
-            if (type != FastBufferCallbackEventType.Written) return;
-
             Direction direction = (Direction)state;
             FastStreamBuffer target = (FastStreamBuffer)caller;
 
-            lock (LockObj)
+            if (type == FastBufferCallbackEventType.Written)
             {
-                long readStart = Math.Max(lastReadTail, target.PinHead);
-                long readEnd = target.PinTail;
-                lastReadTail = readStart;
-
-                if ((readEnd - readStart) >= 1)
+                lock (LockObj)
                 {
-                    FastBufferSegment<ReadOnlyMemory<byte>>[] segments = target.GetSegmentsFast(readStart, readEnd - readStart, out long readSize, true);
+                    long readStart = Math.Max(lastReadTail, target.PinHead);
+                    long readEnd = target.PinTail;
+                    lastReadTail = readStart;
 
-                    foreach (var segment in segments)
+                    if ((readEnd - readStart) >= 1)
                     {
-                        TcpGen.EmitData(segment.Item.Span, direction);
+                        FastBufferSegment<ReadOnlyMemory<byte>>[] segments = target.GetSegmentsFast(readStart, readEnd - readStart, out long readSize, true);
+
+                        foreach (var segment in segments)
+                        {
+                            TcpGen.EmitData(segment.Item.Span, direction);
+                        }
                     }
+                }
+            }
+            else if (type == FastBufferCallbackEventType.Disconnected || type == FastBufferCallbackEventType.NonEmptyToEmpty)
+            {
+                if (target.IsDisconnected)
+                {
+                    TcpGen.EmitFinish(direction);
                 }
             }
         }

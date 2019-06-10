@@ -337,6 +337,8 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static T[] _SingleArray<T>(this T t) => new T[] { t };
+        public static Span<T> _SingleSpan<T>(this T t) => new T[] { t };
+        public static ReadOnlySpan<T> _SingleReadOnlySpan<T>(this T t) => new T[] { t };
 
         public static string _ToString3(this long s) => Str.ToString3(s);
         public static string _ToString3(this int s) => Str.ToString3(s);

@@ -727,25 +727,57 @@ namespace IPA.Cores.Basic
             queue.Enqueue(pkt.ToDatagram());
         }
 
-        public void EmitDisconnected(Direction initiator)
+        public void EmitFinish(Direction direction)
+        {
+            Packet pkt = new Packet(DefaultPacketSizeSet);
+
+            ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+
+            if (direction == Direction.Send)
+            {
+                tcp.SeqNumber = (1 + this.TotalSendSize)._Endian32_U();
+                tcp.AckNumber = (1 + this.TotalRecvSize)._Endian32_U();
+
+                tcp.SrcPort = Options.LocalPort._Endian16();
+                tcp.DstPort = Options.RemotePort._Endian16();
+            }
+            else
+            {
+                tcp.SeqNumber = (1 + this.TotalRecvSize)._Endian32_U();
+                tcp.AckNumber = (1 + this.TotalSendSize)._Endian32_U();
+
+                tcp.SrcPort = Options.RemotePort._Endian16();
+                tcp.DstPort = Options.LocalPort._Endian16();
+            }
+
+            tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+            tcp.Flag = TCPFlags.Fin | TCPFlags.Ack;
+            tcp.WindowSize = 0xffff;
+
+            PrependIPHeader(ref pkt, ref tcp, default, direction);
+
+            this.Output[0].DatagramWriter.EnqueueAllWithLock(pkt.ToDatagram()._SingleReadOnlySpan(), true);
+        }
+
+        public void EmitReset(Direction initiator)
         {
             SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
 
             if (initiator == Direction.Send)
             {
-                EmitDisconnectedOne(ref queue, Direction.Send);
-                EmitDisconnectedOne(ref queue, Direction.Recv);
+                EmitResetOne(ref queue, Direction.Send);
+                EmitResetOne(ref queue, Direction.Recv);
             }
             else
             {
-                EmitDisconnectedOne(ref queue, Direction.Recv);
-                EmitDisconnectedOne(ref queue, Direction.Send);
+                EmitResetOne(ref queue, Direction.Recv);
+                EmitResetOne(ref queue, Direction.Send);
             }
 
             this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void EmitDisconnectedOne(ref SpanBasedQueue<Datagram> queue, Direction direction)
+        void EmitResetOne(ref SpanBasedQueue<Datagram> queue, Direction direction)
         {
             Packet pkt = new Packet(DefaultPacketSizeSet);
 
