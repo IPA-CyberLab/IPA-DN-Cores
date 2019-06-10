@@ -1168,6 +1168,19 @@ namespace IPA.Cores.Helper.Basic
         {
             return (ex is OperationCanceledException || ex is TaskCanceledException);
         }
+
+        public static IPVersion _GetIPVersion(this IPAddress addr)
+            => _GetIPVersion(addr.AddressFamily);
+
+        public static IPVersion _GetIPVersion(this AddressFamily af)
+        {
+            if (af == AddressFamily.InterNetwork)
+                return IPVersion.IPv4;
+            else if (af == AddressFamily.InterNetworkV6)
+                return IPVersion.IPv6;
+
+            throw new ArgumentOutOfRangeException("Invalid AddressFamily");
+        }
     }
 }
 

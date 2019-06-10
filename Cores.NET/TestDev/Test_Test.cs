@@ -106,12 +106,22 @@ namespace IPA.TestDev
     {
         public static unsafe void Test()
         {
-
             if (true)
             {
                 using (PCapPacketRecorder r = new PCapPacketRecorder(new TcpPseudoPacketGeneratorOptions(TcpDirectionType.Client, IPAddress.Parse("192.168.0.1"), 1, IPAddress.Parse("192.168.0.2"), 2)))
                 {
-                    r.TcpGen.EmitConnected();
+                    var g = r.TcpGen;
+
+                    g.EmitConnected();
+
+                    g.EmitData("1aa1"._GetBytes_Ascii(), Direction.Send);
+                    g.EmitData("4d4"._GetBytes_Ascii(), Direction.Recv);
+                    g.EmitData("2bbbb2"._GetBytes_Ascii(), Direction.Send);
+                    g.EmitData("5eeeeeeeee5"._GetBytes_Ascii(), Direction.Recv);
+                    g.EmitData("3cccccc3"._GetBytes_Ascii(), Direction.Send);
+                    g.EmitData("6fffffffffffffff6"._GetBytes_Ascii(), Direction.Recv);
+
+                    g.EmitDisconnected(Direction.Send);
 
                     r.RegisterEmitter(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190608\test.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
                         false)));

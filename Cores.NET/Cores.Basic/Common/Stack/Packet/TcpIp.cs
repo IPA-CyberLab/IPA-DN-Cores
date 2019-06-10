@@ -47,6 +47,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    static partial class IPConsts
+    {
+        public const int EtherMtuDefault = 1500;
+        public const int EtherMtuMax = 9300;
+
+        public const int MinIPv4Mtu = 576;
+        public const int MinIPv6Mtu = 1280;
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     unsafe struct GenericHeader
     {
@@ -398,7 +407,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref TCPHeader tcpHeader, ref IPv4Header v4Header, Span<byte> tcpPayloadData)
+        public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref TCPHeader tcpHeader, ref IPv4Header v4Header, ReadOnlySpan<byte> tcpPayloadData)
         {
             ushort tcpPayloadChecksum;
             ushort pseudoHeaderChecksum;
@@ -553,6 +562,34 @@ namespace IPA.Cores.Basic
             fixed (byte* ptr = data)
                 return IpChecksum(ptr, data.Length, initial);
         }
+
+        public static int CalcIpMtu(IPVersion ipVer, int etherMtu = IPConsts.EtherMtuDefault)
+        {
+            int ret;
+            if (ipVer == IPVersion.IPv4)
+            {
+                ret = etherMtu - 20;
+            }
+            else
+            {
+                ret = etherMtu - 40;
+            }
+            return Math.Max(ret, (ipVer == IPVersion.IPv4 ? IPConsts.MinIPv4Mtu : IPConsts.MinIPv6Mtu));
+        }
+
+        public static int CalcTcpMss(IPVersion ipVer, int etherMtu = IPConsts.EtherMtuDefault)
+        {
+            int ret;
+            if (ipVer == IPVersion.IPv4)
+            {
+                ret = etherMtu - 20 - 20;
+            }
+            else
+            {
+                ret = etherMtu - 40 - 20;
+            }
+            return Math.Max(ret, (ipVer == IPVersion.IPv4 ? IPConsts.MinIPv4Mtu : IPConsts.MinIPv6Mtu));
+        }
     }
 
     class TcpPseudoPacketGeneratorOptions
@@ -562,8 +599,10 @@ namespace IPA.Cores.Basic
         public IPAddress RemoteIP { get; }
         public ushort RemotePort { get; }
         public TcpDirectionType TcpDirection { get; }
+        public int EtherMtu { get; }
+        public IPVersion IPVersion { get; }
 
-        public TcpPseudoPacketGeneratorOptions(TcpDirectionType direction, IPAddress localIP, int localPort, IPAddress remoteIP, int remotePort)
+        public TcpPseudoPacketGeneratorOptions(TcpDirectionType direction, IPAddress localIP, int localPort, IPAddress remoteIP, int remotePort, int etherMtu = IPConsts.EtherMtuDefault)
         {
             if (direction.EqualsAny(TcpDirectionType.Client, TcpDirectionType.Server) == false)
                 throw new ArgumentException("direction");
@@ -575,8 +614,11 @@ namespace IPA.Cores.Basic
             this.LocalPort = (ushort)localPort;
             this.RemoteIP = remoteIP;
             this.RemotePort = (ushort)remotePort;
+            this.EtherMtu = etherMtu;
 
             this.TcpDirection = direction;
+
+            this.IPVersion = this.LocalIP.AddressFamily._GetIPVersion();
         }
     }
 
@@ -594,7 +636,11 @@ namespace IPA.Cores.Basic
         readonly uint LocalIP_IPv4;
         readonly uint RemoteIP_IPv4;
 
+        readonly int TcpMss;
+
         readonly EthernetProtocolId ProtocolId;
+
+        long TotalSendSize, TotalRecvSize;
 
         ulong PacketIdSeed;
 
@@ -609,7 +655,7 @@ namespace IPA.Cores.Basic
 
             PacketSizeSet tcpPacketSizeSet;
 
-            if (Options.LocalIP.AddressFamily == AddressFamily.InterNetwork)
+            if (Options.IPVersion == IPVersion.IPv4)
             {
                 this.LocalIP_IPv4 = Options.LocalIP._Get_IPv4_UInt32_BigEndian();
                 this.RemoteIP_IPv4 = Options.RemoteIP._Get_IPv4_UInt32_BigEndian();
@@ -623,10 +669,110 @@ namespace IPA.Cores.Basic
             }
 
             DefaultPacketSizeSet = tcpPacketSizeSet + PacketSizeSets.PcapNgPacket;
+
+            this.TcpMss = IPUtil.CalcTcpMss(Options.IPVersion, options.EtherMtu);
         }
 
-        public void EmitData(ReadOnlySpan<byte> data)
+        public void EmitData(ReadOnlySpan<byte> data, Direction direction)
         {
+            SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
+
+            int spanLen = data.Length;
+
+            for (int pos = 0; pos < spanLen; pos += this.TcpMss)
+            {
+                ReadOnlySpan<byte> segmentData = data.Slice(pos, Math.Min(this.TcpMss, spanLen - pos));
+
+                EmitSegmentData(ref queue, segmentData, direction);
+            }
+
+            this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
+        }
+
+        void EmitSegmentData(ref SpanBasedQueue<Datagram> queue, ReadOnlySpan<byte> data, Direction direction)
+        {
+            Packet pkt = new Packet(DefaultPacketSizeSet + data.Length);
+
+            pkt.PrependSpanWithData(data);
+
+            ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+
+            if (direction == Direction.Send)
+            {
+                tcp.SeqNumber = (1 + this.TotalSendSize)._Endian32_U();
+                tcp.AckNumber = (1 + this.TotalRecvSize)._Endian32_U();
+
+                tcp.SrcPort = Options.LocalPort._Endian16();
+                tcp.DstPort = Options.RemotePort._Endian16();
+
+                this.TotalSendSize += data.Length;
+            }
+            else
+            {
+                tcp.SeqNumber = (1 + this.TotalRecvSize)._Endian32_U();
+                tcp.AckNumber = (1 + this.TotalSendSize)._Endian32_U();
+
+                tcp.SrcPort = Options.RemotePort._Endian16();
+                tcp.DstPort = Options.LocalPort._Endian16();
+
+                this.TotalRecvSize += data.Length;
+            }
+
+            tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+            tcp.Flag = TCPFlags.Ack | TCPFlags.Psh;
+            tcp.WindowSize = 0xffff;
+
+            PrependIPHeader(ref pkt, ref tcp, data, direction);
+
+            queue.Enqueue(pkt.ToDatagram());
+        }
+
+        public void EmitDisconnected(Direction initiator)
+        {
+            SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
+
+            if (initiator == Direction.Send)
+            {
+                EmitDisconnectedOne(ref queue, Direction.Send);
+                EmitDisconnectedOne(ref queue, Direction.Recv);
+            }
+            else
+            {
+                EmitDisconnectedOne(ref queue, Direction.Recv);
+                EmitDisconnectedOne(ref queue, Direction.Send);
+            }
+
+            this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
+        }
+
+        void EmitDisconnectedOne(ref SpanBasedQueue<Datagram> queue, Direction direction)
+        {
+            Packet pkt = new Packet(DefaultPacketSizeSet);
+
+            ref TCPHeader tcp = ref pkt.PrependSpan<TCPHeader>();
+
+            if (direction == Direction.Send)
+            {
+                tcp.SeqNumber = (1 + this.TotalSendSize)._Endian32_U();
+
+                tcp.SrcPort = Options.LocalPort._Endian16();
+                tcp.DstPort = Options.RemotePort._Endian16();
+            }
+            else
+            {
+                tcp.SeqNumber = (1 + this.TotalRecvSize)._Endian32_U();
+
+                tcp.SrcPort = Options.RemotePort._Endian16();
+                tcp.DstPort = Options.LocalPort._Endian16();
+            }
+
+            tcp.HeaderLen = (byte)(sizeof(TCPHeader) / 4);
+            tcp.Flag = TCPFlags.Rst;
+            tcp.WindowSize = 0xffff;
+
+            PrependIPHeader(ref pkt, ref tcp, default, direction);
+
+            queue.Enqueue(pkt.ToDatagram());
         }
 
         public void EmitConnected()
@@ -693,7 +839,7 @@ namespace IPA.Cores.Basic
             this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void PrependIPHeader(ref Packet p, ref TCPHeader tcp, Span<byte> tcpPayload, Direction direction)
+        void PrependIPHeader(ref Packet p, ref TCPHeader tcp, ReadOnlySpan<byte> tcpPayloadForChecksum, Direction direction)
         {
             ref IPv4Header ip = ref p.PrependSpan<IPv4Header>();
             ip.Version = 4;
@@ -715,7 +861,7 @@ namespace IPA.Cores.Basic
                 ip.DstIP = LocalIP_IPv4;
             }
 
-            tcp.Checksum = tcp.CalcTcpUdpPseudoChecksum(ref ip, tcpPayload);
+            tcp.Checksum = tcp.CalcTcpUdpPseudoChecksum(ref ip, tcpPayloadForChecksum);
             ip.Checksum = ip.CalcIPv4Checksum();
 
             ref EthernetHeader ether = ref p.PrependSpan<EthernetHeader>();

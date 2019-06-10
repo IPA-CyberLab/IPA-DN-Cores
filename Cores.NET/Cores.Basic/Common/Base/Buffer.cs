@@ -2728,7 +2728,23 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<List<Memory<T>>> SplitMemoryArray<T>(IEnumerable<Memory<T>> src, int elementMaxSize)
+        public static IReadOnlyList<Memory<T>> SplitMemory<T>(Memory<T> src, int elementMaxSize)
+        {
+            elementMaxSize = Math.Max(1, elementMaxSize);
+
+            List<Memory<T>> ret = new List<Memory<T>>();
+
+            int srcLen = src.Length;
+            for (int i = 0; i < srcLen; i += elementMaxSize)
+            {
+                Memory<T> segment = src.Slice(i, Math.Min(elementMaxSize, srcLen - i));
+                ret.Add(segment);
+            }
+
+            return ret;
+        }
+
+        public static IReadOnlyList<IReadOnlyList<Memory<T>>> SplitMemoryArray<T>(IEnumerable<Memory<T>> src, int elementMaxSize)
         {
             elementMaxSize = Math.Max(1, elementMaxSize);
 
