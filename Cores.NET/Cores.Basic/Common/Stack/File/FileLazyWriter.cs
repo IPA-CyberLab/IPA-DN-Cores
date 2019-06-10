@@ -231,6 +231,8 @@ namespace IPA.Cores.Basic
 
         public void Write(ReadOnlyMemory<byte> data)
         {
+            if (this.IsCanceled) return;
+
             try
             {
                 lock (this.Writer.StreamWriter.LockObj)

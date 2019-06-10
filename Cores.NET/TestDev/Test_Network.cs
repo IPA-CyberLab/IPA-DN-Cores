@@ -77,7 +77,7 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            //Net_Test1_PlainTcp_Client();
+            Net_Test1_PlainTcp_Client();
             //return 0;
 
             //Net_Test2_Ssl_Client();
@@ -85,17 +85,17 @@ namespace IPA.TestDev
             //Net_Test3_PlainTcp_Server();
             //return 0;
 
-            //while (true)
-            {
-                try
-                {
-                    Net_Test4_SpeedTest_Client();
-                }
-                catch (Exception ex)
-                {
-                    ex.ToString()._Print();
-                }
-            }
+            ////while (true)
+            //{
+            //    try
+            //    {
+            //        Net_Test4_SpeedTest_Client();
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        ex.ToString()._Print();
+            //    }
+            //}
 
             //Net_Test5_SpeedTest_Server();
 
@@ -374,7 +374,7 @@ namespace IPA.TestDev
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
 
-                sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false)));
+                sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), true)));
                 {
                     var st = sock.GetStream();
                     //sock.DisposeSafe();
