@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
             return virtualPath;
         }
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             directoryPath = MapPathVirtualToPhysical(directoryPath);
             return base.CreateDirectoryImplAsync(directoryPath, flags, cancel);
@@ -237,7 +237,7 @@ namespace IPA.Cores.Basic
             return base.DeleteDirectoryImplAsync(directoryPath, recursive, cancel);
         }
 
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             path = MapPathVirtualToPhysical(path);
             return base.DeleteFileImplAsync(path, flags, cancel);

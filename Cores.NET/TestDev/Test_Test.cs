@@ -108,8 +108,16 @@ namespace IPA.TestDev
         {
             if (true)
             {
+
+            }
+
+            if (true)
+            {
                 using (PCapPacketRecorder r = new PCapPacketRecorder(new TcpPseudoPacketGeneratorOptions(TcpDirectionType.Client, IPAddress.Parse("192.168.0.1"), 1, IPAddress.Parse("192.168.0.2"), 2)))
                 {
+                    r.RegisterEmitter(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190608\test.pcapng", flags: FileFlags.AutoCreateDirectory),
+    false)));
+
                     var g = r.TcpGen;
 
                     g.EmitConnected();
@@ -123,8 +131,6 @@ namespace IPA.TestDev
 
                     g.EmitDisconnected(Direction.Send);
 
-                    r.RegisterEmitter(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190608\test.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
-                        false)));
                 }
                 return;
             }
@@ -198,7 +204,7 @@ namespace IPA.TestDev
 
             Lfs.WriteDataToFile(@"c:\tmp\190604\test1.pcapng", spanBuffer.Span.ToArray(), FileOperationFlags.AutoCreateDirectory);*/
 
-            using (PCapBuffer pcap = new PCapBuffer(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190607\pcap1.pcapng", operationFlags: FileOperationFlags.AutoCreateDirectory),
+            using (PCapBuffer pcap = new PCapBuffer(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190607\pcap1.pcapng", flags: FileFlags.AutoCreateDirectory),
                 appendMode: false))))
             {
                 pcap.WritePacket(ref p, 0, "");

@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
                     if (lastFileParsed != null)
                     {
                         // Delete the files first
-                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        await LargeFileSystem.DeleteFileAsync(FileParams.Path, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
 
                         lastFileParsed = null;
                         CurrentFileSize = 0;
@@ -375,7 +375,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                if (this.FileParams.Flags.BitAny(FileOperationFlags.LargeFs_AppendWithoutCrossBorder | FileOperationFlags.LargeFs_AppendNewLineForCrossBorder)
+                if (this.FileParams.Flags.BitAny(FileFlags.LargeFs_AppendWithoutCrossBorder | FileFlags.LargeFs_AppendNewLineForCrossBorder)
                     && position == this.CurrentFileSize && cursorList.Count >= 2)
                 {
                     // Crossing the border when the LargeFileSystemAppendWithCrossBorder flag is set
@@ -398,7 +398,7 @@ namespace IPA.Cores.Basic
                         {
                             // Write the zero-cleared block toward the end of the first physical file
                             byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
-                            if (this.FileParams.Flags.Bit(FileOperationFlags.LargeFs_AppendNewLineForCrossBorder))
+                            if (this.FileParams.Flags.Bit(FileFlags.LargeFs_AppendNewLineForCrossBorder))
                             {
                                 if (appendBytes.Length >= 2)
                                 {
@@ -476,7 +476,7 @@ namespace IPA.Cores.Basic
                 {
                     foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                     {
-                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                     }
                 },
                 (x, y) =>
@@ -497,7 +497,7 @@ namespace IPA.Cores.Basic
                 {
                     foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                     {
-                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                     }
                 },
                 (x, y) =>
@@ -830,7 +830,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
 
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
@@ -909,7 +909,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             // Try physical file first
             try
@@ -942,7 +942,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             },
             (x, y) =>
@@ -963,7 +963,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             },
             (x, y) =>

@@ -207,11 +207,11 @@ namespace IPA.Cores.Basic
     {
         public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
 
-        public FileOperationFlags FileFlags { get; }
+        public FileFlags FileFlags { get; }
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileOperationFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 

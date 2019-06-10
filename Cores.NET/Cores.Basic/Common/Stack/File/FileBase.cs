@@ -379,9 +379,9 @@ namespace IPA.Cores.Basic
         public FileMode Mode { get; }
         public FileShare Share { get; }
         public FileAccess Access { get; }
-        public FileOperationFlags Flags { get; }
+        public FileFlags Flags { get; }
 
-        public FileParameters(string path, FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileOperationFlags flags = FileOperationFlags.None)
+        public FileParameters(string path, FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileFlags flags = FileFlags.None)
         {
             this.Path = path;
             this.Mode = mode;
@@ -416,7 +416,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileOperationFlags : ulong
+    enum FileFlags : ulong
     {
         None = 0,
         NoPartialRead = 1,
@@ -510,7 +510,7 @@ namespace IPA.Cores.Basic
         {
             using (cancellationToken.Register(() => File.Close()))
             {
-                if (File.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
+                if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
                     await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
                 else
                     await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
@@ -1217,7 +1217,7 @@ namespace IPA.Cores.Basic
 
         protected void CheckSequentialAccessProhibited()
         {
-            if (FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly))
+            if (FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
                 throw new FileException(this.FileParams.Path, "The file object is in RandomAccessOnly mode.");
         }
     }

@@ -393,7 +393,7 @@ namespace IPA.Cores.Basic
 
         public NetProtocolBase Stack { get; }
         public DuplexPipe Pipe { get; }
-        public PipePoint UpperEnd { get; }
+        public PipePoint UpperPoint { get; }
         public LayerInfo Info { get => this.Pipe.LayerInfo; }
         public string Guid { get; } = Str.NewGuid();
         public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
@@ -405,8 +405,8 @@ namespace IPA.Cores.Basic
             try
             {
                 Stack = AddDirectDisposeLink(protocolStack);
-                UpperEnd = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
-                Pipe = AddDirectDisposeLink(UpperEnd.Pipe);
+                UpperPoint = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
+                Pipe = AddDirectDisposeLink(UpperPoint.Pipe);
 
                 this.Pipe.OnDisconnected.Add(() =>
                 {
@@ -439,18 +439,18 @@ namespace IPA.Cores.Basic
             ret.ConnectedTime = this.Connected;
             ret.DisconnectedTime = this.Disconnected;
 
-            ret.StreamRecv = this.UpperEnd?.StreamReader?.PinTail ?? 0;
-            ret.StreamSend = this.UpperEnd?.StreamWriter?.PinTail ?? 0;
+            ret.StreamRecv = this.UpperPoint?.StreamReader?.PinTail ?? 0;
+            ret.StreamSend = this.UpperPoint?.StreamWriter?.PinTail ?? 0;
 
-            ret.DatagramRecv = this.UpperEnd?.DatagramReader?.PinTail ?? 0;
-            ret.DatagramSend = this.UpperEnd?.DatagramWriter?.PinTail ?? 0;
+            ret.DatagramRecv = this.UpperPoint?.DatagramReader?.PinTail ?? 0;
+            ret.DatagramSend = this.UpperPoint?.DatagramWriter?.PinTail ?? 0;
 
             return ret;
         }
 
         public NetAppStub GetNetAppProtocolStub()
         {
-            NetAppStub ret = AddDirectDisposeLink(UpperEnd.GetNetAppProtocolStub());
+            NetAppStub ret = AddDirectDisposeLink(UpperPoint.GetNetAppProtocolStub());
 
             ret.AddIndirectDisposeLink(this);
 

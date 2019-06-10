@@ -188,7 +188,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperEnd, this.Application))
+                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application))
                 {
                     // Now wait for complete
                     await wrapper.MainLoopToWaitComplete;

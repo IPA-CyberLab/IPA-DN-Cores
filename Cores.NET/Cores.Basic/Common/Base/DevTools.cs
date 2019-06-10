@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
             bodyString = bodyString._NonNull();
             bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.LocalPlatform);
 
-            Lfs.WriteStringToFile(path, bodyString, FileOperationFlags.AutoCreateDirectory | FileOperationFlags.WriteOnlyIfChanged,
+            Lfs.WriteStringToFile(path, bodyString, FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged,
                 encoding: encoding, writeBom: writeBom);
 
             if (noDebug == false)

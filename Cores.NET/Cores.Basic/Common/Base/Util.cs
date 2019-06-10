@@ -2606,7 +2606,7 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir, FileOperationFlags flags = FileOperationFlags.None)
+        public static void PutGitIgnoreFileOnDirectory(DirectoryPath dir, FileFlags flags = FileFlags.None)
         {
             try
             {

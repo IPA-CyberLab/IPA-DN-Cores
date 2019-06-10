@@ -67,7 +67,7 @@ namespace IPA.TestDev
             RefBool ignoredError = new RefBool(false);
 
             Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
-                new CopyFileParams(overwrite: true, flags: FileOperationFlags.AutoCreateDirectory, ignoreReadError: true,
+                new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true,
                 reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console)),
                 readErrorIgnored: ignoredError);
 
@@ -133,7 +133,7 @@ namespace IPA.TestDev
             if (false)
             {
                 var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
-                    copyFileFlags: FileOperationFlags.SparseFile,
+                    copyFileFlags: FileFlags.SparseFile,
                 //progressCallback: (x, y) => { return Task.FromResult(true); },
                 dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
                 fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
@@ -162,7 +162,7 @@ namespace IPA.TestDev
                     catch { }
 
                     var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
-                        copyFileFlags: FileOperationFlags.SparseFile,                  //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        copyFileFlags: FileFlags.SparseFile,                  //progressCallback: (x, y) => { return Task.FromResult(true); },
                         dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
@@ -202,7 +202,7 @@ namespace IPA.TestDev
                     catch { }
 
                     var copyParam = new CopyDirectoryParams(copyDirFlags: CopyDirectoryFlags.Default,// | CopyDirectoryFlags.BackupMode,
-                        copyFileFlags: FileOperationFlags.SparseFile,                                  //progressCallback: (x, y) => { return Task.FromResult(true); },
+                        copyFileFlags: FileFlags.SparseFile,                                  //progressCallback: (x, y) => { return Task.FromResult(true); },
                         dirMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default),
                         fileMetadataCopier: new FileMetadataCopier(FileMetadataCopyMode.Default)
                         );
@@ -334,7 +334,7 @@ namespace IPA.TestDev
                 {
                     string hello = $"Hello World {i:D10}\r\n"; // 24 bytes
 
-                    LLfs.AppendDataToFile(filePath, hello._GetBytes_Ascii(), FileOperationFlags.AutoCreateDirectory);
+                    LLfs.AppendDataToFile(filePath, hello._GetBytes_Ascii(), FileFlags.AutoCreateDirectory);
                 }
                 return 0;
             }
@@ -414,13 +414,13 @@ namespace IPA.TestDev
 
                 for (int i = 0; i < 3; i++)
                 {
-                    FileOperationFlags flags = FileOperationFlags.AutoCreateDirectory;
-                    if ((Util.RandSInt31() % 8) == 0) flags |= FileOperationFlags.Async;
-                    if (Util.RandBool()) flags |= FileOperationFlags.BackupMode;
+                    FileFlags flags = FileFlags.AutoCreateDirectory;
+                    if ((Util.RandSInt31() % 8) == 0) flags |= FileFlags.Async;
+                    if (Util.RandBool()) flags |= FileFlags.BackupMode;
 
                     using (var normal = Lfs.OpenOrCreate(normalFn, flags: flags))
                     {
-                        using (var sparse = Lfs.OpenOrCreate(sparseFn, flags: flags | FileOperationFlags.SparseFile))
+                        using (var sparse = Lfs.OpenOrCreate(sparseFn, flags: flags | FileFlags.SparseFile))
                         {
                             using (var api = new FileStream(standardApi, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.None))
                             {
@@ -464,8 +464,8 @@ namespace IPA.TestDev
                     }
 
                     //Lfs.WriteToFile(ramFn, ram.Memory);
-                    Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
-                    Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileOperationFlags.SparseFile, overwrite: true));
+                    Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true));
+                    Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true));
                 }
 
                 var largebytes = LLfsUtf8.ReadDataFromFile(largeFn);

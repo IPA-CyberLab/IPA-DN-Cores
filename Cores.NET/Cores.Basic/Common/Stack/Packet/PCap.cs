@@ -273,6 +273,79 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class PCapPipePointStreamRecorder : PCapPacketRecorder
+    {
+        PipePoint TargetPoint;
+        readonly IDisposable EventRegister_Send;
+        readonly IDisposable EventRegister_Recv;
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        long lastReadTail = long.MinValue;
+
+        public PCapPipePointStreamRecorder(PipePoint targetPoint, TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default) : base(tcpGenOptions, initialEmitter, bufferSize, discardMode, cancel)
+        {
+            this.TargetPoint = targetPoint;
+
+            EventRegister_Send = this.TargetPoint.StreamWriter.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Send);
+            EventRegister_Recv = this.TargetPoint.StreamReader.EventListeners.RegisterCallbackWithUsing(EventListenerCallback, Direction.Recv);
+        }
+
+        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object state)
+        {
+            if (type != FastBufferCallbackEventType.Written) return;
+
+            Direction direction = (Direction)state;
+            FastStreamBuffer target = (FastStreamBuffer)caller;
+
+            lock (LockObj)
+            {
+                long readStart = Math.Max(lastReadTail, target.PinHead);
+                long readEnd = target.PinTail;
+                lastReadTail = readStart;
+
+                if ((readEnd - readStart) >= 1)
+                {
+                    FastBufferSegment<ReadOnlyMemory<byte>>[] segments = target.GetSegmentsFast(readStart, readEnd - readStart, out long readSize, true);
+
+                    foreach (var segment in segments)
+                    {
+                        TcpGen.EmitData(segment.Item.Span, direction);
+                    }
+                }
+            }
+        }
+
+        protected override void CancelImpl(Exception ex)
+        {
+            try
+            {
+                EventRegister_Send._DisposeSafe();
+                EventRegister_Recv._DisposeSafe();
+            }
+            finally
+            {
+                base.CancelImpl(ex);
+            }
+        }
+    }
+
+    class PCapConnSockRecorder : PCapPipePointStreamRecorder
+    {
+        public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+            : base(targetSock.UpperPoint, GetTcpPseudoPacketGeneratorOptions(targetSock), initialEmitter, bufferSize, discardMode, cancel)
+        {
+        }
+
+        static TcpPseudoPacketGeneratorOptions GetTcpPseudoPacketGeneratorOptions(ConnSock targetSock)
+        {
+            var info = targetSock.EndPointInfo;
+
+            return new TcpPseudoPacketGeneratorOptions(info.IsServerMode ? TcpDirectionType.Server : TcpDirectionType.Client,
+                IPAddress.Parse(info.LocalIP), info.LocalPort, IPAddress.Parse(info.RemoteIP), info.RemotePort);
+        }
+    }
+
     static class PCapUtil
     {
         public const int ByteOrderMagic = 0x1A2B3C4D;

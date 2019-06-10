@@ -140,19 +140,19 @@ namespace IPA.Cores.Basic
         public bool PutGitIgnore { get; }
 
         public Copenhagen<string> RootDirectoryPath { get; }
-        public Copenhagen<FileOperationFlags> OperationFlags { get; }
+        public Copenhagen<FileFlags> Flags { get; }
         public Copenhagen<string> FileExtension { get; } = ".json";
         public Copenhagen<string> ErrorFileExtension { get; } = ".error.log";
         public Copenhagen<string> TmpFileExtension { get; } = ".tmp";
         public Copenhagen<string> DefaultDataName { get; } = "default";
 
-        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileOperationFlags operationFlags = FileOperationFlags.WriteOnlyIfChanged,
+        public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileFlags flags = FileFlags.WriteOnlyIfChanged,
             int maxDataSize = int.MaxValue, bool singleInstance = false, bool putGitIgnore = false)
             : base(maxDataSize)
         {
             this.FileSystem = fileSystem;
             this.RootDirectoryPath = rootDirectoryPath;
-            this.OperationFlags = operationFlags;
+            this.Flags = flags;
             this.SingleInstance = singleInstance;
             this.PutGitIgnore = putGitIgnore;
         }
@@ -243,16 +243,16 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    await FileSystem.CreateDirectoryAsync(directoryName, Options.OperationFlags, cancel);
+                    await FileSystem.CreateDirectoryAsync(directoryName, Options.Flags, cancel);
 
                     if (Options.PutGitIgnore)
                         Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
 
-                    await FileSystem.WriteDataToFileAsync(newFilename, data, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
+                    await FileSystem.WriteDataToFileAsync(newFilename, data, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
 
                     try
                     {
-                        await FileSystem.DeleteFileAsync(filename, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        await FileSystem.DeleteFileAsync(filename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                     }
                     catch { }
 
@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    await FileSystem.DeleteFileAsync(newFilename, Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await FileSystem.DeleteFileAsync(newFilename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             }
             else
@@ -270,13 +270,13 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    await FileSystem.DeleteFileAsync(filename, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await FileSystem.DeleteFileAsync(filename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
                 catch { }
 
                 try
                 {
-                    await FileSystem.DeleteFileAsync(newFilename, FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await FileSystem.DeleteFileAsync(newFilename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
                 catch { }
             }
@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
             w.WriteLine();
 
             await FileSystem.AppendDataToFileAsync(errFilename, w.ToString()._GetBytes_UTF8(),
-                Options.OperationFlags | FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed | FileOperationFlags.AutoCreateDirectory | FileOperationFlags.OnCreateSetCompressionFlag,
+                Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
                 cancel);
         }
 
@@ -322,7 +322,7 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                return await FileSystem.ReadDataFromFileAsync(filename, Options.MaxDataSize, Options.OperationFlags, cancel);
+                return await FileSystem.ReadDataFromFileAsync(filename, Options.MaxDataSize, Options.Flags, cancel);
             }
             catch
             {

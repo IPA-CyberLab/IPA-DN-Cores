@@ -193,8 +193,8 @@ namespace IPA.TestDev
             FileStream nativeFile1 = new FileStream(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, false);
             FileStream nativeFile2 = new FileStream(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, false);
 
-            FileObject coresFile1 = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), flags: FileOperationFlags.None);
-            FileObject coresFile2 = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), flags: FileOperationFlags.None);
+            FileObject coresFile1 = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), flags: FileFlags.None);
+            FileObject coresFile2 = Lfs.Create(Lfs.PathParser.Combine(Env.MyLocalTempDir, $"native_{Str.NewGuid()}.dat"), flags: FileFlags.None);
 
             Memory<byte> testFileWriteData = new byte[4096];
             Util.Rand(testFileWriteData.Span);

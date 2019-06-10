@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
         {
             HiveSingleton = new Singleton<Hive>(() =>
             {
-                Util.PutGitIgnoreFileOnDirectory(LocalCacheRootDir, FileOperationFlags.AutoCreateDirectory);
+                Util.PutGitIgnoreFileOnDirectory(LocalCacheRootDir, FileFlags.AutoCreateDirectory);
                 return new Hive(new HiveOptions(HiveDir, singleInstance: true));
             });
             DataSingleton = new Singleton<HiveData<GitGlobalFsState>>(() => new HiveData<GitGlobalFsState>(GitGlobalFs.Hive, HiveDataName, () => new GitGlobalFsState(), HiveSyncPolicy.None));

@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
         public static FileMetadataCopier DefaultDirectoryMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
         public CopyDirectoryFlags CopyDirFlags { get; }
-        public FileOperationFlags CopyFileFlags { get; }
+        public FileFlags CopyFileFlags { get; }
         public FileMetadataCopier DirectoryMetadataCopier { get; }
         public FileMetadataCopier FileMetadataCopier { get; }
         public int BufferSize { get; }
@@ -113,9 +113,9 @@ namespace IPA.Cores.Basic
         public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = CopyFileParams.ConsoleReporterFactory;
         public static ProgressReporterFactoryBase DebugReporterFactory { get; } = CopyFileParams.DebugReporterFactory;
 
-        public CopyFileParams GenerateCopyFileParams(FileOperationFlags additionalFlags = FileOperationFlags.None)
+        public CopyFileParams GenerateCopyFileParams(FileFlags additionalFlags = FileFlags.None)
         {
-            FileOperationFlags fileFlags = this.CopyFileFlags | additionalFlags;
+            FileFlags fileFlags = this.CopyFileFlags | additionalFlags;
 
             return new CopyFileParams(
                 this.CopyDirFlags.Bit(CopyDirectoryFlags.Overwrite), fileFlags,
@@ -150,7 +150,7 @@ namespace IPA.Cores.Basic
         public ExceptionCallback ExceptionCallbackProc { get; }
         public ProgressCallback ProgressCallbackProc { get; }
 
-        public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileOperationFlags copyFileFlags = FileOperationFlags.None,
+        public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileFlags copyFileFlags = FileFlags.None,
             FileMetadataCopier dirMetadataCopier = null, FileMetadataCopier fileMetadataCopier = null,
             int bufferSize = 0, int ignoreReadErrorSectorSize = 0,
             ProgressReporterFactoryBase entireReporterFactory = null, ProgressReporterFactoryBase fileReporterFactory = null,
@@ -174,12 +174,12 @@ namespace IPA.Cores.Basic
             this.FileProgressReporterFactory = fileReporterFactory;
 
             if (this.CopyDirFlags.Bit(CopyDirectoryFlags.BackupMode))
-                this.CopyFileFlags |= FileOperationFlags.BackupMode;
+                this.CopyFileFlags |= FileFlags.BackupMode;
 
             if (this.CopyDirFlags.Bit(CopyDirectoryFlags.Overwrite))
-                this.CopyFileFlags |= FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed;
+                this.CopyFileFlags |= FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed;
 
-            this.CopyFileFlags |= FileOperationFlags.AutoCreateDirectory;
+            this.CopyFileFlags |= FileFlags.AutoCreateDirectory;
 
             this.ExceptionCallbackProc = exceptionCallback;
             this.ProgressCallbackProc = progressCallback;
@@ -194,7 +194,7 @@ namespace IPA.Cores.Basic
         public static FileMetadataCopier DefaultFileMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
         public bool Overwrite { get; }
-        public FileOperationFlags Flags { get; }
+        public FileFlags Flags { get; }
         public FileMetadataCopier MetadataCopier { get; }
         public int BufferSize { get; }
         public bool AsyncCopy { get; }
@@ -207,7 +207,7 @@ namespace IPA.Cores.Basic
         public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console);
         public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
 
-        public CopyFileParams(bool overwrite = true, FileOperationFlags flags = FileOperationFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
+        public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
             bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
             ProgressReporterFactoryBase reporterFactory = null)
         {
@@ -306,7 +306,7 @@ namespace IPA.Cores.Basic
 
                                     FileMetadataGetFlags metadataGetFlags = FileMetadataCopier.CalcOptimizedMetadataGetFlags(param.FileMetadataCopier.Mode | FileMetadataCopyMode.Attributes);
                                     FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcFullPath, metadataGetFlags, cancel);
-                                    FileOperationFlags copyFileAdditionalFlags = FileOperationFlags.None;
+                                    FileFlags copyFileAdditionalFlags = FileFlags.None;
 
                                     lock (status.LockObj)
                                         status.SizeTotal += srcFileMetadata.Size;
@@ -314,14 +314,14 @@ namespace IPA.Cores.Basic
                                     if (param.CopyDirFlags.Bit(CopyDirectoryFlags.CopyFileCompressionFlag))
                                         if (srcFileMetadata.Attributes is FileAttributes attr)
                                             if (attr.Bit(FileAttributes.Compressed))
-                                                copyFileAdditionalFlags |= FileOperationFlags.OnCreateSetCompressionFlag;
+                                                copyFileAdditionalFlags |= FileFlags.OnCreateSetCompressionFlag;
                                             else
-                                                copyFileAdditionalFlags |= FileOperationFlags.OnCreateRemoveCompressionFlag;
+                                                copyFileAdditionalFlags |= FileFlags.OnCreateRemoveCompressionFlag;
 
                                     if (param.CopyDirFlags.Bit(CopyDirectoryFlags.CopyFileSparseFlag))
                                         if (srcFileMetadata.Attributes is FileAttributes attr)
                                             if (attr.Bit(FileAttributes.SparseFile))
-                                                copyFileAdditionalFlags |= FileOperationFlags.SparseFile;
+                                                copyFileAdditionalFlags |= FileFlags.SparseFile;
 
                                     var copyFileParam = param.GenerateCopyFileParams(copyFileAdditionalFlags);
 
@@ -350,17 +350,17 @@ namespace IPA.Cores.Basic
 
                                     FileMetadataGetFlags metadataGetFlags = FileMetadataCopier.CalcOptimizedMetadataGetFlags(param.DirectoryMetadataCopier.Mode | FileMetadataCopyMode.Attributes);
                                     FileMetadata srcDirMetadata = await srcFileSystem.GetDirectoryMetadataAsync(srcFullPath, metadataGetFlags, cancel);
-                                    FileOperationFlags copyDirFlags = FileOperationFlags.None;
+                                    FileFlags copyDirFlags = FileFlags.None;
 
                                     if (param.CopyDirFlags.Bit(CopyDirectoryFlags.BackupMode))
-                                        copyDirFlags |= FileOperationFlags.BackupMode;
+                                        copyDirFlags |= FileFlags.BackupMode;
 
                                     if (param.CopyDirFlags.Bit(CopyDirectoryFlags.CopyDirectoryCompressionFlag))
                                         if (srcDirMetadata.Attributes is FileAttributes attr)
                                             if (attr.Bit(FileAttributes.Compressed))
-                                                copyDirFlags |= FileOperationFlags.OnCreateSetCompressionFlag;
+                                                copyDirFlags |= FileFlags.OnCreateSetCompressionFlag;
                                             else
-                                                copyDirFlags |= FileOperationFlags.OnCreateRemoveCompressionFlag;
+                                                copyDirFlags |= FileFlags.OnCreateRemoveCompressionFlag;
 
                                     await destFileSystem.CreateDirectoryAsync(destFullPath, copyDirFlags, cancel);
 

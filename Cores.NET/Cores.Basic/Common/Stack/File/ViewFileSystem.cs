@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
             {
                 ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
                     obj,
-                    obj.FileParams.Flags.Bit(FileOperationFlags.RandomAccessOnly) ? 0 : obj.Position,
+                    obj.FileParams.Flags.Bit(FileFlags.RandomAccessOnly) ? 0 : obj.Position,
                     obj.Size);
 
                 return result;
@@ -171,10 +171,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
 
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)

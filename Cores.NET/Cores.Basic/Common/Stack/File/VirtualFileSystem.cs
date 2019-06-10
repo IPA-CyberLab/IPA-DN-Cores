@@ -633,7 +633,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             using (VfsPathParserContext ctx = await ParsePathInternalAsync(directoryPath, cancel))
             {
@@ -781,7 +781,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             using (VfsPathParserContext ctx = await ParsePathInternalAsync(path, cancel))
             {

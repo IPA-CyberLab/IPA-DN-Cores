@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
             {
                 if (this.Options.AppendMode)
                 {
-                    file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                    file = await this.Options.FilePath.OpenOrCreateAppendAsync(additionalFlags: FileFlags.AutoCreateDirectory, cancel: cancel);
                     if (file.Position == 0)
                     {
                         firstOnFile = true;
@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    file = await this.Options.FilePath.CreateAsync(additionalFlags: FileOperationFlags.AutoCreateDirectory, cancel: cancel);
+                    file = await this.Options.FilePath.CreateAsync(additionalFlags: FileFlags.AutoCreateDirectory, cancel: cancel);
                     firstOnFile = true;
                 }
             }

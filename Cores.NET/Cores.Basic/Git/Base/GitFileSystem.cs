@@ -169,9 +169,9 @@ namespace IPA.Cores.Basic
         protected override Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
             => GitFileObject.CreateFileAsync(this, option, cancel);
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default) => throw new NotImplementedException();
-        protected override Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default) => throw new NotImplementedException();

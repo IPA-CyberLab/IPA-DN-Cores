@@ -61,6 +61,7 @@ namespace IPA.Cores.Basic
 
     class LogDefIPEndPoints
     {
+        public bool IsServerMode = false;
         public string LocalIP = null;
         public int LocalPort = 0;
         public string RemoteIP = null;

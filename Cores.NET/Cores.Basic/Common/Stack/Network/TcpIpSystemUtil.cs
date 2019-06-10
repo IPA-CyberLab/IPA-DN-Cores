@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
 
         protected new NetSslProtocolStack Stack => (NetSslProtocolStack)base.Stack;
 
-        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new NetSslProtocolStack(lowerStreamSock.UpperEnd, null, null))
+        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new NetSslProtocolStack(lowerStreamSock.UpperPoint, null, null))
         {
         }
 

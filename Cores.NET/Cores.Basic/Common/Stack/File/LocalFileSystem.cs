@@ -192,7 +192,7 @@ namespace IPA.Cores.Basic
             return defaultSizeOnError;
         }
 
-        protected override async Task CreateDirectoryImplAsync(string directoryPath, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             if (Directory.Exists(directoryPath) == false)
             {
@@ -200,9 +200,9 @@ namespace IPA.Cores.Basic
 
                 if (Env.IsWindows)
                 {
-                    if (flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
+                    if (flags.Bit(FileFlags.OnCreateSetCompressionFlag))
                         await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, true, cancel);
-                    else if (flags.Bit(FileOperationFlags.OnCreateRemoveCompressionFlag))
+                    else if (flags.Bit(FileFlags.OnCreateRemoveCompressionFlag))
                         await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, false, cancel);
                 }
             }
@@ -444,11 +444,11 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileOperationFlags.None, cancel: cancel);
+                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.None, cancel: cancel);
                                 }
                                 catch
                                 {
-                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileOperationFlags.BackupMode, cancel: cancel);
+                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.BackupMode, cancel: cancel);
                                 }
                             }
                         }
@@ -508,11 +508,11 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.None, cancel);
+                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileFlags.None, cancel);
                         }
                         catch
                         {
-                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileOperationFlags.BackupMode, cancel);
+                            memory = await this.ReadDataFromFileAsync(fileName, (int)Win32MaxAlternateStreamSize, FileFlags.BackupMode, cancel);
                         }
 
                         FileAlternateStreamItemMetadata newItem = new FileAlternateStreamItemMetadata()
@@ -624,13 +624,13 @@ namespace IPA.Cores.Basic
                 FileObject f = null;
                 try
                 {
-                    f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.None), cancel);
+                    f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileFlags.None), cancel);
                 }
                 catch
                 {
                     try
                     {
-                        f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOperationFlags.BackupMode), cancel);
+                        f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileFlags.BackupMode), cancel);
                     }
                     catch { }
                 }
@@ -774,9 +774,9 @@ namespace IPA.Cores.Basic
                 );
         }
 
-        protected override async Task DeleteFileImplAsync(string path, FileOperationFlags flags = FileOperationFlags.None, CancellationToken cancel = default)
+        protected override async Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
-            if (flags.Bit(FileOperationFlags.BackupMode) || flags.Bit(FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
+            if (flags.Bit(FileFlags.BackupMode) || flags.Bit(FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
             {
                 await this.TryAddOrRemoveAttributeFromExistingFile(path, 0, FileAttributes.ReadOnly, cancel);
             }
@@ -874,7 +874,7 @@ namespace IPA.Cores.Basic
             {
                 FileOptions options = FileOptions.None;
 
-                if (this.FileParams.Flags.Bit(FileOperationFlags.Async))
+                if (this.FileParams.Flags.Bit(FileFlags.Async))
                 {
                     options |= FileOptions.Asynchronous;
                     UseAsyncMode = true;
@@ -882,12 +882,12 @@ namespace IPA.Cores.Basic
 
                 if (Env.IsWindows)
                 {
-                    if (FileParams.Flags.Bit(FileOperationFlags.BackupMode))
+                    if (FileParams.Flags.Bit(FileFlags.BackupMode))
                         options |= (FileOptions)Win32Api.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS;
 
                     if (FileParams.Access.Bit(FileAccess.Write))
                     {
-                        if (FileParams.Flags.Bit(FileOperationFlags.BackupMode) || FileParams.Flags.Bit(FileOperationFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
+                        if (FileParams.Flags.Bit(FileFlags.BackupMode) || FileParams.Flags.Bit(FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
                         {
                             FileAttributes attributesToRemove = 0;
 
@@ -926,12 +926,12 @@ namespace IPA.Cores.Basic
                             await Util.DoMultipleActionsAsync(MultipleActionsFlag.IgnoreError, cancel,
                                 async () =>
                                 {
-                                    if (FileParams.Flags.Bit(FileOperationFlags.OnCreateSetCompressionFlag))
+                                    if (FileParams.Flags.Bit(FileFlags.OnCreateSetCompressionFlag))
                                         await Win32ApiUtil.SetCompressionFlagAsync(BaseStream.SafeFileHandle, true, FileParams.Path, cancel);
                                 },
                                 async () =>
                                 {
-                                    if (FileParams.Flags.Bit(FileOperationFlags.OnCreateRemoveCompressionFlag))
+                                    if (FileParams.Flags.Bit(FileFlags.OnCreateRemoveCompressionFlag))
                                         await Win32ApiUtil.SetCompressionFlagAsync(BaseStream.SafeFileHandle, false, FileParams.Path, cancel);
                                 }
                                 );
@@ -943,7 +943,7 @@ namespace IPA.Cores.Basic
                         await Util.DoMultipleActionsAsync(MultipleActionsFlag.IgnoreError, cancel,
                             async () =>
                             {
-                                if (FileParams.Flags.Bit(FileOperationFlags.SparseFile))
+                                if (FileParams.Flags.Bit(FileFlags.SparseFile))
                                     await SetAsSparseFileAsync();
                             });
                     }
@@ -1091,7 +1091,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
-            if (this.FileParams.Flags.Bit(FileOperationFlags.WriteOnlyIfChanged))
+            if (this.FileParams.Flags.Bit(FileFlags.WriteOnlyIfChanged))
             {
                 try
                 {

@@ -77,7 +77,7 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            //Net_Test1_PlainTcp_Client();
+            Net_Test1_PlainTcp_Client();
             //return 0;
 
             //Net_Test2_Ssl_Client();
@@ -105,7 +105,7 @@ namespace IPA.TestDev
 
             //Net_Test8_Http_Upload_Async()._GetResult();
 
-            Net_Test9_WebServer();
+            //Net_Test9_WebServer();
 
             //Net_Test10_SslServer();
 
@@ -368,16 +368,18 @@ namespace IPA.TestDev
 
         static void Net_Test1_PlainTcp_Client()
         {
-            for (int i = 0;i < 10;i++)
+            for (int i = 0;i < 1;i++)
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+
+                using (var rec = new PCapConnSockRecorder(sock, new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false))))
                 {
                     var st = sock.GetStream();
                     //sock.DisposeSafe();
                     var w = new StreamWriter(st);
                     var r = new StreamReader(st);
 
-                    w.WriteLine("GET / HTTP/1.0");
+                    w.WriteLine("GET /ja/ HTTP/1.0");
                     w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
                     w.WriteLine();
                     w.Flush();
