@@ -54,7 +54,7 @@ namespace IPA.Cores.Basic
 
         public TcpServerOptions(TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
         {
-            this.TcpIpSystem = tcpIpSystem;
+            this.TcpIpSystem = tcpIpSystem ?? LocalNet;
             this.EndPoints = endPoints.ToList();
         }
     }
@@ -63,13 +63,21 @@ namespace IPA.Cores.Basic
     {
         protected TcpServerOptions Options { get; }
 
+        NetTcpListener Listener;
+
         public TcpServerBase(TcpServerOptions options)
         {
-            this.Options = options;
+            try
+            {
+                this.Options = options;
 
-            NetTcpListener listener = this.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
-
-            this.AddIndirectDisposeLink(listener);
+                Listener = this.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         protected abstract Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock sock);
@@ -77,6 +85,18 @@ namespace IPA.Cores.Basic
         async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
         {
             await TcpAcceptedImplAsync(listener, newSock);
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                this.Listener._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
         }
     }
 

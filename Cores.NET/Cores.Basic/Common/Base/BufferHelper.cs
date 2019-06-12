@@ -1287,6 +1287,20 @@ namespace IPA.Cores.Helper.Basic
         }
         public static int _GetInternalArrayLength<T>(this Memory<T> memory) => _GetInternalArray(memory).Length;
 
+        public static void _FastFree<T>(this ReadOnlyMemory<T> memory) => memory._GetInternalArray()._FastFree();
+
+        public static T[] _GetInternalArray<T>(this ReadOnlyMemory<T> memory)
+        {
+            unsafe
+            {
+                byte* ptr = (byte*)Unsafe.AsPointer(ref memory);
+                ptr += Cores.Basic.MemoryHelper._MemoryObjectOffset;
+                T[] o = Unsafe.Read<T[]>(ptr);
+                return o;
+            }
+        }
+        public static int _GetInternalArrayLength<T>(this ReadOnlyMemory<T> memory) => _GetInternalArray(memory).Length;
+
         public static ArraySegment<T> _AsSegment<T>(this Memory<T> memory)
         {
             if (Cores.Basic.MemoryHelper._UseFast == false) return _AsSegmentSlow(memory);

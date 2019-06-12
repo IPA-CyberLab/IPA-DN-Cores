@@ -51,9 +51,9 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
-        public static partial class LogServerSettings
+        public static partial class LogProtocolSettings
         {
-            public static readonly Copenhagen<int> DefaultPort = 3003;
+            public const int DefaultPort = 3003;
 
             public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
             public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
@@ -68,15 +68,15 @@ namespace IPA.Cores.Basic
     enum LogProtocolDataType
     {
         StandardLog = 0,
+        KeepAlive = 1,
     }
 
     abstract class LogServerOptionsBase : SslServerOptions
     {
-        public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogServerSettings.DefaultRecvTimeout;
-        public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.LogServerSettings.DefaultSendKeepAliveInterval;
+        public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
 
         public LogServerOptionsBase(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIpSystem, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogServerSettings.DefaultPort))
+            : base(tcpIpSystem, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogProtocolSettings.DefaultPort))
         {
         }
     }
@@ -86,7 +86,9 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> BinaryData;
         public LogJsonData JsonData;
 
-        HashSet<string> DestFileNamesHashInternal = new HashSet<string>(Lfs.PathParser.PathStringComparer);
+        static readonly StrComparer LocalStrComparer = Lfs.PathParser.PathStringComparer;
+
+        HashSet<string> DestFileNamesHashInternal = new HashSet<string>(LocalStrComparer);
 
         public IEnumerable<string> DestFileNames => DestFileNamesHashInternal;
 
@@ -111,16 +113,17 @@ namespace IPA.Cores.Basic
 
         protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
         {
-            sock.AttachHandle.SetStreamReceiveTimeout(this.Options.RecvTimeout);
-
             using (PipeStream st = sock.GetStream())
             {
+                sock.AttachHandle.SetStreamReceiveTimeout(this.Options.RecvTimeout);
+
                 int magicNumber = await st.ReceiveSInt32Async();
                 if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
 
                 int clientVersion = await st.ReceiveSInt32Async();
 
                 MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+                sendBuffer.WriteSInt32(MagicNumber);
                 sendBuffer.WriteSInt32(ServerVersion);
                 await st.SendAsync(sendBuffer);
 
@@ -129,9 +132,9 @@ namespace IPA.Cores.Basic
                 {
                     while (true)
                     {
-                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogServerSettings.BufferingSizeThresholdPerServer || st.IsReadyToReceive(sizeof(int)) == false)
+                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogProtocolSettings.BufferingSizeThresholdPerServer || st.IsReadyToReceive(sizeof(int)) == false)
                         {
-                            var list = standardLogQueue.List;
+                            var list = standardLogQueue.GetList();
                             standardLogQueue.Clear();
                             await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, list);
                         }
@@ -144,10 +147,10 @@ namespace IPA.Cores.Basic
                                 {
                                     int size = await st.ReceiveSInt32Async();
 
-                                    if (size > CoresConfig.LogServerSettings.MaxDataSize)
+                                    if (size > CoresConfig.LogProtocolSettings.MaxDataSize)
                                         throw new ApplicationException($"size > MaxDataSize. size = {size}");
 
-                                    Memory<byte> data = MemoryHelper.FastAllocMemory<byte>(size);
+                                    Memory<byte> data = new byte[size];
 
                                     await st.ReceiveAllAsync(data);
 
@@ -156,6 +159,9 @@ namespace IPA.Cores.Basic
                                     break;
                                 }
 
+                            case LogProtocolDataType.KeepAlive:
+                                break;
+
                             default:
                                 throw new ApplicationException("Invalid LogProtocolDataType");
                         }
@@ -163,7 +169,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, standardLogQueue.List);
+                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, standardLogQueue.GetList());
                 }
             }
         }
@@ -211,7 +217,8 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, sslAuthOptions, endPoints)
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
+            : base(tcpIpSystem, sslAuthOptions, endPoints)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 
@@ -248,11 +255,11 @@ namespace IPA.Cores.Basic
                 if (priority >= LogPriority.Debug)
                     Add($"{d.AppName}/{d.MachineName}/Debug");
 
-                if (priority >= LogPriority.Error)
-                    Add($"{d.AppName}/{d.MachineName}/Error");
-
                 if (priority >= LogPriority.Info)
                     Add($"{d.AppName}/{d.MachineName}/Info");
+
+                if (priority >= LogPriority.Error)
+                    Add($"{d.AppName}/{d.MachineName}/Error");
             }
             else
             {
@@ -289,10 +296,12 @@ namespace IPA.Cores.Basic
                 {
                     var buffer = writeBufferList[fileName];
 
-                    var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags);
+                    var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
                     var concurrentHandle = handle.GetConcurrentRandomAccess();
 
                     await concurrentHandle.AppendAsync(buffer.Memory);
+
+                    await concurrentHandle.FlushAsync();
                 }
                 catch (Exception ex)
                 {

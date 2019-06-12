@@ -92,7 +92,52 @@ namespace IPA.TestDev
 
     static class TestClass
     {
-        public static unsafe void Test()
+        public static void Test()
+        {
+            // Logger Tester
+            PalSslServerAuthenticationOptions svrSsl = new PalSslServerAuthenticationOptions(DevTools.TestSampleCert, true, null);
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, DevTools.TestSampleCert.HashSHA1);
+
+            using (LogClient client = new LogClient(new LogClientOptions(null, cliSsl, "127.0.0.1")))
+            {
+                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl)))
+                {
+                    CancellationTokenSource cts = new CancellationTokenSource();
+
+                    Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        for (int i = 0; ; i++)
+                        {
+                            if (cts.IsCancellationRequested) return;
+
+                            client.WriteLog(new LogJsonData()
+                            {
+                                AppName = "App",
+                                Data = "Hello World " + i.ToString(),
+                                Guid = Str.NewGuid(),
+                                Kind = LogKind.Default,
+                                MachineName = "Neko",
+                                Priority = LogPriority.Info.ToString(),
+                                Tag = "TagSan",
+                                TimeStamp = DateTimeOffset.Now,
+                                TypeName = "xyz"
+                            }
+                            );
+
+                            //await Task.Delay(100);
+                        }
+                    });
+
+                    Con.ReadLine("Exit>");
+
+                    cts.Cancel();
+
+                    testTask._TryWait();
+                }
+            }
+        }
+
+        public static unsafe void Test01()
         {
             if (true)
             {
@@ -199,7 +244,7 @@ namespace IPA.TestDev
                 pcap.WritePacket(ref p, 0, "");
                 //pcap.WritePacket(p.Span, 0, "");
 
-                                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
+                Con.WriteLine($"{p.MemStat_NumRealloc}  {p.MemStat_PreAllocSize}  {p.MemStat_PostAllocSize}");
             }
         }
 

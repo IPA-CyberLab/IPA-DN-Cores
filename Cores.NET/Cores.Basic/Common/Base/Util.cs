@@ -2436,7 +2436,7 @@ namespace IPA.Cores.Basic
             return size;
         }
 
-        public static ReadOnlySpan<ReadOnlyMemory<T>> GetTailOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize)
+        public static ReadOnlySpan<ReadOnlyMemory<T>> GetTailOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize, bool doNotSplitSegment = false)
         {
             checked
             {
@@ -2456,8 +2456,19 @@ namespace IPA.Cores.Basic
                     ref readonly ReadOnlyMemory<T> item = ref itemList[i];
                     if (item.Length >= 1)
                     {
-                        long sizeToRead = Math.Min(item.Length, maxSize);
-                        ret[index++] = item.Slice(item.Length - (int)sizeToRead);
+                        long sizeToRead;
+
+                        if (doNotSplitSegment == false)
+                        {
+                            sizeToRead = Math.Min(item.Length, maxSize);
+                            ret[index++] = item.Slice(item.Length - (int)sizeToRead);
+                        }
+                        else
+                        {
+                            sizeToRead = item.Length;
+                            ret[index++] = item;
+                        }
+
                         maxSize -= sizeToRead;
                         returnTotalSize += sizeToRead;
                         if (maxSize <= 0)
@@ -2475,7 +2486,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static ReadOnlySpan<ReadOnlyMemory<T>> GetHeadOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize)
+        public static ReadOnlySpan<ReadOnlyMemory<T>> GetHeadOfReadOnlyMemoryArray<T>(ReadOnlySpan<ReadOnlyMemory<T>> itemList, long maxSize, out long returnTotalSize, bool doNotSplitSegment = false)
         {
             checked
             {
@@ -2495,8 +2506,18 @@ namespace IPA.Cores.Basic
                     ref readonly ReadOnlyMemory<T> item = ref itemList[i];
                     if (item.Length >= 1)
                     {
-                        long sizeToRead = Math.Min(item.Length, maxSize);
-                        ret[index++] = item.Slice(0, (int)sizeToRead);
+                        long sizeToRead;
+                        if (doNotSplitSegment == false)
+                        {
+                            sizeToRead = Math.Min(item.Length, maxSize);
+                            ret[index++] = item.Slice(0, (int)sizeToRead);
+                        }
+                        else
+                        {
+                            sizeToRead = item.Length;
+                            ret[index++] = item;
+                        }
+
                         maxSize -= sizeToRead;
                         returnTotalSize += sizeToRead;
                         if (maxSize <= 0)
@@ -5148,11 +5169,14 @@ namespace IPA.Cores.Basic
 
     class SizedDataQueue<T>
     {
-        readonly List<T> InternalList;
+        List<T> InternalList;
 
         public long CurrentTotalSize { get; private set; }
 
-        public IReadOnlyList<T> List => this.InternalList;
+        public IReadOnlyList<T> GetList()
+        {
+            return this.InternalList;
+        }
 
         public SizedDataQueue()
         {
@@ -5168,7 +5192,7 @@ namespace IPA.Cores.Basic
 
         public void Clear()
         {
-            this.InternalList.Clear();
+            this.InternalList = new List<T>();
             this.CurrentTotalSize = 0;
         }
     }

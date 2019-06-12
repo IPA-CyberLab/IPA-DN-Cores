@@ -637,10 +637,13 @@ namespace IPA.Cores.Basic
                 PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
                 {
+                    lowerStream.ReadTimeout = sslServerAuthOption.NegotiationRecvTimeout;
                     PalSslStream ssl = new PalSslStream(lowerStream);
                     try
                     {
                         await ssl.AuthenticateAsServerAsync(sslServerAuthOption, opCancel);
+
+                        lowerStream.ReadTimeout = Timeout.Infinite;
 
                         LowerAttach.SetLayerInfo(new LayerInfo()
                         {
@@ -687,10 +690,13 @@ namespace IPA.Cores.Basic
                 PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
                 {
+                    lowerStream.ReadTimeout = sslClientAuthOption.NegotiationRecvTimeout;
                     PalSslStream ssl = new PalSslStream(lowerStream);
                     try
                     {
                         await ssl.AuthenticateAsClientAsync(sslClientAuthOption, opCancel);
+
+                        lowerStream.ReadTimeout = Timeout.Infinite;
 
                         LowerAttach.SetLayerInfo(new LayerInfo()
                         {

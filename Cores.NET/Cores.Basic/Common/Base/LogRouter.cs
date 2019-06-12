@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
             record.WriteRecordToBuffer(this.LogInfoOptions, buf);
 
-            MasterBuffer.NonStopWrite(buf.Memory, true, FastStreamNonStopWriteMode.DiscardExistingData);
+            MasterBuffer.NonStopWriteWithLock(buf.Memory, true, FastStreamNonStopWriteMode.DiscardExistingData);
 
             lock (LockObj)
             {
@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
                 {
                     lock (pipe.CounterPart.StreamWriter.LockObj)
                     {
-                        if (pipe.CounterPart.StreamWriter.NonStopWrite(buf.Memory, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
+                        if (pipe.CounterPart.StreamWriter.NonStopWriteWithLock(buf.Memory, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
                         {
                             // To avoid deadlock, CompleteWrite() must be called from other thread.
                             // (CompleteWrite() ==> Disconnect ==> Socket Log will recorded ==> ReceiveLog() ==> this function will be called!)
@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
 
                 lock (mySide.StreamWriter.LockObj)
                 {
-                    mySide.StreamWriter.NonStopWrite(currentAllData, true, FastStreamNonStopWriteMode.DiscardExistingData);
+                    mySide.StreamWriter.NonStopWriteWithLock(currentAllData, true, FastStreamNonStopWriteMode.DiscardExistingData);
                 }
             }
 

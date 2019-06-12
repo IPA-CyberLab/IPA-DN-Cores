@@ -612,13 +612,13 @@ namespace IPA.Cores.Basic
     class PipeStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
-        public PipePoint End { get; private set; }
+        public PipePoint Point { get; private set; }
 
-        public PipeStream(PipePoint end, bool autoFlush = true)
+        public PipeStream(PipePoint pipePoint, bool autoFlush = true)
         {
-            end.CheckCanceled();
+            pipePoint.CheckCanceled();
 
-            End = end;
+            Point = pipePoint;
             AutoFlush = autoFlush;
 
             ReadTimeout = Timeout.Infinite;
@@ -626,41 +626,41 @@ namespace IPA.Cores.Basic
         }
 
         #region Stream
-        public bool IsReadyToSend() => End.StreamReader.IsReadyToWrite();
-        public bool IsReadyToReceive(int sizeToRead = 1) => End.StreamReader.IsReadyToRead(sizeToRead);
-        public bool IsReadyToSendTo() => End.DatagramReader.IsReadyToWrite();
-        public bool IsReadyToReceiveFrom() => End.DatagramReader.IsReadyToRead();
-        public bool IsDisconnected => End.StreamReader.IsDisconnected || End.DatagramReader.IsDisconnected;
+        public bool IsReadyToSend() => Point.StreamReader.IsReadyToWrite();
+        public bool IsReadyToReceive(int sizeToRead = 1) => Point.StreamReader.IsReadyToRead(sizeToRead);
+        public bool IsReadyToSendTo() => Point.DatagramReader.IsReadyToWrite();
+        public bool IsReadyToReceiveFrom() => Point.DatagramReader.IsReadyToRead();
+        public bool IsDisconnected => Point.StreamReader.IsDisconnected || Point.DatagramReader.IsDisconnected;
 
         public void CheckDisconnect()
         {
-            End.StreamReader.CheckDisconnected();
-            End.DatagramReader.CheckDisconnected();
+            Point.StreamReader.CheckDisconnected();
+            Point.DatagramReader.CheckDisconnected();
         }
 
         public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout)
         {
             cancel.ThrowIfCancellationRequested();
 
-            if (End.StreamWriter.IsReadyToWrite()) return Task.CompletedTask;
+            if (Point.StreamWriter.IsReadyToWrite()) return Task.CompletedTask;
 
-            return End.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout);
+            return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout);
         }
 
         public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1)
         {
             cancel.ThrowIfCancellationRequested();
 
-            if (End.StreamReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
+            if (Point.StreamReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
 
-            return End.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
+            return Point.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
         }
 
         public async Task FastSendAsync(Memory<ReadOnlyMemory<byte>> items, CancellationToken cancel = default, bool flush = true)
         {
             await WaitReadyToSendAsync(cancel, WriteTimeout);
 
-            End.StreamWriter.EnqueueAllWithLock(items.Span);
+            Point.StreamWriter.EnqueueAllWithLock(items.Span);
 
             if (flush) FastFlush(true, false);
         }
@@ -669,9 +669,9 @@ namespace IPA.Cores.Basic
         {
             await WaitReadyToSendAsync(cancel, WriteTimeout);
 
-            lock (End.StreamWriter.LockObj)
+            lock (Point.StreamWriter.LockObj)
             {
-                End.StreamWriter.Enqueue(item);
+                Point.StreamWriter.Enqueue(item);
             }
 
             if (flush) FastFlush(true, false);
@@ -698,15 +698,15 @@ namespace IPA.Cores.Basic
                 int r = await ReceiveAsync(buffer, cancel);
                 if (r <= 0)
                 {
-                    End.StreamReader.CheckDisconnected();
+                    Point.StreamReader.CheckDisconnected();
 
                     if (receiveAllAsyncRaiseExceptionFlag.IsFirstCall())
                     {
-                        End.StreamReader.ExceptionQueue.Raise(new FastBufferDisconnectedException());
+                        Point.StreamReader.ExceptionQueue.Raise(new FastBufferDisconnectedException());
                     }
                     else
                     {
-                        End.StreamReader.ExceptionQueue.ThrowFirstExceptionIfExists();
+                        Point.StreamReader.ExceptionQueue.ThrowFirstExceptionIfExists();
                         throw new FastBufferDisconnectedException();
                     }
                 }
@@ -730,7 +730,7 @@ namespace IPA.Cores.Basic
 
                 int ret = 0;
 
-                ret = End.StreamReader.DequeueContiguousSlowWithLock(buffer);
+                ret = Point.StreamReader.DequeueContiguousSlowWithLock(buffer);
 
                 if (ret == 0)
                 {
@@ -740,7 +740,7 @@ namespace IPA.Cores.Basic
 
                 Debug.Assert(ret <= buffer.Length);
 
-                End.StreamReader.CompleteRead();
+                Point.StreamReader.CompleteRead();
 
                 return ret;
             }
@@ -759,8 +759,8 @@ namespace IPA.Cores.Basic
 
                 ReadOnlyMemory<byte> ret;
 
-                lock (End.StreamReader.LockObj)
-                    ret = End.StreamReader.DequeueContiguousSlow(maxSize);
+                lock (Point.StreamReader.LockObj)
+                    ret = Point.StreamReader.DequeueContiguousSlow(maxSize);
 
                 if (ret.Length == 0)
                 {
@@ -768,7 +768,7 @@ namespace IPA.Cores.Basic
                     goto LABEL_RETRY;
                 }
 
-                End.StreamReader.CompleteRead();
+                Point.StreamReader.CompleteRead();
 
                 return ret;
             }
@@ -790,14 +790,14 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
             => ReceiveAsync(maxSize, cancel)._GetResult();
 
-        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null)
+        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null, int maxSize = int.MaxValue)
         {
             try
             {
                 LABEL_RETRY:
                 await WaitReadyToReceiveAsync(cancel, ReadTimeout, 1);
 
-                var ret = End.StreamReader.DequeueAllWithLock(out long totalReadSize);
+                IReadOnlyList<ReadOnlyMemory<byte>> ret = Point.StreamReader.DequeueWithLock(maxSize, out long totalReadSize);
 
                 if (totalRecvSize != null)
                     totalRecvSize.Set((int)totalReadSize);
@@ -808,7 +808,7 @@ namespace IPA.Cores.Basic
                     goto LABEL_RETRY;
                 }
 
-                End.StreamReader.CompleteRead();
+                Point.StreamReader.CompleteRead();
 
                 return ret;
             }
@@ -827,9 +827,9 @@ namespace IPA.Cores.Basic
 
             long totalReadSize;
             FastBufferSegment<ReadOnlyMemory<byte>>[] tmp;
-            lock (End.StreamReader.LockObj)
+            lock (Point.StreamReader.LockObj)
             {
-                tmp = End.StreamReader.GetSegmentsFast(End.StreamReader.PinHead, maxSize, out totalReadSize, !all);
+                tmp = Point.StreamReader.GetSegmentsFast(Point.StreamReader.PinHead, maxSize, out totalReadSize, !all);
             }
 
             if (totalRecvSize != null)
@@ -857,9 +857,9 @@ namespace IPA.Cores.Basic
 
             ReadOnlyMemory<byte> ret;
 
-            lock (End.StreamReader.LockObj)
+            lock (Point.StreamReader.LockObj)
             {
-                ret = End.StreamReader.GetContiguous(End.StreamReader.PinHead, maxSize, !all);
+                ret = Point.StreamReader.GetContiguous(Point.StreamReader.PinHead, maxSize, !all);
             }
 
             if (ret.Length == 0)
@@ -888,25 +888,25 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            if (End.DatagramWriter.IsReadyToWrite()) return Task.CompletedTask;
+            if (Point.DatagramWriter.IsReadyToWrite()) return Task.CompletedTask;
 
-            return End.DatagramWriter.WaitForReadyToWriteAsync(cancel, timeout);
+            return Point.DatagramWriter.WaitForReadyToWriteAsync(cancel, timeout);
         }
 
         public Task WaitReadyToReceiveFromAsync(CancellationToken cancel, int timeout, int sizeToRead = 1)
         {
             cancel.ThrowIfCancellationRequested();
 
-            if (End.DatagramReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
+            if (Point.DatagramReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
 
-            return End.DatagramReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
+            return Point.DatagramReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
         }
 
         public async Task FastSendToAsync(Memory<Datagram> items, CancellationToken cancel = default, bool flush = true)
         {
             await WaitReadyToSendToAsync(cancel, WriteTimeout);
 
-            End.DatagramWriter.EnqueueAllWithLock(items.Span);
+            Point.DatagramWriter.EnqueueAllWithLock(items.Span);
 
             if (flush) FastFlush(false, true);
         }
@@ -915,9 +915,9 @@ namespace IPA.Cores.Basic
         {
             await WaitReadyToSendToAsync(cancel, WriteTimeout);
 
-            lock (End.StreamWriter.LockObj)
+            lock (Point.StreamWriter.LockObj)
             {
-                End.DatagramWriter.Enqueue(item);
+                Point.DatagramWriter.Enqueue(item);
             }
 
             if (flush) FastFlush(false, true);
@@ -940,14 +940,14 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             await WaitReadyToReceiveFromAsync(cancel, ReadTimeout, 1);
 
-            var ret = End.DatagramReader.DequeueAllWithLock(out long totalReadSize);
+            var ret = Point.DatagramReader.DequeueAllWithLock(out long totalReadSize);
             if (totalReadSize == 0)
             {
                 await Task.Yield();
                 goto LABEL_RETRY;
             }
 
-            End.DatagramReader.CompleteRead();
+            Point.DatagramReader.CompleteRead();
 
             return ret;
         }
@@ -961,7 +961,7 @@ namespace IPA.Cores.Basic
 
             long totalReadSize;
 
-            dataList = End.DatagramReader.DequeueWithLock(1, out totalReadSize);
+            dataList = Point.DatagramReader.DequeueWithLock(1, out totalReadSize);
 
             if (totalReadSize == 0)
             {
@@ -971,7 +971,7 @@ namespace IPA.Cores.Basic
 
             Debug.Assert(dataList.Count == 1);
 
-            End.DatagramReader.CompleteRead();
+            Point.DatagramReader.CompleteRead();
 
             return dataList[0];
         }
@@ -1001,13 +1001,13 @@ namespace IPA.Cores.Basic
         public void FastFlush(bool stream = true, bool datagram = true)
         {
             if (stream)
-                End.StreamWriter.CompleteWrite();
+                Point.StreamWriter.CompleteWrite();
 
             if (datagram)
-                End.DatagramWriter.CompleteWrite();
+                Point.DatagramWriter.CompleteWrite();
         }
 
-        public void Disconnect() => End.Cancel(new DisconnectedException());
+        public void Disconnect() => Point.Cancel(new DisconnectedException());
 
         public override bool DataAvailable => IsReadyToReceive(1);
 

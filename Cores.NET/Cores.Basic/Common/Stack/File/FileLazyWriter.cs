@@ -235,10 +235,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                lock (this.Writer.StreamWriter.LockObj)
-                {
-                    this.Writer.StreamWriter.NonStopWrite(data, false, this.Options.OverflowBehavior);
-                }
+                this.Writer.StreamWriter.NonStopWriteWithLock(data, false, this.Options.OverflowBehavior, true);
             }
             catch { }
         }

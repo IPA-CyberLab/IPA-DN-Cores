@@ -50,6 +50,14 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class SslSettings
+        {
+            public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
+        }
+    }
+
     class PalX509Certificate
     {
         public X509Certificate NativeCertificate { get; }
@@ -370,6 +378,9 @@ namespace IPA.Cores.Basic
     {
         public PalSslClientAuthenticationOptions() { }
 
+        public PalSslClientAuthenticationOptions(bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
+            : this(null, allowAnyServerCert, validateRemoteCertificateProc, serverCertSHA1List) { }
+
         public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
         {
             this.TargetHost = targetHost;
@@ -382,6 +393,8 @@ namespace IPA.Cores.Basic
         public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
         public string[] ServerCertSHA1List { get; set; } = new string[0];
         public bool AllowAnyServerCert { get; set; } = false;
+
+        public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
         public PalX509Certificate ClientCertificate { get; set; }
 
@@ -430,6 +443,8 @@ namespace IPA.Cores.Basic
 
         public PalSslCertificateSelectionCallback ServerCertificateSelectionProc { get; set; }
         public object ServerCertificateSelectionProcParam { get; set; }
+
+        public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
         public PalX509Certificate ServerCertificate { get; set; }
 

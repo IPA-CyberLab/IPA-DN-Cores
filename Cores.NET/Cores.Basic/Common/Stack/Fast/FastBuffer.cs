@@ -1559,14 +1559,16 @@ namespace IPA.Cores.Basic
 
     static class FastStreamBufferHelper
     {
-        public static long NonStopWrite<T>(this FastStreamBuffer<T> buffer, ReadOnlyMemory<T> item, bool completeWrite = true, FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData)
+        public static long NonStopWriteWithLock<T>(this FastStreamBuffer<T> buffer, ReadOnlyMemory<T> item, bool completeWrite = true,
+            FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData, bool doNotSplitSegment = false)
         {
             ReadOnlySpan<ReadOnlyMemory<T>> itemList = new ReadOnlyMemory<T>[] { item };
 
-            return NonStopWrite(buffer, itemList, completeWrite, mode);
+            return NonStopWriteWithLock(buffer, itemList, completeWrite, mode, doNotSplitSegment);
         }
 
-        public static long NonStopWrite<T>(this FastStreamBuffer<T> buffer, ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = true, FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData)
+        public static long NonStopWriteWithLock<T>(this FastStreamBuffer<T> buffer, ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = true,
+            FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData, bool doNotSplitSegment = false)
         {
             long ret = 0;
 
@@ -1576,21 +1578,17 @@ namespace IPA.Cores.Basic
                 {
                     if (mode == FastStreamNonStopWriteMode.DiscardExistingData)
                     {
-                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetTailOfReadOnlyMemoryArray(itemList, buffer.Threshold, out long totalSizeToInsert);
-
-                        Debug.Assert(totalSizeToInsert <= buffer.Threshold);
+                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetTailOfReadOnlyMemoryArray(itemList, buffer.Threshold, out long totalSizeToInsert, doNotSplitSegment);
 
                         long existingDataMaxLength = buffer.Threshold - totalSizeToInsert;
                         if (existingDataMaxLength < buffer.Length)
                         {
                             long sizeToRemove = buffer.Length - existingDataMaxLength;
 
-                            buffer.Dequeue(sizeToRemove, out _, true);
+                            buffer.Dequeue(sizeToRemove, out _, !doNotSplitSegment);
                         }
 
                         buffer.EnqueueAll(itemToInsert);
-
-                        Debug.Assert(buffer.Length <= buffer.Threshold);
 
                         ret = totalSizeToInsert;
                     }
@@ -1599,13 +1597,9 @@ namespace IPA.Cores.Basic
                         long freeSpace = buffer.SizeWantToBeWritten;
                         if (freeSpace == 0) return 0;
 
-                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetHeadOfReadOnlyMemoryArray(itemList, freeSpace, out long totalSizeToInsert);
-
-                        Debug.Assert(totalSizeToInsert <= freeSpace);
+                        ReadOnlySpan<ReadOnlyMemory<T>> itemToInsert = Util.GetHeadOfReadOnlyMemoryArray(itemList, freeSpace, out long totalSizeToInsert, doNotSplitSegment);
 
                         buffer.EnqueueAll(itemToInsert);
-
-                        Debug.Assert(buffer.Length <= buffer.Threshold);
 
                         ret = totalSizeToInsert;
                     }
