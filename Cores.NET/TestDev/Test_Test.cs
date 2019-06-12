@@ -94,6 +94,26 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            RsaUtil.GenerateRsaKeyPair(2048, out PrivateKey privateKey, out PublicKey publicKey);
+
+            ReadOnlyMemory<byte> data1 = privateKey.Export("a");
+
+            ReadOnlyMemory<byte> data2 = publicKey.Export();
+
+            PublicKey pubKey2 = new PublicKey(data2);
+            PrivateKey pKey2 = new PrivateKey(data1, "a");
+
+            pubKey2.Export()._GetString_Ascii()._Print();
+
+            Certificate cert = new Certificate(privateKey, new CertificateOptions("www.abc", serial: new byte[] { 1, 2, 3 }));
+
+            cert.Export()._GetString_Ascii()._Print();
+
+            Lfs.WriteDataToFile(@"c:\tmp\190613\cert.cer", cert.Export(), FileFlags.AutoCreateDirectory);
+        }
+
+        public static void Test_11()
+        {
             // Logger Tester
             PalSslServerAuthenticationOptions svrSsl = new PalSslServerAuthenticationOptions(DevTools.TestSampleCert, true, null);
             PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, DevTools.TestSampleCert.HashSHA1);
@@ -124,7 +144,7 @@ namespace IPA.TestDev
                             }
                             );
 
-                            //await Task.Delay(100);
+                            await Task.Delay(100);
                         }
                     });
 

@@ -30,50 +30,72 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_BASIC_SECURITY
+using System;
+using System.IO;
+using System.IO.Enumeration;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using IPA.Cores.Basic.Legacy;
 
-namespace IPA.Cores.Basic
+#pragma warning disable CS0162
+#pragma warning disable CS0219
+
+namespace IPA.TestDev
 {
-    partial class Pack
+    class LogServerDaemon : Daemon
     {
-        public void AddCert(string name, Cert cert)
+        public LogServerDaemon() : base(new DaemonOptions("LogServer", "Log Server Service", true, telnetLogWatcherPort: 8023))
         {
-            AddCert(name, cert, 0);
-        }
-        public void AddCert(string name, Cert cert, uint index)
-        {
-            AddData(name, cert.ByteData, index);
-        }
-        public Cert GetCert(string name)
-        {
-            return GetCert(name, 0);
-        }
-        public Cert GetCert(string name, uint index)
-        {
-            byte[] data = GetData(name, index);
-            if (data == null)
-            {
-                return null;
-            }
-            try
-            {
-                Cert c = new Cert(data);
-
-                return c;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
+        protected override async Task StartImplAsync(object param)
+        {
+            Con.WriteLine("LogServerDaemon: Starting...");
+
+            await Task.CompletedTask;
+
+            Con.WriteLine("LogServerDaemon: Started.");
+        }
+
+        protected override async Task StopImplAsync(object param)
+        {
+            Con.WriteLine("LogServerDaemon: Stopping...");
+
+            await Task.CompletedTask;
+
+            Con.WriteLine("LogServerDaemon: Stopped.");
+        }
+    }
+
+    partial class TestDevCommands
+    {
+        [ConsoleCommand(
+            "Start or stop the LogServerDaemon daemon",
+            "LogServerDaemon [command]",
+            "Start or stop the LogServerDaemon daemon",
+            @"[command]:The control command.
+
+[UNIX / Windows common commands]
+start        - Start the daemon in the background mode.
+stop         - Stop the running daemon in the background mode.
+show         - Show the real-time log by the background daemon.
+test         - Start the daemon in the foreground testing mode.
+
+[Windows specific commands]
+winstart     - Start the daemon as a Windows service.
+winstop      - Stop the running daemon as a Windows service.
+wininstall   - Install the daemon as a Windows service.
+winuninstall - Uninstall the daemon as a Windows service.")]
+        static int LogServerDaemon(ConsoleService c, string cmdName, string str)
+        {
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon());
+        }
     }
 }
-
-#endif // CORES_BASIC_SECURITY
 

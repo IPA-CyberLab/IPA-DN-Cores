@@ -655,7 +655,10 @@ namespace IPA.Cores.Basic
         {
             if (IsWindows)
             {
-                return new MutantWin32Impl(name);
+                if (forSingleInstance == false)
+                    return new MutantWin32Impl(name);
+                else
+                    return new MutantWin32ForSingleInstanceImpl(name);
             }
             else
             {

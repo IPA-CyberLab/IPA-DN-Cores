@@ -116,7 +116,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Cert.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Security\Base\CryptoLegacy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\PackSecurity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Wpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
