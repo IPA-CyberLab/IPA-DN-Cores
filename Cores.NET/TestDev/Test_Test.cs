@@ -94,22 +94,44 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            RsaUtil.GenerateRsaKeyPair(2048, out PrivateKey privateKey, out PublicKey publicKey);
+            Test_Cert();
+        }
 
-            ReadOnlyMemory<byte> data1 = privateKey.Export("a");
+        public static void Test_Cert()
+        {
+            string tmpDir = @"c:\tmp\190613_cert";
 
-            ReadOnlyMemory<byte> data2 = publicKey.Export();
+            PrivKey privateKey;
+            PubKey publicKey;
 
-            PublicKey pubKey2 = new PublicKey(data2);
-            PrivateKey pKey2 = new PrivateKey(data1, "a");
+            Lfs.CreateDirectory(tmpDir);
 
-            pubKey2.Export()._GetString_Ascii()._Print();
+            if (false)
+            {
+                RsaUtil.GenerateRsaKeyPair(1024, out privateKey, out publicKey);
 
-            Certificate cert = new Certificate(privateKey, new CertificateOptions("www.abc", serial: new byte[] { 1, 2, 3 }));
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_private.key"), privateKey.Export());
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_private_encrypted.key"), privateKey.Export("microsoft"));
 
-            cert.Export()._GetString_Ascii()._Print();
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_public.key"), publicKey.Export());
+            }
 
-            Lfs.WriteDataToFile(@"c:\tmp\190613\cert.cer", cert.Export(), FileFlags.AutoCreateDirectory);
+            privateKey = new PrivKey(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_private_encrypted.key")).Span, "microsoft");
+            publicKey = new PubKey(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_public.key")).Span);
+
+            Certificate cert;
+
+            if (false)
+            {
+                cert = new Certificate(privateKey, new CertificateOptions("www.abc", serial: new byte[] { 1, 2, 3 }));
+
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_cert.crt"), cert.Export());
+            }
+
+            cert = new Certificate(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_cert.crt")).Span);
+
+            //CertificateStore store = new CertificateStore(Lfs.ReadDataFromFile(@"C:\TMP\190613_cert\p12test.p12").Span);
+            CertificateStore store = new CertificateStore(Lfs.ReadDataFromFile(@"H:\Crypto\all.open.ad.jp\cert.pfx").Span, "microsoft");
         }
 
         public static void Test_11()

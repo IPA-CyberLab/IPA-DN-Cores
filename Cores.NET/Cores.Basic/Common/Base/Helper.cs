@@ -859,6 +859,8 @@ namespace IPA.Cores.Helper.Basic
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
 
+        public static bool _IsNullOrLen0String(this string str) => string.IsNullOrEmpty(str);
+
         public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 

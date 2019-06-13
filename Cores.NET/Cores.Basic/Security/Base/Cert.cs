@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
 
             public static IPasswordFinder Get(string password)
             {
-                if (password._IsEmpty())
+                if (password._IsNullOrLen0String())
                     return null;
                 else
                     return new SimplePasswordFinder(password);
@@ -86,20 +86,84 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PrivateKey
+    class CertificateStoreContainer
+    {
+        public string Name { get; }
+
+        List<Certificate> InternalCertificates = new List<Certificate>();
+
+        public IList<Certificate> Certificate => InternalCertificates;
+
+        public CertificateStoreContainer(string name, Certificate[] certList)
+        {
+            this.Name = name;
+
+            foreach (var cert in certList)
+            {
+                this.InternalCertificates.Add(cert);
+            }
+        }
+    }
+
+    class CertificateStore
+    {
+        Dictionary<string, CertificateStoreContainer> InternalContainers = new Dictionary<string, CertificateStoreContainer>();
+
+        public IReadOnlyDictionary<string, CertificateStoreContainer> Containers => InternalContainers;
+
+        public CertificateStore(ReadOnlySpan<byte> pkcs12Import, string password = null)
+        {
+            password = password._NonNull();
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                ms.Write(pkcs12Import);
+                ms._SeekToBegin();
+
+                Pkcs12Store p12 = new Pkcs12Store(ms, password.ToCharArray());
+
+                foreach (object aliasObject in p12.Aliases)
+                {
+                    string alias = (string)aliasObject;
+
+                    if (alias._IsNullOrLen0String() == false)
+                    {
+                        X509CertificateEntry[] certs = p12.GetCertificateChain(alias);
+
+                        List<Certificate> cerList = new List<Certificate>();
+
+                        foreach (X509CertificateEntry cert in certs)
+                        {
+                            cerList.Add(new Certificate(cert.Certificate));
+                        }
+
+                        CertificateStoreContainer container = new CertificateStoreContainer(alias, cerList.ToArray());
+                        this.InternalContainers.Add(alias, container);
+                    }
+                }
+
+                if (this.Containers.Count == 0)
+                {
+                    throw new ApplicationException("There are no certificate aliases in the PKCS#12 file.");
+                }
+            }
+        }
+    }
+
+    class PrivKey
     {
         public AsymmetricCipherKeyPair PrivateKeyData { get; }
 
-        public PublicKey PublicKey { get; private set; }
+        public PubKey PublicKey { get; private set; }
 
-        public PrivateKey(AsymmetricCipherKeyPair data)
+        public PrivKey(AsymmetricCipherKeyPair data)
         {
             this.PrivateKeyData = data;
 
             InitFields();
         }
 
-        public PrivateKey(ReadOnlyMemory<byte> import, string password = null)
+        public PrivKey(ReadOnlySpan<byte> import, string password = null)
         {
             using (StringReader r = new StringReader(import._GetString_UTF8()))
             {
@@ -117,7 +181,7 @@ namespace IPA.Cores.Basic
 
         void InitFields()
         {
-            this.PublicKey = new PublicKey(this.PrivateKeyData.Public);
+            this.PublicKey = new PubKey(this.PrivateKeyData.Public);
         }
 
         public ReadOnlyMemory<byte> Export(string password = null)
@@ -126,7 +190,7 @@ namespace IPA.Cores.Basic
             {
                 PemWriter pem = new PemWriter(w);
 
-                if (password._IsEmpty())
+                if (password._IsNullOrLen0String())
                     pem.WriteObject(this.PrivateKeyData);
                 else
                     pem.WriteObject(this.PrivateKeyData, "DESEDE", password.ToCharArray(), RsaUtil.NewSecureRandom());
@@ -138,18 +202,20 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PublicKey
+    class PubKey : IEquatable<PubKey>
     {
         public AsymmetricKeyParameter PublicKeyData { get; }
 
-        public PublicKey(AsymmetricKeyParameter data)
+        public PubKey(AsymmetricKeyParameter data)
         {
             if (data.IsPrivate) throw new ArgumentException("the key is private.");
             this.PublicKeyData = data;
         }
 
-        public PublicKey(ReadOnlyMemory<byte> import)
+        public PubKey(ReadOnlySpan<byte> import)
         {
+            import = ConvertToPemIfDer(import);
+
             using (StringReader r = new StringReader(import._GetString_UTF8()))
             {
                 PemReader pem = new PemReader(r);
@@ -177,7 +243,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static ReadOnlyMemory<byte> DerToPem(ReadOnlyMemory<byte> src)
+        static ReadOnlySpan<byte> ConvertToPemIfDer(ReadOnlySpan<byte> src)
         {
             string test = src._GetString_Ascii();
             if (test._InStr("-----BEGIN", false)) return src;
@@ -185,6 +251,16 @@ namespace IPA.Cores.Basic
             string str = "-----BEGIN PUBLIC KEY-----\n" + Str.Base64Encode(src.ToArray()) + "\n" + "-----END PUBLIC KEY-----\n\n";
 
             return str._GetBytes_Ascii();
+        }
+
+        public bool CheckIfPrivateKeyCorrespond(PrivKey privateKey)
+        {
+            return this.Equals(privateKey.PublicKey);
+        }
+
+        public bool Equals(PubKey other)
+        {
+            return this.PublicKeyData.Equals(other.PublicKeyData);
         }
     }
 
@@ -281,9 +357,32 @@ namespace IPA.Cores.Basic
     {
         public X509Certificate CertData { get; }
 
-        public PublicKey PublicKey { get; }
+        public PubKey PublicKey { get; private set; }
 
-        public Certificate(PrivateKey selfSignKey, CertificateOptions options)
+        public Certificate(X509Certificate cert)
+        {
+            this.CertData = cert;
+
+            InitFields();
+        }
+
+        public Certificate(ReadOnlySpan<byte> import)
+        {
+            using (StringReader r = new StringReader(import._GetString_UTF8()))
+            {
+                PemReader pem = new PemReader(r);
+
+                object obj = pem.ReadObject();
+
+                X509Certificate data = (X509Certificate)obj;
+
+                this.CertData = data;
+
+                InitFields();
+            }
+        }
+
+        public Certificate(PrivKey selfSignKey, CertificateOptions options)
         {
             X509Name name = options.GenerateName();
             X509V3CertificateGenerator gen = new X509V3CertificateGenerator();
@@ -315,9 +414,9 @@ namespace IPA.Cores.Basic
 
         void InitFields()
         {
-            byte[] data = this.CertData.CertificateStructure.SubjectPublicKeyInfo.PublicKeyData.GetBytes();
+            byte[] publicKeyBytes = this.CertData.CertificateStructure.SubjectPublicKeyInfo.GetDerEncoded();
 
-            new PublicKey(PublicKey.DerToPem(data)); // ???
+            this.PublicKey = new PubKey(publicKeyBytes);
         }
 
         public ReadOnlyMemory<byte> Export()
@@ -339,15 +438,15 @@ namespace IPA.Cores.Basic
     {
         public static SecureRandom NewSecureRandom() => SecureRandom.GetInstance("SHA1PRNG");
 
-        public static void GenerateRsaKeyPair(int bits, out PrivateKey privateKey, out PublicKey publicKey)
+        public static void GenerateRsaKeyPair(int bits, out PrivKey privateKey, out PubKey publicKey)
         {
             KeyGenerationParameters param = new KeyGenerationParameters(NewSecureRandom(), bits);
             RsaKeyPairGenerator gen = new RsaKeyPairGenerator();
             gen.Init(param);
             AsymmetricCipherKeyPair pair = gen.GenerateKeyPair();
 
-            privateKey = new PrivateKey(pair);
-            publicKey = new PublicKey(pair.Public);
+            privateKey = new PrivKey(pair);
+            publicKey = new PubKey(pair.Public);
         }
     }
 }
