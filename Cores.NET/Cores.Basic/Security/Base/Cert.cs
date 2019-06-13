@@ -61,6 +61,7 @@ using static IPA.Cores.Globals.Basic;
 
 using System.Security.Cryptography;
 using System.Collections.Generic;
+using Org.BouncyCastle.Utilities.Encoders;
 
 namespace IPA.Cores.Basic
 {
@@ -88,36 +89,48 @@ namespace IPA.Cores.Basic
 
     class CertificateStoreContainer
     {
-        public string Name { get; }
+        public string Alias { get; }
 
-        List<Certificate> InternalCertificates = new List<Certificate>();
+        public List<Certificate> CertificateList { get; } = new List<Certificate>();
 
-        public IList<Certificate> Certificate => InternalCertificates;
+        public PrivKey PrivateKey { get; set; }
 
-        public CertificateStoreContainer(string name, Certificate[] certList)
+        public CertificateStoreContainer(string alias, Certificate[] certList, PrivKey privateKey)
         {
-            this.Name = name;
+            this.Alias = alias;
+
+            this.PrivateKey = privateKey;
 
             foreach (var cert in certList)
             {
-                this.InternalCertificates.Add(cert);
+                this.CertificateList.Add(cert);
             }
         }
     }
 
     class CertificateStore
     {
-        Dictionary<string, CertificateStoreContainer> InternalContainers = new Dictionary<string, CertificateStoreContainer>();
+        public Dictionary<string, CertificateStoreContainer> Containers { get; } = new Dictionary<string, CertificateStoreContainer>(StrComparer.IgnoreCaseComparer);
 
-        public IReadOnlyDictionary<string, CertificateStoreContainer> Containers => InternalContainers;
+        public IEnumerable<string> Aliases => Containers.Keys;
 
-        public CertificateStore(ReadOnlySpan<byte> pkcs12Import, string password = null)
+        public CertificateStoreContainer PrimaryContainer => Containers.Values.Single();
+
+        public CertificateStore(ReadOnlySpan<byte> chainedCert, ReadOnlySpan<byte> privateKey, string password = null)
+        {
+            Certificate[] certList = CertificateUtil.ImportChainedCertificates(chainedCert);
+            PrivKey privKey = new PrivKey(privateKey, password);
+
+            this.Containers.Add("default", new CertificateStoreContainer("default", certList, privKey));
+        }
+
+        public CertificateStore(ReadOnlySpan<byte> pkcs12, string password = null)
         {
             password = password._NonNull();
 
             using (MemoryStream ms = new MemoryStream())
             {
-                ms.Write(pkcs12Import);
+                ms.Write(pkcs12);
                 ms._SeekToBegin();
 
                 Pkcs12Store p12 = new Pkcs12Store(ms, password.ToCharArray());
@@ -128,17 +141,49 @@ namespace IPA.Cores.Basic
 
                     if (alias._IsNullOrLen0String() == false)
                     {
+                        AsymmetricKeyParameter privateKeyParam = null;
+
+                        AsymmetricKeyEntry key = p12.GetKey(alias);
+                        if (key != null)
+                        {
+                            if (key.Key.IsPrivate == false)
+                            {
+                                throw new ApplicationException("Key.IsPrivate == false");
+                            }
+
+                            privateKeyParam = key.Key;
+                        }
+
                         X509CertificateEntry[] certs = p12.GetCertificateChain(alias);
 
-                        List<Certificate> cerList = new List<Certificate>();
+                        List<Certificate> certList = new List<Certificate>();
 
                         foreach (X509CertificateEntry cert in certs)
                         {
-                            cerList.Add(new Certificate(cert.Certificate));
+                            Certificate certObj = new Certificate(cert.Certificate);
+
+                            certList.Add(certObj);
                         }
 
-                        CertificateStoreContainer container = new CertificateStoreContainer(alias, cerList.ToArray());
-                        this.InternalContainers.Add(alias, container);
+                        if (certList.Count == 0)
+                        {
+                            throw new ApplicationException("certList.Count == 0");
+                        }
+
+                        PrivKey privateKey = null;
+
+                        if (privateKeyParam != null)
+                        {
+                            privateKey = new PrivKey(new AsymmetricCipherKeyPair(certList[0].PublicKey.PublicKeyData, privateKeyParam));
+                        }
+                        else
+                        {
+                            throw new ApplicationException("No private key found.");
+                        }
+
+                        CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
+
+                        this.Containers.Add(alias, container);
                     }
                 }
 
@@ -147,6 +192,39 @@ namespace IPA.Cores.Basic
                     throw new ApplicationException("There are no certificate aliases in the PKCS#12 file.");
                 }
             }
+        }
+
+        public Pkcs12Store ToPkcs12Store()
+        {
+            Pkcs12Store ret = new Pkcs12Store();
+
+            foreach (CertificateStoreContainer container in this.Containers.Values)
+            {
+                ret.SetKeyEntry(container.Alias, new AsymmetricKeyEntry(container.PrivateKey.PrivateKeyData.Private), container.CertificateList.Select(x => new X509CertificateEntry(x.CertData)).ToArray());
+            }
+
+            return ret;
+        }
+
+        public ReadOnlyMemory<byte> ExportPkcs12(string password = null)
+        {
+            password = password._NonNull();
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Pkcs12Store p12 = ToPkcs12Store();
+
+                p12.Save(ms, password.ToCharArray(), RsaUtil.NewSecureRandom());
+
+                return ms.ToArray();
+            }
+        }
+
+        public void ExportChainedPem(out ReadOnlyMemory<byte> certFile, out ReadOnlyMemory<byte> privateKeyFile, string password = null)
+        {
+            certFile = this.PrimaryContainer.CertificateList.ExportChainedCertificates();
+
+            privateKeyFile = this.PrimaryContainer.PrivateKey.Export(password);
         }
     }
 
@@ -431,6 +509,73 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+    }
+
+    static class CertificateUtil
+    {
+        public static ReadOnlyMemory<byte> ExportChainedCertificates(this IEnumerable<Certificate> certList)
+        {
+            StringWriter w = new StringWriter();
+            foreach (Certificate cert in certList)
+            {
+                string certBody = cert.Export()._GetString_UTF8();
+
+                w.WriteLine($"subject: {cert.CertData.SubjectDN.ToString()}");
+                w.WriteLine($"issuer: {cert.CertData.IssuerDN.ToString()}");
+                w.WriteLine(certBody);
+            }
+
+            return w.ToString()._GetBytes_UTF8();
+        }
+
+        public static Certificate[] ImportChainedCertificates(ReadOnlySpan<byte> data)
+        {
+            List<Certificate> ret = new List<Certificate>();
+
+            string[] lines = data._GetString_UTF8()._GetLines();
+
+            int mode = 0;
+
+            StringWriter current = new StringWriter();
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+
+                switch (mode)
+                {
+                    case 0:
+                        if (line == "-----BEGIN CERTIFICATE-----")
+                        {
+                            mode = 1;
+                            current.WriteLine(line);
+                        }
+                        break;
+
+                    case 1:
+                        current.WriteLine(line);
+                        if (line == "-----END CERTIFICATE-----")
+                        {
+                            mode = 0;
+
+                            string body = current.ToString();
+                            current = new StringWriter();
+
+                            Certificate cert = new Certificate(body._GetBytes_UTF8());
+
+                            ret.Add(cert);
+                        }
+                        break;
+                }
+            }
+
+            if (ret.Count == 0)
+            {
+                throw new ApplicationException("No certificates found on the text file.");
+            }
+
+            return ret.ToArray();
         }
     }
 
