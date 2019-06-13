@@ -33,6 +33,7 @@
 #if CORES_BASIC_JSON
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections;
 using System.IO;
@@ -98,6 +99,117 @@ namespace IPA.Cores.Basic
             string str = memory._GetString_UTF8();
 
             return (T)JsonConvert.DeserializeObject(str, typeof(T), Options.JsonSettings);
+        }
+    }
+
+    class PersistentLocalCache<T> where T : class, new()
+    {
+        public TimeSpan LifeTime { get; }
+        public bool IgnoreUpdateError { get; }
+
+        HiveData<HiveKeyValue> HiveKv;
+
+        readonly Func<CancellationToken, Task<T>> UpdateProcAsync;
+
+        T CachedData = null;
+        DateTime CachedTimeStamp;
+        AsyncLock AsyncLock = new AsyncLock();
+        CriticalSection Lock = new CriticalSection();
+
+        public PersistentLocalCache(string name, TimeSpan lifetime, bool ignoreUpdateError, Func<CancellationToken, Task<T>> updateProcAsync)
+        {
+            if (name._IsEmpty()) throw new ArgumentException("name is empty.");
+
+            this.IgnoreUpdateError = ignoreUpdateError;
+            this.HiveKv = Hive.RichLocalAppSettings[$"cache/{name}"];
+            this.LifeTime = lifetime;
+            this.UpdateProcAsync = updateProcAsync;
+        }
+
+        public async Task<T> GetAsync(CancellationToken cancel = default)
+        {
+            lock (Lock)
+            {
+                if (CachedData != null && (DateTime.UtcNow <= (CachedTimeStamp + LifeTime)))
+                {
+                    return HiveKv.Serializer.CloneData(CachedData);
+                }
+            }
+
+            using (await AsyncLock.LockWithAwait(cancel))
+            {
+                try
+                {
+                    await this.HiveKv.AccessDataAsync(false, (d) =>
+                    {
+                        T data = d.Get<T>("CachedData");
+                        DateTime dt = d.Get<DateTime>("CachedTimeStamp");
+
+                        if (data != null && dt.Ticks != 0)
+                        {
+                            lock (Lock)
+                            {
+                                this.CachedData = data;
+                                this.CachedTimeStamp = dt;
+                            }
+                        }
+
+                        return Task.CompletedTask;
+                    }, cancel);
+                }
+                catch { }
+
+                lock (Lock)
+                {
+                    if (CachedData != null && (DateTime.UtcNow <= (CachedTimeStamp + LifeTime)))
+                    {
+                        return HiveKv.Serializer.CloneData(CachedData);
+                    }
+                }
+
+                T latestData = null;
+
+                try
+                {
+                    latestData = await this.UpdateProcAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+
+                    if (IgnoreUpdateError == false || this.CachedData == null)
+                    {
+                        throw;
+                    }
+
+                    latestData = this.CachedData;
+                }
+
+                DateTime now = DateTime.UtcNow;
+
+                lock (Lock)
+                {
+                    this.CachedData = latestData;
+                    this.CachedTimeStamp = now;
+                }
+
+                try
+                {
+                    await this.HiveKv.AccessDataAsync(true, (d) =>
+                    {
+                        d.Set("CachedTimeStamp", now);
+                        d.Set("CachedData", latestData);
+
+                        return Task.CompletedTask;
+                    }, cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+
+                return HiveKv.Serializer.CloneData(latestData);
+            }
         }
     }
 }

@@ -542,7 +542,7 @@ namespace IPA.Cores.Basic
                 subject, pub.PublicKeyData, new DerSet(attr), priv.PrivateKeyData.Private);
         }
 
-        public ReadOnlyMemory<byte> Export()
+        public ReadOnlyMemory<byte> ExportPem()
         {
             using (StringWriter w = new StringWriter())
             {
@@ -554,6 +554,11 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+
+        public ReadOnlyMemory<byte> ExportDer()
+        {
+            return this.Request.GetDerEncoded();
         }
     }
 

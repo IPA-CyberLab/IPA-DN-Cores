@@ -114,6 +114,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\Acme.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Cert.cs" />

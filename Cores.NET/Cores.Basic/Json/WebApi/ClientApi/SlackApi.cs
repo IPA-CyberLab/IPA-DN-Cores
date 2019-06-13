@@ -61,7 +61,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
     class SlackApi : WebApi
     {
-        public class Response : WebResponseBasic
+        public class Response : WebResponseBase
         {
             public bool ok = false;
             public string error = null;

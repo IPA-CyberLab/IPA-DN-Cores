@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
 
             this.TelnetLogWatcherPort = telnetLogWatcherPort;
 
-            this.Hive = new Hive(new HiveOptions(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value()));
+            this.Hive = new Hive(new HiveOptions(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), globalLock: true));
             this.HiveData = new HiveData<UserModeServicePidData>(this.Hive, this.Name, () => new UserModeServicePidData());
         }
 

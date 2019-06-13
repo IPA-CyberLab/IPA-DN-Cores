@@ -49,6 +49,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Runtime.InteropServices;
+using IPA.Cores.ClientApi.Acme;
 
 
 
@@ -94,7 +95,52 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            Test_Cert();
+            //Test_Cert();
+
+            Test_Acme();
+
+            //Test_HiveLock();
+
+            //Test_PersistentCache();
+        }
+
+        public static void Test_Acme()
+        {
+            AcmeClientOptions o = new AcmeClientOptions(AcmeWellKnownServiceUrls.LetsEncryptStaging);
+
+            o.GetEntryPointsAsync().Result._PrintAsJson();
+        }
+
+        public static void Test_PersistentCache()
+        {
+            PersistentLocalCache<TestHiveData1> c = new PersistentLocalCache<TestHiveData1>("cacheTest1", new TimeSpan(0, 0, 15), true,
+                async (can) =>
+                {
+                    throw new ApplicationException("a");
+                    await Task.CompletedTask;
+                    return new TestHiveData1() { Date = DateTime.Now._ToDtStr(true) };
+                }
+                );
+
+            var d = c.GetAsync().Result;
+
+            Con.WriteLine(d.Date);
+        }
+
+        public static void Test_HiveLock()
+        {
+            int num = 1000;
+            HiveData<HiveKeyValue> test = Hive.LocalAppSettings["testlock"];
+
+            for (int i = 0; i < num; i++)
+            {
+                test.AccessData(true, kv =>
+                {
+                    int value = kv.GetSInt32("value");
+                    value++;
+                    kv.SetSInt32("value", value);
+                });
+            }
         }
 
         public static void Test_Cert()
@@ -144,7 +190,7 @@ namespace IPA.TestDev
             Lfs.WriteDataToFile(@"C:\TMP\190613_cert\export_test2.pfx", store2.ExportPkcs12());
 
             Csr csr = new Csr(new CertificateOptions("www.softether.com"), 1024);
-            Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.Export());
+            Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.ExportPem());
 
             DoNothing();
         }

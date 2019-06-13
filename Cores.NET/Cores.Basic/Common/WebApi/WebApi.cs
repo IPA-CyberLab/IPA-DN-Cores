@@ -66,7 +66,7 @@ namespace IPA.Cores.Basic
         public WebResponseException(string message) : base(message) { }
     }
 
-    abstract class WebResponseBasic
+    abstract class WebResponseBase
     {
         public abstract void CheckError();
     }

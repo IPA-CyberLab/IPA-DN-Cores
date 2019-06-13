@@ -82,6 +82,8 @@ namespace IPA.Cores.Basic
 
         public Memory<byte> Serialize<T>(T obj) => SerializeImpl(obj);
         public T Deserialize<T>(ReadOnlyMemory<byte> memory) => DeserializeImpl<T>(memory);
+
+        public T CloneData<T>(T obj) => Deserialize<T>(Serialize(obj));
     }
 
     class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
@@ -138,6 +140,7 @@ namespace IPA.Cores.Basic
         public bool SingleInstance { get; }
         public FileSystem FileSystem { get; }
         public bool PutGitIgnore { get; }
+        public bool GlobalLock { get; }
 
         public Copenhagen<string> RootDirectoryPath { get; }
         public Copenhagen<FileFlags> Flags { get; }
@@ -147,7 +150,7 @@ namespace IPA.Cores.Basic
         public Copenhagen<string> DefaultDataName { get; } = "default";
 
         public FileHiveStorageOptions(FileSystem fileSystem, string rootDirectoryPath, FileFlags flags = FileFlags.WriteOnlyIfChanged,
-            int maxDataSize = int.MaxValue, bool singleInstance = false, bool putGitIgnore = false)
+            int maxDataSize = int.MaxValue, bool singleInstance = false, bool putGitIgnore = false, bool globalLock = false)
             : base(maxDataSize)
         {
             this.FileSystem = fileSystem;
@@ -155,6 +158,7 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
             this.SingleInstance = singleInstance;
             this.PutGitIgnore = putGitIgnore;
+            this.GlobalLock = globalLock;
         }
     }
 
@@ -231,54 +235,77 @@ namespace IPA.Cores.Basic
             string newFilename = filename + Options.TmpFileExtension;
             string directoryName = PathParser.GetDirectoryName(filename);
 
-            if (data.IsEmpty == false)
+            Mutant mutant = null;
+
+            if (this.Options.GlobalLock)
             {
-                if (doNotOverwrite)
+                mutant = new Mutant("Hive_GlobalLock_" + filename, false, false);
+            }
+
+            try
+            {
+                if (mutant != null)
                 {
-                    if (await FileSystem.IsFileExistsAsync(filename, cancel))
-                    {
-                        throw new ApplicationException($"The file \"{filename}\" exists while doNotOverwrite flag is set.");
-                    }
+                    await mutant.LockAsync();
                 }
 
-                try
+                if (data.IsEmpty == false)
                 {
-                    await FileSystem.CreateDirectoryAsync(directoryName, Options.Flags, cancel);
-
-                    if (Options.PutGitIgnore)
-                        Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
-
-                    await FileSystem.WriteDataToFileAsync(newFilename, data, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
+                    if (doNotOverwrite)
+                    {
+                        if (await FileSystem.IsFileExistsAsync(filename, cancel))
+                        {
+                            throw new ApplicationException($"The file \"{filename}\" exists while doNotOverwrite flag is set.");
+                        }
+                    }
 
                     try
                     {
-                        await FileSystem.DeleteFileAsync(filename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        await FileSystem.CreateDirectoryAsync(directoryName, Options.Flags, cancel);
+
+                        if (Options.PutGitIgnore)
+                            Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
+
+                        await FileSystem.WriteDataToFileAsync(newFilename, data, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
+
+                        try
+                        {
+                            await FileSystem.DeleteFileAsync(filename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        }
+                        catch { }
+
+                        await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                    }
+                    finally
+                    {
+                        await FileSystem.DeleteFileAsync(newFilename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    }
+                }
+                else
+                {
+                    if (doNotOverwrite)
+                        throw new ApplicationException($"The file {filename} exists while doNotOverwrite flag is set.");
+
+                    try
+                    {
+                        await FileSystem.DeleteFileAsync(filename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                     }
                     catch { }
 
-                    await FileSystem.MoveFileAsync(newFilename, filename, cancel);
-                }
-                finally
-                {
-                    await FileSystem.DeleteFileAsync(newFilename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    try
+                    {
+                        await FileSystem.DeleteFileAsync(newFilename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    }
+                    catch { }
                 }
             }
-            else
+            finally
             {
-                if (doNotOverwrite)
-                    throw new ApplicationException($"The file {filename} exists while doNotOverwrite flag is set.");
-
-                try
+                if (mutant != null)
                 {
-                    await FileSystem.DeleteFileAsync(filename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await mutant.UnlockAsync();
+                    mutant._DisposeSafe();
                 }
-                catch { }
-
-                try
-                {
-                    await FileSystem.DeleteFileAsync(newFilename, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-                }
-                catch { }
             }
         }
 
@@ -311,22 +338,45 @@ namespace IPA.Cores.Basic
             string filename = MakeFileName(dataName, Options.FileExtension);
             string newFilename = filename + Options.TmpFileExtension;
 
+            Mutant mutant = null;
+
+            if (this.Options.GlobalLock)
+            {
+                mutant = new Mutant("Hive_GlobalLock_" + filename, false, false);
+            }
+
             try
             {
+                if (mutant != null)
+                {
+                    await mutant.LockAsync();
+                }
+
                 try
                 {
-                    if (await FileSystem.IsFileExistsAsync(newFilename, cancel))
+                    try
                     {
-                        await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                        if (await FileSystem.IsFileExistsAsync(newFilename, cancel))
+                        {
+                            await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                        }
                     }
-                }
-                catch { }
+                    catch { }
 
-                return await FileSystem.ReadDataFromFileAsync(filename, Options.MaxDataSize, Options.Flags, cancel);
+                    return await FileSystem.ReadDataFromFileAsync(filename, Options.MaxDataSize, Options.Flags, cancel);
+                }
+                catch
+                {
+                    throw;
+                }
             }
-            catch
+            finally
             {
-                throw;
+                if (mutant != null)
+                {
+                    await mutant.UnlockAsync();
+                    mutant._DisposeSafe();
+                }
             }
         }
 
@@ -353,8 +403,8 @@ namespace IPA.Cores.Basic
 
         public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
 
-        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore)), enableManagedSync, syncInterval) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false, bool globalLock = false)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore, globalLock: globalLock)), enableManagedSync, syncInterval) { }
 
         public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null)
         {
@@ -426,11 +476,11 @@ namespace IPA.Cores.Basic
             Module.AddAfterInitAction(() =>
             {
                 // Create shared config hive
-                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
+                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true));
 
-                SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true));
+                SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true, globalLock: true));
 
-                SharedUserConfigHive = new Hive(new HiveOptions(UserConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec));
+                SharedUserConfigHive = new Hive(new HiveOptions(UserConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true));
             });
         }
 

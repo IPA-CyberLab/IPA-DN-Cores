@@ -63,7 +63,7 @@ namespace IPA.Cores.Basic
             return Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
         }
 
-        public T DeserializeAndCheckError<T>() where T : WebResponseBasic
+        public T DeserializeAndCheckError<T>() where T : WebResponseBase
         {
             T t = Deserialize<T>();
 
