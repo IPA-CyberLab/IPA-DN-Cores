@@ -143,6 +143,9 @@ namespace IPA.TestDev
 
             Lfs.WriteDataToFile(@"C:\TMP\190613_cert\export_test2.pfx", store2.ExportPkcs12());
 
+            Csr csr = new Csr(new CertificateOptions("www.softether.com"), 1024);
+            Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.Export());
+
             DoNothing();
         }
 

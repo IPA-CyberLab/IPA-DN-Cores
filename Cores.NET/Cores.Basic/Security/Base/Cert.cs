@@ -36,6 +36,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Collections;
 
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Engines;
@@ -504,6 +505,50 @@ namespace IPA.Cores.Basic
                 PemWriter pem = new PemWriter(w);
 
                 pem.WriteObject(this.CertData);
+
+                w.Flush();
+
+                return w.ToString()._GetBytes_UTF8();
+            }
+        }
+    }
+
+    class Csr
+    {
+        Pkcs10CertificationRequest Request;
+
+        public Csr(CertificateOptions options, int bits)
+        {
+            RsaUtil.GenerateRsaKeyPair(bits, out PrivKey priv, out PubKey pub);
+
+            X509Name subject = options.GenerateName();
+            GeneralNames alt = options.GenerateAltNames();
+            X509Extension altName = new X509Extension(false, new DerOctetString(alt));
+
+            List<object> oids = new List<object>()
+            {
+                X509Extensions.SubjectAlternativeName,
+            };
+
+            List<object> values = new List<object>()
+            {
+                altName,
+            };
+
+            X509Extensions x509exts = new X509Extensions(oids, values);
+            X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
+
+            this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, priv.PrivateKeyData.Private, RsaUtil.NewSecureRandom()),
+                subject, pub.PublicKeyData, new DerSet(attr), priv.PrivateKeyData.Private);
+        }
+
+        public ReadOnlyMemory<byte> Export()
+        {
+            using (StringWriter w = new StringWriter())
+            {
+                PemWriter pem = new PemWriter(w);
+
+                pem.WriteObject(this.Request);
 
                 w.Flush();
 
