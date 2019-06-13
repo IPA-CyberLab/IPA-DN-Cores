@@ -50,6 +50,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Runtime.InteropServices;
 using IPA.Cores.ClientApi.Acme;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json;
 
 
 
@@ -91,13 +93,24 @@ namespace IPA.TestDev
         public List<string> StrList = new List<string>();
     }
 
+    class ZZ
+    {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public TcpDirectionType Z;
+    }
+
     static class TestClass
     {
         public static void Test()
         {
+               ZZ z = new ZZ();
+            z.Z = TcpDirectionType.Server;
+
+            z._PrintAsJson();
+
             //Test_Cert();
 
-            Test_Acme();
+            //Test_Acme();
 
             //Test_HiveLock();
 
