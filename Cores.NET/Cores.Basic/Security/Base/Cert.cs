@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
             {
                 Pkcs12Store p12 = ToPkcs12Store();
 
-                p12.Save(ms, password.ToCharArray(), RsaUtil.NewSecureRandom());
+                p12.Save(ms, password.ToCharArray(), PkiUtil.NewSecureRandom());
 
                 return ms.ToArray();
             }
@@ -232,6 +232,8 @@ namespace IPA.Cores.Basic
     class PrivKey
     {
         public AsymmetricCipherKeyPair PrivateKeyData { get; }
+
+        public RsaKeyParameters RsaParameters => (RsaPrivateCrtKeyParameters)PrivateKeyData.Private;
 
         public PubKey PublicKey { get; private set; }
 
@@ -272,7 +274,7 @@ namespace IPA.Cores.Basic
                 if (password._IsNullOrLen0String())
                     pem.WriteObject(this.PrivateKeyData);
                 else
-                    pem.WriteObject(this.PrivateKeyData, "DESEDE", password.ToCharArray(), RsaUtil.NewSecureRandom());
+                    pem.WriteObject(this.PrivateKeyData, "DESEDE", password.ToCharArray(), PkiUtil.NewSecureRandom());
 
                 w.Flush();
 
@@ -284,6 +286,8 @@ namespace IPA.Cores.Basic
     class PubKey : IEquatable<PubKey>
     {
         public AsymmetricKeyParameter PublicKeyData { get; }
+
+        public RsaKeyParameters RsaParameters => (RsaKeyParameters)PublicKeyData;
 
         public PubKey(AsymmetricKeyParameter data)
         {
@@ -486,7 +490,7 @@ namespace IPA.Cores.Basic
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
             gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
 
-            this.CertData = gen.Generate(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, selfSignKey.PrivateKeyData.Private, RsaUtil.NewSecureRandom()));
+            this.CertData = gen.Generate(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, selfSignKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
 
             InitFields();
         }
@@ -519,7 +523,7 @@ namespace IPA.Cores.Basic
 
         public Csr(CertificateOptions options, int bits)
         {
-            RsaUtil.GenerateRsaKeyPair(bits, out PrivKey priv, out PubKey pub);
+            PkiUtil.GenerateRsaKeyPair(bits, out PrivKey priv, out PubKey pub);
 
             X509Name subject = options.GenerateName();
             GeneralNames alt = options.GenerateAltNames();
@@ -538,7 +542,7 @@ namespace IPA.Cores.Basic
             X509Extensions x509exts = new X509Extensions(oids, values);
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
 
-            this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, priv.PrivateKeyData.Private, RsaUtil.NewSecureRandom()),
+            this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
                 subject, pub.PublicKeyData, new DerSet(attr), priv.PrivateKeyData.Private);
         }
 
@@ -629,7 +633,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class RsaUtil
+    static class PkiUtil
     {
         public static SecureRandom NewSecureRandom() => SecureRandom.GetInstance("SHA1PRNG");
 

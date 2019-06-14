@@ -4582,6 +4582,32 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // Base 64 URL エンコード
+        public static string Base64UrlEncode(byte[] data)
+        {
+            string tmp = Base64Encode(data);
+
+            tmp = tmp.TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+            return tmp;
+        }
+
+        // Base 64 URL デコード
+        public static byte[] Base64UrlDecode(string str)
+        {
+            str = str._NonNull();
+
+            string tmp = str.Replace('_', '/').Replace('-', '+');
+
+            switch (str.Length % 4)
+            {
+                case 2: tmp += "=="; break;
+                case 3: tmp += "="; break;
+            }
+
+            return Base64Decode(tmp);
+        }
+
         // 文字列をバイトに変換
         public static byte[] StrToByte(string str)
         {

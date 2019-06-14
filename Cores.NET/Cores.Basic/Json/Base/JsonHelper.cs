@@ -42,14 +42,14 @@ namespace IPA.Cores.Helper.Basic
 {
     static class JsonHelper
     {
-        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
-            => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
+            => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url);
 
-        public static T _JsonToObject<T>(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            => Json.Deserialize<T>(str, includeNull, maxDepth);
+        public static T _JsonToObject<T>(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+            => Json.Deserialize<T>(str, includeNull, maxDepth, base64url);
 
-        public static object _JsonToObject(this string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            => Json.Deserialize(str, type, includeNull, maxDepth);
+        public static object _JsonToObject(this string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+            => Json.Deserialize(str, type, includeNull, maxDepth, base64url);
 
         public static T _ConvertJsonObject<T>(this object obj, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
             => Json.ConvertObject<T>(obj, includeNull, maxDepth, referenceHandling);

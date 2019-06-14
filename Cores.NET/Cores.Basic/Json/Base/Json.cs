@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
@@ -75,14 +75,27 @@ namespace IPA.Cores.Basic
                 StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
                 
             };
-            return JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
+
+            string ret = JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
+
+            if (base64url)
+            {
+                ret = ret._GetBytes_UTF8()._Base64UrlEncode();
+            }
+
+            return ret;
         }
 
-        public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            => (T)Deserialize(str, typeof(T), includeNull, maxDepth);
+        public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+            => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url);
 
-        public static object Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        public static object Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
         {
+            if (base64url)
+            {
+                str = str._Base64UrlDecode()._GetString_UTF8();
+            }
+
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
                 MaxDepth = maxDepth,

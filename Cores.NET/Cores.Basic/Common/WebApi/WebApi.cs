@@ -141,12 +141,14 @@ namespace IPA.Cores.Basic
         public string CharSet { get; }
         public Encoding DefaultEncoding { get; } = null;
         public WebApi Api { get; }
+        public HttpResponseHeaders Headers { get; }
 
-        public WebRet(WebApi api, string url, string contentType, byte[] data)
+        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers)
         {
             this.Api = api;
             this.Url = url._NonNull();
             this.ContentType = contentType._NonNull();
+            this.Headers = headers;
 
             try
             {
@@ -195,6 +197,7 @@ namespace IPA.Cores.Basic
         DELETE,
         POST,
         PUT,
+        HEAD,
     }
 
     [Serializable]
@@ -322,7 +325,7 @@ namespace IPA.Cores.Basic
         {
             string qs = "";
 
-            if (method == WebApiMethods.GET || method == WebApiMethods.DELETE)
+            if (method == WebApiMethods.GET || method == WebApiMethods.DELETE || method == WebApiMethods.HEAD)
             {
                 qs = BuildQueryString(queryList);
                 if (qs._IsEmpty() == false)
@@ -392,7 +395,7 @@ namespace IPA.Cores.Basic
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
         }
 
@@ -410,7 +413,7 @@ namespace IPA.Cores.Basic
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 string type = res.Content.Headers._TryGetContentType();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
         }
 
@@ -430,7 +433,7 @@ namespace IPA.Cores.Basic
             {
                 ThrowIfError(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
         }
 

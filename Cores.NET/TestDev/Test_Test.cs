@@ -103,10 +103,7 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-               ZZ z = new ZZ();
-            z.Z = TcpDirectionType.Server;
-
-            z._PrintAsJson();
+            Test_Generic();
 
             //Test_Cert();
 
@@ -117,11 +114,23 @@ namespace IPA.TestDev
             //Test_PersistentCache();
         }
 
+        public static void Test_Generic()
+        {
+            PkiUtil.GenerateRsaKeyPair(1024, out PrivKey privateKey, out PubKey publicKey);
+
+            JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
+        }
+
         public static void Test_Acme()
         {
             AcmeClientOptions o = new AcmeClientOptions(AcmeWellKnownServiceUrls.LetsEncryptStaging);
 
-            o.GetEntryPointsAsync().Result._PrintAsJson();
+            using (AcmeClient acme = new AcmeClient(o))
+            {
+                string nonce = acme.GetNonceAsync().Result;
+
+                nonce._Print();
+            }
         }
 
         public static void Test_PersistentCache()
@@ -142,7 +151,7 @@ namespace IPA.TestDev
 
         public static void Test_HiveLock()
         {
-            int num = 1000;
+            int num = 10;
             HiveData<HiveKeyValue> test = Hive.LocalAppSettings["testlock"];
 
             for (int i = 0; i < num; i++)
@@ -165,9 +174,9 @@ namespace IPA.TestDev
 
             Lfs.CreateDirectory(tmpDir);
 
-            if (false)
+            if (true)
             {
-                RsaUtil.GenerateRsaKeyPair(1024, out privateKey, out publicKey);
+                PkiUtil.GenerateRsaKeyPair(1024, out privateKey, out publicKey);
 
                 Lfs.WriteDataToFile(tmpDir._CombinePath("root_private.key"), privateKey.Export());
                 Lfs.WriteDataToFile(tmpDir._CombinePath("root_private_encrypted.key"), privateKey.Export("microsoft"));
@@ -180,7 +189,7 @@ namespace IPA.TestDev
 
             Certificate cert;
 
-            if (false)
+            if (true)
             {
                 cert = new Certificate(privateKey, new CertificateOptions("www.abc", serial: new byte[] { 1, 2, 3 }));
 

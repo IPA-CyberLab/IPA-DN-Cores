@@ -43,6 +43,8 @@ using System.Text;
 using System.IO;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Linq;
+
 //using System.Net.Http;
 //using System.Net.Http.Headers;
 
@@ -98,6 +100,7 @@ namespace IPA.Cores.ClientApi.Acme
     class AcmeClientOptions
     {
         public string DirectoryUrl { get; }
+        public TcpIpSystem TcpIpSystem { get; }
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
@@ -106,9 +109,10 @@ namespace IPA.Cores.ClientApi.Acme
             return await this.DirectoryWebContentsCache.GetAsync(cancel);
         }
 
-        public AcmeClientOptions(string directoryUrl)
+        public AcmeClientOptions(string directoryUrl, TcpIpSystem tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
+            this.TcpIpSystem = tcpIp ?? LocalNet;
 
             DirectoryWebContentsCache = new PersistentLocalCache<AcmeEntryPoints>($"acme/directory_{PathParser.Windows.MakeSafeFileName(this.DirectoryUrl)}",
                 CoresConfig.AcmeClientSettings.AcmeDirectoryCacheLifeTime,
@@ -125,8 +129,49 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeClient
+    class AcmeClient : IDisposable
     {
+        public const string SendContentsType = "application/jose+json";
+
+        public AcmeClientOptions Options { get; }
+
+        WebApi Web;
+
+        public AcmeClient(AcmeClientOptions options)
+        {
+            this.Options = options;
+
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, Options.TcpIpSystem));
+        }
+
+        public async Task<string> GetNonceAsync(CancellationToken cancel = default)
+        {
+            AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
+
+            WebRet response = await Web.SimpleQueryAsync(WebApiMethods.HEAD, url.newNonce, cancel);
+
+            string ret = response.Headers.GetValues("Replay-Nonce").FirstOrDefault();
+
+            if (ret._IsEmpty()) throw new ApplicationException("Replay-Nonce is empty.");
+
+            return ret;
+        }
+
+        public async Task NewAccountAsync(CancellationToken cancel = default)
+        {
+            AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
+
+            WebRet response = await Web.SimpleQueryAsync(WebApiMethods.POST, url.newAccount, cancel);
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.Web._DisposeSafe();
+        }
     }
 }
 

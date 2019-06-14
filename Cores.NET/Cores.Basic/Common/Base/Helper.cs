@@ -1197,6 +1197,11 @@ namespace IPA.Cores.Helper.Basic
 
             throw new ArgumentOutOfRangeException("Invalid AddressFamily");
         }
+
+        public static string _Base64Encode(this byte[] data) => Str.Base64Encode(data);
+        public static byte[] _Base64Decode(this string str) => Str.Base64Decode(str);
+        public static string _Base64UrlEncode(this byte[] data) => Str.Base64UrlEncode(data);
+        public static byte[] _Base64UrlDecode(this string str) => Str.Base64UrlDecode(str);
     }
 }
 
