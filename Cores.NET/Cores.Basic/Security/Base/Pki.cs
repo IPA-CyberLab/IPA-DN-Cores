@@ -63,6 +63,8 @@ using static IPA.Cores.Globals.Basic;
 using System.Security.Cryptography;
 using System.Collections.Generic;
 using Org.BouncyCastle.Utilities.Encoders;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto.Signers;
 
 namespace IPA.Cores.Basic
 {
@@ -86,6 +88,22 @@ namespace IPA.Cores.Basic
                     return new SimplePasswordFinder(password);
             }
         }
+    }
+
+    [Flags]
+    enum PkiAlgorithm
+    {
+        Unknown = 0,
+        RSA,
+        ECDSA,
+    }
+
+    [Flags]
+    enum PkiShaSize
+    {
+        SHA256 = 0,
+        SHA384,
+        SHA512,
     }
 
     class CertificateStoreContainer
@@ -233,9 +251,14 @@ namespace IPA.Cores.Basic
     {
         public AsymmetricCipherKeyPair PrivateKeyData { get; }
 
+        public PkiAlgorithm Algorithm { get; private set; }
+
         public RsaKeyParameters RsaParameters => (RsaPrivateCrtKeyParameters)PrivateKeyData.Private;
+        public ECPrivateKeyParameters EcdsaParameters => (ECPrivateKeyParameters)PrivateKeyData.Private;
 
         public PubKey PublicKey { get; private set; }
+
+        public int BitsSize { get; private set; }
 
         public PrivKey(AsymmetricCipherKeyPair data)
         {
@@ -263,6 +286,28 @@ namespace IPA.Cores.Basic
         void InitFields()
         {
             this.PublicKey = new PubKey(this.PrivateKeyData.Public);
+
+            switch (this.PrivateKeyData.Private)
+            {
+                case RsaPrivateCrtKeyParameters rsa:
+                    this.Algorithm = PkiAlgorithm.RSA;
+                    this.BitsSize = rsa.Modulus.BitLength;
+                    break;
+
+                case ECPrivateKeyParameters ecdsa:
+                    this.Algorithm = PkiAlgorithm.ECDSA;
+                    this.BitsSize = ecdsa.Parameters.Curve.FieldSize;
+                    break;
+            }
+        }
+
+        public ISigner GetSigner(PkiShaSize? shaSize = null)
+        {
+            ISigner ret = SignerUtilities.GetSigner(PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, shaSize, this.BitsSize));
+
+            ret.Init(true, this.PrivateKeyData.Private);
+
+            return ret;
         }
 
         public ReadOnlyMemory<byte> Export(string password = null)
@@ -287,12 +332,20 @@ namespace IPA.Cores.Basic
     {
         public AsymmetricKeyParameter PublicKeyData { get; }
 
+        public PkiAlgorithm Algorithm { get; private set; }
+
         public RsaKeyParameters RsaParameters => (RsaKeyParameters)PublicKeyData;
+        public ECPublicKeyParameters EcdsaParameters => (ECPublicKeyParameters)PublicKeyData;
+
+        public int BitsSize { get; private set; }
 
         public PubKey(AsymmetricKeyParameter data)
         {
             if (data.IsPrivate) throw new ArgumentException("the key is private.");
+
             this.PublicKeyData = data;
+
+            InitFields();
         }
 
         public PubKey(ReadOnlySpan<byte> import)
@@ -309,6 +362,24 @@ namespace IPA.Cores.Basic
 
                 if (data.IsPrivate) throw new ArgumentException("the key is private.");
                 this.PublicKeyData = data;
+            }
+
+            InitFields();
+        }
+
+        void InitFields()
+        {
+            switch (this.PublicKeyData)
+            {
+                case RsaKeyParameters rsa:
+                    this.Algorithm = PkiAlgorithm.RSA;
+                    this.BitsSize = rsa.Modulus.BitLength;
+                    break;
+
+                case ECPublicKeyParameters ecdsa:
+                    this.Algorithm = PkiAlgorithm.ECDSA;
+                    this.BitsSize = ecdsa.Parameters.Curve.FieldSize;
+                    break;
             }
         }
 
@@ -345,6 +416,15 @@ namespace IPA.Cores.Basic
         {
             return this.PublicKeyData.Equals(other.PublicKeyData);
         }
+
+        public ISigner GetVerifier(PkiShaSize? shaSize = null)
+        {
+            ISigner ret = SignerUtilities.GetSigner(PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, shaSize, this.BitsSize));
+
+            ret.Init(false, this.PublicKeyData);
+
+            return ret;
+        }
     }
 
     class CertificateOptions
@@ -359,9 +439,12 @@ namespace IPA.Cores.Basic
         public Memory<byte> Serial;
         public DateTimeOffset Expires;
         public SortedSet<string> SubjectAlternativeNames = new SortedSet<string>();
+        public PkiShaSize ShaSize;
+        public PkiAlgorithm Algorithm;
 
-        public CertificateOptions(string cn = null, string o = null, string ou = null, string c = null, string st = null, string l = null, string e = null, Memory<byte> serial = default, DateTimeOffset? expires = null, string[] subjectAltNames = null)
+        public CertificateOptions(PkiAlgorithm algorithm, string cn = null, string o = null, string ou = null, string c = null, string st = null, string l = null, string e = null, Memory<byte> serial = default, DateTimeOffset? expires = null, string[] subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256)
         {
+            this.Algorithm = algorithm;
             this.CN = cn._NonNullTrim();
             this.O = o._NonNullTrim();
             this.OU = ou._NonNullTrim();
@@ -370,6 +453,7 @@ namespace IPA.Cores.Basic
             this.L = l._NonNullTrim();
             this.E = e._NonNullTrim();
             this.Serial = serial._CloneMemory();
+            this.ShaSize = shaSize;
             if (this.Serial.IsEmpty)
             {
                 this.Serial = new byte[1] { 1 };
@@ -434,6 +518,11 @@ namespace IPA.Cores.Basic
             this.SubjectAlternativeNames._DoForEach(x => o.Add(new GeneralName(GeneralName.DnsName, x)));
             return new GeneralNames(o.ToArray());
         }
+
+        public string GetSignatureAlgorithmOid()
+        {
+            return PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, this.ShaSize);
+        }
     }
 
     class Certificate
@@ -490,7 +579,7 @@ namespace IPA.Cores.Basic
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
             gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
 
-            this.CertData = gen.Generate(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, selfSignKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
+            this.CertData = gen.Generate(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), selfSignKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
 
             InitFields();
         }
@@ -521,9 +610,9 @@ namespace IPA.Cores.Basic
     {
         Pkcs10CertificationRequest Request;
 
-        public Csr(CertificateOptions options, int bits)
+        public Csr(PkiAlgorithm algorithm, CertificateOptions options, int bits)
         {
-            PkiUtil.GenerateRsaKeyPair(bits, out PrivKey priv, out PubKey pub);
+            PkiUtil.GenerateKeyPair(algorithm, bits, out PrivKey priv, out PubKey pub);
 
             X509Name subject = options.GenerateName();
             GeneralNames alt = options.GenerateAltNames();
@@ -542,7 +631,7 @@ namespace IPA.Cores.Basic
             X509Extensions x509exts = new X509Extensions(oids, values);
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
 
-            this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id, priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
+            this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
                 subject, pub.PublicKeyData, new DerSet(attr), priv.PrivateKeyData.Private);
         }
 
@@ -637,6 +726,23 @@ namespace IPA.Cores.Basic
     {
         public static SecureRandom NewSecureRandom() => SecureRandom.GetInstance("SHA1PRNG");
 
+        public static void GenerateKeyPair(PkiAlgorithm algorithm, int bits, out PrivKey privateKey, out PubKey publicKey)
+        {
+            switch (algorithm)
+            {
+                case PkiAlgorithm.RSA:
+                    GenerateRsaKeyPair(bits, out privateKey, out publicKey);
+                    break;
+
+                case PkiAlgorithm.ECDSA:
+                    GenerateEcdsaKeyPair(bits, out privateKey, out publicKey);
+                    break;
+
+                default:
+                    throw new ArgumentException("algorithm");
+            }
+        }
+
         public static void GenerateRsaKeyPair(int bits, out PrivKey privateKey, out PubKey publicKey)
         {
             KeyGenerationParameters param = new KeyGenerationParameters(NewSecureRandom(), bits);
@@ -646,6 +752,102 @@ namespace IPA.Cores.Basic
 
             privateKey = new PrivKey(pair);
             publicKey = new PubKey(pair.Public);
+        }
+
+        public static void GenerateEcdsaKeyPair(int bits, out PrivKey privateKey, out PubKey publicKey)
+        {
+            KeyGenerationParameters param = new KeyGenerationParameters(NewSecureRandom(), bits);
+            ECKeyPairGenerator gen = new ECKeyPairGenerator("ECDSA");
+            gen.Init(param);
+            AsymmetricCipherKeyPair pair = gen.GenerateKeyPair();
+
+            privateKey = new PrivKey(pair);
+            publicKey = new PubKey(pair.Public);
+        }
+
+        public static string GetSignatureAlgorithmOid(PkiAlgorithm algorithm, PkiShaSize? shaSize = null, int size = 0)
+        {
+            string alg;
+
+            if (shaSize == null)
+            {
+                if (size >= 512)
+                    shaSize = PkiShaSize.SHA512;
+                else if (size >= 384)
+                    shaSize = PkiShaSize.SHA384;
+                else
+                    shaSize = PkiShaSize.SHA256;
+            }
+
+            switch (algorithm)
+            {
+                case PkiAlgorithm.RSA:
+                    switch (shaSize)
+                    {
+                        default:
+                            alg = PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id;
+                            break;
+
+                        case PkiShaSize.SHA384:
+                            alg = PkcsObjectIdentifiers.Sha384WithRsaEncryption.Id;
+                            break;
+
+                        case PkiShaSize.SHA512:
+                            alg = PkcsObjectIdentifiers.Sha512WithRsaEncryption.Id;
+                            break;
+                    }
+                    break;
+
+                case PkiAlgorithm.ECDSA:
+                    switch (shaSize)
+                    {
+                        default:
+                            alg = X9ObjectIdentifiers.ECDsaWithSha256.Id;
+                            break;
+
+                        case PkiShaSize.SHA384:
+                            alg = X9ObjectIdentifiers.ECDsaWithSha384.Id;
+                            break;
+
+                        case PkiShaSize.SHA512:
+                            alg = X9ObjectIdentifiers.ECDsaWithSha512.Id;
+                            break;
+                    }
+                    break;
+
+                default:
+                    throw new ArgumentException("selfSignKey: Unknown key algorithm");
+            }
+
+            return alg;
+        }
+    }
+}
+
+namespace IPA.Cores.Helper.Basic
+{
+    static class PkiHelper
+    {
+        public static byte[] Sign(this ISigner signer, byte[] data, int offset = 0, int size = DefaultSize)
+        {
+            size = size._DefaultSize(data.Length - offset);
+
+            signer.Reset();
+
+            signer.BlockUpdate(data, offset, size);
+
+            return signer.GenerateSignature();
+        }
+
+        public static bool Verify(this ISigner signer, byte[] signature, byte[] data, int offset = 0, int size = DefaultSize)
+        {
+            size = size._DefaultSize(data.Length - offset);
+
+            signer.Reset();
+
+            signer.BlockUpdate(data, offset, size);
+
+            return signer.VerifySignature(signature);
         }
     }
 }

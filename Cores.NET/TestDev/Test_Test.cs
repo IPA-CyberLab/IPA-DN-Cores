@@ -105,7 +105,9 @@ namespace IPA.TestDev
         {
             Test_Generic();
 
-            //Test_Cert();
+            //Test_RSA_Cert();
+
+            //Test_ECDSA_Cert();
 
             //Test_Acme();
 
@@ -116,9 +118,25 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            PkiUtil.GenerateRsaKeyPair(1024, out PrivKey privateKey, out PubKey publicKey);
+            PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
 
-            JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
+            var signer = privateKey.GetSigner();
+            var verifier = publicKey.GetVerifier();
+
+            byte[] target = "Hello"._GetBytes_Ascii();
+
+            byte[] sign = signer.Sign(target);
+
+            signer.AlgorithmName._Print();
+            sign._GetHexString()._Print();
+
+            target[2] = 0;
+
+            verifier.Verify(sign, target)._Print();
+
+            //PkiUtil.GenerateRsaKeyPair(1024, out PrivKey privateKey, out PubKey publicKey);
+
+            //JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
         }
 
         public static void Test_Acme()
@@ -164,8 +182,46 @@ namespace IPA.TestDev
                 });
             }
         }
+        public static void Test_ECDSA_Cert()
+        {
+            string tmpDir = @"c:\tmp\190614_ecdsa";
 
-        public static void Test_Cert()
+            PrivKey privateKey;
+            PubKey publicKey;
+
+            Lfs.CreateDirectory(tmpDir);
+
+            if (true)
+            {
+                PkiUtil.GenerateEcdsaKeyPair(256, out privateKey, out publicKey);
+
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_private.key"), privateKey.Export());
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_private_encrypted.key"), privateKey.Export("microsoft"));
+
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_public.key"), publicKey.Export());
+            }
+
+            privateKey = new PrivKey(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_private_encrypted.key")).Span, "microsoft");
+            publicKey = new PubKey(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_public.key")).Span);
+
+            Certificate cert;
+
+            if (true)
+            {
+                cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.ECDSA, "www.abc", serial: new byte[] { 1, 2, 3 }, shaSize: PkiShaSize.SHA512));
+
+                Lfs.WriteDataToFile(tmpDir._CombinePath("root_cert.crt"), cert.Export());
+            }
+
+            cert = new Certificate(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_cert.crt")).Span);
+
+            Csr csr = new Csr(PkiAlgorithm.ECDSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com"), 256);
+            Lfs.WriteDataToFile(@"C:\TMP\190614_ecdsa\testcsr.txt", csr.ExportPem());
+
+            DoNothing();
+        }
+
+        public static void Test_RSA_Cert()
         {
             string tmpDir = @"c:\tmp\190613_cert";
 
@@ -191,7 +247,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                cert = new Certificate(privateKey, new CertificateOptions("www.abc", serial: new byte[] { 1, 2, 3 }));
+                cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.RSA, "www.abc", serial: new byte[] { 1, 2, 3 }));
 
                 Lfs.WriteDataToFile(tmpDir._CombinePath("root_cert.crt"), cert.Export());
             }
@@ -211,7 +267,7 @@ namespace IPA.TestDev
 
             Lfs.WriteDataToFile(@"C:\TMP\190613_cert\export_test2.pfx", store2.ExportPkcs12());
 
-            Csr csr = new Csr(new CertificateOptions("www.softether.com"), 1024);
+            Csr csr = new Csr(PkiAlgorithm.RSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com", shaSize: PkiShaSize.SHA512), 1024);
             Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.ExportPem());
 
             DoNothing();
