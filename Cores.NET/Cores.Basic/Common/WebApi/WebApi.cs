@@ -66,9 +66,9 @@ namespace IPA.Cores.Basic
         public WebResponseException(string message) : base(message) { }
     }
 
-    abstract class WebResponseBase
+    interface IErrorCheckable
     {
-        public abstract void CheckError();
+        void CheckError();
     }
 
     class WebSendRecvRequest : IDisposable
@@ -134,6 +134,8 @@ namespace IPA.Cores.Basic
 
     partial class WebRet
     {
+        public const string MediaTypeJson = "application/json";
+
         public string Url { get; }
         public string ContentType { get; }
         public byte[] Data { get; }
@@ -418,8 +420,10 @@ namespace IPA.Cores.Basic
         }
 
 
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default)
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = "application/json")
         {
+            if (postContentType._IsEmpty()) postContentType = "application/json";
+
             if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
             HttpRequestMessage r = CreateWebRequest(method, url, null);
@@ -427,7 +431,7 @@ namespace IPA.Cores.Basic
             byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 
             r.Content = new ByteArrayContent(upload_data);
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {

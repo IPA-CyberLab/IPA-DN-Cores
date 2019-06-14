@@ -61,8 +61,9 @@ namespace IPA.Cores.Basic
     class JwsRsaJwk
     {
         public string kty;
-        public string n;
-        public string e;
+        public string crv;
+        public string x;
+        public string y;
     }
 
     class JwsProtected
@@ -75,18 +76,22 @@ namespace IPA.Cores.Basic
 
     static class JwsUtil
     {
-        public static JwsPacket Encapsulate<T>(PrivKey key, string nonce, string url, T payload)
+        public static JwsPacket Encapsulate(PrivKey key, string nonce, string url, object payload)
         {
+            if (key.Algorithm != PkiAlgorithm.ECDSA) throw new ArgumentException("key.Algorithm != PkiAlgorithm.ECDSA");
+            if (key.BitsSize != 256) throw new ArgumentException("key.BitsSize != 256");
+
             JwsRsaJwk jwk = new JwsRsaJwk()
             {
-                kty = "RSA",
-                n = key.PublicKey.RsaParameters.Modulus.ToByteArray()._Base64UrlEncode(),
-                e = key.PublicKey.RsaParameters.Exponent.ToByteArray()._Base64UrlEncode(),
+                kty = "EC",
+                crv = "P-" + key.PublicKey.BitsSize,
+                x = key.PublicKey.EcdsaParameters.Q.AffineXCoord.GetEncoded()._Base64UrlEncode(),
+                y = key.PublicKey.EcdsaParameters.Q.AffineYCoord.GetEncoded()._Base64UrlEncode(),
             };
 
             JwsProtected protect = new JwsProtected()
             {
-                alg = "RS256",
+                alg = "ES256",
                 jwk = jwk,
                 nonce = nonce,
                 url = url,
@@ -98,7 +103,21 @@ namespace IPA.Cores.Basic
                 payload = payload._ObjectToJson(base64url: true),
             };
 
+            var signer = key.GetSigner();
+
+            ret.signature = signer.Sign((ret.Protected + "." + ret.payload)._GetBytes_Ascii())._Base64UrlEncode();
+
             return ret;
+        }
+    }
+
+    partial class WebApi
+    {
+        public virtual async Task<WebRet> RequestWithJwsObject(WebApiMethods method, PrivKey privKey, string nonce, string url, object payload)
+        {
+            JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, nonce, url, payload);
+
+            return await this.RequestWithJsonObject(method, url, reqPacket);
         }
     }
 }

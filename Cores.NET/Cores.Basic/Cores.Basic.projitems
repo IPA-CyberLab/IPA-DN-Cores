@@ -23,6 +23,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Consts\Consts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Csv.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Debug.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Env.cs" />

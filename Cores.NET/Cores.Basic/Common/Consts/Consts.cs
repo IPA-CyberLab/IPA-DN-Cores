@@ -30,14 +30,14 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_BASIC_JSON
-
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using System.IO;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.IO;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -45,52 +45,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class WebRet
+    static partial class Consts
     {
-        dynamic jsonDynamic = null;
-        public dynamic JsonDynamic
+        public static partial class MediaTypes
         {
-            get
-            {
-                if (jsonDynamic == null)
-                    jsonDynamic = Json.DeserializeDynamic(this.ToString());
-                return jsonDynamic;
-            }
+            public const string Application_Json = "application/json";
         }
-
-        public T Deserialize<T>(bool checkError = false)
-        {
-            T ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
-
-            if (checkError)
-            {
-                if (ret is IErrorCheckable b)
-                {
-                    b.CheckError();
-                }
-            }
-
-            return ret;
-        }
-    }
-
-    partial class WebApi
-    {
-        public int? Json_MaxDepth { get; set; } = Json.DefaultMaxDepth;
-
-        public bool Json_IncludeNull { get; set; } = false;
-        public bool Json_EscapeHtml { get; set; } = false;
-
-        public string JsonSerialize(object obj)
-            => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
-
-        public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject)
-            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject));
-
-        public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic)
-            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic));
     }
 }
-
-#endif  // CORES_BASIC_JSON
-

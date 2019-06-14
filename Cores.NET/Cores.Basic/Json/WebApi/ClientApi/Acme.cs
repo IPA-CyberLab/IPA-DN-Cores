@@ -54,8 +54,6 @@ using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.HttpClientCore;
 
-#pragma warning disable CS0649
-
 namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
@@ -71,7 +69,7 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.ClientApi.Acme
 {
-    class AcmeEntryPoints : WebResponseBase
+    class AcmeEntryPoints : IErrorCheckable
     {
         public string keyChange;
         public string newAccount;
@@ -79,7 +77,7 @@ namespace IPA.Cores.ClientApi.Acme
         public string newOrder;
         public string revokeCert;
 
-        public override void CheckError()
+        public void CheckError()
         {
             if (this.keyChange._IsEmpty() ||
                 this.newAccount._IsEmpty() ||
@@ -90,6 +88,12 @@ namespace IPA.Cores.ClientApi.Acme
                 throw new ApplicationException("ACME Directory: parameter is missing.");
             }
         }
+    }
+
+    class AcmeCreateAccountPayload
+    {
+        public bool termsOfServiceAgreed;
+        public string[] contact;
     }
 
     static class AcmeWellKnownServiceUrls
@@ -109,7 +113,7 @@ namespace IPA.Cores.ClientApi.Acme
             return await this.DirectoryWebContentsCache.GetAsync(cancel);
         }
 
-        public AcmeClientOptions(string directoryUrl, TcpIpSystem tcpIp = null)
+        public AcmeClientOptions(string directoryUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging, TcpIpSystem tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
             this.TcpIpSystem = tcpIp ?? LocalNet;
@@ -123,7 +127,7 @@ namespace IPA.Cores.ClientApi.Acme
                     {
                         WebRet ret = await api.SimpleQueryAsync(WebApiMethods.GET, this.DirectoryUrl, cancel);
 
-                        return ret.DeserializeAndCheckError<AcmeEntryPoints>();
+                        return ret.Deserialize<AcmeEntryPoints>(true);
                     }
                 });
         }
@@ -144,7 +148,7 @@ namespace IPA.Cores.ClientApi.Acme
             this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, Options.TcpIpSystem));
         }
 
-        public async Task<string> GetNonceAsync(CancellationToken cancel = default)
+        async Task<string> GetNonceAsync(CancellationToken cancel = default)
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
@@ -157,11 +161,30 @@ namespace IPA.Cores.ClientApi.Acme
             return ret;
         }
 
-        public async Task NewAccountAsync(CancellationToken cancel = default)
+        public async Task<TResponse> RequestAsync<TResponse>(WebApiMethods method, PrivKey key, string url, object request, CancellationToken cancel = default)
+        {
+            string nonce = await GetNonceAsync(cancel);
+
+            WebRet response = await Web.RequestWithJwsObject(method, key, nonce, url, request);
+
+            response.ToString()._Print();
+
+            TResponse ret = response.Deserialize<TResponse>(true);
+
+            return ret;
+        }
+
+        public async Task NewAccountAsync(PrivKey key, string[] contacts, CancellationToken cancel = default)
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
-            WebRet response = await Web.SimpleQueryAsync(WebApiMethods.POST, url.newAccount, cancel);
+            AcmeCreateAccountPayload req = new AcmeCreateAccountPayload()
+            {
+                contact = contacts,
+                termsOfServiceAgreed = true,
+            };
+
+            await this.RequestAsync<object>(WebApiMethods.POST, key, url.newAccount, req, cancel);
         }
 
         public void Dispose() => Dispose(true);

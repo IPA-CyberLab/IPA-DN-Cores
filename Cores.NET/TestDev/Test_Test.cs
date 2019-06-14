@@ -103,13 +103,13 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
-            Test_Generic();
+            //Test_Generic();
 
             //Test_RSA_Cert();
 
             //Test_ECDSA_Cert();
 
-            //Test_Acme();
+            Test_Acme();
 
             //Test_HiveLock();
 
@@ -118,36 +118,43 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
+            if (false)
+            {
+                PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
 
-            var signer = privateKey.GetSigner();
-            var verifier = publicKey.GetVerifier();
+                var signer = privateKey.GetSigner();
+                var verifier = publicKey.GetVerifier();
 
-            byte[] target = "Hello"._GetBytes_Ascii();
+                publicKey.EcdsaParameters.Q.AffineXCoord.GetEncoded()._GetHexString()._Print();
 
-            byte[] sign = signer.Sign(target);
+                byte[] target = "Hello"._GetBytes_Ascii();
 
-            signer.AlgorithmName._Print();
-            sign._GetHexString()._Print();
+                byte[] sign = signer.Sign(target);
 
-            target[2] = 0;
+                signer.AlgorithmName._Print();
+                sign._GetHexString()._Print();
 
-            verifier.Verify(sign, target)._Print();
+                target[2] = 0;
 
-            //PkiUtil.GenerateRsaKeyPair(1024, out PrivKey privateKey, out PubKey publicKey);
+                verifier.Verify(sign, target)._Print();
+            }
+            else
+            {
+                PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
 
-            //JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
+                JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
+            }
         }
 
         public static void Test_Acme()
         {
-            AcmeClientOptions o = new AcmeClientOptions(AcmeWellKnownServiceUrls.LetsEncryptStaging);
+            PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey key, out PubKey publicKey);
+
+            AcmeClientOptions o = new AcmeClientOptions();
 
             using (AcmeClient acme = new AcmeClient(o))
             {
-                string nonce = acme.GetNonceAsync().Result;
-
-                nonce._Print();
+                acme.NewAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
             }
         }
 

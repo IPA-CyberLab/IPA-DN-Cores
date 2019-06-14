@@ -48,8 +48,6 @@ using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.HttpClientCore;
 
-#pragma warning disable CS0649
-
 namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper
@@ -61,12 +59,12 @@ namespace IPA.Cores.ClientApi.SlackApi
 
     class SlackApi : WebApi
     {
-        public class Response : WebResponseBase
+        public class Response : IErrorCheckable
         {
             public bool ok = false;
             public string error = null;
 
-            public override void CheckError()
+            public void CheckError()
             {
                 if (this.ok == false) throw new WebResponseException(error);
             }
@@ -121,7 +119,7 @@ namespace IPA.Cores.ClientApi.SlackApi
                 ("redirect_uri", redirectUrl),
                 ("code", code));
 
-            AccessToken a = ret.DeserializeAndCheckError<AccessToken>();
+            AccessToken a = ret.Deserialize<AccessToken>(true);
 
             return a;
         }
@@ -158,7 +156,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<ChannelsList> GetChannelsListAsync()
         {
-            return (await SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/channels.list")).DeserializeAndCheckError<ChannelsList>();
+            return (await SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/channels.list")).Deserialize<ChannelsList>(true);
         }
 
         public async Task PostMessageAsync(string channelId, string text, bool asUser)
@@ -175,7 +173,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task PostMessageAsync(PostMessageData m)
         {
-            (await RequestWithJsonObject(WebApiMethods.POST, "https://slack.com/api/chat.postMessage", m)).DeserializeAndCheckError<Response>();
+            (await RequestWithJsonObject(WebApiMethods.POST, "https://slack.com/api/chat.postMessage", m)).Deserialize<Response>(true);
         }
     }
 }
