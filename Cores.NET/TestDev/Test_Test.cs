@@ -112,9 +112,9 @@ namespace IPA.TestDev
 
             //Test_ECDSA_Cert();
 
-            Test_Acme();
+            //Test_Acme();
 
-            //Test_Acme_Junk();
+            Test_Acme_Junk();
 
             //Test_HiveLock();
 
