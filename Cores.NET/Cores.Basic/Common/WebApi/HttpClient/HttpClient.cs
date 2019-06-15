@@ -16384,7 +16384,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x0600020F RID: 527 RVA: 0x000397AD File Offset: 0x000197AD
         public FormUrlEncodedContent(IEnumerable<KeyValuePair<string, string>> nameValueCollection) : base(FormUrlEncodedContent.GetContentByteArray(nameValueCollection))
         {
-            base.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+            base.Headers.ContentType = new MediaTypeHeaderValue(Consts.MediaTypes.FormUrlEncoded);
         }
 
         // Token: 0x06000210 RID: 528 RVA: 0x000397D0 File Offset: 0x000197D0

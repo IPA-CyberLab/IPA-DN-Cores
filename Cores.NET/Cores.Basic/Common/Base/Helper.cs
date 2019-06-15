@@ -197,7 +197,7 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _ParseCmdLine(this string s) => Str.ParseCmdLine(s);
         public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
-        public static string _OneLine(this string s) => Str.OneLine(s);
+        public static string _OneLine(this string s, string splitter = " / ") => Str.OneLine(s, splitter);
         public static string _FormatC(this string s) => Str.FormatC(s);
         public static string _FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void _Printf(this string s) => Str.Printf(s, new object[0]);
@@ -230,7 +230,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _DecodeUrl(this string str, Encoding e) => Str.FromUrl(str, e);
         public static string _EncodeHtml(this string str, bool forceAllSpaceToTag) => Str.ToHtml(str, forceAllSpaceToTag);
         public static string _DecodeHtml(this string str) => Str.FromHtml(str);
-        public static bool _IsPrintableAndSafe(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsPrintableAndSafe(str, crlfIsOk, html_tag_ng);
+        public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _Unescape(this string s) => Str.Unescape(s);
         public static string _Escape(this string s) => Str.Escape(s);
         public static int _GetWidth(this string s) => Str.GetStrWidth(s);
@@ -266,7 +266,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
         public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
         public static bool _IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
-        public static bool _IsPrintableAndSafe(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsPrintableAndSafe(c, crlIsOk, html_tag_ng);
+        public static bool _IsSafeAndPrintable(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(c, crlIsOk, html_tag_ng);
 
         public static string _NormalizeCrlf(this string str, CrlfStyle style) => Str.NormalizeCrlf(str, style);
 
@@ -859,7 +859,7 @@ namespace IPA.Cores.Helper.Basic
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
 
-        public static bool _IsNullOrLen0String(this string str) => string.IsNullOrEmpty(str);
+        public static bool _IsNullOrZeroLen(this string str) => string.IsNullOrEmpty(str);
 
         public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);

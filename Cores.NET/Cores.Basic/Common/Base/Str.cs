@@ -2369,11 +2369,11 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字が表示可能で安全かどうか
-        public static bool IsPrintableAndSafe(char c)
+        public static bool IsSafeAndPrintable(char c)
         {
-            return IsPrintableAndSafe(c, false, false);
+            return IsSafeAndPrintable(c, false, false);
         }
-        public static bool IsPrintableAndSafe(char c, bool crlfIsOk, bool htmlTagAreNotGood)
+        public static bool IsSafeAndPrintable(char c, bool crlfIsOk, bool htmlTagAreNotGood)
         {
             try
             {
@@ -2406,15 +2406,15 @@ namespace IPA.Cores.Basic
         }
         public static bool IsPrintableAndSafe(string s)
         {
-            return IsPrintableAndSafe(s, false, false);
+            return IsSafeAndPrintable(s, false, false);
         }
-        public static bool IsPrintableAndSafe(string s, bool crlfIsOk, bool htmlTagAreNotGood)
+        public static bool IsSafeAndPrintable(string s, bool crlfIsOk, bool htmlTagAreNotGood)
         {
             try
             {
                 foreach (char c in s)
                 {
-                    if (IsPrintableAndSafe(c) == false)
+                    if (IsSafeAndPrintable(c) == false)
                     {
                         return false;
                     }
@@ -5348,7 +5348,7 @@ namespace IPA.Cores.Basic
             return o.ToArray();
         }
 
-        public static string OneLine(string s)
+        public static string OneLine(string s, string splitter = " / ")
         {
             StringWriter w = new StringWriter();
             string[] lines = Str.GetLines(s);
@@ -5361,7 +5361,10 @@ namespace IPA.Cores.Basic
                 {
                     if (num != 0)
                     {
-                        w.Write(" / ");
+                        if (splitter._IsNullOrZeroLen() == false)
+                        {
+                            w.Write(splitter);
+                        }
                     }
                     w.Write(ss);
                     num++;

@@ -33,6 +33,7 @@
 #if CORES_BASIC_JSON
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
@@ -84,11 +85,11 @@ namespace IPA.Cores.Basic
         public string JsonSerialize(object obj)
             => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
 
-        public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject)
-            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject));
+        public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
 
-        public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic)
-            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic));
+        public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
     }
 }
 

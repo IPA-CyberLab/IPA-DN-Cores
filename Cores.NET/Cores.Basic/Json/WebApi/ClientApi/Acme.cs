@@ -94,11 +94,13 @@ namespace IPA.Cores.ClientApi.Acme
     {
         public bool termsOfServiceAgreed;
         public string[] contact;
+        public DateTime createdAt;
     }
 
     static class AcmeWellKnownServiceUrls
     {
         public const string LetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory";
+        public const string LetsEncryptProduction = "https://acme-v02.api.letsencrypt.org/directory";
     }
 
     class AcmeClientOptions
@@ -135,8 +137,6 @@ namespace IPA.Cores.ClientApi.Acme
 
     class AcmeClient : IDisposable
     {
-        public const string SendContentsType = "application/jose+json";
-
         public AcmeClientOptions Options { get; }
 
         WebApi Web;
@@ -146,9 +146,10 @@ namespace IPA.Cores.ClientApi.Acme
             this.Options = options;
 
             this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, Options.TcpIpSystem));
+            this.Web.AddHeader("User-Agent", "AcmeClient/1.0");
         }
 
-        async Task<string> GetNonceAsync(CancellationToken cancel = default)
+        public async Task<string> GetNonceAsync(CancellationToken cancel = default)
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
@@ -165,7 +166,7 @@ namespace IPA.Cores.ClientApi.Acme
         {
             string nonce = await GetNonceAsync(cancel);
 
-            WebRet response = await Web.RequestWithJwsObject(method, key, nonce, url, request);
+            WebRet response = await Web.RequestWithJwsObject(method, key, nonce, url, request, cancel, Consts.MediaTypes.JoseJson);
 
             response.ToString()._Print();
 

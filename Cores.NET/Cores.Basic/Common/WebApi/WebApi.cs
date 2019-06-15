@@ -80,12 +80,12 @@ namespace IPA.Cores.Basic
         public Stream UploadStream { get; }
 
         public WebSendRecvRequest(WebApiMethods method, string url, CancellationToken cancel = default,
-            string uploadContentType = "application/octet-stream", Stream uploadStream = null)
+            string uploadContentType = Consts.MediaTypes.OctetStream, Stream uploadStream = null)
         {
             this.Method = method;
             this.Url = url;
             this.Cancel = cancel;
-            this.UploadContentType = uploadContentType._FilledOrDefault("application/octet-stream");
+            this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MediaTypes.OctetStream);
             this.UploadStream = uploadStream;
         }
 
@@ -134,7 +134,7 @@ namespace IPA.Cores.Basic
 
     partial class WebRet
     {
-        public const string MediaTypeJson = "application/json";
+        public const string MediaTypeJson = Consts.MediaTypes.Json;
 
         public string Url { get; }
         public string ContentType { get; }
@@ -237,8 +237,6 @@ namespace IPA.Cores.Basic
 
     partial class WebApi : IDisposable
     {
-        
-
         WebApiSettings Settings;
 
         public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
@@ -376,14 +374,33 @@ namespace IPA.Cores.Basic
             return requestMessage;
         }
 
-        public static void ThrowIfError(HttpResponseMessage res)
+        public static async Task ThrowIfErrorAsync(HttpResponseMessage res)
         {
-            res.EnsureSuccessStatusCode();
+            if (res.IsSuccessStatusCode) return;
+
+            string details = "";
+
+            try
+            {
+                byte[] data = await res.Content.ReadAsByteArrayAsync();
+
+                details = data._GetString_UTF8()._OneLine(" ");
+            }
+            catch { }
+
+            string errStr = string.Format("Response status code does not indicate success: {0} ({1}).", (int)res.StatusCode, res.ReasonPhrase);
+
+            if (details != null)
+            {
+                errStr += " Details: " + details._TruncStr(256);
+            }
+
+            throw new HttpRequestException(errStr);
         }
 
-        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, CancellationToken cancel = default, string postContentType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
         {
-            if (postContentType._IsEmpty()) postContentType = "application/x-www-form-urlencoded";
+            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebApiMethods.POST || method == WebApiMethods.PUT)
@@ -395,16 +412,16 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                ThrowIfError(res);
+                await ThrowIfErrorAsync(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
         }
 
 
-        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = "application/json")
+        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
-            if (postContentType._IsEmpty()) postContentType = "application/json";
+            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
             HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
@@ -412,7 +429,7 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                ThrowIfError(res);
+                await ThrowIfErrorAsync(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 string type = res.Content.Headers._TryGetContentType();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
@@ -420,9 +437,9 @@ namespace IPA.Cores.Basic
         }
 
 
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = "application/json")
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
-            if (postContentType._IsEmpty()) postContentType = "application/json";
+            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
 
             if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
@@ -435,7 +452,7 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                ThrowIfError(res);
+                await ThrowIfErrorAsync(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
@@ -462,7 +479,7 @@ namespace IPA.Cores.Basic
             HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
             try
             {
-                ThrowIfError(res);
+                await ThrowIfErrorAsync(res);
 
                 return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
             }

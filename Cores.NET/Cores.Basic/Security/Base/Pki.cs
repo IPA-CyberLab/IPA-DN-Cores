@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
 
             public static IPasswordFinder Get(string password)
             {
-                if (password._IsNullOrLen0String())
+                if (password._IsNullOrZeroLen())
                     return null;
                 else
                     return new SimplePasswordFinder(password);
@@ -158,7 +158,7 @@ namespace IPA.Cores.Basic
                 {
                     string alias = (string)aliasObject;
 
-                    if (alias._IsNullOrLen0String() == false)
+                    if (alias._IsNullOrZeroLen() == false)
                     {
                         AsymmetricKeyParameter privateKeyParam = null;
 
@@ -303,7 +303,12 @@ namespace IPA.Cores.Basic
 
         public ISigner GetSigner(PkiShaSize? shaSize = null)
         {
-            ISigner ret = SignerUtilities.GetSigner(PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, shaSize, this.BitsSize));
+            return GetSigner(PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, shaSize, this.BitsSize));
+        }
+
+        public ISigner GetSigner(string algorothmOrOid)
+        {
+            ISigner ret = SignerUtilities.GetSigner(algorothmOrOid);
 
             ret.Init(true, this.PrivateKeyData.Private);
 
@@ -316,7 +321,7 @@ namespace IPA.Cores.Basic
             {
                 PemWriter pem = new PemWriter(w);
 
-                if (password._IsNullOrLen0String())
+                if (password._IsNullOrZeroLen())
                     pem.WriteObject(this.PrivateKeyData);
                 else
                     pem.WriteObject(this.PrivateKeyData, "DESEDE", password.ToCharArray(), PkiUtil.NewSecureRandom());
@@ -632,7 +637,7 @@ namespace IPA.Cores.Basic
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
 
             this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
-                subject, pub.PublicKeyData, new DerSet(attr), priv.PrivateKeyData.Private);
+                subject, pub.PublicKeyData, new DerSet(attr));
         }
 
         public ReadOnlyMemory<byte> ExportPem()

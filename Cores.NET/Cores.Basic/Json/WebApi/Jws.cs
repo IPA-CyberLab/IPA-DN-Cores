@@ -34,6 +34,7 @@
 #if CORES_BASIC_SECURITY
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
@@ -45,6 +46,7 @@ using Newtonsoft.Json;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace IPA.Cores.Basic
 {
@@ -64,6 +66,8 @@ namespace IPA.Cores.Basic
         public string crv;
         public string x;
         public string y;
+        public string n;
+        public string e;
     }
 
     class JwsProtected
@@ -72,40 +76,85 @@ namespace IPA.Cores.Basic
         public JwsRsaJwk jwk;
         public string nonce;
         public string url;
+        public string kid;
     }
 
     static class JwsUtil
     {
         public static JwsPacket Encapsulate(PrivKey key, string nonce, string url, object payload)
         {
-            if (key.Algorithm != PkiAlgorithm.ECDSA) throw new ArgumentException("key.Algorithm != PkiAlgorithm.ECDSA");
-            if (key.BitsSize != 256) throw new ArgumentException("key.BitsSize != 256");
+            JwsRsaJwk jwk;
+            string algName;
+            string signerName;
 
-            JwsRsaJwk jwk = new JwsRsaJwk()
+            switch (key.Algorithm)
             {
-                kty = "EC",
-                crv = "P-" + key.PublicKey.BitsSize,
-                x = key.PublicKey.EcdsaParameters.Q.AffineXCoord.GetEncoded()._Base64UrlEncode(),
-                y = key.PublicKey.EcdsaParameters.Q.AffineYCoord.GetEncoded()._Base64UrlEncode(),
-            };
+                case PkiAlgorithm.ECDSA:
+                    jwk = new JwsRsaJwk()
+                    {
+                        kty = "EC",
+                        crv = "P-" + key.PublicKey.BitsSize,
+                        x = key.PublicKey.EcdsaParameters.Q.AffineXCoord.GetEncoded()._Base64UrlEncode(),
+                        y = key.PublicKey.EcdsaParameters.Q.AffineYCoord.GetEncoded()._Base64UrlEncode(),
+                    };
+
+                    switch (key.BitsSize)
+                    {
+                        case 256:
+                            algName = "ES256";
+                            signerName = "SHA-256withPLAIN-ECDSA";
+                            break;
+
+                        case 384:
+                            algName = "ES384";
+                            signerName = "SHA-384withPLAIN-ECDSA";
+                            break;
+
+                        default:
+                            throw new ArgumentException("Unsupported key length.");
+                    }
+
+                    break;
+
+                case PkiAlgorithm.RSA:
+                    jwk = new JwsRsaJwk()
+                    {
+                        kty = "RSA",
+                        n = key.PublicKey.RsaParameters.Modulus.ToByteArray()._Base64UrlEncode(),
+                        e = key.PublicKey.RsaParameters.Exponent.ToByteArray()._Base64UrlEncode(),
+                    };
+
+                    algName = "RS256";
+                    signerName = PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id;
+                    break;
+
+                default:
+                    throw new ArgumentException("Unsupported key.Algorithm.");
+            }
 
             JwsProtected protect = new JwsProtected()
             {
-                alg = "ES256",
+                alg = algName,
                 jwk = jwk,
                 nonce = nonce,
                 url = url,
             };
 
+            protect._PrintAsJson(includeNull: true);
+
+            payload._PrintAsJson();
+
             JwsPacket ret = new JwsPacket()
             {
-                Protected = protect._ObjectToJson(base64url: true),
+                Protected = protect._ObjectToJson(base64url: true, includeNull: true),
                 payload = payload._ObjectToJson(base64url: true),
             };
 
-            var signer = key.GetSigner();
+            var signer = key.GetSigner(signerName);
 
-            ret.signature = signer.Sign((ret.Protected + "." + ret.payload)._GetBytes_Ascii())._Base64UrlEncode();
+            byte[] signature = signer.Sign((ret.Protected + "." + ret.payload)._GetBytes_Ascii());
+
+            ret.signature = signature._Base64UrlEncode();
 
             return ret;
         }
@@ -113,11 +162,13 @@ namespace IPA.Cores.Basic
 
     partial class WebApi
     {
-        public virtual async Task<WebRet> RequestWithJwsObject(WebApiMethods method, PrivKey privKey, string nonce, string url, object payload)
+        public virtual async Task<WebRet> RequestWithJwsObject(WebApiMethods method, PrivKey privKey, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
             JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, nonce, url, payload);
 
-            return await this.RequestWithJsonObject(method, url, reqPacket);
+            reqPacket._PrintAsJson();
+
+            return await this.RequestWithJsonObject(method, url, reqPacket, cancel, postContentType);
         }
     }
 }

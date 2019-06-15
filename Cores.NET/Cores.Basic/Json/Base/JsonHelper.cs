@@ -66,14 +66,14 @@ namespace IPA.Cores.Helper.Basic
 
     static class JsonConsoleHelper
     {
-        public static object _PrintAsJson(this object o)
+        public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
         {
-            Con.WriteJsonLine(o);
+            Con.WriteJsonLine(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
             return o;
         }
-        public static object _DebugAsJson(this object o)
+        public static object _DebugAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
         {
-            Con.WriteJsonDebug(o);
+            Con.WriteJsonDebug(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
             return o;
         }
     }

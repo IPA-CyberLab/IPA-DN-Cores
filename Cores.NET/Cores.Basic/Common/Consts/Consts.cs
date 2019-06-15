@@ -49,7 +49,10 @@ namespace IPA.Cores.Basic
     {
         public static partial class MediaTypes
         {
-            public const string Application_Json = "application/json";
+            public const string Json = "application/json";
+            public const string JoseJson = "application/jose+json";
+            public const string FormUrlEncoded = "application/x-www-form-urlencoded";
+            public const string OctetStream = "application/octet-stream";
         }
     }
 }

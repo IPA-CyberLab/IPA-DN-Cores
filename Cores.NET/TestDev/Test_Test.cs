@@ -103,6 +103,9 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            //"eyJ0ZXJtc09mU2VydmljZUFncmVlZCI6dHJ1ZSwiY29udGFjdCI6WyJtYWlsdG86ZGEuMTkwNjE1QHNvZnRldGhlci5jby5qcCJdLCJzdGF0dXMiOm51bGwsImlkIjpudWxsLCJjcmVhdGVkQXQiOiIwMDAxLTAxLTAxVDAwOjAwOjAwIiwia2V5IjpudWxsLCJpbml0aWFsSXAiOm51bGwsIm9yZGVycyI6bnVsbCwiTG9jYXRpb24iOm51bGx9"
+            //    ._Base64UrlDecode()._GetString_UTF8()._Print();
+            //return;
             //Test_Generic();
 
             //Test_RSA_Cert();
@@ -110,6 +113,8 @@ namespace IPA.TestDev
             //Test_ECDSA_Cert();
 
             Test_Acme();
+
+            //Test_Acme_Junk();
 
             //Test_HiveLock();
 
@@ -146,9 +151,15 @@ namespace IPA.TestDev
             }
         }
 
+        public static void Test_Acme_Junk()
+        {
+            LetsEncryptClient c = new LetsEncryptClient("https://acme-staging-v02.api.letsencrypt.org/directory");
+            c.Init("da.190615@softether.co.jp")._GetResult();
+        }
+
         public static void Test_Acme()
         {
-            PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey key, out PubKey publicKey);
+            PkiUtil.GenerateKeyPair(PkiAlgorithm.RSA, 2048, out PrivKey key, out PubKey publicKey);
 
             AcmeClientOptions o = new AcmeClientOptions();
 
