@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
 
     static class JwsUtil
     {
-        public static JwsPacket Encapsulate(PrivKey key, string nonce, string url, object payload)
+        public static JwsPacket Encapsulate(PrivKey key, string kid, string nonce, string url, object payload)
         {
             JwsRsaJwk jwk;
             string algName;
@@ -135,19 +135,16 @@ namespace IPA.Cores.Basic
             JwsProtected protect = new JwsProtected()
             {
                 alg = algName,
-                jwk = jwk,
+                jwk = kid._IsEmpty() ? jwk : null,
+                kid = kid._IsEmpty() ? null : kid,
                 nonce = nonce,
                 url = url,
             };
 
-            protect._PrintAsJson(includeNull: true);
-
-            payload._PrintAsJson();
-
             JwsPacket ret = new JwsPacket()
             {
                 Protected = protect._ObjectToJson(base64url: true, includeNull: true),
-                payload = payload._ObjectToJson(base64url: true),
+                payload = (payload == null ? "" : payload._ObjectToJson(base64url: true)),
             };
 
             var signer = key.GetSigner(signerName);
@@ -162,11 +159,9 @@ namespace IPA.Cores.Basic
 
     partial class WebApi
     {
-        public virtual async Task<WebRet> RequestWithJwsObject(WebApiMethods method, PrivKey privKey, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string kid, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
-            JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, nonce, url, payload);
-
-            reqPacket._PrintAsJson();
+            JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, kid, nonce, url, payload);
 
             return await this.RequestWithJsonObject(method, url, reqPacket, cancel, postContentType);
         }

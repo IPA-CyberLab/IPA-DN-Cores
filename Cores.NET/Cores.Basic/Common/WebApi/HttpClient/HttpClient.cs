@@ -15431,7 +15431,6 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x060004EC RID: 1260 RVA: 0x000486F4 File Offset: 0x000286F4
         public static async ValueTask<ValueTuple<Socket, Stream>> ConnectAsync(TcpIpSystem system, string host, int port, CancellationToken cancellationToken)
         {
-            system = null; // TODO
             ConnectHelper.ConnectEventArgs saea = null;
             //if (!ConnectHelper.s_connectEventArgs.TryDequeue(out saea))
             //{

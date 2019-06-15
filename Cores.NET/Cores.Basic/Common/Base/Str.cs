@@ -2703,7 +2703,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列配列を文字列リストに変換
-        public static List<string> StrArrayToList(string[] strArray, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
+        public static List<string> StrArrayToList(IEnumerable<string> strArray, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
         {
             List<string> ret = new List<string>();
 
@@ -4790,7 +4790,7 @@ namespace IPA.Cores.Basic
         }
 
         // 複数行をテキストに変換する
-        public static string LinesToStr(string[] lines)
+        public static string LinesToStr(IEnumerable<string> lines)
         {
             StringWriter sw = new StringWriter();
             foreach (string s in lines)
@@ -5132,7 +5132,7 @@ namespace IPA.Cores.Basic
         }
 
         // トークンリストを重複の無いものに変換する
-        public static string[] UniqueToken(string[] t)
+        public static string[] UniqueToken(IEnumerable<string> t)
         {
             Dictionary<string, object> o = new Dictionary<string, object>();
             List<string> ret = new List<string>();

@@ -85,10 +85,10 @@ namespace IPA.Cores.Basic
         public string JsonSerialize(object obj)
             => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
 
-        public virtual async Task<WebRet> RequestWithJsonObject(WebApiMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> RequestWithJsonObject(WebMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
             => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
 
-        public virtual async Task<WebRet> RequestWithJsonDynamic(WebApiMethods method, string url, dynamic jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> RequestWithJsonDynamic(WebMethods method, string url, dynamic jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
             => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
     }
 }

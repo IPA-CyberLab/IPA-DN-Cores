@@ -174,7 +174,7 @@ namespace IPA.TestDev
             using (WebApi api = new WebApi())
             {
                 Dbg.Where();
-                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.POST, url, uploadStream: stream));
+                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.POST, url, uploadStream: stream));
                 MemoryBuffer<byte> downloadData = new MemoryBuffer<byte>();
                 using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
                 {
@@ -209,7 +209,7 @@ namespace IPA.TestDev
                     //for (int i = 0; ; i++)
                     {
                         Dbg.Where();
-                        var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebApiMethods.GET, url));
+                        var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url));
                         using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
                         {
                             long total = 0;

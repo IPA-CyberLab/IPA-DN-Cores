@@ -73,13 +73,13 @@ namespace IPA.Cores.Basic
 
     class WebSendRecvRequest : IDisposable
     {
-        public WebApiMethods Method { get; }
+        public WebMethods Method { get; }
         public string Url { get; }
         public CancellationToken Cancel { get; }
         public string UploadContentType { get; }
         public Stream UploadStream { get; }
 
-        public WebSendRecvRequest(WebApiMethods method, string url, CancellationToken cancel = default,
+        public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
             string uploadContentType = Consts.MediaTypes.OctetStream, Stream uploadStream = null)
         {
             this.Method = method;
@@ -129,6 +129,13 @@ namespace IPA.Cores.Basic
             this.HttpResponseMessage._DisposeSafe();
             this.DownloadContent._DisposeSafe();
             this.DownloadStream._DisposeSafe();
+        }
+    }
+
+    class WebUserRet<TUser> : SystemAndUser<WebRet, TUser>
+    {
+        public WebUserRet(WebRet web, TUser user) : base(web, user)
+        {
         }
     }
 
@@ -190,10 +197,12 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => this.Data._GetString(this.DefaultEncoding);
         public string ToString(Encoding encoding) => this.Data._GetString(encoding);
+
+        public WebUserRet<TUser> CreateUserRet<TUser>(TUser userData) => new WebUserRet<TUser>(this, userData);
     }
 
     [Flags]
-    enum WebApiMethods
+    enum WebMethods
     {
         GET,
         DELETE,
@@ -321,11 +330,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        virtual protected HttpRequestMessage CreateWebRequest(WebApiMethods method, string url, params (string name, string value)[] queryList)
+        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)
         {
             string qs = "";
 
-            if (method == WebApiMethods.GET || method == WebApiMethods.DELETE || method == WebApiMethods.HEAD)
+            if (method == WebMethods.GET || method == WebMethods.DELETE || method == WebMethods.HEAD)
             {
                 qs = BuildQueryString(queryList);
                 if (qs._IsEmpty() == false)
@@ -336,10 +345,10 @@ namespace IPA.Cores.Basic
 
             HttpRequestMessage requestMessage = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
 
-            //CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
-            //cacheControl.NoStore = true;
-            //cacheControl.NoCache = true;
-            //requestMessage.Headers.CacheControl = cacheControl;
+            CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
+            cacheControl.NoStore = true;
+            cacheControl.NoCache = true;
+            requestMessage.Headers.CacheControl = cacheControl;
 
             try
             {
@@ -398,12 +407,12 @@ namespace IPA.Cores.Basic
             throw new HttpRequestException(errStr);
         }
 
-        public async Task<WebRet> SimpleQueryAsync(WebApiMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
+        public async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
-            if (method == WebApiMethods.POST || method == WebApiMethods.PUT)
+            if (method == WebMethods.POST || method == WebMethods.PUT)
             {
                 string qs = BuildQueryString(queryList);
 
@@ -422,7 +431,7 @@ namespace IPA.Cores.Basic
         public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
-            HttpRequestMessage r = CreateWebRequest(WebApiMethods.POST, url, null);
+            HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
             r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
@@ -437,11 +446,11 @@ namespace IPA.Cores.Basic
         }
 
 
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebApiMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
 
-            if (!(method == WebApiMethods.POST || method == WebApiMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
+            if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
             HttpRequestMessage r = CreateWebRequest(method, url, null);
 
@@ -462,7 +471,7 @@ namespace IPA.Cores.Basic
         {
             HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
 
-            if (request.Method.EqualsAny(WebApiMethods.POST, WebApiMethods.PUT))
+            if (request.Method.EqualsAny(WebMethods.POST, WebMethods.PUT))
             {
                 if (request.UploadStream == null)
                     throw new ArgumentException("request.UploadStream == null");

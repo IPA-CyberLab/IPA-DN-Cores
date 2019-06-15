@@ -112,9 +112,9 @@ namespace IPA.TestDev
 
             //Test_ECDSA_Cert();
 
-            //Test_Acme();
+            Test_Acme();
 
-            Test_Acme_Junk();
+            //Test_Acme_Junk();
 
             //Test_HiveLock();
 
@@ -145,9 +145,6 @@ namespace IPA.TestDev
             }
             else
             {
-                PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
-
-                JwsUtil.Encapsulate(privateKey, "abc", "url", Secure.Rand(8))._PrintAsJson();
             }
         }
 
@@ -159,13 +156,32 @@ namespace IPA.TestDev
 
         public static void Test_Acme()
         {
-            PkiUtil.GenerateKeyPair(PkiAlgorithm.RSA, 2048, out PrivKey key, out PubKey publicKey);
+            string keyFileName = @"c:\tmp\190615_acme\account.key";
+            PrivKey key = null;
+
+            try
+            {
+                Memory<byte> keyFile = Lfs.ReadDataFromFile(keyFileName);
+                key = new PrivKey(keyFile.Span);
+            }
+            catch
+            {
+                PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out key, out _);
+                Lfs.WriteDataToFile(keyFileName, key.Export(), flags: FileFlags.AutoCreateDirectory);
+            }
+
 
             AcmeClientOptions o = new AcmeClientOptions();
 
             using (AcmeClient acme = new AcmeClient(o))
             {
-                acme.NewAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
+                AcmeAccount ac = acme.LoginAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
+
+                ac.AccountUrl._Print();
+
+                ac.Test1()._GetResult();
+
+                ac.NewOrderAsync("www.softether2.com")._GetResult();
             }
         }
 

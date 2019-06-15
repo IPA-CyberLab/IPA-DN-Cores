@@ -79,7 +79,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             this.AccessTokenStr = accessToken;
         }
 
-        protected override HttpRequestMessage CreateWebRequest(WebApiMethods method, string url, params (string name, string value)[] queryList)
+        protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)
         {
             HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
 
@@ -112,7 +112,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl, CancellationToken cancel = default)
         {
-            WebRet ret = await this.SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/oauth.access", cancel,
+            WebRet ret = await this.SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/oauth.access", cancel,
                 null,
                 ("client_id", this.ClientId),
                 ("client_secret", clientSecret),
@@ -156,7 +156,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<ChannelsList> GetChannelsListAsync()
         {
-            return (await SimpleQueryAsync(WebApiMethods.POST, "https://slack.com/api/channels.list")).Deserialize<ChannelsList>(true);
+            return (await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list")).Deserialize<ChannelsList>(true);
         }
 
         public async Task PostMessageAsync(string channelId, string text, bool asUser)
@@ -173,7 +173,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task PostMessageAsync(PostMessageData m)
         {
-            (await RequestWithJsonObject(WebApiMethods.POST, "https://slack.com/api/chat.postMessage", m)).Deserialize<Response>(true);
+            (await RequestWithJsonObject(WebMethods.POST, "https://slack.com/api/chat.postMessage", m)).Deserialize<Response>(true);
         }
     }
 }

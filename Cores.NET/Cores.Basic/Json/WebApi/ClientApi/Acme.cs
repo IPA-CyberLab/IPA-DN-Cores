@@ -53,6 +53,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.HttpClientCore;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic
 {
@@ -62,7 +64,7 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<TimeSpan> AcmeDirectoryCacheLifeTime = new TimeSpan(1, 0, 0);
 
-            public static readonly Copenhagen<int> ShortTimeout = 5 * 1000;
+            public static readonly Copenhagen<int> ShortTimeout = 10 * 1000;
         }
     }
 }
@@ -94,7 +96,27 @@ namespace IPA.Cores.ClientApi.Acme
     {
         public bool termsOfServiceAgreed;
         public string[] contact;
-        public DateTime createdAt;
+    }
+
+    [Flags]
+    enum AcmeOrderIdType
+    {
+        dns = 0,
+    }
+
+    class AcmeOrderIdEntity
+    {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AcmeOrderIdType type;
+
+        public string value;
+    }
+
+    class AcmeOrderPayload
+    {
+        public AcmeOrderIdEntity[] identifiers;
+        public string[] authorizations;
+        public string finalize;
     }
 
     static class AcmeWellKnownServiceUrls
@@ -127,11 +149,84 @@ namespace IPA.Cores.ClientApi.Acme
                 {
                     using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout })))
                     {
-                        WebRet ret = await api.SimpleQueryAsync(WebApiMethods.GET, this.DirectoryUrl, cancel);
+                        WebRet ret = await api.SimpleQueryAsync(WebMethods.GET, this.DirectoryUrl, cancel);
 
                         return ret.Deserialize<AcmeEntryPoints>(true);
                     }
                 });
+        }
+    }
+
+    class AcmeOrder
+    {
+        public AcmeAccount Account { get; }
+        public string Url { get; }
+        public AcmeOrderPayload Info { get; private set; }
+
+        public AcmeOrder(AcmeAccount account, string url, AcmeOrderPayload info)
+        {
+            this.Account = account;
+            this.Url = url;
+            this.Info = info;
+        }
+
+        public async Task UpdateInfoAsync(CancellationToken cancel = default)
+        {
+            WebUserRet<AcmeOrderPayload> ret = await Account.RequestAsync<AcmeOrderPayload>(WebMethods.POST, this.Url, null, cancel);
+
+            this.Info = ret.User;
+        }
+    }
+
+    class AcmeAccount
+    {
+        public AcmeClient Client { get; }
+        public PrivKey PrivKey { get; }
+        public string AccountUrl { get; }
+        public AcmeClientOptions Options => Client.Options;
+
+        internal AcmeAccount(EnsureInternal yes, AcmeClient client, PrivKey privKey, string accountUrl)
+        {
+            this.Client = client;
+            this.PrivKey = privKey;
+            this.AccountUrl = accountUrl;
+        }
+
+        public async Task<AcmeOrder> NewOrderAsync(IEnumerable<string> dnsNames, CancellationToken cancel = default)
+        {
+            List<AcmeOrderIdEntity> o = new List<AcmeOrderIdEntity>();
+
+            foreach (string dnsName in dnsNames)
+            {
+                o.Add(new AcmeOrderIdEntity { type = AcmeOrderIdType.dns, value = dnsName, });
+            }
+
+            AcmeOrderPayload request = new AcmeOrderPayload
+            {
+                identifiers = o.ToArray(),
+            };
+
+            WebUserRet<AcmeOrderPayload> ret = await RequestAsync<AcmeOrderPayload>(WebMethods.POST, (await Options.GetEntryPointsAsync(cancel)).newOrder, request, cancel);
+
+            string accountUrl = ret.System.Headers.GetValues("Location").Single();
+
+            AcmeOrder order = new AcmeOrder(this, accountUrl, ret.User);
+
+            await order.UpdateInfoAsync(cancel);
+
+            return order;
+        }
+        public async Task NewOrderAsync(string dnsName, CancellationToken cancel = default)
+            => await NewOrderAsync(dnsName._SingleArray(), cancel);
+
+        public Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, string url, object request, CancellationToken cancel = default)
+        {
+            return this.Client.RequestAsync<TResponse>(method, this.PrivKey, this.AccountUrl, url, request, cancel);
+        }
+
+        public async Task Test1()
+        {
+            await RequestAsync<None>(WebMethods.POST, "https://acme-staging-v02.api.letsencrypt.org/acme/acct/9614185", null);
         }
     }
 
@@ -145,7 +240,7 @@ namespace IPA.Cores.ClientApi.Acme
         {
             this.Options = options;
 
-            this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, Options.TcpIpSystem));
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout, AllowAutoRedirect = false, }, Options.TcpIpSystem));
             this.Web.AddHeader("User-Agent", "AcmeClient/1.0");
         }
 
@@ -153,29 +248,32 @@ namespace IPA.Cores.ClientApi.Acme
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
-            WebRet response = await Web.SimpleQueryAsync(WebApiMethods.HEAD, url.newNonce, cancel);
+            WebRet response = await Web.SimpleQueryAsync(WebMethods.HEAD, url.newNonce, cancel);
 
-            string ret = response.Headers.GetValues("Replay-Nonce").FirstOrDefault();
+            string ret = response.Headers.GetValues("Replay-Nonce").Single();
 
             if (ret._IsEmpty()) throw new ApplicationException("Replay-Nonce is empty.");
 
             return ret;
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(WebApiMethods method, PrivKey key, string url, object request, CancellationToken cancel = default)
+        public async Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, PrivKey key, string kid, string url, object request, CancellationToken cancel = default)
         {
             string nonce = await GetNonceAsync(cancel);
 
-            WebRet response = await Web.RequestWithJwsObject(method, key, nonce, url, request, cancel, Consts.MediaTypes.JoseJson);
+            ("*** " + url)._Debug();
 
-            response.ToString()._Print();
+            WebRet webret = await Web.RequestWithJwsObject(method, key, kid, nonce, url, request, cancel, Consts.MediaTypes.JoseJson);
 
-            TResponse ret = response.Deserialize<TResponse>(true);
+            TResponse ret = webret.Deserialize<TResponse>(true);
 
-            return ret;
+            webret.Headers._DebugHeaders();
+            webret.ToString()._Debug();
+
+            return webret.CreateUserRet(ret);
         }
 
-        public async Task NewAccountAsync(PrivKey key, string[] contacts, CancellationToken cancel = default)
+        public async Task<AcmeAccount> LoginAccountAsync(PrivKey key, string[] contacts, CancellationToken cancel = default)
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
@@ -185,7 +283,13 @@ namespace IPA.Cores.ClientApi.Acme
                 termsOfServiceAgreed = true,
             };
 
-            await this.RequestAsync<object>(WebApiMethods.POST, key, url.newAccount, req, cancel);
+            WebUserRet<object> ret = await this.RequestAsync<object>(WebMethods.POST, key, null, url.newAccount, req, cancel);
+
+            string accountUrl = ret.System.Headers.GetValues("Location").Single();
+
+            if (accountUrl._IsEmpty()) throw new ApplicationException("Account Location is empty.");
+
+            return new AcmeAccount(EnsureInternal.Yes, this, key, accountUrl);
         }
 
         public void Dispose() => Dispose(true);

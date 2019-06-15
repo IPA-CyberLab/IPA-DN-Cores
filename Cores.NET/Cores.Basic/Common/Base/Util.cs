@@ -5204,6 +5204,20 @@ namespace IPA.Cores.Basic
         public bool Contains(T item) => ContainsKey(item);
     }
 
+    class SystemAndUser<TSystem, TUser>
+    {
+        public TSystem System { get; }
+        public TUser User { get; }
+
+        public SystemAndUser(TSystem system, TUser user)
+        {
+            this.System = system;
+            this.User = user;
+        }
+    }
+
+    class None { }
+
     [Flags]
     enum EnsureCtor
     {

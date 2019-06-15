@@ -322,7 +322,7 @@ class LetsEncryptClient
 
         var webapi = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, null));
 
-        var webret = await webapi.SimplePostJsonAsync(WebApiMethods.POST, uri.ToString(), json, default, "application/jose+json");
+        var webret = await webapi.SimplePostJsonAsync(WebMethods.POST, uri.ToString(), json, default, "application/jose+json");
 
 
         webret.Data._GetString_Ascii()._Print();

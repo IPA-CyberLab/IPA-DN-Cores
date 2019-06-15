@@ -258,10 +258,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static byte[] _NonNull(this byte[] b) { if (b == null) return new byte[0]; else return b; }
 
-        public static string _LinesToStr(this string[] lines) => Str.LinesToStr(lines);
-        public static string[] _UniqueToken(this string[] t) => Str.UniqueToken(t);
-        public static List<string> _ToStrList(this string[] t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
-        public static string _Combine(this string[] t, string sepstr) => Str.CombineStringArray(t, sepstr);
+        public static string _LinesToStr(this IEnumerable<string> lines) => Str.LinesToStr(lines);
+        public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
+        public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
+        public static string _Combine(this IEnumerable<string> t, string sepstr) => Str.CombineStringArray(t, sepstr);
 
         public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
         public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
@@ -421,6 +421,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
+
+        public static void _DebugHeaders(this IPA.Cores.Basic.HttpClientCore.HttpHeaders h) => h._DoForEach(x => (x.Key + ": " + x.Value._Combine(", "))._Debug());
 
         public static string _GetStrOrEmpty(this NameValueCollection d, string key)
         {
