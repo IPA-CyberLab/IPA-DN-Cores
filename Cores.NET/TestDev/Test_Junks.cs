@@ -14,6 +14,7 @@ using Newtonsoft.Json.Linq;
 // Reference from: https://gist.github.com/ayende/c2bb440bb448dc290132956c6a9fff3b
 
 using IPA.Cores.Helper.Basic;
+using IPA.Cores.Basic;
 
 class LetsEncryptClient
 {
@@ -41,7 +42,12 @@ class LetsEncryptClient
                 return value;
             }
 
-            value = new HttpClient
+            var httpClientHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; },
+            };
+
+            value = new HttpClient(httpClientHandler)
             {
                 BaseAddress = new Uri(url)
             };
@@ -90,7 +96,7 @@ class LetsEncryptClient
     {
         _accountKey = new RSACryptoServiceProvider(4096);
         _client = GetCachedClient(_url);
-        (_directory, _) = await SendAsync<Directory>(HttpMethod.Get, new Uri("directory", UriKind.Relative), null, token);
+        (_directory, _) = await SendAsyncStd<Directory>(HttpMethod.Get, new Uri("directory", UriKind.Relative), null, token);
 
         /*if (File.Exists(_path))
         {
@@ -120,7 +126,12 @@ class LetsEncryptClient
         }*/
 
         _jws = new Jws(_accountKey, null);
-        var (account, response) = await SendAsync<Account>(HttpMethod.Post, new Uri( _directory.NewAccount.ToString()/*.Replace("https:", "http:")*/), new Account
+
+        string newAccountUrl = _directory.NewAccount.ToString().Replace("https:", "https:");
+
+        //newAccountUrl = "https://pc37.sehosts.com/a";
+
+        var (account, response) = await SendAsync2<Account>(IPA.Cores.Basic.HttpClientCore.HttpMethod.Post, new Uri(newAccountUrl), new Account
         {
             // we validate this in the UI before we get here, so that is fine
             TermsOfServiceAgreed = true,
@@ -145,7 +156,8 @@ class LetsEncryptClient
         }
     }
 
-    private async Task<(TResult Result, string Response)> SendAsync<TResult>(HttpMethod method, Uri uri, object message, CancellationToken token) where TResult : class
+
+    private async Task<(TResult Result, string Response)> SendAsyncStd<TResult>(HttpMethod method, Uri uri, object message, CancellationToken token) where TResult : class
     {
         IPA.Cores.ClientApi.Acme.AcmeClient ac = new IPA.Cores.ClientApi.Acme.AcmeClient(new IPA.Cores.ClientApi.Acme.AcmeClientOptions());
 
@@ -155,6 +167,8 @@ class LetsEncryptClient
 
         var request = new HttpRequestMessage(method, uri);
 
+        string json = "";
+
         if (message != null)
         {
             var encodedMessage = _jws.Encode(message, new JwsHeader
@@ -162,7 +176,7 @@ class LetsEncryptClient
                 Nonce = _nonce,
                 Url = uri
             });
-            var json = JsonConvert.SerializeObject(encodedMessage, jsonSettings);
+            json = JsonConvert.SerializeObject(encodedMessage, jsonSettings);
 
             json._Print();
 
@@ -200,7 +214,149 @@ class LetsEncryptClient
                 ihl.Location = response.Headers.Location;
         }
 
+        responseText._Print();
+
         return (responseContent, responseText);
+    }
+
+    private async Task<(TResult Result, string Response)> SendAsync2<TResult>(IPA.Cores.Basic.HttpClientCore.HttpMethod method, Uri uri, object message, CancellationToken token) where TResult : class
+    {
+        IPA.Cores.ClientApi.Acme.AcmeClient ac = new IPA.Cores.ClientApi.Acme.AcmeClient(new IPA.Cores.ClientApi.Acme.AcmeClientOptions());
+
+        _nonce = await ac.GetNonceAsync();
+
+        message._PrintAsJson();
+
+        var request = new IPA.Cores.Basic.HttpClientCore.HttpRequestMessage(method, uri);
+
+        string json = "";
+
+        if (message != null)
+        {
+            var encodedMessage = _jws.Encode(message, new JwsHeader
+            {
+                Nonce = _nonce,
+                Url = uri
+            });
+            json = JsonConvert.SerializeObject(encodedMessage, jsonSettings);
+
+            json._Print();
+
+            encodedMessage._PrintAsJson();
+
+            request.Content = new IPA.Cores.Basic.HttpClientCore.StringContent(json, Encoding.UTF8, "application/jose+json");
+            request.Content.Headers.ContentType = new IPA.Cores.Basic.HttpClientCore.MediaTypeHeaderValue("application/jose+json");
+        }
+
+
+        var webapi = new WebApi(new WebApiOptions(new WebApiSettings() { AllowAutoRedirect = true }));
+
+        var response = await webapi.Client.SendAsync(request, token).ConfigureAwait(false);
+
+        
+
+        
+        //_nonce = response.Headers.GetValues("Replay-Nonce").First();
+
+        if (response.Content.Headers.ContentType.MediaType == "application/problem+json")
+        {
+            var problemJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var problem = JsonConvert.DeserializeObject<Problem>(problemJson);
+            problemJson._Print();
+            problem.RawJson = problemJson;
+            throw new ApplicationException();
+        }
+
+        var responseText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        if (typeof(TResult) == typeof(string)
+            && response.Content.Headers.ContentType.MediaType == "application/pem-certificate-chain")
+        {
+            return ((TResult)(object)responseText, null);
+        }
+
+        var responseContent = JObject.Parse(responseText).ToObject<TResult>();
+
+        if (responseContent is IHasLocation ihl)
+        {
+            if (response.Headers.Location != null)
+                ihl.Location = response.Headers.Location;
+        }
+
+        responseText._Print();
+
+
+        return (responseContent, responseText);
+    }
+
+    private async Task<(TResult Result, string Response)> SendAsync<TResult>(HttpMethod method, Uri uri, object message, CancellationToken token) where TResult : class
+    {
+        IPA.Cores.ClientApi.Acme.AcmeClient ac = new IPA.Cores.ClientApi.Acme.AcmeClient(new IPA.Cores.ClientApi.Acme.AcmeClientOptions());
+
+        _nonce = await ac.GetNonceAsync();
+
+        message._PrintAsJson();
+
+        var request = new HttpRequestMessage(method, uri);
+
+        string json = "";
+
+        if (message != null)
+        {
+            var encodedMessage = _jws.Encode(message, new JwsHeader
+            {
+                Nonce = _nonce,
+                Url = uri
+            });
+            json = JsonConvert.SerializeObject(encodedMessage, jsonSettings);
+
+            json._Print();
+
+            encodedMessage._PrintAsJson();
+
+            request.Content = new StringContent(json, Encoding.UTF8, "application/jose+json");
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/jose+json");
+        }
+
+        //var response = await _client.SendAsync(request, token).ConfigureAwait(false);
+
+        var webapi = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout }, null));
+
+        var webret = await webapi.SimplePostJsonAsync(WebApiMethods.POST, uri.ToString(), json, default, "application/jose+json");
+
+
+        webret.Data._GetString_Ascii()._Print();
+
+        return default;
+
+        /*
+        //_nonce = response.Headers.GetValues("Replay-Nonce").First();
+
+        if (response.Content.Headers.ContentType.MediaType == "application/problem+json")
+        {
+            var problemJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var problem = JsonConvert.DeserializeObject<Problem>(problemJson);
+            problem.RawJson = problemJson;
+            throw new LetsEncrytException(problem, response);
+        }
+
+        var responseText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        if (typeof(TResult) == typeof(string)
+            && response.Content.Headers.ContentType.MediaType == "application/pem-certificate-chain")
+        {
+            return ((TResult)(object)responseText, null);
+        }
+
+        var responseContent = JObject.Parse(responseText).ToObject<TResult>();
+
+        if (responseContent is IHasLocation ihl)
+        {
+            if (response.Headers.Location != null)
+                ihl.Location = response.Headers.Location;
+        }
+
+        return (responseContent, responseText);*/
     }
 
 

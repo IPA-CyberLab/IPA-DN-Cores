@@ -38,13 +38,13 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Net;
-//using System.Net.Http;
-//using System.Net.Http.Headers;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+//using System.Net.Http;
+//using System.Net.Http.Headers;
 using IPA.Cores.Basic.HttpClientCore;
 
 namespace IPA.Cores.Basic
@@ -336,10 +336,10 @@ namespace IPA.Cores.Basic
 
             HttpRequestMessage requestMessage = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
 
-            CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
-            cacheControl.NoStore = true;
-            cacheControl.NoCache = true;
-            requestMessage.Headers.CacheControl = cacheControl;
+            //CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
+            //cacheControl.NoStore = true;
+            //cacheControl.NoCache = true;
+            //requestMessage.Headers.CacheControl = cacheControl;
 
             try
             {
