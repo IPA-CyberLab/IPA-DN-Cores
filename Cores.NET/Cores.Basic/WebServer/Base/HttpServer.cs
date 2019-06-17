@@ -70,6 +70,8 @@ namespace IPA.Cores.Basic
         protected object Param;
         public CancellationToken CancelToken { get; }
 
+        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
+
         public HttpServerStartupBase(IConfiguration configuration)
         {
             this.Configuration = configuration;
@@ -85,8 +87,6 @@ namespace IPA.Cores.Basic
         {
             services.AddRouting();
         }
-
-        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
@@ -218,10 +218,10 @@ namespace IPA.Cores.Basic
                 }
                 catch
                 {
-                    GlobalObjectExchange.TryWithdraw(ParamToken);
+                    GlobalObjectExchange.TryWithdraw(ParamToken, out _);
                     ParamToken = null;
 
-                    GlobalObjectExchange.TryWithdraw(CancelToken);
+                    GlobalObjectExchange.TryWithdraw(CancelToken, out _);
                     CancelToken = null;
                     throw;
                 }
@@ -237,8 +237,8 @@ namespace IPA.Cores.Basic
         {
             await HostTask;
 
-            GlobalObjectExchange.TryWithdraw(ParamToken);
-            GlobalObjectExchange.TryWithdraw(CancelToken);
+            GlobalObjectExchange.TryWithdraw(ParamToken, out _);
+            GlobalObjectExchange.TryWithdraw(CancelToken, out _);
         }
     }
 }

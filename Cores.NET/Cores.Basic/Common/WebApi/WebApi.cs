@@ -401,7 +401,7 @@ namespace IPA.Cores.Basic
 
             if (details != null)
             {
-                errStr += " Details: " + details._TruncStr(256);
+                errStr += " Details: " + details._TruncStr(1024);
             }
 
             throw new HttpRequestException(errStr);

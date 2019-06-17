@@ -284,6 +284,11 @@ namespace IPA.Cores.Basic
         {
             if (DisposeFlag.IsFirstCall() && disposing)
             {
+                try
+                {
+                    _Socket.Shutdown(SocketShutdown.Both);
+                }
+                catch { }
                 _Socket._DisposeSafe();
 
                 Leak._DisposeSafe();

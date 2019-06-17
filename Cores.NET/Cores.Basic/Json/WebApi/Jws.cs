@@ -60,20 +60,28 @@ namespace IPA.Cores.Basic
         public string signature;
     }
 
-    class JwsRsaJwk
+    class JwsKey
     {
-        public string kty;
+        // Members must be lexicographic order (https://tools.ietf.org/html/rfc7638#section-3)
         public string crv;
+        public string e;
+        public string kty;
+        public string n;
         public string x;
         public string y;
-        public string n;
-        public string e;
+
+        public byte[] CalcThumbprint()
+        {
+            string str = this._ObjectToJson(includeNull: false, compact: true);
+
+            return Secure.HashSHA256(str._GetBytes_UTF8());
+        }
     }
 
     class JwsProtected
     {
         public string alg;
-        public JwsRsaJwk jwk;
+        public JwsKey jwk;
         public string nonce;
         public string url;
         public string kid;
@@ -81,21 +89,19 @@ namespace IPA.Cores.Basic
 
     static class JwsUtil
     {
-        public static JwsPacket Encapsulate(PrivKey key, string kid, string nonce, string url, object payload)
+        public static JwsKey CreateJwsKey(PubKey key, out string algName, out string signerName)
         {
-            JwsRsaJwk jwk;
-            string algName;
-            string signerName;
+            JwsKey jwk;
 
             switch (key.Algorithm)
             {
                 case PkiAlgorithm.ECDSA:
-                    jwk = new JwsRsaJwk()
+                    jwk = new JwsKey()
                     {
                         kty = "EC",
-                        crv = "P-" + key.PublicKey.BitsSize,
-                        x = key.PublicKey.EcdsaParameters.Q.AffineXCoord.GetEncoded()._Base64UrlEncode(),
-                        y = key.PublicKey.EcdsaParameters.Q.AffineYCoord.GetEncoded()._Base64UrlEncode(),
+                        crv = "P-" + key.BitsSize,
+                        x = key.EcdsaParameters.Q.AffineXCoord.GetEncoded()._Base64UrlEncode(),
+                        y = key.EcdsaParameters.Q.AffineYCoord.GetEncoded()._Base64UrlEncode(),
                     };
 
                     switch (key.BitsSize)
@@ -117,11 +123,11 @@ namespace IPA.Cores.Basic
                     break;
 
                 case PkiAlgorithm.RSA:
-                    jwk = new JwsRsaJwk()
+                    jwk = new JwsKey()
                     {
                         kty = "RSA",
-                        n = key.PublicKey.RsaParameters.Modulus.ToByteArray()._Base64UrlEncode(),
-                        e = key.PublicKey.RsaParameters.Exponent.ToByteArray()._Base64UrlEncode(),
+                        n = key.RsaParameters.Modulus.ToByteArray()._Base64UrlEncode(),
+                        e = key.RsaParameters.Exponent.ToByteArray()._Base64UrlEncode(),
                     };
 
                     algName = "RS256";
@@ -131,6 +137,13 @@ namespace IPA.Cores.Basic
                 default:
                     throw new ArgumentException("Unsupported key.Algorithm.");
             }
+
+            return jwk;
+        }
+
+        public static JwsPacket Encapsulate(PrivKey key, string kid, string nonce, string url, object payload)
+        {
+            JwsKey jwk = CreateJwsKey(key.PublicKey, out string algName, out string signerName);
 
             JwsProtected protect = new JwsProtected()
             {

@@ -3547,24 +3547,20 @@ namespace IPA.Cores.Basic
     {
         static Dictionary<string, object> table = new Dictionary<string, object>();
 
-        public static object TryWithdraw(string token)
+        public static bool TryWithdraw(string token, out object ret)
         {
             lock (table)
             {
-                if (table.ContainsKey(token))
-                {
-                    object ret = table[token];
-                    table.Remove(token);
-                    return ret;
-                }
+                return table.TryGetValue(token, out ret);
             }
-            return null;
         }
 
         public static object Withdraw(string token)
         {
-            object ret = TryWithdraw(token);
-            if (ret == null) throw new ApplicationException("invalid token");
+            if (TryWithdraw(token, out object ret) == false)
+            {
+                throw new ApplicationException("invalid token");
+            }
             return ret;
         }
 

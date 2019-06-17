@@ -615,10 +615,8 @@ namespace IPA.Cores.Basic
     {
         Pkcs10CertificationRequest Request;
 
-        public Csr(PkiAlgorithm algorithm, CertificateOptions options, int bits)
+        public Csr(PrivKey priv, CertificateOptions options)
         {
-            PkiUtil.GenerateKeyPair(algorithm, bits, out PrivKey priv, out PubKey pub);
-
             X509Name subject = options.GenerateName();
             GeneralNames alt = options.GenerateAltNames();
             X509Extension altName = new X509Extension(false, new DerOctetString(alt));
@@ -637,7 +635,7 @@ namespace IPA.Cores.Basic
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
 
             this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
-                subject, pub.PublicKeyData, new DerSet(attr));
+                subject, priv.PublicKey.PublicKeyData, new DerSet(attr));
         }
 
         public ReadOnlyMemory<byte> ExportPem()

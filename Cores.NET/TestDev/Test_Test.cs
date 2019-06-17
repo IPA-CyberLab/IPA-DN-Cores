@@ -52,6 +52,11 @@ using System.Runtime.InteropServices;
 using IPA.Cores.ClientApi.Acme;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
 
 
 
@@ -97,6 +102,44 @@ namespace IPA.TestDev
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public TcpDirectionType Z;
+    }
+
+    class AcmeTestHttpServerBuilder : HttpServerStartupBase
+    {
+        public static AcmeAccount AcmeAccount;
+
+        public AcmeTestHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        {
+        }
+
+        public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        {
+            try
+            {
+                string token = routeData.Values._GetStrOrEmpty("token");
+
+                Dbg.Where("*** Get HTTP Request: " + token);
+
+                string retStr = AcmeAccount.ProcessChallengeRequest(token);
+
+                await response._SendStringContents(retStr, "application/octet-stream");
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+                throw;
+            }
+        }
+
+        protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
+        {
+            RouteBuilder rb = new RouteBuilder(app);
+
+            rb.MapGet("/.well-known/acme-challenge/{token}", GetRequestHandler);
+
+            IRouter router = rb.Build();
+            app.UseRouter(router);
+        }
     }
 
     static class TestClass
@@ -156,32 +199,62 @@ namespace IPA.TestDev
 
         public static void Test_Acme()
         {
-            string keyFileName = @"c:\tmp\190615_acme\account.key";
-            PrivKey key = null;
-
-            try
+            var httpServerOpt = new HttpServerOptions
             {
-                Memory<byte> keyFile = Lfs.ReadDataFromFile(keyFileName);
-                key = new PrivKey(keyFile.Span);
-            }
-            catch
+                HttpPortsList = 80._SingleList(),
+                HttpsPortsList = 443._SingleList(),
+            };
+
+            using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))
             {
-                PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out key, out _);
-                Lfs.WriteDataToFile(keyFileName, key.Export(), flags: FileFlags.AutoCreateDirectory);
-            }
+                string keyFileName = @"c:\tmp\190615_acme\account.key";
+                PrivKey key = null;
 
+                string certKeyFileName = @"c:\tmp\190615_acme\cert.key";
+                PrivKey certKey = null;
 
-            AcmeClientOptions o = new AcmeClientOptions();
+                try
+                {
+                    Memory<byte> data = Lfs.ReadDataFromFile(keyFileName);
+                    key = new PrivKey(data.Span);
+                }
+                catch
+                {
+                    PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out key, out _);
+                    Lfs.WriteDataToFile(keyFileName, key.Export(), flags: FileFlags.AutoCreateDirectory);
+                }
 
-            using (AcmeClient acme = new AcmeClient(o))
-            {
-                AcmeAccount ac = acme.LoginAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
+                try
+                {
+                    Memory<byte> data = Lfs.ReadDataFromFile(certKeyFileName);
+                    certKey = new PrivKey(data.Span);
+                }
+                catch
+                {
+                    PkiUtil.GenerateKeyPair(PkiAlgorithm.RSA, 2048, out certKey, out _);
+                    Lfs.WriteDataToFile(certKeyFileName, certKey.Export(), flags: FileFlags.AutoCreateDirectory);
+                }
 
-                ac.AccountUrl._Print();
+                AcmeClientOptions o = new AcmeClientOptions();
 
-                ac.Test1()._GetResult();
+                using (AcmeClient acme = new AcmeClient(o))
+                {
+                    AcmeAccount ac = acme.LoginAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
 
-                ac.NewOrderAsync("www.softether2.com")._GetResult();
+                    AcmeTestHttpServerBuilder.AcmeAccount = ac;
+
+                    ac.AccountUrl._Print();
+
+                    ac.Test1()._GetResult();
+
+                    AcmeOrder order = ac.NewOrderAsync("006.pc34.sehosts.com")._GetResult();
+
+                    //order.ProcessAllAuthAsync()._GetResult();
+                    order.FinalizeAsync(certKey)._GetResult();
+
+                }
+
+                Con.ReadLine("q>");
             }
         }
 
@@ -249,8 +322,8 @@ namespace IPA.TestDev
 
             cert = new Certificate(Lfs.ReadDataFromFile(tmpDir._CombinePath("root_cert.crt")).Span);
 
-            Csr csr = new Csr(PkiAlgorithm.ECDSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com"), 256);
-            Lfs.WriteDataToFile(@"C:\TMP\190614_ecdsa\testcsr.txt", csr.ExportPem());
+            //Csr csr = new Csr(PkiAlgorithm.ECDSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com"), 256);
+            //Lfs.WriteDataToFile(@"C:\TMP\190614_ecdsa\testcsr.txt", csr.ExportPem());
 
             DoNothing();
         }
@@ -301,8 +374,8 @@ namespace IPA.TestDev
 
             Lfs.WriteDataToFile(@"C:\TMP\190613_cert\export_test2.pfx", store2.ExportPkcs12());
 
-            Csr csr = new Csr(PkiAlgorithm.RSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com", shaSize: PkiShaSize.SHA512), 1024);
-            Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.ExportPem());
+            //Csr csr = new Csr(PkiAlgorithm.RSA, new CertificateOptions(PkiAlgorithm.ECDSA, "www.softether.com", shaSize: PkiShaSize.SHA512), 1024);
+            //Lfs.WriteDataToFile(@"C:\TMP\190613_cert\testcsr.txt", csr.ExportPem());
 
             DoNothing();
         }

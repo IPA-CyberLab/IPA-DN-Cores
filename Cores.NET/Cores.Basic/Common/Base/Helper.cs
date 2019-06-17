@@ -339,6 +339,7 @@ namespace IPA.Cores.Helper.Basic
         public static T[] _SingleArray<T>(this T t) => new T[] { t };
         public static Span<T> _SingleSpan<T>(this T t) => new T[] { t };
         public static ReadOnlySpan<T> _SingleReadOnlySpan<T>(this T t) => new T[] { t };
+        public static List<T> _SingleList<T>(this T t) => (new T[] { t }).ToList();
 
         public static string _ToString3(this long s) => Str.ToString3(s);
         public static string _ToString3(this int s) => Str.ToString3(s);
@@ -1201,8 +1202,16 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static string _Base64Encode(this byte[] data) => Str.Base64Encode(data);
+        public static string _Base64Encode(this ReadOnlySpan<byte> data) => Str.Base64Encode(data.ToArray());
+        public static string _Base64Encode(this ReadOnlyMemory<byte> data) => Str.Base64Encode(data.ToArray());
+        public static string _Base64Encode(this Span<byte> data) => Str.Base64Encode(data.ToArray());
+        public static string _Base64Encode(this Memory<byte> data) => Str.Base64Encode(data.ToArray());
         public static byte[] _Base64Decode(this string str) => Str.Base64Decode(str);
         public static string _Base64UrlEncode(this byte[] data) => Str.Base64UrlEncode(data);
+        public static string _Base64UrlEncode(this ReadOnlySpan<byte> data) => Str.Base64UrlEncode(data.ToArray());
+        public static string _Base64UrlEncode(this ReadOnlyMemory<byte> data) => Str.Base64UrlEncode(data.ToArray());
+        public static string _Base64UrlEncode(this Span<byte> data) => Str.Base64UrlEncode(data.ToArray());
+        public static string _Base64UrlEncode(this Memory<byte> data) => Str.Base64UrlEncode(data.ToArray());
         public static byte[] _Base64UrlDecode(this string str) => Str.Base64UrlDecode(str);
     }
 }

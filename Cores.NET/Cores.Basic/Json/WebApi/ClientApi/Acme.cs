@@ -55,6 +55,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Basic.HttpClientCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using System.Security.Cryptography;
 
 namespace IPA.Cores.Basic
 {
@@ -64,7 +65,11 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<TimeSpan> AcmeDirectoryCacheLifeTime = new TimeSpan(1, 0, 0);
 
+            public static readonly Copenhagen<int> RetryInterval = 100;
+            public static readonly Copenhagen<int> RetryIntervalMax = 10 * 1000;
+
             public static readonly Copenhagen<int> ShortTimeout = 10 * 1000;
+            public static readonly Copenhagen<int> GiveupTime = 10 * 1000;
         }
     }
 }
@@ -112,11 +117,67 @@ namespace IPA.Cores.ClientApi.Acme
         public string value;
     }
 
+    [Flags]
+    enum AcmeOrderStatus
+    {
+        invalid = 0,
+        pending,
+        ready,
+        processing,
+        valid,
+    }
+
+    [Flags]
+    enum AcmeAuthzStatus
+    {
+        invalid = 0,
+        pending,
+        valid,
+        deactivated,
+        expired,
+        revoked,
+    }
+
+    [Flags]
+    enum AcmeChallengeStatus
+    {
+        invalid,
+        pending,
+        processing,
+        valid,
+    }
+
     class AcmeOrderPayload
     {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AcmeOrderStatus? status;
         public AcmeOrderIdEntity[] identifiers;
         public string[] authorizations;
         public string finalize;
+    }
+
+    class AcmeChallengeElement
+    {
+        public string type;
+        public string url;
+        public string token;
+        public AcmeChallengeStatus status;
+        public object error;
+        public object validationRecord;
+    }
+
+    class AcmeAuthzPayload
+    {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AcmeAuthzStatus? status;
+        public DateTime? expires;
+        public AcmeOrderIdEntity[] identifiers;
+        public AcmeChallengeElement[] challenges;
+    }
+
+    class AcmeFinalizePayload
+    {
+        public string csr;
     }
 
     static class AcmeWellKnownServiceUrls
@@ -157,11 +218,74 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
+    class AcmeAuthz
+    {
+        public AcmeOrder Order { get; }
+        public AcmeAccount Account => Order.Account;
+
+        public string Url;
+        public AcmeAuthzPayload Info { get; private set; }
+
+        public AcmeAuthz(AcmeOrder order, string url)
+        {
+            this.Order = order;
+            this.Url = url;
+        }
+
+        public async Task UpdateInfoAsync(CancellationToken cancel = default)
+        {
+            WebUserRet<AcmeAuthzPayload> ret = await Account.RequestAsync<AcmeAuthzPayload>(WebMethods.POST, this.Url, null, cancel);
+
+            this.Info = ret.User;
+        }
+
+        public async Task ProcessAuthAsync(CancellationToken cancel = default)
+        {
+            AcmeChallengeElement httpChallenge = this.Info.challenges.Where(x => x.type == "http-01").First();
+
+            string url = httpChallenge.url;
+            string token = httpChallenge.token;
+
+            if (httpChallenge.status == AcmeChallengeStatus.valid) return;
+
+            if (httpChallenge.status == AcmeChallengeStatus.invalid) throw new ApplicationException("httpChallenge.status == AcmeChallengeStatus.invalid");
+
+            try
+            {
+                var ret = await this.Account.RequestAsync<None>(WebMethods.POST, httpChallenge.url, new object(), cancel);
+            }
+            catch { }
+        }
+
+        public string GetChallengeErrors()
+        {
+            StringWriter w = new StringWriter();
+
+            foreach (AcmeChallengeElement c in this.Info.challenges)
+            {
+                if (c.error != null)
+                {
+                    w.WriteLine(c.error._ObjectToJson());
+                }
+
+                if (c.validationRecord != null)
+                {
+                    w.WriteLine(c.validationRecord._ObjectToJson());
+                }
+            }
+
+            return w.ToString()._OneLine(" ");
+        }
+    }
+
     class AcmeOrder
     {
         public AcmeAccount Account { get; }
+
         public string Url { get; }
         public AcmeOrderPayload Info { get; private set; }
+
+        public IReadOnlyList<AcmeAuthz> AuthzList { get; private set; }
 
         public AcmeOrder(AcmeAccount account, string url, AcmeOrderPayload info)
         {
@@ -175,6 +299,178 @@ namespace IPA.Cores.ClientApi.Acme
             WebUserRet<AcmeOrderPayload> ret = await Account.RequestAsync<AcmeOrderPayload>(WebMethods.POST, this.Url, null, cancel);
 
             this.Info = ret.User;
+
+            List<AcmeAuthz> authzList = new List<AcmeAuthz>();
+
+            foreach (string authUrl in Info.authorizations)
+            {
+                AcmeAuthz a = new AcmeAuthz(this, authUrl);
+
+                await a.UpdateInfoAsync(cancel);
+
+                authzList.Add(a);
+            }
+
+            this.AuthzList = authzList;
+        }
+
+        public async Task ProcessAllAuthAsync(CancellationToken cancel = default)
+        {
+            long giveup = Time.Tick64 + CoresConfig.AcmeClientSettings.GiveupTime;
+
+            int numRetry = 0;
+
+            while (true)
+            {
+                if (giveup < Time.Tick64)
+                {
+                    throw new ApplicationException("ProcessAllAuthAsync: Give up.");
+                }
+
+                if (this.Info.status == AcmeOrderStatus.invalid)
+                {
+                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
+                }
+
+                if (this.Info.status != AcmeOrderStatus.pending) return; // Completed
+
+                cancel.ThrowIfCancellationRequested();
+
+                foreach (var auth in this.AuthzList)
+                {
+                    if (auth.Info.status.Value.EqualsAny(AcmeAuthzStatus.deactivated, AcmeAuthzStatus.expired, AcmeAuthzStatus.invalid, AcmeAuthzStatus.revoked))
+                    {
+                        if (auth.Info.status.Value == AcmeAuthzStatus.invalid)
+                        {
+                            throw new ApplicationException($"Auth failed. Details: \"{auth.GetChallengeErrors()._OneLine(" ")}\"");
+                        }
+                        else
+                        {
+                            throw new ApplicationException($"auth.Info.status is {auth.Info.status.Value}");
+                        }
+                    }
+                }
+
+                foreach (var auth in this.AuthzList)
+                {
+                    if (auth.Info.status.Value == AcmeAuthzStatus.pending)
+                    {
+                        await auth.ProcessAuthAsync(cancel);
+                    }
+                }
+
+                if (numRetry >= 1)
+                {
+                    int interval = Util.GenRandIntervalWithRetry(CoresConfig.AcmeClientSettings.RetryInterval, numRetry, CoresConfig.AcmeClientSettings.RetryIntervalMax);
+
+                    await cancel._WaitUntilCanceledAsync(interval);
+                }
+
+                numRetry++;
+
+                await UpdateInfoAsync(cancel);
+            }
+        }
+
+        public async Task FinalizeAsync(PrivKey certPrivateKey, CancellationToken cancel = default)
+        {
+            long giveup = Time.Tick64 + CoresConfig.AcmeClientSettings.GiveupTime;
+
+            int numRetry = 0;
+
+            while (true)
+            {
+                if (giveup < Time.Tick64)
+                {
+                    throw new ApplicationException("ProcessAllAuthAsync: Give up.");
+                }
+
+                if (this.Info.status == AcmeOrderStatus.invalid)
+                {
+                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
+                }
+                else if (this.Info.status == AcmeOrderStatus.pending)
+                {
+                    await ProcessAllAuthAsync(cancel);
+                    await UpdateInfoAsync(cancel);
+                    giveup = Time.Tick64 + CoresConfig.AcmeClientSettings.GiveupTime;
+
+                    continue;
+                }
+                else if (this.Info.status == AcmeOrderStatus.ready)
+                {
+                    // Create a CSR
+                    Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, this.Info.identifiers[0].value));
+
+                    ReadOnlyMemory<byte> csrBinary = csr.ExportDer();
+                    Memory<byte> bin2 = csrBinary._CloneMemory();
+
+                    AcmeFinalizePayload payload = new AcmeFinalizePayload
+                    {
+                        csr = bin2._Base64UrlEncode(),
+                    };
+
+                    {
+                        var key = new System.Security.Cryptography.RSACryptoServiceProvider(4096);
+                        var csr2 = new CertificateRequest("CN=" + this.Info.identifiers[0].value,
+                            key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+                        var san = new SubjectAlternativeNameBuilder();
+                        foreach (var host in this.Info.identifiers)
+                            san.AddDnsName(host.value);
+
+                        csr2.CertificateExtensions.Add(san.Build());
+
+                        byte[] bin3 = csr2.CreateSigningRequest();
+                        //payload.csr = bin3._Base64UrlEncode();
+                        Lfs.WriteDataToFile(@"c:\tmp\190617csr2.txt", bin3);
+                    }
+
+                    Lfs.WriteDataToFile(@"c:\tmp\190617csr.txt", csr.ExportDer());
+
+                    payload._DebugAsJson();
+
+                    // Send finalize request
+                    var ret = await this.Account.RequestAsync<None>(WebMethods.POST, this.Info.finalize, payload, cancel);
+
+                    if (numRetry >= 1)
+                    {
+                        int interval = Util.GenRandIntervalWithRetry(CoresConfig.AcmeClientSettings.RetryInterval, numRetry, CoresConfig.AcmeClientSettings.RetryIntervalMax);
+
+                        await cancel._WaitUntilCanceledAsync(interval);
+                    }
+
+                    numRetry++;
+
+                    await UpdateInfoAsync(cancel);
+
+                    continue;
+                }
+                else if (this.Info.status == AcmeOrderStatus.processing)
+                {
+                    if (numRetry >= 1)
+                    {
+                        int interval = Util.GenRandIntervalWithRetry(CoresConfig.AcmeClientSettings.RetryInterval, numRetry, CoresConfig.AcmeClientSettings.RetryIntervalMax);
+
+                        await cancel._WaitUntilCanceledAsync(interval);
+                    }
+
+                    numRetry++;
+
+                    await UpdateInfoAsync(cancel);
+
+                    continue;
+                }
+                else if (this.Info.status == AcmeOrderStatus.valid)
+                {
+                    // Completed
+                    return;
+                }
+                else
+                {
+                    throw new ApplicationException($"Invalid status: {this.Info.status}");
+                }
+            }
         }
     }
 
@@ -216,12 +512,19 @@ namespace IPA.Cores.ClientApi.Acme
 
             return order;
         }
-        public async Task NewOrderAsync(string dnsName, CancellationToken cancel = default)
+        public async Task<AcmeOrder> NewOrderAsync(string dnsName, CancellationToken cancel = default)
             => await NewOrderAsync(dnsName._SingleArray(), cancel);
 
         public Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, string url, object request, CancellationToken cancel = default)
         {
             return this.Client.RequestAsync<TResponse>(method, this.PrivKey, this.AccountUrl, url, request, cancel);
+        }
+
+        public string ProcessChallengeRequest(string token)
+        {
+            string keyThumbprintBase64 = JwsUtil.CreateJwsKey(this.PrivKey.PublicKey, out _, out _).CalcThumbprint()._Base64UrlEncode();
+
+            return token + "." + keyThumbprintBase64;
         }
 
         public async Task Test1()
