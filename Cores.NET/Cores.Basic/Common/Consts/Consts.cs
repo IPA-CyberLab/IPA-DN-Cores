@@ -47,6 +47,11 @@ namespace IPA.Cores.Basic
 {
     static partial class Consts
     {
+        public static partial class Strings
+        {
+            public const string DefaultCertCN = "DefaultCertificate";
+        }
+
         public static partial class MediaTypes
         {
             public const string Json = "application/json";
@@ -59,6 +64,7 @@ namespace IPA.Cores.Basic
         {
             public const string CertVault_Password = "password.txt";
             public const string CertVault_AcmeAccountKey = "acme.accountkey";
+            public const string CertVault_DefaultCert = "default.pfx";
         }
 
         public static partial class Extensions

@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
 
         public List<Certificate> CertificateList { get; } = new List<Certificate>();
 
-        public PrivKey PrivateKey { get; set; }
+        public PrivKey PrivateKey { get; }
 
         public CertificateStoreContainer(string alias, Certificate[] certList, PrivKey privateKey)
         {
@@ -129,21 +129,27 @@ namespace IPA.Cores.Basic
 
     class CertificateStore
     {
-        public Dictionary<string, CertificateStoreContainer> Containers { get; } = new Dictionary<string, CertificateStoreContainer>(StrComparer.IgnoreCaseComparer);
+        public IReadOnlyDictionary<string, CertificateStoreContainer> Containers => InternalContainers;
 
-        public IEnumerable<string> Aliases => Containers.Keys;
+        Dictionary<string, CertificateStoreContainer> InternalContainers { get; } = new Dictionary<string, CertificateStoreContainer>(StrComparer.IgnoreCaseComparer);
 
-        public CertificateStoreContainer PrimaryContainer => Containers.Values.Single();
+        public IEnumerable<string> Aliases => InternalContainers.Keys;
 
-        public CertificateStore(ReadOnlySpan<byte> chainedCert, ReadOnlySpan<byte> privateKey, string password = null)
-            : this(chainedCert, new PrivKey(privateKey, password)) { }
+        public CertificateStoreContainer PrimaryContainer => InternalContainers.Values.Single();
 
-        public CertificateStore(ReadOnlySpan<byte> chainedCert, PrivKey privateKey)
+        public CertificateStore(ReadOnlySpan<byte> chainedCertData, ReadOnlySpan<byte> privateKey, string password = null)
+            : this(chainedCertData, new PrivKey(privateKey, password)) { }
+
+        public CertificateStore(ReadOnlySpan<byte> chainedCertData, PrivKey privateKey)
+            : this(CertificateUtil.ImportChainedCertificates(chainedCertData), privateKey) { }
+
+        public CertificateStore(IEnumerable<Certificate> chainedCertList, PrivKey privateKey)
         {
-            Certificate[] certList = CertificateUtil.ImportChainedCertificates(chainedCert);
-
-            this.Containers.Add("default", new CertificateStoreContainer("default", certList, privateKey));
+            this.InternalContainers.Add("default", new CertificateStoreContainer("default", chainedCertList.ToArray(), privateKey));
         }
+
+        public CertificateStore(Certificate singleCert, PrivKey privateKey)
+            : this(singleCert._SingleList(), privateKey) { }
 
         public CertificateStore(ReadOnlySpan<byte> pkcs12, string password = null)
         {
@@ -204,11 +210,11 @@ namespace IPA.Cores.Basic
 
                         CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
 
-                        this.Containers.Add(alias, container);
+                        this.InternalContainers.Add(alias, container);
                     }
                 }
 
-                if (this.Containers.Count == 0)
+                if (this.InternalContainers.Count == 0)
                 {
                     throw new ApplicationException("There are no certificate aliases in the PKCS#12 file.");
                 }
@@ -219,7 +225,7 @@ namespace IPA.Cores.Basic
         {
             Pkcs12Store ret = new Pkcs12Store();
 
-            foreach (CertificateStoreContainer container in this.Containers.Values)
+            foreach (CertificateStoreContainer container in this.InternalContainers.Values)
             {
                 ret.SetKeyEntry(container.Alias, new AsymmetricKeyEntry(container.PrivateKey.PrivateKeyData.Private), container.CertificateList.Select(x => new X509CertificateEntry(x.CertData)).ToArray());
             }
@@ -464,6 +470,7 @@ namespace IPA.Cores.Basic
             if (this.Serial.IsEmpty)
             {
                 this.Serial = Secure.Rand(16);
+                this.Serial.Span[0] = (byte)(this.Serial.Span[0] & 0x7f);
             }
             this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
             this.SubjectAlternativeNames.Add(this.CN);
@@ -532,11 +539,63 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum CertificateHostnameType
+    {
+        DefaultCert = 0,
+        Wildcard = 50,
+        SingleHost = 100,
+    }
+
+    class CertificateHostName
+    {
+        public string HostName { get; }
+        public string WildcardEndWith { get; }
+        public CertificateHostnameType Type { get; }
+
+        public CertificateHostName(string hostName)
+        {
+            this.HostName = hostName._NonNullTrim();
+
+            this.Type = CertificateHostnameType.SingleHost;
+
+            if (hostName.StartsWith("*."))
+            {
+                this.Type = CertificateHostnameType.Wildcard;
+
+                this.WildcardEndWith = hostName.Substring(1);
+            }
+        }
+
+        public bool IsMatchForHost(string hostname)
+        {
+            if (this.Type == CertificateHostnameType.Wildcard)
+            {
+                int i = hostname.IndexOf(".");
+                if (i == -1) return false;
+                string tmp = hostname.Substring(i);
+                if (this.WildcardEndWith._IsSamei(tmp))
+                {
+                    return true;
+                }
+                return false;
+            }
+            else
+            {
+                return this.HostName._IsSamei(hostname);
+            }
+        }
+    }
+
     class Certificate
     {
         public X509Certificate CertData { get; }
 
         public PubKey PublicKey { get; private set; }
+
+        public IList<CertificateHostName> HostNameList => HostNameListInternal;
+
+        List<CertificateHostName> HostNameListInternal = new List<CertificateHostName>();
 
         public Certificate(X509Certificate cert)
         {
@@ -596,6 +655,74 @@ namespace IPA.Cores.Basic
             byte[] publicKeyBytes = this.CertData.CertificateStructure.SubjectPublicKeyInfo.GetDerEncoded();
 
             this.PublicKey = new PubKey(publicKeyBytes);
+
+            HashSet<string> dnsNames = new HashSet<string>();
+
+            ICollection altNamesList = this.CertData.GetSubjectAlternativeNames();
+
+            if (altNamesList != null)
+            {
+                try
+                {
+                    foreach (List<object> altName in altNamesList)
+                    {
+                        try
+                        {
+                            int type = (int)altName[0];
+
+                            if (type == GeneralName.DnsName)
+                            {
+                                string value = (string)altName[1];
+
+                                dnsNames.Add(value.ToLower());
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
+            IList subjectKeyList = this.CertData.SubjectDN.GetOidList();
+            IList subjectValuesList = this.CertData.SubjectDN.GetValueList();
+            if (subjectKeyList != null && subjectValuesList != null)
+            {
+                for (int i = 0; i < subjectKeyList.Count; i++)
+                {
+                    try
+                    {
+                        DerObjectIdentifier key = (DerObjectIdentifier)subjectKeyList[i];
+                        string value = (string)subjectValuesList[i];
+                        if (key.Equals(X509Name.CN))
+                        {
+                            dnsNames.Add(value.ToLower());
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            this.HostNameListInternal = new List<CertificateHostName>();
+
+            foreach (string fqdn in dnsNames)
+            {
+                HostNameListInternal.Add(new CertificateHostName(fqdn));
+            }
+        }
+
+        public bool IsMatchForHost(string hostname, out CertificateHostnameType matchType)
+        {
+            foreach (var cn in this.HostNameList)
+            {
+                if (cn.IsMatchForHost(hostname))
+                {
+                    matchType = cn.Type;
+                    return true;
+                }
+            }
+
+            matchType = CertificateHostnameType.SingleHost;
+            return false;
         }
 
         public ReadOnlyMemory<byte> Export()

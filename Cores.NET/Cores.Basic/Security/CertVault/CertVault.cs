@@ -56,17 +56,11 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum CertVaultHostType
-    {
-        OneHost = 0,
-        Wildcard,
-    }
-
-    [Flags]
     enum CertVaultCertType
     {
-        Static = 0,
-        Acme,
+        DefaultCert = 0,
+        Acme = 50,
+        Static = 100,
     }
 
     class CertVaultCertificate
@@ -75,8 +69,15 @@ namespace IPA.Cores.Basic
         public FileSystem FileSystem => DirName.FileSystem;
 
         public CertificateStore Store { get; }
-        public CertVaultHostType HostType { get; }
         public CertVaultCertType CertType { get; }
+
+        public CertVaultCertificate(CertificateStore store, CertVaultCertType certType)
+        {
+            if (certType != CertVaultCertType.DefaultCert) throw new ArgumentException("certType != CertVaultCertType.Default");
+
+            this.Store = store;
+            this.CertType = certType;
+        }
 
         public CertVaultCertificate(DirectoryPath dirName, CertVaultCertType certType)
         {
@@ -87,6 +88,7 @@ namespace IPA.Cores.Basic
             catch { }
 
             this.CertType = certType;
+            this.DirName = dirName;
 
             var files = DirName.EnumDirectory().Where(x => x.IsDirectory == false);
 
@@ -100,7 +102,7 @@ namespace IPA.Cores.Basic
 
             if (passwordfile != null)
             {
-                password = FileSystem.ReadStringFromFile(passwordfile);
+                password = FileSystem.ReadStringFromFile(passwordfile, oneLine: true);
 
                 if (password._IsEmpty()) password = null;
             }
@@ -122,6 +124,8 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            var test = store.PrimaryContainer.CertificateList[0];
+
             this.Store = store;
         }
     }
@@ -135,6 +139,8 @@ namespace IPA.Cores.Basic
         public FilePath AcmeAccountFilePath { get; }
         public PrivKey AcmeAccountKey { get; private set; }
 
+        List<CertVaultCertificate> InternalCertList;
+
         readonly CriticalSection LockObj = new CriticalSection();
 
         public CertVault(DirectoryPath baseDir)
@@ -143,12 +149,13 @@ namespace IPA.Cores.Basic
             this.StaticDir = this.BaseDir.GetSubDirectory("StaticCerts");
             this.AcmeDir = this.BaseDir.GetSubDirectory("AcmeCerts");
 
-            try { this.BaseDir.CreateDirectory(); } catch { }
-            try { this.StaticDir.CreateDirectory(); } catch { }
-            try { this.AcmeDir.CreateDirectory(); } catch { }
-
             this.AcmeAccountFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeAccountKey);
 
+            InternalEnumCertificate();
+        }
+
+        public void Update()
+        {
             InternalEnumCertificate();
         }
 
@@ -162,6 +169,13 @@ namespace IPA.Cores.Basic
 
         void InternalEnumCertificateMain()
         {
+            List<CertVaultCertificate> list = new List<CertVaultCertificate>();
+
+            // Create directories
+            try { this.BaseDir.CreateDirectory(); } catch { }
+            try { this.StaticDir.CreateDirectory(); } catch { }
+            try { this.AcmeDir.CreateDirectory(); } catch { }
+
             // Create an ACME account key if not exists
             this.AcmeAccountKey = this.AcmeAccountFilePath.ReadAndParseDataFile(true,
                 data => new PrivKey(data.Span),
@@ -170,6 +184,105 @@ namespace IPA.Cores.Basic
                     PkiUtil.GenerateEcdsaKeyPair(256, out PrivKey key, out _);
                     return key.Export();
                 });
+
+            // Initialize the DefaultCert
+            FilePath defaultCertPath = this.StaticDir.Combine(Consts.FileNames.CertVault_DefaultCert);
+
+            CertificateStore defaultCert = defaultCertPath.ReadAndParseDataFile(true,
+                data => new CertificateStore(data.Span),
+                () =>
+                {
+                    PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
+                    Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
+                    CertificateStore store = new CertificateStore(cert, key);
+                    return store.ExportPkcs12();
+                });
+
+
+            CertVaultCertificate defaultVaultCert = new CertVaultCertificate(defaultCert, CertVaultCertType.DefaultCert);
+            list.Add(defaultVaultCert);
+
+            // Enumerate StaticCerts
+            EnumerateCertsDir(list, this.StaticDir, CertVaultCertType.Static);
+            EnumerateCertsDir(list, this.AcmeDir, CertVaultCertType.Acme);
+
+            this.InternalCertList = list;
+        }
+
+        void EnumerateCertsDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
+        {
+            try
+            {
+                // Enumerate subdir
+                var subdirs = dirName.GetDirectories();
+
+                foreach (DirectoryPath subdir in subdirs)
+                {
+                    EnumerateCertsSubDir(list, subdir, type);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+        }
+
+        void EnumerateCertsSubDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
+        {
+            try
+            {
+                CertVaultCertificate cert = new CertVaultCertificate(dirName, type);
+
+                list.Add(cert);
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+        }
+
+        class MatchResult
+        {
+            public CertVaultCertificate VaultCert;
+            public CertificateHostnameType MatchType;
+        }
+
+        public CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType)
+        {
+            hostname = hostname._NonNullTrim().ToLower().TrimEnd('.');
+
+            List<CertVaultCertificate> list = InternalCertList;
+
+            List<MatchResult> candidates = new List<MatchResult>();
+
+            foreach (CertVaultCertificate cert in list)
+            {
+                var pc = cert.Store.PrimaryContainer;
+                if (pc.CertificateList.Count >= 1)
+                {
+                    var cert2 = pc.CertificateList[0];
+                    if (cert2.IsMatchForHost(hostname, out CertificateHostnameType mt) || cert.CertType == CertVaultCertType.DefaultCert)
+                    {
+                        if (cert.CertType == CertVaultCertType.DefaultCert) mt = CertificateHostnameType.DefaultCert;
+
+                        MatchResult r = new MatchResult
+                        {
+                            MatchType = mt,
+                            VaultCert = cert,
+                        };
+
+                        candidates.Add(r);
+                    }
+                }
+            }
+
+            var sorted = candidates.OrderByDescending(x => x.MatchType);
+
+            MatchResult selected = sorted.First();
+
+            matchType = selected.MatchType;
+
+            return selected.VaultCert.Store;
         }
     }
 }

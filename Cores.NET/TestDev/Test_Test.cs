@@ -153,13 +153,15 @@ namespace IPA.TestDev
 
             //Test_ECDSA_Cert();
 
-            Test_Acme();
+            //Test_Acme();
 
             //Test_Acme_Junk();
 
             //Test_HiveLock();
 
             //Test_PersistentCache();
+
+            Test_Vault();
         }
 
         public static void Test_Generic()
@@ -186,6 +188,22 @@ namespace IPA.TestDev
             }
             else
             {
+            }
+        }
+
+        public static void Test_Vault()
+        {
+            CertVault vault = new CertVault(@"C:\tmp\190617vault");
+
+            while (true)
+            {
+                string fqdn = Con.ReadLine(">");
+
+                CertificateStore s = vault.SelectBestFitCertificate(fqdn, out _);
+
+                Certificate cert = s.PrimaryContainer.CertificateList[0];
+
+                cert.CertData.SubjectDN.ToString()._Print();
             }
         }
 
