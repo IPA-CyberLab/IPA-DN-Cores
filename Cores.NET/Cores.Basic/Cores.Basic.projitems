@@ -124,6 +124,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\CryptoLegacy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\PackSecurity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Wpc.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Security\CertVault\CertVault.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpcEasy.cs" />

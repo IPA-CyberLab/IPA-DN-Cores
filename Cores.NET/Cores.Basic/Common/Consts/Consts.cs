@@ -54,5 +54,22 @@ namespace IPA.Cores.Basic
             public const string FormUrlEncoded = "application/x-www-form-urlencoded";
             public const string OctetStream = "application/octet-stream";
         }
+
+        public static partial class FileNames
+        {
+            public const string CertVault_Password = "password.txt";
+            public const string CertVault_AcmeAccountKey = "acme.accountkey";
+        }
+
+        public static partial class Extensions
+        {
+            public const string X509Certificate = ".crt";
+            public const string Pkcs12 = ".pfx";
+            public const string GenericKey = ".key";
+
+            public const string Filter_Pkcs12s = "*.p12;*.pfx";
+            public const string Filter_Certificates = "*.crt;*.cer";
+            public const string Filter_Keys = "*.key;*.pem";
+        }
     }
 }

@@ -112,13 +112,11 @@ namespace IPA.TestDev
         {
         }
 
-        public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        public virtual async Task AcmeGetChallengeFileRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
             try
             {
                 string token = routeData.Values._GetStrOrEmpty("token");
-
-                Dbg.Where("*** Get HTTP Request: " + token);
 
                 string retStr = AcmeAccount.ProcessChallengeRequest(token);
 
@@ -135,7 +133,7 @@ namespace IPA.TestDev
         {
             RouteBuilder rb = new RouteBuilder(app);
 
-            rb.MapGet("/.well-known/acme-challenge/{token}", GetRequestHandler);
+            rb.MapGet("/.well-known/acme-challenge/{token}", AcmeGetChallengeFileRequestHandler);
 
             IRouter router = rb.Build();
             app.UseRouter(router);
@@ -245,12 +243,9 @@ namespace IPA.TestDev
 
                     ac.AccountUrl._Print();
 
-                    ac.Test1()._GetResult();return;
+                    AcmeOrder order = ac.NewOrderAsync("012.pc34.sehosts.com")._GetResult();
 
-                    AcmeOrder order = ac.NewOrderAsync("008.pc34.sehosts.com")._GetResult();
-
-                    //order.ProcessAllAuthAsync()._GetResult();
-                    var store = order.FinalizeAsync(certKey)._GetResult();
+                    CertificateStore store = order.FinalizeAsync(certKey)._GetResult();
 
                     Lfs.WriteDataToFile(@"c:\tmp\190615_acme\out.p12", store.ExportPkcs12());
                 }

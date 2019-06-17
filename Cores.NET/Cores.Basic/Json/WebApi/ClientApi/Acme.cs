@@ -321,6 +321,8 @@ namespace IPA.Cores.ClientApi.Acme
 
             int numRetry = 0;
 
+            Con.WriteDebug($"ACME: Trying to process the authorization for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' ...");
+
             while (true)
             {
                 if (giveup < Time.Tick64)
@@ -333,7 +335,12 @@ namespace IPA.Cores.ClientApi.Acme
                     throw new ApplicationException($"Order failed. Details: \"{this.AuthzList.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
                 }
 
-                if (this.Info.status != AcmeOrderStatus.pending) return; // Completed
+                if (this.Info.status != AcmeOrderStatus.pending)
+                {
+                    // Completed
+                    Con.WriteDebug($"ACME: Completed authorization for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}'.");
+                    return;
+                }
 
                 cancel.ThrowIfCancellationRequested();
 
@@ -403,36 +410,19 @@ namespace IPA.Cores.ClientApi.Acme
                     // Create a CSR
                     Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, this.Info.identifiers[0].value));
 
-                    ReadOnlyMemory<byte> csrBinary = csr.ExportDer();
-                    Memory<byte> bin2 = csrBinary._CloneMemory();
-
                     AcmeFinalizePayload payload = new AcmeFinalizePayload
                     {
-                        csr = bin2._Base64UrlEncode(),
+                        csr = csr.ExportDer()._Base64UrlEncode(),
                     };
 
-                    {
-                        var key = new System.Security.Cryptography.RSACryptoServiceProvider(4096);
-                        var csr2 = new CertificateRequest("CN=" + this.Info.identifiers[0].value,
-                            key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-                        var san = new SubjectAlternativeNameBuilder();
-                        foreach (var host in this.Info.identifiers)
-                            san.AddDnsName(host.value);
-
-                        csr2.CertificateExtensions.Add(san.Build());
-
-                        byte[] bin3 = csr2.CreateSigningRequest();
-                        //payload.csr = bin3._Base64UrlEncode();
-                        Lfs.WriteDataToFile(@"c:\tmp\190617csr2.txt", bin3);
-                    }
-
-                    Lfs.WriteDataToFile(@"c:\tmp\190617csr.txt", csr.ExportDer());
-
-                    payload._DebugAsJson();
+                    Con.WriteDebug($"ACME: Trying to finalize the order for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' ...");
 
                     // Send finalize request
-                    var ret = await this.Account.RequestAsync<None>(WebMethods.POST, this.Info.finalize, payload, cancel);
+                    try
+                    {
+                        var ret = await this.Account.RequestAsync<None>(WebMethods.POST, this.Info.finalize, payload, cancel);
+                    }
+                    catch { }
 
                     if (numRetry >= 1)
                     {
@@ -464,10 +454,14 @@ namespace IPA.Cores.ClientApi.Acme
                 }
                 else if (this.Info.status == AcmeOrderStatus.valid)
                 {
+                    Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' is completed. Downloading...");
+
                     // Completed. Download the certificate
                     byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate, cancel);
 
                     CertificateStore store = new CertificateStore(certificateBody, certPrivateKey);
+
+                    Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}'.");
 
                     return store;
                 }
@@ -495,6 +489,8 @@ namespace IPA.Cores.ClientApi.Acme
 
         public async Task<AcmeOrder> NewOrderAsync(IEnumerable<string> dnsNames, CancellationToken cancel = default)
         {
+            Con.WriteDebug($"ACME: Putting the new certificate order for '{dnsNames._Combine(", ")}' ...");
+
             List<AcmeOrderIdEntity> o = new List<AcmeOrderIdEntity>();
 
             foreach (string dnsName in dnsNames)
@@ -515,6 +511,8 @@ namespace IPA.Cores.ClientApi.Acme
 
             await order.UpdateInfoAsync(cancel);
 
+            Con.WriteDebug($"ACME: The order is put.");
+
             return order;
         }
         public async Task<AcmeOrder> NewOrderAsync(string dnsName, CancellationToken cancel = default)
@@ -528,6 +526,8 @@ namespace IPA.Cores.ClientApi.Acme
         public string ProcessChallengeRequest(string token)
         {
             string keyThumbprintBase64 = JwsUtil.CreateJwsKey(this.PrivKey.PublicKey, out _, out _).CalcThumbprint()._Base64UrlEncode();
+
+            Con.WriteLine($"ACME: Processing the challenge token '{token}'.");
 
             return token + "." + keyThumbprintBase64;
         }
@@ -576,14 +576,14 @@ namespace IPA.Cores.ClientApi.Acme
         {
             string nonce = await GetNonceAsync(cancel);
 
-            ("*** " + url)._Debug();
+            //("*** " + url)._Debug();
 
             WebRet webret = await Web.RequestWithJwsObject(method, key, kid, nonce, url, request, cancel, Consts.MediaTypes.JoseJson);
 
             TResponse ret = webret.Deserialize<TResponse>(true);
 
-            webret.Headers._DebugHeaders();
-            webret.ToString()._Debug();
+            //webret.Headers._DebugHeaders();
+            //webret.ToString()._Debug();
 
             return webret.CreateUserRet(ret);
         }

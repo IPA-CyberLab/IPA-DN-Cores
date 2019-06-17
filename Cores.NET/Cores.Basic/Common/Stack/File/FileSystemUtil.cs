@@ -158,6 +158,46 @@ namespace IPA.Cores.Basic
         public void AppendDataToFile(string path, Memory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => AppendDataToFileAsync(path, srcMemory, flags, cancel)._GetResult();
 
+        public async Task<T> ReadAndParseDataFileAsync<T>(string path, bool forceInitWhenParseFail, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            if (parseProc == null || createProc == null) throw new ArgumentNullException();
+
+            bool forceInitMode = false;
+
+            L_RETRY:
+            if (forceInitMode || (await this.IsFileExistsAsync(path, cancel)) == false)
+            {
+                ReadOnlyMemory<byte> initialData = createProc();
+
+                T ret = parseProc(initialData);
+
+                await this.WriteDataToFileAsync(path, initialData, flags, false, cancel);
+
+                return ret;
+            }
+            else
+            {
+                ReadOnlyMemory<byte> existingData = await this.ReadDataFromFileAsync(path, maxSize, flags, cancel);
+
+                try
+                {
+                    T ret = parseProc(existingData);
+
+                    return ret;
+                }
+                catch
+                {
+                    if (forceInitWhenParseFail == false) throw;
+
+                    forceInitMode = true;
+
+                    goto L_RETRY;
+                }
+            }
+        }
+        public T ReadAndParseDataFile<T>(string path, bool forceInitWhenParseFail, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => ReadAndParseDataFileAsync(path, forceInitWhenParseFail, parseProc, createProc, maxSize, flags, cancel)._GetResult();
+
         public async Task<int> ReadDataFromFileAsync(string path, Memory<byte> destMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             using (var file = await OpenAsync(path, false, false, false, flags, cancel))
@@ -651,6 +691,14 @@ namespace IPA.Cores.Basic
             return new FilePath(PathParser.Combine(this.PathString._SingleArray().Concat(pathList)._ToArrayList()), this.FileSystem, this.Flags);
         }
 
+        public DirectoryPath GetSubDirectory(string path2) => new DirectoryPath(PathParser.Combine(this.PathString, path2), this.FileSystem, this.Flags);
+        public DirectoryPath GetSubDirectory(string path2, bool path2NeverAbsolutePath = false) => new DirectoryPath(PathParser.Combine(this.PathString, path2, path2NeverAbsolutePath), this.FileSystem, this.Flags);
+        public DirectoryPath GetSubDirectory(params string[] pathList)
+        {
+            if (pathList == null || pathList.Length == 0) return new DirectoryPath(this.PathString, this.FileSystem, this.Flags);
+            return new DirectoryPath(PathParser.Combine(this.PathString._SingleArray().Concat(pathList)._ToArrayList()), this.FileSystem, this.Flags);
+        }
+
         public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
     }
 
@@ -756,11 +804,23 @@ namespace IPA.Cores.Basic
         public int ReadDataFromFile(Memory<byte> destMemory, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(destMemory, additionalFlags, cancel)._GetResult();
 
+        public Task<Memory<byte>> ReadDataFromFileAsync(int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
+            => this.FileSystem.ReadDataFromFileAsync(this.PathString, maxSize, this.Flags | additionalFlags, cancel);
+
+        public Memory<byte> ReadDataFromFile(int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
+            => ReadDataFromFileAsync(maxSize, additionalFlags, cancel)._GetResult();
+
         public Task<string> ReadStringFromFileAsync(Encoding encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
             => this.FileSystem.ReadStringFromFileAsync(this.PathString, encoding, maxSize, this.Flags | additionalFlags, cancel);
 
         public string ReadStringFromFile(Encoding encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
             => ReadStringFromFileAsync(encoding, maxSize, additionalFlags, cancel)._GetResult();
+
+        public Task<T> ReadAndParseDataFileAsync<T>(bool forceInitWhenParseFail, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => this.FileSystem.ReadAndParseDataFileAsync(this.PathString, forceInitWhenParseFail, parseProc, createProc, maxSize, flags, cancel);
+
+        public T ReadAndParseDataFile<T>(bool forceInitWhenParseFail, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => ReadAndParseDataFileAsync(forceInitWhenParseFail, parseProc, createProc, maxSize, flags, cancel)._GetResult();
 
         public string GetFileNameWithoutExtension(bool longExtension = false) => this.PathParser.GetFileNameWithoutExtension(this.PathString, longExtension);
         public string GetExtension(string path, bool longExtension = false) => this.PathParser.GetExtension(this.PathString, longExtension);

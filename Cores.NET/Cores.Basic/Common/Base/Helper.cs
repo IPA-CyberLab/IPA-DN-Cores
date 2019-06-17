@@ -253,7 +253,8 @@ namespace IPA.Cores.Helper.Basic
         //public static string _RemoteLastEnMark(this string str) => BasicFile.RemoteLastEnMark(str);
         public static string _GetDirectoryName(this string str) => Path.GetDirectoryName(str);
         public static string _GetFileName(this string str) => Path.GetFileName(str);
-        //public static bool _IsExtensionMatch(this string str, string extensionsList) => BasicFile.IsExtensionsMatch(str, extensionsList);
+        public static bool _IsExtensionMatch(this string str, string extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
+        public static bool _IsExtensionMatch(this string str, IEnumerable<string> extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
         public static string _ReplaceStrWithReplaceClass(this string str, object replaceClass, bool caseSensitive = false) => Str.ReplaceStrWithReplaceClass(str, replaceClass, caseSensitive);
 
         public static byte[] _NonNull(this byte[] b) { if (b == null) return new byte[0]; else return b; }

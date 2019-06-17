@@ -809,7 +809,7 @@ namespace IPA.Cores.Basic
             }
 
             // ファイルの拡張子が一致するかどうかチェック
-            static bool is_extension_match(string filename, string extension)
+            static bool IsExtensionMatchInternal(string filename, string extension)
             {
                 if (extension._IsEmpty()) return true;
                 if (extension._IsSamei("*") || extension._IsSamei("*.*")) return true;
@@ -830,7 +830,26 @@ namespace IPA.Cores.Basic
                     string[] tokens = extensions.Split(' ', '\t', ',', ';');
                     foreach (string ext in tokens)
                     {
-                        if (is_extension_match(filename, ext))
+                        if (IsExtensionMatchInternal(filename, ext))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            public static bool IsExtensionsMatch(string filename, IEnumerable<string> extensions)
+            {
+                // 指定された拡張子を整理
+                if (extensions != null)
+                {
+                    foreach (string ext in extensions)
+                    {
+                        if (IsExtensionMatchInternal(filename, ext))
                         {
                             return true;
                         }
