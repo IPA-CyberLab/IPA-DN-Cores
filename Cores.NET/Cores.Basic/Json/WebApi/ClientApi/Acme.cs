@@ -154,6 +154,7 @@ namespace IPA.Cores.ClientApi.Acme
         public AcmeOrderIdEntity[] identifiers;
         public string[] authorizations;
         public string finalize;
+        public string certificate;
     }
 
     class AcmeChallengeElement
@@ -372,7 +373,7 @@ namespace IPA.Cores.ClientApi.Acme
             }
         }
 
-        public async Task FinalizeAsync(PrivKey certPrivateKey, CancellationToken cancel = default)
+        public async Task<CertificateStore> FinalizeAsync(PrivKey certPrivateKey, CancellationToken cancel = default)
         {
             long giveup = Time.Tick64 + CoresConfig.AcmeClientSettings.GiveupTime;
 
@@ -463,8 +464,12 @@ namespace IPA.Cores.ClientApi.Acme
                 }
                 else if (this.Info.status == AcmeOrderStatus.valid)
                 {
-                    // Completed
-                    return;
+                    // Completed. Download the certificate
+                    byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate, cancel);
+
+                    CertificateStore store = new CertificateStore(certificateBody, certPrivateKey);
+
+                    return store;
                 }
                 else
                 {
@@ -529,7 +534,7 @@ namespace IPA.Cores.ClientApi.Acme
 
         public async Task Test1()
         {
-            await RequestAsync<None>(WebMethods.POST, "https://acme-staging-v02.api.letsencrypt.org/acme/acct/9614185", null);
+            await RequestAsync<None>(WebMethods.POST, "https://acme-v02.api.letsencrypt.org/acme/acct/59409326", null);
         }
     }
 
@@ -558,6 +563,13 @@ namespace IPA.Cores.ClientApi.Acme
             if (ret._IsEmpty()) throw new ApplicationException("Replay-Nonce is empty.");
 
             return ret;
+        }
+
+        public async Task<byte[]> DownloadAsync(WebMethods method, string url, CancellationToken cancel = default)
+        {
+            WebRet ret = await Web.SimpleQueryAsync(method, url, cancel);
+
+            return ret.Data;
         }
 
         public async Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, PrivKey key, string kid, string url, object request, CancellationToken cancel = default)

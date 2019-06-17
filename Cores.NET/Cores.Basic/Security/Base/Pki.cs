@@ -136,11 +136,13 @@ namespace IPA.Cores.Basic
         public CertificateStoreContainer PrimaryContainer => Containers.Values.Single();
 
         public CertificateStore(ReadOnlySpan<byte> chainedCert, ReadOnlySpan<byte> privateKey, string password = null)
+            : this(chainedCert, new PrivKey(privateKey, password)) { }
+
+        public CertificateStore(ReadOnlySpan<byte> chainedCert, PrivKey privateKey)
         {
             Certificate[] certList = CertificateUtil.ImportChainedCertificates(chainedCert);
-            PrivKey privKey = new PrivKey(privateKey, password);
 
-            this.Containers.Add("default", new CertificateStoreContainer("default", certList, privKey));
+            this.Containers.Add("default", new CertificateStoreContainer("default", certList, privateKey));
         }
 
         public CertificateStore(ReadOnlySpan<byte> pkcs12, string password = null)
@@ -461,9 +463,9 @@ namespace IPA.Cores.Basic
             this.ShaSize = shaSize;
             if (this.Serial.IsEmpty)
             {
-                this.Serial = new byte[1] { 1 };
+                this.Serial = Secure.Rand(16);
             }
-            this.Expires = expires ?? new DateTime(2099, 12, 30, 0, 0, 0)._AsDateTimeOffset(false);
+            this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
             this.SubjectAlternativeNames.Add(this.CN);
 
             if (subjectAltNames != null)
@@ -634,8 +636,10 @@ namespace IPA.Cores.Basic
             X509Extensions x509exts = new X509Extensions(oids, values);
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));
 
+            AttributePkcs attr2 = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest, new DerSet(x509exts));
+
             this.Request = new Pkcs10CertificationRequest(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), priv.PrivateKeyData.Private, PkiUtil.NewSecureRandom()),
-                subject, priv.PublicKey.PublicKeyData, new DerSet(attr));
+                subject, priv.PublicKey.PublicKeyData, new DerSet(attr2));
         }
 
         public ReadOnlyMemory<byte> ExportPem()

@@ -245,16 +245,15 @@ namespace IPA.TestDev
 
                     ac.AccountUrl._Print();
 
-                    ac.Test1()._GetResult();
+                    ac.Test1()._GetResult();return;
 
-                    AcmeOrder order = ac.NewOrderAsync("006.pc34.sehosts.com")._GetResult();
+                    AcmeOrder order = ac.NewOrderAsync("008.pc34.sehosts.com")._GetResult();
 
                     //order.ProcessAllAuthAsync()._GetResult();
-                    order.FinalizeAsync(certKey)._GetResult();
+                    var store = order.FinalizeAsync(certKey)._GetResult();
 
+                    Lfs.WriteDataToFile(@"c:\tmp\190615_acme\out.p12", store.ExportPkcs12());
                 }
-
-                Con.ReadLine("q>");
             }
         }
 
