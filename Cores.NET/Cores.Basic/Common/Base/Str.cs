@@ -5415,6 +5415,40 @@ namespace IPA.Cores.Basic
             query_string = HttpUtility.ParseQueryString(uri.Query._NonNull());
         }
 
+        public static string NormalizeFqdn(string fqdn)
+        {
+            fqdn = fqdn._NonNullTrim().ToLower();
+            return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".");
+        }
+
+        public static bool CheckFqdn(string fqdn)
+        {
+            try
+            {
+                if (fqdn.Length > 255) return false;
+                string[] tokens = fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length <= 1) return false;
+                foreach (string token in tokens)
+                {
+                    string token2 = token.ToLower();
+                    if (token2.Length > 63) return false;
+                    foreach (char c in token2)
+                    {
+                        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) { }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static string GetSimpleHostnameFromFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim();

@@ -423,7 +423,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task<bool> AwaitWithPoll(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default)
+        public static async Task<bool> AwaitWithPollAsync(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default)
         {
             long end_tick = Time.Tick64 + (long)timeout;
 

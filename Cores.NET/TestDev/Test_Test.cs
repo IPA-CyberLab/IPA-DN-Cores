@@ -193,17 +193,21 @@ namespace IPA.TestDev
 
         public static void Test_Vault()
         {
-            CertVault vault = new CertVault(@"C:\tmp\190617vault");
-
-            while (true)
+            using (CertVault vault = new CertVault(@"C:\tmp\190617vault"))
             {
-                string fqdn = Con.ReadLine(">");
+                while (true)
+                {
+                    string fqdn = Con.ReadLine(">");
 
-                CertificateStore s = vault.SelectBestFitCertificate(fqdn, out _);
+                    if (fqdn._IsEmpty())
+                        break;
 
-                Certificate cert = s.PrimaryContainer.CertificateList[0];
+                    CertificateStore s = vault.SelectBestFitCertificate(fqdn, out _);
 
-                cert.CertData.SubjectDN.ToString()._Print();
+                    Certificate cert = s.PrimaryContainer.CertificateList[0];
+
+                    cert.CertData.SubjectDN.ToString()._Print();
+                }
             }
         }
 

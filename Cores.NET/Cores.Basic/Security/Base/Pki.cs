@@ -559,7 +559,7 @@ namespace IPA.Cores.Basic
 
             this.Type = CertificateHostnameType.SingleHost;
 
-            if (hostName.StartsWith("*."))
+            if (hostName.StartsWith("*.") || HostName == "*")
             {
                 this.Type = CertificateHostnameType.Wildcard;
 
@@ -569,6 +569,7 @@ namespace IPA.Cores.Basic
 
         public bool IsMatchForHost(string hostname)
         {
+            if (this.HostName == "*") return true;
             if (this.Type == CertificateHostnameType.Wildcard)
             {
                 int i = hostname.IndexOf(".");

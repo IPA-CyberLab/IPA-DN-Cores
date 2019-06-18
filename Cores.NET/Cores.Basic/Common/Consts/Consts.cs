@@ -62,8 +62,10 @@ namespace IPA.Cores.Basic
 
         public static partial class FileNames
         {
+            public const string CertVault_Settings = "settings.json";
             public const string CertVault_Password = "password.txt";
-            public const string CertVault_AcmeAccountKey = "acme.accountkey";
+            public const string CertVault_AcmeAccountKey = "acme_account.key";
+            public const string CertVault_AcmeCertKey = "acme_cert.key";
             public const string CertVault_DefaultCert = "default.pfx";
         }
 

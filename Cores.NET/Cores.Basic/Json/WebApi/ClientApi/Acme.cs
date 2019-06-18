@@ -194,11 +194,6 @@ namespace IPA.Cores.ClientApi.Acme
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
-        public async Task<AcmeEntryPoints> GetEntryPointsAsync(CancellationToken cancel = default)
-        {
-            return await this.DirectoryWebContentsCache.GetAsync(cancel);
-        }
-
         public AcmeClientOptions(string directoryUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging, TcpIpSystem tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
@@ -216,6 +211,11 @@ namespace IPA.Cores.ClientApi.Acme
                         return ret.Deserialize<AcmeEntryPoints>(true);
                     }
                 });
+        }
+
+        public async Task<AcmeEntryPoints> GetEntryPointsAsync(CancellationToken cancel = default)
+        {
+            return await this.DirectoryWebContentsCache.GetAsync(cancel);
         }
     }
 

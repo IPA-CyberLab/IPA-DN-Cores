@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
 
                 while (true)
                 {
-                    await TaskUtil.AwaitWithPoll(Timeout.Infinite, this.Emitter.Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
+                    await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, this.Emitter.Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
 
                     IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = DequeueAll(out long totalSize, this.Emitter.Options.DefragmentWriteBlockSize);
                     if (totalSize == 0)
