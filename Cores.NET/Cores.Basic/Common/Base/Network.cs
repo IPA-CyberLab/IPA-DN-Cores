@@ -338,6 +338,7 @@ namespace IPA.Cores.Basic
         IPv6_AllNodeMulticast = 1024,
         IPv6_AllRouterMulticast = 2048,
         IPv6_SoliciationMulticast = 4096,
+        GlobalIp = 8192,
     }
 
     // IP ユーティリティ
@@ -1368,6 +1369,11 @@ namespace IPA.Cores.Basic
                         else
                         {
                             ret |= IPAddressType.GlobalUnicast;
+
+                            if (ret.Bit(IPAddressType.Loopback) == false)
+                            {
+                                ret |= IPAddressType.GlobalIp;
+                            }
                         }
                     }
                 }
@@ -1431,17 +1437,21 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    ret |= IPAddressType.GlobalUnicast;
-
                     if (Util.IsZero(addr))
                     {
                         ret |= IPAddressType.Zero;
                     }
                     else
                     {
+                        ret |= IPAddressType.GlobalUnicast;
+
                         if (CompareIPAddress(ip, LoopbackAddress))
                         {
                             ret |= IPAddressType.Loopback;
+                        }
+                        else
+                        {
+                            ret |= IPAddressType.GlobalIp;
                         }
                     }
                 }

@@ -47,6 +47,11 @@ namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
     {
+        public static partial class TcpIpSystemSettings
+        {
+            public static readonly Copenhagen<int> LocalHostPossibleGlobalIpAddressListCacheLifetime = 5 * 60 * 1000;
+        }
+
         public static partial class TcpIpStackDefaultSettings
         {
             public static readonly Copenhagen<int> ConnectTimeout = 15 * 1000;
@@ -285,7 +290,13 @@ namespace IPA.Cores.Basic
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
         protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
 
-        public TcpIpSystem(TcpIpSystemParam param) : base(param) { }
+        AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
+
+        public TcpIpSystem(TcpIpSystemParam param) : base(param)
+        {
+            LocalHostPossibleGlobalIpAddressListCache = new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, AsyncCacheFlags.IgnoreUpdateError,
+                GetLocalHostPossibleGlobalIpAddressListMainAsync);
+        }
 
         public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
 
@@ -371,6 +382,52 @@ namespace IPA.Cores.Basic
         }
         public DnsResponse QueryDns(DnsQueryParam param, CancellationToken cancel = default)
             => QueryDnsAsync(param, cancel)._GetResult();
+
+        async Task<HashSet<IPAddress>> GetLocalHostPossibleGlobalIpAddressListMainAsync(CancellationToken cancel)
+        {
+            HashSet<IPAddress> ret = new HashSet<IPAddress>();
+
+            TcpIpSystemHostInfo info = this.GetHostInfo();
+
+            foreach (IPAddress addr in info.IPAddressList)
+            {
+                IPAddressType ipType = addr._GetIPAddressType();
+                if (ipType.Bit(IPAddressType.GlobalIp))
+                {
+                    ret.Add(addr);
+                }
+            }
+
+            using (GetMyIpClient myip = new GetMyIpClient(this))
+            {
+                try
+                {
+                    IPAddress ipv4 = await myip.GetMyIpAsync(IPVersion.IPv4, cancel);
+
+                    if (ipv4._GetIPAddressType().Bit(IPAddressType.GlobalIp))
+                    {
+                        ret.Add(ipv4);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    IPAddress ipv6 = await myip.GetMyIpAsync(IPVersion.IPv6, cancel);
+
+                    if (ipv6._GetIPAddressType().Bit(IPAddressType.GlobalIp))
+                    {
+                        ret.Add(ipv6);
+                    }
+                }
+                catch { }
+            }
+
+            return ret;
+        }
+
+        public Task<HashSet<IPAddress>> GetLocalHostPossibleIpAddressListAsync(CancellationToken cancel = default)
+            => LocalHostPossibleGlobalIpAddressListCache.GetAsync(cancel);
     }
 }
 

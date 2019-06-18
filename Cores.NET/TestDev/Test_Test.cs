@@ -161,7 +161,9 @@ namespace IPA.TestDev
 
             //Test_PersistentCache();
 
-            Test_Vault();
+            //Test_Vault();
+
+            LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
         }
 
         public static void Test_Generic()
@@ -193,20 +195,29 @@ namespace IPA.TestDev
 
         public static void Test_Vault()
         {
-            using (CertVault vault = new CertVault(@"C:\tmp\190617vault"))
+            var httpServerOpt = new HttpServerOptions
             {
-                while (true)
+                HttpPortsList = 80._SingleList(),
+                HttpsPortsList = 443._SingleList(),
+            };
+
+            using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))
+            {
+                using (CertVault vault = new CertVault(@"C:\tmp\190617vault"))
                 {
-                    string fqdn = Con.ReadLine(">");
+                    while (true)
+                    {
+                        string fqdn = Con.ReadLine(">");
 
-                    if (fqdn._IsEmpty())
-                        break;
+                        if (fqdn._IsEmpty())
+                            break;
 
-                    CertificateStore s = vault.SelectBestFitCertificate(fqdn, out _);
+                        CertificateStore s = vault.SelectBestFitCertificate(fqdn, out _);
 
-                    Certificate cert = s.PrimaryContainer.CertificateList[0];
+                        Certificate cert = s.PrimaryContainer.CertificateList[0];
 
-                    cert.CertData.SubjectDN.ToString()._Print();
+                        cert.CertData.SubjectDN.ToString()._Print();
+                    }
                 }
             }
         }

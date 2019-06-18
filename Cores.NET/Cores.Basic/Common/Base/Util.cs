@@ -3525,6 +3525,101 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    enum AsyncCacheFlags
+    {
+        None = 0,
+        IgnoreUpdateError = 1,
+    }
+
+    class AsyncCache<TData> : AsyncCache<int, TData> where TData : class
+    {
+        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<Task<TData>> getProcAsync) : base(lifeTime, flags, x => getProcAsync())
+        {
+        }
+
+        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<CancellationToken, Task<TData>> getProcAsync) : base(lifeTime, flags, (x, c) => getProcAsync(c))
+        {
+        }
+
+        public Task<TData> GetAsync(CancellationToken cancel = default)
+            => base.GetAsync(0, cancel);
+    }
+
+    class AsyncCache<TKey, TData> where TData : class
+    {
+        class Entry
+        {
+            public long Expires;
+            public TData Data;
+        }
+
+        public AsyncCacheFlags Flags { get; }
+        public long LifeTime { get; }
+        public Func<TKey, CancellationToken, Task<TData>> GetProcAsync { get; }
+
+        readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
+
+        AsyncLock AsyncLock = new AsyncLock();
+        CriticalSection Lock = new CriticalSection();
+
+        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<TKey, Task<TData>> getProcAsync)
+            : this(lifeTime, flags, (key, cancel) => getProcAsync(key)) { }
+
+        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<TKey, CancellationToken, Task<TData>> getProcAsync)
+        {
+            this.LifeTime = Math.Max(0, lifeTime);
+            if (lifeTime < 0 || lifeTime == int.MaxValue)
+            {
+                this.LifeTime = long.MaxValue;
+            }
+            this.Flags = flags;
+            this.GetProcAsync = getProcAsync;
+        }
+
+        public async Task<TData> GetAsync(TKey key, CancellationToken cancel = default)
+        {
+            long now = Tick64.Now;
+
+            lock (Lock)
+            {
+                if (Table.TryGetValue(key, out Entry entry) && now <= entry.Expires)
+                {
+                    return entry.Data;
+                }
+            }
+
+            TData data = null;
+
+            try
+            {
+                data = await this.GetProcAsync(key, cancel);
+            }
+            catch
+            {
+                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(AsyncCacheFlags.IgnoreUpdateError) == false)
+                {
+                    throw;
+                }
+
+                data = entry.Data;
+            }
+
+            now = Tick64.Now;
+
+            lock (Lock)
+            {
+                Table[key] = new Entry
+                {
+                    Data = data,
+                    Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
+                };
+            };
+
+            return data;
+        }
+    }
+
     namespace Legacy
     {
         // シングルトン

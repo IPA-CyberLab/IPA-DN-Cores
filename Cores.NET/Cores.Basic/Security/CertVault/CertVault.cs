@@ -52,11 +52,15 @@ namespace IPA.Cores.Basic
     {
         public static partial class CertVaultSettings
         {
-            public static readonly Copenhagen<int> DefaultUpdateInterval = 60 * 1000;
+            public static readonly Copenhagen<int> DefaultReloadInterval = 60 * 1000;
+
+            public static readonly Copenhagen<int> DefaultAcmeStartUpdateRemainingDays = 365;
 
             public static readonly Copenhagen<int> UpdateIntervalForAcmeQueueCheck = 1 * 1000;
 
             public static readonly Copenhagen<int> MaxAcmeQueueLen = 64;
+
+            public static readonly Copenhagen<string> DefaultAcmeContactEmail = "coreslib.acme.default+changeme.__RAND__@gmail.com";
         }
     }
 
@@ -70,66 +74,91 @@ namespace IPA.Cores.Basic
 
     class CertVaultCertificate
     {
+        public CertVault Vault { get; }
+
         public DirectoryPath DirName { get; }
         public FileSystem FileSystem => DirName.FileSystem;
 
         public CertificateStore Store { get; }
         public CertVaultCertType CertType { get; }
 
-        public CertVaultCertificate(CertificateStore store, CertVaultCertType certType)
+        public CertVaultCertificate(CertVault vault, CertificateStore store, CertVaultCertType certType)
         {
             if (certType != CertVaultCertType.DefaultCert) throw new ArgumentException("certType != CertVaultCertType.Default");
 
+            this.Vault = vault;
             this.Store = store;
             this.CertType = certType;
         }
 
-        public CertVaultCertificate(DirectoryPath dirName, CertVaultCertType certType)
+        public CertVaultCertificate(CertVault vault, DirectoryPath dirName, CertVaultCertType certType)
         {
+            this.Vault = vault;
+
+            if (certType.EqualsAny(CertVaultCertType.Acme, CertVaultCertType.Static) == false)
+            {
+                throw new ArgumentOutOfRangeException("certType");
+            }
+
             try
             {
                 dirName.CreateDirectory();
             }
             catch { }
 
+            CertificateStore store = null;
+
             this.CertType = certType;
             this.DirName = dirName;
 
-            var files = DirName.EnumDirectory().Where(x => x.IsDirectory == false);
-
-            string p12file = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Pkcs12s)).SingleOrDefault()?.FullPath;
-
-            string certfile = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Certificates)).SingleOrDefault()?.FullPath;
-            string keyfile = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Keys)).SingleOrDefault()?.FullPath;
-
-            string passwordfile = files.Where(x => x.Name._IsSamei(Consts.FileNames.CertVault_Password)).SingleOrDefault()?.FullPath;
-            string password = null;
-
-            if (passwordfile != null)
+            if (certType == CertVaultCertType.Static)
             {
-                password = FileSystem.ReadStringFromFile(passwordfile, oneLine: true);
+                // Static cert
+                var files = DirName.EnumDirectory().Where(x => x.IsDirectory == false);
 
-                if (password._IsEmpty()) password = null;
-            }
+                string p12file = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Pkcs12s)).SingleOrDefault()?.FullPath;
 
-            CertificateStore store = null;
-            if (p12file != null)
-            {
-                store = new CertificateStore(FileSystem.ReadDataFromFile(p12file).Span, password);
-            }
-            else if (certfile != null && keyfile != null)
-            {
-                store = new CertificateStore(FileSystem.ReadDataFromFile(certfile).Span, FileSystem.ReadDataFromFile(keyfile).Span, password);
+                string certfile = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Certificates)).SingleOrDefault()?.FullPath;
+                string keyfile = files.Where(x => x.Name._IsExtensionMatch(Consts.Extensions.Filter_Keys)).SingleOrDefault()?.FullPath;
+
+                string passwordfile = files.Where(x => x.Name._IsSamei(Consts.FileNames.CertVault_Password)).SingleOrDefault()?.FullPath;
+                string password = null;
+
+                if (passwordfile != null)
+                {
+                    password = FileSystem.ReadStringFromFile(passwordfile, oneLine: true);
+
+                    if (password._IsEmpty()) password = null;
+                }
+
+                if (p12file != null)
+                {
+                    store = new CertificateStore(FileSystem.ReadDataFromFile(p12file).Span, password);
+                }
+                else if (certfile != null && keyfile != null)
+                {
+                    store = new CertificateStore(FileSystem.ReadDataFromFile(certfile).Span, FileSystem.ReadDataFromFile(keyfile).Span, password);
+                }
+                else
+                {
+                    if (this.CertType == CertVaultCertType.Static)
+                    {
+                        throw new ApplicationException($"Either PKCS#12 or PEM file is found on the directory \"{this.DirName.PathString}\".");
+                    }
+                }
             }
             else
             {
-                if (this.CertType == CertVaultCertType.Static)
+                // ACME cert
+                FilePath fileName = DirName.Combine(DirName.GetThisDirectoryName() + Consts.Extensions.Certificate);
+
+                if (fileName.IsFileExists())
                 {
-                    throw new ApplicationException($"Either PKCS#12 or PEM file is found on the directory \"{this.DirName.PathString}\".");
+                    store = new CertificateStore(fileName.ReadDataFromFile().Span, this.Vault.AcmeCertKey);
                 }
             }
 
-            var test = store.PrimaryContainer.CertificateList[0];
+            var test = store?.PrimaryContainer.CertificateList[0];
 
             this.Store = store;
         }
@@ -137,11 +166,16 @@ namespace IPA.Cores.Basic
 
     class CertVaultSettings : INormalizable, ICloneable
     {
-        public int UpdateInterval;
+        const string AcmeDefaultUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging;
+
+        public int ReloadInterval;
+        public int AcmeStartUpdateRemainingDays;
 
         public bool UseAcme;
+        public string AcmeContactEmail;
         public string AcmeServiceDirectoryUrl;
         public string[] AcmeAllowedFqdnList;
+        public bool AcmeEnableFqdnIpCheck;
 
         public CertVaultSettings()
         {
@@ -150,17 +184,30 @@ namespace IPA.Cores.Basic
         public CertVaultSettings(EnsureSpecial defaultSetting)
         {
             this.UseAcme = true;
-            this.AcmeServiceDirectoryUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging;
-            this.UpdateInterval = CoresConfig.CertVaultSettings.DefaultUpdateInterval;
+            this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
+            this.ReloadInterval = CoresConfig.CertVaultSettings.DefaultReloadInterval;
+            this.AcmeStartUpdateRemainingDays = CoresConfig.CertVaultSettings.DefaultAcmeStartUpdateRemainingDays;
+            this.AcmeContactEmail = GenDefaultContactEmail();
+            this.AcmeEnableFqdnIpCheck = true;
 
             Normalize();
+        }
+
+        static string GenDefaultContactEmail()
+        {
+            string str = CoresConfig.CertVaultSettings.DefaultAcmeContactEmail;
+            str = str.Replace("__RAND__", Secure.RandSInt31().ToString());
+            return str;
         }
 
         public object Clone() => this.MemberwiseClone();
 
         public void Normalize()
         {
-            this.UpdateInterval = Math.Max(this.UpdateInterval, 1000);
+            if (Str.CheckMailAddress(this.AcmeContactEmail) == false) this.AcmeContactEmail = GenDefaultContactEmail();
+            if (this.AcmeServiceDirectoryUrl._IsEmpty()) this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
+            this.ReloadInterval = Math.Max(this.ReloadInterval, 1000);
+            this.AcmeStartUpdateRemainingDays = Math.Max(this.AcmeStartUpdateRemainingDays, 0);
             if (AcmeAllowedFqdnList == null) AcmeAllowedFqdnList = new string[0];
         }
     }
@@ -178,6 +225,8 @@ namespace IPA.Cores.Basic
         public FilePath AcmeCertKeyFilePath { get; }
         public PrivKey AcmeCertKey { get; private set; }
 
+        public bool IsGlobalCertVault { get; }
+
         List<CertVaultCertificate> InternalCertList;
 
         readonly CriticalSection LockObj = new CriticalSection();
@@ -192,10 +241,12 @@ namespace IPA.Cores.Basic
 
         readonly CertVaultSettings DefaultSettings;
 
-        public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null)
+        public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, bool isGlobalVault = false)
         {
             try
             {
+                this.IsGlobalCertVault = IsGlobalCertVault;
+
                 if (defaultSettings == null) defaultSettings = new CertVaultSettings(EnsureSpecial.Yes);
 
                 this.DefaultSettings = (CertVaultSettings)defaultSettings.Clone();
@@ -211,7 +262,7 @@ namespace IPA.Cores.Basic
                 this.AcmeAccountKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeAccountKey);
                 this.AcmeCertKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeCertKey);
 
-                Update();
+                Reload();
 
                 this.StartMainLoop(MainLoopAsync);
             }
@@ -222,13 +273,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Update()
+        public void Reload()
         {
             lock (LockObj)
             {
                 try
                 {
-                    InternalEnumCertificateMain();
+                    InternalReload();
                 }
                 catch (Exception ex)
                 {
@@ -237,14 +288,18 @@ namespace IPA.Cores.Basic
             }
         }
 
+        bool IsAcmeCertUpdated = false;
+
         public async Task MainLoopAsync(CancellationToken cancel)
         {
             while (cancel.IsCancellationRequested == false)
             {
-                Dbg.Where(this.Settings.UpdateInterval);
+                Dbg.Where(this.Settings.ReloadInterval);
                 try
                 {
-                    Update();
+                    Reload();
+
+                    IsAcmeCertUpdated = false;
 
                     try
                     {
@@ -254,13 +309,19 @@ namespace IPA.Cores.Basic
                     {
                         ex._Debug();
                     }
+
+                    if (IsAcmeCertUpdated)
+                    {
+                        // ACME certificate is added. Reload
+                        Reload();
+                    }
                 }
                 catch (Exception ex)
                 {
                     ex._Debug();
                 }
 
-                await TaskUtil.AwaitWithPollAsync(this.Settings.UpdateInterval, CoresConfig.CertVaultSettings.UpdateIntervalForAcmeQueueCheck, () => this.AcmeQueueUpdatedFlag, cancel);
+                await TaskUtil.AwaitWithPollAsync(this.Settings.ReloadInterval, CoresConfig.CertVaultSettings.UpdateIntervalForAcmeQueueCheck, () => this.AcmeQueueUpdatedFlag, cancel);
                 this.AcmeQueueUpdatedFlag = false;
             }
         }
@@ -283,7 +344,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public async Task ProcessEnqueuedAcmeHostnameAsync(CancellationToken cancel)
+        async Task ProcessEnqueuedAcmeHostnameAsync(CancellationToken cancel)
         {
             List<string> queue;
 
@@ -293,20 +354,81 @@ namespace IPA.Cores.Basic
                 AcmeQueue = new List<string>();
             }
 
-            foreach (string fqdn in queue)
+            using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl)))
             {
-                if (CheckFqdnAllowedForAcme(fqdn))
+                AcmeAccount account = await client.LoginAccountAsync(this.AcmeAccountKey, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
+
+                foreach (string fqdn in queue)
                 {
-                    Con.WriteLine("OK " + fqdn);
-                }
-                else
-                {
-                    Con.WriteLine("NG " + fqdn);
+                    if (CheckFqdnAllowedForAcme(fqdn))
+                    {
+                        await ProcessAcmeFqdnAsync(account, fqdn, cancel);
+                    }
                 }
             }
         }
 
-        void InternalEnumCertificateMain()
+        bool IsCertificateDateTimeToUpdate(DateTime utc)
+        {
+            DateTime now = DateTime.UtcNow;
+
+            if (utc < now) return true;
+
+            TimeSpan ts = utc - now;
+
+            if (ts.TotalDays <= this.Settings.AcmeStartUpdateRemainingDays)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        async Task ProcessAcmeFqdnAsync(AcmeAccount account, string fqdn, CancellationToken cancel)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            DirectoryPath dir = this.AcmeDir.GetSubDirectory(fqdn);
+
+            FilePath crtFileName = dir.Combine(dir.GetThisDirectoryName() + Consts.Extensions.Certificate);
+
+            Certificate currentCert = null;
+            if (crtFileName.IsFileExists(cancel))
+            {
+                try
+                {
+                    currentCert = new Certificate(crtFileName.ReadDataFromFile().Span);
+                }
+                catch { }
+            }
+
+            if (currentCert == null || IsCertificateDateTimeToUpdate(currentCert.CertData.NotAfter))
+            {
+                await AcmeIssueAsync(account, fqdn, crtFileName, cancel);
+            }
+        }
+
+        async Task AcmeIssueAsync(AcmeAccount account, string fqdn, FilePath crtFileName, CancellationToken cancel)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            AcmeOrder order = await account.NewOrderAsync(fqdn, cancel);
+
+            if (this.IsGlobalCertVault)
+            {
+                GlobalCertVault.SetAcmeAccountForChallengeResponse(account);
+            }
+
+            CertificateStore store = await order.FinalizeAsync(this.AcmeCertKey, cancel);
+
+            IsAcmeCertUpdated = true;
+
+            store.ExportChainedPem(out ReadOnlyMemory<byte> certData, out _);
+
+            crtFileName.WriteDataToFile(certData, additionalFlags: FileFlags.AutoCreateDirectory);
+        }
+
+        void InternalReload()
         {
             List<CertVaultCertificate> list = new List<CertVaultCertificate>();
 
@@ -367,21 +489,21 @@ namespace IPA.Cores.Basic
                 });
 
 
-            CertVaultCertificate defaultVaultCert = new CertVaultCertificate(defaultCert, CertVaultCertType.DefaultCert);
+            CertVaultCertificate defaultVaultCert = new CertVaultCertificate(this, defaultCert, CertVaultCertType.DefaultCert);
             list.Add(defaultVaultCert);
 
             // Enumerate StaticCerts
-            EnumerateCertsDir(list, this.StaticDir, CertVaultCertType.Static);
+            ReloadCertsDir(list, this.StaticDir, CertVaultCertType.Static);
 
             if (this.Settings.UseAcme)
             {
-                EnumerateCertsDir(list, this.AcmeDir, CertVaultCertType.Acme);
+                ReloadCertsDir(list, this.AcmeDir, CertVaultCertType.Acme);
             }
 
             this.InternalCertList = list;
         }
 
-        void EnumerateCertsDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
+        void ReloadCertsDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
         {
             try
             {
@@ -390,7 +512,7 @@ namespace IPA.Cores.Basic
 
                 foreach (DirectoryPath subdir in subdirs)
                 {
-                    EnumerateCertsSubDir(list, subdir, type);
+                    ReloadCertsSubDir(list, subdir, type);
                 }
             }
             catch (Exception ex)
@@ -399,13 +521,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void EnumerateCertsSubDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
+        void ReloadCertsSubDir(List<CertVaultCertificate> list, DirectoryPath dirName, CertVaultCertType type)
         {
             try
             {
-                CertVaultCertificate cert = new CertVaultCertificate(dirName, type);
+                CertVaultCertificate cert = new CertVaultCertificate(this, dirName, type);
 
-                list.Add(cert);
+                if (cert.Store != null)
+                {
+                    list.Add(cert);
+                }
             }
             catch (Exception ex)
             {
@@ -429,21 +554,24 @@ namespace IPA.Cores.Basic
 
             foreach (CertVaultCertificate cert in list)
             {
-                var pc = cert.Store.PrimaryContainer;
-                if (pc.CertificateList.Count >= 1)
+                if (cert.Store != null)
                 {
-                    var cert2 = pc.CertificateList[0];
-                    if (cert2.IsMatchForHost(hostname, out CertificateHostnameType mt) || cert.CertType == CertVaultCertType.DefaultCert)
+                    var pc = cert.Store.PrimaryContainer;
+                    if (pc.CertificateList.Count >= 1)
                     {
-                        if (cert.CertType == CertVaultCertType.DefaultCert) mt = CertificateHostnameType.DefaultCert;
-
-                        MatchResult r = new MatchResult
+                        var cert2 = pc.CertificateList[0];
+                        if (cert2.IsMatchForHost(hostname, out CertificateHostnameType mt) || cert.CertType == CertVaultCertType.DefaultCert)
                         {
-                            MatchType = mt,
-                            VaultCert = cert,
-                        };
+                            if (cert.CertType == CertVaultCertType.DefaultCert) mt = CertificateHostnameType.DefaultCert;
 
-                        candidates.Add(r);
+                            MatchResult r = new MatchResult
+                            {
+                                MatchType = mt,
+                                VaultCert = cert,
+                            };
+
+                            candidates.Add(r);
+                        }
                     }
                 }
             }
@@ -503,6 +631,55 @@ namespace IPA.Cores.Basic
             {
                 base.DisposeImpl(ex);
             }
+        }
+    }
+
+    static class GlobalCertVault
+    {
+        public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
+
+        static Singleton<CertVault> Singleton = null;
+
+        public static DirectoryPath BaseDir { get; private set; } = null;
+
+        static AcmeAccount AcmeAccountForChallengeResponse = null;
+
+        static void InitModule()
+        {
+            BaseDir = Path.Combine(Env.AppLocalDir, "Config", "CertVault");
+
+            Singleton = new Singleton<CertVault>(() =>
+            {
+                try
+                {
+                    BaseDir.CreateDirectory();
+                }
+                catch { }
+
+                Util.PutGitIgnoreFileOnDirectory(BaseDir);
+
+                CertVault vault = new CertVault(BaseDir, isGlobalVault: true);
+
+                return vault;
+            });
+        }
+
+        public static CertVault GetCertVault() => Singleton;
+
+        public static void SetAcmeAccountForChallengeResponse(AcmeAccount account)
+        {
+            AcmeAccountForChallengeResponse = account;
+        }
+
+        public static AcmeAccount GetAcmeAccountForChallengeResponse() => AcmeAccountForChallengeResponse;
+
+        static void FreeModule()
+        {
+            Singleton._DisposeSafe();
+            Singleton = null;
+
+            BaseDir = null;
+            AcmeAccountForChallengeResponse = null;
         }
     }
 }

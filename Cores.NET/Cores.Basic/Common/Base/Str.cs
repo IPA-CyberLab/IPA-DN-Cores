@@ -4631,33 +4631,40 @@ namespace IPA.Cores.Basic
         // メールアドレスをチェックする
         public static bool CheckMailAddress(string str)
         {
-            str = str.Trim();
-            if (str.Length == 0)
+            try
+            {
+                str = str.Trim();
+                if (str.Length == 0)
+                {
+                    return false;
+                }
+
+                string[] tokens = str.Split('@');
+
+                if (tokens.Length != 2)
+                {
+                    return false;
+                }
+
+                string a = tokens[0];
+                string b = tokens[1];
+
+                if (a.Length == 0 || b.Length == 0)
+                {
+                    return false;
+                }
+
+                if (b.IndexOf(".") == -1)
+                {
+                    return false;
+                }
+
+                return IsAscii(str);
+            }
+            catch
             {
                 return false;
             }
-
-            string[] tokens = str.Split('@');
-
-            if (tokens.Length != 2)
-            {
-                return false;
-            }
-
-            string a = tokens[0];
-            string b = tokens[1];
-
-            if (a.Length == 0 || b.Length == 0)
-            {
-                return false;
-            }
-
-            if (b.IndexOf(".") == -1)
-            {
-                return false;
-            }
-
-            return IsAscii(str);
         }
 
         // 文字列を大文字・小文字を区別せずに比較

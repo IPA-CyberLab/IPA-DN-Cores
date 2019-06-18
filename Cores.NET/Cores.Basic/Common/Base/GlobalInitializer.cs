@@ -191,6 +191,13 @@ namespace IPA.Cores.Basic
             GitGlobalFs.Module.Init();
 #endif // CORES_BASIC_GIT
 
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+            GlobalCertVault.Module.Init();
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
+
             TelnetLocalLogWatcher.Module.Init();
 
             // After all initialization completed
@@ -200,6 +207,12 @@ namespace IPA.Cores.Basic
         static CoresLibraryResult FreeModules()
         {
             // Finalize
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+            GlobalCertVault.Module.Free();
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
             TelnetLocalLogWatcher.Module.Free();
 
 #if CORES_BASIC_GIT

@@ -64,20 +64,28 @@ namespace IPA.Cores.Basic
         {
             public const string CertVault_Settings = "settings.json";
             public const string CertVault_Password = "password.txt";
+
             public const string CertVault_AcmeAccountKey = "acme_account.key";
             public const string CertVault_AcmeCertKey = "acme_cert.key";
+
             public const string CertVault_DefaultCert = "default.pfx";
         }
 
         public static partial class Extensions
         {
-            public const string X509Certificate = ".crt";
+            public const string Certificate = ".crt";
             public const string Pkcs12 = ".pfx";
             public const string GenericKey = ".key";
 
             public const string Filter_Pkcs12s = "*.p12;*.pfx";
             public const string Filter_Certificates = "*.crt;*.cer";
             public const string Filter_Keys = "*.key;*.pem";
+        }
+
+        public static partial class Addresses
+        {
+            public const string GetMyIpUrl_IPv4 = "http://get-my-ip.ddns.softether-network.net/ddns/getmyip.ashx";
+            public const string GetMyIpUrl_IPv6 = "http://get-my-ip-v6.ddns.softether-network.net/ddns/getmyip.ashx";
         }
     }
 }

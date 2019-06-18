@@ -48,6 +48,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http.Extensions;
 using Newtonsoft.Json;
+using System.Linq;
 
 
 using IPA.Cores.Basic;
@@ -112,6 +113,9 @@ namespace IPA.Cores.Basic
         public bool DebugKestrelToLog { get; set; } = true;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
+
+        [JsonIgnore]
+        public bool HasHttpPort80 => this.HttpPortsList.Select(x => x == 80).Any();
 
         [JsonIgnore]
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
