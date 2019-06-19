@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
 #endif  // CORES_BASIC_SECURITY;
 
         [JsonIgnore]
-        public bool HasHttpPort80 => this.HttpPortsList.Select(x => x == 80).Any();
+        public bool HasHttpPort80 => this.HttpPortsList.Where(x => x == 80).Any();
 
         [JsonIgnore]
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
@@ -177,6 +177,7 @@ namespace IPA.Cores.Basic
 
             if (withStackOpt != null)
             {
+                // Kestrel with Stack
                 withStackOpt.TcpIp = this.TcpIp;
             }
 
@@ -206,7 +207,7 @@ namespace IPA.Cores.Basic
 #if CORES_BASIC_SECURITY
                     if (useGlobalCertVault)
                     {
-                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni).NativeCertificate);
+                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
                     }
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;

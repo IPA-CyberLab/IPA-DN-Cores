@@ -159,7 +159,9 @@ namespace IPA.TestDev
             //return;
             //Test_Generic();
 
-            Test_RSA_Cert();
+            //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
+
+            //Test_RSA_Cert();
 
             //Test_ECDSA_Cert();
 
@@ -173,7 +175,7 @@ namespace IPA.TestDev
 
             //Test_Vault();
 
-            //Test_Vault_With_Kestrel();
+            Test_Vault_With_Kestrel();
 
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
         }
@@ -211,6 +213,7 @@ namespace IPA.TestDev
             {
                 HttpPortsList = 80._SingleList(),
                 HttpsPortsList = 443._SingleList(),
+                UseGlobalCertVault = true,
             };
 
             using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))

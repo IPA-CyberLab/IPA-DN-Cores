@@ -321,6 +321,8 @@ namespace IPA.Cores.Basic
 
                 AsymmetricCipherKeyPair data = (AsymmetricCipherKeyPair)obj;
 
+                if (data == null) throw new ArgumentException("Importing data parse failed.");
+
                 this.PrivateKeyData = data;
             }
 
@@ -408,6 +410,8 @@ namespace IPA.Cores.Basic
                 object obj = pem.ReadObject();
 
                 AsymmetricKeyParameter data = (AsymmetricKeyParameter)obj;
+
+                if (data == null) throw new ArgumentException("Importing data parse failed.");
 
                 if (data.IsPrivate) throw new ArgumentException("the key is private.");
                 this.PublicKeyData = data;
@@ -606,6 +610,9 @@ namespace IPA.Cores.Basic
         public bool IsMatchForHost(string hostname)
         {
             if (this.HostName == "*") return true;
+
+            if (hostname._IsEmpty()) return false;
+
             if (this.Type == CertificateHostnameType.Wildcard)
             {
                 int i = hostname.IndexOf(".");
@@ -653,6 +660,8 @@ namespace IPA.Cores.Basic
                 object obj = pem.ReadObject();
 
                 X509Certificate data = (X509Certificate)obj;
+
+                if (data == null) throw new ArgumentException("Importing data parse failed.");
 
                 this.CertData = data;
 

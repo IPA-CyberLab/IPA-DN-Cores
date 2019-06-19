@@ -3587,7 +3587,7 @@ namespace IPA.Cores.Basic
         CriticalSection Lock = new CriticalSection();
 
         public SyncCache(int lifeTime)
-            : this(lifeTime, CacheFlags.None, (Func<TKey, TData>)null) { }
+            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, TData>)null) { }
 
         public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, TData> getProc)
             : this(lifeTime, flags, (key, cancel) => getProc(key)) { }
@@ -3738,7 +3738,7 @@ namespace IPA.Cores.Basic
         CriticalSection Lock = new CriticalSection();
 
         public AsyncCache(int lifeTime)
-            : this(lifeTime, CacheFlags.None, (Func<TKey, Task<TData>>)null) { }
+            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, Task<TData>>)null) { }
 
         public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, Task<TData>> getProcAsync)
             : this(lifeTime, flags, (key, cancel) => getProcAsync(key)) { }

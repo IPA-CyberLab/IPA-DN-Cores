@@ -270,6 +270,8 @@ namespace IPA.Cores.Basic
 
         readonly SyncCache<string, CertificateStore> CertificateSelectorCache;
 
+        readonly SyncCache<string, CertificateStore> CertificateSelectorCache_NoAcme;
+
         public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, CertificateStore defaultCertificate = null, TcpIpSystem tcpIp = null, bool isGlobalVault = false)
         {
             try
@@ -295,7 +297,8 @@ namespace IPA.Cores.Basic
                 this.AcmeAccountKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeAccountKey);
                 this.AcmeCertKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeCertKey);
 
-                this.CertificateSelectorCache = new SyncCache<string, CertificateStore>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime, CacheFlags.IgnoreUpdateError, hostname => this.SelectBestFitCertificate(hostname, out _));
+                this.CertificateSelectorCache = new SyncCache<string, CertificateStore>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime, CacheFlags.IgnoreUpdateError, hostname => this.SelectBestFitCertificate(hostname, out _, false));
+                this.CertificateSelectorCache_NoAcme = new SyncCache<string, CertificateStore>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime, CacheFlags.IgnoreUpdateError, hostname => this.SelectBestFitCertificate(hostname, out _, true));
 
                 Reload();
 
@@ -360,7 +363,7 @@ namespace IPA.Cores.Basic
                         // Process expiring or expires ACME certs
                         try
                         {
-                            await ProcessExpiringOrExpiresAcmeCertsAsync(cancel);
+                            await ProcessExpiringOrExpiredAcmeCertsAsync(cancel);
                         }
                         catch (Exception ex)
                         {
@@ -385,7 +388,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task ProcessExpiringOrExpiresAcmeCertsAsync(CancellationToken cancel)
+        async Task ProcessExpiringOrExpiredAcmeCertsAsync(CancellationToken cancel)
         {
             List<CertVaultCertificate> list = this.InternalCertList;
 
@@ -496,7 +499,7 @@ namespace IPA.Cores.Basic
             DnsResponse dnsResults = await TaskUtil.RetryAsync((c) => this.TcpIp.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, DnsQueryOptions.Default, CoresConfig.CertVaultSettings.DnsTimeout), c),
                 retryInterval: CoresConfig.CertVaultSettings.DnsTryInterval, tryCount: CoresConfig.CertVaultSettings.DnsTryCount);
 
-            Con.WriteLine(dnsResults.IPAddressList.Select(x => x.ToString())._Combine(","));
+            //Con.WriteLine(dnsResults.IPAddressList.Select(x => x.ToString())._Combine(","));
 
             HashSet<IPAddress> globalIpList = await this.TcpIp.GetLocalHostPossibleIpAddressListAsync(cancel);
 
@@ -533,13 +536,18 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    currentCert = new Certificate(crtFileName.ReadDataFromFile().Span);
+                    currentCert = CertificateUtil.ImportChainedCertificates(crtFileName.ReadDataFromFile().Span).First();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
 
             if (currentCert == null || IsCertificateDateTimeToUpdate(currentCert.CertData.NotBefore, currentCert.CertData.NotAfter))
             {
+                //Con.WriteLine($"fqdn = {fqdn}, currentCert = {currentCert}, crtFileName = {crtFileName}");
+
                 await AcmeIssueAsync(account, fqdn, crtFileName, cancel);
             }
         }
@@ -690,8 +698,10 @@ namespace IPA.Cores.Basic
             public CertificateHostnameType MatchType;
         }
 
-        public CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType)
+        public CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType, bool disableAcme = false)
         {
+            hostname = hostname._NonNullTrim();
+
             hostname = Str.NormalizeFqdn(hostname);
 
             List<CertVaultCertificate> list = InternalCertList;
@@ -728,7 +738,7 @@ namespace IPA.Cores.Basic
 
             matchType = selected.MatchType;
 
-            if (this.Settings.UseAcme)
+            if (this.Settings.UseAcme && disableAcme == false)
             {
                 if (hostname._IsEmpty() == false && matchType == CertificateHostnameType.DefaultCert && hostname.Split('.').Length >= 2 && Str.CheckFqdn(hostname))
                 {
@@ -754,16 +764,25 @@ namespace IPA.Cores.Basic
             return selected.VaultCert.Store;
         }
 
-        public CertificateStore CertificateStoreSelector(string sniHostname)
+        public CertificateStore CertificateStoreSelector(string sniHostname, bool disableAcme)
         {
-            return CertificateSelectorCache[sniHostname];
+            if (disableAcme == false)
+            {
+                return CertificateSelectorCache[sniHostname];
+            }
+            else
+            {
+                return CertificateSelectorCache_NoAcme[sniHostname];
+            }
         }
 
         readonly SyncCache<string, PalX509Certificate> X509CertificateCache = new SyncCache<string, PalX509Certificate>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime);
 
-        public PalX509Certificate X509CertificateSelector(string sniHostname)
+        public PalX509Certificate X509CertificateSelector(string sniHostname, bool disableAcme)
         {
-            CertificateStore store = CertificateStoreSelector(sniHostname);
+            sniHostname = sniHostname._NonNullTrim();
+
+            CertificateStore store = CertificateStoreSelector(sniHostname, disableAcme);
 
             string sha1 = store.DigestSHA1Str;
 
@@ -773,7 +792,6 @@ namespace IPA.Cores.Basic
                 ret = store.GetX509Certificate();
                 X509CertificateCache[sha1] = ret;
             }
-
             return ret;
         }
 
