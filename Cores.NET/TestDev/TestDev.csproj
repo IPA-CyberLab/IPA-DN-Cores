@@ -22,10 +22,13 @@
 
   <ItemGroup>
     <Compile Remove="GitLocal\**" />
+    <Compile Remove="Local\**" />
     <Compile Remove="Log\**" />
     <EmbeddedResource Remove="GitLocal\**" />
+    <EmbeddedResource Remove="Local\**" />
     <EmbeddedResource Remove="Log\**" />
     <None Remove="GitLocal\**" />
+    <None Remove="Local\**" />
     <None Remove="Log\**" />
   </ItemGroup>
 

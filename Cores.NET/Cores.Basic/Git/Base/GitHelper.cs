@@ -51,11 +51,11 @@ namespace IPA.Cores.Basic
 {
     static class GitHelper
     {
-        public static GitRef _GetOriginRef(this IEnumerable<GitRef> branchList, string name)
+        public static GitRef GetOriginRef(this IEnumerable<GitRef> branchList, string name)
             => branchList.Where(x => x.Type == GitRefType.RemoteBranch && x.Name._IsSamei($"refs/remotes/origin/{name}")).Single();
 
-        public static GitRef _GetOriginMasterBranch(this IEnumerable<GitRef> branchList)
-            => _GetOriginRef(branchList, "master");
+        public static GitRef GetOriginMasterBranch(this IEnumerable<GitRef> branchList)
+            => GetOriginRef(branchList, "master");
     }
 }
 

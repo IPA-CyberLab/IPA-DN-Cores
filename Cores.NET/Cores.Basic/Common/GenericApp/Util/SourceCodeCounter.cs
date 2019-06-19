@@ -33,10 +33,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using System.Text;
-using System.IO;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Linq;
 
 using IPA.Cores.Basic;
@@ -45,49 +44,51 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Consts
+    class SourceCodeCounter
     {
-        public static partial class Strings
+        DirectoryPath RootDir;
+        FileSystem Fs => RootDir.FileSystem;
+
+        public int NumLines { get; private set; } = 0;
+        public int NumFiles { get; private set; } = 0;
+        public long TotalSize { get; private set; } = 0;
+
+        HashSet<string> ExcludeHashSet = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+        public SourceCodeCounter(DirectoryPath rootDir, params string[] excludeFileNames)
         {
-            public const string DefaultCertCN = "DefaultCertificate";
-        }
+            this.RootDir = rootDir;
 
-        public static partial class MediaTypes
-        {
-            public const string Json = "application/json";
-            public const string JoseJson = "application/jose+json";
-            public const string FormUrlEncoded = "application/x-www-form-urlencoded";
-            public const string OctetStream = "application/octet-stream";
-        }
+            excludeFileNames._DoForEach(x => ExcludeHashSet.Add(x));
 
-        public static partial class FileNames
-        {
-            public const string CertVault_Settings = "settings.json";
-            public const string CertVault_Password = "password.txt";
+            DirectoryWalker walk = new DirectoryWalker(RootDir.FileSystem);
 
-            public const string CertVault_AcmeAccountKey = "acme_account.key";
-            public const string CertVault_AcmeCertKey = "acme_cert.key";
+            walk.WalkDirectory(RootDir.PathString,
+                (pathInfo, entities, cancel) =>
+                {
+                    foreach (FileSystemEntity entity in entities)
+                    {
+                        if (entity.IsDirectory == false && entity.Name._IsExtensionMatch(Consts.Extensions.Filter_SourceCodes))
+                        {
+                            if (ExcludeHashSet.Contains(entity.Name) == false)
+                            {
+                                int numLines = Fs.ReadStringFromFile(entity.FullPath)._GetLines().Length;
 
-            public const string CertVault_DefaultCert = "default.pfx";
-        }
+                                this.NumLines += numLines;
 
-        public static partial class Extensions
-        {
-            public const string Certificate = ".crt";
-            public const string Pkcs12 = ".pfx";
-            public const string GenericKey = ".key";
+                                this.NumFiles++;
 
-            public const string Filter_Pkcs12s = "*.p12;*.pfx";
-            public const string Filter_Certificates = "*.crt;*.cer";
-            public const string Filter_Keys = "*.key;*.pem";
-
-            public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
-        }
-
-        public static partial class Addresses
-        {
-            public const string GetMyIpUrl_IPv4 = "http://get-my-ip.ddns.softether-network.net/ddns/getmyip.ashx";
-            public const string GetMyIpUrl_IPv6 = "http://get-my-ip-v6.ddns.softether-network.net/ddns/getmyip.ashx";
+                                this.TotalSize += entity.Size;
+                            }
+                        }
+                    }
+                    return true;
+                },
+                exceptionHandler: (pathInfo, err, cancel) =>
+                {
+                    return true;
+                });
         }
     }
 }
+

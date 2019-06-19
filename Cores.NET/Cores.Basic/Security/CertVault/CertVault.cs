@@ -622,23 +622,31 @@ namespace IPA.Cores.Basic
             // Initialize the DefaultCert
             FilePath defaultCertPath = this.StaticDir.Combine(Consts.FileNames.CertVault_DefaultCert);
 
-            CertificateStore defaultCert = defaultCertPath.ReadAndParseDataFile(ReadParseFlags.ForceInitOnParseError,
-                data => new CertificateStore(data.Span),
-                () =>
-                {
-                    if (this.DefaultCertificate != null)
-                    {
-                        return this.DefaultCertificate.ExportPkcs12();
-                    }
-                    else
-                    {
-                        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
-                        Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
-                        CertificateStore store = new CertificateStore(cert, key);
-                        return store.ExportPkcs12();
-                    }
-                });
+            CertificateStore defaultCert = null;
 
+            if (this.DefaultCertificate != null)
+            {
+                defaultCert = this.DefaultCertificate;
+            }
+            else
+            {
+                defaultCert = defaultCertPath.ReadAndParseDataFile(ReadParseFlags.ForceInitOnParseError,
+                    data => new CertificateStore(data.Span),
+                    () =>
+                    {
+                        if (this.DefaultCertificate != null)
+                        {
+                            return this.DefaultCertificate.ExportPkcs12();
+                        }
+                        else
+                        {
+                            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
+                            Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
+                            CertificateStore store = new CertificateStore(cert, key);
+                            return store.ExportPkcs12();
+                        }
+                    });
+            }
 
             CertVaultCertificate defaultVaultCert = new CertVaultCertificate(this, defaultCert, CertVaultCertType.DefaultCert);
             list.Add(defaultVaultCert);
@@ -828,6 +836,8 @@ namespace IPA.Cores.Basic
     {
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
+        static CertificateStore DefaultCertificate = null;
+
         static Singleton<CertVault> Singleton = null;
 
         public static DirectoryPath BaseDir { get; private set; } = null;
@@ -837,6 +847,8 @@ namespace IPA.Cores.Basic
         static void InitModule()
         {
             BaseDir = Path.Combine(Env.AppLocalDir, "Config", "CertVault");
+
+            DefaultCertificate = null;
 
             Singleton = new Singleton<CertVault>(() =>
             {
@@ -848,7 +860,7 @@ namespace IPA.Cores.Basic
 
                 Util.PutGitIgnoreFileOnDirectory(BaseDir);
 
-                CertVault vault = new CertVault(BaseDir, isGlobalVault: true);
+                CertVault vault = new CertVault(BaseDir, isGlobalVault: true, defaultCertificate: DefaultCertificate);
 
                 return vault;
             });
@@ -861,6 +873,11 @@ namespace IPA.Cores.Basic
             AcmeAccountForChallengeResponse = account;
         }
 
+        public static void SetDefaultCertificate(CertificateStore cert)
+        {
+            DefaultCertificate = cert;
+        }
+
         public static AcmeAccount GetAcmeAccountForChallengeResponse() => AcmeAccountForChallengeResponse;
 
         static void FreeModule()
@@ -870,6 +887,7 @@ namespace IPA.Cores.Basic
 
             BaseDir = null;
             AcmeAccountForChallengeResponse = null;
+            DefaultCertificate = null;
         }
     }
 }

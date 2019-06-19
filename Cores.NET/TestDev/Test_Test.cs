@@ -175,13 +175,50 @@ namespace IPA.TestDev
 
             //Test_Vault();
 
-            Test_Vault_With_Kestrel();
-
+            //Test_Vault_With_Kestrel();
+            
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
+
+            Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
+        }
+
+        public static void Test_SourceCodeCounter(string url)
+        {
+            GitGlobalFs.StartRepository(url);
+            GitRepository rep = GitGlobalFs.GetRepository(url);
+            GitRef master = rep.GetOriginMasterBranch();
+
+            List<GitCommit> commitLogs = master.Commit.GetCommitLogs();
+
+            DateTime start = commitLogs.Select(x => x.TimeStamp).Min().LocalDateTime;
+            DateTime end = commitLogs.Select(x => x.TimeStamp).Max().LocalDateTime;
+
+            for (DateTime dt = start; dt <= end; dt = dt.AddDays(7))
+            {
+                GitCommit commit = commitLogs.Where(x => x.TimeStamp < dt).OrderByDescending(x => x.TimeStamp).FirstOrDefault();
+
+                if (commit != null)
+                {
+                    GitFileSystem fs = GitGlobalFs.GetFileSystem(url, commit.CommitId);
+
+                    SourceCodeCounter counter = new SourceCodeCounter(new DirectoryPath("/", fs), "HttpClient.cs");
+
+                    Con.WriteLine(Str.CombineStringArray(",", dt._ToDtStr(option: DtStrOption.DateOnly), counter.NumLines, counter.TotalSize, counter.NumFiles));
+                }
+            }
         }
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                SourceCodeCounter c = new SourceCodeCounter(@"C:\git\IPA-DN-Cores\Cores.NET");
+
+                c._PrintAsJson();
+
+                return;
+            }
+
             if (false)
             {
                 PkiUtil.GenerateKeyPair(PkiAlgorithm.ECDSA, 256, out PrivKey privateKey, out PubKey publicKey);
@@ -213,7 +250,6 @@ namespace IPA.TestDev
             {
                 HttpPortsList = 80._SingleList(),
                 HttpsPortsList = 443._SingleList(),
-                UseGlobalCertVault = true,
             };
 
             using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))

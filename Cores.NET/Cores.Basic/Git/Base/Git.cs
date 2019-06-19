@@ -49,7 +49,7 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
-    static class GitUtil
+    static partial class GitUtil
     {
         public static void Clone(string destDir, string srcUrl, CloneOptions options = null)
         {
@@ -86,9 +86,12 @@ namespace IPA.Cores.Basic
     class GitCommit
     {
         public GitRepository Repository { get; }
-        public Commit Commit { get; }
-        public DateTimeOffset TimeStamp => Commit.Author.When;
-        public Tree RootTree => Commit.Tree;
+        public Commit CommitObj { get; }
+        public string CommitId { get; }
+        public DateTimeOffset TimeStamp => CommitObj.Author.When;
+        public Tree RootTree => CommitObj.Tree;
+        public string Message => CommitObj.Message;
+        public string MessageOneLine => CommitObj.Message._OneLine(" ");
 
         readonly Singleton<string, Tree> DirectoryTreeCache;
         readonly Singleton<string, Blob> FileTreeCache;
@@ -99,7 +102,8 @@ namespace IPA.Cores.Basic
         public GitCommit(GitRepository repository, Commit commit)
         {
             this.Repository = repository;
-            this.Commit = commit;
+            this.CommitObj = commit;
+            this.CommitId = this.CommitObj.Id.Sha;
 
             this.DirectoryTreeCache = new Singleton<string, Tree>(path => GetDirectoryInternal(path), GitRepository.PathParser.PathStringComparer);
             this.DirectoryItemsCache = new Singleton<string, FileSystemEntity[]>(path => GetDirectoryItemsInternal(path), GitRepository.PathParser.PathStringComparer);
@@ -108,6 +112,48 @@ namespace IPA.Cores.Basic
 
             this.DirectoryMetadataCache = new Singleton<string, FileMetadata>(path => GetDirectoryMetadataInternal(path), GitRepository.PathParser.PathStringComparer);
             this.FileMetadataCache = new Singleton<string, FileMetadata>(path => GetFileMetadataInternal(path), GitRepository.PathParser.PathStringComparer);
+        }
+
+        public List<GitCommit> GetCommitLogs()
+        {
+            HashSet<string> idSet = new HashSet<string>();
+            List<Commit> list = new List<Commit>();
+            Queue<Commit> queue = new Queue<Commit>();
+
+            Enqueue(this.CommitObj);
+
+            while (true)
+            {
+                if (queue.TryDequeue(out Commit current) == false)
+                {
+                    break;
+                }
+
+                foreach (Commit next in current.Parents)
+                {
+                    Enqueue(next);
+                }
+            }
+
+            List<GitCommit> ret = new List<GitCommit>();
+
+            foreach (Commit c in list)
+            {
+                ret.Add(new GitCommit(this.Repository, c));
+            }
+
+            ret.Sort((x, y) => (x.TimeStamp.CompareTo(y.TimeStamp)));
+
+            return ret;
+
+            void Enqueue(Commit c)
+            {
+                if (idSet.Add(c.Id.Sha))
+                {
+                    queue.Enqueue(c);
+                    list.Add(c);
+                }
+            }
         }
 
         public FileSystemEntity[] GetDirectoryItems(string dirPath)
@@ -284,7 +330,7 @@ namespace IPA.Cores.Basic
             path = GitRepository.NormalizePathToGit(path);
 
             // The below code was written by refering to: https://github.com/libgit2/libgit2sharp/issues/89#issuecomment-38380873
-            Commit commit = this.Commit;
+            Commit commit = this.CommitObj;
             GitObject gitObj;
 
             if (path != "")
@@ -343,12 +389,20 @@ namespace IPA.Cores.Basic
         public DateTimeOffset TimeStamp {get;}
         public GitRefType Type { get; }
 
-        public GitRef(string name, string commitId, DateTimeOffset timeStamp, GitRefType type)
+        readonly GitRepository Repository;
+        Singleton<GitCommit> CommitSingleton;
+
+        public GitCommit Commit => CommitSingleton;
+
+        public GitRef(GitRepository repository, string name, string commitId, DateTimeOffset timeStamp, GitRefType type)
         {
+            this.Repository = repository;
             this.Name = name;
             this.CommitId = commitId;
             this.TimeStamp = timeStamp;
             this.Type = type;
+
+            this.CommitSingleton = new Singleton<GitCommit>(() => this.Repository.FindCommit(this.CommitId));
         }
     }
 
@@ -359,7 +413,11 @@ namespace IPA.Cores.Basic
 
         public static readonly PathParser PathParser = PathParser.GetInstance(FileSystemStyle.Linux);
 
-        public string OriginMasterBranchCommitId => this.EnumRef()._GetOriginMasterBranch().CommitId;
+        public string OriginMasterBranchCommitId => this.EnumRef().GetOriginMasterBranch().CommitId;
+
+        public GitRef GetOriginRef(string name) => this.EnumRef().GetOriginRef(name);
+
+        public GitRef GetOriginMasterBranch() => this.EnumRef().GetOriginMasterBranch();
 
         readonly Singleton<GitRef[]> RefCache;
 
@@ -383,7 +441,7 @@ namespace IPA.Cores.Basic
                             GitRefType type = GitRefType.LocalBranch;
                             if (e.IsRemoteTrackingBranch) type = GitRefType.RemoteBranch;
                             if (e.IsTag) type = GitRefType.Tag;
-                            ret.Add(new GitRef(e.CanonicalName, e.TargetIdentifier, commit.Author.When, type));
+                            ret.Add(new GitRef(this, e.CanonicalName, e.TargetIdentifier, commit.Author.When, type));
                         }
                     }
 
@@ -413,6 +471,9 @@ namespace IPA.Cores.Basic
                 return Task.FromResult(ret);
             });
         }
+
+        public GitCommit FindCommit(string commitId, CancellationToken cancel = default)
+            => FindCommitAsync(commitId, cancel)._GetResult();
 
         public Task FetchAsync(string url, CancellationToken cancel = default)
         {
