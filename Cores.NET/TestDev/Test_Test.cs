@@ -116,9 +116,19 @@ namespace IPA.TestDev
         {
             try
             {
-                string token = routeData.Values._GetStrOrEmpty("token");
+                AcmeAccount currentAccount  = GlobalCertVault.GetAcmeAccountForChallengeResponse();
+                string retStr;
 
-                string retStr = AcmeAccount.ProcessChallengeRequest(token);
+                if (currentAccount == null)
+                {
+                    retStr = "Error: GlobalCertVault.GetAcmeAccountForChallengeResponse() == null";
+                }
+                else
+                {
+                    string token = routeData.Values._GetStrOrEmpty("token");
+
+                    retStr = currentAccount.ProcessChallengeRequest(token);
+                }
 
                 await response._SendStringContents(retStr, "application/octet-stream");
             }
@@ -161,9 +171,9 @@ namespace IPA.TestDev
 
             //Test_PersistentCache();
 
-            //Test_Vault();
+            Test_Vault();
 
-            LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
+            //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
         }
 
         public static void Test_Generic()
@@ -203,7 +213,7 @@ namespace IPA.TestDev
 
             using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))
             {
-                using (CertVault vault = new CertVault(@"C:\tmp\190617vault"))
+                using (CertVault vault = new CertVault(@"C:\tmp\190617vault", isGlobalVault: true))
                 {
                     while (true)
                     {
@@ -267,6 +277,16 @@ namespace IPA.TestDev
                 }
 
                 AcmeClientOptions o = new AcmeClientOptions();
+
+
+                //while (true)
+                //{
+                //    Dbg.Where();
+                //    using (AcmeClient acme = new AcmeClient(o))
+                //    {
+                //        AcmeAccount ac = acme.LoginAccountAsync(key, "mailto:da.190614@softether.co.jp"._SingleArray())._GetResult();
+                //    }
+                //}
 
                 using (AcmeClient acme = new AcmeClient(o))
                 {

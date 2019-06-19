@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel)
+        protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel)
         {
             switch (param)
             {

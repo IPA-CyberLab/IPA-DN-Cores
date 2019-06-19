@@ -209,17 +209,17 @@ namespace IPA.Cores.Basic
     [Flags]
     enum DnsQueryOptions
     {
-        None = 0,
+        Default = 0,
         IPv4Only = 1,
         IPv6Only = 2,
     }
 
-    class DnsQueryParam
+    abstract class DnsQueryParamBase
     {
         public DnsQueryOptions Options { get; }
         public int Timeout { get; }
 
-        public DnsQueryParam(DnsQueryOptions options = DnsQueryOptions.None, int timeout = -1)
+        public DnsQueryParamBase(DnsQueryOptions options = DnsQueryOptions.Default, int timeout = -1)
         {
             if (timeout <= 0)
                 timeout = CoresConfig.TcpIpStackDefaultSettings.DnsTimeout;
@@ -228,11 +228,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DnsGetIpQueryParam : DnsQueryParam
+    class DnsGetIpQueryParam : DnsQueryParamBase
     {
         public string Hostname { get; }
 
-        public DnsGetIpQueryParam(string hostname, DnsQueryOptions options = DnsQueryOptions.None, int timeout = -1) : base(options, timeout)
+        public DnsGetIpQueryParam(string hostname, DnsQueryOptions options = DnsQueryOptions.Default, int timeout = -1) : base(options, timeout)
         {
             if (hostname._IsEmpty()) throw new ArgumentException("hostname is empty.");
             this.Hostname = hostname._NonNullTrim();
@@ -241,10 +241,10 @@ namespace IPA.Cores.Basic
 
     class DnsResponse
     {
-        public DnsQueryParam Query { get; }
+        public DnsQueryParamBase Query { get; }
         public IReadOnlyList<IPAddress> IPAddressList { get; }
 
-        public DnsResponse(DnsQueryParam query, IPAddress[] addressList)
+        public DnsResponse(DnsQueryParamBase query, IPAddress[] addressList)
         {
             this.Query = query;
 
@@ -287,14 +287,14 @@ namespace IPA.Cores.Basic
 
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
-        protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParam param, CancellationToken cancel);
+        protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
         protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
 
         AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param)
         {
-            LocalHostPossibleGlobalIpAddressListCache = new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, AsyncCacheFlags.IgnoreUpdateError,
+            LocalHostPossibleGlobalIpAddressListCache = new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError,
                 GetLocalHostPossibleGlobalIpAddressListMainAsync);
         }
 
@@ -370,7 +370,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<DnsResponse> QueryDnsAsync(DnsQueryParam param, CancellationToken cancel = default)
+        public async Task<DnsResponse> QueryDnsAsync(DnsQueryParamBase param, CancellationToken cancel = default)
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
@@ -380,7 +380,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public DnsResponse QueryDns(DnsQueryParam param, CancellationToken cancel = default)
+        public DnsResponse QueryDns(DnsQueryParamBase param, CancellationToken cancel = default)
             => QueryDnsAsync(param, cancel)._GetResult();
 
         async Task<HashSet<IPAddress>> GetLocalHostPossibleGlobalIpAddressListMainAsync(CancellationToken cancel)

@@ -3033,7 +3033,7 @@ namespace IPA.Cores.Basic
             this.DefaultTryCount = defaultTryCount;
         }
 
-        public async Task<T> RunAsync(Func<Task<T>> proc, int? retryInterval = null, int? tryCount = null)
+        public async Task<T> RunAsync(Func<CancellationToken, Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
         {
             if (retryInterval == null) retryInterval = DefaultRetryInterval;
             if (tryCount == null) tryCount = DefaultTryCount;
@@ -3044,10 +3044,11 @@ namespace IPA.Cores.Basic
 
             for (int i = 0; i < tryCount; i++)
             {
+                cancel.ThrowIfCancellationRequested();
                 try
                 {
                     if (i >= 1) Dbg.WriteLine("Retrying...");
-                    T ret = await proc();
+                    T ret = await proc(cancel);
                     return ret;
                 }
                 catch (Exception ex)
@@ -3057,14 +3058,26 @@ namespace IPA.Cores.Basic
                         first_exception = ex;
                     }
 
-                    Dbg.WriteLine($"RetryHelper: round {i} error. Retrying in {retryInterval} msecs...");
+                    cancel.ThrowIfCancellationRequested();
 
-                    await Task.Delay((int)retryInterval);
+                    if (i < (tryCount - 1))
+                    {
+                        Dbg.WriteLine($"RetryHelper: round {i} error. Retrying in {retryInterval} msecs...");
+
+                        await Task.Delay((int)retryInterval);
+                    }
+                    else
+                    {
+                        Dbg.WriteLine($"RetryHelper: round {i} error.");
+                    }
                 }
             }
 
             throw first_exception;
         }
+
+        public Task<T> RunAsync(Func<Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
+            => RunAsync((c) => proc(), retryInterval, tryCount, cancel);
     }
 
     class StaticModule : StaticModule<int, int>
@@ -3526,27 +3539,35 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum AsyncCacheFlags
+    enum CacheFlags
     {
         None = 0,
         IgnoreUpdateError = 1,
     }
 
-    class AsyncCache<TData> : AsyncCache<int, TData> where TData : class
+
+    class SyncCache<TData> : SyncCache<int, TData> where TData : class
     {
-        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<Task<TData>> getProcAsync) : base(lifeTime, flags, x => getProcAsync())
+        public SyncCache(int lifeTime) : base(lifeTime) { }
+
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TData> getProc) : base(lifeTime, flags, x => getProc())
         {
         }
 
-        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<CancellationToken, Task<TData>> getProcAsync) : base(lifeTime, flags, (x, c) => getProcAsync(c))
+        public SyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, TData> getProc) : base(lifeTime, flags, (x, c) => getProc(c))
         {
         }
 
-        public Task<TData> GetAsync(CancellationToken cancel = default)
-            => base.GetAsync(0, cancel);
+        public TData Get(CancellationToken cancel = default)
+            => base.Get(0, cancel);
+
+        public void Set(TData data)
+            => base.Set(0, data);
+
+        public static implicit operator TData(SyncCache<TData> cache) => cache.Get();
     }
 
-    class AsyncCache<TKey, TData> where TData : class
+    class SyncCache<TKey, TData> where TData : class
     {
         class Entry
         {
@@ -3554,19 +3575,24 @@ namespace IPA.Cores.Basic
             public TData Data;
         }
 
-        public AsyncCacheFlags Flags { get; }
+        public CacheFlags Flags { get; }
         public long LifeTime { get; }
-        public Func<TKey, CancellationToken, Task<TData>> GetProcAsync { get; }
+        public Func<TKey, CancellationToken, TData> GetProc { get; }
+
+        long NextGcTime;
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
-        AsyncLock AsyncLock = new AsyncLock();
+        CriticalSection SyncLock = new CriticalSection();
         CriticalSection Lock = new CriticalSection();
 
-        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<TKey, Task<TData>> getProcAsync)
-            : this(lifeTime, flags, (key, cancel) => getProcAsync(key)) { }
+        public SyncCache(int lifeTime)
+            : this(lifeTime, CacheFlags.None, (Func<TKey, TData>)null) { }
 
-        public AsyncCache(int lifeTime, AsyncCacheFlags flags, Func<TKey, CancellationToken, Task<TData>> getProcAsync)
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, TData> getProc)
+            : this(lifeTime, flags, (key, cancel) => getProc(key)) { }
+
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, TData> getProc)
         {
             this.LifeTime = Math.Max(0, lifeTime);
             if (lifeTime < 0 || lifeTime == int.MaxValue)
@@ -3574,15 +3600,47 @@ namespace IPA.Cores.Basic
                 this.LifeTime = long.MaxValue;
             }
             this.Flags = flags;
-            this.GetProcAsync = getProcAsync;
+            this.GetProc = getProc;
         }
 
-        public async Task<TData> GetAsync(TKey key, CancellationToken cancel = default)
+        public TData this[TKey key]
+        {
+            get => Get(key);
+            set => Set(key, value);
+        }
+
+        void Gc(long now)
+        {
+            if (now > this.NextGcTime && this.LifeTime != long.MaxValue)
+            {
+                // GC
+                this.NextGcTime = now + this.LifeTime;
+
+                List<TKey> deleteList = new List<TKey>();
+
+                foreach (var kv in this.Table)
+                {
+                    if (now > kv.Value.Expires)
+                    {
+                        deleteList.Add(kv.Key);
+                    }
+                }
+
+                foreach (TKey keyToDelete in deleteList)
+                {
+                    this.Table.Remove(keyToDelete);
+                }
+            }
+        }
+
+        public TData Get(TKey key, CancellationToken cancel = default)
         {
             long now = Tick64.Now;
 
             lock (Lock)
             {
+                Gc(now);
+
                 if (Table.TryGetValue(key, out Entry entry) && now <= entry.Expires)
                 {
                     return entry.Data;
@@ -3591,13 +3649,15 @@ namespace IPA.Cores.Basic
 
             TData data = null;
 
+            if (this.GetProc == null) return default;
+
             try
             {
-                data = await this.GetProcAsync(key, cancel);
+                data = this.GetProc(key, cancel);
             }
             catch
             {
-                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(AsyncCacheFlags.IgnoreUpdateError) == false)
+                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
                 {
                     throw;
                 }
@@ -3617,6 +3677,173 @@ namespace IPA.Cores.Basic
             };
 
             return data;
+        }
+
+        public void Set(TKey key, TData data)
+        {
+            long now = Tick64.Now;
+
+            lock (Lock)
+            {
+                Gc(now);
+
+                this.Table[key] = new Entry
+                {
+                    Data = data,
+                    Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
+                };
+            }
+        }
+    }
+
+
+    class AsyncCache<TData> : AsyncCache<int, TData> where TData : class
+    {
+        public AsyncCache(int lifeTime) : base(lifeTime) { }
+
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<Task<TData>> getProcAsync) : base(lifeTime, flags, x => getProcAsync())
+        {
+        }
+
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, Task<TData>> getProcAsync) : base(lifeTime, flags, (x, c) => getProcAsync(c))
+        {
+        }
+
+        public Task<TData> GetAsync(CancellationToken cancel = default)
+            => base.GetAsync(0, cancel);
+
+        public void Set(TData data)
+            => base.Set(0, data);
+
+        public static implicit operator TData(AsyncCache<TData> cache) => cache.GetAsync()._GetResult();
+    }
+
+    class AsyncCache<TKey, TData> where TData : class
+    {
+        class Entry
+        {
+            public long Expires;
+            public TData Data;
+        }
+
+        public CacheFlags Flags { get; }
+        public long LifeTime { get; }
+        public Func<TKey, CancellationToken, Task<TData>> GetProcAsync { get; }
+
+        long NextGcTime;
+
+        readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
+
+        AsyncLock AsyncLock = new AsyncLock();
+        CriticalSection Lock = new CriticalSection();
+
+        public AsyncCache(int lifeTime)
+            : this(lifeTime, CacheFlags.None, (Func<TKey, Task<TData>>)null) { }
+
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, Task<TData>> getProcAsync)
+            : this(lifeTime, flags, (key, cancel) => getProcAsync(key)) { }
+
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, Task<TData>> getProcAsync)
+        {
+            this.LifeTime = Math.Max(0, lifeTime);
+            if (lifeTime < 0 || lifeTime == int.MaxValue)
+            {
+                this.LifeTime = long.MaxValue;
+            }
+            this.Flags = flags;
+            this.GetProcAsync = getProcAsync;
+        }
+
+        public TData this[TKey key]
+        {
+            get => GetAsync(key)._GetResult();
+            set => Set(key, value);
+        }
+
+        void Gc(long now)
+        {
+            if (now > this.NextGcTime && this.LifeTime != long.MaxValue)
+            {
+                // GC
+                this.NextGcTime = now + this.LifeTime;
+
+                List<TKey> deleteList = new List<TKey>();
+
+                foreach (var kv in this.Table)
+                {
+                    if (now > kv.Value.Expires)
+                    {
+                        deleteList.Add(kv.Key);
+                    }
+                }
+
+                foreach (TKey keyToDelete in deleteList)
+                {
+                    this.Table.Remove(keyToDelete);
+                }
+            }
+        }
+
+        public async Task<TData> GetAsync(TKey key, CancellationToken cancel = default)
+        {
+            long now = Tick64.Now;
+
+            lock (Lock)
+            {
+                Gc(now);
+
+                if (Table.TryGetValue(key, out Entry entry) && now <= entry.Expires)
+                {
+                    return entry.Data;
+                }
+            }
+
+            TData data = null;
+
+            if (this.GetProcAsync == null) return default;
+
+            try
+            {
+                data = await this.GetProcAsync(key, cancel);
+            }
+            catch
+            {
+                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
+                {
+                    throw;
+                }
+
+                data = entry.Data;
+            }
+
+            now = Tick64.Now;
+
+            lock (Lock)
+            {
+                Table[key] = new Entry
+                {
+                    Data = data,
+                    Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
+                };
+            };
+
+            return data;
+        }
+
+        public void Set(TKey key, TData data)
+        {
+            long now = Tick64.Now;
+
+            lock (Lock)
+            {
+                Gc(now);
+
+                this.Table[key] = new Entry
+                {
+                    Data = data,
+                    Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
+                };
+            }
         }
     }
 

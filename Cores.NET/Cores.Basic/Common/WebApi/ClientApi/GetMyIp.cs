@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            TcpIp._DisposeSafe();
+            Web._DisposeSafe();
         }
     }
 }

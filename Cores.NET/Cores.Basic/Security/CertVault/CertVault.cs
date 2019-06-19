@@ -40,6 +40,7 @@ using System.Text;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.ClientApi.Acme;
@@ -54,11 +55,17 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<int> DefaultReloadInterval = 60 * 1000;
 
-            public static readonly Copenhagen<int> DefaultAcmeStartUpdateRemainingDays = 365;
+            public static readonly Copenhagen<int> DefaultMaxAcmeCerts = 3;
 
-            public static readonly Copenhagen<int> UpdateIntervalForAcmeQueueCheck = 1 * 1000;
+            public static readonly Copenhagen<int> AcmeRenewSuppressIntervalAfterLastError = 8 * 60 * 60 * 1000;
+
+            public static readonly Copenhagen<int> UpdateIntervalForAcmeQueueCheck = 222;
 
             public static readonly Copenhagen<int> MaxAcmeQueueLen = 64;
+
+            public static readonly Copenhagen<int> DnsTimeout = 5 * 1000;
+            public static readonly Copenhagen<int> DnsTryCount = 3;
+            public static readonly Copenhagen<int> DnsTryInterval = 250;
 
             public static readonly Copenhagen<string> DefaultAcmeContactEmail = "coreslib.acme.default+changeme.__RAND__@gmail.com";
         }
@@ -141,10 +148,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (this.CertType == CertVaultCertType.Static)
-                    {
-                        throw new ApplicationException($"Either PKCS#12 or PEM file is found on the directory \"{this.DirName.PathString}\".");
-                    }
+                    store = null;
                 }
             }
             else
@@ -156,9 +160,22 @@ namespace IPA.Cores.Basic
                 {
                     store = new CertificateStore(fileName.ReadDataFromFile().Span, this.Vault.AcmeCertKey);
                 }
+                else
+                {
+                    store = null;
+                }
             }
 
-            var test = store?.PrimaryContainer.CertificateList[0];
+            Certificate test = store?.PrimaryContainer.CertificateList[0];
+
+            if (test != null)
+            {
+                if (test.PublicKey.Equals(store.PrimaryContainer.PrivateKey.PublicKey) == false)
+                {
+                    Con.WriteDebug($"CertVault: The public key certificate in the directory '{dirName}' doesn't match to the private key.");
+                    store = null;
+                }
+            }
 
             this.Store = store;
         }
@@ -168,8 +185,8 @@ namespace IPA.Cores.Basic
     {
         const string AcmeDefaultUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging;
 
-        public int ReloadInterval;
-        public int AcmeStartUpdateRemainingDays;
+        public int ReloadIntervalMsecs;
+        public int MaxAcmeCerts;
 
         public bool UseAcme;
         public string AcmeContactEmail;
@@ -185,10 +202,10 @@ namespace IPA.Cores.Basic
         {
             this.UseAcme = true;
             this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
-            this.ReloadInterval = CoresConfig.CertVaultSettings.DefaultReloadInterval;
-            this.AcmeStartUpdateRemainingDays = CoresConfig.CertVaultSettings.DefaultAcmeStartUpdateRemainingDays;
+            this.ReloadIntervalMsecs = CoresConfig.CertVaultSettings.DefaultReloadInterval;
             this.AcmeContactEmail = GenDefaultContactEmail();
             this.AcmeEnableFqdnIpCheck = true;
+            this.MaxAcmeCerts = CoresConfig.CertVaultSettings.DefaultMaxAcmeCerts;
 
             Normalize();
         }
@@ -206,9 +223,9 @@ namespace IPA.Cores.Basic
         {
             if (Str.CheckMailAddress(this.AcmeContactEmail) == false) this.AcmeContactEmail = GenDefaultContactEmail();
             if (this.AcmeServiceDirectoryUrl._IsEmpty()) this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
-            this.ReloadInterval = Math.Max(this.ReloadInterval, 1000);
-            this.AcmeStartUpdateRemainingDays = Math.Max(this.AcmeStartUpdateRemainingDays, 0);
-            if (AcmeAllowedFqdnList == null) AcmeAllowedFqdnList = new string[0];
+            this.ReloadIntervalMsecs = Math.Max(this.ReloadIntervalMsecs, 1000);
+            if (AcmeAllowedFqdnList == null) AcmeAllowedFqdnList = new string[1] { "*" };
+            if (this.MaxAcmeCerts <= 0) this.MaxAcmeCerts = CoresConfig.CertVaultSettings.DefaultMaxAcmeCerts;
         }
     }
 
@@ -241,11 +258,22 @@ namespace IPA.Cores.Basic
 
         readonly CertVaultSettings DefaultSettings;
 
-        public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, bool isGlobalVault = false)
+        readonly CertificateStore DefaultCertificate;
+
+        public TcpIpSystem TcpIp { get; }
+
+        readonly SyncCache<HashSet<string>> AcmeExpiresUpdateFailedList = new SyncCache<HashSet<string>>(CoresConfig.CertVaultSettings.AcmeRenewSuppressIntervalAfterLastError,
+            CacheFlags.IgnoreUpdateError, () => new HashSet<string>(StrComparer.IgnoreCaseComparer));
+
+        public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, CertificateStore defaultCertificate = null, TcpIpSystem tcpIp = null, bool isGlobalVault = false)
         {
             try
             {
-                this.IsGlobalCertVault = IsGlobalCertVault;
+                this.DefaultCertificate = defaultCertificate;
+
+                this.TcpIp = tcpIp ?? LocalNet;
+
+                this.IsGlobalCertVault = isGlobalVault;
 
                 if (defaultSettings == null) defaultSettings = new CertVaultSettings(EnsureSpecial.Yes);
 
@@ -294,26 +322,50 @@ namespace IPA.Cores.Basic
         {
             while (cancel.IsCancellationRequested == false)
             {
-                Dbg.Where(this.Settings.ReloadInterval);
                 try
                 {
                     Reload();
 
-                    IsAcmeCertUpdated = false;
+                    if (this.Settings.UseAcme)
+                    {
+                        IsAcmeCertUpdated = false;
 
-                    try
-                    {
-                        await ProcessEnqueuedAcmeHostnameAsync(cancel);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                        // Process newly requested ACME certs
+                        try
+                        {
+                            if (this.InternalCertList.Where(x => x.CertType == CertVaultCertType.Acme).Count() < this.Settings.MaxAcmeCerts)
+                            {
+                                await ProcessEnqueuedAcmeHostnameAsync(cancel);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
 
-                    if (IsAcmeCertUpdated)
-                    {
-                        // ACME certificate is added. Reload
-                        Reload();
+                        if (IsAcmeCertUpdated)
+                        {
+                            // ACME certificate is added. Reload
+                            Reload();
+                            IsAcmeCertUpdated = false;
+                        }
+
+                        // Process expiring or expires ACME certs
+                        try
+                        {
+                            await ProcessExpiringOrExpiresAcmeCertsAsync(cancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+
+                        if (IsAcmeCertUpdated)
+                        {
+                            // ACME certificate is added. Reload
+                            Reload();
+                            IsAcmeCertUpdated = false;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -321,8 +373,68 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
 
-                await TaskUtil.AwaitWithPollAsync(this.Settings.ReloadInterval, CoresConfig.CertVaultSettings.UpdateIntervalForAcmeQueueCheck, () => this.AcmeQueueUpdatedFlag, cancel);
+                await TaskUtil.AwaitWithPollAsync(this.Settings.ReloadIntervalMsecs, CoresConfig.CertVaultSettings.UpdateIntervalForAcmeQueueCheck, () => this.AcmeQueueUpdatedFlag, cancel);
                 this.AcmeQueueUpdatedFlag = false;
+            }
+        }
+
+        async Task ProcessExpiringOrExpiresAcmeCertsAsync(CancellationToken cancel)
+        {
+            List<CertVaultCertificate> list = this.InternalCertList;
+
+            AcmeClient client = null;
+            AcmeAccount account = null;
+
+            try
+            {
+                foreach (CertVaultCertificate cert in list)
+                {
+                    if (cert.CertType == CertVaultCertType.Acme)
+                    {
+                        if (cert.Store != null)
+                        {
+                            string certHostName = cert.DirName.GetThisDirectoryName();
+
+                            if (AcmeExpiresUpdateFailedList.Get().Contains(certHostName) == false)
+                            {
+                                try
+                                {
+                                    var certData = cert.Store.PrimaryContainer.CertificateList[0].CertData;
+
+                                    if (IsCertificateDateTimeToUpdate(certData.NotBefore, certData.NotAfter))
+                                    {
+                                        if (account == null)
+                                        {
+                                            client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl, this.TcpIp));
+                                            account = await client.LoginAccountAsync(this.AcmeAccountKey, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
+                                        }
+
+                                        try
+                                        {
+                                            await ProcessAcmeFqdnAsync(account, certHostName, cancel);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            AcmeExpiresUpdateFailedList.Get().Add(certHostName);
+                                            ex._Debug();
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Debug();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (client != null)
+                {
+                    client._DisposeSafe();
+                }
             }
         }
 
@@ -354,7 +466,7 @@ namespace IPA.Cores.Basic
                 AcmeQueue = new List<string>();
             }
 
-            using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl)))
+            using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl, this.TcpIp)))
             {
                 AcmeAccount account = await client.LoginAccountAsync(this.AcmeAccountKey, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
 
@@ -362,26 +474,43 @@ namespace IPA.Cores.Basic
                 {
                     if (CheckFqdnAllowedForAcme(fqdn))
                     {
-                        await ProcessAcmeFqdnAsync(account, fqdn, cancel);
+                        if (this.Settings.AcmeEnableFqdnIpCheck == false || (await CheckFqdnHasIpAddressOfThisLocalHostAsync(fqdn, cancel)))
+                        {
+                            await ProcessAcmeFqdnAsync(account, fqdn, cancel);
+                        }
                     }
                 }
             }
         }
 
-        bool IsCertificateDateTimeToUpdate(DateTime utc)
+        async Task<bool> CheckFqdnHasIpAddressOfThisLocalHostAsync(string fqdn, CancellationToken cancel)
         {
-            DateTime now = DateTime.UtcNow;
+            cancel.ThrowIfCancellationRequested();
+            DnsResponse dnsResults = await TaskUtil.RetryAsync((c) => this.TcpIp.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, DnsQueryOptions.Default, CoresConfig.CertVaultSettings.DnsTimeout), c),
+                retryInterval: CoresConfig.CertVaultSettings.DnsTryInterval, tryCount: CoresConfig.CertVaultSettings.DnsTryCount);
 
-            if (utc < now) return true;
+            Con.WriteLine(dnsResults.IPAddressList.Select(x => x.ToString())._Combine(","));
 
-            TimeSpan ts = utc - now;
+            HashSet<IPAddress> globalIpList = await this.TcpIp.GetLocalHostPossibleIpAddressListAsync(cancel);
 
-            if (ts.TotalDays <= this.Settings.AcmeStartUpdateRemainingDays)
+            foreach (IPAddress ip in dnsResults.IPAddressList)
             {
-                return true;
+                if (globalIpList.Contains(ip))
+                {
+                    return true;
+                }
             }
 
             return false;
+        }
+
+        bool IsCertificateDateTimeToUpdate(DateTime notBefore, DateTime notAfter)
+        {
+            DateTime now = DateTime.UtcNow;
+
+            DateTime middle = new DateTime((notBefore.Ticks + notAfter.Ticks) / 2);
+
+            return (middle < now);
         }
 
         async Task ProcessAcmeFqdnAsync(AcmeAccount account, string fqdn, CancellationToken cancel)
@@ -402,7 +531,7 @@ namespace IPA.Cores.Basic
                 catch { }
             }
 
-            if (currentCert == null || IsCertificateDateTimeToUpdate(currentCert.CertData.NotAfter))
+            if (currentCert == null || IsCertificateDateTimeToUpdate(currentCert.CertData.NotBefore, currentCert.CertData.NotAfter))
             {
                 await AcmeIssueAsync(account, fqdn, crtFileName, cancel);
             }
@@ -482,10 +611,17 @@ namespace IPA.Cores.Basic
                 data => new CertificateStore(data.Span),
                 () =>
                 {
-                    PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
-                    Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
-                    CertificateStore store = new CertificateStore(cert, key);
-                    return store.ExportPkcs12();
+                    if (this.DefaultCertificate != null)
+                    {
+                        return this.DefaultCertificate.ExportPkcs12();
+                    }
+                    else
+                    {
+                        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
+                        Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
+                        CertificateStore store = new CertificateStore(cert, key);
+                        return store.ExportPkcs12();
+                    }
                 });
 
 
@@ -529,7 +665,10 @@ namespace IPA.Cores.Basic
 
                 if (cert.Store != null)
                 {
-                    list.Add(cert);
+                    if (type != CertVaultCertType.Acme || cert.Store.PrimaryContainer.CertificateList[0].CertData.NotAfter >= DateTime.UtcNow)
+                    {
+                        list.Add(cert);
+                    }
                 }
             }
             catch (Exception ex)
@@ -589,13 +728,16 @@ namespace IPA.Cores.Basic
                     // Add the request hostname to the ACME queue
                     if (AcmeQueue.Count < CoresConfig.CertVaultSettings.MaxAcmeQueueLen)
                     {
-                        lock (this.AcmeQueueLockObj)
+                        if (list.Where(x => x.CertType == CertVaultCertType.Acme).Count() < this.Settings.MaxAcmeCerts)
                         {
-                            if (AcmeQueue.Contains(hostname) == false)
+                            lock (this.AcmeQueueLockObj)
                             {
-                                AcmeQueue.Add(hostname);
+                                if (AcmeQueue.Contains(hostname) == false)
+                                {
+                                    AcmeQueue.Add(hostname);
 
-                                this.AcmeQueueUpdatedFlag = true;
+                                    this.AcmeQueueUpdatedFlag = true;
+                                }
                             }
                         }
                     }
@@ -664,7 +806,7 @@ namespace IPA.Cores.Basic
             });
         }
 
-        public static CertVault GetCertVault() => Singleton;
+        public static CertVault GetGlobalCertVault() => Singleton;
 
         public static void SetAcmeAccountForChallengeResponse(AcmeAccount account)
         {
