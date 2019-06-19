@@ -159,7 +159,7 @@ namespace IPA.TestDev
             //return;
             //Test_Generic();
 
-            //Test_RSA_Cert();
+            Test_RSA_Cert();
 
             //Test_ECDSA_Cert();
 
@@ -171,7 +171,9 @@ namespace IPA.TestDev
 
             //Test_PersistentCache();
 
-            Test_Vault();
+            //Test_Vault();
+
+            //Test_Vault_With_Kestrel();
 
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
         }
@@ -200,6 +202,20 @@ namespace IPA.TestDev
             }
             else
             {
+            }
+        }
+
+        static void Test_Vault_With_Kestrel()
+        {
+            var httpServerOpt = new HttpServerOptions
+            {
+                HttpPortsList = 80._SingleList(),
+                HttpsPortsList = 443._SingleList(),
+            };
+
+            using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))
+            {
+                Con.ReadLine("quit>");
             }
         }
 

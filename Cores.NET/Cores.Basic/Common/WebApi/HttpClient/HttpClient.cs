@@ -20861,7 +20861,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                     case HttpConnectionKind.Https:
                     case HttpConnectionKind.ProxyConnect:
                         {
-                            ValueTuple<Socket, Stream> valueTuple = await ConnectHelper.ConnectAsync(this.Settings._tcpIpSystem, this._host, this._port, cancellationToken).ConfigureAwait(false);
+                            ValueTuple<Socket, Stream> valueTuple = await ConnectHelper.ConnectAsync(this.Settings._tcpIp, this._host, this._port, cancellationToken).ConfigureAwait(false);
                             ValueTuple<Socket, Stream> valueTuple2 = valueTuple;
                             socket = valueTuple2.Item1;
                             stream = valueTuple2.Item2;
@@ -20869,7 +20869,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                         }
                     case HttpConnectionKind.Proxy:
                         {
-                            ValueTuple<Socket, Stream> valueTuple3 = await ConnectHelper.ConnectAsync(this.Settings._tcpIpSystem, this._proxyUri.IdnHost, this._proxyUri.Port, cancellationToken).ConfigureAwait(false);
+                            ValueTuple<Socket, Stream> valueTuple3 = await ConnectHelper.ConnectAsync(this.Settings._tcpIp, this._proxyUri.IdnHost, this._proxyUri.Port, cancellationToken).ConfigureAwait(false);
                             socket = valueTuple3.Item1;
                             stream = valueTuple3.Item2;
                             break;
@@ -21774,7 +21774,7 @@ namespace IPA.Cores.Basic.HttpClientCore
             httpConnectionSettings._sslOptions = ((sslOptions != null) ? sslOptions._ShallowClone() : null);
             httpConnectionSettings._useCookies = this._useCookies;
             httpConnectionSettings._useProxy = this._useProxy;
-            httpConnectionSettings._tcpIpSystem = this._tcpIpSystem;
+            httpConnectionSettings._tcpIp = this._tcpIp;
             return httpConnectionSettings;
         }
 
@@ -21838,7 +21838,7 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x0400046C RID: 1132
         internal IDictionary<string, object> _properties;
 
-        internal TcpIpSystem _tcpIpSystem = null;
+        internal TcpIpSystem _tcpIp = null;
     }
 
 
@@ -26188,14 +26188,14 @@ namespace IPA.Cores.Basic.HttpClientCore
     // Token: 0x020000F9 RID: 249
     sealed class SocketsHttpHandler : HttpMessageHandler
     {
-        readonly TcpIpSystem TcpIpSystem;
+        readonly TcpIpSystem TcpIp;
 
-        public SocketsHttpHandler(TcpIpSystem tcpIpSystem)
+        public SocketsHttpHandler(TcpIpSystem tcpIp)
         {
-            TcpIpSystem = tcpIpSystem;
+            TcpIp = tcpIp;
 
             this._settings = new HttpConnectionSettings();
-            this._settings._tcpIpSystem = this.TcpIpSystem;
+            this._settings._tcpIp = this.TcpIp;
         }
 
         // Token: 0x06000584 RID: 1412 RVA: 0x0004B9B9 File Offset: 0x0002B9B9

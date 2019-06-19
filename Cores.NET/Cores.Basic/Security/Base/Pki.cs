@@ -146,6 +146,8 @@ namespace IPA.Cores.Basic
         public CertificateStore(IEnumerable<Certificate> chainedCertList, PrivKey privateKey)
         {
             this.InternalContainers.Add("default", new CertificateStoreContainer("default", chainedCertList.ToArray(), privateKey));
+
+            InitFields();
         }
 
         public CertificateStore(Certificate singleCert, PrivKey privateKey)
@@ -219,7 +221,41 @@ namespace IPA.Cores.Basic
                     throw new ApplicationException("There are no certificate aliases in the PKCS#12 file.");
                 }
             }
+
+            InitFields();
         }
+
+        Singleton<PalX509Certificate> X509CertificateSingleton;
+
+        public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
+        public string DigestSHA1Str { get; private set; }
+
+        void InitFields()
+        {
+            X509CertificateSingleton = new Singleton<PalX509Certificate>(GetX509CertificateInternal);
+
+            if (this.Containers.Count == 1 && this.PrimaryContainer.CertificateList.Count >= 1)
+            {
+                Certificate cert = this.PrimaryContainer.CertificateList[0];
+
+                if (cert != null)
+                {
+                    this.DigestSHA1Data = cert.DigestSHA1Data;
+                    this.DigestSHA1Str = cert.DigestSHA1Str;
+                }
+            }
+        }
+
+        PalX509Certificate GetX509CertificateInternal()
+        {
+            PalX509Certificate x509 = new PalX509Certificate(this.ExportPkcs12().Span);
+
+            return x509;
+        }
+
+        public PalX509Certificate GetX509Certificate() => X509CertificateSingleton;
+
+        public PalX509Certificate X509Certificate => GetX509Certificate();
 
         public Pkcs12Store ToPkcs12Store()
         {
@@ -594,6 +630,9 @@ namespace IPA.Cores.Basic
 
         public PubKey PublicKey { get; private set; }
 
+        public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
+        public string DigestSHA1Str { get; private set; }
+
         public IList<CertificateHostName> HostNameList => HostNameListInternal;
 
         List<CertificateHostName> HostNameListInternal = new List<CertificateHostName>();
@@ -709,6 +748,10 @@ namespace IPA.Cores.Basic
             {
                 HostNameListInternal.Add(new CertificateHostName(fqdn));
             }
+
+            byte[] der = this.CertData.GetEncoded();
+            this.DigestSHA1Data = Secure.HashSHA1(der);
+            this.DigestSHA1Str = this.DigestSHA1Data._GetHexString();
         }
 
         public bool IsMatchForHost(string hostname, out CertificateHostnameType matchType)

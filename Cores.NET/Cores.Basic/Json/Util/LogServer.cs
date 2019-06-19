@@ -75,8 +75,8 @@ namespace IPA.Cores.Basic
     {
         public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
 
-        public LogServerOptionsBase(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIpSystem, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogProtocolSettings.DefaultPort))
+        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
+            : base(tcpIp, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogProtocolSettings.DefaultPort))
         {
         }
     }
@@ -217,8 +217,8 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIpSystem, sslAuthOptions, endPoints)
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
+            : base(tcpIp, sslAuthOptions, endPoints)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 

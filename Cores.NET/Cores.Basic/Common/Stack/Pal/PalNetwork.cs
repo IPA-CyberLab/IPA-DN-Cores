@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    partial class PalX509Certificate
+    class PalX509Certificate
     {
         public X509Certificate NativeCertificate { get; }
 

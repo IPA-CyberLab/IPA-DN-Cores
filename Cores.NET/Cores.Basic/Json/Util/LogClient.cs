@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
     {
         public string ServerHostname { get; }
         public int ServerPort { get; }
-        public TcpIpSystem TcpIpSystem { get; }
+        public TcpIpSystem TcpIp { get; }
         public PalSslClientAuthenticationOptions SslAuthOptions { get; }
 
         public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.LogProtocolSettings.DefaultSendKeepAliveInterval.Value;
@@ -74,11 +74,11 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMin.Value;
         public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMax.Value;
 
-        public LogClientOptions(TcpIpSystem tcpIpSystem, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = CoresConfig.LogProtocolSettings.DefaultPort)
+        public LogClientOptions(TcpIpSystem tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = CoresConfig.LogProtocolSettings.DefaultPort)
         {
             this.ServerHostname = serverHostname._NonNullTrim();
             this.ServerPort = serverPort;
-            this.TcpIpSystem = tcpIpSystem ?? LocalNet;
+            this.TcpIp = tcpIp ?? LocalNet;
             this.SslAuthOptions = sslAuthOptions;
 
             if (this.SslAuthOptions.TargetHost._IsEmpty())
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
         async Task ConnectAndSendAsync(PipeStream reader, CancellationToken cancel)
         {
-            using (ConnSock sock = await Options.TcpIpSystem.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
+            using (ConnSock sock = await Options.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
             {
                 using (SslSock ssl = new SslSock(sock))
                 {

@@ -190,14 +190,14 @@ namespace IPA.Cores.ClientApi.Acme
     class AcmeClientOptions
     {
         public string DirectoryUrl { get; }
-        public TcpIpSystem TcpIpSystem { get; }
+        public TcpIpSystem TcpIp { get; }
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
         public AcmeClientOptions(string directoryUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging, TcpIpSystem tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
-            this.TcpIpSystem = tcpIp ?? LocalNet;
+            this.TcpIp = tcpIp ?? LocalNet;
 
             DirectoryWebContentsCache = new PersistentLocalCache<AcmeEntryPoints>($"acme/directory_{PathParser.Windows.MakeSafeFileName(this.DirectoryUrl)}",
                 CoresConfig.AcmeClientSettings.AcmeDirectoryCacheLifeTime,
@@ -548,7 +548,7 @@ namespace IPA.Cores.ClientApi.Acme
         {
             this.Options = options;
 
-            this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout, AllowAutoRedirect = false, }, Options.TcpIpSystem));
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings() { SslAcceptAnyCerts = true, Timeout = CoresConfig.AcmeClientSettings.ShortTimeout, AllowAutoRedirect = false, }, Options.TcpIp));
             this.Web.AddHeader("User-Agent", "AcmeClient/1.0");
         }
 

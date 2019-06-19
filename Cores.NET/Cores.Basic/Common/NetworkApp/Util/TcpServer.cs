@@ -50,11 +50,11 @@ namespace IPA.Cores.Basic
     class TcpServerOptions
     {
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
-        public TcpIpSystem TcpIpSystem { get; }
+        public TcpIpSystem TcpIp { get; }
 
-        public TcpServerOptions(TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
+        public TcpServerOptions(TcpIpSystem tcpIp, params IPEndPoint[] endPoints)
         {
-            this.TcpIpSystem = tcpIpSystem ?? LocalNet;
+            this.TcpIp = tcpIp ?? LocalNet;
             this.EndPoints = endPoints.ToList();
         }
     }
@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
-                Listener = this.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
+                Listener = this.Options.TcpIp.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
             }
             catch
             {
@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
 
-        public SslServerOptions(TcpIpSystem tcpIpSystem, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIpSystem, endPoints)
+        public SslServerOptions(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIp, endPoints)
         {
             this.SslServerAuthenticationOptions = sslAuthOptions;
         }

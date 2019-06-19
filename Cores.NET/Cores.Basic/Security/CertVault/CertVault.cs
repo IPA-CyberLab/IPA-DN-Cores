@@ -46,6 +46,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.ClientApi.Acme;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Security.Cryptography.X509Certificates;
 
 namespace IPA.Cores.Basic
 {
@@ -66,6 +67,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DnsTimeout = 5 * 1000;
             public static readonly Copenhagen<int> DnsTryCount = 3;
             public static readonly Copenhagen<int> DnsTryInterval = 250;
+
+            public static readonly Copenhagen<int> CertificateSelectorCacheLifetime = 1 * 1000;
 
             public static readonly Copenhagen<string> DefaultAcmeContactEmail = "coreslib.acme.default+changeme.__RAND__@gmail.com";
         }
@@ -265,6 +268,8 @@ namespace IPA.Cores.Basic
         readonly SyncCache<HashSet<string>> AcmeExpiresUpdateFailedList = new SyncCache<HashSet<string>>(CoresConfig.CertVaultSettings.AcmeRenewSuppressIntervalAfterLastError,
             CacheFlags.IgnoreUpdateError, () => new HashSet<string>(StrComparer.IgnoreCaseComparer));
 
+        readonly SyncCache<string, CertificateStore> CertificateSelectorCache;
+
         public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, CertificateStore defaultCertificate = null, TcpIpSystem tcpIp = null, bool isGlobalVault = false)
         {
             try
@@ -289,6 +294,8 @@ namespace IPA.Cores.Basic
 
                 this.AcmeAccountKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeAccountKey);
                 this.AcmeCertKeyFilePath = this.AcmeDir.Combine(Consts.FileNames.CertVault_AcmeCertKey);
+
+                this.CertificateSelectorCache = new SyncCache<string, CertificateStore>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime, CacheFlags.IgnoreUpdateError, hostname => this.SelectBestFitCertificate(hostname, out _));
 
                 Reload();
 
@@ -745,6 +752,29 @@ namespace IPA.Cores.Basic
             }
 
             return selected.VaultCert.Store;
+        }
+
+        public CertificateStore CertificateStoreSelector(string sniHostname)
+        {
+            return CertificateSelectorCache[sniHostname];
+        }
+
+        readonly SyncCache<string, PalX509Certificate> X509CertificateCache = new SyncCache<string, PalX509Certificate>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime);
+
+        public PalX509Certificate X509CertificateSelector(string sniHostname)
+        {
+            CertificateStore store = CertificateStoreSelector(sniHostname);
+
+            string sha1 = store.DigestSHA1Str;
+
+            PalX509Certificate ret = X509CertificateCache[sha1];
+            if (ret == null)
+            {
+                ret = store.GetX509Certificate();
+                X509CertificateCache[sha1] = ret;
+            }
+
+            return ret;
         }
 
         protected override void CancelImpl(Exception ex)

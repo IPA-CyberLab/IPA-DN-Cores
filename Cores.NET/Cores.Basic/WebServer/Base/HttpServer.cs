@@ -114,13 +114,20 @@ namespace IPA.Cores.Basic
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
 
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+        public bool UseGlobalCertVault { get; set; } = true;
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
         [JsonIgnore]
         public bool HasHttpPort80 => this.HttpPortsList.Select(x => x == 80).Any();
 
         [JsonIgnore]
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
+
         [JsonIgnore]
-        public TcpIpSystem TcpIpSystem { get; set; } = LocalNet;
+        public TcpIpSystem TcpIp { get; set; } = LocalNet;
 
         public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup: class
         {
@@ -150,6 +157,8 @@ namespace IPA.Cores.Basic
 
         public void ConfigureKestrelServerOptions(KestrelServerOptions opt, object sslCertSelectorParam)
         {
+            KestrelServerWithStackOptions withStackOpt = opt as KestrelServerWithStackOptions;
+
             if (this.LocalHostOnly)
             {
                 foreach (int port in this.HttpPortsList) opt.ListenLocalhost(port);
@@ -166,15 +175,42 @@ namespace IPA.Cores.Basic
                 foreach (int port in this.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
             }
 
+            if (withStackOpt != null)
+            {
+                withStackOpt.TcpIp = this.TcpIp;
+            }
+
             void EnableHttps(ListenOptions listenOptions)
             {
                 listenOptions.UseHttps(httpsOptions =>
                 {
                     httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                    if (this.ServerCertSelector != null)
+
+                    bool useGlobalCertVault = false;
+
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+                    useGlobalCertVault = this.UseGlobalCertVault;
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
+                    if (useGlobalCertVault == false)
                     {
-                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => this.ServerCertSelector(sslCertSelectorParam, sni));
+                        if (this.ServerCertSelector != null)
+                        {
+                            httpsOptions.ServerCertificateSelector = ((ctx, sni) => this.ServerCertSelector(sslCertSelectorParam, sni));
+                        }
                     }
+
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+                    if (useGlobalCertVault)
+                    {
+                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni).NativeCertificate);
+                    }
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
                 });
             }
         }

@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
             if (Listener != null)
                 throw new ApplicationException("Listener is already bound.");
 
-            this.Listener = this.Server.Options.TcpIpSystem.CreateListener(new TcpListenParam(ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint.Port));
+            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint.Port));
 
             return Task.CompletedTask;
         }
@@ -275,7 +275,7 @@ namespace IPA.Cores.Basic
 
     class KestrelServerWithStackOptions : KestrelServerOptions
     {
-        public TcpIpSystem TcpIpSystem = LocalNet;
+        public TcpIpSystem TcpIp = LocalNet;
     }
 
     class KestrelServerWithStack : KestrelServer

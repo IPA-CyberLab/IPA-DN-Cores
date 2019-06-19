@@ -232,15 +232,15 @@ namespace IPA.Cores.Basic
     class WebApiOptions
     {
         public WebApiSettings Settings { get; }
-        public TcpIpSystem TcpIpSystem { get; }
+        public TcpIpSystem TcpIp { get; }
 
-        public WebApiOptions(WebApiSettings settings = null, TcpIpSystem tcpIpSystem = null)
+        public WebApiOptions(WebApiSettings settings = null, TcpIpSystem tcpIp = null)
         {
             if (settings == null) settings = new WebApiSettings();
-            if (tcpIpSystem == null) tcpIpSystem = LocalNet;
+            if (tcpIp == null) tcpIp = LocalNet;
 
             this.Settings = settings;
-            this.TcpIpSystem = tcpIpSystem;
+            this.TcpIp = tcpIp;
         }
     }
 
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
 
             this.Settings = options.Settings._CloneDeep();
 
-            this.ClientHandler = new SocketsHttpHandler(options.TcpIpSystem);
+            this.ClientHandler = new SocketsHttpHandler(options.TcpIp);
 
             this.ClientHandler.AllowAutoRedirect = this.Settings.AllowAutoRedirect;
             this.ClientHandler.MaxAutomaticRedirections = this.Settings.MaxAutomaticRedirections;

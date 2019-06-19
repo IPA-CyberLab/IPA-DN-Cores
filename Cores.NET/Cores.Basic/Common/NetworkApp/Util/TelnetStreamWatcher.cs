@@ -49,18 +49,18 @@ namespace IPA.Cores.Basic
 {
     class TelnetStreamWatcherOptions
     {
-        public TcpIpSystem TcpIpSystem { get; }
+        public TcpIpSystem TcpIp { get; }
         public Func<IPAddress, bool> IPAccessFilter { get; }
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
 
-        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem tcpIpSystem, params IPEndPoint[] endPoints)
+        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem tcpIp, params IPEndPoint[] endPoints)
         {
             if (ipAccessFilter == null) ipAccessFilter = new Func<IPAddress, bool>((address) => true);
-            if (tcpIpSystem == null) tcpIpSystem = LocalNet;
+            if (tcpIp == null) tcpIp = LocalNet;
 
             this.IPAccessFilter = ipAccessFilter;
             this.EndPoints = endPoints.ToList();
-            this.TcpIpSystem = tcpIpSystem;
+            this.TcpIp = tcpIp;
         }
     }
 
@@ -70,7 +70,7 @@ namespace IPA.Cores.Basic
 
         readonly NetTcpListener Listener;
 
-        TcpIpSystem Net => Options.TcpIpSystem;
+        TcpIpSystem TcpIp => Options.TcpIp;
 
         protected abstract Task<PipePoint> SubscribeImplAsync();
         protected abstract Task UnsubscribeImplAsync(PipePoint pipe);
@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
         {
             this.Options = options;
 
-            Listener = Net.CreateListener(new TcpListenParam(async (listener, sock) =>
+            Listener = TcpIp.CreateListener(new TcpListenParam(async (listener, sock) =>
             {
                 try
                 {
