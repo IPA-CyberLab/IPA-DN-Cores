@@ -7,16 +7,21 @@ namespace DepTest.Common
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            int ret = -1;
+
+            CoresLib.Init(new CoresLibOptions(CoresMode.Application, "DepTest", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
             try
             {
-                Con.WriteLine("Hello Neko!");
+                Con.WriteLine("Hello World !");
             }
             finally
             {
-                LeakChecker.Print();
+                CoresLib.Free();
             }
+
+            return ret;
         }
     }
 }

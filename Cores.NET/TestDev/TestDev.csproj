@@ -37,6 +37,7 @@
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
+    <PackageReference Include="System.IO.Pipelines" Version="4.5.3" />
 
     <!-- Cores.Basic.Daemon -->
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />

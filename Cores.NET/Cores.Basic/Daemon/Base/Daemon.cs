@@ -56,15 +56,6 @@ namespace IPA.Cores.Helper.Basic
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
-    {
-        public static partial class DaemonSettings
-        {
-            public static readonly Copenhagen<int> DefaultStopTimeout = 60 * 1000;
-            public static readonly Copenhagen<int> StartExecTimeout = 15 * 1000;
-        }
-    }
-
     abstract class Daemon
     {
         public DaemonOptions Options { get; }
