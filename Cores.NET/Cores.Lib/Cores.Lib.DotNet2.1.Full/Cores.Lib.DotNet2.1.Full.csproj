@@ -4,18 +4,20 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>7.3</LangVersion>
-    <PackageId>TestDev</PackageId>
-    <Authors>TestDev</Authors>
+    <PackageId>Cores.Lib.DotNet2.1.Full</PackageId>
+    <Authors>IPA-CyberLab</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBSERVER;</DefineConstants>
   </PropertyGroup>
   
   <ItemGroup>
@@ -24,44 +26,32 @@
     <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
 
-    <!-- Cores.Basic.Config -->
-    <PackageReference Include="YamlDotNet" Version="6.0.0" />
+    <!-- Cores.Basic.Daemon -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />
 
     <!-- Cores.Basic.Database -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.8" />
-    <PackageReference Include="Dapper" Version="1.60.1" />
-    <PackageReference Include="Dapper.Contrib" Version="1.60.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper.Contrib" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 
-    <!-- Cores.Basic.Html -->
-    <PackageReference Include="HtmlAgilityPack" Version="1.9.2" />
+    <!-- Cores.Basic.Git -->
+    <PackageReference Include="LibGit2Sharp" Version="0.26.0" Condition="$(DefineConstants.Contains('CORES_BASIC_GIT;'))" />
 
     <!-- Cores.Basic.Json -->
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
-    <PackageReference Include="Castle.Core" Version="4.3.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" Condition="$(DefineConstants.Contains('CORES_BASIC_JSON;'))" />
+    <PackageReference Include="Castle.Core" Version="4.3.1" Condition="$(DefineConstants.Contains('CORES_BASIC_JSON;'))" />
 
     <!-- Cores.Basic.Security -->
-    <PackageReference Include="BouncyCastle.NetCore" Version="1.8.3" />
+    <PackageReference Include="BouncyCastle.NetCore" Version="1.8.5" Condition="$(DefineConstants.Contains('CORES_BASIC_SECURITY;'))" />
 
     <!-- Cores.Basic.WebServer -->
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" />
-    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
 
   </ItemGroup>
 
-  <Import Project="..\..\Cores.Basic.Common\Cores.Basic.Common.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.Config\Cores.Basic.Config.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.Database\Cores.Basic.Database.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.Html\Cores.Basic.Html.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.Json\Cores.Basic.Json.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.Security\Cores.Basic.Security.projitems" Label="Shared" />
-
-  <Import Project="..\..\Cores.Basic.WebServer\Cores.Basic.WebServer.projitems" Label="Shared" />
+  <Import Project="..\..\Cores.Basic\Cores.Basic.projitems" Label="Shared" />
 
 </Project>

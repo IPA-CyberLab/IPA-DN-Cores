@@ -48,6 +48,8 @@ using static IPA.Cores.Globals.Basic;
 //using System.Net.Http.Headers;
 using IPA.Cores.Basic.HttpClientCore;
 
+#pragma warning disable CS0649
+
 namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper

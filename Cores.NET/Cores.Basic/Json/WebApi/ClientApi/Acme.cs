@@ -57,6 +57,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System.Security.Cryptography;
 
+#pragma warning disable CS0649
+
 namespace IPA.Cores.Basic
 {
     static partial class CoresConfig
