@@ -56,6 +56,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using Microsoft.AspNetCore.Routing;
+using IPA.Cores.ClientApi.Acme;
 
 namespace IPA.Cores.Basic
 {
@@ -83,7 +85,6 @@ namespace IPA.Cores.Basic
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
 
-
             Hive.LocalAppSettings["WebServer"].AccessData(true,
                 k =>
                 {
@@ -100,7 +101,55 @@ namespace IPA.Cores.Basic
         {
             app.UseStatusCodePages();
             app.UseWebServerLogger();
+
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+            if (this.ServerOptions.UseGlobalCertVault && this.ServerOptions.HasHttpPort80)
+            {
+                // Add the ACME HTTP-based challenge responder
+                RouteBuilder rb = new RouteBuilder(app);
+
+                rb.MapGet("/.well-known/acme-challenge/{token}", AcmeGetChallengeFileRequestHandler);
+
+                IRouter router = rb.Build();
+                app.UseRouter(router);
+            }
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
         }
+
+#if CORES_BASIC_JSON
+#if CORES_BASIC_SECURITY
+
+        public virtual async Task AcmeGetChallengeFileRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        {
+            try
+            {
+                AcmeAccount currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
+                string retStr;
+
+                if (currentAccount == null)
+                {
+                    retStr = "Error: GlobalCertVault.GetAcmeAccountForChallengeResponse() == null";
+                }
+                else
+                {
+                    string token = routeData.Values._GetStrOrEmpty("token");
+
+                    retStr = currentAccount.ProcessChallengeRequest(token);
+                }
+
+                await response._SendStringContents(retStr, "application/octet-stream");
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+                throw;
+            }
+        }
+#endif  // CORES_BASIC_JSON
+#endif  // CORES_BASIC_SECURITY;
+
     }
 
     abstract class HttpServerStartupBase
