@@ -1118,6 +1118,11 @@ namespace IPA.Cores.Basic
             {
                 if (Root.ContainsKey(keyName) == false)
                 {
+                    if (defaultValue != null)
+                    {
+                        SetObject(keyName, defaultValue); // Create the key with the default value
+                    }
+
                     return defaultValue;
                 }
                 else
@@ -1157,7 +1162,10 @@ namespace IPA.Cores.Basic
         public T Get<T>(string keyName, T defaultValue = default)
         {
             object obj = GetObject(keyName, defaultValue);
-            if (obj == null) obj = defaultValue;
+            if (obj == null)
+            {
+                obj = defaultValue;
+            }
 
 #if CORES_BASIC_JSON
             if (obj is Newtonsoft.Json.Linq.JObject jobj)
@@ -1183,6 +1191,9 @@ namespace IPA.Cores.Basic
 
         public bool SetSInt64(string key, long value) => Set(key, value);
         public long GetSInt64(string key, long defaultValue = 0) => Get(key, defaultValue);
+
+        public bool SetBool(string key, bool value) => Set(key, value);
+        public bool GetBool(string key, bool defaultValue = false) => Get(key, defaultValue);
 
         public bool SetEnum<T>(string key, T value) where T : unmanaged, Enum => SetStr(key, value.ToString());
         public T GetEnum<T>(string key, T defaultValue = default) where T : unmanaged, Enum

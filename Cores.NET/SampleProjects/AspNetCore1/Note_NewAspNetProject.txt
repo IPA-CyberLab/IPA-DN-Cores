@@ -95,6 +95,27 @@ Helper.ConfigureServices(services);
 Configure() の一番上:
 Helper.Configure(app, env);
 
+Configure() の中の
+
+if (env.IsDevelopment())
+
+を
+
+if (Helper.IsDevelopmentMode)
+
+に変更。
+
+コメントアウト
+
+//services.Configure<CookiePolicyOptions>(options =>
+//{
+//    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
+//    options.CheckConsentNeeded = context => true;
+//    options.MinimumSameSitePolicy = SameSiteMode.None;
+//});
+
+//app.UseCookiePolicy();
+
 ---
 
 

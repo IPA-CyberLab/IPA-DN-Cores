@@ -71,6 +71,8 @@ namespace IPA.Cores.Basic
         public object Param { get; }
         public CancellationToken CancelToken { get; }
 
+        public bool IsDevelopmentMode { get; private set; }
+
         public HttpServerStartupHelper(IConfiguration configuration)
         {
             this.Configuration = configuration;
@@ -80,6 +82,13 @@ namespace IPA.Cores.Basic
 
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
+
+
+            Hive.LocalAppSettings["WebServer"].AccessData(true,
+                k =>
+                {
+                    this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
+                });
         }
 
         public virtual void ConfigureServices(IServiceCollection services)
