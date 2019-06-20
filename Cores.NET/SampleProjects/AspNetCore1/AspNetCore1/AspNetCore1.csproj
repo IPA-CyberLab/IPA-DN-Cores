@@ -5,8 +5,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Local\**" />
+    <Compile Remove="Log\**" />
+    <Content Remove="Local\**" />
+    <Content Remove="Log\**" />
+    <EmbeddedResource Remove="Local\**" />
+    <EmbeddedResource Remove="Log\**" />
+    <None Remove="Local\**" />
+    <None Remove="Log\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.DotNet2.1.Full\Cores.Lib.DotNet2.1.Full.csproj" />
   </ItemGroup>
 
 </Project>

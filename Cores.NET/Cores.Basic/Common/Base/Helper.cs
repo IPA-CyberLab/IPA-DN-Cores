@@ -868,6 +868,9 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
+        public static bool _IsEmpty(this string str) => Str.IsEmptyStr(str);
+        public static bool _IsFilled(this string str) => Str.IsFilledStr(str);
+
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
         public static T _FilledOrException<T>(this T obj, Exception exception = null, bool zeroValueIsEmpty = true)
         {

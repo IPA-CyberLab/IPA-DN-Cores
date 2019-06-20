@@ -4852,8 +4852,10 @@ namespace IPA.Cores.Basic
         public static bool IsEmptyStr(string s)
         {
             if (s == null) return true;
-            if (s.Length == 0) return true;
+            int strLen = s.Length;
+            if (strLen == 0) return true;
             if (Char.IsWhiteSpace(s[0]) == false) return false;
+            if (Char.IsWhiteSpace(s[strLen - 1]) == false) return false;
             return s.Trim().Length == 0;
         }
         public static bool IsFilledStr(string str)

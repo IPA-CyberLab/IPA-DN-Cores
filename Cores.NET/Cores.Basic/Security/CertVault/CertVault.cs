@@ -186,7 +186,7 @@ namespace IPA.Cores.Basic
 
     class CertVaultSettings : INormalizable, ICloneable
     {
-        const string AcmeDefaultUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging;
+        const string AcmeDefaultUrl = AcmeClientOptions.DefaultEntryPointUrl;
 
         public int ReloadIntervalMsecs;
         public int MaxAcmeCerts;

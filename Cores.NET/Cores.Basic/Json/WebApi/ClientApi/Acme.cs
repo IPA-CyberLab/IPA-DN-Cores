@@ -185,18 +185,20 @@ namespace IPA.Cores.ClientApi.Acme
 
     static class AcmeWellKnownServiceUrls
     {
-        public const string LetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory";
         public const string LetsEncryptProduction = "https://acme-v02.api.letsencrypt.org/directory";
+        public const string LetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory";
     }
 
     class AcmeClientOptions
     {
+        public const string DefaultEntryPointUrl = AcmeWellKnownServiceUrls.LetsEncryptProduction;
+
         public string DirectoryUrl { get; }
         public TcpIpSystem TcpIp { get; }
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
-        public AcmeClientOptions(string directoryUrl = AcmeWellKnownServiceUrls.LetsEncryptStaging, TcpIpSystem tcpIp = null)
+        public AcmeClientOptions(string directoryUrl = DefaultEntryPointUrl, TcpIpSystem tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
             this.TcpIp = tcpIp ?? LocalNet;

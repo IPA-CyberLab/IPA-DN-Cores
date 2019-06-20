@@ -66,7 +66,7 @@ namespace IPA.Cores.Basic
     abstract class HttpServerStartupBase
     {
         public IConfiguration Configuration { get; }
-        HttpServerOptions BuilderConfig;
+        HttpServerOptions ServerOptions;
         HttpServerStartupConfig StartupConfig;
         protected object Param;
         public CancellationToken CancelToken { get; }
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
             this.Param = GlobalObjectExchange.Withdraw(this.Configuration["coreutil_param_token"]);
             this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"]);
 
-            this.BuilderConfig = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
+            this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
         }
 
@@ -93,8 +93,8 @@ namespace IPA.Cores.Basic
         {
             ConfigureImpl(this.StartupConfig, app, env);
 
-            if (BuilderConfig.UseStaticFiles) app.UseStaticFiles();
-            if (BuilderConfig.ShowDetailError) app.UseDeveloperExceptionPage();
+            if (ServerOptions.UseStaticFiles) app.UseStaticFiles();
+            if (ServerOptions.ShowDetailError) app.UseDeveloperExceptionPage();
             app.UseStatusCodePages();
             app.UseWebServerLogger();
         }
@@ -113,10 +113,14 @@ namespace IPA.Cores.Basic
         public bool DebugKestrelToLog { get; set; } = true;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
+        public bool UseKestrelWithIPACoreStack { get; set; } = true;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
         public bool UseGlobalCertVault { get; set; } = true;
+
+        [JsonIgnore]
+        public CertificateStore GlobalCertVaultDefauleCert { get; set; } = null;
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
@@ -127,13 +131,22 @@ namespace IPA.Cores.Basic
         public CertSelectorCallback ServerCertSelector { get; set; } = null;
 
         [JsonIgnore]
-        public TcpIpSystem TcpIp { get; set; } = LocalNet;
+        public TcpIpSystem TcpIp { get; set; } = null;
 
         public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup: class
         {
-            return new WebHostBuilder()
-                .UseKestrelWithStack(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam))
-                //.UseKestrel(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam))
+            IWebHostBuilder baseWebHost = null;
+
+            if (this.UseKestrelWithIPACoreStack)
+            {
+                baseWebHost = new WebHostBuilder().UseKestrelWithStack(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam));
+            }
+            else
+            {
+                baseWebHost = new WebHostBuilder().UseKestrel(opt => ConfigureKestrelServerOptions(opt, sslCertSelectorParam));
+            }
+
+            return baseWebHost
                 .UseWebRoot(WwwRoot)
                 .UseContentRoot(ContentsRoot)
                 .ConfigureAppConfiguration((hostingContext, config) =>
@@ -178,7 +191,7 @@ namespace IPA.Cores.Basic
             if (withStackOpt != null)
             {
                 // Kestrel with Stack
-                withStackOpt.TcpIp = this.TcpIp;
+                withStackOpt.TcpIp = this.TcpIp ?? LocalNet;
             }
 
             void EnableHttps(ListenOptions listenOptions)
@@ -207,6 +220,11 @@ namespace IPA.Cores.Basic
 #if CORES_BASIC_SECURITY
                     if (useGlobalCertVault)
                     {
+                        if (this.GlobalCertVaultDefauleCert != null)
+                        {
+                            GlobalCertVault.SetDefaultCertificate(this.GlobalCertVaultDefauleCert);
+                        }
+
                         httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
                     }
 #endif  // CORES_BASIC_JSON

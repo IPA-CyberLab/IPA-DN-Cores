@@ -60,7 +60,10 @@ namespace IPA.Cores.Helper.Basic
             return (await h.Body._ReadToEndAsync(maxRequestBodyLen, cancel))._GetString_UTF8();
         }
     }
+}
 
+namespace IPA.Cores.Basic
+{
     static partial class StandardMainFunctions
     {
         public static class AspNet
