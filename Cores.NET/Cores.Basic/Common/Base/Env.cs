@@ -201,12 +201,12 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        tmp = Path.GetDirectoryName(tmp);
                         if (File.Exists(Path.Combine(tmp, "approot")) || File.Exists(Path.Combine(tmp, "appsettings.json")) || File.Exists(Path.Combine(tmp, "appsettings.Development.json")))
                         {
                             AppRootDir = tmp;
                             break;
                         }
+                        tmp = Path.GetDirectoryName(tmp);
                     }
                     catch
                     {
