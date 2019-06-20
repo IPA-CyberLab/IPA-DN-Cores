@@ -63,17 +63,15 @@ namespace IPA.Cores.Basic
     {
     }
 
-    abstract class HttpServerStartupBase
+    class HttpServerStartupHelper
     {
         public IConfiguration Configuration { get; }
-        HttpServerOptions ServerOptions;
-        HttpServerStartupConfig StartupConfig;
-        protected object Param;
+        public HttpServerOptions ServerOptions { get; }
+        public HttpServerStartupConfig StartupConfig { get; }
+        public object Param { get; }
         public CancellationToken CancelToken { get; }
 
-        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
-
-        public HttpServerStartupBase(IConfiguration configuration)
+        public HttpServerStartupHelper(IConfiguration configuration)
         {
             this.Configuration = configuration;
 
@@ -91,12 +89,40 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            ConfigureImpl(this.StartupConfig, app, env);
-
-            if (ServerOptions.UseStaticFiles) app.UseStaticFiles();
-            if (ServerOptions.ShowDetailError) app.UseDeveloperExceptionPage();
             app.UseStatusCodePages();
             app.UseWebServerLogger();
+        }
+    }
+
+    abstract class HttpServerStartupBase
+    {
+        public HttpServerStartupHelper Helper { get; }
+        public IConfiguration Configuration { get; }
+
+        public HttpServerOptions ServerOptions => Helper.ServerOptions;
+        public HttpServerStartupConfig StartupConfig => Helper.StartupConfig;
+        public object Param => Helper.Param;
+        public CancellationToken CancelToken => Helper.CancelToken;
+
+        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
+
+        public HttpServerStartupBase(IConfiguration configuration)
+        {
+            this.Configuration = configuration;
+
+            this.Helper = new HttpServerStartupHelper(configuration);
+        }
+
+        public virtual void ConfigureServices(IServiceCollection services)
+        {
+            Helper.ConfigureServices(services);
+        }
+
+        public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        {
+            ConfigureImpl(Helper.StartupConfig, app, env);
+
+            Helper.Configure(app, env);
         }
     }
 

@@ -73,6 +73,29 @@ Main の内容を以下のように変更
 最初から書いてある CreateWebHostBuilder(args).Build().Run(); および
 CreateWebHostBuilder() の実装はコメントアウトする。
 
+・ Startup.cs
+以下を追加
+---
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
+---
+
+Startup クラスに以下を追記
+
+---
+internal HttpServerStartupHelper Helper { get; }
+
+コンストラクタ:
+Helper = new HttpServerStartupHelper(configuration);
+
+ConfigureServices() の一番上:
+Helper.ConfigureServices(services);
+
+Configure() の一番上:
+Helper.Configure(app, env);
+
+---
 
 
 

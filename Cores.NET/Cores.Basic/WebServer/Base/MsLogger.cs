@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Security.Authentication;
 using System.Net;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Builder;
@@ -56,11 +57,16 @@ namespace IPA.Cores.Basic
     class MsLogger : ILogger, IDisposable
     {
         public MsLoggerProvider Provider { get; }
+        public string CategoryName { get; }
+        public string CategoryNameShort { get; }
+
         string CurrentTransactionId = null;
 
-        public MsLogger(MsLoggerProvider provider)
+        public MsLogger(MsLoggerProvider provider, string categoryName)
         {
             this.Provider = provider;
+            this.CategoryName = categoryName._NonNullTrim();
+            this.CategoryNameShort = this.CategoryName.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()._NonNullTrim();
         }
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
@@ -72,14 +78,25 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
+            if (exception != null)
+            {
+                msg += " Exception: " + exception.ToString();
+            }
+
             var obj = new MsLogData()
             {
+                Category = this.CategoryNameShort,
                 TranscationId = this.CurrentTransactionId,
                 EventId = eventId.Id,
                 Message = msg,
                 Data = state,
             };
             LocalLogRouter.PostAccessLog(obj, this.Provider.Tag);
+
+            if (exception != null)
+            {
+                Dbg.WriteLine($"{this.CategoryNameShort} Error: {msg}");
+            }
         }
 
         public bool IsEnabled(LogLevel logLevel) => true;
@@ -123,7 +140,7 @@ namespace IPA.Cores.Basic
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new MsLogger(this);
+            return new MsLogger(this, categoryName);
         }
 
         public void Dispose() { }

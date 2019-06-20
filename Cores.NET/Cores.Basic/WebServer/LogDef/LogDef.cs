@@ -54,6 +54,7 @@ namespace IPA.Cores.Basic
 
     class MsLogData
     {
+        public string Category;
         public string TranscationId;
         public int EventId;
         public string Message;
