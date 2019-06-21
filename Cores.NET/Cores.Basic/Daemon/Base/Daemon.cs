@@ -410,6 +410,7 @@ namespace IPA.Cores.Basic
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
                             RedirectStandardInput = false,
+                            CreateNoWindow = true,
                         };
 
                         try
@@ -495,7 +496,7 @@ namespace IPA.Cores.Basic
                                 else
                                 {
                                     // OK
-                                    Con.WriteLine($"The {daemon.ToString()} is started successfully.");
+                                    Con.WriteLine($"The {daemon.ToString()} is started successfully. pid = {p.Id}");
                                 }
 
                                 outputReaderTask._TryWait(true);
