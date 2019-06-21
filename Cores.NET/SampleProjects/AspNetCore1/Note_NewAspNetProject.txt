@@ -63,6 +63,21 @@ using System.Runtime.CompilerServices;
   </ItemGroup>
 ---
 
+・ Properties/launchSettings.json
+---
+{
+  "profiles": {
+    "AspNet": {
+      "commandName": "Project"
+    },
+    "AspNet /Test": {
+      "commandName": "Project",
+      "commandLineArgs": "Daemon test"
+    }
+  }
+}
+---
+
 ・ Program.cs
 
 以下を追加
