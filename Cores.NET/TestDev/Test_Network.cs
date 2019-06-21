@@ -109,7 +109,9 @@ namespace IPA.TestDev
 
             //Net_Test10_SslServer();
 
-            Net_Test11_AcceptLoop();
+            //Net_Test11_AcceptLoop();
+
+            Net_Test12_AcceptLoop2();
 
             return 0;
         }
@@ -307,6 +309,71 @@ namespace IPA.TestDev
             Con.WriteLine("Stopped.");
         }
 
+        static void Net_Test12_AcceptLoop2()
+        {
+
+            new ThreadObj(param =>
+            {
+                ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
+                int last = 0;
+                while (true)
+                {
+                    int value = Environment.TickCount;
+                    int span = value - last;
+                    last = value;
+                    long mem = mem = GC.GetTotalMemory(false);
+                    try
+                    {
+                        Console.WriteLine("tick: " + span + "   mem = " + mem / 1024 / 1024 + "    sock = " + LocalNet.GetOpenedSockCount());
+                    }
+                    catch { }
+                    ThreadObj.Sleep(100);
+                }
+            });
+
+            if (true)
+            {
+                var listener = LocalNet.CreateListener(new TcpListenParam(
+                        async (listener2, sock) =>
+                        {
+                            while (true)
+                            {
+                                var stream = sock.GetStream();
+                                StreamReader r = new StreamReader(stream);
+
+                                while (true)
+                                {
+                                    string line = await r.ReadLineAsync();
+
+                                    if (line._IsEmpty())
+                                    {
+                                        break;
+                                    }
+                                }
+                                int segmentSize = 400;
+                                int numSegments = 1000;
+                                int totalSize = segmentSize * numSegments;
+
+                                string ret =
+                                $@"HTTP/1.1 200 OK
+Content-Length: {totalSize}
+
+";
+
+                                await stream.WriteAsync(ret._GetBytes_Ascii());
+
+                                byte[] buf = Util.Rand(numSegments);
+                                for (int i = 0; i < numSegments; i++)
+                                {
+                                    await stream.WriteAsync(buf);
+                                }
+                            }
+                        },
+                        80));
+
+                ThreadObj.Sleep(-1);
+            }
+        }
 
         static bool test11_flag = false;
         static void Net_Test11_AcceptLoop()
