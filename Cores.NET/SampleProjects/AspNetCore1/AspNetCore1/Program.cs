@@ -16,9 +16,9 @@ namespace AspNetCore1
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
-            StandardMainFunctions.AspNet.DoMain<Startup>(new CoresLibOptions(CoresMode.Application, "AspNetCore1", DebugMode.Debug, false, false),
+            return StandardMainFunctions.AspNet.DoMain<Startup>(new CoresLibOptions(CoresMode.Application, "AspNetCore1", DebugMode.Debug, false, false),
                 new HttpServerOptions
                 {
                     HttpPortsList = 80._SingleList(),
