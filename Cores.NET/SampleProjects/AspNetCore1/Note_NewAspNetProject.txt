@@ -23,16 +23,7 @@ ASP.NET Core Web アプリケーション (C#) を追加する。
 
 ASP.NET プロジェクトから Cores.Lib.DotNet2.1.Full に依存設定をする。
 
-Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo」の「InternalsVisibleTo.txt」のメモを参考にして、「InternalsVisibleTo」ディレクトリに「InternalsVisibleTo.cs」ファイルを追加し、
-
----
-using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("AspNetCore1")]
-[assembly: InternalsVisibleTo("AspNetCore1.Views")]
----
-
-というような内容 (WebApplication25 は、ASP.NET Core のプロジェクト名に設定) を記述する。
+Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo.cs」ファイルを必要に応じて編集する。
 
 
 ■ Cores.Basic.shproj の追加

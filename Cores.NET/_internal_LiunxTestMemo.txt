@@ -10,6 +10,9 @@ git clone --recursive git@github.com:IPA-CyberLab/IPA-DN-Cores.git
 ■ 2 回目以降
 cd ~/IPA-DN-Cores/Cores.NET/TestDev/ && (cd ../../ && git submodule update --recursive --remote && git pull) && dotnet run
 
+■ どのディレクトリからでも呼べる更新コマンド
+(cd ~/IPA-DN-Cores/ && git submodule update --recursive --remote && git pull)
+
 
 ======== 簡易コピー ========
 cd ~/ && rm -fr ~/Copy-IPA-DN-Cores-Copy/
