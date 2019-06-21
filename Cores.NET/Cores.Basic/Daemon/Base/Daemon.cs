@@ -556,7 +556,7 @@ namespace IPA.Cores.Basic
                         if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name))
                         {
                             Con.WriteError($"The Windows service {daemon.ToString()} has already been installed.");
-                            return -1;
+                            return 1;
                         }
 
                         Con.WriteLine($"Installing the Windows service {daemon.ToString()} ...");
@@ -582,7 +582,7 @@ namespace IPA.Cores.Basic
                     if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
                     {
                         Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
-                        return -1;
+                        return 1;
                     }
 
                     if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name))
@@ -611,13 +611,13 @@ namespace IPA.Cores.Basic
                     if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
                     {
                         Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
-                        return -1;
+                        return 1;
                     }
 
                     if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name))
                     {
                         Con.WriteError($"The Windows service {daemon.ToString()} is already running");
-                        return -1;
+                        return 1;
                     }
 
                     Con.WriteLine($"Starting the Windows service {daemon.ToString()} ...");
@@ -635,13 +635,13 @@ namespace IPA.Cores.Basic
                     if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
                     {
                         Con.WriteError($"The Windows service {daemon.ToString()} is not installed.");
-                        return -1;
+                        return 1;
                     }
 
                     if (Win32ApiUtil.IsServiceRunning(daemon.Options.Name) == false)
                     {
                         Con.WriteError($"The Windows service {daemon.ToString()} is not started.");
-                        return -1;
+                        return 1;
                     }
 
                     Con.WriteLine($"Stopping the Windows service {daemon.ToString()} ...");
