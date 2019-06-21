@@ -317,7 +317,7 @@ namespace IPA.Cores.Basic
             StringWriter w = new StringWriter();
             w.WriteLine($"--- The hive file \"{realFilename}\" load error log ---");
             w.WriteLine($"Process ID: {Env.ProcessId}");
-            w.WriteLine($"Process Name: {Env.ExeFileName}");
+            w.WriteLine($"Process Name: {Env.AppRealProcessExeFileName}");
             w.WriteLine($"Timestamp: {DateTimeOffset.Now._ToDtStr(true)}");
             w.WriteLine($"Path: {realFilename}");
             w.WriteLine($"DataName: {dataName}");

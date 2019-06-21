@@ -4195,7 +4195,7 @@ namespace IPA.Cores.Basic
         {
             WriteTextLog($"----- Start new benchmark -----");
             WriteTextLog($"Commit: {Dbg.GetCurrentGitCommitInfo()}");
-            WriteTextLog($"ExeFileName: {Env.ExeFileName}");
+            WriteTextLog($"ExeFileName: {Env.AppExecutableExeOrDllFileName}");
             WriteTextLog($"OS: {Env.OsInfoString}");
             WriteTextLog($"Framework: {Env.FrameworkInfoString}");
             WriteTextLog($"Host: {Env.MachineName}");

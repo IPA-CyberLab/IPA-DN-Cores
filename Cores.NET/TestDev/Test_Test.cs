@@ -116,7 +116,7 @@ namespace IPA.TestDev
         {
             try
             {
-                AcmeAccount currentAccount  = GlobalCertVault.GetAcmeAccountForChallengeResponse();
+                AcmeAccount currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
                 string retStr;
 
                 if (currentAccount == null)
@@ -154,10 +154,12 @@ namespace IPA.TestDev
     {
         public static void Test()
         {
+            //Con.WriteLine(Env.AppRealProcessExeFileName);
+
             //"eyJ0ZXJtc09mU2VydmljZUFncmVlZCI6dHJ1ZSwiY29udGFjdCI6WyJtYWlsdG86ZGEuMTkwNjE1QHNvZnRldGhlci5jby5qcCJdLCJzdGF0dXMiOm51bGwsImlkIjpudWxsLCJjcmVhdGVkQXQiOiIwMDAxLTAxLTAxVDAwOjAwOjAwIiwia2V5IjpudWxsLCJpbml0aWFsSXAiOm51bGwsIm9yZGVycyI6bnVsbCwiTG9jYXRpb24iOm51bGx9"
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
-            //Test_Generic();
+            Test_Generic();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -175,8 +177,8 @@ namespace IPA.TestDev
 
             //Test_Vault();
 
-            Test_Vault_With_Kestrel();
-            
+            //Test_Vault_With_Kestrel();
+
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
 
             //Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
@@ -210,6 +212,37 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                while (true)
+                {
+                    try
+                    {
+                        int count = 0;
+                        while (true)
+                        {
+                            using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true })))
+                            {
+                                count++;
+                                Con.WriteLine($"Count : {count}");
+                                long start = Time.HighResTick64;
+                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1/")._GetResult();
+                                var ret = api.SimpleQueryAsync(WebMethods.GET, "http://test01.icscoe.jp/favicon.ico")._GetResult();
+                                long end = Time.HighResTick64;
+
+                                Con.WriteLine(end - start);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        Thread.Sleep(10);
+                    }
+                }
+                return;
+            }
+
             if (true)
             {
                 SourceCodeCounter c = new SourceCodeCounter(@"C:\git\IPA-DN-Cores\Cores.NET");

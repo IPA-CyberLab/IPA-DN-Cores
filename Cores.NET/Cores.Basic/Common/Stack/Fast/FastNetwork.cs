@@ -1392,7 +1392,7 @@ namespace IPA.Cores.Basic
             if (Socket.SocketType == SocketType.Stream)
             {
                 Socket.LingerTime.Value = 0;
-                Socket.NoDelay.Value = false;
+                Socket.NoDelay.Value = true;
             }
 
             this.StartBaseAsyncLoops();

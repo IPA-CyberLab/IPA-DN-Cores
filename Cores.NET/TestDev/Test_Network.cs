@@ -77,7 +77,7 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
 
-            Net_Test1_PlainTcp_Client();
+            //Net_Test1_PlainTcp_Client();
             //return 0;
 
             //Net_Test2_Ssl_Client();
@@ -108,6 +108,8 @@ namespace IPA.TestDev
             //Net_Test9_WebServer();
 
             //Net_Test10_SslServer();
+
+            Net_Test11_AcceptLoop();
 
             return 0;
         }
@@ -303,6 +305,71 @@ namespace IPA.TestDev
             task._GetResult()._PrintAsJson();
 
             Con.WriteLine("Stopped.");
+        }
+
+
+        static bool test11_flag = false;
+        static void Net_Test11_AcceptLoop()
+        {
+            if (test11_flag == false)
+            {
+                test11_flag = true;
+
+                new ThreadObj(param =>
+                {
+                    ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
+                    int last = 0;
+                    while (true)
+                    {
+                        int value = Environment.TickCount;
+                        int span = value - last;
+                        last = value;
+                        Console.WriteLine("tick: " + span);
+                        ThreadObj.Sleep(100);
+                    }
+                });
+            }
+
+            using (var listener = LocalNet.CreateListener(new TcpListenParam(
+                    async (listener2, sock) =>
+                    {
+                        while (true)
+                        {
+                            var stream = sock.GetStream();
+                            StreamReader r = new StreamReader(stream);
+
+                            while (true)
+                            {
+                                string line = await r.ReadLineAsync();
+
+                                if (line._IsEmpty())
+                                {
+                                    break;
+                                }
+                            }
+                            int segmentSize = 400;
+                            int numSegments = 1000;
+                            int totalSize = segmentSize * numSegments;
+
+                            string ret =
+                            $@"HTTP/1.1 200 OK
+Content-Length: {totalSize}
+
+";
+
+                            await stream.WriteAsync(ret._GetBytes_Ascii());
+
+                            byte[] buf = Util.Rand(numSegments);
+                            for (int i = 0; i < numSegments; i++)
+                            {
+                                await stream.WriteAsync(buf);
+                            }
+                        }
+                    },
+                    80)))
+            {
+                Con.ReadLine(" > ");
+            }
         }
 
         static void Net_Test3_PlainTcp_Server()

@@ -56,7 +56,8 @@ namespace IPA.Cores.Basic
         public DateTimeOffset TimeStamp = DateTime.Now;
         public string MachineName = Env.MachineName;
         public string FrameworkVersion = Env.FrameworkVersion.ToString();
-        public string ExeFileName = Env.ExeFileName;
+        public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
+        public string AppExecutableExeOrDllFileName = Env.AppExecutableExeOrDllFileName;
         public string AppRootDir = Env.AppRootDir;
         public string UserName = Env.UserName;
         public string UserNameEx = Env.UserNameEx;
@@ -94,8 +95,9 @@ namespace IPA.Cores.Basic
         public static bool IsNET4OrGreater => (FrameworkVersion.Major >= 4);
         static public string HomeDir { get; }
         static public string UnixMutantDir { get; }
-        static public string ExeFileName { get; }
-        static public string ExeFileDir { get; }
+        static public string AppRealProcessExeFileName { get; }
+        static public string AppExecutableExeOrDllFileName { get; }
+        static public string AppExecutableExeOrDllFileDir { get; }
         static public string AppRootDir { get; }
         static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
         static public string Win32_WindowsDir { get; }
@@ -191,12 +193,13 @@ namespace IPA.Cores.Basic
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT) PathSeparator = "\\";
             }
             PathSeparatorChar = PathSeparator[0];
-            ExeFileName = IO.RemoveLastEnMark(getMyExeFileName());
-            if (Str.IsEmptyStr(ExeFileName) == false)
+            AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
+            AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+            if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
             {
-                AppRootDir = ExeFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
+                AppRootDir = AppExecutableExeOrDllFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
-                string tmp = ExeFileDir;
+                string tmp = AppExecutableExeOrDllFileDir;
                 while (true)
                 {
                     try
@@ -216,8 +219,8 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                ExeFileName = "/tmp/dummyexe";
-                ExeFileDir = "/tmp";
+                AppExecutableExeOrDllFileName = "/tmp/dummyexe";
+                AppExecutableExeOrDllFileDir = "/tmp";
                 AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
             }
 
@@ -315,7 +318,7 @@ namespace IPA.Cores.Basic
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
             IsAdmin = checkIsAdmin();
 
-            Env.IsHostedByDotNetProcess = ExeFileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+            Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
 
             if (Env.IsHostedByDotNetProcess)
             {
@@ -366,7 +369,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static string getMyExeFileName()
+        static string GetAppExeOrDllImageFilePathInternal()
         {
             try
             {
@@ -377,6 +380,22 @@ namespace IPA.Cores.Basic
             catch
             {
                 return "";
+            }
+        }
+
+        static string GetAppRealProcessExeFileNameInternal()
+        {
+            try
+            {
+                Process myProcess = Process.GetCurrentProcess();
+
+                Process myProcess2 = Process.GetProcessById(myProcess.Id);
+
+                return myProcess2.MainModule.FileName;
+            }
+            catch
+            {
+                throw new SystemException("GetAppRealProcessExeFileNameInternal: Failed to obtain the path.");
             }
         }
 

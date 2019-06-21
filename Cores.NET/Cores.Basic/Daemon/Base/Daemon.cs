@@ -257,7 +257,7 @@ namespace IPA.Cores.Basic
             {
                 this.Daemon.Start(this.Param);
 
-                Con.ReadLine($"Enter key to stop the {this.Daemon.Name} daemon >");
+                Con.ReadLine($"[Press Enter key to stop the {this.Daemon.Name} daemon ...]");
 
                 this.Daemon.Stop(false);
             }
@@ -394,12 +394,12 @@ namespace IPA.Cores.Basic
                         if (Env.IsUnix)
                         {
                             exe = "nohup";
-                            arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
+                            arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
                         else
                         {
-                            exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"");
-                            arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
+                            exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"");
+                            arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
 
                         ProcessStartInfo info = new ProcessStartInfo()
@@ -548,8 +548,8 @@ namespace IPA.Cores.Basic
                         string exe;
                         string arguments;
 
-                        exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.ExeFileName}\"");
-                        arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.ExeFileName}\" /cmd:{cmdName} {DaemonCmdType.WinExecSvc}" : $"/cmd:{cmdName} {DaemonCmdType.WinExecSvc}");
+                        exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppExecutableExeOrDllFileName}\"");
+                        arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.WinExecSvc}" : $"/cmd:{cmdName} {DaemonCmdType.WinExecSvc}");
 
                         string path = $"\"{exe}\" {arguments}";
 
