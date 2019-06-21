@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
                 OpenedSockList.Add(sock);
-           
+
             sock.AddOnCancelAction(() =>
             {
                 this.RemoveFromOpenedSockList(sock);
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                LogDefSocket log = sock.GenerateLogDef();
+                LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Connected);
                 log.NetworkSystem = this.ToString();
                 LocalLogRouter.PostSocketLog(log, logTag);
             }
@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                LogDefSocket log = sock.GenerateLogDef();
+                LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Disconnected);
                 log.NetworkSystem = this.ToString();
                 LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
             }

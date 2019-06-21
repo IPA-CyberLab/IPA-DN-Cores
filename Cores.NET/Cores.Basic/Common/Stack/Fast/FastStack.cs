@@ -421,7 +421,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public LogDefSocket GenerateLogDef()
+        public LogDefSocket GenerateLogDef(LogDefSocketAction action)
         {
             LogDefSocket ret = new LogDefSocket();
 
@@ -433,6 +433,8 @@ namespace IPA.Cores.Basic
             {
                 ex._Debug();
             }
+
+            ret.Action = action;
 
             ret.SockGuid = this.Guid;
             ret.SockType = this.GetType().ToString();

@@ -84,9 +84,18 @@ namespace IPA.Cores.Basic
         public string RemoteCertificateHashSHA1;
     }
 
+    [Flags]
+    enum LogDefSocketAction
+    {
+        Connected = 0,
+        Disconnected,
+    }
+
     [Serializable]
     class LogDefSocket
     {
+        public LogDefSocketAction Action;
+
         public string NetworkSystem;
         public string SockGuid;
         public string SockType;

@@ -43,6 +43,12 @@ using System.Runtime.CompilerServices;
 
 ■ ASP.NET Core プロジェクトの編集
 ・ csproj
+
+以下のプロパティを <PropertyGroup> に追加
+---
+  <LangVersion>7.3</LangVersion>
+---
+
 </PropertyGroup> の下に以下を追加
 ---
   <ItemGroup>
@@ -68,15 +74,16 @@ using static IPA.Cores.Globals.Basic;
 
 Main の内容を以下のように変更
 ---
-            StandardMainFunctions.AspNet.DoMain<Startup>(new CoresLibOptions(CoresMode.Application, "AspNetCore1", DebugMode.Debug, false, false),
-                new HttpServerOptions
+            const string appName = "AspNetCore1";
+
+            return StandardMainFunctions.DaemonMain.DoMain(new CoresLibOptions(CoresMode.Application, appName, DebugMode.Debug, false, false), args,
+                getDaemonProc: () => new HttpServerDaemon<Startup>(appName, appName, new HttpServerOptions
                 {
                     HttpPortsList = 80._SingleList(),
                     HttpsPortsList = 443._SingleList(),
                     UseKestrelWithIPACoreStack = true,
                     DebugKestrelToConsole = false,
-                },
-                args);
+                }));
 ---
 
 最初から書いてある CreateWebHostBuilder(args).Build().Run(); および

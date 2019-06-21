@@ -99,6 +99,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClientResource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\Daemon.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\DaemonMain.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\UserModeService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\WindowsService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
@@ -130,6 +131,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpcEasy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerDaemon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\LogDef\LogDef.cs" />

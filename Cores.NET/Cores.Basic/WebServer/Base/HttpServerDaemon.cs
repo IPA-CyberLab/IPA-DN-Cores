@@ -30,69 +30,54 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if CORES_BASIC_WEBSERVER
+#if CORES_BASIC_DAEMON
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
-using System.IO;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Helper.Basic
 {
-    static partial class Consts
+    class HttpServerDaemon<TStartup> : Daemon where TStartup : class
     {
-        public static partial class Ports
+        public HttpServerOptions HttpOptions { get; }
+
+        AsyncService HttpServerInstance = null;
+
+        public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions, int telnetLogWatcherPort = Consts.Ports.TelnetLogWatcher)
+            : base(new DaemonOptions(name, friendlyName, true, telnetLogWatcherPort: telnetLogWatcherPort))
         {
-            public const int TelnetLogWatcher = 8023;
+            this.HttpOptions = httpOptions;
         }
 
-        public static partial class Strings
+        protected override async Task StartImplAsync(object param)
         {
-            public const string DefaultCertCN = "DefaultCertificate";
+            Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
+
+            this.HttpServerInstance = new HttpServer<TStartup>(this.HttpOptions);
+
+            await Task.CompletedTask;
+
+            Con.WriteLine($"{this.Options.FriendlyName}: Started.");
         }
 
-        public static partial class MediaTypes
+        protected override async Task StopImplAsync(object param)
         {
-            public const string Json = "application/json";
-            public const string JoseJson = "application/jose+json";
-            public const string FormUrlEncoded = "application/x-www-form-urlencoded";
-            public const string OctetStream = "application/octet-stream";
-        }
+            Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
 
-        public static partial class FileNames
-        {
-            public const string CertVault_Settings = "settings.json";
-            public const string CertVault_Password = "password.txt";
+            await HttpServerInstance.DisposeWithCleanupAsync(new OperationCanceledException("The daemon is shutting down."));
 
-            public const string CertVault_AcmeAccountKey = "acme_account.key";
-            public const string CertVault_AcmeCertKey = "acme_cert.key";
-
-            public const string CertVault_DefaultCert = "default.pfx";
-        }
-
-        public static partial class Extensions
-        {
-            public const string Certificate = ".crt";
-            public const string Pkcs12 = ".pfx";
-            public const string GenericKey = ".key";
-
-            public const string Filter_Pkcs12s = "*.p12;*.pfx";
-            public const string Filter_Certificates = "*.crt;*.cer";
-            public const string Filter_Keys = "*.key;*.pem";
-
-            public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
-        }
-
-        public static partial class Addresses
-        {
-            public const string GetMyIpUrl_IPv4 = "http://get-my-ip.ddns.softether-network.net/ddns/getmyip.ashx";
-            public const string GetMyIpUrl_IPv6 = "http://get-my-ip-v6.ddns.softether-network.net/ddns/getmyip.ashx";
+            Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
         }
     }
 }
+
+#endif  // CORES_BASIC_DAEMON
+#endif  // CORES_BASIC_WEBSERVER
+

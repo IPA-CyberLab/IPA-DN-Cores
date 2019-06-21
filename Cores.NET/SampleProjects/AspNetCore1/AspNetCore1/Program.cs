@@ -18,19 +18,16 @@ namespace AspNetCore1
     {
         public static int Main(string[] args)
         {
-            return StandardMainFunctions.AspNet.DoMain<Startup>(new CoresLibOptions(CoresMode.Application, "AspNetCore1", DebugMode.Debug, false, false),
-                new HttpServerOptions
+            const string appName = "AspNetCore1";
+
+            return StandardMainFunctions.DaemonMain.DoMain(new CoresLibOptions(CoresMode.Application, appName, DebugMode.Debug, false, false), args,
+                getDaemonProc: () => new HttpServerDaemon<Startup>(appName, appName, new HttpServerOptions
                 {
                     HttpPortsList = 80._SingleList(),
                     HttpsPortsList = 443._SingleList(),
                     UseKestrelWithIPACoreStack = true,
                     DebugKestrelToConsole = false,
-                },
-                args);
+                }));
         }
-
-        //public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-        //    WebHost.CreateDefaultBuilder(args)
-        //        .UseStartup<Startup>();
     }
 }

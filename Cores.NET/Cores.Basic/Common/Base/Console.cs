@@ -1222,6 +1222,7 @@ namespace IPA.Cores.Basic
                     {
                         // 使用できるコマンド一覧を表示する
                         this.write(Str.FormatC((CoreStr.CMD_HELP_1), t.Count), LogPriority.Info);
+                        this.write("", LogPriority.Info);
 
                         string[] candidateList = t.ToArray();
 
