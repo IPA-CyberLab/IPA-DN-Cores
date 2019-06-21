@@ -5443,7 +5443,7 @@ namespace IPA.Cores.Basic
                     if (token2.Length > 63) return false;
                     foreach (char c in token2)
                     {
-                        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) { }
+                        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '-')) { }
                         else
                         {
                             return false;

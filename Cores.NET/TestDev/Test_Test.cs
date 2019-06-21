@@ -175,11 +175,11 @@ namespace IPA.TestDev
 
             //Test_Vault();
 
-            //Test_Vault_With_Kestrel();
+            Test_Vault_With_Kestrel();
             
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
 
-            Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
+            //Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
         }
 
         public static void Test_SourceCodeCounter(string url)
