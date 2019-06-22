@@ -1153,26 +1153,26 @@ namespace IPA.Cores.Basic
 
         public void Refresh()
         {
-            //ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
-            //ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
-            //ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
-            //long mem = GC.GetTotalMemory(false);
-            //int num_queued = TaskUtil.GetQueuedTasksCount();
-            //int num_timered = TaskUtil.GetScheduledTimersCount();
+            ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
+            ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
+            ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
+            long mem = GC.GetTotalMemory(false);
+            int num_queued = TaskUtil.GetQueuedTasksCount();
+            int num_timered = TaskUtil.GetScheduledTimersCount();
 
-            //this.Cpu = (int)Internal.ProcessCpuUsageReporter.CpuUsageSingle;
-            //this.Task = max_workers - avail_workers;
-            //this.Task2 = avail_workers;
-            //this.D = num_queued + TaskUtil.GetNumPendingAsyncTasks();
-            //this.Q = num_timered;
-            //try
-            //{
-            //    this.S = LocalTcpIpSystem.Local?.GetOpenedSockCount() ?? 0;
-            //}
-            //catch { }
-            //this.Obj = LeakChecker.Count;
-            //this.IO = max_ports - avail_ports;
-            //this.Mem = mem / 1024;
+            this.Cpu = (int)Internal.ProcessCpuUsageReporter.CpuUsageSingle;
+            this.Task = max_workers - avail_workers;
+            this.Task2 = avail_workers;
+            this.D = num_queued + TaskUtil.GetNumPendingAsyncTasks();
+            this.Q = num_timered;
+            try
+            {
+                this.S = LocalTcpIpSystem.Local?.GetOpenedSockCount() ?? 0;
+            }
+            catch { }
+            this.Obj = LeakChecker.Count;
+            this.IO = max_ports - avail_ports;
+            this.Mem = mem / 1024;
         }
     }
 

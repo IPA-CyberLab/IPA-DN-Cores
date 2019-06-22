@@ -30,7 +30,7 @@ cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run test
 
 Web サーバーテスト
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && dotnet run daemon test
+cd ~/Copy-IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && rm -fr bin/ && dotnet run daemon test
 
 
 ベンチマーク
@@ -41,13 +41,41 @@ cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run -c Release BenchMark
 
 プロファイリング
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run net
+cd ~/IPA-DN-Cores/Cores.NET/TestDev/
+COMPlus_PerfMapEnabled=1 dotnet run net
 pid を調べる
 ps auxf | grep -i "dotnet exec"
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/
-perf record -p 655433 -g
+cd ~/IPA-DN-Cores/Cores.NET/TestDev/
+perf record -p 1115305 -g
+
+Ctrl+C
+
+perf report -f
+
+
+メモ lxd-vm2
+
+lxc config set dn-lxd-vm2-test1 limits.memory 8000MB
+lxc config set dn-lxd-vm2-test1 limits.cpu 20
+
+lxc config unset dn-lxd-vm2-test1 limits.memory
+lxc config unset dn-lxd-vm2-test1 limits.cpu
 
 
 
+
+gdb
+
+gdb /usr/bin/dotnet
+
+run exec /root/Copy-IPA-DN-Cores/Cores.NET/TestDev/bin/Debug/netcoreapp2.1/TestDev.dll net
+
+strace /usr/bin/dotnet exec /root/Copy-IPA-DN-Cores/Cores.NET/TestDev/bin/Debug/netcoreapp2.1/TestDev.dll net
+
+
+
+ストレステスト クライアント
+
+cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && rm -fr bin/ && perl -pi -e 's/netcoreapp2\.1/netcoreapp2\.2/g' TestDev.csproj && dotnet run TcpStressServer
 

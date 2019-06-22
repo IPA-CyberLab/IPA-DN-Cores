@@ -18,12 +18,6 @@ namespace AspNetCore1
     {
         public static int Main(string[] args)
         {
-            //System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
-
-            Console.WriteLine($"IsServerGC = {System.Runtime.GCSettings.IsServerGC}");
-            Console.WriteLine($"LatencyMode = {System.Runtime.GCSettings.LatencyMode}");
-            Console.WriteLine($"LargeObjectHeapCompactionMode = {System.Runtime.GCSettings.LargeObjectHeapCompactionMode}");
-
             const string appName = "AspNetCore1";
 
             return StandardMainFunctions.DaemonMain.DoMain(new CoresLibOptions(CoresMode.Application, appName, DebugMode.Debug, false, false), args,

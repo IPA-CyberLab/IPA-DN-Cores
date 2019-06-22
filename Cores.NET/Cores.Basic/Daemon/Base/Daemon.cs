@@ -257,7 +257,7 @@ namespace IPA.Cores.Basic
             {
                 this.Daemon.Start(this.Param);
 
-                Con.ReadLine($"[Press Enter key to stop the {this.Daemon.Name} daemon ...]");
+                Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
 
                 this.Daemon.Stop(false);
             }

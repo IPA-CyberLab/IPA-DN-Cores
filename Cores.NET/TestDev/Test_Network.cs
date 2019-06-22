@@ -67,6 +67,87 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+            "TcpStressServer command",
+            "TcpStressServer [port]",
+            "TcpStressServer test")]
+        static int TcpStressServer(ConsoleService c, string cmdName, string str)
+        {
+            // .NET 3.0 @ Linux, cpu 56 cores で csproj に以下を投入して TcpStressClient で大量に接続をして
+            // GC で短時間フリーズ現象が発生しなければ OK!!
+            // .NET 2.1, 2.2 は現象が発生する。
+            // 
+            // <ServerGarbageCollection>true</ServerGarbageCollection>
+            // <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            int port = 80;
+
+            if (vl.DefaultParam.StrValue._IsEmpty() == false)
+            {
+                port = vl.DefaultParam.IntValue;
+            }
+
+            Net_Test12_AcceptLoop2(port);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "TcpStressClient command",
+            "TcpStressClient [url]",
+            "TcpStressClient test")]
+        static int TcpStressClient(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[url]"),
+            };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string url = vl.DefaultParam.StrValue;
+
+            if (url._IsEmpty())
+            {
+                url = "http://dn-lxd-vm2-test1/favicon.ico";
+            }
+
+            int count = 0;
+            if (true)
+            {
+                while (true)
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true })))
+                            {
+                                count++;
+                                Con.WriteLine($"Count : {count}");
+                                long start = Time.HighResTick64;
+                                var ret = api.SimpleQueryAsync(WebMethods.GET, url)._GetResult();
+                                long end = Time.HighResTick64;
+
+                                Con.WriteLine(end - start);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        Thread.Sleep(10);
+                    }
+                }
+                return 0;
+            }
+
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "Net command",
             "Net [arg]",
             "Net test")]
@@ -309,7 +390,7 @@ namespace IPA.TestDev
             Con.WriteLine("Stopped.");
         }
 
-        static void Net_Test12_AcceptLoop2()
+        static void Net_Test12_AcceptLoop2(int port = 80)
         {
 
             new ThreadObj(param =>
@@ -333,7 +414,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                var listener = LocalNet.CreateListener(new TcpListenParam(
+                NetTcpListener listener = LocalNet.CreateListener(new TcpListenParam(
                         async (listener2, sock) =>
                         {
                             while (true)
@@ -369,7 +450,9 @@ Content-Length: {totalSize}
                                 }
                             }
                         },
-                        80));
+                        port));
+
+                listener.HideAcceptProcError = true;
 
                 ThreadObj.Sleep(-1);
             }
@@ -504,7 +587,7 @@ Content-Length: {totalSize}
 
         static void Net_Test1_PlainTcp_Client()
         {
-            for (int i = 0;i < 1;i++)
+            for (int i = 0; i < 1; i++)
             {
                 ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
 

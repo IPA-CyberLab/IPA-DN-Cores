@@ -212,13 +212,13 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            int count = 0;
             if (true)
             {
                 while (true)
                 {
                     try
                     {
-                        int count = 0;
                         while (true)
                         {
                             using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true })))
@@ -227,7 +227,10 @@ namespace IPA.TestDev
                                 Con.WriteLine($"Count : {count}");
                                 long start = Time.HighResTick64;
                                 //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1/")._GetResult();
-                                var ret = api.SimpleQueryAsync(WebMethods.GET, "http://pktlinux/favicon.ico")._GetResult();
+                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://pktlinux/favicon.ico")._GetResult();
+                                var ret = api.SimpleQueryAsync(WebMethods.GET, "http://dn-lxd-vm2-test1/favicon.ico")._GetResult();
+                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://dn-winprod1/favicon.ico")._GetResult();
+                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://lxd-vm2.lab.coe.ad.jp/favicon.ico")._GetResult();
                                 long end = Time.HighResTick64;
 
                                 Con.WriteLine(end - start);

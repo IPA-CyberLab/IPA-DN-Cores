@@ -63,10 +63,6 @@ namespace IPA.TestDev
     {
         static int Main(string[] args)
         {
-            Console.WriteLine($"IsServerGC = {System.Runtime.GCSettings.IsServerGC}");
-            Console.WriteLine($"LatencyMode = {System.Runtime.GCSettings.LatencyMode}");
-            Console.WriteLine($"LargeObjectHeapCompactionMode = {System.Runtime.GCSettings.LargeObjectHeapCompactionMode}");
-
             int ret = -1;
 
             //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);

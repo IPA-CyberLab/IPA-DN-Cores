@@ -6,7 +6,8 @@
     <LangVersion>7.3</LangVersion>
     <PackageId>TestDev</PackageId>
     <Authors>IPA-CyberLab</Authors>
-    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

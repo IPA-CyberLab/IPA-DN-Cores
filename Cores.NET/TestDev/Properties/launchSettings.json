@@ -30,6 +30,14 @@
     "TestDev /Git": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:Git"
+    },
+    "TestDev /TcpStressClient": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:TcpStressClient http://dn-lxd-vm2-test1/favicon.ico"
+    },
+    "TestDev /TcpStressClient SSL": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:TcpStressClient https://dn-lxd-vm2-test1/favicon.ico"
     }
   }
 }

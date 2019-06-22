@@ -37,8 +37,11 @@ Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo.cs」ファイルを必要に�
 
 以下のプロパティを <PropertyGroup> に追加
 ---
-  <LangVersion>7.3</LangVersion>
+    <LangVersion>7.3</LangVersion>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
 ---
+※ GC で ServerGC を false にする理由は、.NET Core 2.1 & 2.2 にはバグがあるため。.NET Core 3.0 で改善される予定。
 
 </PropertyGroup> の下に以下を追加
 ---

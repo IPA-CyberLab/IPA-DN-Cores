@@ -907,6 +907,8 @@ namespace IPA.Cores.Basic
 
         NetTcpListenerAcceptedProcCallback AcceptedProc { get; }
 
+        public bool HideAcceptProcError { get; set; } = false;
+
         public int CurrentConnections
         {
             get
@@ -982,7 +984,10 @@ namespace IPA.Cores.Basic
             catch (SocketException ex) when (ex._IsSocketErrorDisconnected()) { }
             catch (Exception ex)
             {
-                Dbg.WriteLine("AcceptProc error: " + ex.ToString());
+                if (HideAcceptProcError == false)
+                {
+                    Dbg.WriteLine("AcceptProc error: " + ex.ToString());
+                }
             }
             finally
             {
