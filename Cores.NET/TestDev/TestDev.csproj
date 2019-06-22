@@ -7,7 +7,7 @@
     <PackageId>TestDev</PackageId>
     <Authors>IPA-CyberLab</Authors>
   </PropertyGroup>
-
+  
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>

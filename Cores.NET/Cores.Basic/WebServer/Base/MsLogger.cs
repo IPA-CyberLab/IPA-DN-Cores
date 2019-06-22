@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
 
             if (exception != null)
             {
-                Dbg.WriteLine($"{this.CategoryNameShort} Error: {msg}");
+                //Dbg.WriteLine($"{this.CategoryNameShort} Error: {msg}");
             }
         }
 
