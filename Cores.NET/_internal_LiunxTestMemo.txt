@@ -39,3 +39,15 @@ cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run -c Release BenchMark
 
 
 
+プロファイリング
+
+cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run net
+pid を調べる
+ps auxf | grep -i "dotnet exec"
+
+cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/
+perf record -p 655433 -g
+
+
+
+

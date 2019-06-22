@@ -226,8 +226,8 @@ namespace IPA.TestDev
                                 count++;
                                 Con.WriteLine($"Count : {count}");
                                 long start = Time.HighResTick64;
-                                var ret = api.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1/")._GetResult();
-                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://test01.icscoe.jp/favicon.ico")._GetResult();
+                                //var ret = api.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1/")._GetResult();
+                                var ret = api.SimpleQueryAsync(WebMethods.GET, "http://pktlinux/favicon.ico")._GetResult();
                                 long end = Time.HighResTick64;
 
                                 Con.WriteLine(end - start);
