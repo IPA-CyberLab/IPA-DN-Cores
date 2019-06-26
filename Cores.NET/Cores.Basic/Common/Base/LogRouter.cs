@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalBufferedLogRouteSettings
         {
-            public static readonly Copenhagen<int> BufferSize = 1 * 1024 * 1024;
+            public static readonly Copenhagen<int> BufferSize = 1 * 128 * 1024;
         }
     }
 
