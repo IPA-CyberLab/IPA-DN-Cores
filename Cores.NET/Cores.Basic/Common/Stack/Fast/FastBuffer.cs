@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
     {
         static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
-        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout, bool noTimeoutException = false)
+        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             LocalTimer timer = new LocalTimer();
 
@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },
-                    events: new AsyncAutoResetEvent[] { writer.EventWriteReady },
+                    events: new AsyncAutoResetEvent[] { writer.EventWriteReady, cancelEvent },
                     timeout: timer.GetNextInterval()
                     );
             }
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false)
+        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             sizeToRead = Math.Max(sizeToRead, 1);
 
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },
-                    events: new AsyncAutoResetEvent[] { reader.EventReadReady },
+                    events: new AsyncAutoResetEvent[] { reader.EventReadReady, cancelEvent },
                     timeout: timer.GetNextInterval()
                     );
             }

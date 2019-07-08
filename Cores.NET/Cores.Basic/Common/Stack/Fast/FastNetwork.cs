@@ -638,22 +638,22 @@ namespace IPA.Cores.Basic
             Point.DatagramReader.CheckDisconnected();
         }
 
-        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false)
+        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.StreamWriter.IsReadyToWrite()) return Task.CompletedTask;
 
-            return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException);
+            return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException, cancelEvent);
         }
 
-        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false)
+        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.StreamReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
 
-            return Point.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead, noTimeoutException);
+            return Point.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead, noTimeoutException, cancelEvent);
         }
 
         public void FastSendNonBlock(Memory<ReadOnlyMemory<byte>> items, bool flush = true)
@@ -924,22 +924,22 @@ namespace IPA.Cores.Basic
         #endregion
 
         #region Datagram
-        public Task WaitReadyToSendToAsync(CancellationToken cancel, int timeout)
+        public Task WaitReadyToSendToAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.DatagramWriter.IsReadyToWrite()) return Task.CompletedTask;
 
-            return Point.DatagramWriter.WaitForReadyToWriteAsync(cancel, timeout);
+            return Point.DatagramWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException, cancelEvent);
         }
 
-        public Task WaitReadyToReceiveFromAsync(CancellationToken cancel, int timeout, int sizeToRead = 1)
+        public Task WaitReadyToReceiveFromAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.DatagramReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
 
-            return Point.DatagramReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
+            return Point.DatagramReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead, noTimeoutException, cancelEvent);
         }
 
         public async Task FastSendToAsync(Memory<Datagram> items, CancellationToken cancel = default, bool flush = true)

@@ -83,6 +83,11 @@ namespace IPA.Cores.Basic
         PipeStream LowerStream;
         PipeStream UpperStream;
 
+        readonly AsyncAutoResetEvent SendPongEvent = new AsyncAutoResetEvent();
+        readonly CriticalSection PongQueueLock = new CriticalSection();
+        readonly Queue<ReadOnlyMemory<byte>> PongQueue = new Queue<ReadOnlyMemory<byte>>();
+        
+
         public NetWebSocketProtocolStack(PipePoint lower, PipePoint upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default) : base(lower, upper, options, cancel)
         {
             this.LowerStream = this.LowerAttach.GetStream();
@@ -196,7 +201,7 @@ namespace IPA.Cores.Basic
                 {
                     await LowerStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
 
-                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true);
+                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true, cancelEvent: this.SendPongEvent);
 
                     MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
 
@@ -219,6 +224,18 @@ namespace IPA.Cores.Basic
                         nextPingTick = timer.AddTimeout(Util.GenRandInterval(Options.SendPingInterval));
 
                         BuildAndAppendFrame(sendBuffer, true, WebSocketOpcode.Ping, "[WebSocketPing]"._GetBytes_Ascii());
+                    }
+
+                    lock (this.PongQueueLock)
+                    {
+                        // Send pong
+                        while (true)
+                        {
+                            if (this.PongQueue.TryDequeue(out ReadOnlyMemory<byte> data) == false)
+                                break;
+
+                            BuildAndAppendFrame(sendBuffer, true, WebSocketOpcode.Pong, data);
+                        }
                     }
 
                     LowerStream.FastSendNonBlock(sendBuffer.Memory);
