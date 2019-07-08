@@ -105,7 +105,7 @@ namespace IPA.Cores.Basic
             log.Direction = tcp?.Direction.ToString() ?? null;
             log.LocalPort = tcp?.LocalPort;
             log.RemotePort = tcp?.RemotePort;
-            
+
             return log;
         }
     }
@@ -638,22 +638,29 @@ namespace IPA.Cores.Basic
             Point.DatagramReader.CheckDisconnected();
         }
 
-        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout)
+        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.StreamWriter.IsReadyToWrite()) return Task.CompletedTask;
 
-            return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout);
+            return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException);
         }
 
-        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1)
+        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false)
         {
             cancel.ThrowIfCancellationRequested();
 
             if (Point.StreamReader.IsReadyToRead(sizeToRead)) return Task.CompletedTask;
 
-            return Point.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead);
+            return Point.StreamReader.WaitForReadyToReadAsync(cancel, timeout, sizeToRead, noTimeoutException);
+        }
+
+        public void FastSendNonBlock(Memory<ReadOnlyMemory<byte>> items, bool flush = true)
+        {
+            Point.StreamWriter.EnqueueAllWithLock(items.Span);
+
+            if (flush) FastFlush(true, false);
         }
 
         public async Task FastSendAsync(Memory<ReadOnlyMemory<byte>> items, CancellationToken cancel = default, bool flush = true)
@@ -661,6 +668,16 @@ namespace IPA.Cores.Basic
             await WaitReadyToSendAsync(cancel, WriteTimeout);
 
             Point.StreamWriter.EnqueueAllWithLock(items.Span);
+
+            if (flush) FastFlush(true, false);
+        }
+
+        public void FastSendNonBlock(Memory<byte> item, bool flush = true)
+        {
+            lock (Point.StreamWriter.LockObj)
+            {
+                Point.StreamWriter.Enqueue(item);
+            }
 
             if (flush) FastFlush(true, false);
         }
@@ -789,6 +806,29 @@ namespace IPA.Cores.Basic
 
         public ReadOnlyMemory<byte> Receive(int maxSize = int.MaxValue, CancellationToken cancel = default)
             => ReceiveAsync(maxSize, cancel)._GetResult();
+
+        public IReadOnlyList<ReadOnlyMemory<byte>> FastReceiveNonBlock(out int totalRecvSize, int maxSize = int.MaxValue)
+        {
+            totalRecvSize = 0;
+
+            try
+            {
+                IReadOnlyList<ReadOnlyMemory<byte>> ret = Point.StreamReader.DequeueWithLock(maxSize, out long totalReadSize);
+
+                totalRecvSize = (int)totalReadSize;
+
+                if (totalRecvSize >= 1)
+                {
+                    Point.StreamReader.CompleteRead();
+                }
+
+                return ret;
+            }
+            catch (DisconnectedException)
+            {
+                return new List<ReadOnlyMemory<byte>>();
+            }
+        }
 
         public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null, int maxSize = int.MaxValue)
         {
@@ -1117,14 +1157,16 @@ namespace IPA.Cores.Basic
 
         static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
-        public async Task<bool> WaitIfNothingChanged(int timeout = Timeout.Infinite, int salt = 0)
+        public async Task<bool> WaitUntilNextStateChangeAsync(int timeout = Timeout.Infinite, int salt = 0, CancellationToken cancel = default)
         {
             timeout = TaskUtil.GetMinTimeout(timeout, PollingTimeout);
             if (timeout == 0) return false;
             if (IsStateChanged(salt)) return false;
 
+            CancellationToken[] cancels = cancel.CanBeCanceled ? WaitCancelList.Append(cancel).ToArray() : WaitCancelList.ToArray();
+
             await TaskUtil.WaitObjectsAsync(
-                cancels: WaitCancelList.ToArray(),
+                cancels: cancels,
                 events: WaitEventList.ToArray(),
                 timeout: timeout);
 

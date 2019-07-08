@@ -551,7 +551,6 @@ namespace IPA.Cores.Basic
         public static implicit operator ReadOnlyMemory<T>(FastMemoryBuffer<T> buf) => buf.Memory;
         public static implicit operator ReadOnlySpan<T>(FastMemoryBuffer<T> buf) => buf.Span;
         public static implicit operator FastReadOnlyMemoryBuffer<T>(FastMemoryBuffer<T> buf) => buf.AsReadOnly();
-        public static implicit operator SpanBuffer<T>(FastMemoryBuffer<T> buf) => buf.AsSpanBuffer();
         public static implicit operator ReadOnlySpanBuffer<T>(FastMemoryBuffer<T> buf) => buf.AsReadOnlySpanBuffer();
 
         public FastMemoryBuffer<T> SliceAfter() => Slice(CurrentPosition);
@@ -1252,7 +1251,6 @@ namespace IPA.Cores.Basic
         public static implicit operator ReadOnlyMemory<T>(MemoryBuffer<T> buf) => buf.Memory;
         public static implicit operator ReadOnlySpan<T>(MemoryBuffer<T> buf) => buf.Span;
         public static implicit operator ReadOnlyMemoryBuffer<T>(MemoryBuffer<T> buf) => buf.AsReadOnly();
-        public static implicit operator SpanBuffer<T>(MemoryBuffer<T> buf) => buf.AsSpanBuffer();
         public static implicit operator ReadOnlySpanBuffer<T>(MemoryBuffer<T> buf) => buf.AsReadOnlySpanBuffer();
 
         public MemoryBuffer<T> SliceAfter() => Slice(CurrentPosition);

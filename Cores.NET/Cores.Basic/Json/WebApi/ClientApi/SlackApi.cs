@@ -112,13 +112,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string team_id;
         }
 
-        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, string redirectUrl, CancellationToken cancel = default)
+        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, CancellationToken cancel = default)
         {
             WebRet ret = await this.SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/oauth.access", cancel,
                 null,
                 ("client_id", this.ClientId),
                 ("client_secret", clientSecret),
-                ("redirect_uri", redirectUrl),
+//                ("redirect_uri", redirectUrl),
                 ("code", code));
 
             AccessToken a = ret.Deserialize<AccessToken>(true);
@@ -156,12 +156,25 @@ namespace IPA.Cores.ClientApi.SlackApi
             public bool as_user;
         }
 
-        public async Task<ChannelsList> GetChannelsListAsync()
+        public async Task GetConversationsListAsync(CancellationToken cancel = default)
         {
-            return (await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list")).Deserialize<ChannelsList>(true);
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("unreads", "true"));
+
+            ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+
+            return;
         }
 
-        public async Task PostMessageAsync(string channelId, string text, bool asUser)
+        public async Task<ChannelsList> GetChannelsListAsync(CancellationToken cancel = default)
+        {
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list", queryList: ("unreads", "true"));
+
+            ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+
+            return ret.Deserialize<ChannelsList>(true);
+        }
+
+        public async Task PostMessageAsync(string channelId, string text, bool asUser, CancellationToken cancel = default)
         {
             PostMessageData m = new PostMessageData()
             {
@@ -170,12 +183,12 @@ namespace IPA.Cores.ClientApi.SlackApi
                 as_user = asUser,
             };
 
-            await PostMessageAsync(m);
+            await PostMessageAsync(m, cancel);
         }
 
-        public async Task PostMessageAsync(PostMessageData m)
+        public async Task PostMessageAsync(PostMessageData m, CancellationToken cancel = default)
         {
-            (await RequestWithJsonObject(WebMethods.POST, "https://slack.com/api/chat.postMessage", m)).Deserialize<Response>(true);
+            (await RequestWithJsonObjectAsync(WebMethods.POST, "https://slack.com/api/chat.postMessage", m, cancel)).Deserialize<Response>(true);
         }
     }
 }

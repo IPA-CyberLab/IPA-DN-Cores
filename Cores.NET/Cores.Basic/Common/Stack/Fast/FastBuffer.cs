@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
     {
         static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
-        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout)
+        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout, bool noTimeoutException = false)
         {
             LocalTimer timer = new LocalTimer();
 
@@ -106,7 +106,18 @@ namespace IPA.Cores.Basic
 
             while (writer.IsReadyToWrite() == false)
             {
-                if (FastTick64.Now >= timeoutTick) throw new TimeoutException();
+                if (FastTick64.Now >= timeoutTick)
+                {
+                    if (noTimeoutException == false)
+                    {
+                        throw new TimeoutException();
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
                 cancel.ThrowIfCancellationRequested();
 
                 await TaskUtil.WaitObjectsAsync(

@@ -214,12 +214,12 @@ namespace IPA.Cores.Basic
 
     class MiddleSock : NetSock
     {
-        public MiddleSock(NetSock LowerSock, NetProtocolBase protocolStack) : base(protocolStack) { }
+        public MiddleSock(NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
     class MiddleConnSock : ConnSock
     {
-        public MiddleConnSock(ConnSock LowerSock, NetProtocolBase protocolStack) : base(protocolStack) { }
+        public MiddleConnSock(NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
     class SslSock : MiddleConnSock
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
 
         protected new NetSslProtocolStack Stack => (NetSslProtocolStack)base.Stack;
 
-        public SslSock(ConnSock lowerStreamSock) : base(lowerStreamSock, new NetSslProtocolStack(lowerStreamSock.UpperPoint, null, null))
+        public SslSock(ConnSock lowerSock) : base(new NetSslProtocolStack(lowerSock.UpperPoint, null, null))
         {
         }
 

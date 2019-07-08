@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
         {
             JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, kid, nonce, url, payload);
 
-            return await this.RequestWithJsonObject(method, url, reqPacket, cancel, postContentType);
+            return await this.RequestWithJsonObjectAsync(method, url, reqPacket, cancel, postContentType);
         }
     }
 }

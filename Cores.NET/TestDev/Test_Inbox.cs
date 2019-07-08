@@ -30,68 +30,76 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_BASIC_JSON
-
 using System;
+using System.IO;
+using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.IO;
+using System.Linq;
+using System.Diagnostics;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+using IPA.Cores.ClientApi.SlackApi;
+
+#pragma warning disable CS0162
+#pragma warning disable CS0219
+
+namespace IPA.TestDev
 {
-    partial class WebRet
+    partial class TestDevCommands
     {
-        dynamic jsonDynamic = null;
-        public dynamic JsonDynamic
+        [ConsoleCommand(
+        "Inbox command",
+        "Inbox",
+        "Inbox test")]
+        static int Inbox(ConsoleService c, string cmdName, string str)
         {
-            get
-            {
-                if (jsonDynamic == null)
-                    jsonDynamic = Json.DeserializeDynamic(this.ToString());
-                return jsonDynamic;
-            }
+            ConsoleParam[] args = { };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Inbox_SlackTest();
+
+            return 0;
         }
 
-        public T Deserialize<T>(bool checkError = false)
+        static void Inbox_SlackTest()
         {
-            T ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
+            string accessToken = "xoxp-687264585408-687264586720-675870571299-xxx";
 
-            if (checkError)
+            if (false)
             {
-                if (ret is IErrorCheckable b)
+                using (SlackApi slack = new SlackApi("687264585408.675851234162"))
                 {
-                    b.CheckError();
+                    if (false)
+                    {
+                        string url = slack.AuthGenerateAuthorizeUrl("channels:read groups:read im:read mpim:read channels:history groups:history im:history mpim:history users:read users.profile:read", "https://www.google.com/");
+
+                        url._Print();
+
+                    }
+                    else
+                    {
+                        var token = slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.689432900214.e4c37ad725856e098e575531ed9e11d1a7a7209c2781c0e3cc2a18333e56e0a7")._GetResult();
+
+                        token._PrintAsJson();
+                    }
                 }
             }
+            else
+            {
+                using (SlackApi slack = new SlackApi("687264585408.675851234162", accessToken))
+                {
 
-            return ret;
+                    var channels = slack.GetChannelsListAsync()._GetResult();
+
+                    slack.GetConversationsListAsync()._GetResult();
+
+                }
+            }
         }
     }
-
-    partial class WebApi
-    {
-        public int? Json_MaxDepth { get; set; } = Json.DefaultMaxDepth;
-
-        public bool Json_IncludeNull { get; set; } = false;
-        public bool Json_EscapeHtml { get; set; } = false;
-
-        public string JsonSerialize(object obj)
-            => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
-
-        public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
-            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
-
-        public virtual async Task<WebRet> RequestWithJsonDynamicAsync(WebMethods method, string url, dynamic jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
-            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
-    }
 }
-
-#endif  // CORES_BASIC_JSON
-

@@ -369,6 +369,9 @@ namespace IPA.Cores.Basic
         public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
+        public static void DoSync(Action action) { action(); }
+        public static T DoSync<T>(Func<T> func) { T ret = func(); return ret; }
+
         public static int WaitUntilAllPendingAsyncTasksFinish(int? timeout = null, CancellationToken cancel = default, int targetCount = 0)
         {
             int timeout2 = timeout ?? CoresConfig.TaskAsyncSettings.WaitTimeoutUntilPendingTaskFinish;

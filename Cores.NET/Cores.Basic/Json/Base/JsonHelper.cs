@@ -62,6 +62,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static ulong _GetObjectHash(this object o)
             => Util.GetObjectHash(o);
+
+        public static string _JsonNormalize(this string s)
+            => Json.Normalize(s);
     }
 
     static class JsonConsoleHelper
@@ -75,6 +78,14 @@ namespace IPA.Cores.Helper.Basic
         {
             Con.WriteJsonDebug(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
             return o;
+        }
+        public static void _JsonNormalizeAndPrint(this string s)
+        {
+            Json.Normalize(s)._Print();
+        }
+        public static void _JsonNormalizeAndDebug(this string s)
+        {
+            Json.Normalize(s)._Debug();
         }
     }
 }

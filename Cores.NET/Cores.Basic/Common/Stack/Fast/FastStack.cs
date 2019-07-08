@@ -662,6 +662,8 @@ namespace IPA.Cores.Basic
                         }, this, false);
 
                         this.SslStream = ssl;
+
+                        lowerStream.ReadTimeout = Timeout.Infinite;
                         this.LowerStream = lowerStream;
 
                         this.Wrapper = new PipePointStreamWrapper(UpperAttach.PipePoint, ssl, CancelWatcher.CancelToken);

@@ -192,7 +192,9 @@ namespace IPA.TestDev
 
             //Net_Test11_AcceptLoop();
 
-            Net_Test12_AcceptLoop2();
+            //Net_Test12_AcceptLoop2();
+
+            Net_Test13_WebSocketClientAsync()._GetResult();
 
             return 0;
         }
@@ -220,6 +222,17 @@ namespace IPA.TestDev
                         await w.WriteLineAsync("[" + recv + "]\r\n");
                         await w.FlushAsync();
                     }
+                }
+            }
+        }
+
+        static async Task Net_Test13_WebSocketClientAsync()
+        {
+            using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("echo.websocket.org", 80)))
+            {
+                using (WebSocket ws = new WebSocket(sock))
+                {
+                    await ws.StartWebSocketClientAsync("wss://echo.websocket.org");
                 }
             }
         }

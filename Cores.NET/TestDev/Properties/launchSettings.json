@@ -31,6 +31,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:Git"
     },
+    "TestDev /Inbox": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:Inbox"
+    },
     "TestDev /TcpStressClient": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:TcpStressClient http://dn-lxd-vm2-test1/favicon.ico"
