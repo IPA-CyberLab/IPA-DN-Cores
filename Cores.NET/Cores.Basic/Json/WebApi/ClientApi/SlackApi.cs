@@ -156,6 +156,20 @@ namespace IPA.Cores.ClientApi.SlackApi
             public bool as_user;
         }
 
+        public class RealtimeResponse
+        {
+            public string url;
+        }
+
+        public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)
+        {
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/rtm.connect", cancel, null);
+
+            string url = ret.Deserialize<RealtimeResponse>().url;
+
+            return await WebSocket.ConnectAsync(url, cancel: cancel);
+        }
+
         public async Task GetConversationsListAsync(CancellationToken cancel = default)
         {
             WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("unreads", "true"));

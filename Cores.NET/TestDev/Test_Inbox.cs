@@ -68,7 +68,7 @@ namespace IPA.TestDev
 
         static void Inbox_SlackTest()
         {
-            string accessToken = "xoxp-687264585408-687264586720-675870571299-xxx";
+            string accessToken = "xoxp-687264585408-687264586720-675870571299-";
 
             if (false)
             {
@@ -76,14 +76,14 @@ namespace IPA.TestDev
                 {
                     if (false)
                     {
-                        string url = slack.AuthGenerateAuthorizeUrl("channels:read groups:read im:read mpim:read channels:history groups:history im:history mpim:history users:read users.profile:read", "https://www.google.com/");
+                        string url = slack.AuthGenerateAuthorizeUrl("client", "https://www.google.com/");
 
                         url._Print();
 
                     }
                     else
                     {
-                        var token = slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.689432900214.e4c37ad725856e098e575531ed9e11d1a7a7209c2781c0e3cc2a18333e56e0a7")._GetResult();
+                        var token = slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.690879557142.7e08481798f097220614c10bf4d241a07a61cd272422fbf3b08fcbe07457c081")._GetResult();
 
                         token._PrintAsJson();
                     }
@@ -94,10 +94,14 @@ namespace IPA.TestDev
                 using (SlackApi slack = new SlackApi("687264585408.675851234162", accessToken))
                 {
 
-                    var channels = slack.GetChannelsListAsync()._GetResult();
+                    //var channels = slack.GetChannelsListAsync()._GetResult();
 
-                    slack.GetConversationsListAsync()._GetResult();
+                    //slack.GetConversationsListAsync()._GetResult();
 
+                    using (WebSocket ws = slack.RealtimeConnectAsync()._GetResult())
+                    {
+                        Dbg.Where();
+                    }
                 }
             }
         }
