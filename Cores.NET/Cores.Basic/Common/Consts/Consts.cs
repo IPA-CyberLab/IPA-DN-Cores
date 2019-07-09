@@ -50,6 +50,8 @@ namespace IPA.Cores.Basic
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;
+            public const int Http = 80;
+            public const int Https = 443;
         }
 
         public static partial class Strings

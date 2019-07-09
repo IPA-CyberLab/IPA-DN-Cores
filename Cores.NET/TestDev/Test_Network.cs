@@ -194,7 +194,9 @@ namespace IPA.TestDev
 
             //Net_Test12_AcceptLoop2();
 
-            Net_Test13_WebSocketClientAsync()._GetResult();
+            //Net_Test13_WebSocketClientAsync()._GetResult();
+
+            Net_Test14_WebSocketClient2Async()._GetResult();
 
             return 0;
         }
@@ -226,6 +228,40 @@ namespace IPA.TestDev
             }
         }
 
+        static async Task Net_Test14_WebSocketClient2Async()
+        {
+            string target = "wss://echo.websocket.org";
+
+            using (WebSocket ws = await WebSocket.ConnectAsync(target))
+            {
+                using (var stream = ws.GetStream())
+                using (var r = new StreamReader(stream))
+                using (var w = new StreamWriter(stream))
+                {
+                    w.AutoFlush = true;
+
+                    for (int i = 1; i < 3; i++)
+                    {
+                        string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 1000);
+
+                        Con.WriteLine(src.Length);
+
+                        //await w.WriteLineAsync(src);
+
+                        await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
+
+                        string dst = await r.ReadLineAsync();
+
+                        //Con.WriteLine(dst);
+
+                        Con.WriteLine(i);
+
+                        Debug.Assert(src == dst);
+                    }
+                }
+            }
+        }
+
         static async Task Net_Test13_WebSocketClientAsync()
         {
             using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("echo.websocket.org", 80)))
@@ -233,6 +269,32 @@ namespace IPA.TestDev
                 using (WebSocket ws = new WebSocket(sock))
                 {
                     await ws.StartWebSocketClientAsync("wss://echo.websocket.org");
+
+                    using (var stream = ws.GetStream())
+                    using (var r = new StreamReader(stream))
+                    using (var w = new StreamWriter(stream))
+                    {
+                        w.AutoFlush = true;
+
+                        for (int i = 1; i < 20; i++)
+                        {
+                            string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 100);
+
+                            Con.WriteLine(src.Length);
+
+                            //await w.WriteLineAsync(src);
+
+                            await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
+
+                            string dst = await r.ReadLineAsync();
+
+                            //Con.WriteLine(dst);
+
+                            Con.WriteLine(i);
+
+                            Debug.Assert(src == dst);
+                        }
+                    }
                 }
             }
         }

@@ -1217,6 +1217,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _Base64UrlEncode(this Span<byte> data) => Str.Base64UrlEncode(data.ToArray());
         public static string _Base64UrlEncode(this Memory<byte> data) => Str.Base64UrlEncode(data.ToArray());
         public static byte[] _Base64UrlDecode(this string str) => Str.Base64UrlDecode(str);
+
+        public static Task<T> FlushOtherStreamIfPending<T>(this Task<T> recvTask, PipeStream otherStream) => TaskUtil.FlushOtherStreamIfRecvPendingAsync(recvTask, otherStream);
     }
 }
 

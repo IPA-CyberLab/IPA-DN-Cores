@@ -484,6 +484,22 @@ namespace IPA.Cores.Basic
                 return (int)minValue;
         }
 
+        public static async Task<T> FlushOtherStreamIfRecvPendingAsync<T>(Task<T> recvTask, PipeStream otherStream)
+        {
+            Task<T> task = recvTask;
+
+            if (task.IsCanceled || task.IsCompleted || task.IsFaulted)
+            {
+                return task.Result;
+            }
+            else
+            {
+                otherStream.FastFlush(true, true);
+
+                return await task;
+            }
+        }
+
         public static async Task<TResult> DoAsyncWithTimeout<TResult>(Func<CancellationToken, Task<TResult>> mainProc, Action cancelProc = null, int timeout = Timeout.Infinite, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout < 0) timeout = Timeout.Infinite;

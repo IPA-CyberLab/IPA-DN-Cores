@@ -379,7 +379,7 @@ namespace IPA.Cores.Basic
 
     delegate PalX509Certificate PalSslCertificateSelectionCallback(object param, string sniHostName);
 
-    class PalSslClientAuthenticationOptions
+    class PalSslClientAuthenticationOptions : ICloneable
     {
         public PalSslClientAuthenticationOptions() { }
 
@@ -428,6 +428,8 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public object Clone() => this.MemberwiseClone();
     }
 
     class PalSslServerAuthenticationOptions

@@ -238,11 +238,15 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    LowerStream.FastSendNonBlock(sendBuffer.Memory);
+                    if (sendBuffer.Length >= 1)
+                    {
+                        LowerStream.FastSendNonBlock(sendBuffer.Memory);
+                    }
                 }
             }
             catch (Exception ex)
             {
+                this.UpperStream.Disconnect();
                 this.Cancel(ex);
             }
         }
@@ -257,14 +261,14 @@ namespace IPA.Cores.Basic
 
                 while (true)
                 {
-                    byte b1 = await LowerStream.ReceiveByteAsync(cancel);
+                    byte b1 = await LowerStream.ReceiveByteAsync(cancel).FlushOtherStreamIfPending(UpperStream);
 
-                    WebSocketOpcode opcode = (WebSocketOpcode)((b1 << 4) & 0x0f);
+                    WebSocketOpcode opcode = (WebSocketOpcode)(b1 & 0x0f);
 
                     byte b2 = await LowerStream.ReceiveByteAsync(cancel);
 
-                    bool isMasked = ((b2 & 1) == 0) ? false : true;
-                    int tmp = (b2 >> 1);
+                    bool isMasked = ((b2 & 0b10000000) == 0) ? false : true;
+                    int tmp = (b2 & 0b01111111);
 
                     ulong payloadLen64 = 0;
                     if (tmp <= 125)
@@ -273,11 +277,11 @@ namespace IPA.Cores.Basic
                     }
                     else if (tmp == 126)
                     {
-                        payloadLen64 = await LowerStream.ReceiveUInt16Async(cancel);
+                        payloadLen64 = await LowerStream.ReceiveUInt16Async(cancel).FlushOtherStreamIfPending(UpperStream);
                     }
                     else if (tmp == 127)
                     {
-                        payloadLen64 = await LowerStream.ReceiveUInt64Async(cancel);
+                        payloadLen64 = await LowerStream.ReceiveUInt64Async(cancel).FlushOtherStreamIfPending(UpperStream);
                     }
 
                     if (payloadLen64 > (ulong)Options.RecvMaxPayloadLenPerFrame)
@@ -291,10 +295,10 @@ namespace IPA.Cores.Basic
 
                     if (isMasked)
                     {
-                        maskKey = await LowerStream.ReceiveAllAsync(4, cancel);
+                        maskKey = await LowerStream.ReceiveAllAsync(4, cancel).FlushOtherStreamIfPending(UpperStream);
                     }
 
-                    Memory<byte> data = await LowerStream.ReceiveAllAsync(payloadLen, cancel);
+                    Memory<byte> data = await LowerStream.ReceiveAllAsync(payloadLen, cancel).FlushOtherStreamIfPending(UpperStream);
 
                     if (isMasked)
                     {
@@ -308,10 +312,45 @@ namespace IPA.Cores.Basic
                             }
                         });
                     }
+
+                    if (opcode == WebSocketOpcode.Text || opcode == WebSocketOpcode.Bin || opcode == WebSocketOpcode.Continue)
+                    {
+                        if (data.Length >= 1)
+                        {
+                            await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                            UpperStream.FastSendNonBlock(data, false);
+                        }
+                    }
+                    else if (opcode == WebSocketOpcode.Pong)
+                    {
+                        lock (this.PongQueueLock)
+                        {
+                            this.PongQueue.Enqueue(data);
+                        }
+                        this.SendPongEvent.Set(true);
+                    }
+                    else if (opcode == WebSocketOpcode.Ping)
+                    {
+                        lock (this.PongQueueLock)
+                        {
+                            this.PongQueue.Enqueue(data);
+                        }
+                        this.SendPongEvent.Set(true);
+                    }
+                    else if (opcode == WebSocketOpcode.Close)
+                    {
+                        throw new DisconnectedException();
+                    }
+                    else
+                    {
+                        throw new ApplicationException($"WebSocket: Unknown Opcode: {(int)opcode}");
+                    }
                 }
             }
             catch (Exception ex)
             {
+                this.UpperStream.Disconnect();
                 this.Cancel(ex);
             }
         }
@@ -319,7 +358,7 @@ namespace IPA.Cores.Basic
         public static void BuildAndAppendFrame(MemoryBuffer<byte> dest, bool clientMode, WebSocketOpcode opcode, ReadOnlyMemory<byte> data)
         {
             // Header
-            byte b0 = (byte)(1 | ((byte)opcode >> 4));
+            byte b0 = (byte)(0b10000000 | (byte)opcode);
             dest.WriteByte(b0);
 
             // Payload size
@@ -340,11 +379,12 @@ namespace IPA.Cores.Basic
                 b1 = 127;
             }
 
-            b1 = (byte)((b1 >> 1) | (clientMode ? 1 : 0));
+            b1 = (byte)(b1 | (clientMode ? 0b10000000 : 0));
 
             dest.WriteByte(b1);
 
-            if (len >= 126 && len <= 65536)
+            if (len <= 125) { }
+            else if (len >= 126 && len <= 65536)
             {
                 dest.WriteUInt16((ushort)len);
             }
@@ -404,6 +444,28 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class WebSocketConnectOptions
+    {
+        public TcpIpSystem TcpIp { get; }
+        public WebSocketOptions WebSocketOptions { get; }
+        public PalSslClientAuthenticationOptions SslOptions { get; }
+
+        public WebSocketConnectOptions(WebSocketOptions wsOptions = null, PalSslClientAuthenticationOptions sslOptions = null, TcpIpSystem tcpIp = null)
+        {
+            this.TcpIp = tcpIp ?? LocalNet;
+            this.WebSocketOptions = wsOptions ?? new WebSocketOptions();
+
+            if (sslOptions == null)
+            {
+                this.SslOptions = new PalSslClientAuthenticationOptions(true);
+            }
+            else
+            {
+                this.SslOptions = (PalSslClientAuthenticationOptions)sslOptions.Clone();
+            }
+        }
+    }
+
     class WebSocket : MiddleConnSock
     {
         protected new NetWebSocketProtocolStack Stack => (NetWebSocketProtocolStack)base.Stack;
@@ -414,6 +476,78 @@ namespace IPA.Cores.Basic
 
         public async Task StartWebSocketClientAsync(string uri, CancellationToken cancel = default)
             => await Stack.StartWebSocketClientAsync(uri, cancel);
+
+        public static async Task<WebSocket> ConnectAsync(string uri, WebSocketConnectOptions options = null, CancellationToken cancel = default)
+        {
+            if (options == null) options = new WebSocketConnectOptions();
+
+            Uri u = new Uri(uri);
+
+            int port = 0;
+            bool useSsl = false;
+
+            if (u.Scheme._IsSamei("ws"))
+            {
+                port = Consts.Ports.Http;
+            }
+            else if (u.Scheme._IsSamei("wss"))
+            {
+                port = Consts.Ports.Https;
+                useSsl = true;
+            }
+            else
+            {
+                throw new ArgumentException($"uri \"{uri}\" is not a WebSocket address.");
+            }
+
+            if (u.IsDefaultPort == false)
+            {
+                port = u.Port;
+            }
+
+            ConnSock tcpSock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(u.Host, port, connectTimeout: options.WebSocketOptions.TimeoutOpen, dnsTimeout: options.WebSocketOptions.TimeoutOpen), cancel);
+            try
+            {
+                ConnSock targetSock = tcpSock;
+
+                try
+                {
+                    if (useSsl)
+                    {
+                        SslSock sslSock = new SslSock(tcpSock);
+                        try
+                        {
+                            options.SslOptions.TargetHost = u.Host;
+
+                            await sslSock.StartSslClientAsync(options.SslOptions, cancel);
+
+                            targetSock = sslSock;
+                        }
+                        catch
+                        {
+                            sslSock._DisposeSafe();
+                            throw;
+                        }
+                    }
+
+                    WebSocket webSock = new WebSocket(targetSock, options.WebSocketOptions);
+
+                    await webSock.StartWebSocketClientAsync(uri, cancel);
+
+                    return webSock;
+                }
+                catch
+                {
+                    targetSock.Dispose();
+                    throw;
+                }
+            }
+            catch
+            {
+                tcpSock._DisposeSafe();
+                throw;
+            }
+        }
     }
 }
 
