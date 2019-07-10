@@ -61,12 +61,12 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Inbox_SlackTest();
+            Inbox_SlackTestAsync()._GetResult();
 
             return 0;
         }
 
-        static void Inbox_SlackTest()
+        static async Task Inbox_SlackTestAsync()
         {
             string accessToken = "xoxp-687264585408-687264586720-675870571299-";
 
@@ -76,6 +76,8 @@ namespace IPA.TestDev
                 {
                     if (false)
                     {
+                        //string scope = "channels:read groups:read im:read mpim:read channels:history groups:history im:history mpim:history users:read users.profile:read";
+                        string scope = "client";
                         string url = slack.AuthGenerateAuthorizeUrl("client", "https://www.google.com/");
 
                         url._Print();
@@ -83,7 +85,7 @@ namespace IPA.TestDev
                     }
                     else
                     {
-                        var token = slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.690879557142.7e08481798f097220614c10bf4d241a07a61cd272422fbf3b08fcbe07457c081")._GetResult();
+                        var token = await slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.678256576146.f0e278b0db71e80ebe432243327ffb565fc09686f8efaf0f0a424b08a9e47820");
 
                         token._PrintAsJson();
                     }
@@ -93,14 +95,26 @@ namespace IPA.TestDev
             {
                 using (SlackApi slack = new SlackApi("687264585408.675851234162", accessToken))
                 {
+                    //var channels = await slack.GetChannelsListAsync();
 
-                    //var channels = slack.GetChannelsListAsync()._GetResult();
+                    //await slack.GetConversationsListAsync();
 
-                    //slack.GetConversationsListAsync()._GetResult();
-
-                    using (WebSocket ws = slack.RealtimeConnectAsync()._GetResult())
+                    using (WebSocket ws = await slack.RealtimeConnectAsync())
                     {
-                        Dbg.Where();
+                        using (var st = ws.GetStream())
+                        {
+                            while (true)
+                            {
+                                IReadOnlyList<ReadOnlyMemory<byte>> segments = await st.FastReceiveAsync();
+
+                                foreach (ReadOnlyMemory<byte> mem in segments)
+                                {
+                                    string str = mem._GetString_Ascii();
+
+                                    str._Print();
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -2365,9 +2365,9 @@ namespace IPA.Cores.Basic
 
     static class SpanMemoryBufferHelper
     {
-        public static unsafe void Write<T>(this ref SpanBuffer<byte> buf, in T value) where T : unmanaged
+        public static unsafe void WriteAny<T>(this ref SpanBuffer<byte> buf, in T value) where T : unmanaged
             => buf.Write(Unsafe.AsPointer(ref Unsafe.AsRef(in value)), sizeof(T));
-        public static unsafe void Write<T>(this MemoryBuffer<byte> buf, in T value) where T : unmanaged
+        public static unsafe void WriteAny<T>(this MemoryBuffer<byte> buf, in T value) where T : unmanaged
             => buf.Write(Unsafe.AsPointer(ref Unsafe.AsRef(in value)), sizeof(T));
 
         public static void WriteBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));

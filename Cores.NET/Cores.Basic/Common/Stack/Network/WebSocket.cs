@@ -72,8 +72,10 @@ namespace IPA.Cores.Basic
         public int SendPingInterval { get; set; } = 1 * 1000;
         public int RecvMaxPayloadLenPerFrame { get; set; } = (8 * 1024 * 1024);
         public int SendSingleFragmentSize { get; set; } = (32 * 1024);
+        public int RecvMaxTotalFragmentSize { get; set; } = (16 * 1024 * 1024);
 
         public int MaxBufferSize { get; set; } = (1600 * 1600);
+        public bool RespectMessageDelimiter { get; set; } = false;
     }
 
     class NetWebSocketProtocolStack : NetMiddleProtocolStackBase
@@ -131,7 +133,7 @@ namespace IPA.Cores.Basic
             tmpWriter.WriteLine(req.Headers.ToString());
 
             await LowerStream.WriteAsync(tmpWriter.ToString()._GetBytes_UTF8(), cancel);
-            Dictionary<string, string> headers = new Dictionary<string, string>();
+            Dictionary<string, string> headers = new Dictionary<string, string>(StrComparer.IgnoreCaseComparer);
             int num = 0;
             int responseCode = 0;
 
@@ -141,6 +143,7 @@ namespace IPA.Cores.Basic
                 string line = await TaskUtil.DoAsyncWithTimeout((procCancel) => tmpReader.ReadLineAsync(),
                     timeout: Options.TimeoutOpen,
                     cancel: cancel);
+
                 if (line == "")
                 {
                     break;
@@ -210,11 +213,17 @@ namespace IPA.Cores.Basic
                     if (totalRecvSize >= 1)
                     {
                         // Send data
-                        userDataList = Util.DefragmentMemoryArrays(userDataList, Options.SendSingleFragmentSize);
+                        if (Options.RespectMessageDelimiter == false)
+                        {
+                            userDataList = Util.DefragmentMemoryArrays(userDataList, Options.SendSingleFragmentSize);
+                        }
 
                         foreach (ReadOnlyMemory<byte> userData in userDataList)
                         {
-                            BuildAndAppendFrame(sendBuffer, true, WebSocketOpcode.Bin, userData);
+                            if (userData.Length >= 1)
+                            {
+                                BuildAndAppendFrame(sendBuffer, true, WebSocketOpcode.Bin, userData);
+                            }
                         }
                     }
 
@@ -259,6 +268,8 @@ namespace IPA.Cores.Basic
 
                 LowerStream.ReadTimeout = Options.TimeoutComm;
 
+                MemoryBuffer<byte> currentRecvingMessage = new MemoryBuffer<byte>();
+
                 while (true)
                 {
                     byte b1 = await LowerStream.ReceiveByteAsync(cancel).FlushOtherStreamIfPending(UpperStream);
@@ -267,7 +278,7 @@ namespace IPA.Cores.Basic
 
                     byte b2 = await LowerStream.ReceiveByteAsync(cancel);
 
-                    bool isMasked = ((b2 & 0b10000000) == 0) ? false : true;
+                    bool isMasked = (b2 & 0b10000000)._ToBool();
                     int tmp = (b2 & 0b01111111);
 
                     ulong payloadLen64 = 0;
@@ -313,13 +324,66 @@ namespace IPA.Cores.Basic
                         });
                     }
 
-                    if (opcode == WebSocketOpcode.Text || opcode == WebSocketOpcode.Bin || opcode == WebSocketOpcode.Continue)
+                    if (opcode.EqualsAny(WebSocketOpcode.Text, WebSocketOpcode.Bin, WebSocketOpcode.Continue))
                     {
-                        if (data.Length >= 1)
+                        if (Options.RespectMessageDelimiter == false)
                         {
-                            await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+                            if (data.Length >= 1)
+                            {
+                                await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
 
-                            UpperStream.FastSendNonBlock(data, false);
+                                UpperStream.FastSendNonBlock(data, false);
+                            }
+                        }
+                        else
+                        {
+                            bool isFin = (b1 & 0b10000000)._ToBool();
+
+                            if (isFin && opcode.EqualsAny(WebSocketOpcode.Text, WebSocketOpcode.Bin))
+                            {
+                                // Single message
+                                if (data.Length >= 1)
+                                {
+                                    await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                                    UpperStream.FastSendNonBlock(data, false);
+                                }
+                            }
+                            else if (isFin == false && opcode.EqualsAny(WebSocketOpcode.Text, WebSocketOpcode.Bin))
+                            {
+                                // First message
+                                currentRecvingMessage.Clear();
+
+                                if ((currentRecvingMessage.Length + data.Length) >= Options.RecvMaxTotalFragmentSize)
+                                    throw new ApplicationException("WebSocket: Exceeding Options.RecvMaxTotalFragmentSize.");
+
+                                currentRecvingMessage.Write(data);
+                            }
+                            else if (isFin && opcode == WebSocketOpcode.Continue)
+                            {
+                                // Final continuous message
+                                if ((currentRecvingMessage.Length + data.Length) >= Options.RecvMaxTotalFragmentSize)
+                                    throw new ApplicationException("WebSocket: Exceeding Options.RecvMaxTotalFragmentSize.");
+
+                                currentRecvingMessage.Write(data);
+
+                                if (currentRecvingMessage.Length >= 1)
+                                {
+                                    await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                                    UpperStream.FastSendNonBlock(data, false);
+                                }
+
+                                currentRecvingMessage.Clear();
+                            }
+                            else if (isFin == false && opcode == WebSocketOpcode.Continue)
+                            {
+                                // Intermediate continuous message
+                                if ((currentRecvingMessage.Length + data.Length) >= Options.RecvMaxTotalFragmentSize)
+                                    throw new ApplicationException("WebSocket: Exceeding Options.RecvMaxTotalFragmentSize.");
+
+                                currentRecvingMessage.Write(data);
+                            }
                         }
                     }
                     else if (opcode == WebSocketOpcode.Pong)

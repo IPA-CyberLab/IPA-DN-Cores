@@ -168,6 +168,16 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static byte[] _GetHexBytes(this string str) => Str.HexToByte(str);
 
+        public static bool _ToBool(this bool b) => b;
+        public static bool _ToBool(this sbyte i) => (i != 0);
+        public static bool _ToBool(this byte i) => (i != 0);
+        public static bool _ToBool(this short i) => (i != 0);
+        public static bool _ToBool(this ushort i) => (i != 0);
+        public static bool _ToBool(this int i) => (i != 0);
+        public static bool _ToBool(this uint i) => (i != 0);
+        public static bool _ToBool(this long i) => (i != 0);
+        public static bool _ToBool(this ulong i) => (i != 0);
+
         public static bool _ToBool(this string str) => Str.StrToBool(str);
         public static byte[] _ToByte(this string str) => Str.StrToByte(str);
         public static DateTime _ToDate(this string str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);

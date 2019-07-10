@@ -61,14 +61,15 @@ namespace IPA.Cores.ClientApi.SlackApi
 
     class SlackApi : WebApi
     {
-        public class Response : IErrorCheckable
+        public abstract class SlackResponseBase : IErrorCheckable
         {
-            public bool ok = false;
-            public string error = null;
+            public bool ok;
+            public string error;
 
             public void CheckError()
             {
-                if (this.ok == false) throw new WebResponseException(error);
+                if (ok == false)
+                    throw new ApplicationException(error._FilledOrDefault("Slack response unknown error"));
             }
         }
 
@@ -103,7 +104,7 @@ namespace IPA.Cores.ClientApi.SlackApi
                     ("state", state));
         }
 
-        public class AccessToken : Response
+        public class AccessToken : SlackResponseBase
         {
             public string access_token;
             public string scope;
@@ -126,7 +127,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             return a;
         }
 
-        public class ChannelsList : Response
+        public class ChannelsList : SlackResponseBase
         {
             public Channel[] Channels;
         }
@@ -156,7 +157,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             public bool as_user;
         }
 
-        public class RealtimeResponse
+        public class RealtimeResponse : SlackResponseBase
         {
             public string url;
         }
@@ -165,14 +166,14 @@ namespace IPA.Cores.ClientApi.SlackApi
         {
             WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/rtm.connect", cancel, null);
 
-            string url = ret.Deserialize<RealtimeResponse>().url;
+            string url = ret.Deserialize<RealtimeResponse>(true).url;
 
-            return await WebSocket.ConnectAsync(url, cancel: cancel);
+            return await WebSocket.ConnectAsync(url, cancel: cancel, options: new WebSocketConnectOptions(new WebSocketOptions { RespectMessageDelimiter = true }));
         }
 
         public async Task GetConversationsListAsync(CancellationToken cancel = default)
         {
-            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("unreads", "true"));
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("unreads", "true"), ("types", "public_channel,private_channel,mpim,im"));
 
             ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
 
@@ -202,7 +203,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task PostMessageAsync(PostMessageData m, CancellationToken cancel = default)
         {
-            (await RequestWithJsonObjectAsync(WebMethods.POST, "https://slack.com/api/chat.postMessage", m, cancel)).Deserialize<Response>(true);
+            (await RequestWithJsonObjectAsync(WebMethods.POST, "https://slack.com/api/chat.postMessage", m, cancel)).Deserialize<SlackResponseBase>(true);
         }
     }
 }
