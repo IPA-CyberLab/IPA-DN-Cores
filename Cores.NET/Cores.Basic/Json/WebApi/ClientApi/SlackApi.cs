@@ -42,11 +42,11 @@ using System.IO;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using IPA.Cores.Basic.HttpClientCore;
 using static IPA.Cores.Globals.Basic;
 
 //using System.Net.Http;
 //using System.Net.Http.Headers;
-using IPA.Cores.Basic.HttpClientCore;
 
 #pragma warning disable CS0649
 
@@ -54,17 +54,24 @@ namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper
     {
-        public static DateTime _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime((uint)value);
-        public static DateTime _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
-        public static long _ToLongDateTimeOfSlack(this DateTime dt) => Util.DateTimeToUnixTime(dt);
+        public static DateTimeOffset _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime((uint)value);
+        public static DateTimeOffset _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
+
+        public static long _ToLongDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTime(dt.UtcDateTime);
     }
 
     class SlackApi : WebApi
     {
+        public class ResponseMetadata
+        {
+            public string next_cursor;
+        }
+
         public abstract class SlackResponseBase : IErrorCheckable
         {
             public bool ok;
             public string error;
+            public ResponseMetadata response_metadata;
 
             public void CheckError()
             {
@@ -129,7 +136,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public class ChannelsList : SlackResponseBase
         {
-            public Channel[] Channels;
+            public Channel[] channels;
         }
 
         public class Value
@@ -138,16 +145,36 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string creator;
             public long last_set;
         }
+        
+        public class ConversationInfo : SlackResponseBase
+        {
+            public Channel channel;
+        }
 
         public class Channel
         {
             public string id;
             public string name;
             public bool is_channel;
+            public bool is_group;
+            public bool is_im;
             public decimal created;
             public string creator;
+            public bool is_archived;
+            public bool is_member;
+            public bool is_private;
+            public bool is_mpim;
             public string name_normalized;
             public Value purpose;
+            public decimal last_read;
+
+            public bool IsTarget()
+            {
+                if (this.is_archived) return false;
+                if (this.is_channel && this.is_member == false) return false;
+
+                return true;
+            }
         }
 
         public class PostMessageData
@@ -162,6 +189,62 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string url;
         }
 
+        public class Profile
+        {
+            public string image_512;
+            public string real_name;
+        }
+
+        public class User
+        {
+            public string id;
+            public string name;
+            public Profile profile;
+        }
+
+        public class UserListResponse : SlackResponseBase
+        {
+            public User[] members;
+        }
+
+        public class TeamIcon
+        {
+            public string image_132;
+        }
+
+        public class Team
+        {
+            public string id;
+            public string name;
+            public TeamIcon icon;
+        }
+
+        public class TeamResponse : SlackResponseBase
+        {
+            public Team team;
+        }
+
+        public class File
+        {
+            public string name;
+        }
+
+        public class Message
+        {
+            public string type;
+            public string user;
+            public string text;
+            public bool upload;
+            public decimal ts;
+
+            public File[] files;
+        }
+
+        public class HistoryResponse : SlackResponseBase
+        {
+            public Message[] messages;
+        }
+
         public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)
         {
             WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/rtm.connect", cancel, null);
@@ -171,18 +254,66 @@ namespace IPA.Cores.ClientApi.SlackApi
             return await WebSocket.ConnectAsync(url, cancel: cancel, options: new WebSocketConnectOptions(new WebSocketOptions { RespectMessageDelimiter = true }));
         }
 
-        public async Task GetConversationsListAsync(CancellationToken cancel = default)
+        public async Task<Message[]> GetConversationHistoryAsync(string channelId, decimal oldest = 0, CancellationToken cancel = default)
         {
-            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("unreads", "true"), ("types", "public_channel,private_channel,mpim,im"));
+            string nextCursor = null;
 
-            ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+            List<Message> o = new List<Message>();
 
-            return;
+            do
+            {
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId), ("oldest", oldest.ToString()));
+
+                HistoryResponse data = ret.Deserialize<HistoryResponse>(true);
+
+                ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+
+                foreach (Message m in data.messages)
+                {
+                    o.Add(m);
+                }
+
+                nextCursor = data.response_metadata?.next_cursor;
+            }
+            while (nextCursor._IsFilled());
+
+            return o.ToArray();
+        }
+
+        public async Task<Channel> GetConversationInfoAsync(string id, CancellationToken cancel = default)
+        {
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.info", cancel, null, ("channel", id));
+
+            return ret.Deserialize<ConversationInfo>(true).channel;
+        }
+
+        public async Task<Channel[]> GetConversationsListAsync(CancellationToken cancel = default)
+        {
+            string nextCursor = null;
+
+            List<Channel> o = new List<Channel>();
+
+            do
+            {
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("cursor", nextCursor));
+
+                ChannelsList data = ret.Deserialize<ChannelsList>(true);
+
+                foreach (Channel c in data.channels)
+                {
+                    o.Add(c);
+                }
+
+                nextCursor = data.response_metadata?.next_cursor;
+            }
+            while (nextCursor._IsFilled());
+
+            return o.ToArray();
         }
 
         public async Task<ChannelsList> GetChannelsListAsync(CancellationToken cancel = default)
         {
-            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list", queryList: ("unreads", "true"));
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list", cancel, queryList: ("unreads", "true"));
 
             ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
 
@@ -199,6 +330,37 @@ namespace IPA.Cores.ClientApi.SlackApi
             };
 
             await PostMessageAsync(m, cancel);
+        }
+
+        public async Task<Team> GetTeamInfoAsync(CancellationToken cancel = default)
+        {
+            WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/team.info", cancel);
+
+            return ret.Deserialize<TeamResponse>(true).team;
+        }
+
+        public async Task<User[]> GetUsersListAsync(CancellationToken cancel = default)
+        {
+            string nextCursor = null;
+
+            List<User> o = new List<User>();
+
+            do
+            {
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/users.list", cancel, null, ("limit", "1000"), ("cursor", nextCursor));
+
+                UserListResponse data = ret.Deserialize<UserListResponse>(true);
+
+                foreach (User u in data.members)
+                {
+                    o.Add(u);
+                }
+
+                nextCursor = data.response_metadata?.next_cursor;
+            }
+            while (nextCursor._IsFilled());
+
+            return o.ToArray();
         }
 
         public async Task PostMessageAsync(PostMessageData m, CancellationToken cancel = default)

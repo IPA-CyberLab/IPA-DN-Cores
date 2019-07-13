@@ -1,0 +1,255 @@
+﻿// IPA Cores.NET
+// 
+// Copyright (c) 2018-2019 IPA CyberLab.
+// Copyright (c) 2003-2018 Daiyuu Nobori.
+// Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
+// All Rights Reserved.
+// 
+// License: The Apache License, Version 2.0
+// https://www.apache.org/licenses/LICENSE-2.0
+// 
+// THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// 
+// THIS SOFTWARE IS DEVELOPED IN JAPAN, AND DISTRIBUTED FROM JAPAN, UNDER
+// JAPANESE LAWS. YOU MUST AGREE IN ADVANCE TO USE, COPY, MODIFY, MERGE, PUBLISH,
+// DISTRIBUTE, SUBLICENSE, AND/OR SELL COPIES OF THIS SOFTWARE, THAT ANY
+// JURIDICAL DISPUTES WHICH ARE CONCERNED TO THIS SOFTWARE OR ITS CONTENTS,
+// AGAINST US (IPA CYBERLAB, DAIYUU NOBORI, SOFTETHER VPN PROJECT OR OTHER
+// SUPPLIERS), OR ANY JURIDICAL DISPUTES AGAINST US WHICH ARE CAUSED BY ANY KIND
+// OF USING, COPYING, MODIFYING, MERGING, PUBLISHING, DISTRIBUTING, SUBLICENSING,
+// AND/OR SELLING COPIES OF THIS SOFTWARE SHALL BE REGARDED AS BE CONSTRUED AND
+// CONTROLLED BY JAPANESE LAWS, AND YOU MUST FURTHER CONSENT TO EXCLUSIVE
+// JURISDICTION AND VENUE IN THE COURTS SITTING IN TOKYO, JAPAN. YOU MUST WAIVE
+// ALL DEFENSES OF LACK OF PERSONAL JURISDICTION AND FORUM NON CONVENIENS.
+// PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
+// LAW OR COURT RULE.
+
+#if CORES_BASIC_JSON
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Linq;
+
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
+
+using IPA.Cores.ClientApi.SlackApi;
+
+namespace IPA.Cores.Basic
+{
+    static partial class CoresConfig
+    {
+        public static partial class InboxSlackAdapterSettings
+        {
+            public static readonly Copenhagen<int> RefreshAllInterval = 5 * 1000;
+        }
+    }
+
+    class InboxSlackAdapter : InboxAdapter
+    {
+        public override string AdapterName => "slack";
+
+        SlackApi Api;
+
+        public InboxSlackAdapter(string guid, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
+            : base(guid, appCredential, adapterOptions)
+        {
+        }
+
+        Once Started;
+
+        protected override void StartImpl(InboxAdapterUserCredential credential)
+        {
+            if (credential == null) throw new ArgumentNullException("credential");
+
+            if (Started.IsFirstCall())
+            {
+                this.UserCredential = credential;
+
+                this.Api = new SlackApi(this.AppCredential.ClientId, this.UserCredential.AccessToken);
+            }
+            else
+            {
+                throw new ApplicationException("Already started.");
+            }
+        }
+
+        protected override void CancelImpl(Exception ex)
+        {
+            base.CancelImpl(ex);
+        }
+
+        protected override Task CleanupImplAsync(Exception ex)
+        {
+            return base.CleanupImplAsync(ex);
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                this.Api._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+
+        public override string AuthStartGetUrl(string redirectUrl, string state = "")
+        {
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, ""))
+            {
+                return tmpApi.AuthGenerateAuthorizeUrl("client", redirectUrl, state);
+            }
+        }
+
+        public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, CancellationToken cancel = default)
+        {
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, ""))
+            {
+                SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(this.AppCredential.ClientSecret, code, cancel);
+
+                return new InboxAdapterUserCredential { AccessToken = token.access_token };
+            }
+        }
+
+        public async Task ReloadTestAsync(CancellationToken cancel = default)
+        {
+            SlackApi.User[] users = await this.Api.GetUsersListAsync();
+
+            users._PrintAsJson();
+
+            SlackApi.Channel[] channels = await this.Api.GetConversationsListAsync();
+
+            channels._PrintAsJson();
+
+            foreach (var channel in channels)
+            {
+                SlackApi.Channel channel2 = await Api.GetConversationInfoAsync(channel.id);
+
+                channel2._PrintAsJson();
+
+                SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(channel.id, channel2.last_read);
+
+                //messages._PrintAsJson();
+            }
+        }
+
+        AsyncLock CommLock = new AsyncLock();
+        SlackApi.User[] UserList;
+        SlackApi.Channel[] ConversationList;
+        SlackApi.Team TeamInfo;
+
+        protected override async Task MainLoopImplAsync(CancellationToken cancel)
+        {
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                using (await CommLock.LockWithAwait(cancel))
+                {
+                    InboxMessageBox box = await ReloadInternalAsync(true, null, cancel);
+
+                    MessageBoxUpdatedCallback(box);
+                }
+
+                await cancel._WaitUntilCanceledAsync(CoresConfig.InboxSlackAdapterSettings.RefreshAllInterval);
+            }
+        }
+
+        async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string> targetChannelIDs, CancellationToken cancel)
+        {
+            List<InboxMessage> msgList = new List<InboxMessage>();
+
+            // Team info
+            this.TeamInfo = await Api.GetTeamInfoAsync(cancel);
+
+            if (all)
+            {
+                // Enum users
+                this.UserList = await Api.GetUsersListAsync(cancel);
+            }
+
+            // Enum conversations
+            this.ConversationList = await Api.GetConversationsListAsync(cancel);
+
+            // Enum messages
+            foreach (SlackApi.Channel conv in ConversationList)
+            {
+                bool selected = false;
+
+                if (conv.IsTarget())
+                {
+                    if (all)
+                    {
+                        selected = true;
+                    }
+                    else
+                    {
+                        if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
+                        {
+                            selected = true;
+                        }
+                    }
+                }
+
+                if (selected)
+                {
+                    // Get the conversation info
+                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
+
+                    // Get unread messages
+                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel);
+
+                    foreach (SlackApi.Message message in messages)
+                    {
+                        var user = GetUser(message.user);
+
+                        InboxMessage m = new InboxMessage
+                        {
+                            Service = TeamInfo.name,
+                            ServiceImage = TeamInfo.icon?.image_132 ?? "",
+
+                            From = user?.profile?.real_name ?? "Unknown",
+                            FromImage = user?.profile ?.image_512 ?? "",
+
+                            Group = convInfo.name,
+
+                            Text = message.text,
+                            Timestamp = message.ts._ToDateTimeOfSlack(),
+                        };
+
+                        msgList.Add(m);
+                    }
+                }
+            }
+
+            InboxMessageBox ret = new InboxMessageBox()
+            {
+                MessageList = msgList.OrderBy(x => x.Timestamp).ToArray(),
+            };
+
+            return ret;
+        }
+
+        SlackApi.User GetUser(string userId)
+        {
+            SlackApi.User user = this.UserList.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
+            return user;
+        }
+    }
+}
+
+#endif  // CORES_BASIC_JSON

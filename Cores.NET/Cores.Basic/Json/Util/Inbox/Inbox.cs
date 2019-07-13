@@ -48,63 +48,223 @@ using IPA.Cores.ClientApi.SlackApi;
 
 namespace IPA.Cores.Basic
 {
-    sealed class InboxAdapterOptions
+    class InboxMessage
+    {
+        public string Service;
+        public string ServiceImage;
+        public string Group;
+        public string From;
+        public string FromImage;
+        public string Text;
+        public DateTimeOffset Timestamp;
+    }
+
+    class InboxMessageBox
+    {
+        public InboxMessage[] MessageList;
+    }
+
+    class Inbox
+    {
+        public InboxOptions Options { get; }
+
+        readonly List<InboxAdapter> AdapterList = new List<InboxAdapter>();
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        readonly InboxAdapterFactory Factory;
+
+        public Inbox(InboxOptions options = null)
+        {
+            this.Options = options ?? new InboxOptions();
+
+            this.Factory = new InboxAdapterFactory(this.Options);
+        }
+
+        public InboxMessageBox GetMessageBox(CancellationToken cancel = default)
+        {
+            InboxAdapter[] adaptersList = this.EnumAdapters();
+
+            List<InboxMessage> msgList = new List<InboxMessage>();
+
+            foreach (InboxAdapter a in adaptersList)
+            {
+                InboxMessageBox box = a.MessageBox;
+
+                if (box != null && box.MessageList != null)
+                {
+                    foreach (InboxMessage m in box.MessageList)
+                    {
+                        msgList.Add(m);
+                    }
+                }
+            }
+
+            InboxMessageBox ret = new InboxMessageBox();
+
+            ret.MessageList = msgList.OrderByDescending(x => x.Timestamp).ToArray();
+
+            return ret;
+        }
+
+        public string[] GetProviderNameList()
+        {
+            return this.Factory.ProviderNameList.ToArray();
+        }
+
+        public InboxAdapter AddAdapter(string guid, string providerName, InboxAdapterAppCredential appCredential)
+        {
+            lock (LockObj)
+            {
+                if (this.AdapterList.Where(x => x.Guid._IsSamei(guid)).Any())
+                    throw new ArgumentException("guid already exists");
+
+                InboxAdapter adapter = this.Factory.Create(guid, providerName, appCredential);
+
+                this.AdapterList.Add(adapter);
+
+                return adapter;
+            }
+        }
+
+        public void DeleteAdapter(string guid)
+        {
+            lock (LockObj)
+            {
+                InboxAdapter adapter = this.AdapterList.Where(x => x.Guid._IsSamei(guid)).Single();
+
+                adapter._DisposeSafe();
+
+                this.AdapterList.Remove(adapter);
+            }
+        }
+
+        public void StartAdapter(string guid, InboxAdapterUserCredential userCredential)
+        {
+            lock (LockObj)
+            {
+                InboxAdapter adapter = this.AdapterList.Where(x => x.Guid._IsSamei(guid)).Single();
+
+                adapter.Start(userCredential);
+            }
+        }
+
+        public InboxAdapter[] EnumAdapters()
+        {
+            lock (LockObj)
+            {
+                return this.AdapterList.ToArray();
+            }
+        }
+    }
+
+    class InboxAdapterFactory
+    {
+        public InboxOptions Options { get; }
+
+        SortedDictionary<string, Func<string, InboxAdapterAppCredential, InboxAdapter>> ProviderList = new SortedDictionary<string, Func<string, InboxAdapterAppCredential, InboxAdapter>>(StrComparer.IgnoreCaseComparer);
+
+        public IReadOnlyList<string> ProviderNameList => this.ProviderList.Keys.ToList();
+
+        public InboxAdapterFactory(InboxOptions options)
+        {
+            this.Options = options;
+
+            AddProvider("slack", (guid, cred) => new InboxSlackAdapter(guid, cred, this.Options));
+        }
+
+        void AddProvider(string name, Func<string, InboxAdapterAppCredential, InboxAdapter> newFunction)
+        {
+            if (this.ProviderList.ContainsKey(name))
+                throw new ArgumentException("Duplicated provider key");
+
+            this.ProviderList.Add(name, newFunction);
+        }
+
+        public InboxAdapter Create(string guid, string providerName, InboxAdapterAppCredential appCredential)
+        {
+            return this.ProviderList[providerName](guid, appCredential);
+        }
+    }
+
+    class InboxAdapterUserCredential
+    {
+        public string AccessToken;
+    }
+
+    class InboxAdapterAppCredential
+    {
+        public string ClientId;
+        public string ClientSecret;
+    }
+
+    sealed class InboxOptions
     {
         public TcpIpSystem TcpIp { get; }
 
-        public InboxAdapterOptions(TcpIpSystem tcpIp = null)
+        public InboxOptions(TcpIpSystem tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
         }
     }
 
-    abstract class InboxAdapterBase : AsyncServiceWithMainLoop
+    abstract class InboxAdapter : AsyncServiceWithMainLoop
     {
         public abstract string AdapterName { get; }
-        public abstract string AdapterTitle { get; }
 
-        public InboxAdapterOptions AdapterOptions { get; }
+        public InboxOptions AdapterOptions { get; }
+        public InboxAdapterAppCredential AppCredential { get; }
+        public InboxAdapterUserCredential UserCredential { get; protected set; }
 
-        public InboxAdapterBase(InboxAdapterOptions adapterOptions)
+        public InboxMessageBox MessageBox { get; private set; }
+
+        public string Guid { get; }
+
+        public abstract string AuthStartGetUrl(string redirectUrl, string state = "");
+
+        public InboxAdapter(string guid, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions)
         {
-            this.AdapterOptions = adapterOptions ?? new InboxAdapterOptions();
-        }
-    }
+            this.Guid = guid;
 
-    class InboxSlackAdapter : InboxAdapterBase
-    {
-        public override string AdapterName => "slack";
-        public override string AdapterTitle => "Slack";
+            this.AdapterOptions = adapterOptions ?? new InboxOptions();
 
-        readonly SlackApi Api;
-
-        public InboxSlackAdapter(InboxAdapterOptions adapterOptions = null) : base(adapterOptions)
-        {
-        }
-
-        async Task MainLoop(CancellationToken cancel)
-        {
+            this.AppCredential = appCredential;
         }
 
-        protected override void CancelImpl(Exception ex)
+        public abstract Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, CancellationToken cancel = default);
+
+        public void Start(InboxAdapterUserCredential credential)
         {
-            base.CancelImpl(ex);
+            StartImpl(credential);
+
+            this.StartMainLoop(MainLoopAsync);
         }
 
-        protected override Task CleanupImplAsync(Exception ex)
-        {
-            return base.CleanupImplAsync(ex);
-        }
+        protected abstract void StartImpl(InboxAdapterUserCredential credential);
 
-        protected override void DisposeImpl(Exception ex)
+        protected abstract Task MainLoopImplAsync(CancellationToken cancel);
+        
+        async Task MainLoopAsync(CancellationToken cancel)
         {
-            try
+            while (true)
             {
+                cancel.ThrowIfCancellationRequested();
+
+                try
+                {
+                    await this.MainLoopImplAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+
+                    await cancel._WaitUntilCanceledAsync(1000);
+                }
             }
-            finally
-            {
-                base.DisposeImpl(ex);
-            }
+        }
+
+        protected void MessageBoxUpdatedCallback(InboxMessageBox box)
+        {
+            this.MessageBox = box;
         }
     }
 }

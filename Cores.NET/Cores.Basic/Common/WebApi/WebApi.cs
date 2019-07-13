@@ -299,12 +299,15 @@ namespace IPA.Cores.Basic
             {
                 foreach (var t in queryList)
                 {
-                    if (count != 0)
+                    if (t.value != null)
                     {
-                        w.Write("&");
+                        if (count != 0)
+                        {
+                            w.Write("&");
+                        }
+                        w.Write($"{t.name._EncodeUrl(this.RequestEncoding)}={t.value._EncodeUrl(this.RequestEncoding)}");
+                        count++;
                     }
-                    w.Write($"{t.name._EncodeUrl(this.RequestEncoding)}={t.value._EncodeUrl(this.RequestEncoding)}");
-                    count++;
                 }
             }
             return w.ToString();
