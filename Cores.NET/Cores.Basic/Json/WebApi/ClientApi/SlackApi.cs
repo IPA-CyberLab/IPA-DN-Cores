@@ -54,10 +54,11 @@ namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper
     {
-        public static DateTimeOffset _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime((uint)value);
+        public static DateTimeOffset _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime(value);
         public static DateTimeOffset _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
 
         public static long _ToLongDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTime(dt.UtcDateTime);
+        public static decimal _ToDecimalDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime);
     }
 
     class SlackApi : WebApi
@@ -167,6 +168,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string name_normalized;
             public Value purpose;
             public decimal last_read;
+            public string user;
 
             public bool IsTarget()
             {
@@ -262,7 +264,8 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             do
             {
-                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId), ("oldest", oldest.ToString()));
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId), ("oldest", oldest == 0 ? null : oldest.ToString()));
+                //WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId));
 
                 HistoryResponse data = ret.Deserialize<HistoryResponse>(true);
 
@@ -295,8 +298,8 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             do
             {
-                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("cursor", nextCursor));
-
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("types", "public_channel,private_channel,mpim,im"));
+                //ret.Data._GetString_UTF8()._JsonNormalizeAndPrint();
                 ChannelsList data = ret.Deserialize<ChannelsList>(true);
 
                 foreach (Channel c in data.channels)
@@ -315,7 +318,7 @@ namespace IPA.Cores.ClientApi.SlackApi
         {
             WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/channels.list", cancel, queryList: ("unreads", "true"));
 
-            ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+            //ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
 
             return ret.Deserialize<ChannelsList>(true);
         }

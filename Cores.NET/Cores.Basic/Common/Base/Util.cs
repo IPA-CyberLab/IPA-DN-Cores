@@ -1263,6 +1263,11 @@ namespace IPA.Cores.Basic
             return new DateTime(1970, 1, 1).AddSeconds(t);
         }
 
+        public static DateTime UnixTimeToDateTime(decimal t)
+        {
+            return new DateTime(1970, 1, 1).AddSeconds((double)t);
+        }
+
         // DateTime を UNIX 時間に変換
         public static uint DateTimeToUnixTime(DateTime dt)
         {
@@ -1274,6 +1279,17 @@ namespace IPA.Cores.Basic
 
             return (uint)ts.TotalSeconds;
         }
+        public static decimal DateTimeToUnixTimeDecimal(DateTime dt)
+        {
+            TimeSpan ts = dt - new DateTime(1970, 1, 1);
+            if (ts.Ticks < 0)
+            {
+                throw new InvalidDataException("dt");
+            }
+
+            return (decimal)ts.TotalSeconds;
+        }
+
 
         // Convert to a time to be used safely in the current POSIX implementation
         public static long SafeTime64(long time64) => (long)SafeTime64((ulong)time64);

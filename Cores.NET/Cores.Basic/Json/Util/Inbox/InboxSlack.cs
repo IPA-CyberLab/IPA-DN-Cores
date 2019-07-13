@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class InboxSlackAdapterSettings
         {
-            public static readonly Copenhagen<int> RefreshAllInterval = 5 * 1000;
+            public static readonly Copenhagen<int> RefreshAllInterval = 60 * 1000;
         }
     }
 
@@ -62,8 +62,8 @@ namespace IPA.Cores.Basic
 
         SlackApi Api;
 
-        public InboxSlackAdapter(string guid, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
-            : base(guid, appCredential, adapterOptions)
+        public InboxSlackAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
+            : base(guid, inbox, appCredential, adapterOptions)
         {
         }
 
@@ -129,17 +129,17 @@ namespace IPA.Cores.Basic
         {
             SlackApi.User[] users = await this.Api.GetUsersListAsync();
 
-            users._PrintAsJson();
+            //users._PrintAsJson();
 
             SlackApi.Channel[] channels = await this.Api.GetConversationsListAsync();
 
-            channels._PrintAsJson();
+            //channels._PrintAsJson();
 
             foreach (var channel in channels)
             {
                 SlackApi.Channel channel2 = await Api.GetConversationInfoAsync(channel.id);
 
-                channel2._PrintAsJson();
+                //channel2._PrintAsJson();
 
                 SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(channel.id, channel2.last_read);
 
@@ -147,101 +147,239 @@ namespace IPA.Cores.Basic
             }
         }
 
-        AsyncLock CommLock = new AsyncLock();
         SlackApi.User[] UserList;
         SlackApi.Channel[] ConversationList;
         SlackApi.Team TeamInfo;
+        Dictionary<string, SlackApi.Message[]> MessageListPerConversation = new Dictionary<string, SlackApi.Message[]>(StrComparer.IgnoreCaseComparer);
 
-        protected override async Task MainLoopImplAsync(CancellationToken cancel)
+        readonly AsyncAutoResetEvent UpdateChannelsEvent = new AsyncAutoResetEvent();
+        readonly CriticalSection UpdateChannelsListLock = new CriticalSection();
+        readonly HashSet<string> UpdateChannelsList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+        async Task RealtimeRecvLoopAsync(CancellationToken cancel)
         {
             while (true)
             {
                 cancel.ThrowIfCancellationRequested();
 
-                using (await CommLock.LockWithAwait(cancel))
+                try
                 {
-                    InboxMessageBox box = await ReloadInternalAsync(true, null, cancel);
+                    using (WebSocket ws = await Api.RealtimeConnectAsync(cancel))
+                    {
+                        using (PipeStream st = ws.GetStream())
+                        {
+                            while (true)
+                            {
+                                ReadOnlyMemory<byte> recvData = await st.ReceiveAsync(cancel: cancel);
+                                //recvData._GetString_UTF8()._JsonNormalizeAndDebug();
+                                dynamic d = recvData._GetString_UTF8()._JsonToDynamic();
 
-                    MessageBoxUpdatedCallback(box);
+                                string channel = d.channel;
+                                string type = d.type;
+
+                                if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
+                                {
+                                    if (channel._IsFilled())
+                                    {
+                                        lock (UpdateChannelsListLock)
+                                        {
+                                            UpdateChannelsList.Add(channel);
+                                        }
+
+                                        UpdateChannelsEvent.Set(true);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
                 }
 
-                await cancel._WaitUntilCanceledAsync(CoresConfig.InboxSlackAdapterSettings.RefreshAllInterval);
+                cancel.ThrowIfCancellationRequested();
+
+                await cancel._WaitUntilCanceledAsync(1000);
+            }
+        }
+
+        protected override async Task MainLoopImplAsync(CancellationToken cancel)
+        {
+            MessageListPerConversation.Clear();
+
+            cancel.ThrowIfCancellationRequested();
+
+            CancellationTokenSource realTimeTaskCancel = new CancellationTokenSource();
+
+            Task realTimeTask = RealtimeRecvLoopAsync(realTimeTaskCancel.Token);
+
+            try
+            {
+                bool all = true;
+                string[] targetChannelIdList = null;
+
+                while (true)
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    InboxMessageBox box = await ReloadInternalAsync(all, targetChannelIdList, cancel);
+
+                    MessageBoxUpdatedCallback(box);
+
+                    ExceptionWhen reason;
+
+                    if (this.UpdateChannelsList.Count == 0)
+                    {
+                        reason = await TaskUtil.WaitObjectsAsync(
+                            cancels: cancel._SingleArray(),
+                            events: this.UpdateChannelsEvent._SingleArray(),
+                            timeout: CoresConfig.InboxSlackAdapterSettings.RefreshAllInterval);
+                    }
+                    else
+                    {
+                        reason = ExceptionWhen.None;
+                    }
+
+                    if (reason == ExceptionWhen.TimeoutException)
+                    {
+                        all = true;
+                        targetChannelIdList = null;
+                        lock (this.UpdateChannelsListLock)
+                        {
+                            this.UpdateChannelsList.Clear();
+                        }
+                    }
+                    else
+                    {
+                        all = false;
+                        lock (this.UpdateChannelsListLock)
+                        {
+                            targetChannelIdList = this.UpdateChannelsList.ToArray();
+                            this.UpdateChannelsList.Clear();
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                realTimeTaskCancel._TryCancel();
+
+                await realTimeTask._TryWaitAsync(true);
             }
         }
 
         async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string> targetChannelIDs, CancellationToken cancel)
         {
-            List<InboxMessage> msgList = new List<InboxMessage>();
-
-            // Team info
-            this.TeamInfo = await Api.GetTeamInfoAsync(cancel);
-
-            if (all)
+            try
             {
-                // Enum users
-                this.UserList = await Api.GetUsersListAsync(cancel);
-            }
+                List<InboxMessage> msgList = new List<InboxMessage>();
 
-            // Enum conversations
-            this.ConversationList = await Api.GetConversationsListAsync(cancel);
+                // Team info
+                this.TeamInfo = await Api.GetTeamInfoAsync(cancel);
 
-            // Enum messages
-            foreach (SlackApi.Channel conv in ConversationList)
-            {
-                bool selected = false;
-
-                if (conv.IsTarget())
+                if (all)
                 {
-                    if (all)
+                    // Enum users
+                    this.UserList = await Api.GetUsersListAsync(cancel);
+
+                    // Clear cache
+                    this.MessageListPerConversation.Clear();
+                }
+
+                // Enum conversations
+                this.ConversationList = await Api.GetConversationsListAsync(cancel);
+
+                // Enum messages
+                foreach (SlackApi.Channel conv in ConversationList)
+                {
+                    bool selected = false;
+
+                    if (conv.IsTarget())
                     {
-                        selected = true;
-                    }
-                    else
-                    {
-                        if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
+                        if (all)
                         {
                             selected = true;
+                        }
+                        else
+                        {
+                            if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
+                            {
+                                selected = true;
+                            }
+                        }
+                    }
+
+                    if (selected)
+                    {
+                        // Get the conversation info
+                        SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
+
+                        // Get unread messages
+                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel);
+
+                        MessageListPerConversation[conv.id] = messages;
+                    }
+
+                    if (conv.IsTarget())
+                    {
+                        foreach (SlackApi.Message message in MessageListPerConversation[conv.id])
+                        {
+                            var user = GetUser(message.user);
+
+                            string group_name = "";
+
+                            if (conv.is_channel)
+                            {
+                                group_name = "#" + conv.name_normalized;
+                            }
+                            else if (conv.is_im)
+                            {
+                                group_name = "@" + GetUser(conv.user)?.profile?.real_name ?? "unknown";
+                            }
+                            else
+                            {
+                                group_name = "@" + conv.name_normalized;
+                            }
+
+                            InboxMessage m = new InboxMessage
+                            {
+                                Service = TeamInfo.name,
+                                ServiceImage = TeamInfo.icon?.image_132 ?? "",
+
+                                From = user?.profile?.real_name ?? "Unknown User",
+                                FromImage = user?.profile?.image_512 ?? "",
+
+                                Group = group_name,
+
+                                Text = message.text,
+                                Timestamp = message.ts._ToDateTimeOfSlack(),
+                            };
+
+                            if (message.upload)
+                            {
+                                m.Text += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
+                            }
+
+                            msgList.Add(m);
                         }
                     }
                 }
 
-                if (selected)
+                InboxMessageBox ret = new InboxMessageBox()
                 {
-                    // Get the conversation info
-                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
+                    MessageList = msgList.OrderBy(x => x.Timestamp).ToArray(),
+                };
 
-                    // Get unread messages
-                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel);
+                ClearLastError();
 
-                    foreach (SlackApi.Message message in messages)
-                    {
-                        var user = GetUser(message.user);
-
-                        InboxMessage m = new InboxMessage
-                        {
-                            Service = TeamInfo.name,
-                            ServiceImage = TeamInfo.icon?.image_132 ?? "",
-
-                            From = user?.profile?.real_name ?? "Unknown",
-                            FromImage = user?.profile ?.image_512 ?? "",
-
-                            Group = convInfo.name,
-
-                            Text = message.text,
-                            Timestamp = message.ts._ToDateTimeOfSlack(),
-                        };
-
-                        msgList.Add(m);
-                    }
-                }
+                return ret;
             }
-
-            InboxMessageBox ret = new InboxMessageBox()
+            catch (Exception ex)
             {
-                MessageList = msgList.OrderBy(x => x.Timestamp).ToArray(),
-            };
-
-            return ret;
+                SetLastError(ex);
+                throw;
+            }
         }
 
         SlackApi.User GetUser(string userId)

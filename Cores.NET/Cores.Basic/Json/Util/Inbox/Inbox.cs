@@ -64,9 +64,11 @@ namespace IPA.Cores.Basic
         public InboxMessage[] MessageList;
     }
 
-    class Inbox
+    class Inbox : AsyncService
     {
         public InboxOptions Options { get; }
+
+        public FastEventListenerList<Inbox, NonsenseEventType> StateChangeEventListener { get; }
 
         readonly List<InboxAdapter> AdapterList = new List<InboxAdapter>();
         readonly CriticalSection LockObj = new CriticalSection();
@@ -77,10 +79,12 @@ namespace IPA.Cores.Basic
         {
             this.Options = options ?? new InboxOptions();
 
-            this.Factory = new InboxAdapterFactory(this.Options);
+            this.StateChangeEventListener = new FastEventListenerList<Inbox, NonsenseEventType>();
+
+            this.Factory = new InboxAdapterFactory(this, this.Options);
         }
 
-        public InboxMessageBox GetMessageBox(CancellationToken cancel = default)
+        public InboxMessageBox GetMessageBox()
         {
             InboxAdapter[] adaptersList = this.EnumAdapters();
 
@@ -155,21 +159,43 @@ namespace IPA.Cores.Basic
                 return this.AdapterList.ToArray();
             }
         }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                lock (LockObj)
+                {
+                    foreach (InboxAdapter adapter in this.AdapterList)
+                    {
+                        adapter._DisposeSafe();
+                    }
+
+                    this.AdapterList.Clear();
+                }
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
     }
 
     class InboxAdapterFactory
     {
+        public Inbox Inbox { get; }
         public InboxOptions Options { get; }
 
         SortedDictionary<string, Func<string, InboxAdapterAppCredential, InboxAdapter>> ProviderList = new SortedDictionary<string, Func<string, InboxAdapterAppCredential, InboxAdapter>>(StrComparer.IgnoreCaseComparer);
 
         public IReadOnlyList<string> ProviderNameList => this.ProviderList.Keys.ToList();
 
-        public InboxAdapterFactory(InboxOptions options)
+        public InboxAdapterFactory(Inbox inbox, InboxOptions options)
         {
+            this.Inbox = inbox;
             this.Options = options;
 
-            AddProvider("slack", (guid, cred) => new InboxSlackAdapter(guid, cred, this.Options));
+            AddProvider("slack", (guid, cred) => new InboxSlackAdapter(guid, this.Inbox, cred, this.Options));
         }
 
         void AddProvider(string name, Func<string, InboxAdapterAppCredential, InboxAdapter> newFunction)
@@ -209,6 +235,8 @@ namespace IPA.Cores.Basic
 
     abstract class InboxAdapter : AsyncServiceWithMainLoop
     {
+        public Inbox Inbox { get; }
+
         public abstract string AdapterName { get; }
 
         public InboxOptions AdapterOptions { get; }
@@ -217,13 +245,16 @@ namespace IPA.Cores.Basic
 
         public InboxMessageBox MessageBox { get; private set; }
 
+        public Exception LastError { get; private set; }
+
         public string Guid { get; }
 
         public abstract string AuthStartGetUrl(string redirectUrl, string state = "");
 
-        public InboxAdapter(string guid, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions)
+        public InboxAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions)
         {
             this.Guid = guid;
+            this.Inbox = inbox;
 
             this.AdapterOptions = adapterOptions ?? new InboxOptions();
 
@@ -265,6 +296,15 @@ namespace IPA.Cores.Basic
         protected void MessageBoxUpdatedCallback(InboxMessageBox box)
         {
             this.MessageBox = box;
+
+            this.Inbox.StateChangeEventListener.Fire(this.Inbox, NonsenseEventType.Nonsense);
+        }
+
+        protected void ClearLastError() => SetLastError(null);
+
+        protected void SetLastError(Exception ex)
+        {
+            this.LastError = ex;
         }
     }
 }
