@@ -410,7 +410,7 @@ namespace IPA.Cores.Basic
             throw new HttpRequestException(errStr);
         }
 
-        public async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
+        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
@@ -431,7 +431,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        public async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
             HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url, null);

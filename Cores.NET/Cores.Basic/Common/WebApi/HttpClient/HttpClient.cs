@@ -58,6 +58,8 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using IPA.Cores.Basic.HttpClientCore.Internal;
+
 #pragma warning disable CS0219
 #pragma warning disable CS0162
 
@@ -15370,38 +15372,41 @@ namespace IPA.Cores.Basic.HttpClientCore
         private readonly int _count;
     }
 
-    // Token: 0x020000A5 RID: 165
-    internal static class CancellationHelper
+    namespace Internal
     {
-        // Token: 0x060003FE RID: 1022 RVA: 0x00040C48 File Offset: 0x00020C48
-        internal static bool ShouldWrapInOperationCanceledException(Exception exception, CancellationToken cancellationToken)
+        // Token: 0x020000A5 RID: 165
+        internal static class CancellationHelper
         {
-            return !(exception is OperationCanceledException) && cancellationToken.IsCancellationRequested;
-        }
-
-        // Token: 0x060003FF RID: 1023 RVA: 0x00040C5B File Offset: 0x00020C5B
-        internal static Exception CreateOperationCanceledException(Exception innerException, CancellationToken cancellationToken)
-        {
-            return new TaskCanceledException(CancellationHelper.s_cancellationMessage, innerException, cancellationToken);
-        }
-
-        // Token: 0x06000400 RID: 1024 RVA: 0x00040C69 File Offset: 0x00020C69
-        private static void ThrowOperationCanceledException(Exception innerException, CancellationToken cancellationToken)
-        {
-            throw CancellationHelper.CreateOperationCanceledException(innerException, cancellationToken);
-        }
-
-        // Token: 0x06000401 RID: 1025 RVA: 0x00040C72 File Offset: 0x00020C72
-        internal static void ThrowIfCancellationRequested(CancellationToken cancellationToken)
-        {
-            if (cancellationToken.IsCancellationRequested)
+            // Token: 0x060003FE RID: 1022 RVA: 0x00040C48 File Offset: 0x00020C48
+            internal static bool ShouldWrapInOperationCanceledException(Exception exception, CancellationToken cancellationToken)
             {
-                CancellationHelper.ThrowOperationCanceledException(null, cancellationToken);
+                return !(exception is OperationCanceledException) && cancellationToken.IsCancellationRequested;
             }
-        }
 
-        // Token: 0x040002B8 RID: 696
-        private static readonly string s_cancellationMessage = new OperationCanceledException().Message;
+            // Token: 0x060003FF RID: 1023 RVA: 0x00040C5B File Offset: 0x00020C5B
+            internal static Exception CreateOperationCanceledException(Exception innerException, CancellationToken cancellationToken)
+            {
+                return new TaskCanceledException(CancellationHelper.s_cancellationMessage, innerException, cancellationToken);
+            }
+
+            // Token: 0x06000400 RID: 1024 RVA: 0x00040C69 File Offset: 0x00020C69
+            private static void ThrowOperationCanceledException(Exception innerException, CancellationToken cancellationToken)
+            {
+                throw CancellationHelper.CreateOperationCanceledException(innerException, cancellationToken);
+            }
+
+            // Token: 0x06000401 RID: 1025 RVA: 0x00040C72 File Offset: 0x00020C72
+            internal static void ThrowIfCancellationRequested(CancellationToken cancellationToken)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    CancellationHelper.ThrowOperationCanceledException(null, cancellationToken);
+                }
+            }
+
+            // Token: 0x040002B8 RID: 696
+            private static readonly string s_cancellationMessage = new OperationCanceledException().Message;
+        }
     }
 
     /// <summary>

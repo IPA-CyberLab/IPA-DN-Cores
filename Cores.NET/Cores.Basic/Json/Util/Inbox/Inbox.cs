@@ -50,6 +50,7 @@ namespace IPA.Cores.Basic
 {
     class InboxMessage
     {
+        public string Id;
         public string Service;
         public string ServiceImage;
         public string Group;

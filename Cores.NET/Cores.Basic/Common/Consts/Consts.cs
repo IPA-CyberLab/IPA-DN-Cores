@@ -96,5 +96,11 @@ namespace IPA.Cores.Basic
             public const string GetMyIpUrl_IPv4 = "http://get-my-ip.ddns.softether-network.net/ddns/getmyip.ashx";
             public const string GetMyIpUrl_IPv6 = "http://get-my-ip-v6.ddns.softether-network.net/ddns/getmyip.ashx";
         }
+
+        public static partial class OAuthScopes
+        {
+            public const string Slack_Client = "client";
+            public const string Google_Gmail = "https://www.googleapis.com/auth/gmail.readonly";
+        }
     }
 }

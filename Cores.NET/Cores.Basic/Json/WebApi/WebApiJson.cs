@@ -73,6 +73,8 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public string NormalizedJsonStr => this.Data._GetString_UTF8()._JsonNormalize();
     }
 
     partial class WebApi

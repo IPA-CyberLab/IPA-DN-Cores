@@ -236,8 +236,8 @@ namespace IPA.Cores.Helper.Basic
         public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
         public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
         public static string _Normalize(this string str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
-        public static string _EncodeUrl(this string str, Encoding e) => Str.ToUrl(str, e);
-        public static string _DecodeUrl(this string str, Encoding e) => Str.FromUrl(str, e);
+        public static string _EncodeUrl(this string str, Encoding e = null) => Str.ToUrl(str, e);
+        public static string _DecodeUrl(this string str, Encoding e = null) => Str.FromUrl(str, e);
         public static string _EncodeHtml(this string str, bool forceAllSpaceToTag) => Str.ToHtml(str, forceAllSpaceToTag);
         public static string _DecodeHtml(this string str) => Str.FromHtml(str);
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);

@@ -109,17 +109,17 @@ namespace IPA.Cores.Basic
 
         public override string AuthStartGetUrl(string redirectUrl, string state = "")
         {
-            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, ""))
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
             {
-                return tmpApi.AuthGenerateAuthorizeUrl("client", redirectUrl, state);
+                return tmpApi.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Slack_Client, redirectUrl, state);
             }
         }
 
         public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, CancellationToken cancel = default)
         {
-            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, ""))
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
             {
-                SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(this.AppCredential.ClientSecret, code, cancel);
+                SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, cancel);
 
                 return new InboxAdapterUserCredential { AccessToken = token.access_token };
             }
@@ -316,7 +316,7 @@ namespace IPA.Cores.Basic
                         SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
 
                         // Get unread messages
-                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel);
+                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel: cancel);
 
                         MessageListPerConversation[conv.id] = messages;
                     }
@@ -344,6 +344,8 @@ namespace IPA.Cores.Basic
 
                             InboxMessage m = new InboxMessage
                             {
+                                Id = this.Guid + "_" + message.ts.ToString(),
+
                                 Service = TeamInfo.name,
                                 ServiceImage = TeamInfo.icon?.image_132 ?? "",
 

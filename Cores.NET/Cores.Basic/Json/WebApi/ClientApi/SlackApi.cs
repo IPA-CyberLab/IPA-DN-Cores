@@ -39,6 +39,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -81,12 +82,14 @@ namespace IPA.Cores.ClientApi.SlackApi
             }
         }
 
-        public string ClientId { get; set; }
-        public string AccessTokenStr { get; set; }
+        public string ClientId { get; }
+        public string ClientSecret { get; }
+        public string AccessTokenStr { get; }
 
-        public SlackApi(string clientId = "", string accessToken = "") : base()
+        public SlackApi(string clientId, string clientSecret, string accessToken = "") : base()
         {
             this.ClientId = clientId;
+            this.ClientSecret = clientSecret;
             this.AccessTokenStr = accessToken;
         }
 
@@ -121,13 +124,12 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string team_id;
         }
 
-        public async Task<AccessToken> AuthGetAccessTokenAsync(string clientSecret, string code, CancellationToken cancel = default)
+        public async Task<AccessToken> AuthGetAccessTokenAsync(string code, CancellationToken cancel = default)
         {
             WebRet ret = await this.SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/oauth.access", cancel,
                 null,
                 ("client_id", this.ClientId),
-                ("client_secret", clientSecret),
-//                ("redirect_uri", redirectUrl),
+                ("client_secret", this.ClientSecret),
                 ("code", code));
 
             AccessToken a = ret.Deserialize<AccessToken>(true);
@@ -256,7 +258,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             return await WebSocket.ConnectAsync(url, cancel: cancel, options: new WebSocketConnectOptions(new WebSocketOptions { RespectMessageDelimiter = true }));
         }
 
-        public async Task<Message[]> GetConversationHistoryAsync(string channelId, decimal oldest = 0, CancellationToken cancel = default)
+        public async Task<Message[]> GetConversationHistoryAsync(string channelId, decimal oldest = 0, int maxCount = int.MaxValue, CancellationToken cancel = default)
         {
             string nextCursor = null;
 
@@ -269,7 +271,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
                 HistoryResponse data = ret.Deserialize<HistoryResponse>(true);
 
-                ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
+                //ret.Data._GetString_UTF8()._JsonNormalizeAndDebug();
 
                 foreach (Message m in data.messages)
                 {
@@ -277,10 +279,12 @@ namespace IPA.Cores.ClientApi.SlackApi
                 }
 
                 nextCursor = data.response_metadata?.next_cursor;
+
+                if (o.Count >= maxCount) break;
             }
             while (nextCursor._IsFilled());
 
-            return o.ToArray();
+            return o.Take(maxCount).ToArray();
         }
 
         public async Task<Channel> GetConversationInfoAsync(string id, CancellationToken cancel = default)
