@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
             {
                 this.UserCredential = credential;
 
-                this.Api = new SlackApi(this.AppCredential.ClientId, this.UserCredential.AccessToken);
+                this.Api = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret, this.UserCredential.AccessToken);
             }
             else
             {
@@ -115,35 +115,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, CancellationToken cancel = default)
+        public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default)
         {
             using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
             {
                 SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, cancel);
 
                 return new InboxAdapterUserCredential { AccessToken = token.access_token };
-            }
-        }
-
-        public async Task ReloadTestAsync(CancellationToken cancel = default)
-        {
-            SlackApi.User[] users = await this.Api.GetUsersListAsync();
-
-            //users._PrintAsJson();
-
-            SlackApi.Channel[] channels = await this.Api.GetConversationsListAsync();
-
-            //channels._PrintAsJson();
-
-            foreach (var channel in channels)
-            {
-                SlackApi.Channel channel2 = await Api.GetConversationInfoAsync(channel.id);
-
-                //channel2._PrintAsJson();
-
-                SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(channel.id, channel2.last_read);
-
-                //messages._PrintAsJson();
             }
         }
 
@@ -234,7 +212,7 @@ namespace IPA.Cores.Basic
                         reason = await TaskUtil.WaitObjectsAsync(
                             cancels: cancel._SingleArray(),
                             events: this.UpdateChannelsEvent._SingleArray(),
-                            timeout: CoresConfig.InboxSlackAdapterSettings.RefreshAllInterval);
+                            timeout: Util.GenRandInterval(CoresConfig.InboxSlackAdapterSettings.RefreshAllInterval));
                     }
                     else
                     {
@@ -316,7 +294,7 @@ namespace IPA.Cores.Basic
                         SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
 
                         // Get unread messages
-                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, cancel: cancel);
+                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
 
                         MessageListPerConversation[conv.id] = messages;
                     }
@@ -354,13 +332,13 @@ namespace IPA.Cores.Basic
 
                                 Group = group_name,
 
-                                Text = message.text,
+                                Body = message.text,
                                 Timestamp = message.ts._ToDateTimeOfSlack(),
                             };
 
                             if (message.upload)
                             {
-                                m.Text += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
+                                m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
                             }
 
                             msgList.Add(m);
@@ -370,7 +348,7 @@ namespace IPA.Cores.Basic
 
                 InboxMessageBox ret = new InboxMessageBox()
                 {
-                    MessageList = msgList.OrderBy(x => x.Timestamp).ToArray(),
+                    MessageList = msgList.OrderByDescending(x => x.Timestamp).Take(this.Inbox.Options.MaxMessagesPerAdapter).ToArray(),
                 };
 
                 ClearLastError();

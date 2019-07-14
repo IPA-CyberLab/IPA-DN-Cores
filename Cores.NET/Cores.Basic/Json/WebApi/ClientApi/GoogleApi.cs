@@ -64,8 +64,8 @@ namespace IPA.Cores.ClientApi.GoogleApi
 {
     static class GoogleApiHelper
     {
-        public static DateTimeOffset _ToDateTimeOfGoogle(this decimal value) => Util.UnixTimeToDateTime(value);
-        public static DateTimeOffset _ToDateTimeOfGoogle(this long value) => Util.UnixTimeToDateTime(value / (decimal)1000.0);
+        public static DateTimeOffset _ToDateTimeOfGoogle(this decimal value) => Util.UnixTimeToDateTime(value)._AsDateTimeOffset(false).ToLocalTime();
+        public static DateTimeOffset _ToDateTimeOfGoogle(this long value) => Util.UnixTimeToDateTime(value / (decimal)1000.0)._AsDateTimeOffset(false).ToLocalTime();
 
         public static long _ToLongDateTimeOfGoogle(this DateTimeOffset dt) => (long)(Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime) * (decimal)1000.0);
         public static decimal _ToDecimalDateTimeOfGoogle(this DateTimeOffset dt) => Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime);
@@ -76,7 +76,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
         public string ClientId { get; }
         public string ClientSecret { get; }
         public string RefreshTokenStr { get; }
-        public string AccessTokenStr { get; private set; }
+        string AccessTokenStr;
 
         public GoogleApi(string clientId, string clientSecret, string refreshToken = "") : base()
         {
@@ -94,7 +94,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
                 r.Headers.Add("Authorization", $"Bearer {this.AccessTokenStr._EncodeUrl(this.RequestEncoding)}");
             }
 
-            Con.WriteLine($"token = {this.AccessTokenStr}");
+            //Con.WriteLine($"token = {this.AccessTokenStr}");
 
             return r;
         }
@@ -154,6 +154,14 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
             public string GetFrom() => this.payload?.headers.Where(x => x.name._IsSamei("from")).Select(x => x.value).FirstOrDefault() ?? "";
             public string GetSubject() => this.payload?.headers.Where(x => x.name._IsSamei("subject")).Select(x => x.value).FirstOrDefault() ?? "";
+        }
+
+        public class GmailProfile
+        {
+            public string emailAddress;
+            public int messagesTotal;
+            public int threadsTotal;
+            public ulong historyId;
         }
 
         public async Task<AccessToken> AuthGetAccessTokenAsync(string code, string redirectUrl, CancellationToken cancel = default)
@@ -257,6 +265,17 @@ namespace IPA.Cores.ClientApi.GoogleApi
             Message msg = ret.Deserialize<Message>();
 
             return msg;
+        }
+
+        public async Task<GmailProfile> GmailGetProfileAsync(CancellationToken cancel = default)
+        {
+            await RefreshAccessTokenIfNecessaryAsync(cancel);
+
+            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://www.googleapis.com/gmail/v1/users/me/profile");
+
+            GmailProfile profile = ret.Deserialize<GmailProfile>();
+
+            return profile;
         }
     }
 }

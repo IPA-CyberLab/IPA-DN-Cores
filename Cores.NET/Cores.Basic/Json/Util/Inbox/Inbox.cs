@@ -48,6 +48,15 @@ using IPA.Cores.ClientApi.SlackApi;
 
 namespace IPA.Cores.Basic
 {
+    static partial class CoresConfig
+    {
+        public static partial class InboxSettings
+        {
+            public static readonly Copenhagen<int> DefaultMaxMessagesPerAdapter = 100;
+            public static readonly Copenhagen<int> DefaultMaxMessagesTotal = 1000;
+        }
+    }
+
     class InboxMessage
     {
         public string Id;
@@ -56,13 +65,25 @@ namespace IPA.Cores.Basic
         public string Group;
         public string From;
         public string FromImage;
-        public string Text;
+        public string Subject;
+        public string Body;
         public DateTimeOffset Timestamp;
     }
 
     class InboxMessageBox
     {
         public InboxMessage[] MessageList;
+
+        public ulong Version;
+
+        public ulong CalcVersion()
+        {
+            ulong v = this.MessageList._ObjectToJson(compact: true)._GetObjectHash();
+
+            this.Version = v;
+
+            return v;
+        }
     }
 
     class Inbox : AsyncService
@@ -106,7 +127,9 @@ namespace IPA.Cores.Basic
 
             InboxMessageBox ret = new InboxMessageBox();
 
-            ret.MessageList = msgList.OrderByDescending(x => x.Timestamp).ToArray();
+            ret.MessageList = msgList.OrderByDescending(x => x.Timestamp).Take(this.Options.MaxMessagesTotal).ToArray();
+
+            ret.CalcVersion();
 
             return ret;
         }
@@ -197,6 +220,7 @@ namespace IPA.Cores.Basic
             this.Options = options;
 
             AddProvider("slack", (guid, cred) => new InboxSlackAdapter(guid, this.Inbox, cred, this.Options));
+            AddProvider("gmail", (guid, cred) => new InboxGmailAdapter(guid, this.Inbox, cred, this.Options));
         }
 
         void AddProvider(string name, Func<string, InboxAdapterAppCredential, InboxAdapter> newFunction)
@@ -227,10 +251,15 @@ namespace IPA.Cores.Basic
     sealed class InboxOptions
     {
         public TcpIpSystem TcpIp { get; }
+        public int MaxMessagesPerAdapter { get; }
+        public int MaxMessagesTotal { get; }
 
-        public InboxOptions(TcpIpSystem tcpIp = null)
+        public InboxOptions(TcpIpSystem tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize)
         {
             this.TcpIp = tcpIp ?? LocalNet;
+
+            this.MaxMessagesPerAdapter = maxMessagesPerAdapter._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesPerAdapter);
+            this.MaxMessagesTotal = maxMessagesTotal._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesTotal);
         }
     }
 
@@ -262,7 +291,7 @@ namespace IPA.Cores.Basic
             this.AppCredential = appCredential;
         }
 
-        public abstract Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, CancellationToken cancel = default);
+        public abstract Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default);
 
         public void Start(InboxAdapterUserCredential credential)
         {

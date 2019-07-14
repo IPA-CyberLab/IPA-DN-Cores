@@ -55,8 +55,8 @@ namespace IPA.Cores.ClientApi.SlackApi
 {
     static class SlackApiHelper
     {
-        public static DateTimeOffset _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime(value);
-        public static DateTimeOffset _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value);
+        public static DateTimeOffset _ToDateTimeOfSlack(this decimal value) => Util.UnixTimeToDateTime(value)._AsDateTimeOffset(false).ToLocalTime();
+        public static DateTimeOffset _ToDateTimeOfSlack(this long value) => Util.UnixTimeToDateTime((uint)value)._AsDateTimeOffset(false).ToLocalTime();
 
         public static long _ToLongDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTime(dt.UtcDateTime);
         public static decimal _ToDecimalDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime);
