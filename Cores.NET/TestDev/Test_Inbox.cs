@@ -209,7 +209,7 @@ namespace IPA.TestDev
 
         static async Task Inbox_SlackTestAsync()
         {
-            string accessToken = "xoxp-687264585408-687264586720-687251418193-ba6680f8581a238e11430655936eab92";
+            string accessToken = "_________________";
 
             if (false)
             {
