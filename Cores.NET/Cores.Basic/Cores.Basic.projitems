@@ -154,4 +154,7 @@
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\CoresInternal\190521_LocalGitIgnore.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\CoresInternal\190714_run_daemon.sh.txt" />
+  </ItemGroup>
 </Project>

@@ -395,6 +395,15 @@ namespace IPA.Cores.Basic
                         {
                             exe = "nohup";
                             arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
+
+                            // Prepare run_daemon.sh
+                            string shellscript_name = "190714_run_daemon.sh";
+
+                            string body = CoresRes[shellscript_name].String._NormalizeCrlf(CrlfStyle.Lf);
+                            string fn = Env.AppLocalDir._CombinePath("daemon_helper", shellscript_name);
+                            Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
+
+                            arguments = $"bash \"{fn}\" \"{arguments}\"";
                         }
                         else
                         {
