@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
             if (name._IsEmpty()) throw new ArgumentException("name is empty.");
 
             this.IgnoreUpdateError = ignoreUpdateError;
-            this.HiveKv = Hive.RichLocalAppSettings[$"cache/{name}"];
+            this.HiveKv = Hive.LocalAppSettingsEx[$"cache/{name}"];
             this.LifeTime = lifetime;
             this.UpdateProcAsync = updateProcAsync;
         }

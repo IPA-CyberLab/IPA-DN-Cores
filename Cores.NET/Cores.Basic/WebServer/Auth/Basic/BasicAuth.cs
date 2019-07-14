@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
     /// <summary>
     /// Default values related to basic authentication middleware
     /// </summary>
-    public static class BasicAuthenticationDefaults
+    public static class BasicAuthDefaults
     {
         /// <summary>
         /// The default value used for BasicAuthenticationOptions.AuthenticationScheme
@@ -93,32 +93,32 @@ namespace IPA.Cores.Basic
     /// <summary>
     /// Extension methods to add Basic authentication capabilities to an HTTP application pipeline.
     /// </summary>
-    public static class BasicAuthenticationAppBuilderExtensions
+    public static class BasicAuthAppBuilderExtensions
     {
         public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder)
-            => builder.AddBasic(BasicAuthenticationDefaults.AuthenticationScheme);
+            => builder.AddBasic(BasicAuthDefaults.AuthenticationScheme);
 
         public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder, string authenticationScheme)
             => builder.AddBasic(authenticationScheme, configureOptions: null);
 
-        public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder, Action<BasicAuthenticationOptions> configureOptions)
-            => builder.AddBasic(BasicAuthenticationDefaults.AuthenticationScheme, configureOptions);
+        public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder, Action<BasicAuthOptions> configureOptions)
+            => builder.AddBasic(BasicAuthDefaults.AuthenticationScheme, configureOptions);
 
         public static AuthenticationBuilder AddBasic(
             this AuthenticationBuilder builder,
             string authenticationScheme,
-            Action<BasicAuthenticationOptions> configureOptions)
+            Action<BasicAuthOptions> configureOptions)
         {
-            return builder.AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(authenticationScheme, configureOptions);
+            return builder.AddScheme<BasicAuthOptions, BasicAuthHandler>(authenticationScheme, configureOptions);
         }
     }
 
-    internal class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticationOptions>
+    internal class BasicAuthHandler : AuthenticationHandler<BasicAuthOptions>
     {
         private const string _Scheme = "Basic";
 
-        public BasicAuthenticationHandler(
-            IOptionsMonitor<BasicAuthenticationOptions> options,
+        public BasicAuthHandler(
+            IOptionsMonitor<BasicAuthOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ISystemClock clock) : base(options, logger, encoder, clock)
@@ -129,13 +129,13 @@ namespace IPA.Cores.Basic
         /// The handler calls methods on the events which give the application control at certain points where processing is occurring.
         /// If it is not provided a default instance is supplied which does nothing when the methods are called.
         /// </summary>
-        protected new BasicAuthenticationEvents Events
+        protected new BasicAuthEvents Events
         {
-            get { return (BasicAuthenticationEvents)base.Events; }
+            get { return (BasicAuthEvents)base.Events; }
             set { base.Events = value; }
         }
 
-        protected override Task<object> CreateEventsAsync() => Task.FromResult<object>(new BasicAuthenticationEvents());
+        protected override Task<object> CreateEventsAsync() => Task.FromResult<object>(new BasicAuthEvents());
 
         /// <summary>
         /// Creates a new instance of the events instance.
@@ -188,7 +188,7 @@ namespace IPA.Cores.Basic
                 var username = decodedCredentials.Substring(0, delimiterIndex);
                 var password = decodedCredentials.Substring(delimiterIndex + 1);
 
-                var validateCredentialsContext = new ValidateCredentialsContext(Context, Scheme, Options)
+                var validateCredentialsContext = new BasicAuthValidateCredentialsContext(Context, Scheme, Options)
                 {
                     Username = username,
                     Password = password
@@ -213,7 +213,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                var authenticationFailedContext = new BasicAuthenticationFailedContext(Context, Scheme, Options)
+                var authenticationFailedContext = new BasicAuthFailedContext(Context, Scheme, Options)
                 {
                     Exception = ex
                 };
@@ -257,14 +257,14 @@ namespace IPA.Cores.Basic
     /// <summary>
     /// Contains the options used by the BasicAuthenticationMiddleware
     /// </summary>
-    public class BasicAuthenticationOptions : AuthenticationSchemeOptions
+    public class BasicAuthOptions : AuthenticationSchemeOptions
     {
         private string _realm;
 
         /// <summary>
         /// Create an instance of the options initialized with the default values
         /// </summary>
-        public BasicAuthenticationOptions()
+        public BasicAuthOptions()
         {
         }
 
@@ -312,10 +312,10 @@ namespace IPA.Cores.Basic
         /// The application may implement the interface fully, or it may create an instance of BasicAuthenticationEvents
         /// and assign delegates only to the events it wants to process.
         /// </summary>
-        public new BasicAuthenticationEvents Events
+        public new BasicAuthEvents Events
 
         {
-            get { return (BasicAuthenticationEvents)base.Events; }
+            get { return (BasicAuthEvents)base.Events; }
 
             set { base.Events = value; }
         }
@@ -335,20 +335,20 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ValidateCredentialsContext : ResultContext<BasicAuthenticationOptions>
+    public class BasicAuthValidateCredentialsContext : ResultContext<BasicAuthOptions>
     {
         /// <summary>
-        /// Creates a new instance of <see cref="ValidateCredentialsContext"/>.
+        /// Creates a new instance of <see cref="BasicAuthValidateCredentialsContext"/>.
         /// </summary>
         /// <param name="context">The HttpContext the validate context applies too.</param>
         /// <param name="scheme">The scheme used when the Basic Authentication handler was registered.</param>
-        /// <param name="options">The <see cref="BasicAuthenticationOptions"/> for the instance of
+        /// <param name="options">The <see cref="BasicAuthOptions"/> for the instance of
         /// <see cref="BasicAuthenticationMiddleware"/> creating this instance.</param>
         /// <param name="ticket">Contains the intial values for the identit.</param>
-        public ValidateCredentialsContext(
+        public BasicAuthValidateCredentialsContext(
             HttpContext context,
             AuthenticationScheme scheme,
-            BasicAuthenticationOptions options)
+            BasicAuthOptions options)
             : base(context, scheme, options)
         {
         }
@@ -364,12 +364,12 @@ namespace IPA.Cores.Basic
         public string Password { get; set; }
     }
 
-    public class BasicAuthenticationFailedContext : ResultContext<BasicAuthenticationOptions>
+    public class BasicAuthFailedContext : ResultContext<BasicAuthOptions>
     {
-        public BasicAuthenticationFailedContext(
+        public BasicAuthFailedContext(
             HttpContext context,
             AuthenticationScheme scheme,
-            BasicAuthenticationOptions options)
+            BasicAuthOptions options)
             : base(context, scheme, options)
         {
         }
@@ -382,12 +382,12 @@ namespace IPA.Cores.Basic
     /// application only needs to override a few of the interface methods.
     /// This may be used as a base class or may be instantiated directly.
     /// </summary>
-    public class BasicAuthenticationEvents
+    public class BasicAuthEvents
     {
         /// <summary>
         /// A delegate assigned to this property will be invoked when the authentication fails.
         /// </summary>
-        public Func<BasicAuthenticationFailedContext, Task> OnAuthenticationFailed { get; set; } = context => Task.CompletedTask;
+        public Func<BasicAuthFailedContext, Task> OnAuthenticationFailed { get; set; } = context => Task.CompletedTask;
 
         /// <summary>
         /// A delegate assigned to this property will be invoked when the credentials need validation.
@@ -397,11 +397,11 @@ namespace IPA.Cores.Basic
         /// In your delegate you should construct an authentication principal from the user details,
         /// attach it to the context.Principal property and finally call context.Success();
         /// </remarks>
-        public Func<ValidateCredentialsContext, Task> OnValidateCredentials { get; set; } = context => Task.CompletedTask;
+        public Func<BasicAuthValidateCredentialsContext, Task> OnValidateCredentials { get; set; } = context => Task.CompletedTask;
 
-        public virtual Task AuthenticationFailed(BasicAuthenticationFailedContext context) => OnAuthenticationFailed(context);
+        public virtual Task AuthenticationFailed(BasicAuthFailedContext context) => OnAuthenticationFailed(context);
 
-        public virtual Task ValidateCredentials(ValidateCredentialsContext context) => OnValidateCredentials(context);
+        public virtual Task ValidateCredentials(BasicAuthValidateCredentialsContext context) => OnValidateCredentials(context);
     }
 }
 

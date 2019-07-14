@@ -458,16 +458,16 @@ namespace IPA.Cores.Basic
 
 
         // Rich hive data
-        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichLocalAppSettings =
-            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedLocalConfigHive, "RichAppSettings/" + appName,
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> LocalAppSettingsEx =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedLocalConfigHive, "AppSettingsEx/" + appName,
                 serializer: HiveSerializerSelection.RichJson));
 
-        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichAppSettings =
-            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedConfigHive, "RichAppSettings/" + appName,
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> AppSettingsEx =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedConfigHive, "AppSettingsEx/" + appName,
                 serializer: HiveSerializerSelection.RichJson));
 
-        public static readonly Singleton<string, HiveData<HiveKeyValue>> RichUserSettings =
-            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "RichAppUserSettings/" + appName,
+        public static readonly Singleton<string, HiveData<HiveKeyValue>> UserSettingsEx =
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppSettingsEx/" + appName,
                 serializer: HiveSerializerSelection.RichJson));
 
 

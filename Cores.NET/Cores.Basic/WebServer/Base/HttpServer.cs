@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
 
-            Hive.RichLocalAppSettings["WebServer"].AccessData(true,
+            Hive.LocalAppSettingsEx["WebServer"].AccessData(true,
                 k =>
                 {
                     this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
                         {
                             bool ok = false;
 
-                            Hive.RichLocalAppSettings["WebServer"].AccessData(false, k2 =>
+                            Hive.LocalAppSettingsEx["WebServer"].AccessData(false, k2 =>
                             {
                                 HttpServerSimpleBasicAuthDatabase db = k2.Get< HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
 
@@ -149,13 +149,13 @@ namespace IPA.Cores.Basic
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
                 // Simple BASIC authentication
-                services.AddAuthentication(BasicAuthenticationDefaults.AuthenticationScheme)
+                services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
                     .AddBasic(options =>
                     {
                         options.AllowInsecureProtocol = true;
                         options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
 
-                        options.Events = new BasicAuthenticationEvents
+                        options.Events = new BasicAuthEvents
                         {
                             OnValidateCredentials = async (context) =>
                             {
