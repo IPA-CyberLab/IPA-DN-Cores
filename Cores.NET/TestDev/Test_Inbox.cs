@@ -66,20 +66,21 @@ namespace IPA.TestDev
 
             //Inbox_SlackAdapterTestAsync()._GetResult();
 
-            //Inbox_GoogleApiSimpleTestAsync()._GetResult();
+            Inbox_GoogleApiSimpleTestAsync()._GetResult();
 
             //Inbox_GeneticAdapterTestAsync()._GetResult();
 
-            Inbox_GeneticAdapterTestAsync()._GetResult();
+            //Inbox_GeneticAdapterTestAsync()._GetResult();
 
             return 0;
         }
 
         static async Task Inbox_GoogleApiSimpleTestAsync()
         {
+            string appSecret = "___________";
             if (false)
             {
-                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", "_________________"))
+                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", appSecret))
                 {
                     if (false)
                     {
@@ -89,7 +90,7 @@ namespace IPA.TestDev
                     }
                     else
                     {
-                        string code = "_________________";
+                        string code = "___________";
 
                         var x = await api.AuthGetAccessTokenAsync(code, "https://www.google.com/");
 
@@ -99,9 +100,9 @@ namespace IPA.TestDev
             }
             else
             {
-                string token = "_________________";
+                string token = "___________";
 
-                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", "_________________", token))
+                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", appSecret, token))
                 {
                     GoogleApi.MessageList[] list = await api.GmailListMessagesAsync("is:unread label:inbox", maxCount: 100);
 
