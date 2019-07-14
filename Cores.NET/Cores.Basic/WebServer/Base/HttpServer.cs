@@ -58,11 +58,39 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Routing;
 using IPA.Cores.ClientApi.Acme;
+using System.Security.Claims;
+using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
     class HttpServerStartupConfig
     {
+    }
+
+    class HttpServerSimpleBasicAuthDatabase
+    {
+        public Dictionary<string, string> UsernameAndPassword = new Dictionary<string, string>(StrComparer.IgnoreCaseComparer);
+
+        public HttpServerSimpleBasicAuthDatabase() { }
+
+        public HttpServerSimpleBasicAuthDatabase(EnsureSpecial withRandom)
+        {
+            this.UsernameAndPassword.Add("user1", Str.GenRandPassword());
+            this.UsernameAndPassword.Add("user2", Str.GenRandPassword());
+        }
+
+        public bool Authenticate(string username, string password)
+        {
+            if (UsernameAndPassword.TryGetValue(username, out string pw))
+            {
+                if (password == pw)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     class HttpServerStartupHelper
@@ -75,6 +103,8 @@ namespace IPA.Cores.Basic
 
         public bool IsDevelopmentMode { get; private set; }
 
+        public Func<string, string, Task<bool>> SimpleBasicAuthenticationPasswordValidator { get; set; } = null;
+
         public HttpServerStartupHelper(IConfiguration configuration)
         {
             this.Configuration = configuration;
@@ -85,16 +115,76 @@ namespace IPA.Cores.Basic
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
 
-            Hive.LocalAppSettings["WebServer"].AccessData(true,
+            Hive.RichLocalAppSettings["WebServer"].AccessData(true,
                 k =>
                 {
                     this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
+
+                    if (this.ServerOptions.UseSimpleBasicAuthentication)
+                    {
+                        k.Get("SimpleBasicAuthDatabase", new HttpServerSimpleBasicAuthDatabase(EnsureSpecial.Yes));
+
+                        SimpleBasicAuthenticationPasswordValidator = async (username, password) =>
+                        {
+                            bool ok = false;
+
+                            Hive.RichLocalAppSettings["WebServer"].AccessData(false, k2 =>
+                            {
+                                HttpServerSimpleBasicAuthDatabase db = k2.Get< HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
+
+                                ok = db.Authenticate(username, password);
+                            });
+
+                            await Task.CompletedTask;
+                            return ok;
+                        };
+                    }
                 });
         }
 
         public virtual void ConfigureServices(IServiceCollection services)
         {
             services.AddRouting();
+
+            if (ServerOptions.UseSimpleBasicAuthentication)
+            {
+                // Simple BASIC authentication
+                services.AddAuthentication(BasicAuthenticationDefaults.AuthenticationScheme)
+                    .AddBasic(options =>
+                    {
+                        options.AllowInsecureProtocol = true;
+                        options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
+
+                        options.Events = new BasicAuthenticationEvents
+                        {
+                            OnValidateCredentials = async (context) =>
+                            {
+                                if (await this.SimpleBasicAuthenticationPasswordValidator(context.Username, context.Password))
+                                {
+                                    var claims = new[]
+                                    {
+                                    new Claim(
+                                        ClaimTypes.NameIdentifier,
+                                        context.Username,
+                                        ClaimValueTypes.String,
+                                        context.Options.ClaimsIssuer),
+
+                                    new Claim(
+                                        ClaimTypes.Name,
+                                        context.Username,
+                                        ClaimValueTypes.String,
+                                        context.Options.ClaimsIssuer)
+                                    };
+
+                                    context.Principal = new ClaimsPrincipal(
+                                        new ClaimsIdentity(claims, context.Scheme.Name));
+
+                                    context.Success();
+                                }
+                            }
+                        };
+                    });
+            }
         }
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -116,6 +206,12 @@ namespace IPA.Cores.Basic
             }
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
+
+            if (ServerOptions.UseSimpleBasicAuthentication)
+            {
+                // Simple Basic Authentication
+                app.UseAuthentication();
+            }
         }
 
 #if CORES_BASIC_JSON
@@ -199,6 +295,9 @@ namespace IPA.Cores.Basic
         public bool ShowDetailError { get; set; } = true;
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
 
+        public bool UseSimpleBasicAuthentication { get; set; } = false;
+        public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
+
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
         public bool UseGlobalCertVault { get; set; } = true;
@@ -217,7 +316,7 @@ namespace IPA.Cores.Basic
         [JsonIgnore]
         public TcpIpSystem TcpIp { get; set; } = null;
 
-        public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup: class
+        public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup : class
         {
             IWebHostBuilder baseWebHost = null;
 

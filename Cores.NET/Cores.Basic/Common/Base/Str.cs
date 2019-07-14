@@ -3546,6 +3546,52 @@ namespace IPA.Cores.Basic
             return ByteToStr(Secure.HashSHA1(Guid.NewGuid().ToByteArray()));
         }
 
+        // 新しいパスワードを生成
+        public static string GenRandPassword()
+        {
+            while (true)
+            {
+                int count = 16;
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < count; i++)
+                {
+                    char c;
+                    int type = Secure.RandSInt31() % 5;
+                    int r = Secure.RandSInt31();
+                    if (type == 0)
+                    {
+                        c = (char)('0' + (r % 10));
+                    }
+                    else if (type == 1 || type == 2)
+                    {
+                        c = (char)('a' + (r % 26));
+                    }
+                    else
+                    {
+                        c = (char)('A' + (r % 26));
+                    }
+                    sb.Append(c);
+                }
+
+                sb[Secure.RandSInt31() % (sb.Length - 2) + 1] = '_';
+
+                string ret = sb.ToString();
+
+                bool b1 = false;
+                bool b2 = false;
+                bool b3 = false;
+
+                foreach (char c in ret)
+                {
+                    if ('0' <= c && c <= '9') b1 = true;
+                    if ('a' <= c && c <= 'z') b2 = true;
+                    if ('A' <= c && c <= 'Z') b3 = true;
+                }
+
+                if (b1 && b2 && b3) return ret;
+            }
+        }
+
         // 文字列をハッシュ
         public static byte[] HashStr(string str)
         {
