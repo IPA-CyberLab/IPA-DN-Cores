@@ -220,6 +220,7 @@ namespace IPA.Cores.Basic
             this.Options = options;
 
             AddProvider("slack", (guid, cred) => new InboxSlackAdapter(guid, this.Inbox, cred, this.Options));
+
             AddProvider("gmail", (guid, cred) => new InboxGmailAdapter(guid, this.Inbox, cred, this.Options));
         }
 

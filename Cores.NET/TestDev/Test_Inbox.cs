@@ -44,6 +44,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.ClientApi.SlackApi;
+using IPA.Cores.ClientApi.GoogleApi;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -61,31 +62,171 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Inbox_SlackTestAsync()._GetResult();
+            //Inbox_SlackTestAsync()._GetResult();
+
+            //Inbox_SlackAdapterTestAsync()._GetResult();
+
+            //Inbox_GoogleApiSimpleTestAsync()._GetResult();
+
+            //Inbox_GeneticAdapterTestAsync()._GetResult();
+
+            Inbox_GeneticAdapterTestAsync()._GetResult();
 
             return 0;
         }
 
+        static async Task Inbox_GoogleApiSimpleTestAsync()
+        {
+            if (false)
+            {
+                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", "_________________"))
+                {
+                    if (false)
+                    {
+                        string url = api.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Google_Gmail, "https://www.google.com/", "123");
+
+                        url._Print();
+                    }
+                    else
+                    {
+                        string code = "_________________";
+
+                        var x = await api.AuthGetAccessTokenAsync(code, "https://www.google.com/");
+
+                        x._DebugAsJson();
+                    }
+                }
+            }
+            else
+            {
+                string token = "_________________";
+
+                using (GoogleApi api = new GoogleApi("651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com", "_________________", token))
+                {
+                    GoogleApi.MessageList[] list = await api.GmailListMessagesAsync("is:unread label:inbox", maxCount: 100);
+
+                    foreach (var msg in list)
+                    {
+                        var m = await api.GmailGetMessageAsync(msg.id);
+
+                        //m._DebugAsJson();
+
+                        Con.WriteLine("----------------------------");
+
+                        Con.WriteLine($"date: " + m.internalDate._ToDateTimeOfGoogle());
+                        Con.WriteLine($"subject: " + m.GetSubject());
+                        Con.WriteLine($"from: " + m.GetFrom());
+                        Con.WriteLine($"body: " + m.snippet);
+                    }
+                }
+            }
+        }
+
+        static async Task Inbox_GeneticAdapterTestAsync()
+        {
+            using (Inbox inbox = new Inbox())
+            {
+                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), "gmail", new InboxAdapterAppCredential
+                {
+                    ClientId = "651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com",
+                    ClientSecret = "_________________"
+                });
+
+                inbox.StartAdapter(gmailAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
+
+                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), "slack", new InboxAdapterAppCredential
+                {
+                    ClientId = "687264585408.675851234162",
+                    ClientSecret = "_________________"
+                });
+
+                inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
+
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                {
+                    var box = inbox.GetMessageBox();
+
+                    box.MessageList = box.MessageList.OrderBy(x => x.Timestamp).ToArray();
+
+                    box._PrintAsJson();
+                });
+
+                Con.ReadLine();
+            }
+
+            await Task.CompletedTask;
+        }
+
+        static async Task Inbox_GmailAdapterTestAsync()
+        {
+            using (Inbox inbox = new Inbox())
+            {
+                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), "gmail", new InboxAdapterAppCredential
+                {
+                    ClientId = "651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com",
+                    ClientSecret = "_________________"
+                });
+
+                inbox.StartAdapter(gmailAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
+
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                {
+                    var box = inbox.GetMessageBox();
+
+                    box._PrintAsJson();
+                });
+
+                Con.ReadLine();
+            }
+
+            await Task.CompletedTask;
+        }
+
+        static async Task Inbox_SlackAdapterTestAsync()
+        {
+            using (Inbox inbox = new Inbox())
+            {
+                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), "slack", new InboxAdapterAppCredential
+                {
+                    ClientId = "687264585408.675851234162",
+                    ClientSecret = "_________________"
+                });
+
+                inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
+
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                {
+                    var box = inbox.GetMessageBox();
+
+                    box._PrintAsJson();
+                });
+
+                Con.ReadLine();
+            }
+
+            await Task.CompletedTask;
+        }
+
         static async Task Inbox_SlackTestAsync()
         {
-            string accessToken = "xoxp-687264585408-687264586720-675870571299-";
+            string accessToken = "xoxp-687264585408-687264586720-687251418193-ba6680f8581a238e11430655936eab92";
 
             if (false)
             {
-                using (SlackApi slack = new SlackApi("687264585408.675851234162"))
+                using (SlackApi slack = new SlackApi("687264585408.675851234162", "_________________"))
                 {
                     if (false)
                     {
                         //string scope = "channels:read groups:read im:read mpim:read channels:history groups:history im:history mpim:history users:read users.profile:read";
-                        string scope = "client";
-                        string url = slack.AuthGenerateAuthorizeUrl("client", "https://www.google.com/");
+                        string scope = Consts.OAuthScopes.Slack_Client;
+                        string url = slack.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Slack_Client, "https://www.google.com/");
 
                         url._Print();
 
                     }
                     else
                     {
-                        var token = await slack.AuthGetAccessTokenAsync("a092d08d6b399ef42fcab14bdc2df837", "687264585408.678256576146.f0e278b0db71e80ebe432243327ffb565fc09686f8efaf0f0a424b08a9e47820");
+                        var token = await slack.AuthGetAccessTokenAsync("_________________");
 
                         token._PrintAsJson();
                     }
@@ -93,7 +234,7 @@ namespace IPA.TestDev
             }
             else
             {
-                using (SlackApi slack = new SlackApi("687264585408.675851234162", accessToken))
+                using (SlackApi slack = new SlackApi("687264585408.675851234162", "_________________", accessToken))
                 {
                     //var channels = await slack.GetChannelsListAsync();
 
