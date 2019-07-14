@@ -49,7 +49,7 @@ namespace IPA.Cores.Helper.Basic
 {
     static class DaemonHelper
     {
-        public static void Start(this Daemon daemon, object param = null) => daemon.StartAsync(param)._GetResult();
+        public static void Start(this Daemon daemon, DaemonStartupMode startupMode, object param = null) => daemon.StartAsync(startupMode, param)._GetResult();
         public static void Stop(this Daemon daemon, bool silent = false) => daemon.StopAsync(silent)._GetResult();
     }
 }
@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
             this.StatusChangedEvent = new FastEventListenerList<Daemon, DaemonStatus>();
         }
 
-        protected abstract Task StartImplAsync(object param);
+        protected abstract Task StartImplAsync(DaemonStartupMode startupMode, object param);
         protected abstract Task StopImplAsync(object param);
 
         public bool IsInstanceRunning()
@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
             return true;
         }
     
-        public async Task StartAsync(object param = null)
+        public async Task StartAsync(DaemonStartupMode startupMode, object param = null)
         {
             await Task.Yield();
             using (await AsyncLock.LockWithAwait())
@@ -128,7 +128,7 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        await StartImplAsync(param);
+                        await StartImplAsync(startupMode, param);
                     }
                     catch (Exception ex)
                     {
@@ -255,7 +255,7 @@ namespace IPA.Cores.Basic
                 new IPEndPoint(IPAddress.Any, this.Daemon.Options.TelnetLogWatcherPort),
                 new IPEndPoint(IPAddress.IPv6Any, this.Daemon.Options.TelnetLogWatcherPort))))
             {
-                this.Daemon.Start(this.Param);
+                this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
                 Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
 
@@ -275,7 +275,7 @@ namespace IPA.Cores.Basic
                 // Usermode
                 service = new UserModeService(
                     this.Daemon.Name,
-                    () => this.Daemon.Start(this.Param),
+                    () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
                     this.Daemon.Options.TelnetLogWatcherPort);
             }
@@ -284,7 +284,7 @@ namespace IPA.Cores.Basic
                 // Windows service mode
                 service = new WindowsService(
                     this.Daemon.Name,
-                    () => this.Daemon.Start(this.Param),
+                    () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
                     this.Daemon.Options.TelnetLogWatcherPort);
             }

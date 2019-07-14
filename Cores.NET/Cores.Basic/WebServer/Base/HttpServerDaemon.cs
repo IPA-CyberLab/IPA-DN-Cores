@@ -56,9 +56,14 @@ namespace IPA.Cores.Helper.Basic
             this.HttpOptions = httpOptions;
         }
 
-        protected override async Task StartImplAsync(object param)
+        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object param)
         {
             Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
+
+            if (startupMode == DaemonStartupMode.ForegroundTestMode)
+            {
+                this.HttpOptions.DebugKestrelToConsole = true;
+            }
 
             this.HttpServerInstance = new HttpServer<TStartup>(this.HttpOptions);
 
