@@ -57,6 +57,9 @@ namespace IPA.Cores.Basic
         }
     }
 
+#if  CORES_PUBLIC
+    public
+#endif
     class InboxMessage
     {
         public string Id;
@@ -70,6 +73,9 @@ namespace IPA.Cores.Basic
         public DateTimeOffset Timestamp;
     }
 
+#if  CORES_PUBLIC
+    public
+#endif
     class InboxMessageBox
     {
         public InboxMessage[] MessageList;
