@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
 #endif
     class InboxMessageBox
     {
-        public InboxMessage[] MessageList;
+        public InboxMessage[] MessageList = new InboxMessage[0];
 
         public ulong Version;
 
@@ -334,7 +334,7 @@ namespace IPA.Cores.Basic
         {
             this.MessageBox = box;
 
-            this.Inbox.StateChangeEventListener.Fire(this.Inbox, NonsenseEventType.Nonsense);
+            this.Inbox.StateChangeEventListener.FireSoftly(this.Inbox, NonsenseEventType.Nonsense);
         }
 
         protected void ClearLastError() => SetLastError(null);

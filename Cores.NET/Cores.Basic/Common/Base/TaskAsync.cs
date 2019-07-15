@@ -2002,6 +2002,11 @@ namespace IPA.Cores.Basic
                 foreach (var e in asyncEventList)
                     e.Set();
         }
+
+        public void FireSoftly(TCaller caller, TEventType type)
+        {
+            TaskUtil.StartSyncTaskAsync(() => Fire(caller, type), true, false)._LaissezFaire();
+        }
     }
 
 

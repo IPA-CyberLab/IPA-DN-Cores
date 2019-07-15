@@ -260,7 +260,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
         {
             await RefreshAccessTokenIfNecessaryAsync(cancel);
 
-            WebRet ret = await SimpleQueryAsync(WebMethods.GET, $"https://www.googleapis.com/gmail/v1/users/me/messages/{id._EncodeUrl()}");
+            WebRet ret = await SimpleQueryAsync(WebMethods.GET, $"https://www.googleapis.com/gmail/v1/users/me/messages/{id._EncodeUrl()}", cancel);
 
             Message msg = ret.Deserialize<Message>();
 
@@ -271,7 +271,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
         {
             await RefreshAccessTokenIfNecessaryAsync(cancel);
 
-            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://www.googleapis.com/gmail/v1/users/me/profile");
+            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://www.googleapis.com/gmail/v1/users/me/profile", cancel);
 
             GmailProfile profile = ret.Deserialize<GmailProfile>();
 
