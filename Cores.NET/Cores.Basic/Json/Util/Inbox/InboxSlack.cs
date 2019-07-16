@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
     public class InboxSlackAdapter : InboxAdapter
     {
-        public override string AdapterName => "slack";
+        public override string AdapterName => "Slack";
 
         string currentAccountInfoStr = null;
 
