@@ -327,10 +327,10 @@ namespace IPA.Cores.Basic
                                 Id = this.Guid + "_" + message.ts.ToString(),
 
                                 Service = TeamInfo.name._DecodeHtml(),
-                                FromImage = TeamInfo.icon?.image_132 ?? "",
+                                ServiceImage = TeamInfo.icon?.image_132 ?? "",
 
                                 From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
-                                ServiceImage = user?.profile?.image_512 ?? "",
+                                FromImage = user?.profile?.image_512 ?? "",
 
                                 Group = group_name,
 
