@@ -60,6 +60,10 @@ namespace IPA.Cores.Basic
     {
         public override string AdapterName => "slack";
 
+        string currentAccountInfoStr = null;
+
+        public override string AccountInfoStr => currentAccountInfoStr;
+
         SlackApi Api;
 
         public InboxSlackAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
@@ -257,6 +261,8 @@ namespace IPA.Cores.Basic
 
                 // Team info
                 this.TeamInfo = await Api.GetTeamInfoAsync(cancel);
+
+                currentAccountInfoStr = this.TeamInfo.name;
 
                 if (all)
                 {

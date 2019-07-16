@@ -57,7 +57,11 @@ namespace IPA.Cores.Basic
 
     class InboxGmailAdapter : InboxAdapter
     {
-        public override string AdapterName => "slack";
+        public override string AdapterName => "gmail";
+
+        string currentAccountInfoStr = null;
+
+        public override string AccountInfoStr => currentAccountInfoStr;
 
         GoogleApi Api;
 
@@ -133,6 +137,8 @@ namespace IPA.Cores.Basic
             GoogleApi.GmailProfile profile = await Api.GmailGetProfileAsync(cancel);
 
             currentProfile = profile;
+
+            currentAccountInfoStr = profile.emailAddress;
 
             while (true)
             {

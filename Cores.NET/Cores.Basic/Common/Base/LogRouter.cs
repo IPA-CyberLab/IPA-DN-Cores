@@ -570,7 +570,7 @@ namespace IPA.Cores.Basic
 
             // Access log
             public static readonly Copenhagen<Func<string>> LogAccessDir = new Func<string>(() => Path.Combine(LogRootDir, "Access"));
-            public static readonly Copenhagen<LogSwitchType> SwitchTypeForAccess = LogSwitchType.Day;
+            public static readonly Copenhagen<LogSwitchType> SwitchTypeForAccess = LogSwitchType.Hour;
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForAccess = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
 
             // Socket log

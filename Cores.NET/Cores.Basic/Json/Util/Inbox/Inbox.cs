@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultMaxMessagesTotal = 1000;
 
             public static readonly Copenhagen<int> MaxFromLen = 60;
-            public static readonly Copenhagen<int> MaxSubjectLen = 80;
+            public static readonly Copenhagen<int> MaxSubjectLen = 100;
             public static readonly Copenhagen<int> MaxBodyLen = 400;
         }
     }
@@ -330,6 +330,8 @@ namespace IPA.Cores.Basic
         public InboxOptions AdapterOptions { get; }
         public InboxAdapterAppCredential AppCredential { get; }
         public InboxAdapterUserCredential UserCredential { get; protected set; }
+
+        public abstract string AccountInfoStr { get; }
 
         public InboxMessageBox MessageBox { get; private set; }
 
