@@ -47,13 +47,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class FileException : Exception
+    public class FileException : Exception
     {
         public FileException(string path, string message) : base($"File \"{path}\": {message}") { }
     }
 
     [Flags]
-    enum FileSpecialOperationFlags : long
+    public enum FileSpecialOperationFlags : long
     {
         None = 0,
         SetCompressionFlag = 1,
@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileMetadataGetFlags
+    public enum FileMetadataGetFlags
     {
         DefaultAll = 0,
         NoAttributes = 1,
@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileMetadataCopyMode : long
+    public enum FileMetadataCopyMode : long
     {
         None = 0,
         All = 1,
@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileSecurityOwner : IEmptyChecker
+    public class FileSecurityOwner : IEmptyChecker
     {
         public string Win32OwnerSddl;
 
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileSecurityGroup : IEmptyChecker
+    public class FileSecurityGroup : IEmptyChecker
     {
         public string Win32GroupSddl;
 
@@ -116,7 +116,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileSecurityAcl : IEmptyChecker
+    public class FileSecurityAcl : IEmptyChecker
     {
         public string Win32AclSddl;
 
@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileSecurityAudit : IEmptyChecker
+    public class FileSecurityAudit : IEmptyChecker
     {
         public string Win32AuditSddl;
 
@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileSecurityMetadata : IEmptyChecker
+    public class FileSecurityMetadata : IEmptyChecker
     {
         public FileSecurityOwner Owner;
         public FileSecurityGroup Group;
@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileAlternateStreamItemMetadata : IEmptyChecker
+    public class FileAlternateStreamItemMetadata : IEmptyChecker
     {
         public string Name;
         public byte[] Data;
@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileAlternateStreamMetadata : IEmptyChecker
+    public class FileAlternateStreamMetadata : IEmptyChecker
     {
         public FileAlternateStreamItemMetadata[] Items;
 
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class FileAuthorMetadata : IEmptyChecker
+    public class FileAuthorMetadata : IEmptyChecker
     {
         public string CommitId;
 
@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
         public bool IsThisEmpty() => (CommitId._IsEmpty() && AuthorName._IsEmpty() && CommitterName._IsEmpty() && Message._IsEmpty());
     }
 
-    class FileMetadata
+    public class FileMetadata
     {
         public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive
             | FileAttributes.Directory | FileAttributes.NotContentIndexed | FileAttributes.Offline | FileAttributes.NoScrubData | FileAttributes.IntegrityStream;
@@ -338,7 +338,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FileMetadataCopier
+    public class FileMetadataCopier
     {
         public FileMetadataCopyMode Mode { get; }
         public FileMetadataGetFlags OptimizedMetadataGetFlags { get; }
@@ -375,7 +375,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    sealed class FileParameters
+    public sealed class FileParameters
     {
         public string Path { get; private set; }
         public FileMode Mode { get; }
@@ -418,7 +418,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileFlags : ulong
+    public enum FileFlags : ulong
     {
         None = 0,
         NoPartialRead = 1,
@@ -435,7 +435,7 @@ namespace IPA.Cores.Basic
         WriteOnlyIfChanged = 2048,
     }
 
-    class FileBaseStream : FileStream
+    public class FileBaseStream : FileStream
     {
         FileBase File;
         bool DisposeObject = false;
@@ -676,7 +676,7 @@ namespace IPA.Cores.Basic
         public override void Unlock(long position, long length) => throw new NotImplementedException();
     }
 
-    enum FileObjectEventType
+    public enum FileObjectEventType
     {
         Read,
         Write,
@@ -689,7 +689,7 @@ namespace IPA.Cores.Basic
     }
 
 #pragma warning disable CS1998
-    class StreamRandomAccessWrapper : IRandomAccess<byte>
+    public class StreamRandomAccessWrapper : IRandomAccess<byte>
     {
         public Stream BaseStream { get; }
 
@@ -849,7 +849,7 @@ namespace IPA.Cores.Basic
     }
 #pragma warning restore CS1998
 
-    class ConcurrentRandomAccess<T> : IRandomAccess<T>
+    public class ConcurrentRandomAccess<T> : IRandomAccess<T>
     {
         public readonly AsyncLock TargetLock;
         public readonly IRandomAccess<T> Target;
@@ -1017,7 +1017,7 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
-    interface IRandomAccess<T> : IDisposable
+    public interface IRandomAccess<T> : IDisposable
     {
         Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
         int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default);
@@ -1043,7 +1043,7 @@ namespace IPA.Cores.Basic
         AsyncLock SharedAsyncLock { get; }
     }
 
-    class RandomAccessHandle : IRandomAccess<byte>, IDisposable
+    public class RandomAccessHandle : IRandomAccess<byte>, IDisposable
     {
         readonly RefCounterObjectHandle<FileBase> Ref;
         readonly FileBase File;
@@ -1111,7 +1111,7 @@ namespace IPA.Cores.Basic
         public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
     }
 
-    abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte>
+    public abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte>
     {
         public FileParameters FileParams { get; }
         public virtual string FinalPhysicalPath => throw new NotImplementedException();

@@ -73,7 +73,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Win32PathInternal
+    public static partial class Win32PathInternal
     {
         // All paths in Win32 ultimately end up becoming a path to a File object in the Windows object manager. Passed in paths get mapped through
         // DosDevice symbolic links in the object tree to actual File objects under \Devices. To illustrate, this is what happens with a typical

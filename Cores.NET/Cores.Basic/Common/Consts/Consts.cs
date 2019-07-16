@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Consts
+    public static partial class Consts
     {
         public static partial class Ports
         {

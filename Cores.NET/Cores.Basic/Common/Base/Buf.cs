@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // FIFO
-    class Fifo
+    public class Fifo
     {
         
 
@@ -219,7 +219,7 @@ namespace IPA.Cores.Basic
         public Span<byte> Span => this.Data.AsSpan(this.Position, this.Size);
     }
 
-    class Fifo<T>
+    public class Fifo<T>
     {
         public T[] PhysicalData { get; private set; }
         public int Size { get; private set; }
@@ -365,7 +365,7 @@ namespace IPA.Cores.Basic
     }
 
     // バッファ
-    class Buf
+    public class Buf
     {
         
 

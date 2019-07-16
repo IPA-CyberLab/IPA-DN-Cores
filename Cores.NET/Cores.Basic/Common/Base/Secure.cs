@@ -44,7 +44,7 @@ using System.Diagnostics;
 namespace IPA.Cores.Basic
 {
     // Secure クラス
-    class Secure
+    public class Secure
     {
         static readonly RNGCryptoServiceProvider RandomShared = new RNGCryptoServiceProvider();
         static readonly MD5 MD5Shared = new MD5CryptoServiceProvider();
@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
     }
 
-    static class ExeSignChecker
+    public static class ExeSignChecker
     {
         public static bool IsKernelModeSignedFile(string fileName)
         {
@@ -571,7 +571,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class RC4 : ICloneable
+        public class RC4 : ICloneable
         {
             uint x, y;
             uint[] state;
@@ -695,5 +695,5 @@ namespace IPA.Cores.Basic
     }
 
     // 証明書関係
-    delegate X509Certificate2 CertSelectorCallback(object param, string sniHostname);
+    public delegate X509Certificate2 CertSelectorCallback(object param, string sniHostname);
 }

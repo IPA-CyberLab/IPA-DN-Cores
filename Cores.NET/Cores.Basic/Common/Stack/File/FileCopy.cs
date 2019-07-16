@@ -51,7 +51,7 @@ using System.Security.AccessControl;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum CopyDirectoryFlags : long
+    public enum CopyDirectoryFlags : long
     {
         None = 0,
         BackupMode = 1,
@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
         Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive | SetAclProtectionFlagOnRootDir,
     }
 
-    class CopyDirectoryStatus
+    public class CopyDirectoryStatus
     {
         public object State { get; set; }
         public long StartTick { get; set; }
@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
         public readonly CriticalSection LockObj = new CriticalSection();
     }
 
-    class CopyDirectoryParams
+    public class CopyDirectoryParams
     {
         public static FileMetadataCopier DefaultDirectoryMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
@@ -189,7 +189,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    class CopyFileParams
+    public class CopyFileParams
     {
         public static FileMetadataCopier DefaultFileMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
 
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    abstract partial class FileSystem
+    public abstract partial class FileSystem
     {
         public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, object state = null, CancellationToken cancel = default, FileSystem destFileSystem = null, RefBool readErrorIgnored = null)
         {
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
             => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel)._GetResult();
     }
 
-    static partial class FileUtil
+    public static partial class FileUtil
     {
         public static async Task<CopyDirectoryStatus> CopyDirAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
             CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)

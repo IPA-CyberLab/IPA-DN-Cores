@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class FastBufferConfig
         {
@@ -55,7 +55,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    enum FastBufferCallbackEventType
+    public enum FastBufferCallbackEventType
     {
         Init,
         Written,
@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
         Disconnected,
     }
 
-    interface IFastBufferState
+    public interface IFastBufferState
     {
         long Id { get; }
 
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         void CompleteWrite(bool checkDisconnect = true, bool softly = false);
     }
 
-    static class IFastBufferStateHelper
+    public static class IFastBufferStateHelper
     {
         static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
@@ -168,7 +168,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IFastBuffer<T> : IFastBufferState
+    public interface IFastBuffer<T> : IFastBufferState
     {
         void Clear();
         void Enqueue(T item);
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic
         long DequeueAllAndEnqueueToOther(IFastBuffer<T> other);
     }
 
-    readonly struct FastBufferSegment<T>
+    public readonly struct FastBufferSegment<T>
     {
         public readonly T Item;
         public readonly long Pin;
@@ -195,13 +195,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static internal class FastBufferGlobalIdCounter
+    internal static class FastBufferGlobalIdCounter
     {
         static long Id = 0;
         public static long NewId() => Interlocked.Increment(ref Id);
     }
 
-    class FastStreamBuffer<T> : IFastBuffer<ReadOnlyMemory<T>>
+    public class FastStreamBuffer<T> : IFastBuffer<ReadOnlyMemory<T>>
     {
         FastLinkedList<ReadOnlyMemory<T>> List = new FastLinkedList<ReadOnlyMemory<T>>();
         public long PinHead { get; private set; } = 0;
@@ -1248,7 +1248,7 @@ namespace IPA.Cores.Basic
         public static implicit operator FastStreamBuffer<T>(T[] data) => data._AsReadOnlyMemory();
     }
 
-    class FastDatagramBuffer<T> : IFastBuffer<T>
+    public class FastDatagramBuffer<T> : IFastBuffer<T>
     {
         Fifo<T> Fifo = new Fifo<T>();
 
@@ -1549,26 +1549,26 @@ namespace IPA.Cores.Basic
         public T[] ItemsSlow { get => ToArray(); }
     }
 
-    class FastStreamBuffer : FastStreamBuffer<byte>
+    public class FastStreamBuffer : FastStreamBuffer<byte>
     {
         public FastStreamBuffer(bool enableEvents = false, long? thresholdLength = null)
             : base(enableEvents, thresholdLength) { }
     }
 
-    class FastDatagramBuffer : FastDatagramBuffer<Datagram>
+    public class FastDatagramBuffer : FastDatagramBuffer<Datagram>
     {
         public FastDatagramBuffer(bool enableEvents = false, long? thresholdLength = null)
             : base(enableEvents, thresholdLength) { }
     }
 
     [Flags]
-    enum FastStreamNonStopWriteMode
+    public enum FastStreamNonStopWriteMode
     {
         DiscardExistingData = 0,
         DiscardWritingData,
     }
 
-    static class FastStreamBufferHelper
+    public static class FastStreamBufferHelper
     {
         public static long NonStopWriteWithLock<T>(this FastStreamBuffer<T> buffer, ReadOnlyMemory<T> item, bool completeWrite = true,
             FastStreamNonStopWriteMode mode = FastStreamNonStopWriteMode.DiscardWritingData, bool doNotSplitSegment = false)

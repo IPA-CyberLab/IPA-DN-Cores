@@ -49,7 +49,7 @@ using IPA.Cores.Basic.HttpClientCore;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class DefaultHttpClientSettings
         {
@@ -61,17 +61,17 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WebResponseException : Exception
+    public class WebResponseException : Exception
     {
         public WebResponseException(string message) : base(message) { }
     }
 
-    interface IErrorCheckable
+    public interface IErrorCheckable
     {
         void CheckError();
     }
 
-    class WebSendRecvRequest : IDisposable
+    public class WebSendRecvRequest : IDisposable
     {
         public WebMethods Method { get; }
         public string Url { get; }
@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WebSendRecvResponse : IDisposable
+    public class WebSendRecvResponse : IDisposable
     {
         public HttpContent DownloadContent { get; }
         public HttpResponseMessage HttpResponseMessage { get; }
@@ -132,14 +132,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WebUserRet<TUser> : SystemAndUser<WebRet, TUser>
+    public class WebUserRet<TUser> : SystemAndUser<WebRet, TUser>
     {
         public WebUserRet(WebRet web, TUser user) : base(web, user)
         {
         }
     }
 
-    partial class WebRet
+    public partial class WebRet
     {
         public const string MediaTypeJson = Consts.MediaTypes.Json;
 
@@ -202,7 +202,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum WebMethods
+    public enum WebMethods
     {
         GET,
         DELETE,
@@ -212,7 +212,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class WebApiSettings
+    public class WebApiSettings
     {
         public int Timeout = CoresConfig.DefaultHttpClientSettings.Timeout;
         public int MaxRecvSize = CoresConfig.DefaultHttpClientSettings.MaxRecvSize;
@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
         public bool DebugPrintResponse = false;
     }
 
-    class WebApiOptions
+    public class WebApiOptions
     {
         public WebApiSettings Settings { get; }
         public TcpIpSystem TcpIp { get; }
@@ -244,7 +244,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    partial class WebApi : IDisposable
+    public partial class WebApi : IDisposable
     {
         WebApiSettings Settings;
 

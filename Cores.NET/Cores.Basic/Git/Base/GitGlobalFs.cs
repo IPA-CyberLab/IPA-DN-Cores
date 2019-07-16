@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class GitGlobalFsSettings
         {
@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
     [Serializable]
     [DataContract]
-    class GitGlobalFsRepository
+    public class GitGlobalFsRepository
     {
         [DataMember]
         public string Url;
@@ -73,13 +73,13 @@ namespace IPA.Cores.Basic
 
     [Serializable]
     [DataContract]
-    class GitGlobalFsState
+    public class GitGlobalFsState
     {
         [DataMember]
         public List<GitGlobalFsRepository> RepositoryList = new List<GitGlobalFsRepository>();
     }
 
-    static class GitGlobalFs
+    public static class GitGlobalFs
     {
         public static StaticModule Module = new StaticModule(InitModule, FreeModule);
 

@@ -47,18 +47,18 @@ using System.IO;
 
 namespace IPA.Cores.Basic
 {
-    class DisconnectedException : Exception { }
-    class FastBufferDisconnectedException : DisconnectedException { }
-    class SocketDisconnectedException : DisconnectedException { }
-    class BaseStreamDisconnectedException : DisconnectedException { }
+    public class DisconnectedException : Exception { }
+    public class FastBufferDisconnectedException : DisconnectedException { }
+    public class SocketDisconnectedException : DisconnectedException { }
+    public class BaseStreamDisconnectedException : DisconnectedException { }
 
     [Flags]
-    enum DatagramFlag
+    public enum DatagramFlag
     {
         None = 0,
     }
 
-    class Datagram
+    public class Datagram
     {
         Memory<byte> InternalBuffer;
         int InternalStart;
@@ -104,13 +104,13 @@ namespace IPA.Cores.Basic
         public Packet ToPacket() => new Packet(this);
     }
 
-    class FastLinkedListNode<T>
+    public class FastLinkedListNode<T>
     {
         public T Value;
         public FastLinkedListNode<T> Next, Previous;
     }
 
-    class FastLinkedList<T>
+    public class FastLinkedList<T>
     {
         public int Count;
         public FastLinkedListNode<T> First, Last;
@@ -349,7 +349,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    readonly struct PacketSegment
+    public readonly struct PacketSegment
     {
         public readonly Memory<byte> Item;
         public readonly int Pin;
@@ -363,13 +363,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ByteLinkedListNode
+    public class ByteLinkedListNode
     {
         public Memory<byte> Value;
         public ByteLinkedListNode Next, Previous;
     }
 
-    class ByteLinkedList
+    public class ByteLinkedList
     {
         public int Count;
         public ByteLinkedListNode First, Last;

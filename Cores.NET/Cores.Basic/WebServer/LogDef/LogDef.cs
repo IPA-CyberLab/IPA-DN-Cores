@@ -46,13 +46,13 @@ using Microsoft.AspNetCore.Http;
 
 namespace IPA.Cores.Basic
 {
-    partial class LogTag
+    public partial class LogTag
     {
         public const string Kestrel = "Kestrel";
         public const string WebServer = "WebServer";
     }
 
-    class MsLogData
+    public class MsLogData
     {
         public string Category;
         public string TranscationId;
@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
         public object Data;
     }
 
-    class WebServerLogData
+    public class WebServerLogData
     {
         public string ConnectionId;
         public string LocalIP;

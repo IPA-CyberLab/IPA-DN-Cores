@@ -43,7 +43,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic.Legacy
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct ZipDataHeader
+    public struct ZipDataHeader
     {
         public uint Signature;
         public ushort NeedVer;
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct ZipDataFooter
+    public struct ZipDataFooter
     {
         public uint Signature;
         public uint Crc32;
@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct ZipDirHeader
+    public struct ZipDirHeader
     {
         public uint Signature;
         public ushort MadeVer;
@@ -90,7 +90,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct ZipEndHeader
+    public struct ZipEndHeader
     {
         public uint Signature;
         public ushort DiskNum;
@@ -102,7 +102,7 @@ namespace IPA.Cores.Basic.Legacy
         public ushort CommentLen;
     }
 
-    static class ZipUtil
+    public static class ZipUtil
     {
         static ZipUtil()
         {
@@ -166,7 +166,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    class ZipPacker
+    public class ZipPacker
     {
         public const uint Signature = 0x04034B50;
         public const uint SignatureEnd = 0x06054B50;

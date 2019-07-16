@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class PipeConfig
         {

@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class ChrootViewFileSystemParam : RewriteViewFileSystemParam
+    public class ChrootViewFileSystemParam : RewriteViewFileSystemParam
     {
         public string PhysicalRootDirectory { get; }
 
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    class ChrootViewFileSystem : RewriteViewFileSystem
+    public class ChrootViewFileSystem : RewriteViewFileSystem
     {
         protected new ChrootViewFileSystemParam Params => (ChrootViewFileSystemParam)base.Params;
         protected string PhysicalRootDirectory => Params.PhysicalRootDirectory;

@@ -51,7 +51,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class GoogleApiSettings
         {
@@ -62,7 +62,7 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.ClientApi.GoogleApi
 {
-    static class GoogleApiHelper
+    public static class GoogleApiHelper
     {
         public static DateTimeOffset _ToDateTimeOfGoogle(this decimal value) => Util.UnixTimeToDateTime(value)._AsDateTimeOffset(false).ToLocalTime();
         public static DateTimeOffset _ToDateTimeOfGoogle(this long value) => Util.UnixTimeToDateTime(value / (decimal)1000.0)._AsDateTimeOffset(false).ToLocalTime();
@@ -71,7 +71,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
         public static decimal _ToDecimalDateTimeOfGoogle(this DateTimeOffset dt) => Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime);
     }
 
-    class GoogleApi : WebApi
+    public class GoogleApi : WebApi
     {
         public string ClientId { get; }
         public string ClientSecret { get; }

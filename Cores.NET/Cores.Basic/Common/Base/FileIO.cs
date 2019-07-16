@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // 古いファイルから順番に削除する
-    class OldFileEraser : AsyncServiceWithMainLoop
+    public class OldFileEraser : AsyncServiceWithMainLoop
     {
         string[] DirList;
         string ExtensionList;
@@ -133,7 +133,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SystemUniqueDirectoryProvider
+    public class SystemUniqueDirectoryProvider
     {
         public string SubDirNamePrefix { get; }
         public string BaseDirPath { get; }
@@ -223,9 +223,8 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-
         // HamCore エントリ
-        class HamCoreEntry : IComparable
+        public class HamCoreEntry : IComparable
         {
             public string FileName = "";
             public uint Size = 0;
@@ -245,7 +244,7 @@ namespace IPA.Cores.Basic
         }
 
         // HamCore ビルダー
-        class HamCoreBuilderFileEntry : IComparable<HamCoreBuilderFileEntry>
+        public class HamCoreBuilderFileEntry : IComparable<HamCoreBuilderFileEntry>
         {
             public string Name;
             public Buf RawData;
@@ -258,7 +257,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        class HamCoreBuilder
+        public class HamCoreBuilder
         {
             List<HamCoreBuilderFileEntry> fileList;
             public IReadOnlyList<HamCoreBuilderFileEntry> FileList
@@ -407,7 +406,7 @@ namespace IPA.Cores.Basic
         }
 
         // HamCore ファイル
-        class HamCore
+        public class HamCore
         {
             public const string HamcoreDirName = "@hamcore";
             public const string HamcoreHeaderData = "HamCore";
@@ -606,7 +605,7 @@ namespace IPA.Cores.Basic
         }
 
         // ディレクトリエントリ
-        class DirEntry : IComparable<DirEntry>
+        public class DirEntry : IComparable<DirEntry>
         {
             internal bool folder;
             public bool IsFolder => folder;
@@ -648,7 +647,7 @@ namespace IPA.Cores.Basic
         };
 
         // ファイル操作
-        class IO : IDisposable
+        public class IO : IDisposable
         {
             // ディレクトリのコピー
             public delegate bool CopyDirPreCopyDelegate(FileInfo srcFileInfo);
@@ -2308,7 +2307,7 @@ namespace IPA.Cores.Basic
         }
 
         // Win32 フォルダ圧縮操ユーティリティ
-        static class Win32FolderCompression
+        public static class Win32FolderCompression
         {
             public static bool SetFolderCompression(string path, bool compressed)
             {

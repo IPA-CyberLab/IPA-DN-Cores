@@ -40,7 +40,7 @@ using IPA.Cores.Basic.Internal;
 
 namespace IPA.Cores.Basic
 {
-    static class ZLib
+    public static class ZLib
     {
         // データを圧縮する
         public static byte[] Compress(byte[] src)

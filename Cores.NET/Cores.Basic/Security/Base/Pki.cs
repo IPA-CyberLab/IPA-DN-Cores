@@ -70,7 +70,7 @@ namespace IPA.Cores.Basic
 {
     namespace Internal
     {
-        class SimplePasswordFinder : IPasswordFinder
+        public class SimplePasswordFinder : IPasswordFinder
         {
             public string Password { get; }
             public SimplePasswordFinder(string password)
@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PkiAlgorithm
+    public enum PkiAlgorithm
     {
         Unknown = 0,
         RSA,
@@ -99,14 +99,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PkiShaSize
+    public enum PkiShaSize
     {
         SHA256 = 0,
         SHA384,
         SHA512,
     }
 
-    class CertificateStoreContainer
+    public class CertificateStoreContainer
     {
         public string Alias { get; }
 
@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CertificateStore
+    public class CertificateStore
     {
         public IReadOnlyDictionary<string, CertificateStoreContainer> Containers => InternalContainers;
 
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PrivKey
+    public class PrivKey
     {
         public AsymmetricCipherKeyPair PrivateKeyData { get; }
 
@@ -379,7 +379,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PubKey : IEquatable<PubKey>
+    public class PubKey : IEquatable<PubKey>
     {
         public AsymmetricKeyParameter PublicKeyData { get; }
 
@@ -480,7 +480,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CertificateOptions
+    public class CertificateOptions
     {
         public string CN;
         public string O;
@@ -580,14 +580,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum CertificateHostnameType
+    public enum CertificateHostnameType
     {
         DefaultCert = 0,
         Wildcard = 50,
         SingleHost = 100,
     }
 
-    class CertificateHostName
+    public class CertificateHostName
     {
         public string HostName { get; }
         public string WildcardEndWith { get; }
@@ -631,7 +631,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Certificate
+    public class Certificate
     {
         public X509Certificate CertData { get; }
 
@@ -793,7 +793,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Csr
+    public class Csr
     {
         Pkcs10CertificationRequest Request;
 
@@ -842,7 +842,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class CertificateUtil
+    public static class CertificateUtil
     {
         public static ReadOnlyMemory<byte> ExportChainedCertificates(this IEnumerable<Certificate> certList)
         {
@@ -909,7 +909,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class PkiUtil
+    public static class PkiUtil
     {
         public static SecureRandom NewSecureRandom() => SecureRandom.GetInstance("SHA1PRNG");
 
@@ -1013,7 +1013,7 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class PkiHelper
+    public static class PkiHelper
     {
         public static byte[] Sign(this ISigner signer, byte[] data, int offset = 0, int size = DefaultSize)
         {

@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
+    public abstract class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
     {
         public byte[] Bytes;
         public int Size;
@@ -301,7 +301,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class IPv4Addr : IPAddr
+    public class IPv4Addr : IPAddr
     {
         public IPv4Addr(IPAddress a)
         {
@@ -369,7 +369,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class IPv6Addr : IPAddr
+    public class IPv6Addr : IPAddr
     {
         readonly static BigNumber max_ipv6;
 
@@ -452,7 +452,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteEntry : IComparable<FullRouteEntry>, IEquatable<FullRouteEntry>, IComparable
+    public class FullRouteEntry : IComparable<FullRouteEntry>, IEquatable<FullRouteEntry>, IComparable
     {
         public readonly IPAddr Address;
         public readonly int SubnetLength;
@@ -668,7 +668,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteAsNumber : IComparable<FullRouteAsNumber>, IEquatable<FullRouteAsNumber>
+    public class FullRouteAsNumber : IComparable<FullRouteAsNumber>, IEquatable<FullRouteAsNumber>
     {
         public readonly int Number;
         public readonly string Name;
@@ -747,7 +747,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteAsList
+    public class FullRouteAsList
     {
         public Dictionary<int, FullRouteAsNumber> List = new Dictionary<int, FullRouteAsNumber>();
 
@@ -929,7 +929,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteCountryEntry : IComparable<FullRouteCountryEntry>, IEquatable<FullRouteCountryEntry>
+    public class FullRouteCountryEntry : IComparable<FullRouteCountryEntry>, IEquatable<FullRouteCountryEntry>
     {
         public readonly string Country2;
         public readonly string CountryFull;
@@ -997,7 +997,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteCountryList
+    public class FullRouteCountryList
     {
         public Dictionary<string, FullRouteCountryEntry> List = new Dictionary<string, FullRouteCountryEntry>();
 
@@ -1132,7 +1132,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteSetResult
+    public class FullRouteSetResult
     {
         public string IPAddress;
         public string IPRouteNetwork;
@@ -1159,7 +1159,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteSet
+    public class FullRouteSet
     {
         public readonly FullRouteCountryList CountryList;
         public readonly FullRouteAsList AsList;
@@ -1334,7 +1334,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteSetThread
+    public class FullRouteSetThread
     {
         public static readonly string CacheFileName = Path.Combine(Env.TempDir, "fullrouteset_cache.dat");
         public static readonly string DefaultURL = "http://files.open.ad.jp/private/fullrouteset/fullrouteset.dat";
@@ -1489,7 +1489,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteCompiler
+    public class FullRouteCompiler
     {
         public readonly string BaseDir = @"C:\tmp\FullRouteCompiler";
         public readonly string MasterDir;
@@ -1700,14 +1700,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    enum FullRouteSpaceType
+    public enum FullRouteSpaceType
     {
         ByCountry,
         ByAS,
         ByTagString,
     }
 
-    class FullRouteSpaceEntry : IComparable<FullRouteSpaceEntry>
+    public class FullRouteSpaceEntry : IComparable<FullRouteSpaceEntry>
     {
         public readonly IPAddr IPStart, IPEnd;
         public readonly object Value;
@@ -1725,7 +1725,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteIPFilterList
+    public class FullRouteIPFilterList
     {
         public readonly FullRouteSpaceType Type;
         public object Key;
@@ -1784,7 +1784,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteSpace
+    public class FullRouteSpace
     {
         public readonly FullRouteSpaceType Type;
         public readonly AddressFamily AddressFamily;
@@ -2148,7 +2148,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class SubnetGenerator
+    public static class SubnetGenerator
     {
         private class Context
         {
@@ -2278,7 +2278,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRoute
+    public class FullRoute
     {
         public readonly AddressFamily AddressFamily;
         public Dictionary<FullRouteEntry, int> BulkList = new Dictionary<FullRouteEntry, int>();

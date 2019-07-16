@@ -43,7 +43,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class TimeAdjustSettings
         {
@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TimeHelper
+    public class TimeHelper
     {
         internal Stopwatch Sw;
         internal long Freq;
@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class TimeAdjustHistoryBase : IDisposable
+    public abstract class TimeAdjustHistoryBase : IDisposable
     {
         class History
         {
@@ -221,7 +221,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class FastTick64
+    public static class FastTick64
     {
         static FastTick64()
         {
@@ -301,7 +301,7 @@ namespace IPA.Cores.Basic
         public static DateTimeOffset Tick64ToDateTimeOffsetLocal(long tick) => Time.Time64ToDateTime(Tick64ToTime64(tick)).ToLocalTime()._AsDateTimeOffset(true);
     }
 
-    static class Time
+    public static class Time
     {
         static TimeHelper h = new TimeHelper();
         static TimeSpan baseTimeSpan = new TimeSpan(0, 0, 1);

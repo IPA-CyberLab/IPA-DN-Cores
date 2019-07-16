@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LargeMemoryBuffer
         {
@@ -62,12 +62,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class BufferConsts
+    public static class BufferConsts
     {
         public const int InitialBufferSize = 128;
     }
 
-    ref struct SpanBuffer<T>
+    public ref struct SpanBuffer<T>
     {
         Span<T> InternalSpan;
         public int CurrentPosition { get; private set; }
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct ReadOnlySpanBuffer<T>
+    public ref struct ReadOnlySpanBuffer<T>
     {
         ReadOnlySpan<T> InternalSpan;
         public int CurrentPosition { get; private set; }
@@ -500,7 +500,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct FastMemoryBuffer<T>
+    public ref struct FastMemoryBuffer<T>
     {
         Memory<T> InternalBuffer;
         Span<T> InternalSpan;
@@ -834,7 +834,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct FastReadOnlyMemoryBuffer<T>
+    public ref struct FastReadOnlyMemoryBuffer<T>
     {
         ReadOnlyMemory<T> InternalBuffer;
         ReadOnlySpan<T> InternalSpan;
@@ -1051,7 +1051,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IBuffer<T> : IEmptyChecker
+    public interface IBuffer<T> : IEmptyChecker
     {
         long LongCurrentPosition { get; }
         long LongLength { get; }
@@ -1067,7 +1067,7 @@ namespace IPA.Cores.Basic
     }
 
 #pragma warning disable CS1998
-    class BufferDirectStream : Stream
+    public class BufferDirectStream : Stream
     {
         public IBuffer<byte> BaseBuffer { get; }
 
@@ -1165,7 +1165,7 @@ namespace IPA.Cores.Basic
     }
 #pragma warning restore CS1998
 
-    class MemoryBuffer<T> : IBuffer<T>
+    public class MemoryBuffer<T> : IBuffer<T>
     {
         Memory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
@@ -1547,7 +1547,7 @@ namespace IPA.Cores.Basic
             => SetLength(checked((int)size));
     }
 
-    class ReadOnlyMemoryBuffer<T> : IBuffer<T>
+    public class ReadOnlyMemoryBuffer<T> : IBuffer<T>
     {
         ReadOnlyMemory<T> InternalBuffer;
         public int CurrentPosition { get; private set; }
@@ -1818,7 +1818,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    class HugeMemoryBufferOptions
+    public class HugeMemoryBufferOptions
     {
         public readonly long SegmentSize;
 
@@ -1828,7 +1828,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAccess<T>
+    public class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAccess<T>
     {
         public readonly HugeMemoryBufferOptions Options;
 
@@ -2363,7 +2363,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class SpanMemoryBufferHelper
+    public static class SpanMemoryBufferHelper
     {
         public static unsafe void WriteAny<T>(this ref SpanBuffer<byte> buf, in T value) where T : unmanaged
             => buf.Write(Unsafe.AsPointer(ref Unsafe.AsRef(in value)), sizeof(T));
@@ -2564,7 +2564,7 @@ namespace IPA.Cores.Basic
         public static long PeekSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
     }
 
-    static class MemoryHelper
+    public static class MemoryHelper
     {
         public static readonly long _MemoryObjectOffset;
         public static readonly long _MemoryIndexOffset;
@@ -2831,7 +2831,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastMemoryPool<T>
+    public class FastMemoryPool<T>
     {
         Memory<T> Pool;
         int CurrentPos;
@@ -2890,7 +2890,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct ElasticSpan<T> where T : unmanaged
+    public ref struct ElasticSpan<T> where T : unmanaged
     {
         public const int PreAllocationUnit = 40;
         public const int PostAllocationUnit = 40;
@@ -3158,7 +3158,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    ref struct SpanBasedQueue<T>
+    public ref struct SpanBasedQueue<T>
     {
         public int MaxQueueLength { get; }
         public int InitialBufferLength { get; }

@@ -36,15 +36,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    enum ListenerStatus
+    public enum ListenerStatus
     {
         Trying = 0,
         Listening = 1,
     }
 
-    delegate void AcceptProc(Listener listener, Sock sock, object param);
+    public delegate void AcceptProc(Listener listener, Sock sock, object param);
 
-    class Listener
+    public class Listener
     {
         public const int ListenRetryTimeDefault = 2 * 1000;
 

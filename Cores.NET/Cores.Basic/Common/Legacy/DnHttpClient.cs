@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    class DnHttpPostData
+    public class DnHttpPostData
     {
         NameValueCollection nv = new NameValueCollection();
 
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    class DnHttpClient
+    public class DnHttpClient
     {
         CookieContainer cc = new CookieContainer();
         public CookieContainer CookieContainer

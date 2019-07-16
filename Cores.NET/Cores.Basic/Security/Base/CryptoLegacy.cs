@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // Rsa アルゴリズム
-        class Rsa
+        public class Rsa
         {
             byte[] data;
             Cert cert;
@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
         }
 
         // Rsa アルゴリズム (内部)
-        class RsaInner : IDisposable
+        public class RsaInner : IDisposable
         {
             AsymmetricKeyParameter key;
 
@@ -275,7 +275,7 @@ namespace IPA.Cores.Basic
         }
 
         // 証明書
-        class Cert
+        public class Cert
         {
             X509Certificate x509;
             static TimeSpan deleteOldCertSpan = new TimeSpan(0, 0, 30);

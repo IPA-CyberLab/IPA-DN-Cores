@@ -51,7 +51,7 @@ using System.Net;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum CrlfStyle
+    public enum CrlfStyle
     {
         LocalPlatform,
         Lf,
@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
 
     // DateTime をシンブル文字列に変換
     [Flags]
-    enum DtStrOption
+    public enum DtStrOption
     {
         All,
         DateOnly,
@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // キーバリューリスト
-        class KeyValueList
+        public class KeyValueList
         {
             SortedDictionary<string, string> data = new SortedDictionary<string, string>();
 
@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
         }
 
         // シリアライズされたエラー文字列
-        class SerializedError
+        public class SerializedError
         {
             public string Code;
             public string Language;
@@ -219,7 +219,7 @@ namespace IPA.Cores.Basic
 
     // Printf 風フラグ
     [FlagsAttribute]
-    enum PrintFFLags
+    public enum PrintFFLags
     {
         Minus = 1,
         Plus = 2,
@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
     }
 
     // Printf 風パース結果
-    class PrintFParsedParam
+    public class PrintFParsedParam
     {
         public bool Ok = false;
         public readonly PrintFFLags Flags = 0;
@@ -655,7 +655,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class StrComparer : IEqualityComparer<string>, IComparer<string>
+    public class StrComparer : IEqualityComparer<string>, IComparer<string>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
@@ -682,10 +682,10 @@ namespace IPA.Cores.Basic
             => obj.GetHashCode(this.Comparison);
     }
 
-    delegate bool RemoveStringFunction(string str);
+    public delegate bool RemoveStringFunction(string str);
 
     // 文字列操作
-    static class Str
+    public static class Str
     {
         public static Encoding AsciiEncoding { get; }
         public static Encoding ShiftJisEncoding { get; }
@@ -5541,13 +5541,13 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class XmlCheckObjectInternal
+        public class XmlCheckObjectInternal
         {
             public string Str = null;
         }
 
         // 文字列トークン操作
-        class StrToken
+        public class StrToken
         {
             string[] tokens;
 
@@ -5610,7 +5610,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を各種のデータ型に変換
-        class StrData
+        public class StrData
         {
             public string StrValue { get; }
 

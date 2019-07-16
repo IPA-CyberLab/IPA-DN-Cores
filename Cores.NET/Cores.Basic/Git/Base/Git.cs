@@ -49,7 +49,7 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
-    static partial class GitUtil
+    public static partial class GitUtil
     {
         public static void Clone(string destDir, string srcUrl, CloneOptions options = null)
         {
@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GitCommit
+    public class GitCommit
     {
         public GitRepository Repository { get; }
         public Commit CommitObj { get; }
@@ -375,14 +375,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum GitRefType
+    public enum GitRefType
     {
         LocalBranch,
         RemoteBranch,
         Tag,
     }
 
-    class GitRef
+    public class GitRef
     {
         public string Name { get; }
         public string CommitId { get; }
@@ -406,7 +406,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GitRepository : AsyncService
+    public class GitRepository : AsyncService
     {
         public string WorkDir { get; }
         Repository Repository { get; }

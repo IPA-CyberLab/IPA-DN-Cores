@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcClient<TInterface> where TInterface : class
+    public abstract class EasyJsonRpcClient<TInterface> where TInterface : class
     {
         public JsonRpcHttpClient<TInterface> Client { get; }
         public WebApi WebApi { get => this.Client.WebApi; }

@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic.Legacy
 {
     // Ini ファイルの読み込み
-    class ReadIni
+    public class ReadIni
     {
         // Ini ファイルのキャッシュ
         class IniCache

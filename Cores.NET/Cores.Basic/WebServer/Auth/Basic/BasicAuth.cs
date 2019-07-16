@@ -113,7 +113,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    internal class BasicAuthHandler : AuthenticationHandler<BasicAuthOptions>
+    public class BasicAuthHandler : AuthenticationHandler<BasicAuthOptions>
     {
         private const string _Scheme = "Basic";
 

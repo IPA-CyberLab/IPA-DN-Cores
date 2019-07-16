@@ -48,14 +48,14 @@ using System.Runtime.InteropServices;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum PacketL2Type
+    public enum PacketL2Type
     {
         Unknown = 0,
         Ethernet = 1,
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L2
+    public readonly struct L2
     {
         [FieldOffset(0)]
         public readonly PacketL2Type Type;
@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L2_VLan
+    public readonly struct L2_VLan
     {
         [FieldOffset(0)]
         public readonly EthernetProtocolId Type;
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L3
+    public readonly struct L3
     {
         [FieldOffset(0)]
         public readonly EthernetProtocolId Type;
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L4
+    public readonly struct L4
     {
         [FieldOffset(0)]
         public readonly IPProtocolNumber Type;
@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum L7Type
+    public enum L7Type
     {
         Unknown = 0,
         GenericTCP,
@@ -173,7 +173,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 8)]
-    readonly struct L7
+    public readonly struct L7
     {
         [FieldOffset(0)]
         public readonly L7Type Type;
@@ -203,18 +203,18 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PacketParseOption
+    public class PacketParseOption
     {
     }
 
     [Flags]
-    enum PacketParseMode
+    public enum PacketParseMode
     {
         Layer2 = 0,
         Layer3,
     }
 
-    struct PacketInfo
+    public struct PacketInfo
     {
         public uint L3_SrcIPv4;
         public uint L3_DestIPv4;
@@ -223,7 +223,7 @@ namespace IPA.Cores.Basic
         public ushort L4_DestPort;
     }
 
-    unsafe class PacketParsed
+    public unsafe class PacketParsed
     {
         static readonly PacketParseOption DefaultOption = new PacketParseOption();
 

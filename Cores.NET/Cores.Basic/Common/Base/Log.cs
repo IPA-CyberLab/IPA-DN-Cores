@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class Logger
         {
@@ -57,7 +57,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogSwitchType
+    public enum LogSwitchType
     {
         None,
         Second,
@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogPendingTreatment
+    public enum LogPendingTreatment
     {
         Discard,
         Wait,
@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogPriority
+    public enum LogPriority
     {
         Trace = 0,
         Debug = 1,
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    class LogInfoOptions
+    public class LogInfoOptions
     {
         public bool WithTimeStamp = true;
         public bool WithGuid = false;
@@ -115,18 +115,18 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogFlags
+    public enum LogFlags
     {
         None = 0,
         NoOutputToConsole = 1,
     }
 
-    interface ILogRecordTimeStamp
+    public interface ILogRecordTimeStamp
     {
         DateTimeOffset TimeStamp { get; }
     }
 
-    class LogJsonData
+    public class LogJsonData
     {
         public DateTimeOffset? TimeStamp;
         public string Guid;
@@ -169,7 +169,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogRecord
+    public class LogRecord
     {
         public static readonly byte[] CrLfByte = "\r\n"._GetBytes_Ascii();
 
@@ -327,7 +327,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Logger : AsyncService
+    public class Logger : AsyncService
     {
         public const string DefaultExtension = ".log";
         public const long BufferCacheMaxSize = 5 * 1024 * 1024;

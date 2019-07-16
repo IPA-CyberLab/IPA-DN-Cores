@@ -45,7 +45,7 @@ namespace IPA.Cores.Basic.Legacy
 {
 
     // ASP.NET ユーティリティ
-    static class AspUtil
+    public static class AspUtil
     {
         // 文字列を表示できる形式に整形する
         public static string NormalizeStringToHtml(string s)

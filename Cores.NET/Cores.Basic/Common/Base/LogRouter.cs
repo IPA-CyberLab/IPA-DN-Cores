@@ -45,7 +45,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LocalBufferedLogRouteSettings
         {
@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class BufferedLogRoute : LogRouteBase
+    public class BufferedLogRoute : LogRouteBase
     {
         public static readonly string DefaultFilter = Str.CombineStringArray(",", LogKind.Default, LogKind.Access, LogKind.Data, LogKind.Socket, LogKind.Stat);
 
@@ -135,7 +135,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ConsoleLogRoute : LogRouteBase
+    public class ConsoleLogRoute : LogRouteBase
     {
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
 
@@ -154,7 +154,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LoggerLogRoute : LogRouteBase
+    public class LoggerLogRoute : LogRouteBase
     {
         Logger Log = null;
 
@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class LogRouteBase : AsyncService
+    public abstract class LogRouteBase : AsyncService
     {
         public ImmutableHashSet<string> KindHash { get; set; } = ImmutableHashSet<string>.Empty;
         public LogPriority MinimalPriority { get; }
@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
         public abstract Task FlushAsync(CancellationToken cancel = default);
     }
 
-    class LogRouter : AsyncService
+    public class LogRouter : AsyncService
     {
         CriticalSection LockObj = new CriticalSection();
 
@@ -318,7 +318,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class LocalLogRouter
+    public static class LocalLogRouter
     {
         public static int UniqueLogProcessId { get; private set; } = -1;
 
@@ -537,7 +537,7 @@ namespace IPA.Cores.Basic
         public static void PutGitIgnoreFileOnLogDirectory() => Util.PutGitIgnoreFileOnDirectory(CoresConfig.LocalLogRouterSettings.LogRootDir.Value);
     }
 
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LocalLogRouterSettings
         {

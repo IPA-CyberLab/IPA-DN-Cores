@@ -45,9 +45,10 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.ClientApi.GoogleApi;
+
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class InboxGmailAdapterSettings
         {
@@ -55,7 +56,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class InboxGmailAdapter : InboxAdapter
+    public class InboxGmailAdapter : InboxAdapter
     {
         public override string AdapterName => "gmail";
 

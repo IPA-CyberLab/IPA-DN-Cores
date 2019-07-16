@@ -58,7 +58,7 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class FastHashHelper
+    public static class FastHashHelper
     {
         public static int _ComputeHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
             => data.GetHashCode(cmp);
@@ -110,7 +110,7 @@ namespace IPA.Cores.Helper.Basic
             => _ComputeHash32(data._AsReadOnlySpan());
     }
 
-    static class BasicHelper
+    public static class BasicHelper
     {
         public static byte[] _GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
         public static byte[] _GetBytes_UTF16LE(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.UniEncoding.GetBytes(str));

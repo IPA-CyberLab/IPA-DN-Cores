@@ -39,13 +39,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    enum CacheType
+    public enum CacheType
     {
         UpdateExpiresWhenAccess = 0,
         DoNotUpdateExpiresWhenAccess = 1,
     }
 
-    class Cache<TKey, TValue>
+    public class Cache<TKey, TValue>
     {
         class Entry
         {

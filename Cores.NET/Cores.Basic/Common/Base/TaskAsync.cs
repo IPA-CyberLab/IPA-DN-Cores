@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class TaskAsyncSettings
         {
@@ -54,7 +54,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncLock : IDisposable
+    public class AsyncLock : IDisposable
     {
         public class LockHolder : IDisposable
         {
@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class AsyncPreciseDelay
+    public static class AsyncPreciseDelay
     {
         static SortedList<long, AsyncManualResetEvent> WaitList = new SortedList<long, AsyncManualResetEvent>();
 
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum ExceptionWhen
+    public enum ExceptionWhen
     {
         None = 0,
         TaskException = 1,
@@ -339,10 +339,8 @@ namespace IPA.Cores.Basic
         All = 0x7FFFFFFF,
     }
 
-    static partial class TaskUtil
+    public static partial class TaskUtil
     {
-
-
         static int NumPendingAsyncTasks = 0;
 
         public static int GetNumPendingAsyncTasks() => NumPendingAsyncTasks;
@@ -1074,7 +1072,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncCallbackList
+    public class AsyncCallbackList
     {
         List<(Action<object> action, object state)> HardCallbackList = new List<(Action<object> action, object state)>();
         List<(Action<object> action, object state)> SoftCallbackList = new List<(Action<object> action, object state)>();
@@ -1136,8 +1134,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-    class AsyncAutoResetEvent
+    public class AsyncAutoResetEvent
     {
         object lockobj = new object();
         List<AsyncManualResetEvent> eventQueue = new List<AsyncManualResetEvent>();
@@ -1230,7 +1227,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncManualResetEvent
+    public class AsyncManualResetEvent
     {
         object lockobj = new object();
         volatile TaskCompletionSource<bool> tcs;
@@ -1331,7 +1328,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IAsyncService : IDisposable
+    public interface IAsyncService : IDisposable
     {
         Task CleanupAsync(Exception ex = null);
         Task DisposeWithCleanupAsync(Exception ex = null);
@@ -1339,7 +1336,7 @@ namespace IPA.Cores.Basic
         void Dispose(Exception ex = null);
     }
 
-    abstract class AsyncService : IAsyncService
+    public abstract class AsyncService : IAsyncService
     {
         static long IdSeed = 0;
 
@@ -1663,7 +1660,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class AsyncServiceWithMainLoop : AsyncService
+    public abstract class AsyncServiceWithMainLoop : AsyncService
     {
         IHolder Leak = null;
 
@@ -1723,7 +1720,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct FastReadList<T>
+    public struct FastReadList<T>
     {
         static CriticalSection GlobalWriteLock = new CriticalSection();
         static volatile int IdSeed = 0;
@@ -1773,7 +1770,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct ValueHolder : IHolder
+    public struct ValueHolder : IHolder
     {
         Action DisposeProc;
         IHolder Leak;
@@ -1822,13 +1819,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Holder : Holder<int>
+    public class Holder : Holder<int>
     {
         public Holder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
             : base(_ => disposeProc(), default, leakCheckKind) { }
     }
 
-    class Holder<T> : IHolder
+    public class Holder<T> : IHolder
     {
         public T Value { get; }
         Action<T> DisposeProc;
@@ -1876,7 +1873,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct ValueHolder<T> : IHolder
+    public struct ValueHolder<T> : IHolder
     {
         public T Value { get; }
         Action<T> DisposeProc;
@@ -1926,11 +1923,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IHolder : IDisposable { }
+    public interface IHolder : IDisposable { }
 
-    delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
+    public delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
 
-    class FastEvent<TCaller, TEventType>
+    public class FastEvent<TCaller, TEventType>
     {
         public FastEventCallback<TCaller, TEventType> Proc { get; }
         public object UserState { get; }
@@ -1952,12 +1949,12 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum NonsenseEventType
+    public enum NonsenseEventType
     {
         Nonsense,
     }
 
-    class FastEventListenerList<TCaller, TEventType>
+    public class FastEventListenerList<TCaller, TEventType>
     {
         FastReadList<FastEvent<TCaller, TEventType>> ListenerList;
         FastReadList<AsyncAutoResetEvent> AsyncEventList;
@@ -2009,10 +2006,9 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
 
-    delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
-
-    class AsyncEvent<TCaller, TEventType>
+    public class AsyncEvent<TCaller, TEventType>
     {
         public AsyncEventCallback<TCaller, TEventType> Proc { get; }
         public object UserState { get; }
@@ -2033,7 +2029,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncEventListenerList<TCaller, TEventType>
+    public class AsyncEventListenerList<TCaller, TEventType>
     {
         FastReadList<AsyncEvent<TCaller, TEventType>> ListenerList;
         FastReadList<AsyncAutoResetEvent> AsyncEventList;
@@ -2080,7 +2076,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CancelWatcher : IDisposable
+    public class CancelWatcher : IDisposable
     {
         readonly CancellationTokenSource GrandCancelTokenSource;
         readonly IDisposable LeakHolder;
@@ -2127,9 +2123,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    delegate bool TimeoutDetectorCallback(TimeoutDetector detector);
+    public delegate bool TimeoutDetectorCallback(TimeoutDetector detector);
 
-    class TimeoutDetector : AsyncService
+    public class TimeoutDetector : AsyncService
     {
         Task MainTask;
 
@@ -2225,7 +2221,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct LazyCriticalSection
+    public struct LazyCriticalSection
     {
         CriticalSection _LockObj;
 
@@ -2247,9 +2243,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CriticalSection { }
+    public class CriticalSection { }
 
-    class WhenAll : IDisposable
+    public class WhenAll : IDisposable
     {
         public Task WaitMe { get; }
         public bool AllOk { get; private set; } = false;
@@ -2326,7 +2322,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GroupManager<TKey, TGroupContext> : IDisposable
+    public class GroupManager<TKey, TGroupContext> : IDisposable
     {
         public class GroupHandle : Holder<GroupInstance>
         {
@@ -2427,7 +2423,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DelayAction : AsyncService
+    public class DelayAction : AsyncService
     {
         public Action<object> Action { get; }
         public object UserState { get; }
@@ -2495,7 +2491,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct ValueOrClosed<T>
+    public struct ValueOrClosed<T>
     {
         bool InternalIsOpen;
         public T Value;
@@ -2510,7 +2506,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncBulkReceiver<TUserReturnElement, TUserState>
+    public class AsyncBulkReceiver<TUserReturnElement, TUserState>
     {
         public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback(TUserState state, CancellationToken cancel);
 
@@ -2597,7 +2593,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SharedQueue<T>
+    public class SharedQueue<T>
     {
         class QueueBody
         {
@@ -2751,7 +2747,7 @@ namespace IPA.Cores.Basic
         public T[] ItemsReadOnly { get => ToArray(); }
     }
 
-    class ExceptionQueue
+    public class ExceptionQueue
     {
         public const int MaxItems = 128;
         SharedQueue<Exception> Queue = new SharedQueue<Exception>(MaxItems, true);
@@ -2891,13 +2887,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HierarchyPosition : RefInt
+    public class HierarchyPosition : RefInt
     {
         public HierarchyPosition() : base(-1) { }
         public bool IsInstalled { get => (this.Value != -1); }
     }
 
-    class SharedHierarchy<T>
+    public class SharedHierarchy<T>
     {
         public class HierarchyBodyItem : IComparable<HierarchyBodyItem>, IEquatable<HierarchyBodyItem>
         {
@@ -3077,7 +3073,7 @@ namespace IPA.Cores.Basic
         public T[] ItemsReadOnly { get => ToArray(); }
     }
 
-    class LocalTimer
+    public class LocalTimer
     {
         SortedSet<long> List = new SortedSet<long>();
         HashSet<long> Hash = new HashSet<long>();
@@ -3155,7 +3151,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class AsyncLocalTimer
+    public class AsyncLocalTimer
     {
         LocalTimer Timer = new LocalTimer(true);
         CriticalSection LockObj = new CriticalSection();
@@ -3241,7 +3237,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    readonly struct BackgroundStateDataUpdatePolicy
+    public readonly struct BackgroundStateDataUpdatePolicy
     {
         public readonly int InitialPollingInterval;
         public readonly int MaxPollingInterval;
@@ -3276,7 +3272,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class BackgroundStateDataBase : IEquatable<BackgroundStateDataBase>
+    public abstract class BackgroundStateDataBase : IEquatable<BackgroundStateDataBase>
     {
         public DateTimeOffset TimeStamp { get; } = DateTimeOffset.Now;
         public long TickTimeStamp { get; } = FastTick64.Now;
@@ -3288,7 +3284,7 @@ namespace IPA.Cores.Basic
         public abstract void RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(Action callMe);
     }
 
-    static class BackgroundState<TData>
+    public static class BackgroundState<TData>
         where TData : BackgroundStateDataBase, new()
     {
         public struct CurrentData
@@ -3492,7 +3488,8 @@ namespace IPA.Cores.Basic
             }
         }
     }
-    class TaskVarObject
+
+    public class TaskVarObject
     {
         Dictionary<string, object> data = new Dictionary<string, object>();
 
@@ -3529,12 +3526,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class TaskVar<T>
+    public static class TaskVar<T>
     {
         public static T Value { get => TaskVar.Get<T>(); set => TaskVar.Set<T>(value); }
     }
 
-    static class TaskVar
+    public static class TaskVar
     {
         internal static AsyncLocal<TaskVarObject> AsyncLocalObj = new AsyncLocal<TaskVarObject>();
 
@@ -3556,7 +3553,7 @@ namespace IPA.Cores.Basic
         public static void Set(string name, object obj) => AsyncLocalObj.Value.Set(name, obj);
     }
 
-    class AsyncOneShotTester : AsyncService
+    public class AsyncOneShotTester : AsyncService
     {
         Task t = null;
         public AsyncOneShotTester(Func<Task> Proc)
@@ -3571,7 +3568,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RefCounterHolder : IDisposable
+    public class RefCounterHolder : IDisposable
     {
         RefCounter Counter;
         public RefCounterHolder(RefCounter counter)
@@ -3591,20 +3588,20 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IAsyncClosable : IDisposable
+    public interface IAsyncClosable : IDisposable
     {
         Task CloseAsync();
         Exception LastError { get; }
     }
 
-    enum RefCounterEventType
+    public enum RefCounterEventType
     {
         Increment,
         Decrement,
         AllReleased,
     }
 
-    class RefCounter
+    public class RefCounter
     {
         int counter = 0;
 
@@ -3640,7 +3637,7 @@ namespace IPA.Cores.Basic
         public RefCounterHolder AddRef() => new RefCounterHolder(this);
     }
 
-    class RefCounterObjectHandle<T> : IDisposable
+    public class RefCounterObjectHandle<T> : IDisposable
     {
         public T Object { get; }
         readonly RefCounterHolder CounterHolder;
@@ -3676,7 +3673,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class ObjectPoolBase<TObject, TParam> : IDisposable
+    public abstract class ObjectPoolBase<TObject, TParam> : IDisposable
         where TObject : IAsyncClosable
     {
         long AccessCounter = 0;
@@ -3961,7 +3958,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SingleThreadWorker : IDisposable
+    public class SingleThreadWorker : IDisposable
     {
         class Job
         {

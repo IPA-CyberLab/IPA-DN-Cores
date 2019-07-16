@@ -43,7 +43,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic.Legacy
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct TarHeader
+    public struct TarHeader
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 100)]
         public byte[] Name;
@@ -216,7 +216,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    static class TarUtil
+    public static class TarUtil
     {
         public static TarHeader CreateTarHeader(string name, Encoding encoding, int type, long size, DateTime dt)
         {
@@ -243,7 +243,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    class TarPacker
+    public class TarPacker
     {
         Fifo fifo;
         Dictionary<string, int> dirList;

@@ -52,7 +52,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class JsonRpcHttpServer : JsonRpcServer
+    public class JsonRpcHttpServer : JsonRpcServer
     {
         public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg) : base(api, cfg) { }
 
@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcHttpServerBuilder : HttpServerStartupBase
+    public class JsonRpcHttpServerBuilder : HttpServerStartupBase
     {
         public JsonRpcHttpServer JsonServer { get; }
 

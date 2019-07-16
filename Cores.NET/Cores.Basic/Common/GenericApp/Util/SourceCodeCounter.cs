@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class SourceCodeCounter
+    public class SourceCodeCounter
     {
         DirectoryPath RootDir;
         FileSystem Fs => RootDir.FileSystem;

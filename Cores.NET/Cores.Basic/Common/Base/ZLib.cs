@@ -53,7 +53,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic.Internal
 {
 
-    sealed class Adler32
+    public sealed class Adler32
     {
 
         // largest prime smaller than 65536

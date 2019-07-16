@@ -49,7 +49,7 @@ using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
-    class LayerInfo
+    public class LayerInfo
     {
         SharedHierarchy<LayerInfoBase> Hierarchy = new SharedHierarchy<LayerInfoBase>();
 
@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface ILayerInfoSsl
+    public interface ILayerInfoSsl
     {
         bool IsServerMode { get; }
         string SslProtocol { get; }
@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
         PalX509Certificate RemoteCertificate { get; }
     }
 
-    interface ILayerInfoIpEndPoint
+    public interface ILayerInfoIpEndPoint
     {
         long NativeHandle { get; }
         IPAddress LocalIPAddress { get; }
@@ -132,21 +132,21 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum TcpDirectionType
+    public enum TcpDirectionType
     {
         Unknown = 0, // Must be zero
         Client,
         Server,
     }
 
-    interface ILayerInfoTcpEndPoint : ILayerInfoIpEndPoint
+    public interface ILayerInfoTcpEndPoint : ILayerInfoIpEndPoint
     {
         TcpDirectionType Direction { get; }
         int LocalPort { get; }
         int RemotePort { get; }
     }
 
-    abstract class LayerInfoBase
+    public abstract class LayerInfoBase
     {
         public HierarchyPosition Position { get; } = new HierarchyPosition();
         internal SharedHierarchy<LayerInfoBase>.HierarchyBodyItem _InternalHierarchyBodyItem = null;
@@ -166,7 +166,7 @@ namespace IPA.Cores.Basic
             => ProtocolStack = protocolStack;
     }
 
-    class DuplexPipe : AsyncService
+    public class DuplexPipe : AsyncService
     {
         FastStreamBuffer StreamAtoB;
         FastStreamBuffer StreamBtoA;
@@ -341,21 +341,21 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PipePointSide
+    public enum PipePointSide
     {
         A_LowerSide,
         B_UpperSide,
     }
 
     [Flags]
-    enum AttachDirection
+    public enum AttachDirection
     {
         NoAttach,
         A_LowerSide,
         B_UpperSide,
     }
 
-    class PipePoint : IAsyncService
+    public class PipePoint : IAsyncService
     {
         public DuplexPipe Pipe { get; }
 
@@ -424,7 +424,7 @@ namespace IPA.Cores.Basic
         public Task DisposeWithCleanupAsync(Exception ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
     }
 
-    class AttachHandle : AsyncService
+    public class AttachHandle : AsyncService
     {
         public PipePoint PipePoint { get; }
         public object UserState { get; }
@@ -609,7 +609,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipeStream : StreamImplBase
+    public class PipeStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
         public PipePoint Point { get; private set; }
@@ -1075,7 +1075,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FastNonBlockStateHelper
+    public class FastNonBlockStateHelper
     {
         byte[] LastState = new byte[0];
 
@@ -1176,13 +1176,13 @@ namespace IPA.Cores.Basic
 
 
     [Flags]
-    enum PipeSupportedDataTypes
+    public enum PipeSupportedDataTypes
     {
         Stream = 1,
         Datagram = 2,
     }
 
-    abstract class PipePointAsyncObjectWrapperBase : AsyncServiceWithMainLoop
+    public abstract class PipePointAsyncObjectWrapperBase : AsyncServiceWithMainLoop
     {
         public PipePoint PipePoint { get; }
         public abstract PipeSupportedDataTypes SupportedDataTypes { get; }
@@ -1421,7 +1421,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipePointSocketWrapper : PipePointAsyncObjectWrapperBase
+    public class PipePointSocketWrapper : PipePointAsyncObjectWrapperBase
     {
         public PalSocket Socket { get; }
         public int RecvTmpBufferSize { get; private set; }
@@ -1557,7 +1557,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipePointStreamWrapper : PipePointAsyncObjectWrapperBase
+    public class PipePointStreamWrapper : PipePointAsyncObjectWrapperBase
     {
         public Stream Stream { get; }
         public int RecvTmpBufferSize { get; private set; }
@@ -1664,7 +1664,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PipePointDuplexPipeWrapper : PipePointAsyncObjectWrapperBase
+    public class PipePointDuplexPipeWrapper : PipePointAsyncObjectWrapperBase
     {
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
@@ -1752,7 +1752,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class StreamImplBase : Stream
+    public abstract class StreamImplBase : Stream
     {
         public abstract bool DataAvailable { get; }
 
@@ -1938,7 +1938,7 @@ namespace IPA.Cores.Basic
             => this.Write(new byte[] { value }, 0, 1);
     }
 
-    class DatagramExchangePoint : IDisposable
+    public class DatagramExchangePoint : IDisposable
     {
         public int NumPipes { get; }
         public PipePointSide Side { get; }
@@ -1971,7 +1971,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DatagramExchange : IDisposable
+    public class DatagramExchange : IDisposable
     {
         public DatagramExchangePoint A { get; }
         public DatagramExchangePoint B { get; }

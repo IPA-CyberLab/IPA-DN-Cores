@@ -38,7 +38,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Util
+    public static partial class Util
     {
         // オブジェクトのハッシュ値を計算
         public static ulong GetObjectHash(object o)

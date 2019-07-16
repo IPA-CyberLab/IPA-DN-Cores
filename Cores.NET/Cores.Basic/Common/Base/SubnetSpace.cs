@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class SubnetSpaceSubnet<T> where T: class
+    public class SubnetSpaceSubnet<T> where T: class
     {
         public IPAddr Address;
         public int SubnetLength;
@@ -147,7 +147,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SubnetSpace<T> where T : class
+    public class SubnetSpace<T> where T : class
     {
         public AddressFamily AddressFamily;
         public RadixTrie<SubnetSpaceSubnet<T>> Trie;

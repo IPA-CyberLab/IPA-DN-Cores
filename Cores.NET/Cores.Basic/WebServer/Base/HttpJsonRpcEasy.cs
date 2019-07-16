@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
+    public abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
     {
         HttpServer<JsonRpcHttpServerBuilder> HttpServer;
 

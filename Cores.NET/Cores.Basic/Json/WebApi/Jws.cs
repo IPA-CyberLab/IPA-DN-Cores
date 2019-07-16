@@ -50,7 +50,7 @@ using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace IPA.Cores.Basic
 {
-    class JwsPacket
+    public class JwsPacket
     {
         [JsonProperty("protected")]
         public string Protected;
@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         public string signature;
     }
 
-    class JwsKey
+    public class JwsKey
     {
         // Members must be lexicographic order (https://tools.ietf.org/html/rfc7638#section-3)
         public string crv;
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JwsProtected
+    public class JwsProtected
     {
         public string alg;
         public JwsKey jwk;
@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
         public string kid;
     }
 
-    static class JwsUtil
+    public static class JwsUtil
     {
         public static JwsKey CreateJwsKey(PubKey key, out string algName, out string signerName)
         {
@@ -170,7 +170,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    partial class WebApi
+    public partial class WebApi
     {
         public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string kid, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
         {

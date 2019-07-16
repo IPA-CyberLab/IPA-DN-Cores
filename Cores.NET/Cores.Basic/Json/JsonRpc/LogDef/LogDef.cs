@@ -45,12 +45,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class LogTag
+    public partial class LogTag
     {
         public const string JsonRpcRequestProcessor = "JsonRpcRequestProcessor";
     }
 
-    class LogDefJsonRpc : ILogRecordTimeStamp
+    public class LogDefJsonRpc : ILogRecordTimeStamp
     {
         [JsonIgnore]
         public DateTimeOffset TimeStamp => ConnectedDateTime;

@@ -49,7 +49,7 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LogProtocolSettings
         {
@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogClientOptions
+    public class LogClientOptions
     {
         public string ServerHostname { get; }
         public int ServerPort { get; }
@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogClient : AsyncServiceWithMainLoop
+    public class LogClient : AsyncServiceWithMainLoop
     {
         public LogClientOptions Options { get; }
 

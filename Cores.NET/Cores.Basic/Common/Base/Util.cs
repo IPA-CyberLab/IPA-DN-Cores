@@ -58,7 +58,7 @@ using System.Collections.Concurrent;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class DaemonSettings
         {
@@ -70,14 +70,14 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // 言語一覧
-        enum CoreLanguage
+        public enum CoreLanguage
         {
             Japanese = 0,
             English = 1,
         }
 
         // 言語クラス
-        class CoreLanguageClass
+        public class CoreLanguageClass
         {
             public readonly CoreLanguage Language;
             public readonly int Id;
@@ -160,7 +160,7 @@ namespace IPA.Cores.Basic
         }
 
         // 言語リスト
-        static class CoreLanguageList
+        public static class CoreLanguageList
         {
             public static readonly CoreLanguageClass DefaultLanguage;
             public static readonly CoreLanguageClass Japanese;
@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RefInt : IEquatable<RefInt>, IComparable<RefInt>
+    public class RefInt : IEquatable<RefInt>, IComparable<RefInt>
     {
         public RefInt() : this(0) { }
         public RefInt(int value)
@@ -240,7 +240,7 @@ namespace IPA.Cores.Basic
         public static implicit operator RefInt(int value) => new RefInt(value);
     }
 
-    class RefLong : IEquatable<RefLong>, IComparable<RefLong>
+    public class RefLong : IEquatable<RefLong>, IComparable<RefLong>
     {
         public RefLong() : this(0) { }
         public RefLong(long value)
@@ -267,7 +267,7 @@ namespace IPA.Cores.Basic
         public static implicit operator RefLong(long value) => new RefLong(value);
     }
 
-    class RefBool : IEquatable<RefBool>, IComparable<RefBool>
+    public class RefBool : IEquatable<RefBool>, IComparable<RefBool>
     {
         public RefBool() : this(false) { }
         public RefBool(bool value)
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
         public static implicit operator RefBool(bool value) => new RefBool(value);
     }
 
-    class ValueRef<T> where T : struct
+    public class ValueRef<T> where T : struct
     {
         public T Value;
         public readonly int Size = Marshal.SizeOf<T>();
@@ -303,7 +303,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Ref<T>
+    public class Ref<T>
     {
         public Ref() : this(default) { }
         public Ref(T value)
@@ -350,14 +350,14 @@ namespace IPA.Cores.Basic
         public static implicit operator Ref<T>(T value) => new Ref<T>(value);
     }
 
-    abstract class MemberwiseClonable : ICloneable
+    public abstract class MemberwiseClonable : ICloneable
     {
         public virtual object Clone() => this.MemberwiseClone();
     }
 
     // Readonly values holder
     // See https://en.wikipedia.org/wiki/Copenhagen_interpretation
-    class Copenhagen<T>
+    public class Copenhagen<T>
     {
         T _Value;
         T _InitialValue;
@@ -428,13 +428,13 @@ namespace IPA.Cores.Basic
         public static implicit operator Copenhagen<T>(T value) => new Copenhagen<T>(value);
     }
 
-    interface IEmptyChecker
+    public interface IEmptyChecker
     {
         bool IsThisEmpty();
     }
 
     [Flags]
-    enum MultipleActionsFlag
+    public enum MultipleActionsFlag
     {
         IgnoreError,
         AllOk,
@@ -444,7 +444,7 @@ namespace IPA.Cores.Basic
     }
 
     // ユーティリティクラス
-    static partial class Util
+    public static partial class Util
     {
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
@@ -2734,7 +2734,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    static class Marvin
+    public static class Marvin
     {
         // From: https://github.com/dotnet/corefx/blob/master/src/Common/src/System/Marvin.cs
         /* The MIT License (MIT)
@@ -2886,7 +2886,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    class SparseChunk
+    public class SparseChunk
     {
         public readonly ReadOnlyMemory<byte> Memory;
         public readonly bool IsSparse;
@@ -2918,7 +2918,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SparseChunk<T>
+    public class SparseChunk<T>
     {
         public readonly ReadOnlyMemory<T> Memory;
         public readonly bool IsSparse;
@@ -2950,7 +2950,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    readonly struct DividedSegment
+    public readonly struct DividedSegment
     {
         public readonly long AbsolutePosition;
         public readonly long RelativePosition;
@@ -2968,7 +2968,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DividedSegmentList
+    public class DividedSegmentList
     {
         public readonly long SegmentSize;
         public readonly long Start;
@@ -3026,7 +3026,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class XmlAndXsd
+        public class XmlAndXsd
         {
             public byte[] XmlData;
             public byte[] XsdData;
@@ -3036,7 +3036,7 @@ namespace IPA.Cores.Basic
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体
-    struct Once
+    public struct Once
     {
         volatile private int flag;
         public void Set() => IsFirstCall();
@@ -3049,7 +3049,7 @@ namespace IPA.Cores.Basic
     }
 
     // 再試行ヘルパー
-    class RetryHelper<T>
+    public class RetryHelper<T>
     {
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
@@ -3107,7 +3107,7 @@ namespace IPA.Cores.Basic
             => RunAsync((c) => proc(), retryInterval, tryCount, cancel);
     }
 
-    class StaticModule : StaticModule<int, int>
+    public class StaticModule : StaticModule<int, int>
     {
         public StaticModule(Action initProc, Action freeProc)
             : base(_ => initProc(), () => { freeProc(); return default; })
@@ -3117,7 +3117,7 @@ namespace IPA.Cores.Basic
         public void Init() => base.Init(0);
     }
 
-    class StaticModule<TResult> : StaticModule<int, TResult>
+    public class StaticModule<TResult> : StaticModule<int, TResult>
     {
         public StaticModule(Action initProc, Func<TResult> freeProc)
             : base(_ => initProc(), freeProc)
@@ -3127,7 +3127,7 @@ namespace IPA.Cores.Basic
         public void Init() => base.Init(0);
     }
 
-    class StaticModule<TOptions, TResult>
+    public class StaticModule<TOptions, TResult>
     {
         readonly Action<TOptions> InitProc;
         readonly Func<TResult> FreeProc;
@@ -3214,9 +3214,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SingletonFastArraySlim<TKey, TObject>
-    where TObject : class
-    where TKey : unmanaged, Enum
+    public class SingletonFastArraySlim<TKey, TObject>
+        where TObject : class
+        where TKey : unmanaged, Enum
     {
         public const int MaxElements = 8_000_000; // Max 64Mbytes
 
@@ -3276,7 +3276,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    class SingletonFastArray<TKey, TObject> : IDisposable
+    public class SingletonFastArray<TKey, TObject> : IDisposable
         where TObject : class
         where TKey : unmanaged, Enum
     {
@@ -3365,7 +3365,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SingletonSlim<TObject> where TObject : class
+    public class SingletonSlim<TObject> where TObject : class
     {
         readonly Func<TObject> CreateProc;
         TObject Object = null;
@@ -3400,7 +3400,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Singleton<TObject> : IDisposable where TObject : class
+    public class Singleton<TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TObject> CreateProc;
@@ -3459,7 +3459,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Singleton<TKey, TObject> : IDisposable where TObject : class
+    public class Singleton<TKey, TObject> : IDisposable where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TKey, TObject> CreateProc;
@@ -3522,7 +3522,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SingletonSlim<TKey, TObject> where TObject : class
+    public class SingletonSlim<TKey, TObject> where TObject : class
     {
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
@@ -3566,14 +3566,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum CacheFlags
+    public enum CacheFlags
     {
         None = 0,
         IgnoreUpdateError = 1,
     }
 
 
-    class SyncCache<TData> : SyncCache<int, TData> where TData : class
+    public class SyncCache<TData> : SyncCache<int, TData> where TData : class
     {
         public SyncCache(int lifeTime) : base(lifeTime) { }
 
@@ -3594,7 +3594,7 @@ namespace IPA.Cores.Basic
         public static implicit operator TData(SyncCache<TData> cache) => cache.Get();
     }
 
-    class SyncCache<TKey, TData> where TData : class
+    public class SyncCache<TKey, TData> where TData : class
     {
         class Entry
         {
@@ -3724,7 +3724,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    class AsyncCache<TData> : AsyncCache<int, TData> where TData : class
+    public class AsyncCache<TData> : AsyncCache<int, TData> where TData : class
     {
         public AsyncCache(int lifeTime) : base(lifeTime) { }
 
@@ -3745,7 +3745,7 @@ namespace IPA.Cores.Basic
         public static implicit operator TData(AsyncCache<TData> cache) => cache.GetAsync()._GetResult();
     }
 
-    class AsyncCache<TKey, TData> where TData : class
+    public class AsyncCache<TKey, TData> where TData : class
     {
         class Entry
         {
@@ -3877,7 +3877,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // シングルトン
-        struct OldSingleton<T> where T : class
+        public struct OldSingleton<T> where T : class
         {
             static object lockobj = new object();
             T obj;
@@ -3894,7 +3894,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class GlobalObjectExchange
+    public static class GlobalObjectExchange
     {
         static Dictionary<string, object> table = new Dictionary<string, object>();
 
@@ -3923,7 +3923,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class IntervalManager
+    public class IntervalManager
     {
         long LastTick = 0;
         public int Interval { get; private set; }
@@ -3962,7 +3962,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Distinct<T>
+    public class Distinct<T>
     {
         Dictionary<T, T> d = new Dictionary<T, T>();
 
@@ -3984,7 +3984,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class DelayLoader<T> : IDisposable
+        public class DelayLoader<T> : IDisposable
         {
             Func<long, (T, long)> LoadProc;
             int RetryInterval;
@@ -4062,7 +4062,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CachedProperty<T>
+    public class CachedProperty<T>
     {
         object LockObj = new object();
         bool IsCached = false;
@@ -4131,7 +4131,7 @@ namespace IPA.Cores.Basic
         public static implicit operator T(CachedProperty<T> r) => r.Value;
     }
 
-    static class Limbo
+    public static class Limbo
     {
         public static bool Bool = false;
         public static long SInt64 = 0;
@@ -4145,7 +4145,7 @@ namespace IPA.Cores.Basic
         public volatile static object ObjectVolatileSlow = null;
     }
 
-    static class GlobalMicroBenchmark
+    public static class GlobalMicroBenchmark
     {
         const int DefaultOfDefaultDurationMSecs = 250;
         const LogSwitchType SwitchType = LogSwitchType.Month;
@@ -4230,7 +4230,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MicroBenchmarkQueue
+    public class MicroBenchmarkQueue
     {
         List<(IMicroBenchmark bm, int priority, int index)> List = new List<(IMicroBenchmark bm, int priority, int index)>();
 
@@ -4248,19 +4248,19 @@ namespace IPA.Cores.Basic
         }
     }
 
-    interface IMicroBenchmark
+    public interface IMicroBenchmark
     {
         double Start(int duration = 0);
         double StartAndPrint(int duration = 0);
     }
 
-    class MicroBenchmark : MicroBenchmark<int>
+    public class MicroBenchmark : MicroBenchmark<int>
     {
         public MicroBenchmark(string name, int iterations, Action<int> proc, Func<int> init = null)
             : base(name, iterations, (_state, _iterations) => proc(_iterations), init) { }
     }
 
-    class MicroBenchmark<TUserVariable> : IMicroBenchmark
+    public class MicroBenchmark<TUserVariable> : IMicroBenchmark
     {
         public readonly string Name;
         volatile bool StopFlag;
@@ -4378,12 +4378,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    struct EmptyDisposable : IDisposable
+    public struct EmptyDisposable : IDisposable
     {
         public void Dispose() { }
     }
 
-    class EtaCalculator
+    public class EtaCalculator
     {
         class Data
         {
@@ -4500,7 +4500,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum ProgressReportType
+    public enum ProgressReportType
     {
         Start,
         InProgress,
@@ -4508,7 +4508,7 @@ namespace IPA.Cores.Basic
         Finish,
     }
 
-    class ProgressData
+    public class ProgressData
     {
         public long CurrentCount { get; }
         public long? TotalCount { get; }
@@ -4576,7 +4576,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    sealed class ProgressReport
+    public sealed class ProgressReport
     {
         public ProgressReportType Type { get; }
 
@@ -4596,7 +4596,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ProgressReportTimingSetting
+    public class ProgressReportTimingSetting
     {
         public bool ReportEveryTiming { get; }
         public int ReportTimingIntervalMsecs { get; }
@@ -4610,7 +4610,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ProgressReporterSettingBase
+    public class ProgressReporterSettingBase
     {
         public string Title { get; set; }
 
@@ -4638,7 +4638,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NullProgressReporter : ProgressReporterBase
+    public class NullProgressReporter : ProgressReporterBase
     {
         public NullProgressReporter(object state) : base(new ProgressReporterSettingBase(), state) { }
 
@@ -4649,7 +4649,7 @@ namespace IPA.Cores.Basic
         protected override void ReportedImpl(ProgressReport report) { }
     }
 
-    abstract class ProgressReporterBase : IDisposable
+    public abstract class ProgressReporterBase : IDisposable
     {
         readonly CriticalSection LockObj = new CriticalSection();
 
@@ -4856,16 +4856,16 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum ProgressReporterOutputs
+    public enum ProgressReporterOutputs
     {
         None = 0,
         Console = 1,
         Debug = 2,
     }
 
-    delegate void ProgressReportListener(ProgressReport report, string str);
+    public delegate void ProgressReportListener(ProgressReport report, string str);
 
-    class ProgressReporterSetting : ProgressReporterSettingBase
+    public class ProgressReporterSetting : ProgressReporterSettingBase
     {
         public ProgressReportListener Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
@@ -4878,7 +4878,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ProgressReporter : ProgressReporterBase
+    public class ProgressReporter : ProgressReporterBase
     {
         public ProgressReporterSetting MySetting => (ProgressReporterSetting)this.Setting;
 
@@ -4917,14 +4917,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ProgressFileProcessingReporter : ProgressReporter
+    public class ProgressFileProcessingReporter : ProgressReporter
     {
         public ProgressFileProcessingReporter(object state, ProgressReporterOutputs outputs, ProgressReportListener listener = null,
             string title = "Processing a file", ProgressReportTimingSetting reportTimingSetting = null)
             : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
     }
 
-    abstract class ProgressReporterFactoryBase
+    public abstract class ProgressReporterFactoryBase
     {
         public ProgressReporterOutputs Outputs { get; set; }
         public ProgressReportListener Listener { get; set; }
@@ -4940,7 +4940,7 @@ namespace IPA.Cores.Basic
         public abstract ProgressReporterBase CreateNewReporter(string title, object state);
     }
 
-    class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
+    public class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
     {
         public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener listener = null, ProgressReportTimingSetting reportTimingSetting = null)
             : base(outputs, listener, reportTimingSetting) { }
@@ -4951,7 +4951,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NullReporterFactory : ProgressReporterFactoryBase
+    public class NullReporterFactory : ProgressReporterFactoryBase
     {
         public NullReporterFactory()
             : base(ProgressReporterOutputs.None, null, null) { }
@@ -4962,7 +4962,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class ZeroedReadOnlyStruct<T> where T : struct
+    public static class ZeroedReadOnlyStruct<T> where T : struct
     {
         static readonly T ZeroedValue;
 
@@ -4977,7 +4977,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    static class ZeroedMemory<T>
+    public static class ZeroedMemory<T>
     {
         const int Size = 65536;
         public static readonly ReadOnlyMemory<T> Memory = new T[Size];
@@ -4990,7 +4990,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WeightedExceptionList
+    public class WeightedExceptionList
     {
         static long IdSeed = 0;
 
@@ -5022,7 +5022,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FieldReaderWriter
+    public class FieldReaderWriter
     {
         public readonly Dictionary<string, MemberInfo> MetadataTable = new Dictionary<string, MemberInfo>();
 
@@ -5200,7 +5200,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum StatisticsReporterLogTypes
+    public enum StatisticsReporterLogTypes
     {
         None = 0,
         Snapshot = 1,
@@ -5209,7 +5209,7 @@ namespace IPA.Cores.Basic
         All = 0x7fffffff,
     }
 
-    class StatisticsReporter<T> : AsyncServiceWithMainLoop
+    public class StatisticsReporter<T> : AsyncServiceWithMainLoop
         where T : class
     {
         public readonly T CurrentValues;
@@ -5297,7 +5297,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    class InternalOverrideClassTypeBuilder
+    public class InternalOverrideClassTypeBuilder
     {
         static readonly MethodInfo MethodInfoForMethodInvoke = typeof(MethodInfo).GetMethods().Where(x => x.Name == "Invoke").Where(x => x.GetParameters().Length == 2).Single();
         static readonly MethodInfo MethodInfoForMethodInvoke2 = typeof(MethodBase).GetMethods().Where(x => x.Name == "Invoke").Where(x => x.GetParameters().Length == 2).Single();
@@ -5481,7 +5481,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum DaemonStatus
+    public enum DaemonStatus
     {
         Stopped = 0,
         Starting,
@@ -5489,7 +5489,7 @@ namespace IPA.Cores.Basic
         Stopping,
     }
 
-    class DaemonOptions
+    public class DaemonOptions
     {
         public string Name { get; }
         public string FriendlyName { get; }
@@ -5514,7 +5514,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SizedDataQueue<T>
+    public class SizedDataQueue<T>
     {
         List<T> InternalList;
 
@@ -5544,14 +5544,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ConcurrentHashSet<T> : ConcurrentDictionary<T, int>
+    public class ConcurrentHashSet<T> : ConcurrentDictionary<T, int>
     {
         public bool Add(T item) => TryAdd(item, 0);
         public bool Remove(T item) => TryRemove(item, out _);
         public bool Contains(T item) => ContainsKey(item);
     }
 
-    class SystemAndUser<TSystem, TUser>
+    public class SystemAndUser<TSystem, TUser>
     {
         public TSystem System { get; }
         public TUser User { get; }
@@ -5563,34 +5563,34 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class None { }
+    public class None { }
 
     [Flags]
-    enum EnsureCtor
+    public enum EnsureCtor
     {
         Yes = 0,
     }
 
     [Flags]
-    enum EnsureCopy
+    public enum EnsureCopy
     {
         Yes = 0,
     }
 
     [Flags]
-    enum EnsureSpecial
+    public enum EnsureSpecial
     {
         Yes = 0,
     }
 
     [Flags]
-    enum EnsureInternal
+    public enum EnsureInternal
     {
         Yes = 0,
     }
 
     [Flags]
-    enum Direction
+    public enum Direction
     {
         Send = 0,
         Recv,

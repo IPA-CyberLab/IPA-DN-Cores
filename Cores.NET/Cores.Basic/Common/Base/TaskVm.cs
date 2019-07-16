@@ -44,12 +44,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class TaskVmAbortException : Exception
+    public class TaskVmAbortException : Exception
     {
         public TaskVmAbortException(string message) : base(message) { }
     }
 
-    static class AbortedTaskExecuteThreadPrivate
+    public static class AbortedTaskExecuteThreadPrivate
     {
         static object LockObj = new object();
         static Dictionary<object, Queue<(SendOrPostCallback callback, object args)>> DispatchQueueList = new Dictionary<object, Queue<(SendOrPostCallback, object)>>();
@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TaskVm<TResult, TIn>
+    public class TaskVm<TResult, TIn>
     {
         public ThreadObj ThreadObj { get; }
 

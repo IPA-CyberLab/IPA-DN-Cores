@@ -41,7 +41,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    enum PackerFileFormat
+    public enum PackerFileFormat
     {
         ZipRaw,
         ZipCompressed,
@@ -49,9 +49,9 @@ namespace IPA.Cores.Basic.Legacy
         TarGZip,
     }
 
-    delegate bool ProgressDelegate(string fileNameFullPath, string fileNameRelative, int currentFileNum, int totalFileNum);
+    public delegate bool ProgressDelegate(string fileNameFullPath, string fileNameRelative, int currentFileNum, int totalFileNum);
 
-    static class Packer
+    public static class Packer
     {
         public static byte[] PackDir(PackerFileFormat format, string rootDirPath, string appendPrefixDirName)
         {

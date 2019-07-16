@@ -72,7 +72,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace IPA.Cores.Basic
 {
-    class KestrelStackTransport : ITransport
+    public class KestrelStackTransport : ITransport
     {
         // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransport
 
@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
     }
 
     // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal.SocketConnection
-    class KestrelStackConnection : TransportConnection, IDisposable
+    public class KestrelStackConnection : TransportConnection, IDisposable
     {
         readonly ConnSock Sock;
         readonly PipeScheduler Scheduler;
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class KestrelStackTransportFactory : ITransportFactory
+    public class KestrelStackTransportFactory : ITransportFactory
     {
         // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory
         readonly SocketTransportOptions Options;
@@ -273,12 +273,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class KestrelServerWithStackOptions : KestrelServerOptions
+    public class KestrelServerWithStackOptions : KestrelServerOptions
     {
         public TcpIpSystem TcpIp = LocalNet;
     }
 
-    class KestrelServerWithStack : KestrelServer
+    public class KestrelServerWithStack : KestrelServer
     {
         public new KestrelServerWithStackOptions Options => (KestrelServerWithStackOptions)base.Options;
 
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class HttpServerWithStackHelper
+    public static class HttpServerWithStackHelper
     {
         public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
         {

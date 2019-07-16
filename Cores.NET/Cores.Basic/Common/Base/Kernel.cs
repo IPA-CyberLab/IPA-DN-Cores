@@ -41,7 +41,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static class Kernel
+    public static class Kernel
     {
         [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // 子プロセスの起動・制御用クラス
-        class ChildProcess
+        public class ChildProcess
         {
             string stdout = "", stderr = "";
             int exitcode = -1;

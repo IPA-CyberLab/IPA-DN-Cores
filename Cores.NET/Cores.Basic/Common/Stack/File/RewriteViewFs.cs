@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class RewriteViewFileObject : ViewFileObject
+    public class RewriteViewFileObject : ViewFileObject
     {
         protected new RewriteViewFileSystem ViewFileSystem => (RewriteViewFileSystem)base.ViewFileSystem;
 
@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class RewriteViewFileSystemParam : ViewFileSystemParams
+    public abstract class RewriteViewFileSystemParam : ViewFileSystemParams
     {
         public RewriteViewFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default)
             : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? PathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser, mode)
@@ -70,20 +70,19 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-    interface IRewriteVirtualPhysicalPath
+    public interface IRewriteVirtualPhysicalPath
     {
         string MapPathVirtualToPhysical(string virtualPath);
         string MapPathPhysicalToVirtual(string physicalPath);
     }
 
-    class MapPathException : ApplicationException
+    public class MapPathException : ApplicationException
     {
         public MapPathException() { }
         public MapPathException(string message) : base(message) { }
     }
 
-    abstract class RewriteViewFileSystem : ViewFileSystem, IRewriteVirtualPhysicalPath
+    public abstract class RewriteViewFileSystem : ViewFileSystem, IRewriteVirtualPhysicalPath
     {
         protected new RewriteViewFileSystemParam Params => (RewriteViewFileSystemParam)base.Params;
 

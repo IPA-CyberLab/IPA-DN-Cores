@@ -47,7 +47,7 @@ using System.Net;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class DaemonHelper
+    public static class DaemonHelper
     {
         public static void Start(this Daemon daemon, DaemonStartupMode startupMode, object param = null) => daemon.StartAsync(startupMode, param)._GetResult();
         public static void Stop(this Daemon daemon, bool silent = false) => daemon.StopAsync(silent)._GetResult();
@@ -56,7 +56,7 @@ namespace IPA.Cores.Helper.Basic
 
 namespace IPA.Cores.Basic
 {
-    abstract class Daemon
+    public abstract class Daemon
     {
         public DaemonOptions Options { get; }
         public string Name => Options.Name;
@@ -227,13 +227,13 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum DaemonMode
+    public enum DaemonMode
     {
         UserMode = 0,
         WindowsServiceMode = 1,
     }
 
-    class DaemonHost
+    public class DaemonHost
     {
         public Daemon Daemon { get; }
         public object Param { get; }
@@ -327,7 +327,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum DaemonCmdType
+    public enum DaemonCmdType
     {
         Unknown = 0,
         Start,
@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
         WinExecSvc,
     }
 
-    class DaemonCmdLineTool
+    public class DaemonCmdLineTool
     {
         public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon)
         {

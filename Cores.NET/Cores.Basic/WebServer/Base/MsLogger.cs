@@ -54,7 +54,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class MsLogger : ILogger, IDisposable
+    public class MsLogger : ILogger, IDisposable
     {
         public MsLoggerProvider Provider { get; }
         public string CategoryName { get; }
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
         public void Dispose() { }
     }
 
-    class MsLoggerProvider : ILoggerProvider
+    public class MsLoggerProvider : ILoggerProvider
     {
         public LogPriority Priority { get; }
         public LogFlags Flags { get; }

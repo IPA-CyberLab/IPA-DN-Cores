@@ -50,7 +50,7 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class SslSettings
         {
@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalX509Certificate
+    public class PalX509Certificate
     {
         public X509Certificate NativeCertificate { get; }
 
@@ -84,13 +84,13 @@ namespace IPA.Cores.Basic
             : this(filePath.EasyAccess.Binary.Span, password) { }
     }
 
-    struct PalSocketReceiveFromResult
+    public struct PalSocketReceiveFromResult
     {
         public int ReceivedBytes;
         public EndPoint RemoteEndPoint;
     }
 
-    class PalSocket : IDisposable
+    public class PalSocket : IDisposable
     {
         public static bool OSSupportsIPv4 { get => Socket.OSSupportsIPv4; }
         public static bool OSSupportsIPv6 { get => Socket.OSSupportsIPv6; }
@@ -336,7 +336,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalStream : StreamImplBase
+    public class PalStream : StreamImplBase
     {
         protected Stream NativeStream;
         protected NetworkStream NativeNetworkStream;
@@ -375,11 +375,11 @@ namespace IPA.Cores.Basic
         protected override Task FlushImplAsync(CancellationToken cancel = default) => NativeStream.FlushAsync(cancel);
     }
 
-    delegate bool PalSslValidateRemoteCertificateCallback(PalX509Certificate cert);
+    public delegate bool PalSslValidateRemoteCertificateCallback(PalX509Certificate cert);
 
-    delegate PalX509Certificate PalSslCertificateSelectionCallback(object param, string sniHostName);
+    public delegate PalX509Certificate PalSslCertificateSelectionCallback(object param, string sniHostName);
 
-    class PalSslClientAuthenticationOptions : ICloneable
+    public class PalSslClientAuthenticationOptions : ICloneable
     {
         public PalSslClientAuthenticationOptions() { }
 
@@ -432,7 +432,7 @@ namespace IPA.Cores.Basic
         public object Clone() => this.MemberwiseClone();
     }
 
-    class PalSslServerAuthenticationOptions
+    public class PalSslServerAuthenticationOptions
     {
         public PalSslServerAuthenticationOptions() { }
 
@@ -508,7 +508,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PalSslStream : PalStream
+    public class PalSslStream : PalStream
     {
         SslStream Ssl;
         public PalSslStream(Stream innerStream) : base(new SslStream(innerStream, true))
@@ -544,7 +544,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class PalDns
+    public static class PalDns
     {
         public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress, int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => TaskUtil.DoAsyncWithTimeout(c => Dns.GetHostAddressesAsync(hostNameOrAddress),
@@ -555,7 +555,7 @@ namespace IPA.Cores.Basic
                 timeout: timeout, cancel: cancel);
     }
 
-    class PalHostNetInfo : BackgroundStateDataBase
+    public class PalHostNetInfo : BackgroundStateDataBase
     {
         public override BackgroundStateDataUpdatePolicy DataUpdatePolicy =>
             new BackgroundStateDataUpdatePolicy(300, 6000, 2000);

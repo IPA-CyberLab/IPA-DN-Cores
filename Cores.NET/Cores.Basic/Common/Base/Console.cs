@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // CoreStr
-    static class CoreStr
+    public static class CoreStr
     {
         public const string CMD_CT_STD_COLUMN_1 = "Item";
         public const string CMD_CT_STD_COLUMN_2 = "Value";
@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソール入出力
-    static partial class Con
+    public static partial class Con
     {
         
 
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
     }
 
     // ユーザーによるキャンセル例外
-    class ConsoleUserCancelException : Exception
+    public class ConsoleUserCancelException : Exception
     {
         public ConsoleUserCancelException(string msg)
             : base(msg)
@@ -278,7 +278,7 @@ namespace IPA.Cores.Basic
     }
 
     // パラメータの最小 / 最大値評価
-    class ConsoleEvalMinMaxParam
+    public class ConsoleEvalMinMaxParam
     {
         public readonly string ErrorMessageString;
         public readonly int MinValue, MaxValue;
@@ -292,14 +292,14 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールの種類
-    enum ConsoleType
+    public enum ConsoleType
     {
         Local,      // ローカルコンソール
         Csv,        // CSV 出力モード
     }
 
     // パラメータ項目
-    class ConsoleParam
+    public class ConsoleParam
     {
         public readonly string Name;                // パラメータ名
         public readonly ConsolePromptProcDelegate PromptProc;   // パラメータが指定されていない場合に自動的に呼び出すプロンプト関数 (NULL の場合は呼ばない)
@@ -333,17 +333,17 @@ namespace IPA.Cores.Basic
     }
 
     // デリゲート
-    delegate string ConsolePromptProcDelegate(ConsoleService c, object param);
-    delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object param);
+    public delegate string ConsolePromptProcDelegate(ConsoleService c, object param);
+    public delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object param);
 
-    delegate void ConsoleFreeDelegate();
-    delegate string ConsoleReadLineDelegate(string prompt, bool nofile);
-    delegate string ConsoleReadPasswordDelegate(string prompt);
-    delegate bool ConsoleWriteDelegate(string str, LogPriority priority);
-    delegate int ConsoleGetWidthDelegate();
+    public delegate void ConsoleFreeDelegate();
+    public delegate string ConsoleReadLineDelegate(string prompt, bool nofile);
+    public delegate string ConsoleReadPasswordDelegate(string prompt);
+    public delegate bool ConsoleWriteDelegate(string str, LogPriority priority);
+    public delegate int ConsoleGetWidthDelegate();
 
     // パラメータ値リスト
-    class ConsoleParamValueList
+    public class ConsoleParamValueList
     {
         List<ConsoleParamValue> o;
 
@@ -439,7 +439,7 @@ namespace IPA.Cores.Basic
     }
 
     // パラメータ値
-    class ConsoleParamValue : IComparable<ConsoleParamValue>, IEquatable<ConsoleParamValue>
+    public class ConsoleParamValue : IComparable<ConsoleParamValue>, IEquatable<ConsoleParamValue>
     {
         public readonly string Name;            // 名前
         public readonly string StrValue;        // 文字列値
@@ -475,12 +475,12 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールコマンドパラメータ属性
-    class ConsoleCommandParam : Attribute
+    public class ConsoleCommandParam : Attribute
     {
     }
 
     // コンソールコマンドメソッド属性
-    class ConsoleCommand : Attribute, IEmptyChecker
+    public class ConsoleCommand : Attribute, IEmptyChecker
     {
         public string Description { get; private set; }
         public string ArgsHelp { get; private set; }
@@ -527,7 +527,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールエラーコード
-    static class ConsoleErrorCode
+    public static class ConsoleErrorCode
     {
         public const int ERR_BAD_COMMAND_OR_PARAM = -100001;
         public const int ERR_INNER_EXCEPTION = -100002;
@@ -560,7 +560,7 @@ namespace IPA.Cores.Basic
     }
 
     // コンソールサービス
-    class ConsoleService
+    public class ConsoleService
     {
         IO inFile;                      // 入力ファイル
         Buf inBuf;                      // 入力バッファ

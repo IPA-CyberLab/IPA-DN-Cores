@@ -48,7 +48,7 @@ using IPA.Cores.ClientApi.SlackApi;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class InboxSettings
         {
@@ -61,10 +61,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-#if  CORES_PUBLIC
-    public
-#endif
-    class InboxMessage
+    public class InboxMessage
     {
         public string Id;
         public string Service;
@@ -95,10 +92,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-#if  CORES_PUBLIC
-    public
-#endif
-    class InboxMessageBox
+    public class InboxMessageBox
     {
         public InboxMessage[] MessageList = new InboxMessage[0];
 
@@ -116,7 +110,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Inbox : AsyncService
+    public class Inbox : AsyncService
     {
         public InboxOptions Options { get; }
 
@@ -262,7 +256,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class InboxAdapterFactory
+    public class InboxAdapterFactory
     {
         public Inbox Inbox { get; }
         public InboxOptions Options { get; }
@@ -295,18 +289,18 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class InboxAdapterUserCredential
+    public class InboxAdapterUserCredential
     {
         public string AccessToken;
     }
 
-    class InboxAdapterAppCredential
+    public class InboxAdapterAppCredential
     {
         public string ClientId;
         public string ClientSecret;
     }
 
-    sealed class InboxOptions
+    public sealed class InboxOptions
     {
         public TcpIpSystem TcpIp { get; }
         public int MaxMessagesPerAdapter { get; }
@@ -321,7 +315,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class InboxAdapter : AsyncServiceWithMainLoop
+    public abstract class InboxAdapter : AsyncServiceWithMainLoop
     {
         public Inbox Inbox { get; }
 

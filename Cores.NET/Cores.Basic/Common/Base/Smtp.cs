@@ -43,14 +43,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    enum SmtpLanguage
+    public enum SmtpLanguage
     {
         Japanese,
         Simpled_Chinese,
         Engligh,
     }
 
-    class SmtpCharsetList
+    public class SmtpCharsetList
     {
         public readonly List<Encoding> CharsetList;
 
@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SmtpBody
+    public class SmtpBody
     {
         public string XMailer = Env.FrameworkInfoString;
         public string MimeOLE = "Produced By " + Env.FrameworkInfoString;
@@ -331,7 +331,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SmtpConfig
+    public class SmtpConfig
     {
         public string SmtpServer;
         public int SmtpPort;

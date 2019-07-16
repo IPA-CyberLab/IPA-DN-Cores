@@ -45,14 +45,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class NetworkStackException : Exception
+    public class NetworkStackException : Exception
     {
         public NetworkStackException(string message) : base(message) { }
     }
 
-    class NetworkStackShutdownException : DisconnectedException { }
+    public class NetworkStackShutdownException : DisconnectedException { }
 
-    class NetworkSystemParam
+    public class NetworkSystemParam
     {
         public string Name { get; }
 
@@ -62,7 +62,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetworkSystemBase : AsyncService
+    public abstract class NetworkSystemBase : AsyncService
     {
         protected NetworkSystemParam Param;
 

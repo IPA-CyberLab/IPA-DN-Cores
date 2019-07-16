@@ -63,11 +63,11 @@ using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
-    class HttpServerStartupConfig
+    public class HttpServerStartupConfig
     {
     }
 
-    class HttpServerSimpleBasicAuthDatabase
+    public class HttpServerSimpleBasicAuthDatabase
     {
         public Dictionary<string, string> UsernameAndPassword = new Dictionary<string, string>(StrComparer.IgnoreCaseComparer);
 
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HttpServerStartupHelper
+    public class HttpServerStartupHelper
     {
         public IConfiguration Configuration { get; }
         public HttpServerOptions ServerOptions { get; }
@@ -248,7 +248,7 @@ namespace IPA.Cores.Basic
 
     }
 
-    abstract class HttpServerStartupBase
+    public abstract class HttpServerStartupBase
     {
         public HttpServerStartupHelper Helper { get; }
         public IConfiguration Configuration { get; }
@@ -280,7 +280,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HttpServerOptions
+    public class HttpServerOptions
     {
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
@@ -418,7 +418,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    sealed class HttpServer<THttpServerBuilder> : AsyncService
+    public sealed class HttpServer<THttpServerBuilder> : AsyncService
         where THttpServerBuilder : class
     {
         readonly HttpServerOptions Options;

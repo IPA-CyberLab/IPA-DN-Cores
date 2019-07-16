@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class WebServerHelper
+    public static class WebServerHelper
     {
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {

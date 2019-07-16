@@ -49,7 +49,7 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LogProtocolSettings
         {
@@ -65,13 +65,13 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogProtocolDataType
+    public enum LogProtocolDataType
     {
         StandardLog = 0,
         KeepAlive = 1,
     }
 
-    abstract class LogServerOptionsBase : SslServerOptions
+    public abstract class LogServerOptionsBase : SslServerOptions
     {
         public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
 
@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogServerReceivedData
+    public class LogServerReceivedData
     {
         public ReadOnlyMemory<byte> BinaryData;
         public LogJsonData JsonData;
@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class LogServerBase : SslServerBase
+    public abstract class LogServerBase : SslServerBase
     {
         public const int MagicNumber = 0x415554a4;
         public const int ServerVersion = 1;
@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogServerOptions : LogServerOptionsBase
+    public class LogServerOptions : LogServerOptionsBase
     {
         public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
 
@@ -234,7 +234,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LogServer : LogServerBase
+    public class LogServer : LogServerBase
     {
         protected new LogServerOptions Options => (LogServerOptions)base.Options;
 

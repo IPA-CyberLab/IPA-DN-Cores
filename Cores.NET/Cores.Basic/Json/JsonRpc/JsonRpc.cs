@@ -47,7 +47,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class JsonRpcServerSettings
         {
@@ -55,7 +55,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcException : Exception
+    public class JsonRpcException : Exception
     {
         public JsonRpcError RpcError { get; }
         public JsonRpcException(JsonRpcError err)
@@ -66,7 +66,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcRequest
+    public class JsonRpcRequest
     {
         [JsonProperty("jsonrpc")]
         public string Version { get; set; } = "2.0";
@@ -89,7 +89,8 @@ namespace IPA.Cores.Basic
             this.Id = id;
         }
     }
-    class JsonRpcResponse<TResult> : JsonRpcResponse
+
+    public class JsonRpcResponse<TResult> : JsonRpcResponse
         where TResult : class
     {
         [JsonIgnore]
@@ -100,7 +101,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcResponseOk : JsonRpcResponse
+    public class JsonRpcResponseOk : JsonRpcResponse
     {
         [JsonIgnore]
         public override JsonRpcError Error { get => null; set { } }
@@ -109,7 +110,7 @@ namespace IPA.Cores.Basic
         public override object Result { get; set; } = null;
     }
 
-    class JsonRpcResponseError : JsonRpcResponse
+    public class JsonRpcResponseError : JsonRpcResponse
     {
         [JsonIgnore]
         public override object Result { get => null; set { } }
@@ -118,7 +119,7 @@ namespace IPA.Cores.Basic
         public override JsonRpcError Error { get; set; } = null;
     }
 
-    class JsonRpcResponse
+    public class JsonRpcResponse
     {
         [JsonProperty("jsonrpc")]
         public virtual string Version { get; set; } = "2.0";
@@ -149,7 +150,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcError
+    public class JsonRpcError
     {
         public JsonRpcError() { }
         public JsonRpcError(int code, string message, object data = null)
@@ -170,9 +171,9 @@ namespace IPA.Cores.Basic
         public object Data { get; set; } = null;
     }
 
-    class RpcInterfaceAttribute : Attribute { }
+    public class RpcInterfaceAttribute : Attribute { }
 
-    class RpcMethodInfo
+    public class RpcMethodInfo
     {
         public string Name { get; }
         public MethodInfo Method { get; }
@@ -265,7 +266,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class JsonRpcServerApi : AsyncService
+    public abstract class JsonRpcServerApi : AsyncService
     {
         public Type RpcInterface { get; }
 
@@ -334,7 +335,7 @@ namespace IPA.Cores.Basic
         public virtual Task FinishCallAsync(object param) => Task.CompletedTask;
     }
 
-    abstract class JsonRpcServer
+    public abstract class JsonRpcServer
     {
         public JsonRpcServerApi Api { get; }
         public JsonRpcServerConfig Config { get; }
@@ -510,12 +511,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcServerConfig
+    public class JsonRpcServerConfig
     {
         public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     }
 
-    abstract class JsonRpcClient
+    public abstract class JsonRpcClient
     {
         List<(JsonRpcRequest request, JsonRpcResponse response, Type responseDataType)> StCallQueue = new List<(JsonRpcRequest request, JsonRpcResponse response, Type responseDataType)>();
 
@@ -797,7 +798,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcHttpClient : JsonRpcClient, IDisposable
+    public class JsonRpcHttpClient : JsonRpcClient, IDisposable
     {
         public WebApi WebApi { get; private set; }
         public string ApiBaseUrl { get; set; }
@@ -829,7 +830,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcHttpClient<TRpcInterface> : JsonRpcHttpClient
+    public class JsonRpcHttpClient<TRpcInterface> : JsonRpcHttpClient
         where TRpcInterface : class
     {
         public TRpcInterface Call { get; }
@@ -839,7 +840,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class JsonRpcClientInfo
+    public class JsonRpcClientInfo
     {
         public string LocalIP { get; }
         public int LocalPort { get; }

@@ -47,7 +47,7 @@ using System.Runtime.InteropServices;
 
 namespace IPA.Cores.Basic
 {
-    readonly struct PacketSizeSet
+    public readonly struct PacketSizeSet
     {
         public readonly int PreSize;
         public readonly int PostSize;
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
             => new PacketSizeSet(a.PreSize + preSize, a.PostSize);
     }
 
-    static partial class PacketSizeSets
+    public static partial class PacketSizeSets
     {
         public static readonly PacketSizeSet NormalTcpIpPacket_V4 = new PacketSizeSet(14 + 4 + 20 + 20 + 12 /* Ether + VLAN + IPv4 + TCP + TCP_OPT */ , 0);
         public static readonly PacketSizeSet NormalTcpIpPacket_V6 = new PacketSizeSet(14 + 4 + 40 + 20 + 12 /* Ether + VLAN + IPv6 + TCP + TCP_OPT */ , 0);
@@ -89,13 +89,13 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PacketInsertMode
+    public enum PacketInsertMode
     {
         MoveHead = 0,
         MoveTail,
     }
 
-    ref struct Packet
+    public ref struct Packet
     {
         ElasticSpan<byte> Elastic;
         public int PinHead { get; private set; }
@@ -483,7 +483,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    readonly unsafe struct PacketSpan<T> where T : unmanaged
+    public readonly unsafe struct PacketSpan<T> where T : unmanaged
     {
         public int Pin { get; }
         public int HeaderSize { get; }
@@ -605,7 +605,7 @@ namespace IPA.Cores.Basic
             => ref pkt.InsertSpan<TNext>(out retPacketPin, PacketInsertMode.MoveTail, this.Pin + this.HeaderSize, size);
     }
 
-    static class PacketPinHelper
+    public static class PacketPinHelper
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref readonly PacketSpan<GenericHeader> ToGenericSpan<TFrom>(this ref PacketSpan<TFrom> src) where TFrom : unmanaged

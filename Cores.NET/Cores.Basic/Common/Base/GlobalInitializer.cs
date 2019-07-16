@@ -11,9 +11,9 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
-    class CoresLibraryShutdowningException : ApplicationException { }
+    public class CoresLibraryShutdowningException : ApplicationException { }
 
-    class CoresLibraryResult
+    public class CoresLibraryResult
     {
         public LeakCheckerResult LeakCheckerResult { get; }
 
@@ -24,13 +24,13 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum CoresMode
+    public enum CoresMode
     {
         Application = 0,
         Library,
     }
 
-    class CoresLibOptions : ICloneable
+    public class CoresLibOptions : ICloneable
     {
         public DebugMode DebugMode { get; private set; }
         public bool PrintStatToConsole { get; private set; }
@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
         public object Clone() => this.MemberwiseClone();
     }
 
-    static class CoresLib
+    public static class CoresLib
     {
         static Once SetDebugModeOnce;
 

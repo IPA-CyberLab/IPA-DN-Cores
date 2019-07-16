@@ -44,12 +44,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    enum SendMailVersion
+    public enum SendMailVersion
     {
         Ver2_With_NetMail,
     }
 
-    class SendMail
+    public class SendMail
     {
         string smtpServer;
         public string SmtpServer

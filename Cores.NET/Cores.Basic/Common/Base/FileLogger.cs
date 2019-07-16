@@ -39,7 +39,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    class FileLogger
+    public class FileLogger
     {
         CriticalSection LockObj = new CriticalSection();
         string logDir;

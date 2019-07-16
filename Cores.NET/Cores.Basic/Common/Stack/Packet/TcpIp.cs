@@ -49,7 +49,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class IPConsts
+    public static partial class IPConsts
     {
         public const int EtherMtuDefault = 1500;
         public const int EtherMtuMax = 9300;
@@ -59,18 +59,18 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct GenericHeader
+    public unsafe struct GenericHeader
     {
     }
 
     [Flags]
-    enum TCPWellknownPorts : ushort
+    public enum TCPWellknownPorts : ushort
     {
         L2TP = 1701,
     }
 
     [Flags]
-    enum PPPProtocolId : ushort
+    public enum PPPProtocolId : ushort
     {
         Unknown = 0,
         LCP = 0xc021,
@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum EthernetProtocolId : ushort
+    public enum EthernetProtocolId : ushort
     {
         Unknown = 0,
         ARPv4 = 0x0806,
@@ -94,7 +94,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct EthernetHeader
+    public unsafe struct EthernetHeader
     {
         public fixed byte DestAddress[6];
         public fixed byte SrcAddress[6];
@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PPPoECode : byte
+    public enum PPPoECode : byte
     {
         Data = 0x00,
         ActiveDiscoveryInitiation = 0x09,
@@ -137,7 +137,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct PPPoESessionHeader
+    public struct PPPoESessionHeader
     {
         public byte VersionAndType;
         public PPPoECode Code;
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct VLanHeader
+    public struct VLanHeader
     {
         public ushort TagAndVLanId;
         public EthernetProtocolId Protocol;
@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum IPProtocolNumber : byte
+    public enum IPProtocolNumber : byte
     {
         Unknown = 0,
         TCP = 0x06,
@@ -183,7 +183,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum IPv4Flags : byte
+    public enum IPv4Flags : byte
     {
         MoreFragments = 1,
         DontFragment = 2,
@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct IPv4Header
+    public unsafe struct IPv4Header
     {
         public byte VersionAndHeaderLength;
         public byte TypeOfService;
@@ -230,7 +230,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct UDPHeader
+    public struct UDPHeader
     {
         public ushort SrcPort;
         public ushort DstPort;
@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum TCPFlags : byte
+    public enum TCPFlags : byte
     {
         None = 0,
         Fin = 1,
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct TCPHeader
+    public struct TCPHeader
     {
         public ushort SrcPort;
         public ushort DstPort;
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct IPv4PseudoHeader
+    public struct IPv4PseudoHeader
     {
         public uint SrcIP;
         public uint DstIP;
@@ -281,7 +281,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct UDPv4PseudoHeader
+    public struct UDPv4PseudoHeader
     {
         public uint SrcIP;
         public uint DstIP;
@@ -295,7 +295,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct PPPDataHeader
+    public struct PPPDataHeader
     {
         public byte Address;
         public byte Control;
@@ -303,7 +303,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct L2TPHeaderForStdData
+    public struct L2TPHeaderForStdData
     {
         public L2TPPacketFlag Flag;
         public byte ReservedAndVersion;
@@ -313,14 +313,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum L2TPPacketType
+    public enum L2TPPacketType
     {
         Data = 0,
         Control,
     }
 
     [Flags]
-    enum L2TPPacketFlag : byte
+    public enum L2TPPacketFlag : byte
     {
         None = 0,
         Priority = 0x01,
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
         ControlMessage = 0x80,
     }
 
-    class L2TPPacketParsed
+    public class L2TPPacketParsed
     {
         public int Version;
         public L2TPPacketFlag Flag;
@@ -348,7 +348,7 @@ namespace IPA.Cores.Basic
     }
 
 
-    static partial class IPUtil
+    public static partial class IPUtil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
@@ -594,7 +594,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TcpPseudoPacketGeneratorOptions
+    public class TcpPseudoPacketGeneratorOptions
     {
         public IPAddress LocalIP { get; }
         public ushort LocalPort { get; }
@@ -624,7 +624,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    unsafe class TcpPseudoPacketGenerator : IDisposable
+    public unsafe class TcpPseudoPacketGenerator : IDisposable
     {
         public TcpPseudoPacketGeneratorOptions Options { get; }
 

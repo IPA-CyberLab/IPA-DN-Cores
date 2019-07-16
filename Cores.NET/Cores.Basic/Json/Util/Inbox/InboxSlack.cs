@@ -48,7 +48,7 @@ using IPA.Cores.ClientApi.SlackApi;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class InboxSlackAdapterSettings
         {
@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class InboxSlackAdapter : InboxAdapter
+    public class InboxSlackAdapter : InboxAdapter
     {
         public override string AdapterName => "slack";
 

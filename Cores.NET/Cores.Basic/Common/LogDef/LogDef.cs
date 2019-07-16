@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class LogTag
+    public partial class LogTag
     {
         public const string None = "None";
         public const string SocketConnected = "SocketConnected";
@@ -50,7 +50,7 @@ namespace IPA.Cores.Basic
         public const string SocketDisconnected = "SocketDisconnected";
     }
 
-    partial class LogKind
+    public partial class LogKind
     {
         public const string Default = "Default";
         public const string Data = "Data";
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         public const string Stat = "Stat";
     }
 
-    class LogDefIPEndPoints
+    public class LogDefIPEndPoints
     {
         public TcpDirectionType Direction = TcpDirectionType.Client;
         public string LocalIP = null;
@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
         public int RemotePort = 0;
     }
 
-    class LogDefSslSession
+    public class LogDefSslSession
     {
         public bool IsServerMode;
         public string SslProtocol;
@@ -85,14 +85,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum LogDefSocketAction
+    public enum LogDefSocketAction
     {
         Connected = 0,
         Disconnected,
     }
 
     [Serializable]
-    class LogDefSocket
+    public class LogDefSocket
     {
         public LogDefSocketAction Action;
 

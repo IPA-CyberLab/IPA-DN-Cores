@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // ソケットの種類
-        enum SockType
+        public enum SockType
         {
             Unknown = 0,
             Tcp = 1,
@@ -57,7 +57,7 @@ namespace IPA.Cores.Basic
         }
 
         // ソケットイベント
-        class SockEvent : IDisposable
+        public class SockEvent : IDisposable
         {
             Event Win32Event;
 
@@ -227,7 +227,7 @@ namespace IPA.Cores.Basic
         }
 
         // ソケットセット
-        class SockSet
+        public class SockSet
         {
             List<Sock> List;
 
@@ -322,7 +322,7 @@ namespace IPA.Cores.Basic
 
     // IP アドレスの種類
     [Flags]
-    enum IPAddressType : long
+    public enum IPAddressType : long
     {
         IPv4 = 0,
         IPv6 = 1,
@@ -342,7 +342,7 @@ namespace IPA.Cores.Basic
     }
 
     // IP ユーティリティ
-    static partial class IPUtil
+    public static partial class IPUtil
     {
         public static IPEndPoint[] GenerateListeningEndPointsList(bool localHostOnly, params int[] ports)
         {
@@ -1768,7 +1768,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         // ソケット
-        class Sock
+        public class Sock
         {
             static readonly SocketFlags DefaultSocketFlags;
             static Sock()
@@ -2809,7 +2809,7 @@ namespace IPA.Cores.Basic
         }
 
         // Ping 応答
-        class SendPingReply
+        public class SendPingReply
         {
             private TimeSpan rttTimeSpan;
             public TimeSpan RttTimeSpan
@@ -2860,7 +2860,7 @@ namespace IPA.Cores.Basic
         }
 
         // Ping 送信
-        class SendPing
+        public class SendPing
         {
             public const int DefaultSendSize = 32;
             public const int DefaultTimeout = 1000;
@@ -2929,7 +2929,7 @@ namespace IPA.Cores.Basic
         }
 
         // DNS
-        class Domain
+        public class Domain
         {
             public static readonly TimeSpan DnsCacheLifeTime = new TimeSpan(0, 1, 0, 0);
             static Cache<string, IPAddress[]> dnsACache = new Cache<string, IPAddress[]>(DnsCacheLifeTime, CacheType.UpdateExpiresWhenAccess);
@@ -3211,7 +3211,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NonBlockSocket : IDisposable
+    public class NonBlockSocket : IDisposable
     {
         public PalSocket Sock { get; }
         public bool IsStream { get; }

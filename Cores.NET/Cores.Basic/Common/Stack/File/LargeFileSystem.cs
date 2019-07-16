@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LocalLargeFileSystemSettings
         {
@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileObject : FileObject
+    public class LargeFileObject : FileObject
     {
         public class Cursor
         {
@@ -517,7 +517,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileSystemParams : FileSystemParams
+    public class LargeFileSystemParams : FileSystemParams
     {
         public long MaxSinglePhysicalFileSize { get; }
         public long MaxLogicalFileSize { get; }
@@ -553,7 +553,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LargeFileSystem : FileSystem
+    public class LargeFileSystem : FileSystem
     {
         public class ParsedPath
         {

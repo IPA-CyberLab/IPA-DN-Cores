@@ -77,7 +77,7 @@ using System.Threading;
 
 namespace IPA.Cores.Basic
 {
-    static class Win32Api
+    internal static class Win32Api
     {
         // DLL names
         internal static partial class Libraries
@@ -1661,7 +1661,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class PalWin32FileStream
+    internal static class PalWin32FileStream
     {
         private const int FILE_ATTRIBUTE_NORMAL = 0x00000080;
         private const int FILE_ATTRIBUTE_ENCRYPTED = 0x00004000;

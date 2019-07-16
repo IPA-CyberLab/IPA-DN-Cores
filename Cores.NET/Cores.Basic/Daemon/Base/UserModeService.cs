@@ -50,7 +50,7 @@ using System.IO.Pipes;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class UserModeServiceSettings
         {
@@ -62,7 +62,7 @@ namespace IPA.Cores.Basic
     {
         [Serializable]
         [DataContract]
-        class UserModeServicePidData : INormalizable
+        public class UserModeServicePidData : INormalizable
         {
             [DataMember]
             public long Pid;
@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    sealed class UserModeService : IService
+    public sealed class UserModeService : IService
     {
         public const string ExecMainSignature = "--- User mode service started ---";
 

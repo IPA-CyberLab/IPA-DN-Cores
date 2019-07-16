@@ -47,7 +47,7 @@ using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
-    class TcpServerOptions
+    public class TcpServerOptions
     {
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
         public TcpIpSystem TcpIp { get; }
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class TcpServerBase : AsyncService
+    public abstract class TcpServerBase : AsyncService
     {
         protected TcpServerOptions Options { get; }
 
@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SslServerOptions : TcpServerOptions
+    public class SslServerOptions : TcpServerOptions
     {
         public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
 
@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class SslServerBase : TcpServerBase
+    public abstract class SslServerBase : TcpServerBase
     {
         protected new SslServerOptions Options => (SslServerOptions)base.Options;
 

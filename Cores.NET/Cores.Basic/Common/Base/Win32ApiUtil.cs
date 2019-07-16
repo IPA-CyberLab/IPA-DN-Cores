@@ -78,7 +78,7 @@ using System.Threading;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Win32ApiUtil
+    internal static partial class Win32ApiUtil
     {
         static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
             path = WindowsPathParser.NormalizeDirectorySeparator(path);
 
             path = WindowsPathParser.RemoveLastSeparatorChar(path);
-
+            
             if (path.StartsWith(@"\\"))
             {
                 if (path.Length >= 3 && path[2] != '\\')
@@ -878,8 +878,8 @@ namespace IPA.Cores.Basic
         }
     }
 
-    delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);
-    delegate TResult Win32CallOverlappedCompleteProc<TResult>(int errorCode, int numReturnedSize);
+    public delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);
+    public delegate TResult Win32CallOverlappedCompleteProc<TResult>(int errorCode, int numReturnedSize);
 }
 
 

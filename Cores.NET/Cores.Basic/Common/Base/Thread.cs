@@ -47,7 +47,7 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class BasicConfig
         {
@@ -55,7 +55,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class BatchQueueItem<T>
+    public class BatchQueueItem<T>
     {
         internal BatchQueueItem(T item)
         {
@@ -75,7 +75,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class BatchQueue<T>
+    public class BatchQueue<T>
     {
         CriticalSection LockObj = new CriticalSection();
         Queue<BatchQueueItem<T>> ItemQueue = new Queue<BatchQueueItem<T>>();
@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GlobalLockHandle : IDisposable
+    public class GlobalLockHandle : IDisposable
     {
         public GlobalLock GlobalLock { get; }
         Mutant mutant;
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GlobalLock
+    public class GlobalLock
     {
         public string Name { get; }
 
@@ -241,7 +241,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SingleInstance : IDisposable
+    public class SingleInstance : IDisposable
     {
         readonly string NameOfMutant;
         MutantBase Mutant;
@@ -324,7 +324,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Mutant : IDisposable
+    public class Mutant : IDisposable
     {
         public string Name { get; }
         public bool NonBlock { get; }
@@ -414,7 +414,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MutantUnixImpl : MutantBase
+    public class MutantUnixImpl : MutantBase
     {
         const string Extension = ".lock";
 
@@ -517,7 +517,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MutantWin32ForSingleInstanceImpl : MutantBase
+    public class MutantWin32ForSingleInstanceImpl : MutantBase
     {
         readonly string InternalName;
 
@@ -568,7 +568,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MutantWin32Impl : MutantBase
+    public class MutantWin32Impl : MutantBase
     {
         Mutex MutexObj;
         int LockedCount = 0;
@@ -638,7 +638,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class MutantBase : IDisposable
+    public abstract class MutantBase : IDisposable
     {
         readonly static bool IsWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
 
@@ -675,7 +675,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SemaphoneArrayItem
+    public class SemaphoneArrayItem
     {
         public Semaphore Semaphone;
         public int MaxCount;
@@ -690,7 +690,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class SemaphoneArray
+        public class SemaphoneArray
         {
             Dictionary<string, SemaphoneArrayItem> array = new Dictionary<string, SemaphoneArrayItem>();
 
@@ -788,10 +788,9 @@ namespace IPA.Cores.Basic
                 return ret;
             }
         }
-        static class BackgroundWorker
+
+        public static class BackgroundWorker
         {
-
-
             static volatile int NumBusyWorkerThreads = 0;
             static volatile int NumWorkerThreads = 0;
 
@@ -857,7 +856,7 @@ namespace IPA.Cores.Basic
 
         }
 
-        class WorkerQueuePrivate
+        public class WorkerQueuePrivate
         {
             CriticalSection LockObj = new CriticalSection();
 
@@ -935,7 +934,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class Tick64
+    public static class Tick64
     {
         public static long Value => FastTick64.Now;
         public static long Now => FastTick64.Now;
@@ -952,7 +951,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Event
+    public class Event
     {
         EventWaitHandle EventObj;
         public const int Infinite = Timeout.Infinite;
@@ -1130,7 +1129,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ThreadLocalStorage
+    public class ThreadLocalStorage
     {
         static LocalDataStoreSlot Slot = Thread.AllocateDataSlot();
 
@@ -1166,9 +1165,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    delegate void ThreadProc(object userObject);
+    public delegate void ThreadProc(object userObject);
 
-    class ThreadObj
+    public class ThreadObj
     {
 
 
@@ -1339,7 +1338,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        static class StillRunningThreadRegister
+        public static class StillRunningThreadRegister
         {
             public static int RegularWatchInterval = 1 * 1000;
 

@@ -45,12 +45,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class LocalTcpIpSystemParam : TcpIpSystemParam
+    public class LocalTcpIpSystemParam : TcpIpSystemParam
     {
         public LocalTcpIpSystemParam(string name) : base(name) { }
     }
 
-    class LocalTcpIpSystem : TcpIpSystem
+    public class LocalTcpIpSystem : TcpIpSystem
     {
         class HostInfo : TcpIpSystemHostInfo
         {

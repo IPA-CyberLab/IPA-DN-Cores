@@ -43,7 +43,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class TaskUtil
+    public static partial class TaskUtil
     {
         public static object ConvertTask(object srcTaskObject, Type oldTaskType, Type newTaskType)
         {

@@ -43,7 +43,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic.Legacy
 {
     // WPC クライアント情報
-    class WpcClient
+    public class WpcClient
     {
         public string IpAddress { get; private set; }
         public string HostName { get; private set; }
@@ -175,7 +175,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     // WpcEntry
-    class WpcEntry
+    public class WpcEntry
     {
         public byte[] EntryName { get; }
         public byte[] Data { get; }
@@ -287,7 +287,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     // Packet
-    class WpcPacket
+    public class WpcPacket
     {
         public Pack Pack { get; }
         public byte[] Hash { get; }
@@ -404,7 +404,7 @@ namespace IPA.Cores.Basic.Legacy
     }
 
     // Web Procedure Call
-    static class Wpc
+    public static class Wpc
     {
         // Base 64 エンコード
         public static string Base64Encode(byte[] data)

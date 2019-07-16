@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class FullRouteIPInfoEntry : IComparable<FullRouteIPInfoEntry>
+    public class FullRouteIPInfoEntry : IComparable<FullRouteIPInfoEntry>
     {
         public uint From;
         public uint To;
@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FullRouteIPInfoCache
+    public class FullRouteIPInfoCache
     {
         public List<FullRouteIPInfoEntry> EntryList = new List<FullRouteIPInfoEntry>();
         public DateTime TimeStamp;
@@ -233,7 +233,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class FullRouteIPInfo
+    public static class FullRouteIPInfo
     {
         public static readonly TimeSpan LifeTime = new TimeSpan(15, 0, 0, 0);
         public const long DownloadRetryMSecs = (3600 * 1000);

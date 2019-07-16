@@ -45,13 +45,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    enum DaemonStartupMode
+    public enum DaemonStartupMode
     {
         ForegroundTestMode = 0,
         BackgroundServiceMode,
     }
 
-    static partial class StandardMainFunctions
+    public static partial class StandardMainFunctions
     {
         public static class DaemonMain
         {

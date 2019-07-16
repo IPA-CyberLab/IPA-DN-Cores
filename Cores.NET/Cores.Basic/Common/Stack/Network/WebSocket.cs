@@ -48,13 +48,13 @@ using System.Security.Cryptography;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
 
     }
 
     [Flags]
-    enum WebSocketOpcode : byte
+    public enum WebSocketOpcode : byte
     {
         Continue = 0x00,
         Text = 0x01,
@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
         Pong = 0x0A,
     }
 
-    class WebSocketOptions : NetMiddleProtocolOptionsBase
+    public class WebSocketOptions : NetMiddleProtocolOptionsBase
     {
         public string UserAgent { get; set; } = "Mozilla/5.0 (WebSocket) WebSocket Client";
         public int TimeoutOpen { get; set; } = 10 * 1000;
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         public bool RespectMessageDelimiter { get; set; } = false;
     }
 
-    class NetWebSocketProtocolStack : NetMiddleProtocolStackBase
+    public class NetWebSocketProtocolStack : NetMiddleProtocolStackBase
     {
         public new WebSocketOptions Options => (WebSocketOptions)base.Options;
 
@@ -508,7 +508,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WebSocketConnectOptions
+    public class WebSocketConnectOptions
     {
         public TcpIpSystem TcpIp { get; }
         public WebSocketOptions WebSocketOptions { get; }
@@ -530,7 +530,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class WebSocket : MiddleConnSock
+    public class WebSocket : MiddleConnSock
     {
         protected new NetWebSocketProtocolStack Stack => (NetWebSocketProtocolStack)base.Stack;
 

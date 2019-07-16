@@ -52,7 +52,7 @@ using System.Security.AccessControl;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LocalFileSystemSettings
         {
@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LocalFileSystem : FileSystem
+    public class LocalFileSystem : FileSystem
     {
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
@@ -819,7 +819,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LocalFileObject : FileObject
+    public class LocalFileObject : FileObject
     {
         string _PhysicalFinalPath = null;
         public override string FinalPhysicalPath => _PhysicalFinalPath._FilledOrException();

@@ -48,17 +48,17 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
-    class VfsException : Exception
+    public class VfsException : Exception
     {
         public VfsException(string path, string message) : base($"Entity name \"{path}\": {message}") { }
     }
 
-    class VfsNotFoundException : VfsException
+    public class VfsNotFoundException : VfsException
     {
         public VfsNotFoundException(string path, string message) : base(path, message) { }
     }
 
-    abstract class VfsEntity
+    public abstract class VfsEntity
     {
         public VirtualFileSystem FileSystem { get; }
         readonly RefInt LinkRef = new RefInt();
@@ -163,7 +163,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class VfsFile : VfsEntity
+    public abstract class VfsFile : VfsEntity
     {
         public VfsFile(VirtualFileSystem fileSystem) : base(fileSystem)
         {
@@ -192,7 +192,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class VfsDirectory : VfsEntity
+    public abstract class VfsDirectory : VfsEntity
     {
         public VfsDirectory(VirtualFileSystem fileSystem) : base(fileSystem)
         {
@@ -273,7 +273,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VfsRamDirectory : VfsDirectory
+    public class VfsRamDirectory : VfsDirectory
     {
         readonly Dictionary<string, VfsEntity> EntityTable;
         readonly AsyncLock AsyncLock = new AsyncLock();
@@ -420,7 +420,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class VfsRandomAccessFile : VfsFile
+    public abstract class VfsRandomAccessFile : VfsFile
     {
         public class FileImpl : FileObjectRandomAccessWrapperBase
         {
@@ -520,7 +520,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VfsRamFile : VfsRandomAccessFile
+    public class VfsRamFile : VfsRandomAccessFile
     {
         HugeMemoryBuffer<byte> Buffer;
 
@@ -552,7 +552,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VfsPathParserContext : IDisposable
+    public class VfsPathParserContext : IDisposable
     {
         readonly PathParser Parser;
         public readonly string SpecifiedPath;
@@ -596,12 +596,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class VirtualFileSystemParams : FileSystemParams
+    public class VirtualFileSystemParams : FileSystemParams
     {
         public VirtualFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(PathParser.GetInstance(FileSystemStyle.Linux), mode) { }
     }
 
-    class VirtualFileSystem : FileSystem
+    public class VirtualFileSystem : FileSystem
     {
         protected new VirtualFileSystemParams Params => (VirtualFileSystemParams)base.Params;
 

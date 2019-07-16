@@ -50,7 +50,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static class ChaChaPoly
+    public static class ChaChaPoly
     {
         public const int AeadChaCha20Poly1305MacSize = 16;
         public const int AeadChaCha20Poly1305NonceSize = 12;

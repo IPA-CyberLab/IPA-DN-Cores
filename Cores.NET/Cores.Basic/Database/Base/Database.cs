@@ -54,21 +54,21 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class EasyTable : TableAttribute
+    public class EasyTable : TableAttribute
     {
         public EasyTable(string tableName) : base(tableName) { }
     }
-    class EasyKey : KeyAttribute { }
-    class EasyManualKey : ExplicitKeyAttribute { }
-    class EasyReadOnly : WriteAttribute { public EasyReadOnly() : base(false) { } }
+    public class EasyKey : KeyAttribute { }
+    public class EasyManualKey : ExplicitKeyAttribute { }
+    public class EasyReadOnly : WriteAttribute { public EasyReadOnly() : base(false) { } }
 
-    class DapperColumn : Attribute
+    public class DapperColumn : Attribute
     {
         public string Name;
         public DapperColumn(string name) { this.Name = name; }
     }
 
-    class DbConsoleDebugPrinterProvider : ILoggerProvider
+    public class DbConsoleDebugPrinterProvider : ILoggerProvider
     {
         Ref<bool> EnableConsoleLogger;
 
@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         public void Dispose() { }
     }
 
-    class DbConsoleDebugPrinter : ILogger
+    public class DbConsoleDebugPrinter : ILogger
     {
         Ref<bool> EnableConsoleLogger;
 
@@ -123,7 +123,7 @@ namespace IPA.Cores.Basic
     }
 
     // データベース値
-    class DatabaseValue
+    public class DatabaseValue
     {
         public bool IsNull
         {
@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
     }
 
     // 行
-    class Row
+    public class Row
     {
         public readonly DatabaseValue[] ValueList;
         public readonly string[] FieldList;
@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
     }
 
     // データ
-    class Data : IEnumerable
+    public class Data : IEnumerable
     {
         public Row[] RowList { get; private set; }
         public string[] FieldList { get; private set; }
@@ -288,7 +288,7 @@ namespace IPA.Cores.Basic
     }
 
     // Using トランザクション
-    struct UsingTran : IDisposable
+    public struct UsingTran : IDisposable
     {
         Database db;
         Once Once;
@@ -317,7 +317,7 @@ namespace IPA.Cores.Basic
     }
 
     // デッドロック再試行設定
-    class DeadlockRetryConfig
+    public class DeadlockRetryConfig
     {
         public readonly int RetryAverageInterval;
         public readonly int RetryCount;
@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
     }
 
     // データベースアクセス
-    class Database : IDisposable
+    public class Database : IDisposable
     {
         static Database()
         {

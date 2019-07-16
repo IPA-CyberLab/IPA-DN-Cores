@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    class HttpServerDaemon<TStartup> : Daemon where TStartup : class
+    public class HttpServerDaemon<TStartup> : Daemon where TStartup : class
     {
         public HttpServerOptions HttpOptions { get; }
 

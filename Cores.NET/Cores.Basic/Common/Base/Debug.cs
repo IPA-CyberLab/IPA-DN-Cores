@@ -50,7 +50,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum DebugMode
+    public enum DebugMode
     {
         Debug, // Default
         Trace,
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         ReleaseNoLogs,
     }
 
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class DebugSettings
         {
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DebugWhereContainer
+    public class DebugWhereContainer
     {
         public object Msg;
         public string Where;
@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static partial class Dbg
+    public static partial class Dbg
     {
         static Dbg()
         {
@@ -650,7 +650,7 @@ namespace IPA.Cores.Basic
         public static void Break() => Debugger.Break();
     }
 
-    class ObjectContainerForDebugVars
+    public class ObjectContainerForDebugVars
     {
         public object Object;
         public ObjectContainerForDebugVars(object obj)
@@ -659,7 +659,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DebugVars
+    public class DebugVars
     {
         public string BaseName = "";
 
@@ -763,7 +763,7 @@ namespace IPA.Cores.Basic
 
     namespace Legacy
     {
-        class IntervalDebug
+        public class IntervalDebug
         {
             public string Name { get; }
             public IntervalDebug(string name = "Interval") => this.Name = name._NonNullTrim();
@@ -781,7 +781,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        class Benchmark : IDisposable
+        public class Benchmark : IDisposable
         {
             public int Interval { get; }
             public long IncrementMe = 0;
@@ -853,7 +853,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static class OldSingletonFactory
+        public static class OldSingletonFactory
         {
             static Dictionary<string, object> Table = new Dictionary<string, object>();
 
@@ -876,7 +876,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        partial class GlobalIntervalReporter
+        public partial class GlobalIntervalReporter
         {
             public const int Interval = 1000;
             SortedList<string, Ref<(int ver, string value)>> table = new SortedList<string, Ref<(int ver, string value)>>();
@@ -971,7 +971,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        class IntervalReporter : IDisposable
+        public class IntervalReporter : IDisposable
         {
             public int Interval { get; }
             Once d;
@@ -1079,7 +1079,7 @@ namespace IPA.Cores.Basic
 
     namespace Internal
     {
-        static class ProcessCpuUsageReporter
+        public static class ProcessCpuUsageReporter
         {
             static readonly Task MainTask;
 
@@ -1139,7 +1139,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CoresRuntimeStat
+    public class CoresRuntimeStat
     {
         public int Task;
         public int D;
@@ -1176,7 +1176,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class CoresRuntimeStatReporter
+    public static class CoresRuntimeStatReporter
     {
         public static StatisticsReporter<CoresRuntimeStat> Reporter { get; private set; } = null;
 
@@ -1212,7 +1212,7 @@ namespace IPA.Cores.Basic
 
 
     [Flags]
-    enum LeakCounterKind
+    public enum LeakCounterKind
     {
         DoNotTrack = 0, // Must be zero
         OthersCounter,
@@ -1235,7 +1235,7 @@ namespace IPA.Cores.Basic
         SingleThreadWorker,
     }
 
-    class LeakCheckerResult
+    public class LeakCheckerResult
     {
         public bool HasLeak { get; }
         public string InformationString { get; }
@@ -1252,7 +1252,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class LeakChecker
+    public static class LeakChecker
     {
         struct LeakCheckerHolder : IHolder
         {

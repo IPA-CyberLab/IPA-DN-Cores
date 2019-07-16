@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Serializable]
-    class EnvInfoSnapshot
+    public class EnvInfoSnapshot
     {
         public EnvInfoSnapshot(string headerText)
         {
@@ -85,8 +85,7 @@ namespace IPA.Cores.Basic
         public int NumCpus => Env.NumCpus;
     }
 
-
-    static class Env
+    public static class Env
     {
         static object lockObj = new object();
 
@@ -409,8 +408,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-
-    static class CoresLocalDirs
+    public static class CoresLocalDirs
     {
         static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);

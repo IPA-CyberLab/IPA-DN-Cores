@@ -47,7 +47,7 @@ using System.Text;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum ReadParseFlags
+    public enum ReadParseFlags
     {
         None = 0,
         ForceInitOnParseError = 1,
@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
         Both = ForceInitOnParseError | ForceRewrite,
     }
 
-    abstract partial class FileSystem
+    public abstract partial class FileSystem
     {
         public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
         {
@@ -400,7 +400,7 @@ namespace IPA.Cores.Basic
         public virtual EasyFileAccess this[string name] => GetEasyAccess(name);
     }
 
-    class DirectoryPathInfo
+    public class DirectoryPathInfo
     {
         public bool IsRoot { get; }
         public string FullPath { get; }
@@ -416,7 +416,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DirectoryWalker
+    public class DirectoryWalker
     {
         public FileSystem FileSystem { get; }
         public EnumDirectoryFlags Flags { get; }
@@ -531,14 +531,14 @@ namespace IPA.Cores.Basic
 #pragma warning restore CS1998
     }
 
-    enum EasyFileAccessType
+    public enum EasyFileAccessType
     {
         String,
         Binary,
         HexParsedBinary,
     }
 
-    class EasyFileAccess
+    public class EasyFileAccess
     {
         // Properties
         public string String => (string)this[EasyFileAccessType.String];
@@ -586,7 +586,7 @@ namespace IPA.Cores.Basic
         public static implicit operator byte[] (EasyFileAccess access) => access.Binary.ToArray();
     }
 
-    abstract class FileObjectRandomAccessWrapperBase : FileObject
+    public abstract class FileObjectRandomAccessWrapperBase : FileObject
     {
         protected readonly ConcurrentRandomAccess<byte> BaseAccess;
 
@@ -640,7 +640,7 @@ namespace IPA.Cores.Basic
             => this.BaseAccess.WriteRandomAsync(position, data, cancel);
     }
 
-    abstract class FileSystemPath
+    public abstract class FileSystemPath
     {
         public string PathString { get; }
         public FileSystem FileSystem { get; }
@@ -666,7 +666,7 @@ namespace IPA.Cores.Basic
         public override string ToString() => this.PathString;
     }
 
-    class DirectoryPath : FileSystemPath
+    public class DirectoryPath : FileSystemPath
     {
         public DirectoryPath(string pathString, FileSystem fileSystem = null, FileFlags flags = FileFlags.None) : base(pathString, fileSystem, flags)
         {
@@ -756,7 +756,7 @@ namespace IPA.Cores.Basic
         public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
     }
 
-    class FilePath : FileSystemPath
+    public class FilePath : FileSystemPath
     {
         readonly Singleton<EasyFileAccess> EasyAccessSingleton;
 

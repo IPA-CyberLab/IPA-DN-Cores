@@ -48,7 +48,7 @@ using System.Net;
 
 namespace IPA.Cores.Basic
 {
-    interface IService
+    public interface IService
     {
         string Name { get; }
 
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         void Show();
     }
 
-    sealed class WindowsService : IService
+    public sealed class WindowsService : IService
     {
         public string Name { get; }
 
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
 
     namespace Internal.WinSvc
     {
-        sealed class WindowsServiceObject : ServiceBase
+        public sealed class WindowsServiceObject : ServiceBase
         {
             readonly WindowsService Svc;
             readonly CriticalSection LockObj = new CriticalSection();

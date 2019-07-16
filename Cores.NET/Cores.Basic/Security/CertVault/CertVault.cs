@@ -50,7 +50,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class CertVaultSettings
         {
@@ -75,14 +75,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum CertVaultCertType
+    public enum CertVaultCertType
     {
         DefaultCert = 0,
         Acme = 50,
         Static = 100,
     }
 
-    class CertVaultCertificate
+    public class CertVaultCertificate
     {
         public CertVault Vault { get; }
 
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CertVaultSettings : INormalizable, ICloneable
+    public class CertVaultSettings : INormalizable, ICloneable
     {
         const string AcmeDefaultUrl = AcmeClientOptions.DefaultEntryPointUrl;
 
@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class CertVault : AsyncServiceWithMainLoop
+    public class CertVault : AsyncServiceWithMainLoop
     {
         public DirectoryPath BaseDir { get; }
         public DirectoryPath StaticDir { get; }
@@ -832,7 +832,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class GlobalCertVault
+    public static class GlobalCertVault
     {
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 

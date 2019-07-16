@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class ViewFileObjectInitUnderlayFileResultParam
+    public class ViewFileObjectInitUnderlayFileResultParam
     {
         public readonly FileObject FileObject;
         public readonly long InitialPositon;
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ViewFileObject : FileObject
+    public class ViewFileObject : FileObject
     {
         protected ViewFileSystem ViewFileSystem { get; }
         FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic
             => this.UnderlayFile.WriteRandomAsync(position, data, cancel);
     }
 
-    class ViewFileSystemParams : FileSystemParams
+    public class ViewFileSystemParams : FileSystemParams
     {
         public FileSystem UnderlayFileSystem { get; }
 
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ViewFileSystem : FileSystem
+    public class ViewFileSystem : FileSystem
     {
         public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
         protected PathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;

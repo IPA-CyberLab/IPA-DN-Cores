@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class SpeculativeConnectorBase
+    public abstract class SpeculativeConnectorBase
     {
         protected class Attempt
         {
@@ -148,7 +148,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class IPv4V6DualStackSpeculativeConnector : SpeculativeConnectorBase
+    public class IPv4V6DualStackSpeculativeConnector : SpeculativeConnectorBase
     {
         public IPv4V6DualStackSpeculativeConnector(TcpConnectParam basicParam, TcpIpSystem system) : base(basicParam)
         {
@@ -177,12 +177,12 @@ namespace IPA.Cores.Basic
     }
 
 
-    class GetIpAddressFamilyMismatchException : ApplicationException
+    public class GetIpAddressFamilyMismatchException : ApplicationException
     {
         public GetIpAddressFamilyMismatchException(string message) : base(message) { }
     }
 
-    abstract partial class TcpIpSystem
+    public abstract partial class TcpIpSystem
     {
         public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
         {
@@ -212,17 +212,17 @@ namespace IPA.Cores.Basic
             => ConnectIPv4v6DualAsync(param, cancel)._GetResult();
     }
 
-    class MiddleSock : NetSock
+    public class MiddleSock : NetSock
     {
         public MiddleSock(NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
-    class MiddleConnSock : ConnSock
+    public class MiddleConnSock : ConnSock
     {
         public MiddleConnSock(NetProtocolBase protocolStack) : base(protocolStack) { }
     }
 
-    class SslSock : MiddleConnSock
+    public class SslSock : MiddleConnSock
     {
         public LogDefSslSession SslSessionInfo { get; private set; }
 
@@ -266,7 +266,7 @@ namespace IPA.Cores.Basic
             => StartSslServerAsync(sslServerAuthenticationOptions, cancellationToken)._GetResult();
     }
 
-    static class SslSockHelper
+    public static class SslSockHelper
     {
         public static async Task<SslSock> SslStartClientAsync(this ConnSock baseSock, PalSslClientAuthenticationOptions sslOptions, CancellationToken cancel = default)
         {

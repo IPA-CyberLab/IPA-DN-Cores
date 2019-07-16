@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static class Json
+    public static class Json
     {
         public const int DefaultMaxDepth = 8;
 
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static partial class Dbg
+    public static partial class Dbg
     {
         static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
         {

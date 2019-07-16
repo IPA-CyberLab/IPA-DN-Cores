@@ -40,7 +40,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class JsonHelper
+    public static class JsonHelper
     {
         public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
             => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url);
@@ -67,7 +67,7 @@ namespace IPA.Cores.Helper.Basic
             => Json.Normalize(s);
     }
 
-    static class JsonConsoleHelper
+    public static class JsonConsoleHelper
     {
         public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
         {
@@ -93,7 +93,7 @@ namespace IPA.Cores.Helper.Basic
 
 namespace IPA.Cores.Basic
 {
-    static partial class Con
+    public static partial class Con
     {
         public static void WriteJsonLine(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => Con.WriteLine(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));

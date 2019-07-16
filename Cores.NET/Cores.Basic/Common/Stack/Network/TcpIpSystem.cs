@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class TcpIpSystemSettings
         {
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetworkConnectParam
+    public abstract class NetworkConnectParam
     {
         public IPAddress DestIp { get; private set; }
         public int DestPort { get; private set; }
@@ -149,7 +149,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TcpConnectParam : NetworkConnectParam
+    public class TcpConnectParam : NetworkConnectParam
     {
         public int ConnectTimeout { get; }
 
@@ -178,7 +178,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TcpListenParam
+    public class TcpListenParam
     {
         public NetTcpListenerAcceptedProcCallback AcceptCallback { get; }
         public IReadOnlyList<IPEndPoint> EndPointsList { get; }
@@ -207,14 +207,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum DnsQueryOptions
+    public enum DnsQueryOptions
     {
         Default = 0,
         IPv4Only = 1,
         IPv6Only = 2,
     }
 
-    abstract class DnsQueryParamBase
+    public abstract class DnsQueryParamBase
     {
         public DnsQueryOptions Options { get; }
         public int Timeout { get; }
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DnsGetIpQueryParam : DnsQueryParamBase
+    public class DnsGetIpQueryParam : DnsQueryParamBase
     {
         public string Hostname { get; }
 
@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class DnsResponse
+    public class DnsResponse
     {
         public DnsQueryParamBase Query { get; }
         public IReadOnlyList<IPAddress> IPAddressList { get; }
@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class TcpIpSystemHostInfo
+    public abstract class TcpIpSystemHostInfo
     {
         public virtual int InfoVersion { get; protected set; }
         public virtual string HostName { get; protected set; }
@@ -271,17 +271,17 @@ namespace IPA.Cores.Basic
         public virtual IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
     }
 
-    class TcpIpSystemParam : NetworkSystemParam
+    public class TcpIpSystemParam : NetworkSystemParam
     {
         public TcpIpSystemParam(string name) : base(name) { }
     }
 
-    interface ITcpConnectableSystem
+    public interface ITcpConnectableSystem
     {
         Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default);
     }
 
-    abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSystem
+    public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSystem
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 

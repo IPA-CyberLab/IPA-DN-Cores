@@ -40,7 +40,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    class Stb
+    public class Stb
     {
         Dictionary<string, StbEntry> entryList;
 
@@ -136,7 +136,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    class StbEntry
+    public class StbEntry
     {
         string name;
         public string Name

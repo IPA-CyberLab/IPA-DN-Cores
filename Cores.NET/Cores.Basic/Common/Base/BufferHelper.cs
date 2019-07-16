@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Helper.Basic
 {
-    static class SpanMemoryBufferHelper
+    public static class SpanMemoryBufferHelper
     {
         public static SpanBuffer<T> _AsSpanBuffer<T>(this Span<T> span) => new SpanBuffer<T>(span);
         public static SpanBuffer<T> _AsSpanBuffer<T>(this Memory<T> memory) => new SpanBuffer<T>(memory.Span);
@@ -81,7 +81,7 @@ namespace IPA.Cores.Helper.Basic
         public static BufferDirectStream _AsDirectStream(this HugeMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
     }
 
-    static class MemoryExtHelper
+    public static class MemoryExtHelper
     {
         public static Memory<T> _CloneMemory<T>(this ReadOnlyMemory<T> memory) => memory.Span.ToArray();
         public static Memory<T> _CloneMemory<T>(this Memory<T> memory) => memory.Span.ToArray();

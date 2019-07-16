@@ -46,14 +46,14 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    enum SpeedTestModeFlag
+    public enum SpeedTestModeFlag
     {
         Upload,
         Download,
         Both,
     }
 
-    class SpeedTestServer : AsyncServiceWithMainLoop
+    public class SpeedTestServer : AsyncServiceWithMainLoop
     {
         Memory<byte> SendData;
 
@@ -217,7 +217,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class SpeedTestClient
+    public class SpeedTestClient
     {
         public class Result
         {

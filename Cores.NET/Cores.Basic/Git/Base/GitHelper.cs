@@ -49,7 +49,7 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
-    static class GitHelper
+    public static class GitHelper
     {
         public static GitRef GetOriginRef(this IEnumerable<GitRef> branchList, string name)
             => branchList.Where(x => x.Type == GitRefType.RemoteBranch && x.Name._IsSamei($"refs/remotes/origin/{name}")).Single();

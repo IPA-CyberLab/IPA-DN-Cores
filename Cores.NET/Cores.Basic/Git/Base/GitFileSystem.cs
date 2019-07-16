@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class GitFileObject : RandomAccessFileObject
+    public class GitFileObject : RandomAccessFileObject
     {
         public new GitFileSystem FileSystem => (GitFileSystem)base.FileSystem;
         public GitRepository Repository => FileSystem.Repository;
@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GitFileSystemParams : FileSystemParams
+    public class GitFileSystemParams : FileSystemParams
     {
         public GitRepository Repository { get; }
         public string CommitId { get; }
@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GitFileSystem : FileSystem
+    public class GitFileSystem : FileSystem
     {
         protected new GitFileSystemParams Params => (GitFileSystemParams)base.Params;
         public GitRepository Repository => Params.Repository;

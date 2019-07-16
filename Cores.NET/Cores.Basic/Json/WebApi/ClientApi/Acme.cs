@@ -61,7 +61,7 @@ using System.Security.Cryptography;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class AcmeClientSettings
         {
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.ClientApi.Acme
 {
-    class AcmeEntryPoints : IErrorCheckable
+    public class AcmeEntryPoints : IErrorCheckable
     {
         public string keyChange;
         public string newAccount;
@@ -99,19 +99,19 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeCreateAccountPayload
+    public class AcmeCreateAccountPayload
     {
         public bool termsOfServiceAgreed;
         public string[] contact;
     }
 
     [Flags]
-    enum AcmeOrderIdType
+    public enum AcmeOrderIdType
     {
         dns = 0,
     }
 
-    class AcmeOrderIdEntity
+    public class AcmeOrderIdEntity
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeOrderIdType type;
@@ -120,7 +120,7 @@ namespace IPA.Cores.ClientApi.Acme
     }
 
     [Flags]
-    enum AcmeOrderStatus
+    public enum AcmeOrderStatus
     {
         invalid = 0,
         pending,
@@ -130,7 +130,7 @@ namespace IPA.Cores.ClientApi.Acme
     }
 
     [Flags]
-    enum AcmeAuthzStatus
+    public enum AcmeAuthzStatus
     {
         invalid = 0,
         pending,
@@ -141,7 +141,7 @@ namespace IPA.Cores.ClientApi.Acme
     }
 
     [Flags]
-    enum AcmeChallengeStatus
+    public enum AcmeChallengeStatus
     {
         invalid,
         pending,
@@ -149,7 +149,7 @@ namespace IPA.Cores.ClientApi.Acme
         valid,
     }
 
-    class AcmeOrderPayload
+    public class AcmeOrderPayload
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeOrderStatus? status;
@@ -159,7 +159,7 @@ namespace IPA.Cores.ClientApi.Acme
         public string certificate;
     }
 
-    class AcmeChallengeElement
+    public class AcmeChallengeElement
     {
         public string type;
         public string url;
@@ -169,7 +169,7 @@ namespace IPA.Cores.ClientApi.Acme
         public object validationRecord;
     }
 
-    class AcmeAuthzPayload
+    public class AcmeAuthzPayload
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeAuthzStatus? status;
@@ -178,18 +178,18 @@ namespace IPA.Cores.ClientApi.Acme
         public AcmeChallengeElement[] challenges;
     }
 
-    class AcmeFinalizePayload
+    public class AcmeFinalizePayload
     {
         public string csr;
     }
 
-    static class AcmeWellKnownServiceUrls
+    public static class AcmeWellKnownServiceUrls
     {
         public const string LetsEncryptProduction = "https://acme-v02.api.letsencrypt.org/directory";
         public const string LetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory";
     }
 
-    class AcmeClientOptions
+    public class AcmeClientOptions
     {
         public const string DefaultEntryPointUrl = AcmeWellKnownServiceUrls.LetsEncryptProduction;
 
@@ -223,7 +223,7 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeAuthz
+    public class AcmeAuthz
     {
         public AcmeOrder Order { get; }
         public AcmeAccount Account => Order.Account;
@@ -283,7 +283,7 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeOrder
+    public class AcmeOrder
     {
         public AcmeAccount Account { get; }
 
@@ -477,7 +477,7 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeAccount
+    public class AcmeAccount
     {
         public AcmeClient Client { get; }
         public PrivKey PrivKey { get; }
@@ -542,7 +542,7 @@ namespace IPA.Cores.ClientApi.Acme
         }
     }
 
-    class AcmeClient : IDisposable
+    public class AcmeClient : IDisposable
     {
         public AcmeClientOptions Options { get; }
 

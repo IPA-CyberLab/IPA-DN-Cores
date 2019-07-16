@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class GetMyIpClientSettings
         {
@@ -54,7 +54,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class GetMyIpClient : IDisposable
+    public class GetMyIpClient : IDisposable
     {
         public TcpIpSystem TcpIp;
         WebApi Web;

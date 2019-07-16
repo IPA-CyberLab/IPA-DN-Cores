@@ -49,7 +49,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores
 {
-    static partial class Globals
+    public static partial class Globals
     {
         public static partial class Basic
         {

@@ -46,7 +46,7 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class FileSystemSettings
         {
@@ -62,7 +62,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RandomAccessFileObject : FileObject
+    public class RandomAccessFileObject : FileObject
     {
         readonly IRandomAccess<byte> Access;
 
@@ -98,12 +98,12 @@ namespace IPA.Cores.Basic
             => Access.SetFileSizeAsync(size, cancel);
     }
 
-    class FileSystemException : Exception
+    public class FileSystemException : Exception
     {
         public FileSystemException(string message) : base(message) { }
     }
 
-    abstract class FileObject : FileBase
+    public abstract class FileObject : FileBase
     {
         public FileSystem FileSystem { get; }
         public sealed override bool IsOpened => !this.ClosedFlag.IsSet;
@@ -629,7 +629,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FileSystemEntity
+    public class FileSystemEntity
     {
         public string FullPath { get; set; }
         public string Name { get; set; }
@@ -646,14 +646,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum SpecialFileNameKind
+    public enum SpecialFileNameKind
     {
         Normal = 0,
         CurrentDirectory = 1,
         ParentDirectory = 2,
     }
 
-    class FileSystemObjectPool : ObjectPoolBase<FileBase, FileFlags>
+    public class FileSystemObjectPool : ObjectPoolBase<FileBase, FileFlags>
     {
         public FileSystem FileSystem { get; }
         public FileFlags DefaultFileOperationFlags { get; }
@@ -687,7 +687,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileSystemStyle
+    public enum FileSystemStyle
     {
         Windows = 0,
         Linux = 1,
@@ -697,7 +697,7 @@ namespace IPA.Cores.Basic
         LocalSystem = 31,
     }
 
-    class PathParser
+    public class PathParser
     {
         public static FileSystemStyle LocalSystemStyle { get; } = Env.IsWindows ? FileSystemStyle.Windows : (Env.IsMac ? FileSystemStyle.Mac : FileSystemStyle.Linux);
 
@@ -1365,14 +1365,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum EnumDirectoryFlags
+    public enum EnumDirectoryFlags
     {
         None = 0,
         NoGetPhysicalSize = 1,
     }
 
     [Flags]
-    enum EasyAccessPathFindMode
+    public enum EasyAccessPathFindMode
     {
         NotSupported,
         ExactFullPath,
@@ -1381,7 +1381,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum FileSystemMode
+    public enum FileSystemMode
     {
         ReadOnly = 0,
         Writeable = 1,
@@ -1389,7 +1389,7 @@ namespace IPA.Cores.Basic
         Default = Writeable,
     }
 
-    class FileSystemParams
+    public class FileSystemParams
     {
         public PathParser PathParser { get; }
         public Copenhagen<EasyAccessPathFindMode> EasyAccessPathFindMode { get; } = new Copenhagen<EasyAccessPathFindMode>(Basic.EasyAccessPathFindMode.NotSupported);
@@ -1402,7 +1402,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract partial class FileSystem : AsyncService
+    public abstract partial class FileSystem : AsyncService
     {
         public DirectoryWalker DirectoryWalker { get; }
         public PathParser PathParser { get; }

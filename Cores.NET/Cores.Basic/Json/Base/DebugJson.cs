@@ -38,12 +38,12 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class Dbg
+    public static partial class Dbg
     {
         public static void Report(string name, object obj) => Report(name, obj._ObjectToJson(compact: true));
     }
 
-    partial class GlobalIntervalReporter
+    public partial class GlobalIntervalReporter
     {
         public void Report(string name, object obj)
             => Report(name, obj._ObjectToJson(compact: true));

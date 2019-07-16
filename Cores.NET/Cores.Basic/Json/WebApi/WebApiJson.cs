@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    partial class WebRet
+    public partial class WebRet
     {
         dynamic jsonDynamic = null;
         public dynamic JsonDynamic
@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
         public string NormalizedJsonStr => this.Data._GetString_UTF8()._JsonNormalize();
     }
 
-    partial class WebApi
+    public partial class WebApi
     {
         public int? Json_MaxDepth { get; set; } = Json.DefaultMaxDepth;
 

@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class RichJsonHiveSerializerOptions : HiveSerializerOptions
+    public class RichJsonHiveSerializerOptions : HiveSerializerOptions
     {
         public const int DefaultMaxDepth = 12;
         public JsonSerializerSettings JsonSettings { get; }
@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RichJsonHiveSerializer : HiveSerializer
+    public class RichJsonHiveSerializer : HiveSerializer
     {
         public new RichJsonHiveSerializerOptions Options => (RichJsonHiveSerializerOptions)base.Options;
 
@@ -102,7 +102,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PersistentLocalCache<T> where T : class, new()
+    public class PersistentLocalCache<T> where T : class, new()
     {
         public TimeSpan LifeTime { get; }
         public bool IgnoreUpdateError { get; }

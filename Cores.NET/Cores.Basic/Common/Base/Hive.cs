@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class ConfigHiveOptions
         {
@@ -59,16 +59,16 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum HiveSerializerSelection
+    public enum HiveSerializerSelection
     {
         DefaultRuntimeJson = 0,
         RichJson = 1,
         Custom = int.MaxValue,
     }
 
-    abstract class HiveSerializerOptions { }
+    public abstract class HiveSerializerOptions { }
 
-    abstract class HiveSerializer
+    public abstract class HiveSerializer
     {
         public HiveSerializerOptions Options { get; }
 
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
         public T CloneData<T>(T obj) => Deserialize<T>(Serialize(obj));
     }
 
-    class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
+    public class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
     {
         public DataContractJsonSerializerSettings JsonSettings { get; }
 
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class RuntimeJsonHiveSerializer : HiveSerializer
+    public class RuntimeJsonHiveSerializer : HiveSerializer
     {
         public new RuntimeJsonHiveSerializerOptions Options => (RuntimeJsonHiveSerializerOptions)base.Options;
 
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class HiveStorageOptionsBase
+    public abstract class HiveStorageOptionsBase
     {
         public int MaxDataSize { get; }
 
@@ -135,7 +135,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class FileHiveStorageOptions : HiveStorageOptionsBase
+    public class FileHiveStorageOptions : HiveStorageOptionsBase
     {
         public bool SingleInstance { get; }
         public FileSystem FileSystem { get; }
@@ -162,7 +162,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class HiveStorageProvider : AsyncService
+    public abstract class HiveStorageProvider : AsyncService
     {
         public HiveStorageOptionsBase Options;
 
@@ -183,7 +183,7 @@ namespace IPA.Cores.Basic
             => this.RunCriticalProcessAsync(true, cancel, c => LoadImplAsync(dataName, c));
     }
 
-    class FileHiveStorageProvider : HiveStorageProvider
+    public class FileHiveStorageProvider : HiveStorageProvider
     {
         public new FileHiveStorageOptions Options => (FileHiveStorageOptions)base.Options;
 
@@ -394,7 +394,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class HiveOptions
+    public class HiveOptions
     {
         public const int MinSyncIntervalMsec = 2 * 1000;
 
@@ -426,7 +426,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Hive : AsyncServiceWithMainLoop
+    public class Hive : AsyncServiceWithMainLoop
     {
         // Static states and methods
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
@@ -673,7 +673,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum HiveSyncFlags
+    public enum HiveSyncFlags
     {
         None = 0,
         LoadFromFile = 1,
@@ -682,7 +682,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum HiveSyncPolicy
+    public enum HiveSyncPolicy
     {
         None = 0,
         ReadOnly = 1,
@@ -692,7 +692,7 @@ namespace IPA.Cores.Basic
         AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile,
     }
 
-    interface IHiveData
+    public interface IHiveData
     {
         HiveSyncPolicy Policy { get; }
         string DataName { get; }
@@ -702,12 +702,12 @@ namespace IPA.Cores.Basic
         Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default);
     }
 
-    interface INormalizable
+    public interface INormalizable
     {
         void Normalize();
     }
 
-    class HiveData<T> : IHiveData where T : class, new()
+    public class HiveData<T> : IHiveData where T : class, new()
     {
         public HiveSyncPolicy Policy { get; private set; }
         public string DataName { get; }
@@ -1065,7 +1065,7 @@ namespace IPA.Cores.Basic
 
     [Serializable]
     [DataContract]
-    class HiveKeyValue : INormalizable
+    public class HiveKeyValue : INormalizable
     {
         public HiveKeyValue() => Normalize();
 

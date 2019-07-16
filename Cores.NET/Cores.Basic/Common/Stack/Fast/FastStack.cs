@@ -45,9 +45,9 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    abstract class NetStackOptionsBase { }
+    public abstract class NetStackOptionsBase { }
 
-    abstract class NetStackBase : AsyncService
+    public abstract class NetStackBase : AsyncService
     {
         public NetStackOptionsBase Options { get; }
 
@@ -57,9 +57,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetAppStubOptionsBase : NetStackOptionsBase { }
+    public abstract class NetAppStubOptionsBase : NetStackOptionsBase { }
 
-    abstract class NetAppStubBase : NetStackBase
+    public abstract class NetAppStubBase : NetStackBase
     {
         protected PipePoint Lower { get; }
         protected AttachHandle LowerAttach { get; private set; }
@@ -85,9 +85,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetAppStubOptions : NetAppStubOptionsBase { }
+    public class NetAppStubOptions : NetAppStubOptionsBase { }
 
-    class NetAppStub : NetAppStubBase
+    public class NetAppStub : NetAppStubBase
     {
         public new NetAppStubOptions Options => (NetAppStubOptions)base.Options;
 
@@ -142,9 +142,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetProtocolOptionsBase : NetStackOptionsBase { }
+    public abstract class NetProtocolOptionsBase : NetStackOptionsBase { }
 
-    abstract class NetProtocolBase : NetStackBase
+    public abstract class NetProtocolBase : NetStackBase
     {
         protected PipePoint Upper { get; }
 
@@ -178,9 +178,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetBottomProtocolOptionsBase : NetProtocolOptionsBase { }
+    public abstract class NetBottomProtocolOptionsBase : NetProtocolOptionsBase { }
 
-    abstract class NetBottomProtocolStubBase : NetProtocolBase
+    public abstract class NetBottomProtocolStubBase : NetProtocolBase
     {
         public new NetBottomProtocolOptionsBase Options => (NetBottomProtocolOptionsBase)base.Options;
 
@@ -189,12 +189,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetTcpProtocolOptionsBase : NetBottomProtocolOptionsBase
+    public abstract class NetTcpProtocolOptionsBase : NetBottomProtocolOptionsBase
     {
         public NetDnsClientStub DnsClient { get; set; }
     }
 
-    abstract class NetTcpProtocolStubBase : NetBottomProtocolStubBase
+    public abstract class NetTcpProtocolStubBase : NetBottomProtocolStubBase
     {
         public const int DefaultTcpConnectTimeout = 15 * 1000;
 
@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetPalTcpProtocolOptions : NetTcpProtocolOptionsBase
+    public class NetPalTcpProtocolOptions : NetTcpProtocolOptionsBase
     {
         public NetPalTcpProtocolOptions()
         {
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetPalTcpProtocolStub : NetTcpProtocolStubBase
+    public class NetPalTcpProtocolStub : NetTcpProtocolStubBase
     {
         public class LayerInfo : LayerInfoBase, ILayerInfoTcpEndPoint
         {
@@ -387,7 +387,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetSock : AsyncService
+    public abstract class NetSock : AsyncService
     {
         NetAppStub AppStub = null;
 
@@ -472,7 +472,7 @@ namespace IPA.Cores.Basic
         public AttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
     }
 
-    class ConnSock : NetSock
+    public class ConnSock : NetSock
     {
         public LogDefIPEndPoints EndPointInfo { get; }
 
@@ -509,9 +509,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetDnsClientOptions : NetStackOptionsBase { }
+    public class NetDnsClientOptions : NetStackOptionsBase { }
 
-    abstract class NetDnsClientStub : NetStackBase
+    public abstract class NetDnsClientStub : NetStackBase
     {
         public const int DefaultDnsResolveTimeout = 5 * 1000;
 
@@ -523,7 +523,7 @@ namespace IPA.Cores.Basic
             int timeout = DefaultDnsResolveTimeout);
     }
 
-    class NetPalDnsClient : NetDnsClientStub
+    public class NetPalDnsClient : NetDnsClientStub
     {
         public static NetPalDnsClient Shared { get; private set; }
 
@@ -564,7 +564,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetMiddleProtocolOptionsBase : NetProtocolOptionsBase
+    public abstract class NetMiddleProtocolOptionsBase : NetProtocolOptionsBase
     {
         public int LowerReceiveTimeoutOnInit { get; set; } = 5 * 1000;
         public int LowerSendTimeoutOnInit { get; set; } = 60 * 1000;
@@ -573,7 +573,7 @@ namespace IPA.Cores.Basic
         public int LowerSendTimeoutAfterInit { get; set; } = Timeout.Infinite;
     }
 
-    abstract class NetMiddleProtocolStackBase : NetProtocolBase
+    public abstract class NetMiddleProtocolStackBase : NetProtocolBase
     {
         protected PipePoint Lower { get; }
 
@@ -604,9 +604,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class NetSslProtocolOptions : NetMiddleProtocolOptionsBase { }
+    public class NetSslProtocolOptions : NetMiddleProtocolOptionsBase { }
 
-    class NetSslProtocolStack : NetMiddleProtocolStackBase
+    public class NetSslProtocolStack : NetMiddleProtocolStackBase
     {
         public class LayerInfo : LayerInfoBase, ILayerInfoSsl
         {
@@ -754,22 +754,22 @@ namespace IPA.Cores.Basic
         }
     }
 
-    enum IPVersion
+    public enum IPVersion
     {
         IPv4 = 0,
         IPv6 = 1,
     }
 
-    enum ListenStatus
+    public enum ListenStatus
     {
         Trying,
         Listening,
         Stopped,
     }
 
-    delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerPort listener, ConnSock newSock);
+    public delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerPort listener, ConnSock newSock);
 
-    class NetTcpListenerPort
+    public class NetTcpListenerPort
     {
         public IPVersion IPVersion { get; }
         public IPAddress IPAddress { get; }
@@ -899,7 +899,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class NetTcpListener : AsyncService
+    public abstract class NetTcpListener : AsyncService
     {
         readonly CriticalSection LockObj = new CriticalSection();
 
@@ -1080,7 +1080,7 @@ namespace IPA.Cores.Basic
         protected override void DisposeImpl(Exception ex) { }
     }
 
-    class NetPalTcpListener : NetTcpListener
+    public class NetPalTcpListener : NetTcpListener
     {
         public NetPalTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
 

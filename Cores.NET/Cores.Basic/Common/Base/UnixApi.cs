@@ -69,7 +69,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static class UnixApi
+    public static class UnixApi
     {
         static class Libraries
         {

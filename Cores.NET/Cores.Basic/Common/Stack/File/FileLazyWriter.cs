@@ -46,7 +46,7 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class LazyWriteBufferSettings
         {
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LazyBufferFileEmitterOptions : LazyBufferEmitterOptionsBase
+    public class LazyBufferFileEmitterOptions : LazyBufferEmitterOptionsBase
     {
         public FilePath FilePath { get; }
         public bool AppendMode { get; }
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class LazyBufferEmitterOptionsBase
+    public abstract class LazyBufferEmitterOptionsBase
     {
         public int DefragmentWriteBlockSize { get; }
         public int Delay { get; }
@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LazyBufferFileEmitter : LazyBufferEmitterBase
+    public class LazyBufferFileEmitter : LazyBufferEmitterBase
     {
         public new LazyBufferFileEmitterOptions Options => (LazyBufferFileEmitterOptions)base.Options;
 
@@ -163,7 +163,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class LazyBufferEmitterBase
+    public abstract class LazyBufferEmitterBase
     {
         public LazyBufferEmitterOptionsBase Options { get; }
 
@@ -177,7 +177,7 @@ namespace IPA.Cores.Basic
         public abstract Task CloseAsync();
     }
 
-    class LazyBufferOptions
+    public class LazyBufferOptions
     {
         public int BufferSize { get; }
         public FastStreamNonStopWriteMode OverflowBehavior { get; }
@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class LazyBuffer : AsyncServiceWithMainLoop
+    public class LazyBuffer : AsyncServiceWithMainLoop
     {
         public LazyBufferOptions Options { get; }
 

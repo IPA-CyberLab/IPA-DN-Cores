@@ -42,7 +42,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class MailUser : IComparable<MailUser>
+    public class MailUser : IComparable<MailUser>
     {
         public string MailAddress;
         public string Company;
@@ -163,7 +163,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MailUserList
+    public class MailUserList
     {
         public readonly List<MailUser> UserList = new List<MailUser>();
 
@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MailItem : IComparable<MailItem>
+    public class MailItem : IComparable<MailItem>
     {
         public string From;
         public MailUser DestMailUser;
@@ -369,7 +369,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MailUtilResourceFile
+    public class MailUtilResourceFile
     {
         public readonly byte[] Data;
         public readonly string Id;
@@ -383,7 +383,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class MailUtilAttachedFile
+    public class MailUtilAttachedFile
     {
         public readonly byte[] Data;
         public readonly string Filename;
@@ -397,7 +397,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class MailUtil
+    public static class MailUtil
     {
         public static MailItem[] GenerateMailItemListToSend(string from, MailUserList destList, string subject, string body)
         {

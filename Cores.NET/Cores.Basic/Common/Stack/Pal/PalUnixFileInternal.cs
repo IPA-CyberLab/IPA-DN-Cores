@@ -43,41 +43,42 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-static partial class UnixPathInternal
+namespace IPA.Cores.Basic
 {
-    public static bool IsValidPathChars(string path)
+    public static partial class UnixPathInternal
     {
-        if (path == null || path == "") return false;
+        public static bool IsValidPathChars(string path)
+        {
+            if (path == null || path == "") return false;
 
-        if (path.IndexOfAny(InvalidPathChars) != -1)
-            return false;
+            if (path.IndexOfAny(InvalidPathChars) != -1)
+                return false;
 
-        return true;
-    }
+            return true;
+        }
 
-    public static bool IsValidFileNameChars(string filename)
-    {
-        if (filename == null || filename == "") return false;
+        public static bool IsValidFileNameChars(string filename)
+        {
+            if (filename == null || filename == "") return false;
 
-        if (filename.IndexOfAny(InvalidFileNameChars) != -1)
-            return false;
+            if (filename.IndexOfAny(InvalidFileNameChars) != -1)
+                return false;
 
-        return true;
-    }
+            return true;
+        }
 
-    public static char[] GetInvalidFileNameChars() => (char[])InvalidFileNameChars.Clone();
-    public static char[] GetInvalidPathChars() => (char[])InvalidPathChars.Clone();
+        public static char[] GetInvalidFileNameChars() => (char[])InvalidFileNameChars.Clone();
+        public static char[] GetInvalidPathChars() => (char[])InvalidPathChars.Clone();
 
-    static readonly char[] InvalidFileNameChars = new char[]
-    {
+        static readonly char[] InvalidFileNameChars = new char[]
+        {
         '\0',
         '/'
-    };
+        };
 
-    static readonly char[] InvalidPathChars = new char[]
-    {
+        static readonly char[] InvalidPathChars = new char[]
+        {
         '\0',
-    };
+        };
+    }
 }
-
-

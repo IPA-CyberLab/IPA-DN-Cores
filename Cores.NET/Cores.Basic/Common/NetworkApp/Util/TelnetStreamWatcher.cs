@@ -47,7 +47,7 @@ using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
-    class TelnetStreamWatcherOptions
+    public class TelnetStreamWatcherOptions
     {
         public TcpIpSystem TcpIp { get; }
         public Func<IPAddress, bool> IPAccessFilter { get; }
@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    abstract class TelnetStreamWatcherBase : AsyncService
+    public abstract class TelnetStreamWatcherBase : AsyncService
     {
         public TelnetStreamWatcherOptions Options { get; }
 
@@ -129,7 +129,7 @@ namespace IPA.Cores.Basic
 
     [Serializable]
     [DataContract]
-    class TelnetLocalLogWatcherConfig : INormalizable
+    public class TelnetLocalLogWatcherConfig : INormalizable
     {
         [DataMember]
         public string Filters;
@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class TelnetLocalLogWatcher : TelnetStreamWatcherBase
+    public class TelnetLocalLogWatcher : TelnetStreamWatcherBase
     {
         public readonly static StaticModule Module = new StaticModule(InitModule, FreeModule);
         static Singleton<HiveData<TelnetLocalLogWatcherConfig>> _ConfigSingleton;

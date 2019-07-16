@@ -53,7 +53,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic.Legacy
 {
-    class CsvTimeSpan
+    public class CsvTimeSpan
     {
         public DateTime StartDateTime;
         public DateTime EndDateTime;
@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    class Csv
+    public class Csv
     {
         List<CsvEntry> entryList;
         Encoding encoding;
@@ -352,9 +352,9 @@ namespace IPA.Cores.Basic.Legacy
         }
     }
 
-    delegate int CsvCompare(object o1, object o2);
+    public delegate int CsvCompare(object o1, object o2);
 
-    class CsvEntry
+    public class CsvEntry
     {
         List<string> strings;
 

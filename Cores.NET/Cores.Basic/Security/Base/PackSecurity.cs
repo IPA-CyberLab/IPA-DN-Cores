@@ -39,7 +39,7 @@ using IPA.Cores.Basic.Legacy;
 
 namespace IPA.Cores.Basic
 {
-    partial class Pack
+    public partial class Pack
     {
         public void AddCert(string name, Cert cert)
         {

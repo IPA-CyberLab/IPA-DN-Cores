@@ -48,7 +48,7 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    static partial class CoresConfig
+    public static partial class CoresConfig
     {
         public static partial class PCapSettings
         {
@@ -57,7 +57,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PCapBlockType : uint
+    public enum PCapBlockType : uint
     {
         SectionHeader = 0x0A0D0D0A,
         InterfaceDescription = 0x00000001,
@@ -65,14 +65,14 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    enum PCapLinkType : ushort
+    public enum PCapLinkType : ushort
     {
         Loopback = 0,
         Ethernet = 1,
     }
 
     [Flags]
-    enum PCapOptionCode : ushort
+    public enum PCapOptionCode : ushort
     {
         EndOfOption = 0,
         Comment = 1,
@@ -83,21 +83,21 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapOptionHeader
+    public unsafe struct PCapOptionHeader
     {
         public PCapOptionCode OptionCode;
         public ushort OptionLength;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapGenericBlock
+    public unsafe struct PCapGenericBlock
     {
         public PCapBlockType BlockType;
         public int BlockTotalLength;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapSectionHeaderBlock
+    public unsafe struct PCapSectionHeaderBlock
     {
         public PCapBlockType BlockType;
         public int BlockTotalLength;
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapInterfaceDescriptionBlock
+    public unsafe struct PCapInterfaceDescriptionBlock
     {
         public PCapBlockType BlockType;
         public int BlockTotalLength;
@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    unsafe struct PCapEnhancedPacketBlock
+    public unsafe struct PCapEnhancedPacketBlock
     {
         public PCapBlockType BlockType;
         public int BlockTotalLength;
@@ -129,12 +129,12 @@ namespace IPA.Cores.Basic
         public int OriginalPacketLength;
     }
 
-    static partial class PacketSizeSets
+    public static partial class PacketSizeSets
     {
         public static readonly PacketSizeSet PcapNgPacket = new PacketSizeSet(Unsafe.SizeOf<PCapEnhancedPacketBlock>(), 4 + 6 /* size + padding * 2 */ );
     }
 
-    class PCapFileEmitterOptions : LazyBufferFileEmitterOptions
+    public class PCapFileEmitterOptions : LazyBufferFileEmitterOptions
     {
         public PCapFileEmitterOptions(FilePath filePath, bool appendMode = true, int delay = 0, int defragmentWriteBlockSize = 0)
             : base(filePath, appendMode, delay, defragmentWriteBlockSize, PCapUtil.StandardPCapNgHeader)
@@ -142,14 +142,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PCapFileEmitter : LazyBufferFileEmitter
+    public class PCapFileEmitter : LazyBufferFileEmitter
     {
         public PCapFileEmitter(PCapFileEmitterOptions options) : base(options)
         {
         }
     }
 
-    class PCapBuffer : LazyBuffer
+    public class PCapBuffer : LazyBuffer
     {
         public PCapBuffer(PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(initialEmitter, new LazyBufferOptions(discardMode, bufferSize._DefaultSize(CoresConfig.PCapSettings.DefaultBufferSize)), cancel)
@@ -186,7 +186,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PCapPacketRecorder : PCapBuffer
+    public class PCapPacketRecorder : PCapBuffer
     {
         DatagramExchange Exchange;
         DatagramExchangePoint MyPoint;
@@ -273,7 +273,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PCapPipePointStreamRecorder : PCapPacketRecorder
+    public class PCapPipePointStreamRecorder : PCapPacketRecorder
     {
         PipePoint TargetPoint;
         readonly IDisposable EventRegister_Send;
@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class PCapConnSockRecorder : PCapPipePointStreamRecorder
+    public class PCapConnSockRecorder : PCapPipePointStreamRecorder
     {
         public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(targetSock.UpperPoint, GetTcpPseudoPacketGeneratorOptions(targetSock), initialEmitter, bufferSize, discardMode, cancel)
@@ -387,7 +387,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    static class PCapUtil
+    public static class PCapUtil
     {
         public const int ByteOrderMagic = 0x1A2B3C4D;
 

@@ -40,7 +40,7 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // 値
-    class PackValue : IComparable
+    public class PackValue : IComparable
     {
         uint index;             // インデックス
         public uint Index
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
     }
 
     // 要素の型
-    enum PackValueType
+    public enum PackValueType
     {
         Int = 0,                // 整数型
         Data = 1,               // データ型
@@ -205,7 +205,7 @@ namespace IPA.Cores.Basic
     }
 
     // 要素
-    class PackElement : IComparable
+    public class PackElement : IComparable
     {
         string name;            // 要素名
         PackValueType type;         // 型
@@ -345,7 +345,7 @@ namespace IPA.Cores.Basic
     }
 
     // Pack の値
-    class PackValueAccessor
+    public class PackValueAccessor
     {
         public string StrValue = null;
         public string UniStrValue = null;
@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
     }
 
     // Pack
-    partial class Pack
+    public partial class Pack
     {
         List<PackElement> elements; // 要素リスト
         bool elementsSorted;

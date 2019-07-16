@@ -47,7 +47,7 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
-    class VfsResourceFile : VfsRandomAccessFile
+    public class VfsResourceFile : VfsRandomAccessFile
     {
         protected new ResourceFileSystem FileSystem => (ResourceFileSystem)base.FileSystem;
         readonly Assembly Assembly;
@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ResourceFileSystemParam : VirtualFileSystemParams
+    public class ResourceFileSystemParam : VirtualFileSystemParams
     {
         public Assembly Assembly { get; }
 
@@ -75,7 +75,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class ResourceFileSystem : VirtualFileSystem
+    public class ResourceFileSystem : VirtualFileSystem
     {
         public static Singleton<Assembly, ResourceFileSystem> Singleton { get; private set; }
 

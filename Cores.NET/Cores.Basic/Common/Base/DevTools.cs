@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    static partial class DevTools
+    public static partial class DevTools
     {
         public static void WriteToFile(string path, string bodyString, Encoding encoding = null, bool writeBom = false, bool noDebug = false)
         {

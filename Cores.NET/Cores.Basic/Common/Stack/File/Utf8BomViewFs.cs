@@ -45,7 +45,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    class Utf8BomViewFileObject : ViewFileObject
+    public class Utf8BomViewFileObject : ViewFileObject
     {
         public bool HasBom { get; private set; } = false;
         public long HeaderOffset { get; private set; } = 0;
@@ -144,12 +144,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    class Utf8BomViewFileSystemParam : ViewFileSystemParams
+    public class Utf8BomViewFileSystemParam : ViewFileSystemParams
     {
         public Utf8BomViewFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default) : base(underlayFileSystem, underlayFileSystem.PathParser, mode) { }
     }
 
-    class Utf8BomViewFileSystem : ViewFileSystem
+    public class Utf8BomViewFileSystem : ViewFileSystem
     {
         public static readonly ReadOnlyMemory<byte> Utf8Bom = Str.BOM_UTF_8;
 
