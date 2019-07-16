@@ -70,9 +70,9 @@ namespace IPA.Cores.Basic
             string url;
 
             if (ver == IPVersion.IPv4)
-                url = Consts.Addresses.GetMyIpUrl_IPv4;
+                url = Consts.Urls.GetMyIpUrl_IPv4;
             else
-                url = Consts.Addresses.GetMyIpUrl_IPv6;
+                url = Consts.Urls.GetMyIpUrl_IPv6;
 
             Exception error = null;
 

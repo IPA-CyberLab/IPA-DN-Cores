@@ -239,9 +239,12 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
                 MessageListResponse response = ret.Deserialize<MessageListResponse>();
 
-                foreach (var msg in response.messages)
+                if (response.messages != null)
                 {
-                    o.Add(msg);
+                    foreach (var msg in response.messages)
+                    {
+                        o.Add(msg);
+                    }
                 }
 
                 if (o.Count >= maxCount) break;

@@ -46,6 +46,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -5496,6 +5497,12 @@ namespace IPA.Cores.Basic
                         }
                     }
                 }
+
+                if (IPAddress.TryParse(fqdn, out _))
+                {
+                    return false;
+                }
+
                 return true;
             }
             catch

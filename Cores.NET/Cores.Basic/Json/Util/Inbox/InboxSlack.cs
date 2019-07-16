@@ -247,6 +247,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        int numReload = 0;
+
         async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string> targetChannelIDs, CancellationToken cancel)
         {
             try
@@ -324,17 +326,19 @@ namespace IPA.Cores.Basic
                             {
                                 Id = this.Guid + "_" + message.ts.ToString(),
 
-                                Service = TeamInfo.name,
-                                ServiceImage = TeamInfo.icon?.image_132 ?? "",
+                                Service = TeamInfo.name._DecodeHtml(),
+                                FromImage = TeamInfo.icon?.image_132 ?? "",
 
-                                From = user?.profile?.real_name ?? "Unknown User",
-                                FromImage = user?.profile?.image_512 ?? "",
+                                From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
+                                ServiceImage = user?.profile?.image_512 ?? "",
 
                                 Group = group_name,
 
-                                Body = message.text,
+                                Body = message.text._DecodeHtml(),
                                 Timestamp = message.ts._ToDateTimeOfSlack(),
                             };
+
+                            m.Subject = group_name._DecodeHtml();
 
                             if (message.upload)
                             {
@@ -352,6 +356,13 @@ namespace IPA.Cores.Basic
                 };
 
                 ClearLastError();
+
+                if (numReload == 0)
+                {
+                    ret.IsFirst = true;
+                }
+
+                numReload++;
 
                 return ret;
             }

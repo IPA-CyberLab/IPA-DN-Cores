@@ -150,6 +150,8 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<string, GoogleApi.Message> MessageCache = new Dictionary<string, GoogleApi.Message>(StrComparer.IgnoreCaseComparer);
 
+        int numReload = 0;
+
         async Task<InboxMessageBox> ReloadInternalAsync(CancellationToken cancel)
         {
             GoogleApi.MessageList[] list = await Api.GmailListMessagesAsync("is:unread label:inbox", this.Inbox.Options.MaxMessagesPerAdapter, cancel);
@@ -188,14 +190,14 @@ namespace IPA.Cores.Basic
             {
                 var m = new InboxMessage
                 {
-                    From = msg.GetFrom(),
-                    FromImage = "",
+                    From = msg.GetFrom()._DecodeHtml(),
+                    FromImage = Consts.CdnUrls.GmailIcon,
                     Group = "Inbox",
                     Id = this.Guid + "_" + msg.id,
                     Service = currentProfile.emailAddress,
-                    ServiceImage = "",
-                    Subject = msg.GetSubject(),
-                    Body = msg.snippet,
+                    ServiceImage = Consts.CdnUrls.GmailIcon,
+                    Subject = msg.GetSubject()._DecodeHtml(),
+                    Body = msg.snippet._DecodeHtml(),
                     Timestamp = msg.internalDate._ToDateTimeOfGoogle(),
                 };
 
@@ -203,6 +205,13 @@ namespace IPA.Cores.Basic
             }
 
             box.MessageList = msgList2.ToArray();
+
+            if (numReload == 0)
+            {
+                box.IsFirst = true;
+            }
+
+            numReload++;
 
             return box;
         }

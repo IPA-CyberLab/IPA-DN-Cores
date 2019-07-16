@@ -54,6 +54,10 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<int> DefaultMaxMessagesPerAdapter = 100;
             public static readonly Copenhagen<int> DefaultMaxMessagesTotal = 1000;
+
+            public static readonly Copenhagen<int> MaxFromLen = 60;
+            public static readonly Copenhagen<int> MaxSubjectLen = 80;
+            public static readonly Copenhagen<int> MaxBodyLen = 400;
         }
     }
 
@@ -66,11 +70,29 @@ namespace IPA.Cores.Basic
         public string Service;
         public string ServiceImage;
         public string Group;
-        public string From;
         public string FromImage;
-        public string Subject;
-        public string Body;
+
+        private string from;
+        private string subject;
+        private string body;
+
         public DateTimeOffset Timestamp;
+        public DateTimeOffset? FirstSeen;
+
+        public string From { get => Safe(from, CoresConfig.InboxSettings.MaxFromLen); set => from = value; }
+        public string Subject { get => Safe(subject, CoresConfig.InboxSettings.MaxSubjectLen); set => subject = value; }
+        public string Body { get => Safe(body, CoresConfig.InboxSettings.MaxBodyLen); set => body = value; }
+
+        static string Safe(string src, int maxLen)
+        {
+            src = src._NonNullTrim();
+
+            src = src._OneLine(" ")._TruncStrEx(maxLen);
+
+            src = src._NormalizeSoftEther(true);
+
+            return src;
+        }
     }
 
 #if  CORES_PUBLIC
@@ -81,6 +103,8 @@ namespace IPA.Cores.Basic
         public InboxMessage[] MessageList = new InboxMessage[0];
 
         public ulong Version;
+
+        public bool IsFirst;
 
         public ulong CalcVersion()
         {
@@ -103,6 +127,10 @@ namespace IPA.Cores.Basic
 
         readonly InboxAdapterFactory Factory;
 
+        readonly CriticalSection FirstSeenTableLock = new CriticalSection();
+
+        readonly Dictionary<string, DateTimeOffset> FirstSeenTable = new Dictionary<string, DateTimeOffset>();
+
         public Inbox(InboxOptions options = null)
         {
             this.Options = options ?? new InboxOptions();
@@ -117,23 +145,46 @@ namespace IPA.Cores.Basic
             InboxAdapter[] adaptersList = this.EnumAdapters();
 
             List<InboxMessage> msgList = new List<InboxMessage>();
-
+            
+            DateTimeOffset now = DateTimeOffset.Now;
+            
             foreach (InboxAdapter a in adaptersList)
             {
                 InboxMessageBox box = a.MessageBox;
 
                 if (box != null && box.MessageList != null)
                 {
-                    foreach (InboxMessage m in box.MessageList)
+                    lock (FirstSeenTableLock)
                     {
-                        msgList.Add(m);
+                        foreach (InboxMessage m in box.MessageList)
+                        {
+                            if (m.FirstSeen == null)
+                            {
+                                m.FirstSeen = m.Timestamp;
+
+                                if (FirstSeenTable.ContainsKey(m.Id) == false)
+                                {
+                                    if (box.IsFirst == false)
+                                    {
+                                        m.FirstSeen = now;
+                                    }
+                                    FirstSeenTable[m.Id] = m.FirstSeen.Value;
+                                }
+                                else
+                                {
+                                    m.FirstSeen = FirstSeenTable[m.Id];
+                                }
+                            }
+
+                            msgList.Add(m);
+                        }
                     }
                 }
             }
 
             InboxMessageBox ret = new InboxMessageBox();
 
-            ret.MessageList = msgList.OrderByDescending(x => x.Timestamp).Take(this.Options.MaxMessagesTotal).ToArray();
+            ret.MessageList = msgList.OrderByDescending(x => x.FirstSeen).ThenByDescending(x => x.Timestamp).Take(this.Options.MaxMessagesTotal).ToArray();
 
             ret.CalcVersion();
 
@@ -310,7 +361,7 @@ namespace IPA.Cores.Basic
         protected abstract void StartImpl(InboxAdapterUserCredential credential);
 
         protected abstract Task MainLoopImplAsync(CancellationToken cancel);
-        
+
         async Task MainLoopAsync(CancellationToken cancel)
         {
             while (true)
