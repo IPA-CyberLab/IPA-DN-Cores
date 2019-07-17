@@ -401,7 +401,7 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider { get; }
         public bool IsPollingEnabled { get; }
 
-        public Copenhagen<int> SyncIntervalMsec { get; } = CoresConfig.DefaultHiveOptions.SyncIntervalMsec;
+        public Copenhagen<int> SyncIntervalMsec { get; } = new Copenhagen<int>(CoresConfig.DefaultHiveOptions.SyncIntervalMsec);
 
         public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false, bool globalLock = false)
             : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore, globalLock: globalLock)), enableManagedSync, syncInterval) { }

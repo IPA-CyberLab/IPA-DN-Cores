@@ -3161,7 +3161,10 @@ namespace IPA.Cores.Basic
                     {
                         action();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
                 }
 
                 ActionListAfterInit.Clear();
