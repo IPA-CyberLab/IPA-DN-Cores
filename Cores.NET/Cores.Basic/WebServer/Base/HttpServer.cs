@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
 
                             Hive.LocalAppSettingsEx["WebServer"].AccessData(false, k2 =>
                             {
-                                HttpServerSimpleBasicAuthDatabase db = k2.Get< HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
+                                HttpServerSimpleBasicAuthDatabase db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
 
                                 ok = db.Authenticate(username, password);
                             });
@@ -433,6 +433,14 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
+                bool isDevelopmentMode = false;
+
+                Hive.LocalAppSettingsEx["WebServer"].AccessData(true,
+                    k =>
+                    {
+                        isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
+                    });
+
                 Lfs.CreateDirectory(Options.WwwRoot);
                 Lfs.CreateDirectory(Options.ContentsRoot);
 
@@ -454,6 +462,8 @@ namespace IPA.Cores.Basic
 
                     var host = Options.GetWebHostBuilder<THttpServerBuilder>(param)
                         .UseConfiguration(iconf)
+                        .CaptureStartupErrors(true)
+                        .UseSetting("detailedErrors", isDevelopmentMode.ToString())
                         .Build();
 
                     HostTask = host.RunAsync(this.CancelWatcher.CancelToken);

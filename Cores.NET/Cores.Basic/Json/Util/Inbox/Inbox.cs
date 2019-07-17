@@ -127,11 +127,19 @@ namespace IPA.Cores.Basic
 
         public Inbox(InboxOptions options = null)
         {
-            this.Options = options ?? new InboxOptions();
+            try
+            {
+                this.Options = options ?? new InboxOptions();
 
-            this.StateChangeEventListener = new FastEventListenerList<Inbox, NonsenseEventType>();
+                this.StateChangeEventListener = new FastEventListenerList<Inbox, NonsenseEventType>();
 
-            this.Factory = new InboxAdapterFactory(this, this.Options);
+                this.Factory = new InboxAdapterFactory(this, this.Options);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         public InboxMessageBox GetMessageBox()
