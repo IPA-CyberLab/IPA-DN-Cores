@@ -1354,13 +1354,13 @@ namespace IPA.Cores.Basic
 
         CriticalSection LockObj = new CriticalSection();
 
-        public long Id { get; }
-        public string ObjectName { get; }
+        public long AsyncServiceId { get; }
+        public string AsyncServiceObjectName { get; }
 
         public AsyncService(CancellationToken cancel = default)
         {
-            this.Id = Interlocked.Increment(ref IdSeed);
-            this.ObjectName = this.ToString();
+            this.AsyncServiceId = Interlocked.Increment(ref IdSeed);
+            this.AsyncServiceObjectName = this.ToString();
 
             this.CancelWatcher = new CancelWatcher(cancel);
 

@@ -50,6 +50,7 @@ namespace IPA.Cores.Basic
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;
+
             public const int Http = 80;
             public const int Https = 443;
         }
@@ -107,5 +108,11 @@ namespace IPA.Cores.Basic
             public const string Slack_Client = "client";
             public const string Google_Gmail = "https://www.googleapis.com/auth/gmail.readonly";
         }
+    }
+
+    public partial class ProtocolKind
+    {
+        public const string Http = "http";
+        public const string Https = "https";
     }
 }

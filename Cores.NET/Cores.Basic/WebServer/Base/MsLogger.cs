@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
                 TranscationId = this.CurrentTransactionId,
                 EventId = eventId.Id,
                 Message = msg,
-                Data = state,
+                Data = msg._IsEmpty() ? state : default,
             };
             LocalLogRouter.PostAccessLog(obj, this.Provider.Tag);
 

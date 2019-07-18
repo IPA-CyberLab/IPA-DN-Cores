@@ -60,11 +60,6 @@ namespace IPA.Cores.Helper.Basic
         {
             Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
 
-            if (startupMode == DaemonStartupMode.ForegroundTestMode)
-            {
-                this.HttpOptions.DebugKestrelToConsole = true;
-            }
-
             this.HttpServerInstance = new HttpServer<TStartup>(this.HttpOptions);
 
             await Task.CompletedTask;

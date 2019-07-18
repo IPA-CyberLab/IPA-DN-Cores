@@ -2731,6 +2731,34 @@ namespace IPA.Cores.Basic
             n |= n >> 1; n |= n >> 2; n |= n >> 4; n |= n >> 8; n |= n >> 16;
             return (int)(n + 1);
         }
+
+        public static string NormalizeHttpProtocolString(string protocol)
+        {
+            if (protocol._IsSamei(ProtocolKind.Http))
+            {
+                return ProtocolKind.Http;
+            }
+            else if (protocol._IsSamei(ProtocolKind.Https))
+            {
+                return ProtocolKind.Https;
+            }
+
+            throw new ArgumentException(nameof(protocol));
+        }
+
+        public static int GetHttpProtocolDefaultPort(string protocol)
+        {
+            if (protocol._IsSamei(ProtocolKind.Http))
+            {
+                return Consts.Ports.Http;
+            }
+            else if (protocol._IsSamei(ProtocolKind.Https))
+            {
+                return Consts.Ports.Https;
+            }
+
+            throw new ArgumentException(nameof(protocol));
+        }
     }
 
 

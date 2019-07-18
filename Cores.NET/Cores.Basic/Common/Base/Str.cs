@@ -5463,6 +5463,37 @@ namespace IPA.Cores.Basic
         public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
         public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
 
+        public static string BuildHttpUrl(string protocol, string host, int port, string localPath)
+        {
+            protocol = Util.NormalizeHttpProtocolString(protocol);
+            int defaultPort = Util.GetHttpProtocolDefaultPort(protocol);
+
+            localPath = localPath._NonNull();
+
+            if (host._IsEmpty()) throw new ArgumentNullException(nameof(host));
+
+            if (port == 0) port = defaultPort;
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append(protocol);
+            sb.Append("://");
+            sb.Append(host);
+
+            if (defaultPort != port)
+            {
+                sb.Append(":");
+                sb.Append(port.ToString());
+            }
+
+            sb.Append("/");
+
+            if (localPath.StartsWith("/")) localPath = localPath.Substring(1);
+
+            sb.Append(localPath);
+
+            return sb.ToString();
+        }
+
         public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
         {
             if (url_string._IsEmpty()) throw new ApplicationException("url_string is empty.");
