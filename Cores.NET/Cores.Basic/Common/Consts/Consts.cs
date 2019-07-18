@@ -108,6 +108,11 @@ namespace IPA.Cores.Basic
             public const string Slack_Client = "client";
             public const string Google_Gmail = "https://www.googleapis.com/auth/gmail.readonly";
         }
+
+        public static partial class HtmlTarget
+        {
+            public const string Blank = "_blank";
+        }
     }
 
     public partial class ProtocolKind

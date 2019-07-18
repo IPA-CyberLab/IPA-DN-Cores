@@ -123,7 +123,7 @@ namespace IPA.Cores.Basic
         {
             using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
             {
-                SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, cancel);
+                SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, redirectUrl, cancel);
 
                 return new InboxAdapterUserCredential { AccessToken = token.access_token };
             }

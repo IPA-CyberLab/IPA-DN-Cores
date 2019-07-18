@@ -124,12 +124,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string team_id;
         }
 
-        public async Task<AccessToken> AuthGetAccessTokenAsync(string code, CancellationToken cancel = default)
+        public async Task<AccessToken> AuthGetAccessTokenAsync(string code, string redirectUrl, CancellationToken cancel = default)
         {
             WebRet ret = await this.SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/oauth.access", cancel,
                 null,
                 ("client_id", this.ClientId),
                 ("client_secret", this.ClientSecret),
+                ("redirect_uri", redirectUrl),
                 ("code", code));
 
             AccessToken a = ret.Deserialize<AccessToken>(true);

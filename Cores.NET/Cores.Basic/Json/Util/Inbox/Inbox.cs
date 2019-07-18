@@ -262,6 +262,13 @@ namespace IPA.Cores.Basic
                 base.DisposeImpl(ex);
             }
         }
+
+        public string GetProviderAddingAppHelpString(string providerName)
+        {
+            string tag = $"inbox_app_add_help_{providerName}.txt";
+
+            return CoresRes[tag].String;
+        }
     }
 
     public class InboxAdapterFactory
