@@ -154,10 +154,14 @@ namespace IPA.Cores.Basic
                             {
                                 ReadOnlyMemory<byte> recvData = await st.ReceiveAsync(cancel: cancel);
                                 //recvData._GetString_UTF8()._JsonNormalizeAndDebug();
-                                dynamic d = recvData._GetString_UTF8()._JsonToDynamic();
+                                dynamic json = recvData._GetString_UTF8()._JsonToDynamic();
 
-                                string channel = d.channel;
-                                string type = d.type;
+                                string realtimeStr = Json.SerializeDynamic(json);
+
+                                new { Workspace = this.AccountInfoStr, DataJson = realtimeStr }._PostData("slack_realtime_log");
+
+                                string channel = json.channel;
+                                string type = json.type;
 
                                 if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
                                 {

@@ -320,13 +320,15 @@ namespace IPA.Cores.Basic
         public TcpIpSystem TcpIp { get; }
         public int MaxMessagesPerAdapter { get; }
         public int MaxMessagesTotal { get; }
+        public bool RecordRealtimeTextLog { get; }
 
-        public InboxOptions(TcpIpSystem tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize)
+        public InboxOptions(TcpIpSystem tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize, bool recordRealtimeTextLog = false)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
             this.MaxMessagesPerAdapter = maxMessagesPerAdapter._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesPerAdapter);
             this.MaxMessagesTotal = maxMessagesTotal._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesTotal);
+            this.RecordRealtimeTextLog = recordRealtimeTextLog;
         }
     }
 
