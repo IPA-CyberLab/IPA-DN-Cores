@@ -215,14 +215,16 @@ namespace IPA.Cores.Basic
 
         public void DeleteAdapter(string guid)
         {
+            InboxAdapter adapter;
+
             lock (LockObj)
             {
-                InboxAdapter adapter = this.AdapterList.Where(x => x.Guid._IsSamei(guid)).Single();
-
-                adapter._DisposeSafe();
+                adapter = this.AdapterList.Where(x => x.Guid._IsSamei(guid)).Single();
 
                 this.AdapterList.Remove(adapter);
             }
+
+            adapter._DisposeSafe();
         }
 
         public void StartAdapter(string guid, InboxAdapterUserCredential userCredential)
