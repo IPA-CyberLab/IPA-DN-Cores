@@ -60,6 +60,55 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public static long _ToLongDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTime(dt.UtcDateTime);
         public static decimal _ToDecimalDateTimeOfSlack(this DateTimeOffset dt) => Util.DateTimeToUnixTimeDecimal(dt.UtcDateTime);
+
+        public static string _SlackExpandBodyUsername(this string src, SlackApi.User[] users)
+        {
+            if (users == null) return src;
+
+            ReadOnlySpan<char> span = src.AsSpan();
+
+            StringBuilder sb = new StringBuilder();
+
+            while (true)
+            {
+                int i = span.IndexOf("<@");
+                if (i == -1)
+                {
+                    sb.Append(span);
+                    break;
+                }
+
+                sb.Append(span.Slice(0, i));
+
+                span = span.Slice(i);
+
+                int j = span.IndexOf(">");
+                if (j == -1)
+                {
+                    sb.Append(span);
+                    break;
+                }
+
+                string tag = span.Slice(2, j - 2).ToString();
+
+                string username = users.Where(x => x.id._IsSamei(tag)).FirstOrDefault()?.profile?.real_name;
+
+                if (username._IsFilled())
+                {
+                    tag = " @" + username + " ";
+                }
+                else
+                {
+                    tag = span.Slice(0, j + 1).ToString();
+                }
+
+                sb.Append(tag);
+
+                span = span.Slice(j + 1);
+            }
+
+            return sb.ToString();
+        }
     }
 
     public class SlackApi : WebApi
@@ -248,6 +297,25 @@ namespace IPA.Cores.ClientApi.SlackApi
         public class HistoryResponse : SlackResponseBase
         {
             public Message[] messages;
+        }
+
+        public class UserePrefs
+        {
+            public string muted_channels;
+        }
+
+        public class UserePrefsResponse : SlackResponseBase
+        {
+            public UserePrefs prefs;
+        }
+
+        public async Task<string[]> GetMutedChannels(CancellationToken cancel = default)
+        {
+            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://slack.com/api/users.prefs.set", cancel, null);
+
+            var res = ret.Deserialize<UserePrefsResponse>(true);
+
+            return res.prefs.muted_channels.Split(',', StringSplitOptions.RemoveEmptyEntries);
         }
 
         public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)

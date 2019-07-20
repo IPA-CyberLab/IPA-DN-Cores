@@ -174,7 +174,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
                 ("redirect_uri", redirectUrl),
                 ("grant_type", "authorization_code"));
 
-            ret.NormalizedJsonStr._Debug();
+            //ret.NormalizedJsonStr._Debug();
 
             AccessToken a = ret.Deserialize<AccessToken>(true);
 

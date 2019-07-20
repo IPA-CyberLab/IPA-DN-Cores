@@ -161,4 +161,7 @@
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_slack.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_gmail.txt" />
+  </ItemGroup>
 </Project>

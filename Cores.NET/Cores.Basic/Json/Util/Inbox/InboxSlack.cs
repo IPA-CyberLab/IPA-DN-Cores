@@ -132,6 +132,7 @@ namespace IPA.Cores.Basic
         SlackApi.User[] UserList;
         SlackApi.Channel[] ConversationList;
         SlackApi.Team TeamInfo;
+        string[] MutedChannelList;
         Dictionary<string, SlackApi.Message[]> MessageListPerConversation = new Dictionary<string, SlackApi.Message[]>(StrComparer.IgnoreCaseComparer);
 
         readonly AsyncAutoResetEvent UpdateChannelsEvent = new AsyncAutoResetEvent();
@@ -275,6 +276,9 @@ namespace IPA.Cores.Basic
 
                     // Clear cache
                     this.MessageListPerConversation.Clear();
+
+                    // Muted channels list
+                    this.MutedChannelList = await Api.GetMutedChannels(cancel);
                 }
 
                 // Enum conversations
@@ -298,6 +302,11 @@ namespace IPA.Cores.Basic
                                 selected = true;
                             }
                         }
+
+                        if (MutedChannelList != null && MutedChannelList.Select(x => x._IsSamei(conv.id)).Any())
+                        {
+                            selected = false;
+                        }
                     }
 
                     if (selected)
@@ -311,7 +320,7 @@ namespace IPA.Cores.Basic
                         MessageListPerConversation[conv.id] = messages;
                     }
 
-                    if (conv.IsTarget())
+                    if (selected && conv.IsTarget())
                     {
                         foreach (SlackApi.Message message in MessageListPerConversation[conv.id])
                         {
@@ -349,6 +358,8 @@ namespace IPA.Cores.Basic
                             };
 
                             m.Subject = group_name._DecodeHtml();
+
+                            m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
 
                             if (message.upload)
                             {
