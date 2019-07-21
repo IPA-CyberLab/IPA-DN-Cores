@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
     public class InboxGmailAdapter : InboxAdapter
     {
-        public override string AdapterName => "Gmail";
+        public override string AdapterName => Consts.InboxProviderNames.Gmail;
 
         string currentAccountInfoStr = null;
 

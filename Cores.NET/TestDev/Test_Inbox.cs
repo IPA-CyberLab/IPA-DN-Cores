@@ -64,9 +64,11 @@ namespace IPA.TestDev
 
             //Inbox_SlackTestAsync()._GetResult();
 
-            //Inbox_SlackAdapterTestAsync()._GetResult();
+            //Inbox_SlackAdapterPerAppTestAsync()._GetResult();
 
-            Inbox_GoogleApiSimpleTestAsync()._GetResult();
+            Inbox_SlackAdapterPerUserTestAsync()._GetResult();
+
+            //Inbox_GoogleApiSimpleTestAsync()._GetResult();
 
             //Inbox_GeneticAdapterTestAsync()._GetResult();
 
@@ -127,7 +129,7 @@ namespace IPA.TestDev
         {
             using (Inbox inbox = new Inbox())
             {
-                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), "gmail", new InboxAdapterAppCredential
+                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Gmail, new InboxAdapterAppCredential
                 {
                     ClientId = "651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com",
                     ClientSecret = "_________________"
@@ -135,7 +137,7 @@ namespace IPA.TestDev
 
                 inbox.StartAdapter(gmailAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
 
-                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), "slack", new InboxAdapterAppCredential
+                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Slack_App, new InboxAdapterAppCredential
                 {
                     ClientId = "687264585408.675851234162",
                     ClientSecret = "_________________"
@@ -162,7 +164,7 @@ namespace IPA.TestDev
         {
             using (Inbox inbox = new Inbox())
             {
-                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), "gmail", new InboxAdapterAppCredential
+                InboxAdapter gmailAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Gmail, new InboxAdapterAppCredential
                 {
                     ClientId = "651284401399-d2bth85kk6rks1no1dllb3k0d6mrornt.apps.googleusercontent.com",
                     ClientSecret = "_________________"
@@ -183,11 +185,37 @@ namespace IPA.TestDev
             await Task.CompletedTask;
         }
 
-        static async Task Inbox_SlackAdapterTestAsync()
+        static async Task Inbox_SlackAdapterPerUserTestAsync()
         {
             using (Inbox inbox = new Inbox())
             {
-                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), "slack", new InboxAdapterAppCredential
+                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Slack_User, new InboxAdapterAppCredential
+                {
+                    ClientId = "",
+                    ClientSecret = "_________"
+                });
+
+                inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "" });
+
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                {
+                    var box = inbox.GetMessageBox();
+
+                    box._PrintAsJson();
+                });
+
+                Con.ReadLine();
+            }
+
+            await Task.CompletedTask;
+        }
+
+
+        static async Task Inbox_SlackAdapterPerAppTestAsync()
+        {
+            using (Inbox inbox = new Inbox())
+            {
+                InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Slack_App, new InboxAdapterAppCredential
                 {
                     ClientId = "687264585408.675851234162",
                     ClientSecret = "_________________"

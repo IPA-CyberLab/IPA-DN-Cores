@@ -287,9 +287,11 @@ namespace IPA.Cores.Basic
             this.Inbox = inbox;
             this.Options = options;
 
-            AddProvider("Slack", (guid, cred) => new InboxSlackAdapter(guid, this.Inbox, cred, this.Options));
+            AddProvider(Consts.InboxProviderNames.Slack_App, (guid, cred) => new InboxSlackPerAppAdapter(guid, this.Inbox, cred, this.Options));
 
-            AddProvider("Gmail", (guid, cred) => new InboxGmailAdapter(guid, this.Inbox, cred, this.Options));
+            AddProvider(Consts.InboxProviderNames.Slack_User, (guid, cred) => new InboxSlackPerUserAdapter(guid, this.Inbox, cred, this.Options));
+
+            AddProvider(Consts.InboxProviderNames.Gmail, (guid, cred) => new InboxGmailAdapter(guid, this.Inbox, cred, this.Options));
         }
 
         void AddProvider(string name, Func<string, InboxAdapterAppCredential, InboxAdapter> newFunction)

@@ -113,11 +113,18 @@ namespace IPA.Cores.Basic
         {
             public const string Blank = "_blank";
         }
-    }
 
-    public partial class ProtocolKind
-    {
-        public const string Http = "http";
-        public const string Https = "https";
+        public partial class InboxProviderNames
+        {
+            public const string Gmail = "Gmail";
+            public const string Slack_App = "Slack_as_Registered_App";
+            public const string Slack_User = "Slack_as_Per_User_Token";
+        }
+
+        public partial class HttpProtocolSchemes
+        {
+            public const string Http = "http";
+            public const string Https = "https";
+        }
     }
 }

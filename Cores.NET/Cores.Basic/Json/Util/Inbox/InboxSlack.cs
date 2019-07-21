@@ -56,22 +56,57 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class InboxSlackAdapter : InboxAdapter
+    public class InboxSlackPerUserAdapter : InboxSlackPerAppAdapter
     {
-        public override string AdapterName => "Slack";
+        public override string AdapterName => Consts.InboxProviderNames.Slack_User;
+
+        public InboxSlackPerUserAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null) : base(guid, inbox, appCredential, adapterOptions)
+        {
+        }
+
+        public override string AuthStartGetUrl(string redirectUrl, string state = "")
+        {
+            return "";
+        }
+
+        public override Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override void StartImpl(InboxAdapterUserCredential credential)
+        {
+            if (credential == null) throw new ArgumentNullException("credential");
+
+            if (Started.IsFirstCall())
+            {
+                this.UserCredential = credential;
+
+                this.Api = new SlackApi("", "", this.AppCredential.ClientSecret);
+            }
+            else
+            {
+                throw new ApplicationException("Already started.");
+            }
+        }
+    }
+
+    public class InboxSlackPerAppAdapter : InboxAdapter
+    {
+        public override string AdapterName => Consts.InboxProviderNames.Slack_App;
 
         string currentAccountInfoStr = null;
 
         public override string AccountInfoStr => currentAccountInfoStr;
 
-        SlackApi Api;
+        protected SlackApi Api;
 
-        public InboxSlackAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
+        public InboxSlackPerAppAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
             : base(guid, inbox, appCredential, adapterOptions)
         {
         }
 
-        Once Started;
+        protected Once Started;
 
         protected override void StartImpl(InboxAdapterUserCredential credential)
         {

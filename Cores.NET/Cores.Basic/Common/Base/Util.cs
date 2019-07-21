@@ -2734,13 +2734,13 @@ namespace IPA.Cores.Basic
 
         public static string NormalizeHttpProtocolString(string protocol)
         {
-            if (protocol._IsSamei(ProtocolKind.Http))
+            if (protocol._IsSamei(Consts.HttpProtocolSchemes.Http))
             {
-                return ProtocolKind.Http;
+                return Consts.HttpProtocolSchemes.Http;
             }
-            else if (protocol._IsSamei(ProtocolKind.Https))
+            else if (protocol._IsSamei(Consts.HttpProtocolSchemes.Https))
             {
-                return ProtocolKind.Https;
+                return Consts.HttpProtocolSchemes.Https;
             }
 
             throw new ArgumentException(nameof(protocol));
@@ -2748,11 +2748,11 @@ namespace IPA.Cores.Basic
 
         public static int GetHttpProtocolDefaultPort(string protocol)
         {
-            if (protocol._IsSamei(ProtocolKind.Http))
+            if (protocol._IsSamei(Consts.HttpProtocolSchemes.Http))
             {
                 return Consts.Ports.Http;
             }
-            else if (protocol._IsSamei(ProtocolKind.Https))
+            else if (protocol._IsSamei(Consts.HttpProtocolSchemes.Https))
             {
                 return Consts.Ports.Https;
             }
