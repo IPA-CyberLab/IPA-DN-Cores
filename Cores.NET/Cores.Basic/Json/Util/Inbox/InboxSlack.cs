@@ -154,27 +154,34 @@ namespace IPA.Cores.Basic
                             while (true)
                             {
                                 ReadOnlyMemory<byte> recvData = await st.ReceiveAsync(cancel: cancel);
-                                //recvData._GetString_UTF8()._JsonNormalizeAndDebug();
-                                dynamic json = recvData._GetString_UTF8()._JsonToDynamic();
 
-                                string realtimeStr = Json.SerializeDynamic(json);
-
-                                new { Workspace = this.AccountInfoStr, DataJson = realtimeStr }._PostData("slack_realtime_log");
-
-                                string channel = json.channel;
-                                string type = json.type;
-
-                                if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
+                                try
                                 {
-                                    if (channel._IsFilled())
-                                    {
-                                        lock (UpdateChannelsListLock)
-                                        {
-                                            UpdateChannelsList.Add(channel);
-                                        }
+                                    dynamic json = recvData._GetString_UTF8()._JsonToDynamic();
 
-                                        UpdateChannelsEvent.Set(true);
+                                    string realtimeStr = Json.SerializeDynamic(json);
+
+                                    new { Workspace = this.AccountInfoStr, DataJson = realtimeStr }._PostData("slack_realtime_log");
+
+                                    string channel = json.channel;
+                                    string type = json.type;
+
+                                    if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
+                                    {
+                                        if (channel._IsFilled())
+                                        {
+                                            lock (UpdateChannelsListLock)
+                                            {
+                                                UpdateChannelsList.Add(channel);
+                                            }
+
+                                            UpdateChannelsEvent.Set(true);
+                                        }
                                     }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Con.WriteDebug($"RealtimeRecvLoopAsync: Ignoring JSON Parse Error ({ex.Message}): '{recvData._GetString_UTF8()}'");
                                 }
                             }
                         }
@@ -303,7 +310,7 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        if (MutedChannelList != null && MutedChannelList.Select(x => x._IsSamei(conv.id)).Any())
+                        if (MutedChannelList != null && MutedChannelList.Where(x => x._IsSamei(conv.id)).Any())
                         {
                             selected = false;
                         }

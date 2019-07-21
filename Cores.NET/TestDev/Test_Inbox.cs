@@ -227,7 +227,7 @@ namespace IPA.TestDev
                     }
                     else
                     {
-                        var token = await slack.AuthGetAccessTokenAsync("_________________");
+                        var token = await slack.AuthGetAccessTokenAsync("_________________", null);
 
                         token._PrintAsJson();
                     }
