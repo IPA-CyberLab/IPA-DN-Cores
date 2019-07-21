@@ -63,6 +63,7 @@ namespace IPA.Cores.Basic
         string currentAccountInfoStr = null;
 
         public override string AccountInfoStr => currentAccountInfoStr;
+        public override bool IsStarted => this.Started.IsSet;
 
         GoogleApi Api;
 
@@ -135,7 +136,19 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            GoogleApi.GmailProfile profile = await Api.GmailGetProfileAsync(cancel);
+            GoogleApi.GmailProfile profile;
+
+            try
+            {
+                profile = await Api.GmailGetProfileAsync(cancel);
+
+                ClearLastError();
+            }
+            catch (Exception ex)
+            {
+                SetLastError(ex);
+                throw;
+            }
 
             currentProfile = profile;
 

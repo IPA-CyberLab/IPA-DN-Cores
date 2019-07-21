@@ -347,6 +347,7 @@ namespace IPA.Cores.Basic
         public InboxAdapterUserCredential UserCredential { get; protected set; }
 
         public abstract string AccountInfoStr { get; }
+        public abstract bool IsStarted { get; }
 
         public InboxMessageBox MessageBox { get; private set; }
 
@@ -393,7 +394,7 @@ namespace IPA.Cores.Basic
                 {
                     ex._Debug();
 
-                    await cancel._WaitUntilCanceledAsync(1000);
+                    await cancel._WaitUntilCanceledAsync(5000);
                 }
             }
         }

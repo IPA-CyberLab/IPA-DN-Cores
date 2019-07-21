@@ -99,6 +99,8 @@ namespace IPA.Cores.Basic
         string currentAccountInfoStr = null;
 
         public override string AccountInfoStr => currentAccountInfoStr;
+        public override bool IsStarted => this.Started.IsSet;
+
 
         protected SlackApi Api;
 
