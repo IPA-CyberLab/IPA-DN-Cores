@@ -83,7 +83,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
             this.ClientId = clientId;
             this.ClientSecret = clientSecret;
             this.RefreshTokenStr = refreshToken;
-            this.Json_MaxDepth = 32;
+            this.Json_MaxDepth = 128;
         }
 
         protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)
