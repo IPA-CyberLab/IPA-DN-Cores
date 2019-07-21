@@ -286,6 +286,7 @@ namespace IPA.Cores.ClientApi.SlackApi
         public class Message
         {
             public string type;
+            public string subtype;
             public string user;
             public string text;
             public bool upload;
@@ -307,6 +308,54 @@ namespace IPA.Cores.ClientApi.SlackApi
         public class UserePrefsResponse : SlackResponseBase
         {
             public UserePrefs prefs;
+        }
+
+        public override async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        {
+            int num_retry = 0;
+
+            LABEL_RETRY:
+
+            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
+            HttpRequestMessage r = CreateWebRequest(method, url, queryList);
+
+            if (method == WebMethods.POST || method == WebMethods.PUT)
+            {
+                string qs = BuildQueryString(queryList);
+
+                r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
+            }
+
+            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
+            {
+                if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    string retryAfter = res.Headers.GetValues("Retry-After").FirstOrDefault();
+                    if (retryAfter._IsFilled())
+                    {
+                        num_retry++;
+
+                        if (num_retry <= 5)
+                        {
+                            int interval = retryAfter._ToInt();
+
+                            interval = Math.Min(Math.Max(interval, 1), 300);
+
+                            int intervalMsecs = Util.GenRandInterval(interval * 1500);
+
+                            Con.WriteDebug($"Get TooManyRequests for '{url}'. Waiting for {intervalMsecs._ToString3()} msecs...");
+
+                            await cancel._WaitUntilCanceledAsync(intervalMsecs);
+
+                            goto LABEL_RETRY;
+                        }
+                    }
+                }
+
+                await ThrowIfErrorAsync(res);
+                byte[] data = await res.Content.ReadAsByteArrayAsync();
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+            }
         }
 
         public async Task<string[]> GetMutedChannels(CancellationToken cancel = default)
@@ -344,7 +393,11 @@ namespace IPA.Cores.ClientApi.SlackApi
 
                 foreach (Message m in data.messages)
                 {
-                    o.Add(m);
+                    if (m.type._IsSamei("message") && m.subtype.StartsWith("channel_", StringComparison.OrdinalIgnoreCase) == false)
+                    {
+                        // Add only message but except channel_join
+                        o.Add(m);
+                    }
                 }
 
                 nextCursor = data.response_metadata?.next_cursor;

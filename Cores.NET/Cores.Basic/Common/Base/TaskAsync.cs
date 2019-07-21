@@ -1070,6 +1070,62 @@ namespace IPA.Cores.Basic
             RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount);
             return await retry.RunAsync(proc, cancel: cancel);
         }
+
+        public static async Task ForEachAsync<T>(IEnumerable<T> targetList, Func<T, CancellationToken, Task> eachProc, int maxConcurrent = int.MaxValue, 
+            ForEachAsyncFlags flags = ForEachAsyncFlags.None, CancellationToken cancel = default)
+        {
+            maxConcurrent = Math.Max(maxConcurrent, 1);
+
+            CancellationTokenSource ctsOnError = new CancellationTokenSource();
+
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken combinedCancel, cancel, ctsOnError.Token))
+            {
+                using (SemaphoreSlim sem = new SemaphoreSlim(maxConcurrent, maxConcurrent))
+                {
+                    List<Task> taskList = new List<Task>();
+
+                    foreach (T t in targetList)
+                    {
+                        Task task = TaskUtil.StartAsyncTaskAsync(async (obj) =>
+                        {
+                            await sem.WaitAsync(combinedCancel);
+
+                            combinedCancel.ThrowIfCancellationRequested();
+
+                            try
+                            {
+                                await eachProc((T)obj, combinedCancel);
+                            }
+                            catch
+                            {
+                                if (flags.Bit(ForEachAsyncFlags.CancelAllIfOneFail))
+                                {
+                                    ctsOnError._TryCancelNoBlock();
+                                }
+                                throw;
+                            }
+                            finally
+                            {
+                                sem.Release();
+                            }
+                        }, t, false, false);
+
+                        taskList.Add(task);
+                    }
+
+                    Task ret = Task.WhenAll(taskList);
+
+                    await ret;
+                }
+            }
+        }
+    }
+
+    [Flags]
+    public enum ForEachAsyncFlags
+    {
+        None = 0,
+        CancelAllIfOneFail = 1,
     }
 
     public class AsyncCallbackList

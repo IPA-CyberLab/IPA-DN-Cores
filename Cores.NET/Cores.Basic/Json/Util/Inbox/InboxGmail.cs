@@ -145,9 +145,19 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                InboxMessageBox box = await ReloadInternalAsync(cancel);
+                try
+                {
+                    InboxMessageBox box = await ReloadInternalAsync(cancel);
 
-                MessageBoxUpdatedCallback(box);
+                    ClearLastError();
+
+                    MessageBoxUpdatedCallback(box);
+                }
+                catch (Exception ex)
+                {
+                    SetLastError(ex);
+                    throw;
+                }
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: cancel._SingleArray(),

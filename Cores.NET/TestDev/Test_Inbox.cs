@@ -192,7 +192,7 @@ namespace IPA.TestDev
                 InboxAdapter slackAdapter = inbox.AddAdapter(Str.NewGuid(), Consts.InboxProviderNames.Slack_User, new InboxAdapterAppCredential
                 {
                     ClientId = "",
-                    ClientSecret = "_________"
+                    ClientSecret = "____"
                 });
 
                 inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "" });

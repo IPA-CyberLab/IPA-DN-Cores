@@ -338,11 +338,15 @@ namespace IPA.Cores.Helper.Basic
 
         public static object _Print(this object o)
         {
+            if (o is Exception ex) o = o.ToString();
+
             Con.WriteLine(o);
             return o;
         }
         public static object _Debug(this object o)
         {
+            if (o is Exception ex) o = o.ToString();
+
             Dbg.WriteLine(o);
             return o;
         }

@@ -386,7 +386,7 @@ namespace IPA.Cores.Basic
             return requestMessage;
         }
 
-        public static async Task ThrowIfErrorAsync(HttpResponseMessage res)
+        public virtual async Task ThrowIfErrorAsync(HttpResponseMessage res)
         {
             if (res.IsSuccessStatusCode) return;
 
