@@ -87,9 +87,6 @@ namespace IPA.Cores.Basic
                 )]
             static int Daemon(ConsoleService c, string cmdName, string str)
             {
-                c.WriteLine($"Copyright (c) 2018-{DateTimeOffset.Now.Year} IPA CyberLab. All Rights Reserved.");
-                c.WriteLine("");
-
                 ConsoleParam[] args =
                 {
                     new ConsoleParam("IN", null, null, null, null),
