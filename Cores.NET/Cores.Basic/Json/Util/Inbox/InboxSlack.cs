@@ -419,13 +419,13 @@ namespace IPA.Cores.Basic
                             From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
                             ServiceImage = user?.profile?.image_512 ?? "",
 
-                            Group = group_name,
+                            Group = group_name._DecodeHtml(),
 
                             Body = message.text._DecodeHtml(),
                             Timestamp = message.ts._ToDateTimeOfSlack(),
                         };
 
-                        m.Subject = group_name._DecodeHtml();
+                        m.Subject = this.TeamInfo.name._DecodeHtml();
 
                         m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
 
