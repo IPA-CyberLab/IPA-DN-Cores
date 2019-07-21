@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic
             {
                 GoogleApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, redirectUrl, cancel);
 
-                return new InboxAdapterUserCredential { AccessToken = token.access_token };
+                return new InboxAdapterUserCredential { AccessToken = token.refresh_token };
             }
         }
 

@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
         string ExtensionList;
         public long TotalMinSize { get; }
 
-        public const int DefaultInterval = 60 * 1000;
+        public const int DefaultInterval = 60 * 60 * 1000;
         public int Interval { get; }
 
         public OldFileEraser(long totalMinSize, string[] dirs, string extensions = "*", int interval = DefaultInterval)
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         // 定期的に削除を実行するスレッド
         public async Task MainLoopAsync(CancellationToken cancel)
         {
-            while (await cancel._WaitUntilCanceledAsync(this.Interval) == false)
+            while (await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(this.Interval)) == false)
             {
                 ProcessNow(this.DirList, this.ExtensionList, this.TotalMinSize, cancel);
             }
