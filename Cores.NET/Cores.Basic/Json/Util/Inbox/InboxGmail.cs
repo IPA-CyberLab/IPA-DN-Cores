@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
                 {
                     From = msg.GetFrom()._DecodeHtml(),
                     FromImage = Consts.CdnUrls.GmailIcon,
-                    Group = "Inbox",
+                    Group = "",
                     Id = this.Guid + "_" + msg.id,
                     Service = currentProfile.emailAddress,
                     ServiceImage = Consts.CdnUrls.GmailIcon,
