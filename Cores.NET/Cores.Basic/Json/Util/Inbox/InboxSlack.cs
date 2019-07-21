@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
             this.ConversationList = await Api.GetConversationsListAsync(cancel);
 
             // Enum messages
-            await TaskUtil.ForEachAsync(ConversationList, async (conv, c) =>
+            foreach (var conv in ConversationList)
             {
                 bool selected = false;
 
@@ -370,10 +370,10 @@ namespace IPA.Cores.Basic
                 if (selected)
                 {
                     // Get the conversation info
-                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, c);
+                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
 
                     // Get unread messages
-                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: c);
+                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
 
                     lock (MessageListPerConversation)
                     {
@@ -437,10 +437,7 @@ namespace IPA.Cores.Basic
                         msgList.Add(m);
                     }
                 }
-            },
-            maxConcurrent: CoresConfig.InboxSlackAdapterSettings.MaxConcurrentTasks,
-            flags: ForEachAsyncFlags.CancelAllIfOneFail,
-            cancel: cancel);
+            }
 
             InboxMessageBox ret = new InboxMessageBox()
             {
