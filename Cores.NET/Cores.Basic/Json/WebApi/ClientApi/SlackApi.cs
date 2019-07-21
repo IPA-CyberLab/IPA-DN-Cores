@@ -140,6 +140,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             this.ClientId = clientId;
             this.ClientSecret = clientSecret;
             this.AccessTokenStr = accessToken;
+            this.Json_MaxDepth = 32;
         }
 
         protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)

@@ -190,14 +190,21 @@ namespace IPA.Cores.Basic
 
             foreach (GoogleApi.MessageList message in list)
             {
-                if (MessageCache.TryGetValue(message.id, out GoogleApi.Message m) == false)
+                try
                 {
-                    m = await Api.GmailGetMessageAsync(message.id, cancel);
+                    if (MessageCache.TryGetValue(message.id, out GoogleApi.Message m) == false)
+                    {
+                        m = await Api.GmailGetMessageAsync(message.id, cancel);
 
-                    MessageCache[message.id] = m;
+                        MessageCache[message.id] = m;
+                    }
+
+                    msgList.Add(m);
                 }
-
-                msgList.Add(m);
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
 
             // delete old cache
