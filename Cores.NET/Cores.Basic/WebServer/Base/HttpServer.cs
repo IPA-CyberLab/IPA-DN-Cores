@@ -144,6 +144,13 @@ namespace IPA.Cores.Basic
 
         public virtual void ConfigureServices(IServiceCollection services)
         {
+            if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
+            {
+                services.AddEnforceHttps(opt =>
+                {
+                });
+            }
+
             services.AddRouting();
 
             if (ServerOptions.UseSimpleBasicAuthentication)
@@ -189,6 +196,11 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
+            {
+                app.UseEnforceHttps();
+            }
+
             app.UseStatusCodePages();
             app.UseWebServerLogger();
 
@@ -297,6 +309,7 @@ namespace IPA.Cores.Basic
 
         public bool UseSimpleBasicAuthentication { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
+        public bool AutomaticRedirectToHttpsIfPossible { get; set; } = true;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
