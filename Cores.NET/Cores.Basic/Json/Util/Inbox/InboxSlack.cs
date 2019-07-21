@@ -345,29 +345,29 @@ namespace IPA.Cores.Basic
             // Enum messages
             foreach (var conv in ConversationList)
             {
-                bool selected = false;
+                bool reload = false;
 
                 if (conv.IsTarget())
                 {
                     if (all)
                     {
-                        selected = true;
+                        reload = true;
                     }
                     else
                     {
                         if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
                         {
-                            selected = true;
+                            reload = true;
                         }
                     }
 
                     if (MutedChannelList != null && MutedChannelList.Where(x => x._IsSamei(conv.id)).Any())
                     {
-                        selected = false;
+                        reload = false;
                     }
                 }
 
-                if (selected)
+                if (reload)
                 {
                     // Get the conversation info
                     SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
@@ -375,66 +375,61 @@ namespace IPA.Cores.Basic
                     // Get unread messages
                     SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
 
-                    lock (MessageListPerConversation)
-                    {
-                        MessageListPerConversation[conv.id] = messages;
-                    }
+                    MessageListPerConversation[conv.id] = messages;
                 }
 
-                if (selected && conv.IsTarget())
+                if (conv.IsTarget())
                 {
                     SlackApi.Message[] messages;
 
-                    lock (MessageListPerConversation)
+                    if (MessageListPerConversation.TryGetValue(conv.id, out messages))
                     {
-                        messages = MessageListPerConversation[conv.id];
-                    }
-
-                    foreach (SlackApi.Message message in messages)
-                    {
-                        var user = GetUser(message.user);
-
-                        string group_name = "";
-
-                        if (conv.is_channel)
+                        foreach (SlackApi.Message message in messages)
                         {
-                            group_name = "#" + conv.name_normalized;
+                            var user = GetUser(message.user);
+
+                            string group_name = "";
+
+                            if (conv.is_channel)
+                            {
+                                group_name = "#" + conv.name_normalized;
+                            }
+                            else if (conv.is_im)
+                            {
+                                group_name = "@" + GetUser(conv.user)?.profile?.real_name ?? "unknown";
+                            }
+                            else
+                            {
+                                group_name = "@" + conv.name_normalized;
+                            }
+
+                            InboxMessage m = new InboxMessage
+                            {
+                                Id = this.Guid + "_" + message.ts.ToString(),
+
+                                Service = TeamInfo.name._DecodeHtml(),
+                                FromImage = TeamInfo.icon?.image_132 ?? "",
+
+                                From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
+                                ServiceImage = user?.profile?.image_512 ?? "",
+
+                                Group = group_name._DecodeHtml(),
+
+                                Body = message.text._DecodeHtml(),
+                                Timestamp = message.ts._ToDateTimeOfSlack(),
+                            };
+
+                            m.Subject = this.TeamInfo.name._DecodeHtml();
+
+                            m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
+
+                            if (message.upload)
+                            {
+                                m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
+                            }
+
+                            msgList.Add(m);
                         }
-                        else if (conv.is_im)
-                        {
-                            group_name = "@" + GetUser(conv.user)?.profile?.real_name ?? "unknown";
-                        }
-                        else
-                        {
-                            group_name = "@" + conv.name_normalized;
-                        }
-
-                        InboxMessage m = new InboxMessage
-                        {
-                            Id = this.Guid + "_" + message.ts.ToString(),
-
-                            Service = TeamInfo.name._DecodeHtml(),
-                            FromImage = TeamInfo.icon?.image_132 ?? "",
-
-                            From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
-                            ServiceImage = user?.profile?.image_512 ?? "",
-
-                            Group = group_name._DecodeHtml(),
-
-                            Body = message.text._DecodeHtml(),
-                            Timestamp = message.ts._ToDateTimeOfSlack(),
-                        };
-
-                        m.Subject = this.TeamInfo.name._DecodeHtml();
-
-                        m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
-
-                        if (message.upload)
-                        {
-                            m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
-                        }
-
-                        msgList.Add(m);
                     }
                 }
             }
