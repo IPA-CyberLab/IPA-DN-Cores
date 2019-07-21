@@ -119,6 +119,8 @@ namespace IPA.Cores.Basic
             public const string Gmail = "Gmail";
             public const string Slack_App = "Slack_as_Registered_App";
             public const string Slack_User = "Slack_as_Per_User_Token";
+
+            public const string Slack_Old = "Slack";
         }
 
         public partial class HttpProtocolSchemes

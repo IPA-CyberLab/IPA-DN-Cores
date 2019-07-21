@@ -145,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\Test\HelloWorld.txt" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_slack_as_registered_app.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Common\Legacy\" />
@@ -159,7 +160,7 @@
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Common\Resource\CoresInternal\190714_run_daemon.sh.txt" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_slack.txt" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_slack_as_per_user_token.txt" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Resource\inbox_app_add_help_gmail.txt" />
