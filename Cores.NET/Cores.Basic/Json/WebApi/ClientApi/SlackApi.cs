@@ -393,7 +393,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
                 foreach (Message m in data.messages)
                 {
-                    if (m.type._IsSamei("message") && m.subtype.StartsWith("channel_", StringComparison.OrdinalIgnoreCase) == false)
+                    if ((m.type?._IsSamei("message") ?? false) && ((m.subtype?.StartsWith("channel_", StringComparison.OrdinalIgnoreCase) ?? false) == false))
                     {
                         // Add only message but except channel_join
                         o.Add(m);
