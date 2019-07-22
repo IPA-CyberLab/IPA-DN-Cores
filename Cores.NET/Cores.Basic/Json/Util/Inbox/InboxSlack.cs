@@ -193,6 +193,8 @@ namespace IPA.Cores.Basic
                             {
                                 ReadOnlyMemory<byte> recvData = await st.ReceiveAsync(cancel: cancel);
 
+                                if (recvData.IsEmpty) throw new DisconnectedException();
+
                                 try
                                 {
                                     dynamic json = recvData._GetString_UTF8()._JsonToDynamic();

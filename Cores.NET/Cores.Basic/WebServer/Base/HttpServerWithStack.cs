@@ -72,6 +72,14 @@ using Microsoft.Extensions.Primitives;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class KestrelWithStackSettings
+        {
+            public static readonly Copenhagen<int> MaxLogStringLen = 1024;
+        }
+    }
+
     public class KestrelStackTransport : ITransport
     {
         // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransport
@@ -323,8 +331,43 @@ namespace IPA.Cores.Basic
         {
             return app.Use(async (context, next) =>
             {
+                int httpResponseCode = 0;
+
+                long tickStart = 0;
+                long tickEnd = 0;
+
+                try
+                {
+                    tickStart = Time.Tick64;
+                    await next.Invoke();
+                    tickEnd = Time.Tick64;
+
+                    HttpResponse response = context.Response;
+
+                    httpResponseCode = response.StatusCode;
+                }
+                catch
+                {
+                    httpResponseCode = -1;
+                    tickEnd = Time.Tick64;
+                }
+
+                Exception exception = HttpExceptionLoggerMiddleware.GetSavedExceptionFromContext(context);
+
+                int processTime = (int)(tickEnd - tickStart);
+
                 HttpRequest req = context.Request;
                 ConnectionInfo conn = context.Connection;
+                string username = null;
+                string authtype = null;
+
+                if (context.User?.Identity?.IsAuthenticated ?? false)
+                {
+                    username = context.User?.Identity?.Name;
+                    authtype = context.User?.Identity?.AuthenticationType;
+                }
+
+                int maxLen = CoresConfig.KestrelWithStackSettings.MaxLogStringLen;
 
                 WebServerLogData log = new WebServerLogData()
                 {
@@ -335,18 +378,35 @@ namespace IPA.Cores.Basic
                     RemotePort = conn.RemotePort,
 
                     Protocol = req.Protocol,
-                    Host = req.Host.ToString(),
-                    Path = req.Path.ToString(),
-                    QueryString = req.QueryString.ToString(),
-                    Url = req.GetDisplayUrl(),
+                    Method = req.Method,
+                    Host = req.Host.ToString()._TruncStrEx(maxLen),
+                    Path = req.Path.ToString()._TruncStrEx(maxLen),
+                    QueryString = req.QueryString.ToString()._TruncStrEx(maxLen),
+                    Url = req.GetDisplayUrl()._TruncStrEx(maxLen),
+
+                    AuthUserName = username._TruncStrEx(maxLen),
+                    AuthType = authtype,
+
+                    ProcessTimeMsecs = processTime,
+                    ResponseCode = httpResponseCode,
+                    Exception = exception?.ToString(),
                 };
 
                 if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
-                    log.UserAgent = userAgentValue.ToString();
+                    log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
 
                 log._PostAccessLog(LogTag.WebServer);
 
-                await next.Invoke();
+                if (exception != null)
+                {
+                    try
+                    {
+                        string msg = $"Web Server Exception on {log.Method} {log.Url}\r\n{exception.ToString()}";
+
+                        msg._Debug();
+                    }
+                    catch { }
+                }
             });
         }
     }

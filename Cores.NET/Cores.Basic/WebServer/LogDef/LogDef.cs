@@ -72,9 +72,18 @@ namespace IPA.Cores.Basic
         public string Url;
         public string Protocol;
         public string Host;
+        public string Method;
         public string Path;
         public string QueryString;
         public string UserAgent;
+
+        public string AuthUserName;
+        public string AuthType;
+
+        public int ResponseCode;
+        public int ProcessTimeMsecs;
+
+        public string Exception;
     }
 }
 

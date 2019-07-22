@@ -130,6 +130,14 @@ if (Helper.IsDevelopmentMode)
 
 に変更。
 
+app.UseStaticFiles();
+
+の前に
+
+app.UseHttpExceptionLogger();
+
+を追加。
+
 コメントアウト
 
 //services.Configure<CookiePolicyOptions>(options =>

@@ -60,6 +60,7 @@ using Microsoft.AspNetCore.Routing;
 using IPA.Cores.ClientApi.Acme;
 using System.Security.Claims;
 using System.Runtime.Serialization;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
@@ -144,6 +145,8 @@ namespace IPA.Cores.Basic
 
         public virtual void ConfigureServices(IServiceCollection services)
         {
+            services.AddHttpExceptionLogger(opt => { });
+
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
                 services.AddEnforceHttps(opt =>
@@ -202,6 +205,7 @@ namespace IPA.Cores.Basic
             }
 
             app.UseStatusCodePages();
+
             app.UseWebServerLogger();
 
 #if CORES_BASIC_JSON
@@ -302,7 +306,7 @@ namespace IPA.Cores.Basic
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
         public bool DebugKestrelToConsole { get; set; } = false;
-        public bool DebugKestrelToLog { get; set; } = true;
+        public bool DebugKestrelToLog { get; set; } = false;
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
