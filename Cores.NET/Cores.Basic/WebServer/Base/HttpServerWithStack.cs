@@ -392,6 +392,9 @@ namespace IPA.Cores.Basic
                     Exception = exception?.ToString(),
                 };
 
+                log.AuthUserName = log.AuthUserName._NullIfEmpty();
+                log.QueryString = log.QueryString._NullIfEmpty();
+
                 if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
                     log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
 

@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\AspNetHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\CookieAuth\EasyCookieAuth.cs" />
   </ItemGroup>
 </Project>

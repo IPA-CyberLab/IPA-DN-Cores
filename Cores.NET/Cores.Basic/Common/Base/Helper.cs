@@ -253,6 +253,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _MakeSafeFileName(this string str) => Str.MakeSafeFileName(str);
         public static string _TruncStr(this string str, int len) => Str.TruncStr(str, len);
         public static string _TruncStrEx(this string str, int len, string appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
+        public static string _NullIfEmpty(this string str) => str._IsFilled() ? str : null;
+        public static T _NullIfEmpty<T>(this T obj) => obj._IsFilled() ? obj : default;
         public static byte[] _HashSHA1(this string str) => Str.HashStr(str);
         public static byte[] _HashSHA256(this string str) => Str.HashStrSHA256(str);
         public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);

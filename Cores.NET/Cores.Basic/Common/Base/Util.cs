@@ -400,15 +400,25 @@ namespace IPA.Cores.Basic
         public void Set(T value) => SetValue(value);
         public void SetValue(T value)
         {
+            if (TrySetValue(value) == false)
+            {
+                throw new ApplicationException($"The value '{this.GetType()}' is readonly becasue it is already determined.");
+            }
+        }
+
+        public bool TrySet(T value) => TrySetValue(value);
+        public bool TrySetValue(T value)
+        {
             lock (LockObj)
             {
                 if (Determined == false)
                 {
                     this._Value = value._CloneIfClonable();
+                    return true;
                 }
                 else
                 {
-                    throw new ApplicationException($"The value '{this.GetType()}' is readonly becasue it is already determined.");
+                    return false;
                 }
             }
         }

@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
                 {
                     this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
 
-                    if (this.ServerOptions.UseSimpleBasicAuthentication)
+                    if (this.ServerOptions.UseSimpleBasicAuthentication || this.ServerOptions.HoldSimpleBasicAuthenticationDatabase)
                     {
                         k.Get("SimpleBasicAuthDatabase", new HttpServerSimpleBasicAuthDatabase(EnsureSpecial.Yes));
 
@@ -312,6 +312,7 @@ namespace IPA.Cores.Basic
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
 
         public bool UseSimpleBasicAuthentication { get; set; } = false;
+        public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
         public bool AutomaticRedirectToHttpsIfPossible { get; set; } = true;
 
