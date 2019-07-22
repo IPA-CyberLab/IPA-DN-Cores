@@ -60,8 +60,8 @@ namespace IPA.Cores.Helper.Basic
         public static dynamic _JsonToDynamic(this string str)
             => Json.DeserializeDynamic(str);
 
-        public static ulong _GetObjectHash(this object o)
-            => Util.GetObjectHash(o);
+        public static ulong _CalcObjectHashByJson(this object o)
+            => Util.CalcObjectHashByJson(o);
 
         public static string _JsonNormalize(this string s)
             => Json.Normalize(s);

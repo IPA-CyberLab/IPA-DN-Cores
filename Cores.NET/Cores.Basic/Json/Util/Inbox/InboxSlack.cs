@@ -265,6 +265,8 @@ namespace IPA.Cores.Basic
 
                         ClearLastError();
 
+                        this.InitialLoading = false;
+
                         MessageBoxUpdatedCallback(box);
 
                         if (this.UpdateChannelsList.Count == 0)
@@ -436,7 +438,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            InboxMessageBox ret = new InboxMessageBox()
+            InboxMessageBox ret = new InboxMessageBox(false)
             {
                 MessageList = msgList.OrderByDescending(x => x.Timestamp).Take(this.Inbox.Options.MaxMessagesPerAdapter).ToArray(),
             };

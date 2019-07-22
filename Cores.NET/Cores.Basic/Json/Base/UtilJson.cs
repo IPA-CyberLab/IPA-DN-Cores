@@ -41,7 +41,7 @@ namespace IPA.Cores.Basic
     public static partial class Util
     {
         // オブジェクトのハッシュ値を計算
-        public static ulong GetObjectHash(object o)
+        public static ulong CalcObjectHashByJson(object o)
         {
             if (o == null) return 0;
             try

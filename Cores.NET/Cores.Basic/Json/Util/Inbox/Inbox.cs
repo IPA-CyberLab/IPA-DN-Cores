@@ -94,15 +94,23 @@ namespace IPA.Cores.Basic
 
     public class InboxMessageBox
     {
+        public InboxMessageBox(bool isInitialLoading)
+        {
+            this.IsInitialLoading = isInitialLoading;
+        }
+
         public InboxMessage[] MessageList = new InboxMessage[0];
 
         public ulong Version;
+
+        public bool IsInitialLoading = true;
 
         public bool IsFirst;
 
         public ulong CalcVersion()
         {
-            ulong v = this.MessageList._ObjectToJson(compact: true)._GetObjectHash();
+            string hashSrcStr = this.MessageList._ObjectToJson(compact: true) + this.IsInitialLoading.ToString();
+            ulong v = hashSrcStr._CalcObjectHashByJson();
 
             this.Version = v;
 
@@ -149,10 +157,14 @@ namespace IPA.Cores.Basic
             List<InboxMessage> msgList = new List<InboxMessage>();
             
             DateTimeOffset now = DateTimeOffset.Now;
+
+            bool isInitialLoading = false;
             
             foreach (InboxAdapter a in adaptersList)
             {
                 InboxMessageBox box = a.MessageBox;
+
+                if (a.InitialLoading) isInitialLoading = true;
 
                 if (box != null && box.MessageList != null)
                 {
@@ -184,7 +196,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            InboxMessageBox ret = new InboxMessageBox();
+            InboxMessageBox ret = new InboxMessageBox(isInitialLoading);
 
             ret.MessageList = msgList.OrderByDescending(x => x.FirstSeen).ThenByDescending(x => x.Timestamp).Take(this.Options.MaxMessagesTotal).ToArray();
 
@@ -349,6 +361,8 @@ namespace IPA.Cores.Basic
         public abstract string AccountInfoStr { get; }
         public abstract bool IsStarted { get; }
 
+        public bool InitialLoading { get; protected set; } = false;
+
         public InboxMessageBox MessageBox { get; private set; }
 
         public Exception LastError { get; private set; }
@@ -372,6 +386,8 @@ namespace IPA.Cores.Basic
         public void Start(InboxAdapterUserCredential credential)
         {
             StartImpl(credential);
+
+            this.InitialLoading = true;
 
             this.StartMainLoop(MainLoopAsync);
         }

@@ -162,6 +162,8 @@ namespace IPA.Cores.Basic
                 {
                     InboxMessageBox box = await ReloadInternalAsync(cancel);
 
+                    this.InitialLoading = false;
+
                     ClearLastError();
 
                     MessageBoxUpdatedCallback(box);
@@ -219,7 +221,7 @@ namespace IPA.Cores.Basic
                 MessageCache.Remove(id);
             }
 
-            InboxMessageBox box = new InboxMessageBox();
+            InboxMessageBox box = new InboxMessageBox(false);
 
             List<InboxMessage> msgList2 = new List<InboxMessage>();
 
