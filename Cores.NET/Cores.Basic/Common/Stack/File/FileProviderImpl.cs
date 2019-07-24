@@ -146,7 +146,7 @@ namespace IPA.Cores.Basic
             try
             {
                 this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
-                ProviderForWatch = this.FileSystem.CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
+                ProviderForWatch = this.FileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
             }
             catch
             {

@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
             => UnderlayFileSystem.IsDirectoryExistsAsync(path, cancel);
 
         protected override IFileProvider CreateFileProviderForWatchImpl(string root)
-            => UnderlayFileSystem.CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
+            => UnderlayFileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
     }
 }
 

@@ -1440,7 +1440,7 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        internal DisposableFileProvider CreateFileProviderForWatchInternal(EnsureInternal yes, string root, bool noDispose = false)
+        internal DisposableFileProvider _CreateFileProviderForWatchInternal(EnsureInternal yes, string root, bool noDispose = false)
         {
             IFileProvider p = this.CreateFileProviderForWatchImpl(root);
 
@@ -1907,7 +1907,7 @@ namespace IPA.Cores.Basic
 
         public FileSystemEventWatcher CreateFileSystemEventWatcher(string root, string filter = "**/*", object state = null, bool enforcePolling = false, int? pollingInterval = null)
         {
-            DisposableFileProvider p = this.CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
+            DisposableFileProvider p = this._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
 
             try
             {
@@ -1918,6 +1918,11 @@ namespace IPA.Cores.Basic
                 p._DisposeSafe();
                 throw;
             }
+        }
+
+        public IFileProvider CreateFileProvider(string rootDirectory)
+        {
+            return new FsBasedFileProviderImpl(EnsureInternal.Yes, this, rootDirectory);
         }
     }
 

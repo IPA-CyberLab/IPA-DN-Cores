@@ -1027,6 +1027,6 @@ namespace IPA.Cores.Basic
         protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
             => throw new NotImplementedException();
 
-        protected override IFileProvider CreateFileProviderForWatchImpl(string root) => UnderlayFileSystem.CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root) => UnderlayFileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
     }
 }
