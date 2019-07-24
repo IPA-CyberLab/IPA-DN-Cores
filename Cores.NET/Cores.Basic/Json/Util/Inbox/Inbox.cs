@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
 
         public string GetProviderAddingAppHelpString(string providerName)
         {
-            string fileName = $"inbox_app_add_help_{providerName}.txt";
+            string fileName = $"Inbox/inbox_app_add_help_{providerName}.txt";
 
             return CoresRes[fileName].String;
         }

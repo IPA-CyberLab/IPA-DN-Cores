@@ -291,6 +291,15 @@ namespace IPA.Cores.Basic
 #pragma warning disable CS1998
         public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
         {
+            if (partOfFileName._IsEmpty())
+            {
+                throw new ArgumentNullException(nameof(partOfFileName));
+            }
+
+            partOfFileName = PathParser.Mac.NormalizeDirectorySeparator(partOfFileName);
+
+            bool partOfFileNameContainsDirName = partOfFileName.IndexOf(PathParser.Mac.DirectorySeparator) != -1;
+
             DirectoryWalker walk = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
             string exactFile = null;
 
@@ -303,7 +312,15 @@ namespace IPA.Cores.Basic
                 {
                     foreach (var file in entities.Where(x => x.IsDirectory == false))
                     {
+                        string fullPathTmp = PathParser.Mac.NormalizeDirectorySeparator(file.FullPath);
+
                         if (partOfFileName._IsSamei(file.Name))
+                        {
+                            // Exact match
+                            exactFile = file.FullPath;
+                            numExactMatch++;
+                        }
+                        else if (partOfFileNameContainsDirName && fullPathTmp.EndsWith(partOfFileName, StringComparison.OrdinalIgnoreCase))
                         {
                             // Exact match
                             exactFile = file.FullPath;

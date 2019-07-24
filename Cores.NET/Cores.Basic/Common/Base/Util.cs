@@ -2676,7 +2676,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var srcFilePath = new FilePath(Res.Cores, "190521_LocalGitIgnore.txt");
+                var srcFilePath = new FilePath(Res.Cores, "CoresInternal/190521_LocalGitIgnore.txt");
                 var destFilePath = dir.Combine(".gitignore");
 
                 if (destFilePath.IsFileExists() == false)
