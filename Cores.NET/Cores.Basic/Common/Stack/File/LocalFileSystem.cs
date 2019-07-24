@@ -68,9 +68,9 @@ namespace IPA.Cores.Basic
 
         public static LocalFileSystem Local { get; private set; }
 
-        public static Utf8BomViewFileSystem LocalUtf8 { get; private set; }
+        public static Utf8BomFileSystem LocalUtf8 { get; private set; }
 
-        public static ChrootViewFileSystem AppRoot { get; private set; }
+        public static ChrootFileSystem AppRoot { get; private set; }
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -78,11 +78,11 @@ namespace IPA.Cores.Basic
         {
             Local = new LocalFileSystem();
 
-            LocalUtf8 = new Utf8BomViewFileSystem(new Utf8BomViewFileSystemParam(Local));
+            LocalUtf8 = new Utf8BomFileSystem(new Utf8BomFileSystemParam(Local));
 
-            var opt = new ChrootViewFileSystemParam(Local, Local.PathParser.Combine(Env.AppRootDir, "TestData"), FileSystemMode.ReadOnly);
+            var opt = new ChrootFileSystemParam(Local, Local.PathParser.Combine(Env.AppRootDir, "TestData"), FileSystemMode.ReadOnly);
             opt.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
-            AppRoot = new ChrootViewFileSystem(opt);
+            AppRoot = new ChrootFileSystem(opt);
         }
 
         static void ModuleFree()

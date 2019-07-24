@@ -383,11 +383,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
+        public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type type = null)
         {
             if (obj is Exception ex)
             {
                 obj = new ExceptionWrapper(ex);
+            }
+
+            if (type == null)
+            {
+                type = obj.GetType();
             }
 
             try
@@ -406,10 +411,10 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                if (obj != null && obj.GetType()._IsAnonymousType())
+                if (obj != null && type._IsAnonymousType())
                     return obj.ToString();
 
-                DebugVars v = GetVarsFromClass(obj.GetType(), separatorStr, hideEmpty, instanceBaseName, obj);
+                DebugVars v = GetVarsFromClass(type, separatorStr, hideEmpty, instanceBaseName, obj);
 
                 return v.ToString();
             }

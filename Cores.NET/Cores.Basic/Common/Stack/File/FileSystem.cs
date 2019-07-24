@@ -57,6 +57,11 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultMicroOperationSize = 8 * 1024 * 1024; // 8MB
         }
 
+        public static partial class FileSystemEventWatcherSettings
+        {
+            public static readonly Copenhagen<int> DefaultPollingInterval = 5 * 1000;
+        }
+
         public static partial class FileUtilSettings
         {
             public static readonly Copenhagen<int> FileCopyBufferSize = 1 * 1024 * 1024; // 1MB
@@ -1899,6 +1904,21 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public FileSystemEventWatcher CreateFileSystemEventWatcher(string root, string filter = "**/*", object state = null, bool enforcePolling = false, int? pollingInterval = null)
+        {
+            DisposableFileProvider p = this.CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
+
+            try
+            {
+                return new FileSystemEventWatcher(p, filter, state, enforcePolling, pollingInterval);
+            }
+            catch
+            {
+                p._DisposeSafe();
+                throw;
+            }
+        }
     }
 
     public class DisposableFileProvider : IFileProvider, IDisposable
@@ -1934,36 +1954,49 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class FileProviderWatcher : AsyncService
+    public class FileSystemEventWatcher : AsyncService
     {
         readonly DisposableFileProvider Provider;
         public string Filter { get; }
         public object State { get; }
+        public bool EnforcePolling { get; }
+        public bool IsPollingMode { get; private set; }
+        public int PollingInterval { get; }
 
         IChangeToken ChangeToken = null;
         IDisposable CallbackDisposable = null;
 
+        Task CurrentPollingTask = null;
+
         readonly CriticalSection LockObj = new CriticalSection();
 
-        public FastEventListenerList<FileProviderWatcher, NonsenseEventType> Listeners { get; } = new FastEventListenerList<FileProviderWatcher, NonsenseEventType>();
+        public FastEventListenerList<FileSystemEventWatcher, NonsenseEventType> EventListeners { get; } = new FastEventListenerList<FileSystemEventWatcher, NonsenseEventType>();
 
-        public FileProviderWatcher(DisposableFileProvider provider, string filter, object state = null)
+        public FileSystemEventWatcher(DisposableFileProvider provider, string filter = "**/*", object state = null, bool enforcePolling = false, int? pollingInterval = null)
         {
             this.Provider = provider;
             this.Filter = filter;
             this.State = state;
+            this.EnforcePolling = enforcePolling;
+            this.PollingInterval = pollingInterval ?? CoresConfig.FileSystemEventWatcherSettings.DefaultPollingInterval;
+
+            this.PollingInterval = Math.Max(this.PollingInterval, 100);
 
             try
             {
                 ChangeToken = this.Provider.Watch(this.Filter);
 
-                if (ChangeToken.ActiveChangeCallbacks == false)
+                if (EnforcePolling || ChangeToken.ActiveChangeCallbacks == false)
                 {
-                    Dbg.Where();
+                    IsPollingMode = true;
+
+                    CurrentPollingTask = PollDelayAsync();
                 }
                 else
                 {
-                    CallbackDisposable = ChangeToken.RegisterChangeCallback(ChangedCallback, null);
+                    IsPollingMode = false;
+
+                    CallbackDisposable = ChangeToken.RegisterChangeCallback(Poll, null);
                 }
             }
             catch
@@ -1973,7 +2006,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void ChangedCallback(object internalState)
+        void Poll(object internalState)
         {
             lock (LockObj)
             {
@@ -1987,17 +2020,21 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            this.Listeners.FireSoftly(this, NonsenseEventType.Nonsense);
+                            this.EventListeners.FireSoftly(this, NonsenseEventType.Nonsense);
                         }
                         catch { }
 
-                        if (ChangeToken.ActiveChangeCallbacks == false)
+                        if (EnforcePolling || ChangeToken.ActiveChangeCallbacks == false)
                         {
-                            Dbg.Where();
+                            IsPollingMode = true;
+
+                            CurrentPollingTask = PollDelayAsync();
                         }
                         else
                         {
-                            CallbackDisposable = ChangeToken.RegisterChangeCallback(ChangedCallback, null);
+                            IsPollingMode = false;
+
+                            CallbackDisposable = ChangeToken.RegisterChangeCallback(Poll, null);
                         }
                     }
                     catch (Exception ex)
@@ -2005,17 +2042,29 @@ namespace IPA.Cores.Basic
                         ex._Debug();
                     }
                 }
+                else
+                {
+                    if (EnforcePolling)
+                    {
+                        IsPollingMode = true;
+
+                        CurrentPollingTask = PollDelayAsync();
+                    }
+                }
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        async Task PollDelayAsync()
         {
-            base.CancelImpl(ex);
-        }
+            await Task.Yield();
 
-        protected override Task CleanupImplAsync(Exception ex)
-        {
-            return base.CleanupImplAsync(ex);
+            this.GrandCancel.ThrowIfCancellationRequested();
+
+            await this.GrandCancel._WaitUntilCanceledAsync(this.PollingInterval);
+
+            this.GrandCancel.ThrowIfCancellationRequested();
+
+            Poll(null);
         }
 
         protected override void DisposeImpl(Exception ex)
@@ -2025,6 +2074,8 @@ namespace IPA.Cores.Basic
                 lock (LockObj)
                 {
                     this.CallbackDisposable._DisposeSafe();
+
+                    CurrentPollingTask._TryWait(noDebugMessage: true);
                 }
 
                 this.Provider._DisposeSafe();

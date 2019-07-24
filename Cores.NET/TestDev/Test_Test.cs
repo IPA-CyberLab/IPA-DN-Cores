@@ -214,6 +214,47 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                using (FileProviderImpl p = new FileProviderImpl(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
+                {
+                    IFileProvider fp = p;
+
+                    var dir = fp.GetDirectoryContents("/c/dz/");
+
+                    foreach (IFileInfo f in dir)
+                    {
+                        f._DebugAsJson(EnsurePresentInterface.Yes);
+                        f.Exists._Print();
+                        f.IsDirectory._Print();
+                        f.LastModified._Print();
+                        f.Length._Print();
+                        f.Name._Print();
+
+                        ""._Print();
+                    }
+                }
+                return;
+            }
+
+            if (false)
+            {
+                using (var fs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"D:\tmp\190724", FileSystemMode.ReadOnly)))
+                {
+                    using (var w = fs.CreateFileSystemEventWatcher("/"))
+                    {
+                        w.EventListeners.RegisterCallback((x, y, z) =>
+                        {
+                            Dbg.Where();
+                        });
+
+                        Con.ReadLine();
+                    }
+                }
+
+                return;
+            }
+
             if (true)
             {
                 PhysicalFileProvider p = new PhysicalFileProvider(@"\\fss\share");

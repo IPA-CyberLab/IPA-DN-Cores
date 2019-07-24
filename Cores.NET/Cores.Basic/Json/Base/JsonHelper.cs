@@ -42,8 +42,11 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class JsonHelper
     {
-        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
-            => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url);
+        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type type = null)
+            => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+
+        public static string _ObjectToJson<T>(this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
+            => _ObjectToJson(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, typeof(T));
 
         public static T _JsonToObject<T>(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
             => Json.Deserialize<T>(str, includeNull, maxDepth, base64url);
@@ -69,16 +72,22 @@ namespace IPA.Cores.Helper.Basic
 
     public static class JsonConsoleHelper
     {
-        public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+        public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
         {
-            Con.WriteJsonLine(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+            Con.WriteJsonLine(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
             return o;
         }
-        public static object _DebugAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+        public static T _PrintAsJson<T>(this T o, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => (T)_PrintAsJson(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T));
+
+        public static object _DebugAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
         {
-            Con.WriteJsonDebug(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+            Con.WriteJsonDebug(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
             return o;
         }
+        public static T _DebugAsJson<T>(this T o, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => (T)_DebugAsJson(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T));
+
         public static void _JsonNormalizeAndPrint(this string s)
         {
             Json.Normalize(s)._Print();
@@ -95,14 +104,14 @@ namespace IPA.Cores.Basic
 {
     public static partial class Con
     {
-        public static void WriteJsonLine(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
-            => Con.WriteLine(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+        public static void WriteJsonLine(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
+            => Con.WriteLine(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, type: type));
 
-        public static void WriteJsonError(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
-            => Con.WriteError(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+        public static void WriteJsonError(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
+            => Con.WriteError(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, type: type));
 
-        public static void WriteJsonDebug(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
-            => Con.WriteDebug(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling));
+        public static void WriteJsonDebug(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
+            => Con.WriteDebug(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, type: type));
     }
 }
 

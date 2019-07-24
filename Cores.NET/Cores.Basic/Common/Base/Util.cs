@@ -5631,6 +5631,12 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    public enum EnsurePresentInterface
+    {
+        Yes = 0,
+    }
+
+    [Flags]
     public enum Direction
     {
         Send = 0,

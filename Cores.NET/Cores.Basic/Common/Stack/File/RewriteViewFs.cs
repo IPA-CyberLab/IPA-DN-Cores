@@ -46,11 +46,11 @@ using Microsoft.Extensions.FileProviders;
 
 namespace IPA.Cores.Basic
 {
-    public class RewriteViewFileObject : ViewFileObject
+    public class RewriteFileObject : ViewFileObject
     {
-        protected new RewriteViewFileSystem ViewFileSystem => (RewriteViewFileSystem)base.ViewFileSystem;
+        protected new RewriteFileSystem ViewFileSystem => (RewriteFileSystem)base.ViewFileSystem;
 
-        public RewriteViewFileObject(RewriteViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        public RewriteFileObject(RewriteFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
         {
         }
 
@@ -83,11 +83,11 @@ namespace IPA.Cores.Basic
         public MapPathException(string message) : base(message) { }
     }
 
-    public abstract class RewriteViewFileSystem : ViewFileSystem, IRewriteVirtualPhysicalPath
+    public abstract class RewriteFileSystem : ViewFileSystem, IRewriteVirtualPhysicalPath
     {
         protected new RewriteViewFileSystemParam Params => (RewriteViewFileSystemParam)base.Params;
 
-        public RewriteViewFileSystem(RewriteViewFileSystemParam param) : base(param)
+        public RewriteFileSystem(RewriteViewFileSystemParam param) : base(param)
         {
         }
 
@@ -217,7 +217,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {
-            RewriteViewFileObject fileObj = new RewriteViewFileObject(this, option);
+            RewriteFileObject fileObj = new RewriteFileObject(this, option);
             try
             {
                 await fileObj._InternalCreateFileAsync(cancel);

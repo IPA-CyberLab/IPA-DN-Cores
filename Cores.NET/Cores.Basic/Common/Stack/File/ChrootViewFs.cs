@@ -45,11 +45,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class ChrootViewFileSystemParam : RewriteViewFileSystemParam
+    public class ChrootFileSystemParam : RewriteViewFileSystemParam
     {
         public string PhysicalRootDirectory { get; }
 
-        public ChrootViewFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory, FileSystemMode mode = FileSystemMode.Default) : base(underlayFileSystem, mode)
+        public ChrootFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory, FileSystemMode mode = FileSystemMode.Default) : base(underlayFileSystem, mode)
         {
             physicalRootDirectory = underlayFileSystem.NormalizePath(physicalRootDirectory);
             physicalRootDirectory = underlayFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalRootDirectory);
@@ -59,12 +59,12 @@ namespace IPA.Cores.Basic
     }
 
 
-    public class ChrootViewFileSystem : RewriteViewFileSystem
+    public class ChrootFileSystem : RewriteFileSystem
     {
-        protected new ChrootViewFileSystemParam Params => (ChrootViewFileSystemParam)base.Params;
+        protected new ChrootFileSystemParam Params => (ChrootFileSystemParam)base.Params;
         protected string PhysicalRootDirectory => Params.PhysicalRootDirectory;
 
-        public ChrootViewFileSystem(ChrootViewFileSystemParam param) : base(param)
+        public ChrootFileSystem(ChrootFileSystemParam param) : base(param)
         {
         }
 

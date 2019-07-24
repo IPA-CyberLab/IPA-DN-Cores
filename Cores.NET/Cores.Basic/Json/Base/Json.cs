@@ -42,6 +42,10 @@ using Newtonsoft.Json.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Newtonsoft.Json.Serialization;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace IPA.Cores.Basic
 {
@@ -56,15 +60,41 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
+        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type type = null)
         {
             foreach (var item in itemArray)
             {
-                await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true));
+                await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true, type: type));
             }
         }
 
-        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
+        public class InterfaceContractResolver : DefaultContractResolver
+        {
+            private readonly Type[] _interfaceTypes;
+
+            private readonly ConcurrentDictionary<Type, Type> _typeToSerializeMap;
+
+            public InterfaceContractResolver(params Type[] interfaceTypes)
+            {
+                _interfaceTypes = interfaceTypes;
+
+                _typeToSerializeMap = new ConcurrentDictionary<Type, Type>();
+            }
+
+            protected override IList<JsonProperty> CreateProperties(
+                Type type,
+                MemberSerialization memberSerialization)
+            {
+                var typeToSerialize = _typeToSerializeMap.GetOrAdd(
+                    type,
+                    t => _interfaceTypes.FirstOrDefault(
+                        it => it.IsAssignableFrom(t)) ?? t);
+
+                return base.CreateProperties(typeToSerialize, memberSerialization);
+            }
+        }
+
+        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type type = null)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
@@ -73,8 +103,12 @@ namespace IPA.Cores.Basic
                 ReferenceLoopHandling = ReferenceLoopHandling.Error,
                 PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
                 StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
-                
             };
+
+            if (type != null)
+            {
+                setting.ContractResolver = new InterfaceContractResolver(type);
+            }
 
             string ret = JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
 
@@ -109,10 +143,10 @@ namespace IPA.Cores.Basic
         public static T ConvertObject<T>(object src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
             => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling);
 
-        public static object ConvertObject(object src, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+        public static object ConvertObject(object src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
         {
             string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
-            return Deserialize(str, type, maxDepth: maxDepth);
+            return Deserialize(str, destType, maxDepth: maxDepth);
         }
 
         public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T, bool> itemReadCallback,

@@ -117,7 +117,7 @@ namespace IPA.Cores
 
             public static LocalFileSystem Lfs => LocalFileSystem.Local;
             public static LargeFileSystem LLfs => LargeFileSystem.Local;
-            public static Utf8BomViewFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
+            public static Utf8BomFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
             public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
             public static ResourceFileSystem CoresRes => Res.Cores;
 

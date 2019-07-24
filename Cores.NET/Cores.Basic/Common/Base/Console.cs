@@ -139,15 +139,15 @@ namespace IPA.Cores.Basic
             WriteLine("");
         }
 
-        public static void WriteLine(object arg)
+        public static void WriteLine(object arg, Type type = null)
         {
             if (cs != null)
             {
-                cs.WriteLine(arg._GetObjectDump(), LogPriority.Info);
+                cs.WriteLine(arg._GetObjectDump(type: type), LogPriority.Info);
             }
             else
             {
-                Console.WriteLine(arg._GetObjectDump());
+                Console.WriteLine(arg._GetObjectDump(type: type));
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
             }
         }

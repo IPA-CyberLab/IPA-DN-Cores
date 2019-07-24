@@ -84,8 +84,8 @@ namespace IPA.Cores.Basic
         public bool Json_IncludeNull { get; set; } = false;
         public bool Json_EscapeHtml { get; set; } = false;
 
-        public string JsonSerialize(object obj)
-            => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth);
+        public string JsonSerialize(object obj, Type type = null)
+            => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth, type: type);
 
         public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
             => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);

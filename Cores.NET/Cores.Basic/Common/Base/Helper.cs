@@ -307,8 +307,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _DebugObject(this object o) => Dbg.DebugObject(o);
         public static void _PrintObject(this object o) => Dbg.PrintObject(o);
-        public static string _GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false)
-            => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible);
+        public static string _GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type type = null)
+            => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible, type);
         public static string _Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
         public static T _CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
         public static byte[] _ObjectToBinary(this object o) => Util.ObjectToBinary(o);
@@ -338,11 +338,13 @@ namespace IPA.Cores.Helper.Basic
         public static object _RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
         public static T _RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
 
-        public static object _Print(this object o)
+        public static T _Print<T>(this T o) => (T)o._Print(typeof(T));
+
+        public static object _Print(this object o, Type type)
         {
             if (o is Exception ex) o = o.ToString();
 
-            Con.WriteLine(o);
+            Con.WriteLine(o, type);
             return o;
         }
         public static object _Debug(this object o)

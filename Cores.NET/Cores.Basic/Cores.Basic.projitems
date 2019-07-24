@@ -64,6 +64,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileCopy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileLazyWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileProviderFs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileProviderImpl.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ResourceFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RewriteViewFs.cs" />
