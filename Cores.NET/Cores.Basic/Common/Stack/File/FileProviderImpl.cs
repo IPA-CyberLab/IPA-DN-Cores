@@ -50,9 +50,9 @@ using System.Collections;
 
 namespace IPA.Cores.Basic
 {
-    public class FileInfoImpl : IFileInfo
+    public class FsBasedFileProviderFileInfoImpl : IFileInfo
     {
-        public FileProviderImpl Provider { get; }
+        public FsBasedFileProviderImpl Provider { get; }
         public string FullPath { get; }
         public ChrootFileSystem FileSystem => Provider.FileSystem;
 
@@ -63,7 +63,7 @@ namespace IPA.Cores.Basic
         public string Name { get; }
         public DateTimeOffset LastModified { get; }
 
-        internal FileInfoImpl(EnsureInternal yes, FileProviderImpl provider, string fullPath, bool exists, bool isDirectroy, long length, string physicalPath, string name, DateTimeOffset lastModified)
+        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FsBasedFileProviderImpl provider, string fullPath, bool exists, bool isDirectroy, long length, string physicalPath, string name, DateTimeOffset lastModified)
         {
             this.Provider = provider;
             this.FullPath = fullPath;
@@ -108,19 +108,19 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class FileProviderDirectoryContentsImpl : IDirectoryContents
+    public class FsBasedFileProviderDirectoryContentsImpl : IDirectoryContents
     {
         public bool Exists { get; } = false;
 
         IEnumerable<IFileInfo> List = null;
 
-        public FileProviderDirectoryContentsImpl()
+        public FsBasedFileProviderDirectoryContentsImpl()
         {
             this.Exists = false;
             this.List = new List<IFileInfo>();
         }
 
-        public FileProviderDirectoryContentsImpl(IEnumerable<IFileInfo> list)
+        public FsBasedFileProviderDirectoryContentsImpl(IEnumerable<IFileInfo> list)
         {
             this.Exists = true;
             this.List = list;
@@ -134,16 +134,19 @@ namespace IPA.Cores.Basic
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
-    public class FileProviderImpl : AsyncService, IFileProvider
+    public class FsBasedFileProviderImpl : AsyncService, IFileProvider
     {
         public ChrootFileSystem FileSystem { get; }
         public PathParser Parser => FileSystem.PathParser;
 
-        internal FileProviderImpl(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory)
+        DisposableFileProvider ProviderForWatch;
+
+        internal FsBasedFileProviderImpl(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory)
         {
             try
             {
                 this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
+                ProviderForWatch = this.FileSystem.CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
             }
             catch
             {
@@ -174,7 +177,7 @@ namespace IPA.Cores.Basic
 
             if (FileSystem.IsDirectoryExists(subpath) == false)
             {
-                return new FileProviderDirectoryContentsImpl();
+                return new FsBasedFileProviderDirectoryContentsImpl();
             }
             else
             {
@@ -182,20 +185,20 @@ namespace IPA.Cores.Basic
 
                 FileSystemEntity[] enums = FileSystem.EnumDirectory(subpath, flags: EnumDirectoryFlags.NoGetPhysicalSize);
 
-                List<FileInfoImpl> o = new List<FileInfoImpl>();
+                List<FsBasedFileProviderFileInfoImpl> o = new List<FsBasedFileProviderFileInfoImpl>();
 
                 foreach (FileSystemEntity e in enums)
                 {
                     if (e.IsCurrentDirectory == false)
                     {
-                        FileInfoImpl d = new FileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
+                        FsBasedFileProviderFileInfoImpl d = new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
                             FileSystem.UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name), e.Name, e.LastWriteTime);
 
                         o.Add(d);
                     }
                 }
 
-                return new FileProviderDirectoryContentsImpl(o);
+                return new FsBasedFileProviderDirectoryContentsImpl(o);
             }
         }
 
@@ -233,18 +236,19 @@ namespace IPA.Cores.Basic
                 name = Parser.GetFileName(subpath);
             }
 
-            return new FileInfoImpl(EnsureInternal.Yes, this, subpath, exists, isDirectroy, length, physicalPath, name, lastModified);
+            return new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, subpath, exists, isDirectroy, length, physicalPath, name, lastModified);
         }
 
         public IChangeToken Watch(string filter)
         {
-            throw new NotImplementedException();
+            return this.ProviderForWatch.Watch(filter);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
             try
             {
+                this.ProviderForWatch._DisposeSafe();
                 this.FileSystem._DisposeSafe();
             }
             finally

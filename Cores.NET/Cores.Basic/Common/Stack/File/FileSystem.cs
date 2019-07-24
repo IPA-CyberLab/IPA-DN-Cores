@@ -1440,11 +1440,11 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        internal DisposableFileProvider CreateFileProviderForWatchInternal(EnsureInternal yes, string root)
+        internal DisposableFileProvider CreateFileProviderForWatchInternal(EnsureInternal yes, string root, bool noDispose = false)
         {
             IFileProvider p = this.CreateFileProviderForWatchImpl(root);
 
-            return new DisposableFileProvider(p);
+            return new DisposableFileProvider(p, noDispose);
         }
 
         protected void CheckWriteable(string path)

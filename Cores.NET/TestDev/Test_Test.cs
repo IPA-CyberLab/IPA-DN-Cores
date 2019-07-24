@@ -214,25 +214,27 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
-                using (FileProviderImpl p = new FileProviderImpl(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
+                using (FsBasedFileProviderImpl p = new FsBasedFileProviderImpl(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
                 {
                     IFileProvider fp = p;
 
-                    var dir = fp.GetDirectoryContents("/c/dz/");
-
-                    foreach (IFileInfo f in dir)
+                    while (true)
                     {
-                        f._DebugAsJson(EnsurePresentInterface.Yes);
-                        f.Exists._Print();
-                        f.IsDirectory._Print();
-                        f.LastModified._Print();
-                        f.Length._Print();
-                        f.Name._Print();
+                        Event e = new Event(true);
 
-                        ""._Print();
+                        var token = p.Watch("**/*");
+
+                        token.RegisterChangeCallback(x =>
+                        {
+                            Dbg.Where();
+                            e.Set();
+                        }, null);
                     }
+
+                    return;
+
                 }
                 return;
             }
