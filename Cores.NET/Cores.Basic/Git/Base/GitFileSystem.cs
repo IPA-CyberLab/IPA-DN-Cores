@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 using LibGit2Sharp;
+using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -176,6 +177,7 @@ namespace IPA.Cores.Basic
         protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default) => throw new NotImplementedException();
         protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default) => throw new NotImplementedException();
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root) => base.CreateDefaultNullFileProvider();
     }
 }
 

@@ -50,11 +50,11 @@ namespace IPA.Cores.Basic
 {
     public class VfsFileProviderBasedFile : VfsRandomAccessFile
     {
-        protected new FileProviderFileSystem FileSystem => (FileProviderFileSystem)base.FileSystem;
+        protected new FileProviderBasedFileSystem FileSystem => (FileProviderBasedFileSystem)base.FileSystem;
         public IFileInfo FileInfo { get; }
         public string FullName { get; }
 
-        public VfsFileProviderBasedFile(FileProviderFileSystem fileSystem, IFileInfo fileInfo, string fileName) : base(fileSystem, fileName)
+        public VfsFileProviderBasedFile(FileProviderBasedFileSystem fileSystem, IFileInfo fileInfo, string fileName) : base(fileSystem, fileName)
         {
             this.FullName = fileName;
             this.FileInfo = fileInfo;
@@ -76,13 +76,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class FileProviderFileSystem : VirtualFileSystem
+    public class FileProviderBasedFileSystem : VirtualFileSystem
     {
         public new FileProviderFileSystemParams Params => (FileProviderFileSystemParams)base.Params;
 
         IFileProvider Provider => Params.UnderlayProvider;
 
-        public FileProviderFileSystem(FileProviderFileSystemParams param) : base(param)
+        public FileProviderBasedFileSystem(FileProviderFileSystemParams param) : base(param)
         {
             ScanDirAndRegisterFiles("/");
         }
@@ -123,5 +123,11 @@ namespace IPA.Cores.Basic
             }
         }
 #pragma warning restore CS1998
+
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+        {
+            return base.CreateDefaultNullFileProvider();
+        }
     }
 }
+

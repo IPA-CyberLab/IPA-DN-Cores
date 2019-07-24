@@ -10,7 +10,7 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -24,13 +24,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="GitLocal\**" />
     <Compile Remove="Local\**" />
     <Compile Remove="Log\**" />
-    <EmbeddedResource Remove="GitLocal\**" />
     <EmbeddedResource Remove="Local\**" />
     <EmbeddedResource Remove="Log\**" />
-    <None Remove="GitLocal\**" />
     <None Remove="Local\**" />
     <None Remove="Log\**" />
   </ItemGroup>
@@ -41,7 +38,8 @@
     <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
     <PackageReference Include="System.IO.Pipelines" Version="4.5.3" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded"  Version ="2.1.1"   />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="2.1.1" />
 
     <!-- Cores.Basic.Daemon -->
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />

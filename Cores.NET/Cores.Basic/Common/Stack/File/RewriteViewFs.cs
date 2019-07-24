@@ -42,6 +42,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.Extensions.FileProviders;
 
 namespace IPA.Cores.Basic
 {
@@ -328,6 +329,13 @@ namespace IPA.Cores.Basic
             path = MapPathVirtualToPhysical(path);
 
             return base.SetFileMetadataImplAsync(path, metadata, cancel);
+        }
+
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+        {
+            root = MapPathVirtualToPhysical(root);
+
+            return base.CreateFileProviderForWatchImpl(root);
         }
     }
 }

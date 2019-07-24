@@ -216,6 +216,28 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                PhysicalFileProvider p = new PhysicalFileProvider(@"\\fss\share");
+
+                while (true)
+                {
+                    Event e = new Event(true);
+
+                    var token = p.Watch("**/*");
+
+                    token.RegisterChangeCallback(x =>
+                    {
+                        Dbg.Where();
+                        e.Set();
+                    }, null);
+
+                    e.Wait();
+                }
+
+                return;
+            }
+
+            if (true)
+            {
                 CoresRes["190714_run_daemon.sh.txt"].String._Print();
                 return;
             }
@@ -224,7 +246,7 @@ namespace IPA.TestDev
             {
                 ManifestEmbeddedFileProvider emb = new ManifestEmbeddedFileProvider(typeof(FileSystem).Assembly);
 
-                using (var fs = new FileProviderFileSystem(new FileProviderFileSystemParams(emb)))
+                using (var fs = new FileProviderBasedFileSystem(new FileProviderFileSystemParams(emb)))
                 {
                     var a = fs.EnumDirectory("/", true);
 

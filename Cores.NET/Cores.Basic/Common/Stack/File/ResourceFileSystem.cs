@@ -48,7 +48,7 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
-    public class ResourceFileSystem : FileProviderFileSystem
+    public class ResourceFileSystem : FileProviderBasedFileSystem
     {
         public static Singleton<Assembly, ResourceFileSystem> Singleton { get; private set; }
 

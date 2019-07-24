@@ -38,11 +38,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers;
 using System.Diagnostics;
+using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Text;
+using Microsoft.Extensions.Primitives;
 
 namespace IPA.Cores.Basic
 {
@@ -1433,6 +1435,13 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
+        internal DisposableFileProvider CreateFileProviderForWatchInternal(EnsureInternal yes, string root)
+        {
+            IFileProvider p = this.CreateFileProviderForWatchImpl(root);
+
+            return new DisposableFileProvider(p);
+        }
+
         protected void CheckWriteable(string path)
         {
             if (this.CanWrite == false)
@@ -1498,6 +1507,10 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default);
         protected abstract Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default);
+
+        protected abstract IFileProvider CreateFileProviderForWatchImpl(string root);
+
+        protected IFileProvider CreateDefaultNullFileProvider() => new NullFileProvider();
 
         public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
         {
@@ -1888,6 +1901,139 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class DisposableFileProvider : IFileProvider, IDisposable
+    {
+        readonly IFileProvider Provider;
+        readonly bool NoDispose;
+        readonly IHolder LeakHolder;
 
+        public DisposableFileProvider(IFileProvider baseInstance, bool noDispose = false)
+        {
+            this.Provider = baseInstance;
+            this.NoDispose = noDispose;
+            this.LeakHolder = LeakChecker.Enter();
+        }
+        public IDirectoryContents GetDirectoryContents(string subpath) => Provider.GetDirectoryContents(subpath);
+        public IFileInfo GetFileInfo(string subpath) => Provider.GetFileInfo(subpath);
+        public IChangeToken Watch(string filter) => Provider.Watch(filter);
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (NoDispose == false)
+            {
+                if (Provider is IDisposable target)
+                {
+                    target._DisposeSafe();
+                }
+            }
+
+            LeakHolder._DisposeSafe();
+        }
+    }
+
+    public class FileProviderWatcher : AsyncService
+    {
+        readonly DisposableFileProvider Provider;
+        public string Filter { get; }
+        public object State { get; }
+
+        IChangeToken ChangeToken = null;
+        IDisposable CallbackDisposable = null;
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        public FastEventListenerList<FileProviderWatcher, NonsenseEventType> Listeners { get; } = new FastEventListenerList<FileProviderWatcher, NonsenseEventType>();
+
+        public FileProviderWatcher(DisposableFileProvider provider, string filter, object state = null)
+        {
+            this.Provider = provider;
+            this.Filter = filter;
+            this.State = state;
+
+            try
+            {
+                ChangeToken = this.Provider.Watch(this.Filter);
+
+                if (ChangeToken.ActiveChangeCallbacks == false)
+                {
+                    Dbg.Where();
+                }
+                else
+                {
+                    CallbackDisposable = ChangeToken.RegisterChangeCallback(ChangedCallback, null);
+                }
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        void ChangedCallback(object internalState)
+        {
+            lock (LockObj)
+            {
+                if (ChangeToken.HasChanged)
+                {
+                    CallbackDisposable._DisposeSafe();
+
+                    try
+                    {
+                        ChangeToken = this.Provider.Watch(this.Filter);
+
+                        try
+                        {
+                            this.Listeners.FireSoftly(this, NonsenseEventType.Nonsense);
+                        }
+                        catch { }
+
+                        if (ChangeToken.ActiveChangeCallbacks == false)
+                        {
+                            Dbg.Where();
+                        }
+                        else
+                        {
+                            CallbackDisposable = ChangeToken.RegisterChangeCallback(ChangedCallback, null);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }
+        }
+
+        protected override void CancelImpl(Exception ex)
+        {
+            base.CancelImpl(ex);
+        }
+
+        protected override Task CleanupImplAsync(Exception ex)
+        {
+            return base.CleanupImplAsync(ex);
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                lock (LockObj)
+                {
+                    this.CallbackDisposable._DisposeSafe();
+                }
+
+                this.Provider._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
 }
 

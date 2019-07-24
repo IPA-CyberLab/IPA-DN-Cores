@@ -43,6 +43,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
+using Microsoft.Extensions.FileProviders;
 
 #pragma warning disable CS1998
 
@@ -987,6 +988,12 @@ namespace IPA.Cores.Basic
                     throw new VfsNotFoundException(path, "Directory not found.");
                 }
             }
+        }
+
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+        {
+            // ToDo: Implement a file watcher here
+            return base.CreateDefaultNullFileProvider();
         }
     }
 }

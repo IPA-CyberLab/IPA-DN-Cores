@@ -42,6 +42,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Diagnostics;
+using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -70,7 +71,6 @@ namespace IPA.Cores.Basic
         public static Utf8BomViewFileSystem LocalUtf8 { get; private set; }
 
         public static ChrootViewFileSystem AppRoot { get; private set; }
-
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -817,6 +817,8 @@ namespace IPA.Cores.Basic
 
             return new ValueHolder<IDisposable>(x => x._DisposeSafe(), token);
         }
+
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root) => new PhysicalFileProvider(root);
     }
 
     public class LocalFileObject : FileObject

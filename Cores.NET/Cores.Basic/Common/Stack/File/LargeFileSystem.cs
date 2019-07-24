@@ -43,6 +43,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.Extensions.FileProviders;
 
 namespace IPA.Cores.Basic
 {
@@ -1025,5 +1026,7 @@ namespace IPA.Cores.Basic
 
         protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
             => throw new NotImplementedException();
+
+        protected override IFileProvider CreateFileProviderForWatchImpl(string root) => UnderlayFileSystem.CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
     }
 }
