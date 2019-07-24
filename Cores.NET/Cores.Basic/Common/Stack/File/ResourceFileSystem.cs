@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
 
         public ResourceFileSystem(Assembly assembly) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assembly)))
         {
-            this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
+            this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatchExact);
         }
     }
 }

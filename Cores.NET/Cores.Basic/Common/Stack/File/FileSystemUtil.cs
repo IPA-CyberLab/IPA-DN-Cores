@@ -294,6 +294,8 @@ namespace IPA.Cores.Basic
             DirectoryWalker walk = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
             string exactFile = null;
 
+            int numExactMatch = 0;
+
             List<FindSingleFileData> candidates = new List<FindSingleFileData>();
 
             await walk.WalkDirectoryAsync(rootDir,
@@ -305,10 +307,9 @@ namespace IPA.Cores.Basic
                         {
                             // Exact match
                             exactFile = file.FullPath;
-                            return false;
+                            numExactMatch++;
                         }
-
-                        if (file.Name._Search(partOfFileName) != -1)
+                        else if (file.Name._Search(partOfFileName) != -1)
                         {
                             int originalLen = file.Name.Length;
                             if (originalLen >= 1)
@@ -329,7 +330,13 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
 
             if (exactFile._IsFilled())
+            {
+                if (exact && numExactMatch >= 2)
+                {
+                    throw new FileException(partOfFileName, "Two or more files matched while exact flag is set.");
+                }
                 return exactFile;
+            }
 
             if (exact && candidates.Count >= 2)
                 throw new FileException(partOfFileName, "Two or more files matched while exact flag is set.");
