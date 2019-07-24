@@ -45,6 +45,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Text;
 using Microsoft.Extensions.Primitives;
+using System.Collections.Concurrent;
 
 namespace IPA.Cores.Basic
 {
@@ -680,13 +681,13 @@ namespace IPA.Cores.Basic
         {
             if (this.IsWriteMode == false)
             {
-                string path = await FileSystem.NormalizePathAsync(name, cancel);
+                string path = await FileSystem.NormalizePathAsync(name, cancel: cancel);
 
                 return await FileSystem.OpenAsync(path, cancel: cancel, flags: this.DefaultFileOperationFlags | flags);
             }
             else
             {
-                string path = await FileSystem.NormalizePathAsync(name, cancel);
+                string path = await FileSystem.NormalizePathAsync(name, cancel: cancel);
 
                 return await FileSystem.OpenOrCreateAsync(path, cancel: cancel, flags: this.DefaultFileOperationFlags | flags);
             }
@@ -1517,7 +1518,75 @@ namespace IPA.Cores.Basic
 
         protected IFileProvider CreateDefaultNullFileProvider() => new NullFileProvider();
 
-        public async Task<string> NormalizePathAsync(string path, CancellationToken cancel = default)
+        readonly ConcurrentDictionary<string, string> CaseCorrectionCache = new ConcurrentDictionary<string, string>(StrComparer.IgnoreCaseComparer);
+
+        public void FlushNormalizedCaseCorrectionCache()
+        {
+            CaseCorrectionCache.Clear();
+        }
+
+        async Task<string> NormalizePathWithCaseCorrectionInternalAsync(string path, bool forDirectory, CancellationToken cancel = default)
+        {
+            path = PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
+
+            if (PathParser.Style == FileSystemStyle.Windows) return path;
+
+            string[] elements = PathParser.SplitAbsolutePathToElementsUnixStyle(path);
+
+            string cacheKey = PathParser.Combine(elements);
+
+            if (CaseCorrectionCache.TryGetValue(cacheKey, out string cachedValue))
+            {
+                return cachedValue;
+            }
+
+            string currentFullPath = "/";
+
+            for (int i = 0; i < elements.Length;i++)
+            {
+                string element = elements[i];
+
+                bool isThisElementDirectory = forDirectory || (i != (elements.Length - 1));
+
+                string originalFullPath = PathParser.Combine(currentFullPath, element);
+                string element2 = null;
+
+                try
+                {
+                    if ((forDirectory == false && await this.IsFileExistsImplAsync(originalFullPath, cancel)) ||
+                        (forDirectory == true && await this.IsDirectoryExistsImplAsync(originalFullPath, cancel)))
+                    {
+                        element2 = element;
+                    }
+                }
+                catch { }
+
+                if (element2._IsEmpty())
+                {
+                    try
+                    {
+                        FileSystemEntity[] dirItems = await this.EnumDirectoryImplAsync(currentFullPath, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+                        element2 = dirItems.Where(x => x.IsDirectory == isThisElementDirectory && x.IsCurrentDirectory == false).Select(x => x.Name).Where(x => x._IsSamei(element)).FirstOrDefault();
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (element2._IsEmpty())
+                {
+                    element2 = element;
+                }
+
+                currentFullPath = PathParser.Combine(currentFullPath, element2);
+            }
+
+            CaseCorrectionCache[cacheKey] = currentFullPath;
+
+            return currentFullPath;
+        }
+
+        public async Task<string> NormalizePathAsync(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default)
         {
             path = path._NonNull();
 
@@ -1527,14 +1596,19 @@ namespace IPA.Cores.Basic
                 {
                     cancel.ThrowIfCancellationRequested();
 
+                    if (options == NormalizePathOption.NormalizeCaseDirectory)
+                        path = await NormalizePathWithCaseCorrectionInternalAsync(path, true, cancel);
+                    else if (options == NormalizePathOption.NormalizeCaseFileName)
+                        path = await NormalizePathWithCaseCorrectionInternalAsync(path, false, cancel);
+
                     string ret = await NormalizePathImplAsync(path, cancel);
 
                     return ret;
                 }
             }
         }
-        public string NormalizePath(string path, CancellationToken cancel = default)
-            => NormalizePathAsync(path, cancel)._GetResult();
+        public string NormalizePath(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default)
+            => NormalizePathAsync(path, options, cancel)._GetResult();
 
         public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
         {
@@ -1628,7 +1702,7 @@ namespace IPA.Cores.Basic
             {
                 using (EnterCriticalCounter())
                 {
-                    path = await NormalizePathAsync(path, opCancel);
+                    path = await NormalizePathAsync(path, cancel: opCancel);
 
                     opCancel.ThrowIfCancellationRequested();
 
@@ -1648,7 +1722,7 @@ namespace IPA.Cores.Basic
             {
                 using (EnterCriticalCounter())
                 {
-                    path = await NormalizePathAsync(path, opCancel);
+                    path = await NormalizePathAsync(path, cancel: opCancel);
 
                     opCancel.ThrowIfCancellationRequested();
 
@@ -1717,7 +1791,7 @@ namespace IPA.Cores.Basic
             {
                 opCancel.ThrowIfCancellationRequested();
 
-                directoryPath = await NormalizePathAsync(directoryPath, opCancel);
+                directoryPath = await NormalizePathAsync(directoryPath, cancel: opCancel);
 
                 List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
@@ -1920,9 +1994,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public IFileProvider CreateFileProvider(string rootDirectory)
+        public FileSystemBasedProvider CreateFileProvider(string rootDirectory)
         {
-            return new FsBasedFileProviderImpl(EnsureInternal.Yes, this, rootDirectory);
+            return new FileSystemBasedProvider(EnsureInternal.Yes, this, rootDirectory);
         }
     }
 
@@ -2090,6 +2164,14 @@ namespace IPA.Cores.Basic
                 base.DisposeImpl(ex);
             }
         }
+    }
+
+    [Flags]
+    public enum NormalizePathOption
+    {
+        None = 0,
+        NormalizeCaseFileName,
+        NormalizeCaseDirectory,
     }
 }
 

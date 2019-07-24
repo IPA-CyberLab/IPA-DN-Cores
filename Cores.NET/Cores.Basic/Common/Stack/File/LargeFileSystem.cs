@@ -707,7 +707,7 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
-            => this.UnderlayFileSystem.NormalizePathAsync(path, cancel);
+            => this.UnderlayFileSystem.NormalizePathAsync(path, cancel: cancel);
 
         protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
         {

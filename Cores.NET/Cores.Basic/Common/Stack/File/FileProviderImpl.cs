@@ -47,12 +47,13 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections;
+using System.Collections.Concurrent;
 
 namespace IPA.Cores.Basic
 {
     public class FsBasedFileProviderFileInfoImpl : IFileInfo
     {
-        public FsBasedFileProviderImpl Provider { get; }
+        public FileSystemBasedProvider Provider { get; }
         public string FullPath { get; }
         public ChrootFileSystem FileSystem => Provider.FileSystem;
 
@@ -63,7 +64,7 @@ namespace IPA.Cores.Basic
         public string Name { get; }
         public DateTimeOffset LastModified { get; }
 
-        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FsBasedFileProviderImpl provider, string fullPath, bool exists, bool isDirectroy, long length, string physicalPath, string name, DateTimeOffset lastModified)
+        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FileSystemBasedProvider provider, string fullPath, bool exists, bool isDirectroy, long length, string physicalPath, string name, DateTimeOffset lastModified)
         {
             this.Provider = provider;
             this.FullPath = fullPath;
@@ -134,17 +135,19 @@ namespace IPA.Cores.Basic
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
-    public class FsBasedFileProviderImpl : AsyncService, IFileProvider
+    public class FileSystemBasedProvider : AsyncService, IFileProvider
     {
         public ChrootFileSystem FileSystem { get; }
         public PathParser Parser => FileSystem.PathParser;
+        public bool IgnoreCase { get; }
 
         DisposableFileProvider ProviderForWatch;
 
-        internal FsBasedFileProviderImpl(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory)
+        internal FileSystemBasedProvider(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory, bool ignoreCase = true)
         {
             try
             {
+                this.IgnoreCase = ignoreCase;
                 this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
                 ProviderForWatch = this.FileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
             }
@@ -155,7 +158,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public string NormalizeSubPath(string subpath)
+        string NormalizeSubPath(string subpath, NormalizePathOption options)
         {
             Debug.Assert(Parser.Style.EqualsAny(FileSystemStyle.Linux, FileSystemStyle.Mac));
 
@@ -168,16 +171,30 @@ namespace IPA.Cores.Basic
 
             subpath = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(subpath);
 
+            subpath = FileSystem.NormalizePath(subpath, options);
+
             return subpath;
         }
 
         public IDirectoryContents GetDirectoryContents(string subpath)
         {
-            subpath = NormalizeSubPath(subpath);
+            bool isRetry = false;
+
+            L_RETRY:
+            subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseDirectory);
 
             if (FileSystem.IsDirectoryExists(subpath) == false)
             {
-                return new FsBasedFileProviderDirectoryContentsImpl();
+                if (isRetry == false)
+                {
+                    isRetry = true;
+                    FileSystem.FlushNormalizedCaseCorrectionCache();
+                    goto L_RETRY;
+                }
+                else
+                {
+                    return new FsBasedFileProviderDirectoryContentsImpl();
+                }
             }
             else
             {
@@ -204,7 +221,11 @@ namespace IPA.Cores.Basic
 
         public IFileInfo GetFileInfo(string subpath)
         {
-            subpath = NormalizeSubPath(subpath);
+            bool isRetry = false;
+
+            L_RETRY:
+
+            subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseFileName);
 
             bool exists = false;
             bool isDirectroy = default;
@@ -228,6 +249,15 @@ namespace IPA.Cores.Basic
 
                 FileMetadata meta = FileSystem.GetDirectoryMetadata(subpath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoSecurity);
                 lastModified = meta.LastWriteTime ?? default;
+            }
+            else
+            {
+                if (isRetry == false)
+                {
+                    isRetry = true;
+                    FileSystem.FlushNormalizedCaseCorrectionCache();
+                    goto L_RETRY;
+                }
             }
 
             if (exists)

@@ -216,7 +216,54 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using (FsBasedFileProviderImpl p = new FsBasedFileProviderImpl(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
+                using (var p = Lfs.CreateFileProvider(@"c:\git"))
+                {
+                    while (true)
+                    {
+                        string path = Con.ReadLine();
+
+                        if (path._IsEmpty()) return;
+
+                        var info = p.GetFileInfo(path);
+
+                        if (info.Exists == false)
+                        {
+                            Con.WriteLine(@"Not found.");
+                        }
+                        else
+                        {
+                            info._DebugAsJson(EnsurePresentInterface.Yes);
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                using (ViewFileSystem fs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"C:\git\", FileSystemMode.ReadOnly)))
+                {
+                    while (true)
+                    {
+                        string path = Con.ReadLine();
+
+                        if (path._IsEmpty()) return;
+
+                        path = fs.NormalizePath(path, NormalizePathOption.NormalizeCaseFileName);
+
+                        Con.WriteLine(path);
+
+                        Con.WriteLine();
+
+
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                using (FileSystemBasedProvider p = new FileSystemBasedProvider(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
                 {
                     IFileProvider fp = p;
 

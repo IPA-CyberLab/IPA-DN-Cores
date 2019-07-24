@@ -394,7 +394,7 @@ namespace IPA.Cores.Basic
 
         public async Task NormalizePathAsync(FileSystem fileSystem, CancellationToken cancel = default)
         {
-            string ret = await fileSystem.NormalizePathAsync(this.Path, cancel);
+            string ret = await fileSystem.NormalizePathAsync(this.Path, cancel: cancel);
             this.Path = ret;
         }
 

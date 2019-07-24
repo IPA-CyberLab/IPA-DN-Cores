@@ -516,7 +516,7 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel);
+            rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel: cancel);
 
             return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel, null);
         }

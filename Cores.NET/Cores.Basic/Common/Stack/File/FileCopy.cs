@@ -265,8 +265,8 @@ namespace IPA.Cores.Basic
             if (param == null)
                 param = new CopyDirectoryParams();
 
-            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel);
-            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel);
+            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel: cancel);
+            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel: cancel);
 
             if (srcFileSystem == destFileSystem)
                 if (srcFileSystem.PathParser.PathStringComparer.Equals(srcPath, destPath))
@@ -455,8 +455,8 @@ namespace IPA.Cores.Basic
             if (param == null)
                 param = new CopyFileParams();
 
-            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel);
-            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel);
+            srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel: cancel);
+            destPath = await destFileSystem.NormalizePathAsync(destPath, cancel: cancel);
 
             if (srcFileSystem == destFileSystem)
                 if (srcFileSystem.PathParser.PathStringComparer.Equals(srcPath, destPath))
