@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
+using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -47,35 +48,7 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
-    public class VfsResourceFile : VfsRandomAccessFile
-    {
-        protected new ResourceFileSystem FileSystem => (ResourceFileSystem)base.FileSystem;
-        readonly Assembly Assembly;
-        public string ResourceName { get; }
-
-        public VfsResourceFile(ResourceFileSystem fileSystem, string fileName) : base(fileSystem, fileName)
-        {
-            this.Assembly = FileSystem.Params.Assembly;
-            this.ResourceName = fileName;
-        }
-
-        protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
-        {
-            return new StreamRandomAccessWrapper(Assembly.GetManifestResourceStream(ResourceName));
-        }
-    }
-
-    public class ResourceFileSystemParam : VirtualFileSystemParams
-    {
-        public Assembly Assembly { get; }
-
-        public ResourceFileSystemParam(Assembly assembly) : base(FileSystemMode.ReadOnly)
-        {
-            this.Assembly = assembly;
-        }
-    }
-
-    public class ResourceFileSystem : VirtualFileSystem
+    public class ResourceFileSystem : FileProviderFileSystem
     {
         public static Singleton<Assembly, ResourceFileSystem> Singleton { get; private set; }
 
@@ -83,7 +56,7 @@ namespace IPA.Cores.Basic
 
         static void ModuleInit()
         {
-            Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(new ResourceFileSystemParam(asm)));
+            Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(asm));
         }
 
         static void ModuleFree()
@@ -93,29 +66,9 @@ namespace IPA.Cores.Basic
             Singleton = null;
         }
 
-
-        public new ResourceFileSystemParam Params => (ResourceFileSystemParam)base.Params;
-
-        public ResourceFileSystem(ResourceFileSystemParam param) : base(param)
+        public ResourceFileSystem(Assembly assembly) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assembly)))
         {
             this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
-
-            string[] names = Params.Assembly.GetManifestResourceNames();
-
-            foreach (string name in names)
-            {
-                string fullPath = this.PathParser.Combine("/", name);
-
-#pragma warning disable CS1998
-                using (this.AddFileAsync(new FileParameters(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
-                async (newFilename, newFileOption, c) =>
-                    {
-                        return new VfsResourceFile(this, name);
-                    })._GetResult())
-                {
-                }
-#pragma warning restore CS1998
-            }
         }
     }
 }

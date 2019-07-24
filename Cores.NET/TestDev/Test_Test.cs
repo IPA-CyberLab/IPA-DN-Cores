@@ -58,6 +58,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
 
+using Microsoft.Extensions.FileProviders;
+
 
 
 #pragma warning disable CS0219
@@ -212,6 +214,48 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                CoresRes["190714_run_daemon.sh.txt"].String._Print();
+                return;
+            }
+
+            if (true)
+            {
+                ManifestEmbeddedFileProvider emb = new ManifestEmbeddedFileProvider(typeof(FileSystem).Assembly);
+
+                using (var fs = new FileProviderFileSystem(new FileProviderFileSystemParams(emb)))
+                {
+                    var a = fs.EnumDirectory("/", true);
+
+                    a._PrintAsJson();
+                }
+                return;
+            }
+
+            if (true)
+            {
+                ManifestEmbeddedFileProvider emb = new ManifestEmbeddedFileProvider(typeof(FileSystem).Assembly);
+
+                var i = emb.GetFileInfo("/Common/resource/test/helloworld.txt");
+
+                i.Exists._Print();
+                i.PhysicalPath._Print();
+                i.LastModified._Print();
+                i.Name._Print();
+
+                return;
+
+                var ent = emb.GetDirectoryContents("/Common/resource/test/helloworld.txt");
+
+                foreach (var e in ent)
+                {
+                    e.Name._Print();
+                }
+
+                return;
+            }
+
             int count = 0;
             if (true)
             {

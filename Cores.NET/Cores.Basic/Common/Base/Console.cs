@@ -2420,6 +2420,8 @@ namespace IPA.Cores.Basic
         // コンソールに文字列を表示する
         bool localWrite(string str, LogPriority priority = LogPriority.Info)
         {
+            if (str == null) str = "null";
+
             // 引数チェック
             Console.Write("{0}{1}",
                 str,
@@ -2460,6 +2462,8 @@ namespace IPA.Cores.Basic
         // 出力ファイルが指定されている場合は書き出す
         void writeOutFile(string str, bool addLastCrlf)
         {
+            if (str == null) str = "null";
+
             if (outFile != null)
             {
                 string tmp = Str.NormalizeCrlf(str, CrlfStyle.LocalPlatform);
