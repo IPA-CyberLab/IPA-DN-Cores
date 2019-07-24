@@ -9,7 +9,11 @@
     <Import_RootNamespace>Cores.AspNet</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\AspNetExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\AspNetHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\CookieAuth\EasyCookieAuth.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)ResourceRoot/**/*" />
   </ItemGroup>
 </Project>
