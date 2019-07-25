@@ -778,6 +778,8 @@ namespace IPA.Cores.Basic
         }
 
         public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
+
+        public bool IsRootDirectory => this.PathParser.IsRootDirectory(this.PathString);
     }
 
     public class FilePath : FileSystemPath

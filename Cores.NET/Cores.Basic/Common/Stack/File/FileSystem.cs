@@ -1043,6 +1043,15 @@ namespace IPA.Cores.Basic
             return path;
         }
 
+        public bool IsRootDirectory(string path)
+        {
+            if (path == null) return false;
+
+            SepareteDirectoryAndFileName(path, out string dirPath, out string fileName);
+
+            return fileName._IsEmpty();
+        }
+
         public string GetDirectoryName(string path)
         {
             if (path == null) return null;
