@@ -82,6 +82,8 @@ namespace IPA.Cores.Basic
 
             public static readonly IEnumerable<string> AppRootMarkerFileNames = new string[] { "approot", "appsettings.json", "appsettings.Development.json" };
 
+            public const string ResourceRootAbsoluteDirName = "/ResourceRoot";
+
             public const string RootMarker_Resource = "resource_root";
             public const string RootMarker_Library_CoresBasic = "cores_basic_root";
             public const string RootMarker_Library_AspNet = "cores_aspnet_root";

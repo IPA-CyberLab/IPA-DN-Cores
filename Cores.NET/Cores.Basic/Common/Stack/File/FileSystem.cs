@@ -1108,6 +1108,11 @@ namespace IPA.Cores.Basic
             path1 = path1._NonNull();
             path2 = path2._NonNull();
 
+            if (path2NeverAbsolutePath && path2._IsFilled() && IsAbsolutePath(path2))
+            {
+                throw new ArgumentException($"path2 '{path2}' is an absolute path.");
+            }
+
             if (path1._IsEmpty())
             {
                 if (path2NeverAbsolutePath == false)

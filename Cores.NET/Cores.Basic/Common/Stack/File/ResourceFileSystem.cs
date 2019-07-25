@@ -141,6 +141,43 @@ namespace IPA.Cores.Basic
         }
 
         public static ResourceFileSystem CreateOrGet(AssemblyWithSourceInfo assembly) => Singleton.CreateOrGet(assembly);
+
+        public FileSystemBasedProvider[] CreateEmbeddedAndPhysicalProviders(string rootDirectoryOnResourceRootDir)
+        {
+            List<FileSystemBasedProvider> ret = new List<FileSystemBasedProvider>();
+
+            string relativeRoot = rootDirectoryOnResourceRootDir;
+
+            if (this.PathParser.IsAbsolutePath(relativeRoot))
+            {
+                relativeRoot = this.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativeRoot);
+                relativeRoot = this.PathParser.GetRelativeFileName(relativeRoot, "/");
+            }
+
+            if (this.PathParser.IsAbsolutePath(relativeRoot))
+            {
+                throw new ApplicationException($"relativeRoot '{relativeRoot}' is absolute.");
+            }
+
+            if (relativeRoot._IsFilled())
+            {
+                foreach (DirectoryPath srcRoot in this.ResourceRootSourceDirectoryList)
+                {
+                    DirectoryPath resourceRoot = srcRoot.GetSubDirectory(relativeRoot, true);
+
+                    if (resourceRoot.IsDirectoryExists())
+                    {
+                        ret.Add(resourceRoot.FileSystem.CreateFileProvider(resourceRoot));
+                    }
+                }
+            }
+
+            string rootDirectoryInResourceAbsolute = PathParser.Combine(Consts.FileNames.ResourceRootAbsoluteDirName, relativeRoot);
+
+            ret.Add(this.CreateFileProvider(rootDirectoryInResourceAbsolute));
+
+            return ret.ToArray();
+        }
     }
 }
 

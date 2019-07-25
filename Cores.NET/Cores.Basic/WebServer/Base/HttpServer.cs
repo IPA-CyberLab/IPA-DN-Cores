@@ -200,10 +200,23 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void AddStaticFileProvider(string physicalDirectoryPath)
+        {
+            FileSystemBasedProvider provider = Lfs.CreateFileProvider(physicalDirectoryPath);
+
+            this.AddStaticFileProvider(provider);
+        }
+
         public void AddStaticFileProvider(IFileProvider provider)
         {
             if (provider != null)
                 StaticFileProviderList.Add(provider);
+        }
+
+        public void AddStaticFileProvider(IEnumerable<IFileProvider> provider)
+        {
+            if (provider != null)
+                provider._DoForEach(x => AddStaticFileProvider(x));
         }
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)

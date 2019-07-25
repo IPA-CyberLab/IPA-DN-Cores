@@ -688,6 +688,8 @@ namespace IPA.Cores.Basic
         public DirectoryPath GetParentDirectory() => new DirectoryPath(PathParser.GetDirectoryName(this.PathString), this.FileSystem, this.Flags);
 
         public override string ToString() => this.PathString;
+
+        public static implicit operator string(FileSystemPath path) => path.ToString();
     }
 
     public class DirectoryPath : FileSystemPath
