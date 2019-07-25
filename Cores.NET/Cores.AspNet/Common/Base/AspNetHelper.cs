@@ -73,7 +73,7 @@ namespace IPA.Cores.Helper.Basic
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)
         {
             // Embedded resource of the assembly
-            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalProviders("/wwwroot/"));
+            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/wwwroot/"));
         }
 
         public void Dispose() => Dispose(true);

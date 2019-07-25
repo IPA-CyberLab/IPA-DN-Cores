@@ -87,6 +87,15 @@ namespace IPA.Cores.Basic
         public override int GetHashCode() => this.Assembly.GetHashCode();
     }
 
+    [Flags]
+    public enum ResFileReadFrom
+    {
+        None = 0,
+        Physical = 1,
+        EmbeddedResource = 2,
+        Both = Physical | EmbeddedResource,
+    }
+
     public class ResourceFileSystem : FileProviderBasedFileSystem
     {
         static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton;
@@ -142,7 +151,7 @@ namespace IPA.Cores.Basic
 
         public static ResourceFileSystem CreateOrGet(AssemblyWithSourceInfo assembly) => Singleton.CreateOrGet(assembly);
 
-        public FileSystemBasedProvider[] CreateEmbeddedAndPhysicalProviders(string rootDirectoryOnResourceRootDir)
+        public FileSystemBasedProvider[] CreateEmbeddedAndPhysicalFileProviders(string rootDirectoryOnResourceRootDir, ResFileReadFrom flags = ResFileReadFrom.Both)
         {
             List<FileSystemBasedProvider> ret = new List<FileSystemBasedProvider>();
 
@@ -161,20 +170,26 @@ namespace IPA.Cores.Basic
 
             if (relativeRoot._IsFilled())
             {
-                foreach (DirectoryPath srcRoot in this.ResourceRootSourceDirectoryList)
+                if (flags.Bit(ResFileReadFrom.Physical))
                 {
-                    DirectoryPath resourceRoot = srcRoot.GetSubDirectory(relativeRoot, true);
-
-                    if (resourceRoot.IsDirectoryExists())
+                    foreach (DirectoryPath srcRoot in this.ResourceRootSourceDirectoryList)
                     {
-                        ret.Add(resourceRoot.FileSystem.CreateFileProvider(resourceRoot));
+                        DirectoryPath resourceRoot = srcRoot.GetSubDirectory(relativeRoot, true);
+
+                        if (resourceRoot.IsDirectoryExists())
+                        {
+                            ret.Add(resourceRoot.FileSystem.CreateFileProvider(resourceRoot));
+                        }
                     }
                 }
+
+                if (flags.Bit(ResFileReadFrom.EmbeddedResource))
+                {
+                    string rootDirectoryInResourceAbsolute = PathParser.Combine(Consts.FileNames.ResourceRootAbsoluteDirName, relativeRoot);
+
+                    ret.Add(this.CreateFileProvider(rootDirectoryInResourceAbsolute));
+                }
             }
-
-            string rootDirectoryInResourceAbsolute = PathParser.Combine(Consts.FileNames.ResourceRootAbsoluteDirName, relativeRoot);
-
-            ret.Add(this.CreateFileProvider(rootDirectoryInResourceAbsolute));
 
             return ret.ToArray();
         }
