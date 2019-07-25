@@ -311,6 +311,11 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static string GetSourceCodeFilePath([CallerFilePath] string filename = "")
+        {
+            return filename;
+        }
+
         public static bool IsJsonSupported { get; }
 
         static partial void InternalIsJsonSupported(ref bool ret);

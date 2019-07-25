@@ -2769,6 +2769,24 @@ namespace IPA.Cores.Basic
 
             throw new ArgumentException(nameof(protocol));
         }
+
+        public static DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileNames = Consts.FileNames.DefaultStopRootSearchFileExts)
+        {
+            DirectoryPath currentDir;
+
+            while (true)
+            {
+                currentDir = sampleFilePath.GetParentDirectory();
+
+                var elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
+                if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
+                {
+                    return currentDir;
+                }
+
+                currentDir = currentDir.GetParentDirectory();
+            }
+        }
     }
 
 

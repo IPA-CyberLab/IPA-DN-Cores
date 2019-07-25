@@ -50,6 +50,7 @@ using Microsoft.Extensions.Configuration;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -77,5 +78,7 @@ namespace IPA.Cores.Helper.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             // Here
         }
+
+        public string GetSourceCodeFilePath() => Dbg.GetSourceCodeFilePath();
     }
 }
