@@ -1182,6 +1182,10 @@ namespace IPA.Cores.Basic
             return path.Substring(i);
         }
 
+        public void Abc3()
+        {
+        }
+
         public void Abc()
         {
         }
