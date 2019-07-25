@@ -1173,6 +1173,10 @@ namespace IPA.Cores.Basic
             return path.Substring(i);
         }
 
+        public void Abc()
+        {
+        }
+
         public void SepareteDirectoryAndFileName(string path, out string dirPath, out string fileName)
         {
             if (path._IsEmpty())
