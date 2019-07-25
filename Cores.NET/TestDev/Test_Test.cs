@@ -216,6 +216,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                PathParser.Linux.IsRootDirectory(@"/z")._Print();
+                return;
+            }
+
+            if (true)
+            {
                 using (var p = Lfs.CreateFileProvider(@"c:\git"))
                 {
                     while (true)
