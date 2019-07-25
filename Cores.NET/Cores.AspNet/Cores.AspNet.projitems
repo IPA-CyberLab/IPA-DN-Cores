@@ -12,6 +12,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\AspNetExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\AspNetHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\CookieAuth\EasyCookieAuth.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Controllers\EmbedTest\EmbedTestController.cs" />
+    <Content Include="$(MSBuildThisFileDirectory)Views/**/*" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)ResourceRoot/**/*" />

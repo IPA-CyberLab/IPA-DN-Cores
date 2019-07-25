@@ -47,12 +47,19 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 
 
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Mvc.Razor;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Runtime.CompilerServices;
 
-namespace IPA.Cores.Helper.Basic
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
+
+namespace IPA.Cores.AspNet
 {
     public class AspNetHelper : IDisposable
     {
@@ -68,6 +75,11 @@ namespace IPA.Cores.Helper.Basic
 
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
         {
+            ConfigureOptions<RazorViewEngineOptions> razorViewOptions = new ConfigureOptions<RazorViewEngineOptions>(opt =>
+            {
+            });
+
+            services.AddSingleton<IConfigureOptions<RazorViewEngineOptions>>(razorViewOptions);
         }
 
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)

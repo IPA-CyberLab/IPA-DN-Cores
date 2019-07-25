@@ -10,4 +10,8 @@
   <PropertyGroup />
   <Import Project="Cores.AspNet.projitems" Label="Shared" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
+  <ItemGroup>
+    <Content Remove="Views\EmbedTest\Test.xaml" />
+    <Content Remove="Views\EmbedTest\Test.xaml.cs" />
+  </ItemGroup>
 </Project>

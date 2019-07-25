@@ -41,15 +41,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Http;
-
-using IPA.Cores.Basic;
-using IPA.Cores.Helper.Basic;
-using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 
-namespace IPA.Cores.Helper.Basic
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
+
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
+
+namespace IPA.Cores.Helper.AspNet
 {
     public static partial class AspNetExtensions
     {
@@ -61,3 +65,11 @@ namespace IPA.Cores.Helper.Basic
         }
     }
 }
+
+namespace IPA.Cores.Globals
+{
+    public static class AspNet
+    {
+    }
+}
+

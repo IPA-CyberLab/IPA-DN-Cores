@@ -47,96 +47,93 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores
+namespace IPA.Cores.Globals
 {
-    public static partial class Globals
+    public static partial class Basic
     {
-        public static partial class Basic
+        static volatile int VolatileZero = 0;
+
+        public static int NoOp() => VolatileZero;
+
+        public static int DoNothing() => VolatileZero;
+
+        public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
+
+        public static string UnixOrWindows(string unix, string windows) => Env.IsUnix ? unix : windows;
+
+        public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
         {
-            static volatile int VolatileZero = 0;
-
-            public static int NoOp() => VolatileZero;
-
-            public static int DoNothing() => VolatileZero;
-
-            public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
-
-            public static string UnixOrWindows(string unix, string windows) => Env.IsUnix ? unix : windows;
-
-            public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+            try
             {
-                try
-                {
-                    action();
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    if (noDebugMessage == false)
-                    {
-                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                        Dbg.WriteLine(c);
-                    }
-                    return false;
-                }
+                action();
+                return true;
             }
-
-            public static T TryIfErrorRetDefault<T>(Func<T> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+            catch (Exception ex)
             {
-                try
+                if (noDebugMessage == false)
                 {
-                    return func();
+                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                    Dbg.WriteLine(c);
                 }
-                catch (Exception ex)
-                {
-                    if (noDebugMessage == false)
-                    {
-                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                        Dbg.WriteLine(c);
-                    }
-                    return defaultValue;
-                }
+                return false;
             }
+        }
 
-            public static async Task<T> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+        public static T TryIfErrorRetDefault<T>(Func<T> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+        {
+            try
             {
-                try
-                {
-                    return await func();
-                }
-                catch (Exception ex)
-                {
-                    if (noDebugMessage == false)
-                    {
-                        DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                        Dbg.WriteLine(c);
-                    }
-                    return defaultValue;
-                }
+                return func();
             }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                    Dbg.WriteLine(c);
+                }
+                return defaultValue;
+            }
+        }
 
-            public static LocalFileSystem Lfs => LocalFileSystem.Local;
-            public static LargeFileSystem LLfs => LargeFileSystem.Local;
-            public static Utf8BomFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
-            public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
-            public static ResourceFileSystem CoresRes => Res.Cores;
+        public static async Task<T> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+        {
+            try
+            {
+                return await func();
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                {
+                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                    Dbg.WriteLine(c);
+                }
+                return defaultValue;
+            }
+        }
+
+        public static LocalFileSystem Lfs => LocalFileSystem.Local;
+        public static LargeFileSystem LLfs => LargeFileSystem.Local;
+        public static Utf8BomFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
+        public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
+        public static ResourceFileSystem CoresRes => Res.Cores;
 
 #if CORES_BASIC_GIT
-            public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
+        public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
 #endif // CORES_BASIC_GIT
 
-            public static partial class Res
-            {
-                public static readonly ResourceFileSystem Cores = ResourceFileSystem.CreateOrGet(
-                    new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CoresLib.CoresLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresBasic)));
+        public static partial class Res
+        {
+            public static readonly ResourceFileSystem Cores = ResourceFileSystem.CreateOrGet(
+                new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CoresLib.CoresLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresBasic)));
 
-                public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
-            }
-
-            public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
-
-            public const int DefaultSize = int.MinValue;
+            public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
         }
+
+        public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
+
+        public const int DefaultSize = int.MinValue;
     }
 }
 
