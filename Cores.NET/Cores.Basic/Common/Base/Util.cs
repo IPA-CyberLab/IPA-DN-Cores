@@ -2770,22 +2770,41 @@ namespace IPA.Cores.Basic
             throw new ArgumentException(nameof(protocol));
         }
 
-        public static DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileNames = Consts.FileNames.DefaultStopRootSearchFileExts)
+        public static DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
         {
-            DirectoryPath currentDir;
-
-            while (true)
+            try
             {
-                currentDir = sampleFilePath.GetParentDirectory();
+                DirectoryPath currentDir = sampleFilePath.GetParentDirectory();
 
-                var elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
-                if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
+                while (currentDir.IsRootDirectory == false)
                 {
-                    return currentDir;
-                }
+                    FileSystemEntity[] elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
 
-                currentDir = currentDir.GetParentDirectory();
+                    if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
+                    {
+                        // Found
+                        return currentDir;
+                    }
+
+                    if (elements.Where(x => x.IsFile && x.Name._IsExtensionMatch(stopSearchFileExtensions)).Any())
+                    {
+                        return null;
+                    }
+
+                    if (elements.Where(x => x.IsFile && Consts.FileNames.AppRootMarkerFileNames.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
+                    {
+                        return null;
+                    }
+
+                    currentDir = currentDir.GetParentDirectory();
+                }
             }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+
+            return null;
         }
     }
 

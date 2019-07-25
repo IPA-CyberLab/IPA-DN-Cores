@@ -56,11 +56,15 @@ namespace IPA.Cores.Helper.Basic
 {
     public class AspNetHelper : IDisposable
     {
+        public static readonly string AspNetHelperLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
+
         public AspNetHelper(IConfiguration configuration)
         {
         }
 
-        public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.Singleton[typeof(AspNetHelper).Assembly];
+        public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
+            new AssemblyWithSourceInfo(typeof(AspNetHelper), new SourceCodePathAndMarkerFileName(AspNetHelperLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_AspNet)));
+
 
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
         {
@@ -78,7 +82,5 @@ namespace IPA.Cores.Helper.Basic
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             // Here
         }
-
-        public string GetSourceCodeFilePath() => Dbg.GetSourceCodeFilePath();
     }
 }

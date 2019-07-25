@@ -127,7 +127,9 @@ namespace IPA.Cores
 
             public static partial class Res
             {
-                public static readonly ResourceFileSystem Cores = ResourceFileSystem.Singleton[typeof(Res).Assembly];
+                public static readonly ResourceFileSystem Cores = ResourceFileSystem.CreateOrGet(
+                    new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CoresLib.CoresLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresBasic)));
+
                 public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
             }
 

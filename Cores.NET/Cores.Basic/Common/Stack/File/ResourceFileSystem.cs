@@ -48,15 +48,58 @@ using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
+    public class SourceCodePathAndMarkerFileName
+    {
+        public string SourceCodePath { get; }
+        public string MarkerFileName { get; }
+
+        public SourceCodePathAndMarkerFileName(string sourceCodePath, string markerFileName)
+        {
+            this.SourceCodePath = sourceCodePath;
+            this.MarkerFileName = markerFileName;
+        }
+    }
+
+    public class AssemblyWithSourceInfo
+    {
+        public IReadOnlyList<DirectoryPath> SourceRootList { get; }
+        public Assembly Assembly { get; }
+
+        public AssemblyWithSourceInfo(Type sampleType, params SourceCodePathAndMarkerFileName[] sourceInfoList)
+        {
+            this.Assembly = sampleType.Assembly;
+
+            List<DirectoryPath> srcRootList = new List<DirectoryPath>();
+
+            foreach (SourceCodePathAndMarkerFileName srcInfo in sourceInfoList)
+            {
+                DirectoryPath root = Util.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
+                if (root != null)
+                {
+                    srcRootList.Add(root);
+                }
+            }
+
+            this.SourceRootList = srcRootList;
+        }
+
+        public override bool Equals(object obj) => this.Assembly.Equals(((AssemblyWithSourceInfo)obj).Assembly);
+        public override int GetHashCode() => this.Assembly.GetHashCode();
+    }
+
     public class ResourceFileSystem : FileProviderBasedFileSystem
     {
-        public static Singleton<Assembly, ResourceFileSystem> Singleton { get; private set; }
+        static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
+        public AssemblyWithSourceInfo AssemblyInfo { get; }
+
+        public IReadOnlyList<DirectoryPath> ResourceRootSourceDirectoryList { get; }
+
         static void ModuleInit()
         {
-            Singleton = new Singleton<Assembly, ResourceFileSystem>((asm) => new ResourceFileSystem(asm));
+            Singleton = new Singleton<AssemblyWithSourceInfo, ResourceFileSystem>((asm) => new ResourceFileSystem(asm));
         }
 
         static void ModuleFree()
@@ -66,10 +109,38 @@ namespace IPA.Cores.Basic
             Singleton = null;
         }
 
-        public ResourceFileSystem(Assembly assembly) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assembly)))
+        public ResourceFileSystem(AssemblyWithSourceInfo assemblyInfo) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assemblyInfo.Assembly)))
         {
+            this.AssemblyInfo = assemblyInfo;
+
+            List<DirectoryPath> resourceRootList = new List<DirectoryPath>();
+
+            // List all ResourcRoot directories (which contains the 'resource_root' file)
+            foreach (DirectoryPath srcRootPath in this.AssemblyInfo.SourceRootList)
+            {
+                try
+                {
+                    foreach (DirectoryPath subDir in srcRootPath.GetDirectories())
+                    {
+                        try
+                        {
+                            if (subDir.GetFiles().Where(x => x.GetFileName()._IsSamei(Consts.FileNames.RootMarker_Resource)).Any())
+                            {
+                                resourceRootList.Add(subDir);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
+            this.ResourceRootSourceDirectoryList = resourceRootList;
+
             this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
         }
+
+        public static ResourceFileSystem CreateOrGet(AssemblyWithSourceInfo assembly) => Singleton.CreateOrGet(assembly);
     }
 }
 

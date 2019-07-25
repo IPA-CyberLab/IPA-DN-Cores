@@ -111,6 +111,8 @@ namespace IPA.Cores.Basic
         public static string AppNameFnSafe { get; private set; }
         public static CoresMode Mode { get; private set; }
 
+        public static readonly string CoresLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
+
         public static string[] Init(CoresLibOptions options, params string[] args)
         {
             lock (InitLockObj)

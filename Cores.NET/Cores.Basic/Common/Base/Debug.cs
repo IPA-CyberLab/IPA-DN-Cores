@@ -311,7 +311,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetSourceCodeFilePath([CallerFilePath] string filename = "")
+        public static string GetCallerSourceCodeFilePath([CallerFilePath] string filename = "")
         {
             return filename;
         }

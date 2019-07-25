@@ -36,6 +36,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -203,7 +204,18 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        if (File.Exists(Path.Combine(tmp, "approot")) || File.Exists(Path.Combine(tmp, "appsettings.json")) || File.Exists(Path.Combine(tmp, "appsettings.Development.json")))
+                        bool found = false;
+
+                        foreach (string fn in Consts.FileNames.AppRootMarkerFileNames)
+                        {
+                            if (File.Exists(Path.Combine(tmp, fn)))
+                            {
+                                found = true;
+                                break;
+                            }        
+                        }
+
+                        if (found)
                         {
                             AppRootDir = tmp;
                             break;

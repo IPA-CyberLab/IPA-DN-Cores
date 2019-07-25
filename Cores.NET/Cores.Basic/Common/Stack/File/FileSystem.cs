@@ -1182,18 +1182,6 @@ namespace IPA.Cores.Basic
             return path.Substring(i);
         }
 
-        public void Abc3()
-        {
-        }
-
-        public void Abc()
-        {
-        }
-
-        public void Abc2()
-        {
-        }
-
         public void SepareteDirectoryAndFileName(string path, out string dirPath, out string fileName)
         {
             if (path._IsEmpty())
