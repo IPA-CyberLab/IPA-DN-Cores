@@ -61,6 +61,7 @@ using IPA.Cores.ClientApi.Acme;
 using System.Security.Claims;
 using System.Runtime.Serialization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Extensions.FileProviders;
 
 namespace IPA.Cores.Basic
 {
@@ -94,7 +95,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class HttpServerStartupHelper
+    public class HttpServerStartupHelper : IDisposable
     {
         public IConfiguration Configuration { get; }
         public HttpServerOptions ServerOptions { get; }
@@ -103,6 +104,8 @@ namespace IPA.Cores.Basic
         public CancellationToken CancelToken { get; }
 
         public bool IsDevelopmentMode { get; private set; }
+
+        readonly List<IFileProvider> StaticFileProviderList = new List<IFileProvider>();
 
         public Func<string, string, Task<bool>> SimpleBasicAuthenticationPasswordValidator { get; set; } = null;
 
@@ -197,6 +200,12 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public void AddStaticFileProvider(IFileProvider provider)
+        {
+            if (provider != null)
+                StaticFileProviderList.Add(provider);
+        }
+
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
@@ -228,6 +237,13 @@ namespace IPA.Cores.Basic
                 // Simple Basic Authentication
                 app.UseAuthentication();
             }
+
+            StaticFileOptions sfo = new StaticFileOptions
+            {
+                FileProvider = new CompositeFileProvider(this.StaticFileProviderList),
+            };
+
+            app.UseStaticFiles(sfo);
         }
 
 #if CORES_BASIC_JSON
@@ -259,6 +275,19 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            foreach (IFileProvider provider in StaticFileProviderList)
+            {
+                if (provider is IDisposable target) target._DisposeSafe();
+            }
+        }
+
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 

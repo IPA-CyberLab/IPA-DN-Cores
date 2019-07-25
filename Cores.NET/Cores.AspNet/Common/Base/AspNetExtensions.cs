@@ -41,44 +41,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 
 namespace IPA.Cores.Helper.Basic
 {
-    public class AspNetHelper : IDisposable
+    public static partial class AspNetExtensions
     {
-        public AspNetHelper(IConfiguration configuration)
+        public static string GenerateAbsoluteUrl(this ControllerBase c, string actionName)
         {
+            string url = Str.BuildHttpUrl(c.Request.Scheme, c.Request.Host.Host, c.Request.Host.Port ?? 0, c.Url.Action(actionName));
+
+            return url;
         }
-
-        public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.Singleton[typeof(AspNetHelper).Assembly];
-
-        public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
-        {
-        }
-
-        public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)
-        {
-            helper.AddStaticFileProvider(AspNetResFs.CreateFileProvider("/ResourceRoot/wwwroot/"));
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            // Here
-        }
-
-        public string GetSourceCodeFilePath() => Dbg.GetSourceCodeFilePath();
     }
 }

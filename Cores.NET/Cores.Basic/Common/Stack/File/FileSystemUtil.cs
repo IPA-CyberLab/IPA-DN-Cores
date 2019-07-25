@@ -291,8 +291,19 @@ namespace IPA.Cores.Basic
 #pragma warning disable CS1998
         public async Task<string> EasyFindSingleFileAsync(string partOfFileName, bool exact = false, string rootDir = "/", CancellationToken cancel = default)
         {
+            if (partOfFileName._IsEmpty())
+            {
+                throw new ArgumentNullException(nameof(partOfFileName));
+            }
+
+            partOfFileName = PathParser.Mac.NormalizeDirectorySeparator(partOfFileName);
+
+            bool partOfFileNameContainsDirName = partOfFileName.IndexOf(PathParser.Mac.DirectorySeparator) != -1;
+
             DirectoryWalker walk = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
             string exactFile = null;
+
+            int numExactMatch = 0;
 
             List<FindSingleFileData> candidates = new List<FindSingleFileData>();
 
@@ -301,14 +312,21 @@ namespace IPA.Cores.Basic
                 {
                     foreach (var file in entities.Where(x => x.IsDirectory == false))
                     {
+                        string fullPathTmp = PathParser.Mac.NormalizeDirectorySeparator(file.FullPath);
+
                         if (partOfFileName._IsSamei(file.Name))
                         {
                             // Exact match
                             exactFile = file.FullPath;
-                            return false;
+                            numExactMatch++;
                         }
-
-                        if (file.Name._Search(partOfFileName) != -1)
+                        else if (partOfFileNameContainsDirName && fullPathTmp.EndsWith(partOfFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Exact match
+                            exactFile = file.FullPath;
+                            numExactMatch++;
+                        }
+                        else if (file.Name._Search(partOfFileName) != -1)
                         {
                             int originalLen = file.Name.Length;
                             if (originalLen >= 1)
@@ -329,7 +347,13 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
 
             if (exactFile._IsFilled())
+            {
+                if (exact && numExactMatch >= 2)
+                {
+                    throw new FileException(partOfFileName, "Two or more files matched while exact flag is set.");
+                }
                 return exactFile;
+            }
 
             if (exact && candidates.Count >= 2)
                 throw new FileException(partOfFileName, "Two or more files matched while exact flag is set.");

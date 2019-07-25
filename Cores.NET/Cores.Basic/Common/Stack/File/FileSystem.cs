@@ -642,6 +642,7 @@ namespace IPA.Cores.Basic
         public string FullPath { get; set; }
         public string Name { get; set; }
         public bool IsDirectory => Attributes.Bit(FileAttributes.Directory);
+        public bool IsFile => !IsDirectory;
         public bool IsSymbolicLink => Attributes.Bit(FileAttributes.ReparsePoint);
         public bool IsCurrentDirectory => (Name == ".");
         public long Size { get; set; }

@@ -77,6 +77,8 @@ namespace IPA.Cores.Basic
             public const string CertVault_AcmeCertKey = "acme_cert.key";
 
             public const string CertVault_DefaultCert = "default.pfx";
+
+            public const string DefaultStopRootSearchFileExts = ".sln .git";
         }
 
         public static partial class Extensions
