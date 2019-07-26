@@ -52,7 +52,11 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Helper.Basic
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
+
+namespace IPA.Cores.AspNet
 {
     public static class EasyCookieAuth
     {

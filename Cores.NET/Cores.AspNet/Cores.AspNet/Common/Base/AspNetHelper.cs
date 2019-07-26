@@ -44,11 +44,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -58,47 +53,23 @@ using IPA.Cores.AspNet;
 using IPA.Cores.Helper.AspNet;
 using static IPA.Cores.Globals.AspNet;
 
-namespace IPA.Cores.AspNet
+namespace IPA.Cores.Helper.AspNet
 {
-    public class AspNetLib : IDisposable
+    public static partial class AspNetExtensions
     {
-        static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Util.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet);
-
-        public AspNetLib(IConfiguration configuration)
+        public static string GenerateAbsoluteUrl(this ControllerBase c, string actionName)
         {
-        }
+            string url = Str.BuildHttpUrl(c.Request.Scheme, c.Request.Host.Host, c.Request.Host.Port ?? 0, c.Url.Action(actionName));
 
-        public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
-            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet)));
-
-
-        public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
-        {
-        }
-
-        public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)
-        {
-            // Embedded resource of the assembly
-            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/wwwroot/"));
-        }
-
-        public void ConfigureRazorOptions(RazorViewEngineOptions opt)
-        {
-            opt.ViewLocationFormats.Add("/Cores.AspNet/Views/{1}/{0}.cshtml");
-
-            if (AspNetLib.LibRootFullPath._IsFilled())
-            {
-                opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
-            }
-        }
-
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            // Here
+            return url;
         }
     }
 }
+
+namespace IPA.Cores.Globals
+{
+    public static class AspNet
+    {
+    }
+}
+
