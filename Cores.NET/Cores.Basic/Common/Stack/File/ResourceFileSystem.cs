@@ -129,16 +129,20 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    foreach (DirectoryPath subDir in srcRootPath.GetDirectories())
+                    foreach (FileSystemEntity entity in srcRootPath.EnumDirectory(true, EnumDirectoryFlags.NoGetPhysicalSize))
                     {
-                        try
+                        if (entity.IsCurrentDirectory == false && entity.IsDirectory)
                         {
-                            if (subDir.GetFiles().Where(x => x.GetFileName()._IsSamei(Consts.FileNames.RootMarker_Resource)).Any())
+                            DirectoryPath subDir = new DirectoryPath(entity.FullPath);
+                            try
                             {
-                                resourceRootList.Add(subDir);
+                                if (subDir.GetFiles().Where(x => x.GetFileName()._IsSamei(Consts.FileNames.RootMarker_Resource)).Any())
+                                {
+                                    resourceRootList.Add(subDir);
+                                }
                             }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
                 catch { }

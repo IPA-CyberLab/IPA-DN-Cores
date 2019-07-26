@@ -45,11 +45,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
-
-
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.FileProviders;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -61,31 +60,37 @@ using static IPA.Cores.Globals.AspNet;
 
 namespace IPA.Cores.AspNet
 {
-    public class AspNetHelper : IDisposable
+    public class AspNetLib : IDisposable
     {
-        public static readonly string AspNetHelperLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
+        static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
+        public static readonly string LibRootFullPath = Util.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet);
 
-        public AspNetHelper(IConfiguration configuration)
+        public AspNetLib(IConfiguration configuration)
         {
         }
 
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
-            new AssemblyWithSourceInfo(typeof(AspNetHelper), new SourceCodePathAndMarkerFileName(AspNetHelperLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_AspNet)));
+            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet)));
 
 
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
         {
-            ConfigureOptions<RazorViewEngineOptions> razorViewOptions = new ConfigureOptions<RazorViewEngineOptions>(opt =>
-            {
-            });
-
-            services.AddSingleton<IConfigureOptions<RazorViewEngineOptions>>(razorViewOptions);
         }
 
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)
         {
             // Embedded resource of the assembly
             helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/wwwroot/"));
+        }
+
+        public void ConfigureRazorOptions(RazorViewEngineOptions opt)
+        {
+            opt.ViewLocationFormats.Add("/Cores.AspNet/Views/{1}/{0}.cshtml");
+
+            if (AspNetLib.LibRootFullPath._IsFilled())
+            {
+                opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
+            }
         }
 
         public void Dispose() => Dispose(true);
