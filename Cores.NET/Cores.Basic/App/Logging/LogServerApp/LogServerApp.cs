@@ -88,6 +88,8 @@ namespace IPA.Cores.Basic
                     string httpPortsStr = k.GetStr("WebServerHttpPorts", CoresConfig.LogServerApp.DefaultHttpServerPortsString);
                     string httpsPortsStr = k.GetStr("WebServerHttpsPorts", CoresConfig.LogServerApp.DefaultHttpsServerPortsString);
 
+                    string mustIncludeHostnameStr = k.GetStr("MustIncludeHostname", "*");
+
                     logDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(logDestDir);
                     certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
 
@@ -118,6 +120,12 @@ namespace IPA.Cores.Basic
                         RequireBasicAuthenticationToAllRequests = true,
                         DebugKestrelToConsole = true,
                     };
+
+                    if (mustIncludeHostnameStr._IsFilled() && mustIncludeHostnameStr._IsSamei("*") == false)
+                    {
+                        string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
+                    }
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(logDestDir);
 

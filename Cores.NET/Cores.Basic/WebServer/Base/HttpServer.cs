@@ -274,6 +274,22 @@ namespace IPA.Cores.Basic
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
+            if (this.ServerOptions.MustIncludeHostnameStrList.Count >= 1)
+            {
+                app.Use(async (context, next) =>
+                {
+                    if (this.ServerOptions.MustIncludeHostnameStrList.Select(x => x._NonNullTrim()).Where(x => x._IsFilled() && (context?.Request?.Host.Host?._InStr(x, true) ?? false)).Any())
+                    {
+                        await next();
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 404;
+                        await context.Response._SendStringContents("Server not found");
+                    }
+                });
+            }
+
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
                 // Simple Basic Authentication
@@ -364,9 +380,9 @@ namespace IPA.Cores.Basic
         public object Param => Helper.Param;
         public CancellationToken CancelToken => Helper.CancelToken;
 
-        protected abstract void ConfigureImpl_Before(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
+        protected abstract void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
 
-        protected abstract void ConfigureImpl_After(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
+        protected abstract void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
 
         public HttpServerStartupBase(IConfiguration configuration)
         {
@@ -382,11 +398,11 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
-            ConfigureImpl_Before(Helper.StartupConfig, app, env, lifetime);
+            ConfigureImpl_BeforeHelper(Helper.StartupConfig, app, env, lifetime);
 
             Helper.Configure(app, env);
 
-            ConfigureImpl_After(Helper.StartupConfig, app, env, lifetime);
+            ConfigureImpl_AfterHelper(Helper.StartupConfig, app, env, lifetime);
         }
     }
 
@@ -394,6 +410,8 @@ namespace IPA.Cores.Basic
     {
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
+
+        public List<string> MustIncludeHostnameStrList { get; set; } = new List<string>();
 
         public string ContentsRoot { get; set; } = Env.AppRootDir;
         public string WwwRoot { get; set; } = Env.AppRootDir._CombinePath("wwwroot");
