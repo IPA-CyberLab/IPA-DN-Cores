@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Hive.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\DevTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\GlobalFunctions.cs" />
@@ -57,6 +58,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\LocalFileSystemUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TcpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TelnetStreamWatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastStack.cs" />
@@ -146,6 +148,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\MsLogger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Util\LogBrowser\LogBrowser.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)App\Inbox\" />

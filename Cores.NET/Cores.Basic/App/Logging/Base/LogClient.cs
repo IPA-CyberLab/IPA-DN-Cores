@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMin.Value;
         public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMax.Value;
 
-        public LogClientOptions(TcpIpSystem tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = CoresConfig.LogProtocolSettings.DefaultPort)
+        public LogClientOptions(TcpIpSystem tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = Consts.Ports.LogServerDefaultServicePort)
         {
             this.ServerHostname = serverHostname._NonNullTrim();
             this.ServerPort = serverPort;

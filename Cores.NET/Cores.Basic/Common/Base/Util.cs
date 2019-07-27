@@ -2769,43 +2769,6 @@ namespace IPA.Cores.Basic
 
             throw new ArgumentException(nameof(protocol));
         }
-
-        public static DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
-        {
-            try
-            {
-                DirectoryPath currentDir = sampleFilePath.GetParentDirectory();
-
-                while (currentDir.IsRootDirectory == false)
-                {
-                    FileSystemEntity[] elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
-
-                    if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
-                    {
-                        // Found
-                        return currentDir;
-                    }
-
-                    if (elements.Where(x => x.IsFile && x.Name._IsExtensionMatch(stopSearchFileExtensions)).Any())
-                    {
-                        return null;
-                    }
-
-                    if (elements.Where(x => x.IsFile && Consts.FileNames.AppRootMarkerFileNames.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
-                    {
-                        return null;
-                    }
-
-                    currentDir = currentDir.GetParentDirectory();
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
-            }
-
-            return null;
-        }
     }
 
 

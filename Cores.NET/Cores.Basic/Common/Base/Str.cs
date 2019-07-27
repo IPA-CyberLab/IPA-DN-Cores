@@ -2457,6 +2457,25 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        public static int[] ParsePortsList(string str)
+        {
+            string[] tokens = str.Split(new char[] { ',', ' ', '　', '\t', '/', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            SortedSet<int> ret = new SortedSet<int>();
+
+            foreach (string token in tokens)
+            {
+                int i = token._ToInt();
+
+                if (i >= 1 && i <= 65535)
+                {
+                    ret.Add(i);
+                }
+            }
+
+            return ret.ToArray();
+        }
+
         // アンエスケープ
         public static string Unescape(string str)
         {

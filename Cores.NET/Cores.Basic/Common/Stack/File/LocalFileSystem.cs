@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class LocalFileSystem : FileSystem
+    public partial class LocalFileSystem : FileSystem
     {
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;

@@ -276,6 +276,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                Util.PutGitIgnoreFileOnDirectory(baseDir, flags: FileFlags.AutoCreateDirectory);
+
                 this.DefaultCertificate = defaultCertificate;
 
                 this.TcpIp = tcpIp ?? LocalNet;
@@ -857,8 +859,6 @@ namespace IPA.Cores.Basic
                     BaseDir.CreateDirectory();
                 }
                 catch { }
-
-                Util.PutGitIgnoreFileOnDirectory(BaseDir);
 
                 CertVault vault = new CertVault(BaseDir, isGlobalVault: true, defaultCertificate: DefaultCertificate);
 

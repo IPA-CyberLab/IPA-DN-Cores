@@ -59,7 +59,11 @@ namespace IPA.TestDev
         {
         }
 
-        protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
+        protected override void ConfigureImpl_Before(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        {
+        }
+
+        protected override void ConfigureImpl_After(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
         }
     }

@@ -535,11 +535,6 @@ namespace IPA.Cores.ClientApi.Acme
 
             return token + "." + keyThumbprintBase64;
         }
-
-        public async Task Test1()
-        {
-            await RequestAsync<None>(WebMethods.POST, "https://acme-v02.api.letsencrypt.org/acme/acct/59409326", null);
-        }
     }
 
     public class AcmeClient : IDisposable

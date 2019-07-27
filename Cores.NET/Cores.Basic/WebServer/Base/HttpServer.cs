@@ -62,6 +62,8 @@ using System.Security.Claims;
 using System.Runtime.Serialization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
 
 namespace IPA.Cores.Basic
 {
@@ -92,6 +94,24 @@ namespace IPA.Cores.Basic
             }
 
             return false;
+        }
+    }
+
+    public class HttpServerAnyAuthenticationRequired : AuthorizationHandler<HttpServerAnyAuthenticationRequired>, IAuthorizationRequirement
+    {
+        protected override Task HandleRequirementAsync(
+            AuthorizationHandlerContext context,
+            HttpServerAnyAuthenticationRequired requirement)
+        {
+            if (context.User.Identity.IsAuthenticated)
+            {
+                context.Succeed(requirement);
+            }
+            else
+            {
+                context.Fail();
+            }
+            return Task.FromResult(0);
         }
     }
 
@@ -159,8 +179,17 @@ namespace IPA.Cores.Basic
 
             services.AddRouting();
 
+
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
+                if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+                {
+                    services.AddAuthorization(options =>
+                    {
+                        options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
+                    });
+                }
+
                 // Simple BASIC authentication
                 services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
                     .AddBasic(options =>
@@ -249,14 +278,33 @@ namespace IPA.Cores.Basic
             {
                 // Simple Basic Authentication
                 app.UseAuthentication();
+
+                if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+                {
+                    app.Use(async (context, next) =>
+                    {
+                        AuthorizationResult allowed = await context.RequestServices.GetRequiredService<IAuthorizationService>().AuthorizeAsync(context.User, null, nameof(HttpServerAnyAuthenticationRequired));
+                        if (allowed.Succeeded)
+                        {
+                            await next();
+                        }
+                        else
+                        {
+                            await context.RequestServices.GetRequiredService<IAuthenticationService>().ChallengeAsync(context, BasicAuthDefaults.AuthenticationScheme, new AuthenticationProperties());
+                        }
+                    });
+                }
             }
 
-            StaticFileOptions sfo = new StaticFileOptions
+            if (ServerOptions.UseStaticFiles)
             {
-                FileProvider = new CompositeFileProvider(this.StaticFileProviderList),
-            };
+                StaticFileOptions sfo = new StaticFileOptions
+                {
+                    FileProvider = new CompositeFileProvider(this.StaticFileProviderList),
+                };
 
-            app.UseStaticFiles(sfo);
+                app.UseStaticFiles(sfo);
+            }
         }
 
 #if CORES_BASIC_JSON
@@ -316,7 +364,9 @@ namespace IPA.Cores.Basic
         public object Param => Helper.Param;
         public CancellationToken CancelToken => Helper.CancelToken;
 
-        protected abstract void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env);
+        protected abstract void ConfigureImpl_Before(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
+
+        protected abstract void ConfigureImpl_After(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
 
         public HttpServerStartupBase(IConfiguration configuration)
         {
@@ -330,11 +380,13 @@ namespace IPA.Cores.Basic
             Helper.ConfigureServices(services);
         }
 
-        public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
-            ConfigureImpl(Helper.StartupConfig, app, env);
+            ConfigureImpl_Before(Helper.StartupConfig, app, env, lifetime);
 
             Helper.Configure(app, env);
+
+            ConfigureImpl_After(Helper.StartupConfig, app, env, lifetime);
         }
     }
 
@@ -353,10 +405,14 @@ namespace IPA.Cores.Basic
         public bool ShowDetailError { get; set; } = true;
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
 
+        public bool RequireBasicAuthenticationToAllRequests { get; set; } = false;
+
         public bool UseSimpleBasicAuthentication { get; set; } = false;
         public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
         public bool AutomaticRedirectToHttpsIfPossible { get; set; } = true;
+
+        public bool HideKestrelServerHeader { get; set; } = true;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
@@ -413,6 +469,8 @@ namespace IPA.Cores.Basic
 
         public void ConfigureKestrelServerOptions(KestrelServerOptions opt, object sslCertSelectorParam)
         {
+            opt.AddServerHeader = !this.HideKestrelServerHeader;
+
             KestrelServerWithStackOptions withStackOpt = opt as KestrelServerWithStackOptions;
 
             if (this.LocalHostOnly)

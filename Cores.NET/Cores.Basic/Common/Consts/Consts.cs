@@ -50,6 +50,9 @@ namespace IPA.Cores.Basic
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;
+            public const int LogServerDefaultServicePort = 7003;
+            public const int LogServerDefaultHttpPort = 80;
+            public const int LogServerDefaultHttpsPort = 443;
 
             public const int Http = 80;
             public const int Https = 443;

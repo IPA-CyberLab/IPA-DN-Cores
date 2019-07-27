@@ -53,8 +53,6 @@ namespace IPA.Cores.Basic
     {
         public static partial class LogProtocolSettings
         {
-            public const int DefaultPort = 7003;
-
             public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
             public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
 
@@ -76,7 +74,12 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
 
         public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIp, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, CoresConfig.LogProtocolSettings.DefaultPort))
+            : base(tcpIp, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.LogServerDefaultServicePort))
+        {
+        }
+
+        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
+            : base(tcpIp, sslAuthOptions, IPUtil.GenerateListeningEndPointsList(false, ports))
         {
         }
     }
@@ -217,8 +220,8 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIp, sslAuthOptions, endPoints)
+        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
+            : base(tcpIp, sslAuthOptions, ports)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 

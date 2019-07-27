@@ -801,9 +801,13 @@ namespace IPA.Cores.Basic
             return BuildAbsolutePathStringFromElements(SplitAbsolutePathToElementsUnixStyle(path));
         }
 
-        public string[] SplitAbsolutePathToElementsUnixStyle(string path)
+        public string[] SplitAbsolutePathToElementsUnixStyle(string path, bool allowOnWindows = false)
         {
-            Debug.Assert(this.Style != FileSystemStyle.Windows);
+            if (allowOnWindows == false)
+            {
+                Debug.Assert(this.Style != FileSystemStyle.Windows);
+            }
+
             path = path._NonNull();
 
             if (path.StartsWith("/") == false)
@@ -881,7 +885,7 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        public string NormalizeDirectorySeparator(string srcPath)
+        public string NormalizeDirectorySeparator(string srcPath, bool includeBackSlashForcefully = false)
         {
             srcPath = srcPath._NonNull();
 
@@ -890,11 +894,16 @@ namespace IPA.Cores.Basic
 
             int mode = -1;
 
+            char[] possible = PossibleDirectorySeparators;
+
+            if (includeBackSlashForcefully)
+                possible = PathParser.Windows.PossibleDirectorySeparators;
+
             StringBuilder sb = new StringBuilder();
             foreach (char c in srcPath)
             {
                 bool isDirectorySeparatorChar = false;
-                foreach (char pos in PossibleDirectorySeparators)
+                foreach (char pos in possible)
                     if (pos == c) isDirectorySeparatorChar = true;
 
                 char d = c;

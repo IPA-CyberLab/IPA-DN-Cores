@@ -141,7 +141,7 @@ namespace IPA.TestDev
             }
         }
 
-        protected override void ConfigureImpl(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env)
+        protected override void ConfigureImpl_Before(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
             RouteBuilder rb = new RouteBuilder(app);
 
@@ -149,6 +149,10 @@ namespace IPA.TestDev
 
             IRouter router = rb.Build();
             app.UseRouter(router);
+        }
+
+        protected override void ConfigureImpl_After(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        {
         }
     }
 
@@ -725,7 +729,7 @@ namespace IPA.TestDev
 
             using (LogClient client = new LogClient(new LogClientOptions(null, cliSsl, "127.0.0.1")))
             {
-                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl)))
+                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl, ports: Consts.Ports.LogServerDefaultServicePort._SingleArray() )))
                 {
                     CancellationTokenSource cts = new CancellationTokenSource();
 
@@ -901,8 +905,7 @@ namespace IPA.TestDev
         [ConsoleCommand]
         static void LogServerTest(ConsoleService c, string cmdName, string str)
         {
-            PalSslServerAuthenticationOptions svrSsl = new PalSslServerAuthenticationOptions(DevTools.TestSampleCert, true, null);
-            using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\LogServerTest", FileFlags.AutoCreateDirectory, null, null, svrSsl)))
+            using (LogServerApp server = new LogServerApp())
             {
                 Con.ReadLine("Exit>");
             }
