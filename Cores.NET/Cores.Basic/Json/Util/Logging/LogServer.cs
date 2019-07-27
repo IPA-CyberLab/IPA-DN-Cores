@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LogProtocolSettings
         {
-            public const int DefaultPort = 3003;
+            public const int DefaultPort = 7003;
 
             public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
             public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;

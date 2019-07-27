@@ -96,6 +96,7 @@ winuninstall - Uninstall the daemon as a Windows service.")]
         {
             return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon());
         }
+
     }
 }
 

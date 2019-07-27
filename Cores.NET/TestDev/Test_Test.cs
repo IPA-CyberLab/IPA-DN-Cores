@@ -161,7 +161,8 @@ namespace IPA.TestDev
             //"eyJ0ZXJtc09mU2VydmljZUFncmVlZCI6dHJ1ZSwiY29udGFjdCI6WyJtYWlsdG86ZGEuMTkwNjE1QHNvZnRldGhlci5jby5qcCJdLCJzdGF0dXMiOm51bGwsImlkIjpudWxsLCJjcmVhdGVkQXQiOiIwMDAxLTAxLTAxVDAwOjAwOjAwIiwia2V5IjpudWxsLCJpbml0aWFsSXAiOm51bGwsIm9yZGVycyI6bnVsbCwiTG9jYXRpb24iOm51bGx9"
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
-            Test_Generic();
+
+            //Test_Generic();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -184,6 +185,42 @@ namespace IPA.TestDev
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
 
             //Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
+
+            Test_Logger_Server_And_Client();
+
+            //Test_GcDelay();
+        }
+
+
+
+        volatile static List<object> __gc_test_list = null;
+
+        public static void Test_GcDelay()
+        {
+            __gc_test_list = new List<object>();
+            int c = 0;
+            while (true)
+            {
+                c++;
+                if ((c % 1000) == 0) c._Print();
+                double start = Time.NowHighResDouble;
+                for (int i = 0; i < 10000; i++)
+                {
+                    object obj = new object();
+                    __gc_test_list.Add(obj);
+                }
+
+                __gc_test_list = new List<object>();
+
+                double end = Time.NowHighResDouble;
+
+                double d = end - start;
+
+                if (d >= 0.004)
+                {
+                    Con.WriteLine(d);
+                }
+            }
         }
 
         public static void Test_SourceCodeCounter(string url)
@@ -680,7 +717,7 @@ namespace IPA.TestDev
             DoNothing();
         }
 
-        public static void Test_11()
+        public static void Test_Logger_Server_And_Client()
         {
             // Logger Tester
             PalSslServerAuthenticationOptions svrSsl = new PalSslServerAuthenticationOptions(DevTools.TestSampleCert, true, null);
@@ -701,7 +738,8 @@ namespace IPA.TestDev
                             client.WriteLog(new LogJsonData()
                             {
                                 AppName = "App",
-                                Data = "Hello World " + i.ToString(),
+                                //Data = "Hello World " + i.ToString(),
+                                Data = new { X = 123, Y = 456, Z = "Hello" },
                                 Guid = Str.NewGuid(),
                                 Kind = LogKind.Default,
                                 MachineName = "Neko",
@@ -855,6 +893,70 @@ namespace IPA.TestDev
             //Con.WriteLine(packet.Parsed.L2_TagVLan1.TagVlan.RefValueRead.VLanId);
 
             NoOp();
+        }
+    }
+
+    partial class TestDevCommands
+    {
+        [ConsoleCommand]
+        static void LogServerTest(ConsoleService c, string cmdName, string str)
+        {
+            PalSslServerAuthenticationOptions svrSsl = new PalSslServerAuthenticationOptions(DevTools.TestSampleCert, true, null);
+            using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\LogServerTest", FileFlags.AutoCreateDirectory, null, null, svrSsl)))
+            {
+                Con.ReadLine("Exit>");
+            }
+        }
+
+        [ConsoleCommand]
+        static void LogClientTest(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[arg]", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string serverHostname = vl.DefaultParam.StrValue._FilledOrDefault("127.0.0.1");
+
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, DevTools.TestSampleCert.HashSHA1);
+
+            using (LogClient client = new LogClient(new LogClientOptions(null, cliSsl, serverHostname)))
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+
+                Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    for (int i = 0; ; i++)
+                    {
+                        if (cts.IsCancellationRequested) return;
+
+                        client.WriteLog(new LogJsonData()
+                        {
+                            AppName = "App",
+                            //Data = "Hello World " + i.ToString(),
+                            Data = new { X = 123, Y = 456, Z = "Hello" },
+                            Guid = Str.NewGuid(),
+                            Kind = LogKind.Default,
+                            MachineName = "Neko",
+                            Priority = LogPriority.Info.ToString(),
+                            Tag = "TagSan",
+                            TimeStamp = DateTimeOffset.Now,
+                            TypeName = "xyz"
+                        }
+                        );
+
+                        await Task.Delay(100);
+                    }
+                });
+
+                Con.ReadLine("Exit>");
+
+                cts.Cancel();
+
+                testTask._TryWait();
+            }
         }
     }
 }
