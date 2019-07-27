@@ -928,6 +928,8 @@ namespace IPA.TestDev
 
                 Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
                 {
+                    await Task.CompletedTask;
+
                     string bigData = Str.MakeCharArray('x', 100_000);
 
                     for (int i = 0; ; i++)

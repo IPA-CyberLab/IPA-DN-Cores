@@ -24,7 +24,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Consts\Consts.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\GenericApp\Util\SourceCodeCounter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\SourceCodeCounter\SourceCodeCounter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Csv.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Debug.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Env.cs" />
@@ -57,8 +57,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Time.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\NetworkApp\Util\TcpServer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Common\NetworkApp\Util\TelnetStreamWatcher.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TcpServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TelnetStreamWatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ChrootViewFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\FileCopy.cs" />
@@ -119,11 +119,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\JsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\JsonRpc\LogDef\LogDef.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Inbox.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\InboxGmail.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\InboxSlack.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Logging\LogClient.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Logging\LogServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\Inbox\Inbox.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\Inbox\InboxGmail.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\Inbox\InboxSlack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\Logging\Base\LogClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\Logging\Base\LogServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\Acme.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\GoogleApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
@@ -148,8 +148,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\MsLogger.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)App\Inbox\" />
+    <Folder Include="$(MSBuildThisFileDirectory)App\Logging\Base\" />
+    <Folder Include="$(MSBuildThisFileDirectory)App\SourceCodeCounter\" />
     <Folder Include="$(MSBuildThisFileDirectory)Common\Legacy\" />
-    <Folder Include="$(MSBuildThisFileDirectory)Json\Util\Logging\" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)ResourceRoot/**/*" />
