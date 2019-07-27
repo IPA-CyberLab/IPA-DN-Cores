@@ -122,8 +122,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\Inbox.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\InboxGmail.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Inbox\InboxSlack.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogClient.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\LogServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Log\LogClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Json\Util\Log\LogServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\Acme.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\GoogleApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
@@ -149,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Common\Legacy\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Json\Util\Log\" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)ResourceRoot/**/*" />
