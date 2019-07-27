@@ -35,6 +35,18 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:Inbox"
     },
+    "TestDev /LogServerTest": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:LogServerTest"
+    },
+    "TestDev /LogClientTest": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:LogClientTest"
+    },
+    "TestDev /LogClientTest pc37": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:LogClientTest pc37.sec.softether.co.jp"
+    },
     "TestDev /TcpStressClient": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:TcpStressClient http://dn-lxd-vm2-test1/favicon.ico"
