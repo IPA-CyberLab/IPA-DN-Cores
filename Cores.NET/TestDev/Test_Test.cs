@@ -928,6 +928,8 @@ namespace IPA.TestDev
 
                 Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
                 {
+                    string bigData = Str.MakeCharArray('x', 100_000);
+
                     for (int i = 0; ; i++)
                     {
                         if (cts.IsCancellationRequested) return;
@@ -936,7 +938,7 @@ namespace IPA.TestDev
                         {
                             AppName = "App",
                             //Data = "Hello World " + i.ToString(),
-                            Data = new { X = 123, Y = 456, Z = "Hello" },
+                            Data = new { X = 123, Y = 456, Z = bigData },
                             Guid = Str.NewGuid(),
                             Kind = LogKind.Default,
                             MachineName = "Neko",
@@ -947,7 +949,7 @@ namespace IPA.TestDev
                         }
                         );
 
-                        await Task.Delay(100);
+                        //await Task.Delay(100);
                     }
                 });
 
