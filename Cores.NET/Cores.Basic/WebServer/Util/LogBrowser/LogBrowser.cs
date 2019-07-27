@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
 
             RouteBuilder rb = new RouteBuilder(app);
 
-            rb.MapGet("test", GetRequestHandler);
+            rb.MapGet("{*path}", GetRequestHandler);
 
             IRouter router = rb.Build();
             app.UseRouter(router);
@@ -103,13 +103,31 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                string s = "Hello";
+                string path = routeData.Values._GetStrOrEmpty("path");
 
-                await response._SendStringContents(s, cancel: this.CancelToken);
+                if (path.StartsWith("/") == false) path = "/" + path;
+
+                path = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
+
+                if (RootFs.IsDirectoryExists(path, CancelToken))
+                {
+                    string template = CoresRes["LogBrowser/Html/Directory.html"].String;
+
+                    await response._SendStringContents(template, contentsType: Consts.MediaTypes.HtmlUtf8, cancel: this.CancelToken);
+                }
+                else if (RootFs.IsFileExists(path, CancelToken))
+                {
+                }
+                else
+                {
+                    response.StatusCode = 404;
+                    await response._SendStringContents($"404 File not found", cancel: this.CancelToken);
+                }
             }
             catch (Exception ex)
             {
-                await response._SendStringContents(ex.ToString(), cancel: this.CancelToken);
+                response.StatusCode = 500;
+                await response._SendStringContents($"HTTP Status Code: {response.StatusCode}\r\n" + ex.ToString(), cancel: this.CancelToken);
             }
         }
     }

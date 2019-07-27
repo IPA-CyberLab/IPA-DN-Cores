@@ -69,6 +69,7 @@ namespace IPA.Cores.Basic
             public const string JoseJson = "application/jose+json";
             public const string FormUrlEncoded = "application/x-www-form-urlencoded";
             public const string OctetStream = "application/octet-stream";
+            public const string HtmlUtf8 = "text/html; charset=UTF-8";
         }
 
         public static partial class FileNames
