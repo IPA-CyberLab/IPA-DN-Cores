@@ -1393,7 +1393,7 @@ namespace IPA.Cores.Helper.Basic
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt8<T>(this T target, sbyte value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueSInt8<T>(this ref T target, sbyte value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
@@ -1401,37 +1401,37 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt16<T>(this T target, short value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueSInt16<T>(this ref T target, short value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) *((short*)ptr) = value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt32<T>(this T target, int value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueSInt32<T>(this ref T target, int value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) *((int*)ptr) = value;
-            if (size >= 2) *((ushort*)ptr) = (ushort)value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueSInt64<T>(this T target, long value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueSInt64<T>(this ref T target, long value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) *((long*)ptr) = value;
-            if (size >= 4) *((uint*)ptr) = (uint)value;
-            if (size >= 2) *((ushort*)ptr) = (ushort)value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt8<T>(this T target, byte value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueUInt8<T>(this ref T target, byte value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
@@ -1439,33 +1439,33 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt16<T>(this T target, ushort value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueUInt16<T>(this ref T target, ushort value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 2) *((ushort*)ptr) = value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt32<T>(this T target, uint value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueUInt32<T>(this ref T target, uint value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 4) *((uint*)ptr) = value;
-            if (size >= 2) *((ushort*)ptr) = (ushort)value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void _RawWriteValueUInt64<T>(this T target, ulong value, long pointerOffset = 0) where T : unmanaged
+        public static unsafe void _RawWriteValueUInt64<T>(this ref T target, ulong value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
             byte* ptr = (byte*)(Unsafe.AsPointer(ref target)) + pointerOffset;
             if (size >= 8) *((ulong*)ptr) = value;
-            if (size >= 4) *((uint*)ptr) = (uint)value;
-            if (size >= 2) *((ushort*)ptr) = (ushort)value;
-            if (size >= 1) *((byte*)ptr) = (byte)value;
+            else if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
 
