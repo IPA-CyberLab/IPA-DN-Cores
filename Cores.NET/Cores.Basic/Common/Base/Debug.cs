@@ -1244,6 +1244,7 @@ namespace IPA.Cores.Basic
         Mutant,
         SingleThreadWorker,
         AllocUnmanagedMemory,
+        FileBaseObject,
     }
 
     public class LeakCheckerResult

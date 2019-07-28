@@ -1139,9 +1139,12 @@ namespace IPA.Cores.Basic
 
         public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
+        IHolder Leak;
+
         protected FileBase(FileParameters fileParams)
         {
             this.FileParams = fileParams;
+            this.Leak = LeakChecker.Enter(LeakCounterKind.FileBaseObject);
         }
 
         public override string ToString() => $"FileObject('{FileParams.Path}')";
@@ -1220,6 +1223,8 @@ namespace IPA.Cores.Basic
                 CloseAsync()._GetResult();
             }
             catch { }
+
+            this.Leak._DisposeSafe();
         }
 
         protected void CheckIsOpened()

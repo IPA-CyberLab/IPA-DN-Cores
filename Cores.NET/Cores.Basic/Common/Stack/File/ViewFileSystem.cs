@@ -130,6 +130,18 @@ namespace IPA.Cores.Basic
 
         protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
             => this.UnderlayFile.WriteRandomAsync(position, data, cancel);
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+                this.UnderlayFile._DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
     }
 
     public class ViewFileSystemParams : FileSystemParams

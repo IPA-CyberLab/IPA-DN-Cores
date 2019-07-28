@@ -258,6 +258,17 @@ namespace IPA.TestDev
         {
             while (true)
             {
+                var hive = Hive.AppSettingsEx["test01"];
+
+                hive.AccessData(true, x =>
+                {
+                });
+
+                return;
+            }
+
+            while (true)
+            {
                 string line = Con.ReadLine();
 
                 string r = MasterData.ExtensionToMime.Get(line);
