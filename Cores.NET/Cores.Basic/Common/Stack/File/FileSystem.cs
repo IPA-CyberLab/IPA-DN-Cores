@@ -671,7 +671,7 @@ namespace IPA.Cores.Basic
         public bool IsWriteMode { get; }
 
         public FileSystemObjectPool(FileSystem FileSystem, bool writeMode, int lifeTime, int maxObjects, FileFlags defaultFileOperationFlags = FileFlags.None)
-            : base(lifeTime, maxObjects, new StrComparer(FileSystem.PathParser.PathStringComparison))
+            : base(lifeTime, maxObjects, StrComparer.Get(FileSystem.PathParser.PathStringComparison))
         {
             this.FileSystem = FileSystem;
             this.IsWriteMode = writeMode;
@@ -772,10 +772,23 @@ namespace IPA.Cores.Basic
                     break;
             }
 
-            this.PathStringComparer = new StrComparer(this.PathStringComparison);
+            this.PathStringComparer = StrComparer.Get(this.PathStringComparison);
 
             this.InvalidPathChars = GetInvalidPathChars();
             this.InvalidFileNameChars = GetInvalidFileNameChars();
+        }
+
+        public string AppendDirectorySeparatorTail(string path)
+        {
+            path = path._NonNull();
+
+            char c = path.LastOrDefault();
+            if (this.PossibleDirectorySeparators.Where(x => x == c).Any() == false)
+            {
+                path += this.DirectorySeparator;
+            }
+
+            return path;
         }
 
         static readonly char[] PossibleDirectorySeparatorsForAllPlatform = new char[] { '\\', '/'};
@@ -1767,11 +1780,16 @@ namespace IPA.Cores.Basic
             {
                 opCancel.ThrowIfCancellationRequested();
 
-                FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, flags, opCancel);
+                FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), opCancel);
 
                 if (list.Select(x => x.Name).Distinct().Count() != list.Count())
                 {
                     throw new ApplicationException("There are duplicated entities returned by EnumDirectoryImplAsync().");
+                }
+
+                if (list.Where(x => x.IsParentDirectory).Any())
+                {
+                    throw new ApplicationException("An entry returned by EnumDirectoryImplAsync() is IsParentDirectory.");
                 }
 
                 if (list.First().IsCurrentDirectory == false || list.First().IsDirectory == false)

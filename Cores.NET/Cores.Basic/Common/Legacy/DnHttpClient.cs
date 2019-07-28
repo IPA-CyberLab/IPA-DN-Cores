@@ -185,7 +185,7 @@ namespace IPA.Cores.Basic.Legacy
         }
         public Buf Post(Uri uri, byte[] postData, string referer)
         {
-            return Post(uri, postData, referer, Consts.MediaTypes.FormUrlEncoded);
+            return Post(uri, postData, referer, Consts.MimeTypes.FormUrlEncoded);
         }
         public Buf Post(Uri uri, byte[] postData, string referer, string content_type)
         {

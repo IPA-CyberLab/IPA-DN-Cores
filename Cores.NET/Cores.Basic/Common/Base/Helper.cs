@@ -198,7 +198,7 @@ namespace IPA.Cores.Helper.Basic
         public static int _Cmp(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
         public static int _Cmpi(this string s, string t, bool ignoreCase = false) => _Cmp(s, t, true);
         public static string[] _GetLines(this string s) => Str.GetLines(s);
-        public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = "") => Str.GetKeyAndValue(s, out key, out value, splitStr);
+        public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
         public static bool _IsLong(this string s) => Str.IsLong(s);
         public static bool _IsInt(this string s) => Str.IsInt(s);
@@ -215,6 +215,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _Print(this string s) { Con.WriteLine(s); return s; }
         public static string _Debug(this string s) { Dbg.WriteLine(s); return s; }
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
+        public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
         public static string _TrimCrlf(this string s) => Str.TrimCrlf(s);
         public static string _TrimStartWith(this string s, string key, bool caseSensitive = false) { Str.TrimStartWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
@@ -234,12 +235,15 @@ namespace IPA.Cores.Helper.Basic
         public static int _FindStringsMulti(this string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundKeyIndex, keys);
         public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
         public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
+        public static string _StripCommentFromLine(this string str, IEnumerable<string> commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
         public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
         public static string _Normalize(this string str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
-        public static string _EncodeUrl(this string str, Encoding e = null) => Str.ToUrl(str, e);
-        public static string _DecodeUrl(this string str, Encoding e = null) => Str.FromUrl(str, e);
-        public static string _EncodeHtml(this string str, bool forceAllSpaceToTag) => Str.ToHtml(str, forceAllSpaceToTag);
-        public static string _DecodeHtml(this string str) => Str.FromHtml(str);
+        public static string _EncodeUrl(this string str, Encoding e = null) => Str.EncodeUrl(str, e);
+        public static string _DecodeUrl(this string str, Encoding e = null) => Str.DecodeUrl(str, e);
+        public static string _EncodeUrlPath(this string str) => Str.EncodeUrlPath(str);
+        public static string _DecodeUrlPath(this string str) => Str.DecodeUrlPath(str);
+        public static string _EncodeHtml(this string str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
+        public static string _DecodeHtml(this string str) => Str.DecodeHtml(str);
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _Unescape(this string s) => Str.Unescape(s);
         public static string _Escape(this string s) => Str.Escape(s);
@@ -903,7 +907,12 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsEmpty(this string str) => Str.IsEmptyStr(str);
         public static bool _IsFilled(this string str) => Str.IsFilledStr(str);
 
+        public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
+        public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);
+
+        public static string _FilledOrDefault(this string str, string defaultValue = default) => (str._IsFilled() ? str : defaultValue);
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
+
         public static T _FilledOrException<T>(this T obj, Exception exception = null, bool zeroValueIsEmpty = true)
         {
             if (obj._IsFilled(zeroValueIsEmpty))

@@ -80,12 +80,12 @@ namespace IPA.Cores.Basic
         public Stream UploadStream { get; }
 
         public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
-            string uploadContentType = Consts.MediaTypes.OctetStream, Stream uploadStream = null)
+            string uploadContentType = Consts.MimeTypes.OctetStream, Stream uploadStream = null)
         {
             this.Method = method;
             this.Url = url;
             this.Cancel = cancel;
-            this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MediaTypes.OctetStream);
+            this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MimeTypes.OctetStream);
             this.UploadStream = uploadStream;
         }
 
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
 
     public partial class WebRet
     {
-        public const string MediaTypeJson = Consts.MediaTypes.Json;
+        public const string MediaTypeJson = Consts.MimeTypes.Json;
 
         public string Url { get; }
         public string ContentType { get; }
@@ -410,9 +410,9 @@ namespace IPA.Cores.Basic
             throw new HttpRequestException(errStr);
         }
 
-        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.FormUrlEncoded, params (string name, string value)[] queryList)
+        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string value)[] queryList)
         {
-            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
+            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebMethods.POST || method == WebMethods.PUT)
@@ -431,9 +431,9 @@ namespace IPA.Cores.Basic
         }
 
 
-        public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
-            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
+            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
             HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url, null);
 
             r.Content = new ByteArrayContent(postData);
@@ -449,9 +449,9 @@ namespace IPA.Cores.Basic
         }
 
 
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
-            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.Json;
+            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
 
             if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 

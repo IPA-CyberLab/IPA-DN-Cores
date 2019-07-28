@@ -57,6 +57,12 @@ namespace IPA.Cores.Basic
             public const long S64 = unchecked((long)(U64));
         }
 
+        public static partial class Values
+        {
+            public const long MaxMatchPoint = 1_0000_0000_0000_0000;
+            public const long MaxMatchPoint2 = 1_0000_0000;
+        }
+
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;
@@ -71,14 +77,21 @@ namespace IPA.Cores.Basic
         public static partial class Strings
         {
             public const string DefaultCertCN = "DefaultCertificate";
+            public const string DefaultSplitStr = " ,\t\r\n";
+
+            public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//" };
         }
 
-        public static partial class MediaTypes
+        public static partial class MimeTypes
         {
             public const string Json = "application/json";
             public const string JoseJson = "application/jose+json";
             public const string FormUrlEncoded = "application/x-www-form-urlencoded";
             public const string OctetStream = "application/octet-stream";
+            public const string Directory = "text/directory";
+            public const string DirectoryOpening = "text/directory-open";
+
+            public const string TextUtf8 = "text/plain; charset=UTF-8";
             public const string HtmlUtf8 = "text/html; charset=UTF-8";
         }
 

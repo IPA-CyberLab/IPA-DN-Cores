@@ -104,17 +104,80 @@ namespace IPA.Cores.Basic
             string body = CoresRes["LogBrowser/Html/Directory.html"].String;
 
             // Enum dir list
-            List<FileSystemEntity> list = dir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory | EnumDirectoryFlags.IncludeCurrentDirectory).ToList();
+            List<FileSystemEntity> list = dir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory).ToList();
 
+            // Bread crumbs
+            var breadCrumbList = dir.GetBreadCrumbList();
+            StringWriter breadCrumbsHtml = new StringWriter();
+
+            foreach (var crumb in breadCrumbList)
+            {
+                var iconInfo = MasterData.GetFasIconFromExtension(Consts.MimeTypes.DirectoryOpening);
+                string printName = crumb.GetThisDirectoryName() + "/";
+                string classStr = "";
+                if (breadCrumbList.LastOrDefault() == crumb)
+                {
+                    classStr = " class=\"is-active\"";
+                }
+
+                breadCrumbsHtml.WriteLine($"<li{classStr}><a href=\"{crumb.PathString._EncodeUrlPath()}\"><span class=\"icon\"><i class=\"{iconInfo.Item1} {iconInfo.Item2}\" aria-hidden=\"true\"></i></span><b>{printName._EncodeHtml(true)}</b></a></li>");
+            }
+
+            // File contents
             StringWriter dirHtml = new StringWriter();
-            
 
+            var fileListSorted = list
+                .Where(x => x.Name.IndexOf('\"') == -1)
+                .OrderByDescending(x => x.IsCurrentDirectory)
+                .ThenByDescending(x => x.IsParentDirectory)
+                .ThenByDescending(x => x.IsDirectory)
+                .ThenBy(x => x.Name, StrComparer.IgnoreCaseComparer);
+
+            foreach (FileSystemEntity e in fileListSorted)
+            {
+                string absolutePath = e.FullPath;
+                if (e.IsDirectory && absolutePath.Last() != '/')
+                {
+                    absolutePath += "/";
+                }
+
+                string extension = RootFs.PathParser.GetExtension(absolutePath);
+                if (e.IsDirectory)
+                {
+                    extension = Consts.MimeTypes.Directory;
+                    if (e.IsCurrentOrParentDirectory)
+                    {
+                        extension = Consts.MimeTypes.DirectoryOpening;
+                    }
+                }
+
+                string printName = e.Name;
+                if (e.IsDirectory)
+                {
+                    printName = $"{e.Name}/";
+                }
+
+                var iconInfo = MasterData.GetFasIconFromExtension(extension);
+
+                dirHtml.WriteLine("<tr>");
+                dirHtml.WriteLine($"<th><a href=\"{absolutePath._EncodeUrlPath()}\"><span class=\"icon\"><i class=\"{iconInfo.Item1} {iconInfo.Item2}\"></i></span>{printName._EncodeHtml(true)}</a></th>");
+
+                string sizeStr = Str.GetFileSizeStr(e.Size);
+                if (e.IsDirectory)
+                {
+                    sizeStr = "<Dir>";
+                }
+
+                dirHtml.WriteLine($"<td align=\"right\">{sizeStr._EncodeHtml()}</td>");
+                dirHtml.WriteLine($"<td>{e.LastWriteTime.LocalDateTime._ToDtStr()}</td>");
+            }
 
             body = body._ReplaceStrWithReplaceClass(new
             {
+                __FULLPATH__ =  RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)._EncodeHtml(true),
                 __TITLE__ = "BBB",
-                __BREADCRUMB__ = "AAA",
-                __FILENAMES__ = "CCC",
+                __BREADCRUMB__ = breadCrumbsHtml,
+                __FILENAMES__ = dirHtml,
             });
 
             return body;
@@ -134,10 +197,17 @@ namespace IPA.Cores.Basic
                 {
                     string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
 
-                    await response._SendStringContents(htmlBody, contentsType: Consts.MediaTypes.HtmlUtf8, cancel: this.CancelToken);
+                    await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: this.CancelToken);
                 }
                 else if (RootFs.IsFileExists(path, CancelToken))
                 {
+                    string extension = RootFs.PathParser.GetExtension(path);
+                    string mimeType = MasterData.ExtensionToMime.Get(extension);
+
+                    using (FileObject file = await RootFs.OpenAsync(path, cancel: this.CancelToken))
+                    {
+                        await response._SendFileContents(file, 0, null, mimeType, this.CancelToken);
+                    }
                 }
                 else
                 {

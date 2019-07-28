@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected virtual async Task process_http_request_main(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MediaTypes.Json)
+        protected virtual async Task process_http_request_main(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
         {
             string ret_str = "";
             try

@@ -290,7 +290,7 @@ namespace IPA.Cores.Basic
                 }
                 Win32_WinTempDir = TempDir;
             }
-            FilePathStringComparer = new StrComparer(!Env.IgnoreCaseInFileSystem);
+            FilePathStringComparer = StrComparer.Get(!Env.IgnoreCaseInFileSystem);
             Win32_ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
             Win32_PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
             Win32_PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));

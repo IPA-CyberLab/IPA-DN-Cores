@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
 
     public partial class WebApi
     {
-        public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string kid, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MediaTypes.Json)
+        public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string kid, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
             JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, kid, nonce, url, payload);
 

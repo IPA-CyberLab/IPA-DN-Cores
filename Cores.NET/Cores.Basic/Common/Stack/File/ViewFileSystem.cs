@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
             => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive, cancel);
 
         protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
-            => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, cancel);
+            => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), cancel);
 
         protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);

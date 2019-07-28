@@ -317,7 +317,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             LABEL_RETRY:
 
-            if (postContentType._IsEmpty()) postContentType = Consts.MediaTypes.FormUrlEncoded;
+            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebMethods.POST || method == WebMethods.PUT)

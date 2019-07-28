@@ -36,7 +36,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using System.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -46,7 +48,7 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class WebServerHelper
     {
-        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = "text/plain; charset=UTF-8", Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             h.ContentType = contentsType;
@@ -58,6 +60,43 @@ namespace IPA.Cores.Helper.Basic
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             return (await h.Body._ReadToEndAsync(maxRequestBodyLen, cancel))._GetString_UTF8();
+        }
+
+        public static async Task _SendFileContents(this HttpResponse h, FileBase file, long offset, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        {
+            CheckStreamRange(offset, count, file.Size);
+
+            using (FileStream srcStream = file.GetStream(false))
+            {
+                if (offset > 0)
+                {
+                    srcStream.Seek(offset, SeekOrigin.Begin);
+                }
+
+                await h._SendStreamContents(srcStream, count, contentsType, cancel);
+            }
+        }
+
+        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        {
+            h.ContentType = contentsType;
+            await StreamCopyOperation.CopyToAsync(sourceStream, h.Body, count, cancel);
+        }
+
+        // From: https://github.com/aspnet/HttpAbstractions/blob/31a836c9f35987c736161bf6e3f763517da8d504/src/Microsoft.AspNetCore.Http.Extensions/SendFileResponseExtensions.cs
+        // Copyright (c) .NET Foundation. All rights reserved.
+        // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+        static void CheckStreamRange(long offset, long? count, long fileLength)
+        {
+            if (offset < 0 || offset > fileLength)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset), offset, string.Empty);
+            }
+            if (count.HasValue &&
+                (count.GetValueOrDefault() < 0 || count.GetValueOrDefault() > fileLength - offset))
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), count, string.Empty);
+            }
         }
     }
 }

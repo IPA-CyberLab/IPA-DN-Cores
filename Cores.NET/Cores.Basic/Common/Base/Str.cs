@@ -47,6 +47,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net;
+using System.Collections;
 
 namespace IPA.Cores.Basic
 {
@@ -660,14 +661,44 @@ namespace IPA.Cores.Basic
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
 
+        readonly static Singleton<StringComparison, StrComparer> FromComparisonCache = new Singleton<StringComparison, StrComparer>(x => new StrComparer(x));
+
+        public static StrComparer Get(StringComparison comparison)
+        {
+            if (comparison == StringComparison.Ordinal)
+            {
+                return SensitiveCaseComparer;
+            }
+            else if (comparison == StringComparison.OrdinalIgnoreCase)
+            {
+                return IgnoreCaseComparer;
+            }
+            else
+            {
+                return FromComparisonCache[comparison];
+            }
+        }
+
+        public static StrComparer Get(bool caseSensitive = false)
+        {
+            if (caseSensitive == false)
+            {
+                return IgnoreCaseComparer;
+            }
+            else
+            {
+                return SensitiveCaseComparer;
+            }
+        }
+
         public StringComparison Comparison { get; }
 
-        public StrComparer(bool caseSensitive = false)
+        private StrComparer(bool caseSensitive = false)
         {
             this.Comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         }
 
-        public StrComparer(StringComparison comparison)
+        private StrComparer(StringComparison comparison)
         {
             this.Comparison = comparison;
         }
@@ -2255,6 +2286,7 @@ namespace IPA.Cores.Basic
         public const string HtmlGt = "&gt;";
         public const string HtmlAmp = "&amp;";
         public const int HtmlNumTabChar = 8;
+
         public static string HtmlTab
         {
             get
@@ -2269,8 +2301,32 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // URL パスエンコード
+        public static string EncodeUrlPath(string str)
+        {
+            str = str._NonNullTrim();
+
+            str = HttpUtility.UrlPathEncode(str);
+
+            str = str.Replace("\"", "%22");
+            str = str.Replace("<", "%3C");
+            str = str.Replace(">", "%3E");
+
+            return str;
+        }
+
+        // URL パスデコード
+        public static string DecodeUrlPath(string str)
+        {
+            str = str._NonNullTrim();
+
+            str = HttpUtility.UrlDecode(str, Str.Utf8Encoding);
+
+            return str;
+        }
+
         // URL エンコード
-        public static string ToUrl(string str, Encoding encoding = null)
+        public static string EncodeUrl(string str, Encoding encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
@@ -2278,7 +2334,7 @@ namespace IPA.Cores.Basic
         }
 
         // URL デコード
-        public static string FromUrl(string str, Encoding encoding = null)
+        public static string DecodeUrl(string str, Encoding encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
@@ -2286,7 +2342,7 @@ namespace IPA.Cores.Basic
         }
 
         // HTML デコード
-        public static string FromHtml(string str, bool normalizeMultiSpaces = false)
+        public static string DecodeHtml(string str, bool normalizeMultiSpaces = false)
         {
             str = str._NonNull();
 
@@ -2308,7 +2364,7 @@ namespace IPA.Cores.Basic
         }
 
         // HTML エンコード
-        public static string ToHtml(string str, bool forceAllSpaceToTag = false)
+        public static string EncodeHtml(string str, bool forceAllSpaceToTag = false)
         {
             // 改行を正規化
             str = NormalizeCrlf(str, CrlfStyle.CrLf);
@@ -2976,45 +3032,24 @@ namespace IPA.Cores.Basic
         // 文字列の置換
         public static string ReplaceStr(string str, string oldKeyword, string newKeyword, bool caseSensitive = false)
         {
-            int len_string, len_old, len_new;
-            if (str == null || oldKeyword == null || newKeyword == null)
+            if (str == null)
             {
                 return null;
             }
 
-            if (caseSensitive)
+            if (str.Length == 0)
             {
-                return str.Replace(oldKeyword, newKeyword);
+                return str;
             }
 
-            int i, j, num;
-            StringBuilder sb = new StringBuilder();
-
-            len_string = str.Length;
-            len_old = oldKeyword.Length;
-            len_new = newKeyword.Length;
-
-            i = j = num = 0;
-
-            while (true)
+            if (oldKeyword._IsNullOrZeroLen())
             {
-                i = SearchStr(str, oldKeyword, i, caseSensitive);
-                if (i == -1)
-                {
-                    sb.Append(str.Substring(j, len_string - j));
-                    break;
-                }
-
-                num++;
-
-                sb.Append(str.Substring(j, i - j));
-                sb.Append(newKeyword);
-
-                i += len_old;
-                j = i;
+                return str;
             }
 
-            return sb.ToString();
+            newKeyword = newKeyword._NonNull();
+
+            return str.Replace(oldKeyword, newKeyword, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
         }
 
         // 複数の文字列を検索する
@@ -4941,39 +4976,20 @@ namespace IPA.Cores.Basic
         }
 
         // 指定された文字が区切り文字に該当するかどうかチェックする
-        public static bool IsSplitChar(char c, string splitStr)
+        public static bool IsSplitChar(char c, string splitStr = Consts.Strings.DefaultSplitStr)
         {
-            if (splitStr == null)
-            {
-                splitStr = StrToken.DefaultSplitStr;
-            }
+            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
 
-            foreach (char t in splitStr)
-            {
-                string a = "" + t;
-                string b = "" + c;
-                if (Str.StrCmpi(a, b))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return (splitStr.IndexOf(c, StringComparison.OrdinalIgnoreCase) != -1);
         }
 
         // 文字列からキーと値を取得する
-        public static bool GetKeyAndValue(string str, out string key, out string value)
-        {
-            return GetKeyAndValue(str, out key, out value, null);
-        }
-        public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr)
+        public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr)
         {
             uint mode = 0;
             string keystr = "", valuestr = "";
-            if (Str.IsEmptyStr(splitStr))
-            {
-                splitStr = StrToken.DefaultSplitStr;
-            }
+
+            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
 
             foreach (char c in str)
             {
@@ -5598,6 +5614,168 @@ namespace IPA.Cores.Basic
 
             return false;
         }
+
+        public static long CalcKeywordMatchPoint(string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            targetStr = targetStr._NonNullTrim();
+            keyword = keyword._NonNullTrim();
+
+            if (targetStr._IsSame(keyword, comparison))
+            {
+                return Consts.Values.MaxMatchPoint;
+            }
+
+            if (keyword._IsEmpty())
+            {
+                return 0;
+            }
+
+            int originalLen = targetStr.Length;
+
+            if (originalLen >= 1)
+            {
+                if (targetStr.IndexOf(keyword, comparison) != -1)
+                {
+                    int replacedLen = targetStr.Replace(keyword, "", comparison).Length;
+                    int matchLen = originalLen - replacedLen;
+
+                    matchLen = Math.Min(matchLen, originalLen);
+
+                    long v = (long)matchLen * Consts.Values.MaxMatchPoint / (long)originalLen;
+
+                    return v;
+                }
+                else if (keyword.IndexOf(targetStr, comparison) != -1)
+                {
+                    int replacedLen = keyword.Replace(targetStr, "", comparison).Length;
+                    int matchLen = keyword.Length - replacedLen;
+
+                    matchLen = Math.Min(matchLen, keyword.Length);
+
+                    long v = (long)matchLen * Consts.Values.MaxMatchPoint2 / (long)keyword.Length;
+
+                    return v;
+                }
+            }
+
+            return 0;
+        }
+
+        public static string StripCommentFromLine(string srcLine, IEnumerable<string> commentStartStrList = null)
+        {
+            if (srcLine == null) return null;
+            if (commentStartStrList == null) commentStartStrList = Consts.Strings.CommentStartString;
+
+            int minStart = int.MaxValue;
+
+            foreach (string keyword in commentStartStrList)
+            {
+                int i = srcLine.IndexOf(keyword);
+                if (i != -1)
+                {
+                    minStart = Math.Min(i, minStart);
+                }
+            }
+
+            if (minStart != int.MaxValue)
+            {
+                string ret = srcLine.Substring(0, minStart);
+
+                ret = ret.TrimEnd();
+
+                return ret;
+            }
+            else
+            {
+                return srcLine;
+            }
+        }
+    }
+
+    public class AmbiguousSearchResult<T>
+    {
+        public AmbiguousSearchResult(string key, T value, long matchPoint, int index)
+        {
+            this.Key = key;
+            this.Value = value;
+            this.MatchPoint = matchPoint;
+            this.Index = index;
+        }
+
+        public string Key { get; }
+        public T Value { get; }
+        public long MatchPoint { get; }
+        public int Index { get; }
+    }
+
+    public class AmbiguousSearch<T> where T: class
+    {
+        readonly List<KeyValuePair<string, T>> List = new List<KeyValuePair<string, T>>();
+        readonly Singleton<string, T> SearchTopWithCacheSingleton;
+
+        public bool AllowWildcard { get; }
+
+        public AmbiguousSearch(bool allowWildcard = false)
+        {
+            this.AllowWildcard = allowWildcard;
+
+            this.SearchTopWithCacheSingleton = new Singleton<string, T>(
+                x => this.SearchTop(x),
+                StrComparer.IgnoreCaseComparer);
+        }
+
+        public void Add(string key, T value)
+        {
+            key = key._NonNullTrim();
+
+            this.List.Add(new KeyValuePair<string, T>(key, value));
+        }
+
+        public IEnumerable<AmbiguousSearchResult<T>> Search(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            List<AmbiguousSearchResult<T>> ret = new List<AmbiguousSearchResult<T>>();
+
+            for (int i = 0;i < List.Count;i++)
+            {
+                KeyValuePair<string, T> t = List[i];
+
+                long point = t.Key._CalcKeywordMatchPoint(key, comparison);
+                if (point >= 1)
+                {
+                    AmbiguousSearchResult<T> r = new AmbiguousSearchResult<T>(t.Key, t.Value, point, i);
+
+                    ret.Add(r);
+                }
+                else
+                {
+                    if (this.AllowWildcard && t.Key == "*")
+                    {
+                        AmbiguousSearchResult<T> r = new AmbiguousSearchResult<T>(t.Key, t.Value, 0, i);
+
+                        ret.Add(r);
+                    }
+                }
+            }
+
+            return ret.OrderByDescending(x => x.MatchPoint).ThenBy(x => x.Key, StrComparer.Get(comparison)).ThenBy(x => x.Index);
+        }
+
+        public T SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            AmbiguousSearchResult<T> x = this.Search(key, comparison).FirstOrDefault();
+
+            if (x == null)
+            {
+                return default;
+            }
+
+            return x.Value;
+        }
+
+        public T SearchTopWithCache(string key)
+        {
+            return SearchTopWithCacheSingleton[key];
+        }
     }
 
     namespace Legacy
@@ -5630,13 +5808,6 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            const string defaultSplitStr = " ,\t\r\n";
-
-            public static string DefaultSplitStr
-            {
-                get { return defaultSplitStr; }
-            }
-
             public StrToken(string[] tokens)
             {
                 List<string> a = new List<string>();
@@ -5648,17 +5819,11 @@ namespace IPA.Cores.Basic
                 this.tokens = a.ToArray();
             }
 
-            public StrToken(string str)
-                : this(str, null)
-            {
-            }
-            public StrToken(string str, string splitStr)
+            public StrToken(string str, string splitStr = Consts.Strings.DefaultSplitStr)
             {
                 // トークンの切り出し
-                if (splitStr == null)
-                {
-                    splitStr = defaultSplitStr;
-                }
+                splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
+
                 int i, len;
                 len = splitStr.Length;
                 char[] chars = new char[len];

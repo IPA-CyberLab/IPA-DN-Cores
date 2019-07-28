@@ -5624,6 +5624,53 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class HashSetDictionary<TKey, TValue> : Dictionary<TKey, HashSet<TValue>>
+    {
+        readonly IEqualityComparer<TValue> ValueComparer;
+        readonly HashSet<TValue> EmptyValueSet;
+
+        public HashSetDictionary(IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null) : base(keyComparer)
+        {
+            this.ValueComparer = valueComparer;
+            this.EmptyValueSet = new HashSet<TValue>(this.ValueComparer);
+        }
+
+        public bool Add(TKey key, TValue value)
+        {
+            if (this.TryGetValue(key, out HashSet<TValue> hashSet) == false)
+            {
+                hashSet = new HashSet<TValue>(this.ValueComparer);
+
+                base[key] = hashSet;
+            }
+
+            return hashSet.Add(value);
+        }
+
+        public new IReadOnlyCollection<TValue> this[TKey key]
+        {
+            get
+            {
+                if (this.TryGetValue(key, out HashSet<TValue> hashSet))
+                {
+                    return hashSet;
+                }
+                else
+                {
+                    return this.EmptyValueSet;
+                }
+            }
+        }
+    }
+
+    public class KeyValueList<TKey, TValue> : List<KeyValuePair<TKey, TValue>>
+    {
+        public void Add(TKey key, TValue value)
+        {
+            this.Add(new KeyValuePair<TKey, TValue>(key, value));
+        }
+    }
+
     public class None { }
 
     [Flags]

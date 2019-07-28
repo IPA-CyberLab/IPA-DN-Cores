@@ -59,6 +59,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\LocalFileSystemUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Util\General\MasterData\MasterData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TcpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TelnetStreamWatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Fast\FastStack.cs" />
@@ -155,6 +156,7 @@
     <Folder Include="$(MSBuildThisFileDirectory)App\Logging\Base\" />
     <Folder Include="$(MSBuildThisFileDirectory)App\SourceCodeCounter\" />
     <Folder Include="$(MSBuildThisFileDirectory)Common\Legacy\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Common\Util\General\MasterData\" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)ResourceRoot/**/*" />

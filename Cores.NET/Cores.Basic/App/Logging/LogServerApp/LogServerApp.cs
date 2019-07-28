@@ -119,6 +119,8 @@ namespace IPA.Cores.Basic
                         HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
                         RequireBasicAuthenticationToAllRequests = true,
                         DebugKestrelToConsole = true,
+                        UseKestrelWithIPACoreStack = true,
+                        AutomaticRedirectToHttpsIfPossible = false,
                     };
 
                     if (mustIncludeHostnameStr._IsFilled() && mustIncludeHostnameStr._IsSamei("*") == false)

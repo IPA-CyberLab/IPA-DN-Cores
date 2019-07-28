@@ -59,6 +59,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
 
 using Microsoft.Extensions.FileProviders;
+using System.Web;
 
 
 
@@ -255,6 +256,26 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            while (true)
+            {
+                string line = Con.ReadLine();
+
+                string r = MasterData.ExtensionToMime.Get(line);
+                r._Print();
+
+                ""._Print();
+            }
+
+            if (true)
+            {
+                string a = "/a\"aa/b/c<a>あほ  ばか"._EncodeUrlPath();
+                a._Print();
+
+                string b = a._DecodeUrlPath();
+                b._Print();
+
+                return;
+            }
 
             if (true)
             {

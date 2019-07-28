@@ -782,6 +782,29 @@ namespace IPA.Cores.Basic
         public static implicit operator DirectoryPath(string directoryName) => new DirectoryPath(directoryName);
 
         public bool IsRootDirectory => this.PathParser.IsRootDirectory(this.PathString);
+
+        public IReadOnlyList<DirectoryPath> GetBreadCrumbList()
+        {
+            DirectoryPath current = this;
+
+            List<DirectoryPath> ret = new List<DirectoryPath>();
+
+            while (true)
+            {
+                ret.Add(current);
+
+                if (current.IsRootDirectory)
+                {
+                    break;
+                }
+
+                current = current.GetParentDirectory();
+            }
+
+            ret.Reverse();
+
+            return ret;
+        }
     }
 
     public class FilePath : FileSystemPath

@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
                 LastAccessTime = this.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
                 LastWriteTime = this.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
                 FullPath = fullPath,
-                Name = parser.GetFileName(fullPath),
+                Name = "..",
                 PhysicalSize = this.PhysicalSize,
                 Size = this.Size,
             };

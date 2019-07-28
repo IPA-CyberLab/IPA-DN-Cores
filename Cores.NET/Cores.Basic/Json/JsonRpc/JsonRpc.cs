@@ -814,7 +814,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default)
         {
-            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req._GetBytes_UTF8(), cancel, Consts.MediaTypes.Json);
+            WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req._GetBytes_UTF8(), cancel, Consts.MimeTypes.Json);
 
             return ret.ToString();
         }
