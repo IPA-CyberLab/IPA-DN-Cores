@@ -2902,15 +2902,26 @@ namespace IPA.Cores.Basic
             foreach (MemberInfo member in members)
             {
                 FieldInfo fi = member as FieldInfo;
+                PropertyInfo pi = member as PropertyInfo;
+
+                string from = null;
+                string to = null;
+
                 if (fi != null)
                 {
-                    object value = (object)fi.GetValue(replaceClass);
-                    string s = value?.ToString() ?? null;
-                    s = s._NonNull();
+                    to = (fi.GetValue(replaceClass))?.ToString();
+                    from = fi.Name;
+                }
+                else if (pi != null)
+                {
+                    to = (pi.GetValue(replaceClass))?.ToString();
+                    from = pi.Name;
+                }
 
-                    string name = fi.Name;
-
-                    str = str._ReplaceStr(name, s, caseSensitive);
+                if (from._IsFilled())
+                {
+                    to = to._NonNull();
+                    str = str._ReplaceStr(from, to, caseSensitive);
                 }
             }
 
