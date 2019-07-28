@@ -47,6 +47,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -209,6 +210,24 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+
+            .Add(new MicroBenchmark($"StringWriter", Benchmark_CountForSlow, count =>
+            {
+                StringWriter w = new StringWriter();
+                for (int i = 0; i < 10000; i++)
+                {
+                    w.WriteLine("Hello World");
+                }
+            }), enabled: true, priority: 190728)
+
+            .Add(new MicroBenchmark($"StringBuilder", Benchmark_CountForSlow, count =>
+            {
+                StringBuilder w = new StringBuilder();
+                for (int i = 0; i < 10000; i++)
+                {
+                    w.AppendLine("Hello World");
+                }
+            }), enabled: true, priority: 190728)
 
             .Add(new MicroBenchmark($"Span memory copy 1600 bytes", Benchmark_CountForFast, count =>
             {

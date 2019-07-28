@@ -1243,6 +1243,7 @@ namespace IPA.Cores.Basic
         StartDaemon,
         Mutant,
         SingleThreadWorker,
+        AllocUnmanagedMemory,
     }
 
     public class LeakCheckerResult

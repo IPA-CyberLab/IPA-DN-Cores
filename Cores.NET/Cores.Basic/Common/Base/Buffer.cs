@@ -2619,20 +2619,20 @@ namespace IPA.Cores.Basic
 
         public const int MemoryUsePoolThreshold = 1024;
 
-        public static T[] FastAllocMoreThan<T>(int size)
+        public static T[] FastAllocMoreThan<T>(int length)
         {
-            if (size < MemoryUsePoolThreshold)
-                return new T[size];
+            if (length < MemoryUsePoolThreshold)
+                return new T[length];
             else
-                return ArrayPool<T>.Shared.Rent(size);
+                return ArrayPool<T>.Shared.Rent(length);
         }
 
-        public static Memory<T> FastAllocMemory<T>(int size)
+        public static Memory<T> FastAllocMemory<T>(int length)
         {
-            if (size < MemoryUsePoolThreshold)
-                return new T[size];
+            if (length < MemoryUsePoolThreshold)
+                return new T[length];
             else
-                return new Memory<T>(FastAllocMoreThan<T>(size)).Slice(0, size);
+                return new Memory<T>(FastAllocMoreThan<T>(length)).Slice(0, length);
         }
 
         public static void FastFree<T>(T[] array)
@@ -2643,20 +2643,39 @@ namespace IPA.Cores.Basic
 
         public static void FastFree<T>(Memory<T> memory) => memory._GetInternalArray()._FastFree();
 
-        public static ValueHolder FastAllocMemoryWithUsing<T>(int size, out Memory<T> memory)
+        public static ValueHolder FastAllocMemoryWithUsing<T>(int length, out Memory<T> memory)
         {
-            T[] allocatedArray = FastAllocMoreThan<T>(size);
+            T[] allocatedArray = FastAllocMoreThan<T>(length);
 
-            if (allocatedArray.Length == size)
+            if (allocatedArray.Length == length)
                 memory = allocatedArray;
             else
-                memory = allocatedArray.AsMemory(0, size);
+                memory = allocatedArray.AsMemory(0, length);
 
             return new ValueHolder(() =>
             {
                 FastFree(allocatedArray);
             },
             LeakCounterKind.FastAllocMemoryWithUsing);
+        }
+
+        public static unsafe ValueHolder AllocUnmanagedMemoryWithUsing(long byteLength, out IntPtr ptr)
+        {
+            IntPtr p;
+
+            if (byteLength < 0) throw new ArgumentOutOfRangeException(nameof(byteLength));
+
+            if (byteLength == 0) byteLength = 1;
+
+            p = Marshal.AllocHGlobal((IntPtr)byteLength);
+
+            ptr = p;
+
+            return new ValueHolder(() =>
+            {
+                Marshal.FreeHGlobal(p);
+            },
+            LeakCounterKind.AllocUnmanagedMemory);
         }
 
         unsafe struct DummyValueType

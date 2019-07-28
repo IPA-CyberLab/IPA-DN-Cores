@@ -645,6 +645,8 @@ namespace IPA.Cores.Basic
         public bool IsFile => !IsDirectory;
         public bool IsSymbolicLink => Attributes.Bit(FileAttributes.ReparsePoint);
         public bool IsCurrentDirectory => (Name == ".");
+        public bool IsParentDirectory => (Name == "..");
+        public bool IsCurrentOrParentDirectory => IsCurrentDirectory | IsParentDirectory;
         public long Size { get; set; }
         public long PhysicalSize { get; set; }
         public string SymbolicLinkTarget { get; set; }
@@ -1401,6 +1403,8 @@ namespace IPA.Cores.Basic
     {
         None = 0,
         NoGetPhysicalSize = 1,
+        IncludeCurrentDirectory = 2,
+        IncludeParentDirectory = 4,
     }
 
     [Flags]
@@ -1590,7 +1594,7 @@ namespace IPA.Cores.Basic
                     try
                     {
                         FileSystemEntity[] dirItems = await this.EnumDirectoryImplAsync(currentFullPath, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
-                        element2 = dirItems.Where(x => x.IsDirectory == isThisElementDirectory && x.IsCurrentDirectory == false).Select(x => x.Name).Where(x => x._IsSamei(element)).FirstOrDefault();
+                        element2 = dirItems.Where(x => x.IsDirectory == isThisElementDirectory && x.IsCurrentOrParentDirectory == false).Select(x => x.Name).Where(x => x._IsSamei(element)).FirstOrDefault();
                     }
                     catch
                     {
@@ -1775,7 +1779,29 @@ namespace IPA.Cores.Basic
                     throw new ApplicationException("The first entry returned by EnumDirectoryImplAsync() is not a current directory.");
                 }
 
-                return list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal).Prepend(list[0]).ToArray();
+                IEnumerable<FileSystemEntity> ret = list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal);
+
+                if (flags.Bit(EnumDirectoryFlags.IncludeParentDirectory))
+                {
+                    // Parent directory
+                    string parentDirectory = await this.NormalizePathImplAsync(directoryPath, opCancel);
+
+                    if (this.PathParser.IsRootDirectory(parentDirectory) == false)
+                    {
+                        parentDirectory = this.PathParser.GetDirectoryName(parentDirectory);
+
+                        FileMetadata meta = await this.GetDirectoryMetadataImplAsync(parentDirectory, cancel: opCancel);
+                        ret = ret.Prepend(meta.ToFileSystemEntity(this.PathParser, parentDirectory));
+                    }
+                }
+
+                if (flags.Bit(EnumDirectoryFlags.IncludeCurrentDirectory))
+                {
+                    // Current directory
+                    ret = ret.Prepend(list[0]);
+                }
+
+                return ret.ToArray();
             }
         }
 
@@ -1787,14 +1813,14 @@ namespace IPA.Cores.Basic
 
             foreach (FileSystemEntity entity in entityList)
             {
-                if (depth == 0 || entity.IsCurrentDirectory == false)
+                if (depth == 0 || entity.IsCurrentOrParentDirectory == false)
                 {
                     currentList.Add(entity);
                 }
 
                 if (recursive)
                 {
-                    if (entity.IsDirectory && entity.IsCurrentDirectory == false)
+                    if (entity.IsDirectory && entity.IsCurrentOrParentDirectory == false)
                     {
                         if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, true, flags, opCancel) == false)
                         {

@@ -336,6 +336,23 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public FileSystemEntity ToFileSystemEntity(PathParser parser, string fullPath)
+        {
+            FileSystemEntity ret = new FileSystemEntity
+            {
+                Attributes = this.Attributes ?? default,
+                CreationTime = this.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                LastAccessTime = this.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
+                LastWriteTime = this.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                FullPath = fullPath,
+                Name = parser.GetFileName(fullPath),
+                PhysicalSize = this.PhysicalSize,
+                Size = this.Size,
+            };
+
+            return ret;
+        }
     }
 
     public class FileMetadataCopier

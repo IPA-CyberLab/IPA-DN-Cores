@@ -448,7 +448,7 @@ namespace IPA.Cores.Basic
         public DirectoryWalker(FileSystem fileSystem, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
         {
             this.FileSystem = fileSystem;
-            this.Flags = flags;
+            this.Flags = (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory);
         }
 
         async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
             if (recursive)
             {
                 // Deep directory
-                foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentDirectory == false))
+                foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentOrParentDirectory == false))
                 {
                     if (entity.IsDirectory)
                     {
@@ -713,22 +713,22 @@ namespace IPA.Cores.Basic
         public FileSystemEntity[] EnumDirectory(bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
             => EnumDirectoryAsync(recursive, flags, cancel)._GetResult();
 
-        public async Task<DirectoryPath[]> GetDirectoriesAsync(CancellationToken cancel = default)
+        public async Task<DirectoryPath[]> GetDirectoriesAsync(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         {
-            var ents = await this.FileSystem.EnumDirectoryAsync(this.PathString, cancel: cancel);
+            var ents = await this.FileSystem.EnumDirectoryAsync(this.PathString, cancel: cancel, flags: flags);
             List<DirectoryPath> ret = new List<DirectoryPath>();
-            foreach (var dir in ents.Where(x => x.IsDirectory && x.IsCurrentDirectory == false))
+            foreach (var dir in ents.Where(x => x.IsDirectory))
             {
                 ret.Add(new DirectoryPath(dir.FullPath, this.FileSystem, this.Flags));
             }
             return ret.ToArray();
         }
-        public DirectoryPath[] GetDirectories(CancellationToken cancel = default)
-            => GetDirectoriesAsync(cancel)._GetResult();
+        public DirectoryPath[] GetDirectories(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+            => GetDirectoriesAsync(flags, cancel)._GetResult();
 
-        public async Task<FilePath[]> GetFilesAsync(CancellationToken cancel = default)
+        public async Task<FilePath[]> GetFilesAsync(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         {
-            var ents = await this.FileSystem.EnumDirectoryAsync(this.PathString, cancel: cancel);
+            var ents = await this.FileSystem.EnumDirectoryAsync(this.PathString, cancel: cancel, flags: flags);
             List<FilePath> ret = new List<FilePath>();
             foreach (var dir in ents.Where(x => x.IsDirectory == false))
             {
@@ -736,8 +736,8 @@ namespace IPA.Cores.Basic
             }
             return ret.ToArray();
         }
-        public FilePath[] GetFiles(CancellationToken cancel = default)
-            => GetFilesAsync(cancel)._GetResult();
+        public FilePath[] GetFiles(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+            => GetFilesAsync(flags, cancel)._GetResult();
 
         public Task<FileMetadata> GetDirectoryMetadataAsync(FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
             => this.FileSystem.GetDirectoryMetadataAsync(this.PathString, flags, cancel);

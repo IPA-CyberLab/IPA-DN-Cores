@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic
                 {
                     foreach (FileSystemEntity entity in srcRootPath.EnumDirectory(true, EnumDirectoryFlags.NoGetPhysicalSize))
                     {
-                        if (entity.IsCurrentDirectory == false && entity.IsDirectory)
+                        if (entity.IsCurrentOrParentDirectory == false && entity.IsDirectory)
                         {
                             DirectoryPath subDir = new DirectoryPath(entity.FullPath);
                             try

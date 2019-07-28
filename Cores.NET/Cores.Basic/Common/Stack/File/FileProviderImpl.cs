@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
 
                 foreach (FileSystemEntity e in enums)
                 {
-                    if (e.IsCurrentDirectory == false)
+                    if (e.IsCurrentOrParentDirectory == false)
                     {
                         FsBasedFileProviderFileInfoImpl d = new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
                             FileSystem.UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name), e.Name, e.LastWriteTime);

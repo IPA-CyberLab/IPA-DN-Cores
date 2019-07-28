@@ -99,6 +99,27 @@ namespace IPA.Cores.Basic
             });
         }
 
+        string BuildDirectoryHtml(DirectoryPath dir)
+        {
+            string body = CoresRes["LogBrowser/Html/Directory.html"].String;
+
+            // Enum dir list
+            List<FileSystemEntity> list = dir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory | EnumDirectoryFlags.IncludeCurrentDirectory).ToList();
+
+            StringWriter dirHtml = new StringWriter();
+            
+
+
+            body = body._ReplaceStrWithReplaceClass(new
+            {
+                __TITLE__ = "BBB",
+                __BREADCRUMB__ = "AAA",
+                __FILENAMES__ = "CCC",
+            });
+
+            return body;
+        }
+
         public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
             try
@@ -111,9 +132,9 @@ namespace IPA.Cores.Basic
 
                 if (RootFs.IsDirectoryExists(path, CancelToken))
                 {
-                    string template = CoresRes["LogBrowser/Html/Directory.html"].String;
+                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
 
-                    await response._SendStringContents(template, contentsType: Consts.MediaTypes.HtmlUtf8, cancel: this.CancelToken);
+                    await response._SendStringContents(htmlBody, contentsType: Consts.MediaTypes.HtmlUtf8, cancel: this.CancelToken);
                 }
                 else if (RootFs.IsFileExists(path, CancelToken))
                 {

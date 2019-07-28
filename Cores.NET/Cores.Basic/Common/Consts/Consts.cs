@@ -47,6 +47,16 @@ namespace IPA.Cores.Basic
 {
     public static partial class Consts
     {
+        public static partial class GoldenRatioPrime
+        {
+            // From https://github.com/torvalds/linux/blob/88c5083442454e5e8a505b11fa16f32d2879651e/include/linux/hash.h
+            public const uint U32 = 0x61C88647;
+            public const ulong U64 = 0x61C8864680B583EB;
+
+            public const int S32 = unchecked((int)(U32));
+            public const long S64 = unchecked((long)(U64));
+        }
+
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;

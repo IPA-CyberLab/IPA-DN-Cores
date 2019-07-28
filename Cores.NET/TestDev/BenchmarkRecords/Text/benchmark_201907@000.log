@@ -1,0 +1,38 @@
+﻿2019/07/28 13:52:25.103 +09:00 ----- Start new benchmark -----
+2019/07/28 13:52:25.159 +09:00 Commit: c5553452f4bad7dfd0e0a72e48585e16871a8bbf
+2019/07/28 13:52:25.159 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/07/28 13:52:25.159 +09:00 OS: Microsoft Windows 10.0.18362
+2019/07/28 13:52:25.159 +09:00 Framework: .NET Core 4.6.27617.04
+2019/07/28 13:52:25.159 +09:00 Host: PC34
+2019/07/28 13:52:25.871 +09:00 StringWriter: 189.28 ns, 5,283,234 / sec
+2019/07/28 13:52:26.374 +09:00 StringBuilder: 167.44 ns, 5,972,428 / sec
+2019/07/28 13:52:26.876 +09:00 Generic Test: 0.00 ns, 9,999,999,999,999 / sec
+2019/07/28 13:52:27.377 +09:00 IpChecksum: 7.52 ns, 132,932,240 / sec
+2019/07/28 13:52:27.880 +09:00 CalcIPv4Checksum: 3.91 ns, 255,456,406 / sec
+2019/07/28 13:52:28.382 +09:00 BuildPacket #1 - Memory: 63.04 ns, 15,863,170 / sec
+2019/07/28 13:52:28.886 +09:00 ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp: 398.52 ns, 2,509,255 / sec
+2019/07/28 13:52:29.389 +09:00 ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp: 411.99 ns, 2,427,257 / sec
+2019/07/28 13:52:29.893 +09:00 ParsePacket #5 - 190531_vlan_pppoe_tcp: 208.19 ns, 4,803,311 / sec
+2019/07/28 13:52:30.395 +09:00 ParsePacket #4 - 190527_vlan_simple_udp: 139.22 ns, 7,182,879 / sec
+2019/07/28 13:52:39.311 +09:00 ----- Start new benchmark -----
+2019/07/28 13:52:39.362 +09:00 Commit: c5553452f4bad7dfd0e0a72e48585e16871a8bbf
+2019/07/28 13:52:39.362 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\TestDev\bin\Release\netcoreapp2.1\TestDev.dll
+2019/07/28 13:52:39.362 +09:00 OS: Microsoft Windows 10.0.18362
+2019/07/28 13:52:39.362 +09:00 Framework: .NET Core 4.6.27617.04
+2019/07/28 13:52:39.362 +09:00 Host: PC34
+2019/07/28 13:52:40.001 +09:00 StringWriter: 1,619.86 ns, 617,335 / sec
+2019/07/28 13:52:40.503 +09:00 StringBuilder: 1,666.54 ns, 600,044 / sec
+2019/07/28 13:52:41.005 +09:00 Generic Test: 0.00 ns, 9,999,999,999,999 / sec
+2019/07/28 13:52:41.507 +09:00 IpChecksum: 8.13 ns, 123,058,293 / sec
+2019/07/28 13:52:42.009 +09:00 CalcIPv4Checksum: 4.54 ns, 220,383,203 / sec
+2019/07/28 13:52:42.511 +09:00 BuildPacket #1 - Memory: 53.51 ns, 18,688,106 / sec
+2019/07/28 13:52:43.013 +09:00 ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp: 390.92 ns, 2,558,085 / sec
+2019/07/28 13:52:43.518 +09:00 ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp: 375.94 ns, 2,659,984 / sec
+2019/07/28 13:52:44.020 +09:00 ParsePacket #5 - 190531_vlan_pppoe_tcp: 196.42 ns, 5,091,051 / sec
+2019/07/28 13:52:44.524 +09:00 ParsePacket #4 - 190527_vlan_simple_udp: 135.27 ns, 7,392,545 / sec
+2019/07/28 13:52:45.026 +09:00 ParsePacket #3 - 190527_vlan_simple_tcp: 135.65 ns, 7,371,730 / sec
+2019/07/28 13:52:45.529 +09:00 ParsePacket #2 - 190527_novlan_simple_udp: 113.13 ns, 8,839,037 / sec
+2019/07/28 13:52:46.031 +09:00 ParsePacket #1 - 190527_novlan_simple_tcp: 114.10 ns, 8,764,600 / sec
+2019/07/28 13:52:46.685 +09:00 Span memory copy 1600 bytes: 37.20 ns, 26,884,449 / sec
+2019/07/28 13:52:47.206 +09:00 Span memory copy 400 bytes: 11.15 ns, 89,698,683 / sec
+2019/07/28 13:52:47.760 +09:00 _IsZeroFastStruct: 3.45 ns, 289,717,316 / sec

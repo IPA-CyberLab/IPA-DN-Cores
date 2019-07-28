@@ -1181,30 +1181,48 @@ namespace IPA.Cores.Helper.Basic
         public static int _DefaultSize(this int target, int defaultValue) => target != DefaultSize ? target : defaultValue;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _Compute32bitMagicHashFast(this int src) => Util.Compute32bitMagicHashFast(src);
+        public static int _ComputeGoldenHash32(this int src) => Util.ComputeGoldenHash32(src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _Compute32bitMagicHashFast(this uint src) => Util.Compute32bitMagicHashFast((int)src);
+        public static uint _ComputeGoldenHash32(this uint src) => Util.ComputeGoldenHash32(src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitMagicHashFast<T>(this ref T data, int size = DefaultSize) where T : unmanaged
-            => Util.Compute32bitMagicHashFast(ref data, size);
+        public static long _ComputeGoldenHash64(this long src) => Util.ComputeGoldenHash64(src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitMagicHashFast<T>(ReadOnlySpan<T> span) where T : unmanaged
-            => Util.Compute32bitMagicHashFast(span);
+        public static ulong _ComputeGoldenHash64(this ulong src) => Util.ComputeGoldenHash64(src);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitMagicHashFast<T>(this T[] array, int start, int length) where T : unmanaged
-            => Util.Compute32bitMagicHashFast(array._AsReadOnlySpan(start, length));
+        public static int _ComputeGoldenHash32(this int src, int bits) => Util.ComputeGoldenHash32(src, bits);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitMagicHashFast<T>(this T[] array) where T : unmanaged
-            => Util.Compute32bitMagicHashFast(array._AsReadOnlySpan());
+        public static uint _ComputeGoldenHash32(this uint src, int bits) => Util.ComputeGoldenHash32(src, bits);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int _Compute32bitMagicHashFast<T>(Span<T> span) where T : unmanaged
-            => Util.Compute32bitMagicHashFast(span._AsReadOnlySpan());
+        public static long _ComputeGoldenHash64(this long src, int bits) => Util.ComputeGoldenHash64(src, bits);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong _ComputeGoldenHash64(this ulong src, int bits) => Util.ComputeGoldenHash64(src, bits);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _ComputeGoldenHash<T>(this ref T data, int size = DefaultSize) where T : unmanaged
+            => Util.ComputeGoldenHash(ref data, size);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _ComputeGoldenHash<T>(ReadOnlySpan<T> span) where T : unmanaged
+            => Util.ComputeGoldenHash(span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _ComputeGoldenHash<T>(this T[] array, int start, int length) where T : unmanaged
+            => Util.ComputeGoldenHash(array._AsReadOnlySpan(start, length));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _ComputeGoldenHash<T>(this T[] array) where T : unmanaged
+            => Util.ComputeGoldenHash(array._AsReadOnlySpan());
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _ComputeGoldenHash<T>(Span<T> span) where T : unmanaged
+            => Util.ComputeGoldenHash(span._AsReadOnlySpan());
 
         public static unsafe uint _Get_IPv4_UInt32_BigEndian(this IPAddress address)
         {
