@@ -167,7 +167,7 @@ namespace IPA.TestDev
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
 
-            Test_Generic();
+            //Test_Generic();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -189,7 +189,7 @@ namespace IPA.TestDev
 
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
 
-            //Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-DotNetCoreUtil.git");
+            Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-Cores.git");
 
             //Test_Logger_Server_And_Client();
 
@@ -232,6 +232,7 @@ namespace IPA.TestDev
         {
             GitGlobalFs.StartRepository(url);
             GitRepository rep = GitGlobalFs.GetRepository(url);
+            GitGlobalFs.UpdateRepository(url);
             GitRef master = rep.GetOriginMasterBranch();
 
             List<GitCommit> commitLogs = master.Commit.GetCommitLogs();

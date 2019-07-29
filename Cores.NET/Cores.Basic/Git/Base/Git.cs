@@ -55,7 +55,8 @@ namespace IPA.Cores.Basic
         {
             if (options == null) options = new CloneOptions()
             {
-                RecurseSubmodules = true,
+                IsBare = true,
+                RecurseSubmodules = false,
                 FetchOptions = new FetchOptions()
                 {
                     Prune = true,
@@ -409,7 +410,8 @@ namespace IPA.Cores.Basic
     public class GitRepository : AsyncService
     {
         public string WorkDir { get; }
-        Repository Repository { get; }
+
+        readonly Repository Repository;
 
         public static readonly PathParser PathParser = PathParser.GetInstance(FileSystemStyle.Linux);
 

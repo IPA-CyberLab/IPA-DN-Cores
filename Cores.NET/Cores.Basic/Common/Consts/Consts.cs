@@ -79,6 +79,8 @@ namespace IPA.Cores.Basic
             public const string DefaultCertCN = "DefaultCertificate";
             public const string DefaultSplitStr = " ,\t\r\n";
 
+            public const string LogBrowserDefaultSystemTitle = "HTTP Log Browser";
+
             public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//" };
         }
 

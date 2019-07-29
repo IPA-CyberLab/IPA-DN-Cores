@@ -57,10 +57,12 @@ namespace IPA.Cores.Basic
 
     public class LogBrowserHttpServerOptions
     {
-        public readonly DirectoryPath RootDir;
+        public DirectoryPath RootDir { get; }
+        public string SystemTitle { get; }
 
-        public LogBrowserHttpServerOptions(DirectoryPath rootDir)
+        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle)
         {
+            this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
         }
     }
@@ -175,7 +177,8 @@ namespace IPA.Cores.Basic
             body = body._ReplaceStrWithReplaceClass(new
             {
                 __FULLPATH__ = RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)._EncodeHtml(true),
-                __TITLE__ = "BBB",
+                __TITLE__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
+                __TITLE2__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
                 __BREADCRUMB__ = breadCrumbsHtml,
                 __FILENAMES__ = dirHtml,
             });
@@ -197,12 +200,14 @@ namespace IPA.Cores.Basic
 
                 if (RootFs.IsDirectoryExists(path, cancel))
                 {
+                    // Directory
                     string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
 
                     await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel);
                 }
                 else if (RootFs.IsFileExists(path, cancel))
                 {
+                    // File
                     string extension = RootFs.PathParser.GetExtension(path);
                     string mimeType = MasterData.ExtensionToMime.Get(extension);
 
@@ -213,6 +218,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
+                    // Not found
                     response.StatusCode = 404;
                     await response._SendStringContents($"404 File not found", cancel: cancel);
                 }
