@@ -204,6 +204,24 @@ namespace IPA.Cores.Basic
             this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
         }
+
+        public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback acceptCallback, IPEndPoint endPoint)
+        {
+            List<IPEndPoint> ret = new List<IPEndPoint>();
+
+            if (endPoint.Address == IPAddress.IPv6Any)
+            {
+                ret.Add(new IPEndPoint(IPAddress.Any, endPoint.Port));
+                ret.Add(new IPEndPoint(IPAddress.IPv6Any, endPoint.Port));
+            }
+            else
+            {
+                ret.Add(endPoint);
+            }
+
+            this.EndPointsList = ret;
+            this.AcceptCallback = acceptCallback;
+        }
     }
 
     [Flags]
