@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
         public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
-        public async Task AppendDataToFileAsync(string path, Memory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public async Task AppendDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
             {
@@ -165,7 +165,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public void AppendDataToFile(string path, Memory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public void AppendDataToFile(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => AppendDataToFileAsync(path, srcMemory, flags, cancel)._GetResult();
 
         public async Task<T> ReadAndParseDataFileAsync<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>> serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
