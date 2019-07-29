@@ -167,7 +167,7 @@ namespace IPA.TestDev
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
 
-            //Test_Generic();
+            Test_Generic();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -189,7 +189,7 @@ namespace IPA.TestDev
 
             //LocalNet.GetLocalHostPossibleIpAddressListAsync()._GetResult()._DoForEach(x => x._Print());
 
-            Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-Cores.git");
+            //Test_SourceCodeCounter("https://github.com/IPA-CyberLab/IPA-DN-Cores.git");
 
             //Test_Logger_Server_And_Client();
 
@@ -257,7 +257,14 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            while (true)
+            if (true)
+            {
+                Dbg.GetCurrentGitCommitInfo()._Print();
+
+                return;
+            }
+
+            if (true)
             {
                 var hive = Hive.AppSettingsEx["test01"];
 
