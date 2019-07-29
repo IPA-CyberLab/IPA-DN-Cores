@@ -211,6 +211,47 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"string test", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello_World  ";
+                string t = "  Hella World ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = Str.IsEmptyStr(s)._BoolToInt();
+                }
+            }), enabled: true, priority: 190728)
+
+            .Add(new MicroBenchmark($"string CmpTrim new", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello World  ";
+                string t = "  Hella World ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = s._CmpTrim(t);
+                }
+            }), enabled: true, priority: 190729)
+
+            .Add(new MicroBenchmark($"string SameTrim new", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello World  ";
+                string t = "  Hella World ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = s._IsSameTrim(t) ? 1 : 0;
+                }
+            }), enabled: true, priority: 190729)
+
+            .Add(new MicroBenchmark($"string SameTrim old", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello World  ";
+                string t = "  Hella World ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = s.Trim()._IsSame(t.Trim()) ? 1 : 0;
+                }
+            }), enabled: true, priority: 190729)
+
+
             .Add(new MicroBenchmark($"StringWriter", Benchmark_CountForSlow, count =>
             {
                 StringWriter w = new StringWriter();

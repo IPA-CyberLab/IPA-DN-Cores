@@ -59,11 +59,13 @@ namespace IPA.Cores.Basic
     {
         public DirectoryPath RootDir { get; }
         public string SystemTitle { get; }
+        public long TailSize { get; }
 
-        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle)
+        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle, long tailSize = Consts.Values.LogBrowserDefaultTailSize)
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
+            this.TailSize = tailSize._Max(1);
         }
     }
 
@@ -162,7 +164,16 @@ namespace IPA.Cores.Basic
                 var iconInfo = MasterData.GetFasIconFromExtension(extension);
 
                 dirHtml.WriteLine("<tr>");
-                dirHtml.WriteLine($"<th><a href=\"{absolutePath._EncodeUrlPath()}\"><span class=\"icon\"><i class=\"{iconInfo.Item1} {iconInfo.Item2}\"></i></span>{printName._EncodeHtml(true)}</a></th>");
+                dirHtml.WriteLine("<th>");
+
+                if (e.IsDirectory == false)
+                {
+                    dirHtml.WriteLine($@"<a href=""{absolutePath._EncodeUrlPath()}?tail={Options.TailSize}""><i class=""far fa-eye""></i></a>&nbsp;");
+                }
+
+                dirHtml.WriteLine($@"<a href=""{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printName._EncodeHtml(true)}</a>");
+
+                dirHtml.WriteLine("</th>");
 
                 string sizeStr = Str.GetFileSizeStr(e.Size);
                 if (e.IsDirectory)
@@ -172,6 +183,8 @@ namespace IPA.Cores.Basic
 
                 dirHtml.WriteLine($"<td align=\"right\">{sizeStr._EncodeHtml()}</td>");
                 dirHtml.WriteLine($"<td>{e.LastWriteTime.LocalDateTime._ToDtStr()}</td>");
+
+                dirHtml.WriteLine("</tr>");
             }
 
             body = body._ReplaceStrWithReplaceClass(new
@@ -192,7 +205,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                string path = routeData.Values._GetStrOrEmpty("path");
+                string path = routeData.Values._GetStr("path");
 
                 if (path.StartsWith("/") == false) path = "/" + path;
 
@@ -213,7 +226,31 @@ namespace IPA.Cores.Basic
 
                     using (FileObject file = await RootFs.OpenAsync(path, cancel: cancel))
                     {
-                        await response._SendFileContents(file, 0, null, mimeType, this.CancelToken);
+                        long fileSize = file.Size;
+
+                        long head = request._GetQueryStringFirst("head")._ToInt()._Positive();
+                        long tail = request._GetQueryStringFirst("tail")._ToInt()._Positive();
+
+                        if (head != 0 && tail != 0) throw new ApplicationException("You can specify either head or tail.");
+
+                        head = head._Min(fileSize);
+                        tail = tail._Min(fileSize);
+
+                        long readStart = 0;
+                        long readSize = fileSize;
+
+                        if (head != 0)
+                        {
+                            readStart = 0;
+                            readSize = head;
+                        }
+                        else if (tail != 0)
+                        {
+                            readStart = fileSize - tail;
+                            readSize = tail;
+                        }
+
+                        await response._SendFileContents(file, readStart, readSize, mimeType, cancel);
                     }
                 }
                 else

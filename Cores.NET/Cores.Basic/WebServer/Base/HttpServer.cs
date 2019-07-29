@@ -339,7 +339,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    string token = routeData.Values._GetStrOrEmpty("token");
+                    string token = routeData.Values._GetStr("token");
 
                     retStr = currentAccount.ProcessChallengeRequest(token);
                 }

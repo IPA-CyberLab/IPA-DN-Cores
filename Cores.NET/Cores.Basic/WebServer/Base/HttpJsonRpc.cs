@@ -62,14 +62,14 @@ namespace IPA.Cores.Basic
 
             try
             {
-                string rpcMethod = routeData.Values._GetStrOrEmpty("rpc_method");
+                string rpcMethod = routeData.Values._GetStr("rpc_method");
                 if (rpcMethod._IsEmpty())
                 {
                     await response._SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
                 }
                 else
                 {
-                    string args = routeData.Values._GetStrOrEmpty("rpc_param");
+                    string args = routeData.Values._GetStr("rpc_param");
 
                     if (args._IsEmpty())
                     {

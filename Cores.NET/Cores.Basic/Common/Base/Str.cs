@@ -4814,6 +4814,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
+
         // バイト列を 16 進数文字列に変換
         public static string ByteToHex(ReadOnlySpan<byte> data)
         {
@@ -4968,7 +4969,16 @@ namespace IPA.Cores.Basic
             if (strLen == 0) return true;
             if (Char.IsWhiteSpace(s[0]) == false) return false;
             if (Char.IsWhiteSpace(s[strLen - 1]) == false) return false;
-            return s.Trim().Length == 0;
+            if (strLen >= 3)
+            {
+                if (Char.IsWhiteSpace(s[strLen / 2]) == false) return false;
+            }
+            if (strLen >= 16)
+            {
+                if (Char.IsWhiteSpace(s[(strLen / 3) * 1]) == false) return false;
+                if (Char.IsWhiteSpace(s[(strLen / 3) * 2]) == false) return false;
+            }
+            return s.AsSpan().Trim().Length == 0;
         }
         public static bool IsFilledStr(string str)
         {

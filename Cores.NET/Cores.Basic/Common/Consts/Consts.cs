@@ -61,6 +61,7 @@ namespace IPA.Cores.Basic
         {
             public const long MaxMatchPoint = 1_0000_0000_0000_0000;
             public const long MaxMatchPoint2 = 1_0000_0000;
+            public const long LogBrowserDefaultTailSize = 10_000;
         }
 
         public static partial class Ports

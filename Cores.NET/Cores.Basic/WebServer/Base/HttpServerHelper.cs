@@ -43,6 +43,9 @@ using Microsoft.AspNetCore.Http.Extensions;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Generic;
+using Microsoft.Extensions.Primitives;
+using System.Linq;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -55,14 +58,17 @@ namespace IPA.Cores.Helper.Basic
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            h.ContentType = contentsType;
             byte[] ret_data = encoding.GetBytes(body);
+
+            h.ContentType = contentsType;
+            h.ContentLength = ret_data.Length;
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
         public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
+
             return (await h.Body._ReadToEndAsync(maxRequestBodyLen, cancel))._GetString_UTF8();
         }
 
@@ -84,6 +90,8 @@ namespace IPA.Cores.Helper.Basic
         public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
         {
             h.ContentType = contentsType;
+            h.ContentLength = count;
+
             await StreamCopyOperation.CopyToAsync(sourceStream, h.Body, count, cancel);
         }
 
@@ -101,6 +109,35 @@ namespace IPA.Cores.Helper.Basic
             {
                 throw new ArgumentOutOfRangeException(nameof(count), count, string.Empty);
             }
+        }
+
+        public static string _GetQueryStringFirst(this HttpRequest r, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
+            => _GetQueryStringFirst(r.Query, key, defaultStr, comparison, autoTrim);
+
+        public static string _GetQueryStringFirst(this IQueryCollection d, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
+        {
+            if (key._IsEmpty()) throw new ArgumentNullException(nameof(key));
+
+            if (d == null) return defaultStr;
+
+            var matchList = d.Where(x => x.Key._IsSameTrim(key, comparison));
+            if (matchList.Any() == false) return defaultStr;
+
+            StringValues values = matchList.First().Value;
+
+            string ret = values.Where(x => (autoTrim ? x._IsFilled() : x != null)).FirstOrDefault();
+
+            if (ret._IsEmpty())
+            {
+                return defaultStr;
+            }
+
+            if (autoTrim)
+            {
+                ret = ret._NonNullTrim();
+            }
+
+            return ret;
         }
     }
 }

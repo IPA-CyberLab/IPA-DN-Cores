@@ -178,6 +178,40 @@ namespace IPA.Cores.Helper.Basic
         public static bool _ToBool(this long i) => (i != 0);
         public static bool _ToBool(this ulong i) => (i != 0);
 
+        public static int _BoolToInt(this bool b) => b ? 1 : 0;
+        public static uint _BoolToUInt(this bool b) => (uint)(b ? 1 : 0);
+        public static byte _BoolToByte(this bool b) => (byte)(b ? 1 : 0);
+
+        public static sbyte _Positive(this sbyte i) => (sbyte)(i >= 0 ? i : 0);
+        public static short _Positive(this short i) => (short)(i >= 0 ? i : 0);
+        public static int _Positive(this int i) => (int)(i >= 0 ? i : 0);
+        public static long _Positive(this long i) => (long)(i >= 0 ? i : 0);
+
+        public static byte _Positive(this byte i) => (byte)(i >= 0 ? i : 0);
+        public static ushort _Positive(this ushort i) => (ushort)(i >= 0 ? i : 0);
+        public static uint _Positive(this uint i) => (uint)(i >= 0 ? i : 0);
+        public static ulong _Positive(this ulong i) => (ulong)(i >= 0 ? i : 0);
+
+        public static sbyte _Min(this sbyte i, sbyte target) => Math.Min(i, target);
+        public static short _Min(this short i, short target) => Math.Min(i, target);
+        public static int _Min(this int i, int target) => Math.Min(i, target);
+        public static long _Min(this long i, long target) => Math.Min(i, target);
+
+        public static byte _Min(this byte i, byte target) => Math.Min(i, target);
+        public static ushort _Min(this ushort i, ushort target) => Math.Min(i, target);
+        public static uint _Min(this uint i, uint target) => Math.Min(i, target);
+        public static ulong _Min(this ulong i, ulong target) => Math.Min(i, target);
+
+        public static sbyte _Max(this sbyte i, sbyte target) => Math.Max(i, target);
+        public static short _Max(this short i, short target) => Math.Max(i, target);
+        public static int _Max(this int i, int target) => Math.Max(i, target);
+        public static long _Max(this long i, long target) => Math.Max(i, target);
+
+        public static byte _Max(this byte i, byte target) => Math.Max(i, target);
+        public static ushort _Max(this ushort i, ushort target) => Math.Max(i, target);
+        public static uint _Max(this uint i, uint target) => Math.Max(i, target);
+        public static ulong _Max(this ulong i, ulong target) => Math.Max(i, target);
+
         public static bool _ToBool(this string str) => Str.StrToBool(str);
         public static byte[] _ToByte(this string str) => Str.StrToByte(str);
         public static DateTime _ToDate(this string str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
@@ -197,6 +231,25 @@ namespace IPA.Cores.Helper.Basic
         public static int _Cmp(this string s, string t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
         public static int _Cmp(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
         public static int _Cmpi(this string s, string t, bool ignoreCase = false) => _Cmp(s, t, true);
+
+        public static int _CmpTrim(this string s, string t, StringComparison comparison = StringComparison.Ordinal)
+        {
+            s = s._NonNullTrim();
+            t = t._NonNullTrim();
+
+            return string.Compare(s, t, comparison);
+        }
+        public static int _CmpTrimi(this string s, string t) => _CmpTrim(s, t, StringComparison.OrdinalIgnoreCase);
+
+        public static bool _IsSameTrim(this string s, string t, StringComparison comparison = StringComparison.Ordinal)
+        {
+            s = s._NonNullTrim();
+            t = t._NonNullTrim();
+
+            return string.Equals(s, t, comparison);
+        }
+        public static bool _IsSameTrimi(this string s, string t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
+
         public static string[] _GetLines(this string s) => Str.GetLines(s);
         public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
@@ -448,28 +501,56 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _DebugHeaders(this IPA.Cores.Basic.HttpClientCore.HttpHeaders h) => h._DoForEach(x => (x.Key + ": " + x.Value._Combine(", "))._Debug());
 
-        public static string _GetStrOrEmpty(this NameValueCollection d, string key)
+        public static string _GetStr(this NameValueCollection d, string key, string defaultStr = "")
         {
             try
             {
-                if (d == null) return "";
+                if (d == null) return defaultStr;
                 return d[key]._NonNull();
             }
-            catch { return ""; }
+            catch { return defaultStr; }
         }
 
-        public static string _GetStrOrEmpty<T>(this IDictionary<string, T> d, string key)
+        public static string _GetStr<T>(this IDictionary<string, T> d, string key, string defaultStr = "")
         {
             try
             {
-                if (d == null) return "";
-                if (d.ContainsKey(key) == false) return "";
+                if (d == null) return defaultStr;
+                if (d.ContainsKey(key) == false) return defaultStr;
                 object o = d[key];
-                if (o == null) return "";
+                if (o == null) return defaultStr;
                 if (o is string) return (string)o;
                 return o.ToString();
             }
-            catch { return ""; }
+            catch { return defaultStr; }
+        }
+
+        public static string _GetStrFirst<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
+        {
+            if (key._IsEmpty()) throw new ArgumentNullException(nameof(key));
+
+            if (d == null) return defaultStr;
+
+            T value = d.Where(x => x.Key._IsSameTrim(key, comparison)).FirstOrDefault().Value;
+
+            if (value == default)
+            {
+                return defaultStr;
+            }
+
+            string ret = value.ToString();
+
+            if (ret._IsEmpty())
+            {
+                return defaultStr;
+            }
+
+            if (autoTrim)
+            {
+                ret = ret._NonNullTrim();
+            }
+
+            return ret;
         }
 
         public static bool _IsNullable(this Type t) => Nullable.GetUnderlyingType(t) != null;
