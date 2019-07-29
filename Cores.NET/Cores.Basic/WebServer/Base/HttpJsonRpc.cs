@@ -58,12 +58,14 @@ namespace IPA.Cores.Basic
 
         public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
+            CancellationToken cancel = request._GetRequestCancellationToken();
+
             try
             {
                 string rpcMethod = routeData.Values._GetStrOrEmpty("rpc_method");
                 if (rpcMethod._IsEmpty())
                 {
-                    await response._SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: this.CancelToken);
+                    await response._SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
                 }
                 else
                 {
@@ -86,12 +88,12 @@ namespace IPA.Cores.Basic
                     string id = "GET-" + Str.NewGuid();
                     string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + ",'id':'" + id + "'}";
 
-                    await process_http_request_main(request, response, in_str, "text/plain; charset=UTF-8");
+                    await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8);
                 }
             }
             catch (Exception ex)
             {
-                await response._SendStringContents(ex.ToString(), cancel: this.CancelToken);
+                await response._SendStringContents(ex.ToString(), cancel: cancel);
             }
         }
 
@@ -99,17 +101,17 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                string in_str = await request._RecvStringContents(this.Config.MaxRequestBodyLen, cancel: this.CancelToken);
+                string in_str = await request._RecvStringContents(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
 
-                await process_http_request_main(request, response, in_str);
+                await ProcessHttpRequestMain(request, response, in_str);
             }
             catch (Exception ex)
             {
-                await response._SendStringContents(ex.ToString(), cancel: this.CancelToken);
+                await response._SendStringContents(ex.ToString(), cancel: request._GetRequestCancellationToken());
             }
         }
 
-        protected virtual async Task process_http_request_main(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
+        protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
         {
             string ret_str = "";
             try
@@ -150,7 +152,7 @@ namespace IPA.Cores.Basic
 
             //Dbg.WriteLine("ret_str: " + ret_str);
 
-            await response._SendStringContents(ret_str, responseContentsType, cancel: this.CancelToken);
+            await response._SendStringContents(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
         }
 
         public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "rpc")

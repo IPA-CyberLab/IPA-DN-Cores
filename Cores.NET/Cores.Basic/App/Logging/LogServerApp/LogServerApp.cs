@@ -109,7 +109,6 @@ namespace IPA.Cores.Basic
                         ports: Str.ParsePortsList(servicePortsStr)
                         ));
 
-
                     // Start HTTP Server-based Web log browser
                     HttpServerOptions httpServerOptions = new HttpServerOptions
                     {
@@ -120,7 +119,8 @@ namespace IPA.Cores.Basic
                         RequireBasicAuthenticationToAllRequests = true,
                         DebugKestrelToConsole = true,
                         UseKestrelWithIPACoreStack = true,
-                        AutomaticRedirectToHttpsIfPossible = false,
+                        AutomaticRedirectToHttpsIfPossible = true,
+                        LocalHostOnly = false,
                     };
 
                     if (mustIncludeHostnameStr._IsFilled() && mustIncludeHostnameStr._IsSamei("*") == false)

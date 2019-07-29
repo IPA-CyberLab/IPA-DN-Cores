@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
             if (Listener != null)
                 throw new ApplicationException("Listener is already bound.");
 
-            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint.Port));
+            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint));
 
             return Task.CompletedTask;
         }

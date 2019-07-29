@@ -90,6 +90,7 @@ namespace IPA.Cores.Basic
             public const string OctetStream = "application/octet-stream";
             public const string Directory = "text/directory";
             public const string DirectoryOpening = "text/directory-open";
+            public const string Html = "text/html";
 
             public const string TextUtf8 = "text/plain; charset=UTF-8";
             public const string HtmlUtf8 = "text/html; charset=UTF-8";

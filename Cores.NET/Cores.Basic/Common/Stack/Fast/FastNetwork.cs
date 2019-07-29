@@ -1686,7 +1686,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task StreamWriteToObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
-            var writeMeBuffer = PipeToWrite.GetMemory();
+            Memory<byte> writeMeBuffer = PipeToWrite.GetMemory();
 
             int writtenSize = fifo.DequeueContiguousSlowWithLock(writeMeBuffer);
 
@@ -1713,7 +1713,10 @@ namespace IPA.Cores.Basic
             List<ReadOnlyMemory<byte>> memoryList = new List<ReadOnlyMemory<byte>>();
 
             foreach (ReadOnlyMemory<byte> memory in consumedBuffer)
-                memoryList.Add(memory);
+            {
+                // Copy is needed because AdvanceTo() will return the buffer for recycle
+                memoryList.Add(memory._CloneMemory());
+            }
 
             fifo.EnqueueAllWithLock(memoryList.ToArray());
 

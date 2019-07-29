@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
 
             req.Headers.Add("Host", u.Host);
             req.Headers.Add("User-Agent", Options.UserAgent);
-            req.Headers.Add("Accept", "text/html");
+            req.Headers.Add("Accept", Consts.MimeTypes.Html);
             req.Headers.Add("Sec-WebSocket-Version", "13");
             req.Headers.Add("Origin", "null");
             req.Headers.Add("Sec-WebSocket-Key", requestKey);

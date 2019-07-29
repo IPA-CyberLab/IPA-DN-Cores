@@ -174,7 +174,7 @@ namespace IPA.Cores.Basic
 
             body = body._ReplaceStrWithReplaceClass(new
             {
-                __FULLPATH__ =  RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)._EncodeHtml(true),
+                __FULLPATH__ = RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)._EncodeHtml(true),
                 __TITLE__ = "BBB",
                 __BREADCRUMB__ = breadCrumbsHtml,
                 __FILENAMES__ = dirHtml,
@@ -185,6 +185,8 @@ namespace IPA.Cores.Basic
 
         public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
+            CancellationToken cancel = request._GetRequestCancellationToken();
+
             try
             {
                 string path = routeData.Values._GetStrOrEmpty("path");
@@ -193,18 +195,18 @@ namespace IPA.Cores.Basic
 
                 path = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
 
-                if (RootFs.IsDirectoryExists(path, CancelToken))
+                if (RootFs.IsDirectoryExists(path, cancel))
                 {
                     string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
 
-                    await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: this.CancelToken);
+                    await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel);
                 }
-                else if (RootFs.IsFileExists(path, CancelToken))
+                else if (RootFs.IsFileExists(path, cancel))
                 {
                     string extension = RootFs.PathParser.GetExtension(path);
                     string mimeType = MasterData.ExtensionToMime.Get(extension);
 
-                    using (FileObject file = await RootFs.OpenAsync(path, cancel: this.CancelToken))
+                    using (FileObject file = await RootFs.OpenAsync(path, cancel: cancel))
                     {
                         await response._SendFileContents(file, 0, null, mimeType, this.CancelToken);
                     }
@@ -212,13 +214,13 @@ namespace IPA.Cores.Basic
                 else
                 {
                     response.StatusCode = 404;
-                    await response._SendStringContents($"404 File not found", cancel: this.CancelToken);
+                    await response._SendStringContents($"404 File not found", cancel: cancel);
                 }
             }
             catch (Exception ex)
             {
                 response.StatusCode = 500;
-                await response._SendStringContents($"HTTP Status Code: {response.StatusCode}\r\n" + ex.ToString(), cancel: this.CancelToken);
+                await response._SendStringContents($"HTTP Status Code: {response.StatusCode}\r\n" + ex.ToString(), cancel: cancel);
             }
         }
     }

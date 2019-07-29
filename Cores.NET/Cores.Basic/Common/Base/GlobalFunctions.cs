@@ -53,6 +53,8 @@ namespace IPA.Cores.Globals
     {
         static volatile int VolatileZero = 0;
 
+        public static readonly CriticalSection GlobalSuperLock = new CriticalSection();
+
         public static int NoOp() => VolatileZero;
 
         public static int DoNothing() => VolatileZero;

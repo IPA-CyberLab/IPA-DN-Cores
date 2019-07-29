@@ -311,7 +311,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             public UserePrefs prefs;
         }
 
-        public override async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = "application/x-www-form-urlencoded", params (string name, string value)[] queryList)
+        public override async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string value)[] queryList)
         {
             int num_retry = 0;
 

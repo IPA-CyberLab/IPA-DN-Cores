@@ -48,6 +48,10 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class WebServerHelper
     {
+        public static CancellationToken _GetRequestCancellationToken(this HttpResponse h) => h.HttpContext.RequestAborted;
+        public static CancellationToken _GetRequestCancellationToken(this HttpRequest h) => h.HttpContext.RequestAborted;
+        public static CancellationToken _GetRequestCancellationToken(this HttpContext h) => h.RequestAborted;
+
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;

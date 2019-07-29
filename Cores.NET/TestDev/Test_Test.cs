@@ -133,7 +133,7 @@ namespace IPA.TestDev
                     retStr = currentAccount.ProcessChallengeRequest(token);
                 }
 
-                await response._SendStringContents(retStr, "application/octet-stream");
+                await response._SendStringContents(retStr, Consts.MimeTypes.OctetStream);
             }
             catch (Exception ex)
             {
