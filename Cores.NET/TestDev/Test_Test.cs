@@ -259,13 +259,26 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                "a"._IsEmpty()._Print();
-                " a"._IsEmpty()._Print();
-                "a "._IsEmpty()._Print();
-                ""._IsEmpty()._Print();
-                "    \t "._IsEmpty()._Print();
-                "　"._IsEmpty()._Print();
-                "　a"._IsEmpty()._Print();
+                Con.WriteLine((IgnoreCase)"aa" == "AA");
+                Con.WriteLine("aa" == (IgnoreCase)"AA");
+
+                Con.WriteLine((IgnoreCase)"aa" == (IgnoreCase)"AA");
+                Con.WriteLine((IgnoreCase)"aa" == (IgnoreCase)"AA");
+
+                Con.WriteLine((IgnoreCase)"AA" == "aa");
+                Con.WriteLine("AA" == (IgnoreCase)"aa");
+
+                Con.WriteLine(null == (IgnoreCase)null);
+                Con.WriteLine((IgnoreCase)null == null);
+
+                Con.WriteLine((IgnoreCase)null == "");
+                Con.WriteLine((IgnoreCase)"" == null);
+
+                Con.WriteLine(null == (IgnoreCase)"");
+                Con.WriteLine("" == (IgnoreCase)null);
+
+                
+                //""._IsSamei
                 return;
             }
 
@@ -793,7 +806,7 @@ namespace IPA.TestDev
 
             using (LogClient client = new LogClient(new LogClientOptions(null, cliSsl, "127.0.0.1")))
             {
-                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl, ports: Consts.Ports.LogServerDefaultServicePort._SingleArray() )))
+                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl, ports: Consts.Ports.LogServerDefaultServicePort._SingleArray())))
                 {
                     CancellationTokenSource cts = new CancellationTokenSource();
 
