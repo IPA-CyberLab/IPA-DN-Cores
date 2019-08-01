@@ -259,6 +259,18 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                "a"._IsEmpty()._Print();
+                " a"._IsEmpty()._Print();
+                "a "._IsEmpty()._Print();
+                ""._IsEmpty()._Print();
+                "    \t "._IsEmpty()._Print();
+                "　"._IsEmpty()._Print();
+                "　a"._IsEmpty()._Print();
+                return;
+            }
+
+            if (true)
+            {
                 Dbg.GetCurrentGitCommitInfo()._Print();
 
                 return;
