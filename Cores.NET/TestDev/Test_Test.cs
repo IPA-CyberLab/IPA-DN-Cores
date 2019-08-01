@@ -259,28 +259,56 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                Con.WriteLine((IgnoreCase)"aa" == "AA");
-                Con.WriteLine("aa" == (IgnoreCase)"AA");
+                Con.WriteLine((NoCaseTrim)"aa" == "AA");
+                Con.WriteLine("aa" == (NoCaseTrim)"AA");
 
-                Con.WriteLine((IgnoreCase)"aa" == (IgnoreCase)"AA");
-                Con.WriteLine((IgnoreCase)"aa" == (IgnoreCase)"AA");
+                Con.WriteLine((NoCaseTrim)"aa" == (NoCaseTrim)"AA");
+                Con.WriteLine((NoCaseTrim)"aa" == (NoCaseTrim)"AA");
 
-                Con.WriteLine((IgnoreCase)"AA" == "aa");
-                Con.WriteLine("AA" == (IgnoreCase)"aa");
+                Con.WriteLine((NoCaseTrim)"AA" == "aa");
+                Con.WriteLine("AA" == (NoCaseTrim)"aa");
 
-                Con.WriteLine(null == (IgnoreCase)null);
-                Con.WriteLine((IgnoreCase)null == null);
+                Con.WriteLine(null == (NoCaseTrim)null);
+                Con.WriteLine((NoCaseTrim)null == null);
 
-                Con.WriteLine((IgnoreCase)null == "");
-                Con.WriteLine((IgnoreCase)"" == null);
+                Con.WriteLine((NoCaseTrim)null == "");
+                Con.WriteLine((NoCaseTrim)"" == null);
 
-                Con.WriteLine(null == (IgnoreCase)"");
-                Con.WriteLine("" == (IgnoreCase)null);
+                Con.WriteLine(null == (NoCaseTrim)"");
+                Con.WriteLine("" == (NoCaseTrim)null);
 
-                
+                Con.WriteLine((NoCaseTrim)"ab" == "AA");
+                Con.WriteLine((NoCaseTrim)"" == "AA");
+
                 //""._IsSamei
                 return;
             }
+
+            if (true)
+            {
+                Con.WriteLine((NoCase)"aa" == "AA");
+                Con.WriteLine("aa" == (NoCase)"AA");
+
+                Con.WriteLine((NoCase)"aa" == (NoCase)"AA");
+                Con.WriteLine((NoCase)"aa" == (NoCase)"AA");
+
+                Con.WriteLine((NoCase)"AA" == "aa");
+                Con.WriteLine("AA" == (NoCase)"aa");
+
+                Con.WriteLine(null == (NoCase)null);
+                Con.WriteLine((NoCase)null == null);
+
+                Con.WriteLine((NoCase)null == "");
+                Con.WriteLine((NoCase)"" == null);
+
+                Con.WriteLine(null == (NoCase)"");
+                Con.WriteLine("" == (NoCase)null);
+
+
+                //""._IsSamei
+                return;
+            }
+
 
             if (true)
             {

@@ -5887,12 +5887,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public readonly struct IgnoreCase
+    public readonly struct NoCase
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
         readonly string Value;
 
-        public IgnoreCase(string value)
+        public NoCase(string value)
         {
             this.Value = value;
         }
@@ -5901,13 +5901,13 @@ namespace IPA.Cores.Basic
         {
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj is IgnoreCase target)
+            if (obj is NoCase target)
             {
                 return this == target;
             }
             else if (obj is string s)
             {
-                return this == (IgnoreCase)s;
+                return this == (NoCase)s;
             }
             else
             {
@@ -5921,27 +5921,86 @@ namespace IPA.Cores.Basic
             return Value?.GetHashCode() ?? 0;
         }
 
-        public static bool operator ==(IgnoreCase a, IgnoreCase b)
+        public static bool operator ==(NoCase a, NoCase b)
         {
             if ((object)a == null && (object)b == null) return true;
             if ((object)a == null || (object)b == null) return false;
 
-            return string.Equals(a.Value, b.Value, StringComparison.OrdinalIgnoreCase);
+            return a.Value._IsSamei(b.Value);
         }
 
-        public static bool operator !=(IgnoreCase a, IgnoreCase b)
+        public static bool operator !=(NoCase a, NoCase b)
         {
             return !(a == b);
         }
 
-        public static implicit operator string(IgnoreCase s)
+        public static implicit operator string(NoCase s)
         {
             return s.Value;
         }
 
-        public static implicit operator IgnoreCase(string s)
+        public static implicit operator NoCase(string s)
         {
-            return new IgnoreCase(s);
+            return new NoCase(s);
+        }
+    }
+
+
+    public readonly struct NoCaseTrim
+    {
+        // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
+        readonly string Value;
+
+        public NoCaseTrim(string value)
+        {
+            this.Value = value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is NoCaseTrim target)
+            {
+                return this == target;
+            }
+            else if (obj is string s)
+            {
+                return this == (NoCaseTrim)s;
+            }
+            else
+            {
+                string s2 = obj.ToString();
+                return this == s2;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return Value?.GetHashCode() ?? 0;
+        }
+
+        public static bool operator ==(NoCaseTrim a, NoCaseTrim b)
+        {
+            if ((object)a == null && (object)b == null) return true;
+            if ((object)a == null || (object)b == null) return false;
+
+            return a.Value._IsSameTrimi(b.Value);
+        }
+
+        public static bool operator !=(NoCaseTrim a, NoCaseTrim b)
+        {
+            return !(a == b);
+        }
+
+        public static implicit operator string(NoCaseTrim s)
+        {
+            return s.Value;
+        }
+
+        public static implicit operator NoCaseTrim(string s)
+        {
+            return new NoCaseTrim(s);
         }
     }
 }

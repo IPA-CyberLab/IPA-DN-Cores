@@ -217,7 +217,7 @@ namespace IPA.TestDev
             {
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.SInt32 = ((IgnoreCase)TestString1 == TestString2)._BoolToInt();
+                    Limbo.SInt32 = ((NoCase)TestString1 == TestString2)._BoolToInt();
                 }
             }), enabled: true, priority: 190802)
 
