@@ -326,12 +326,12 @@ namespace IPA.Cores.Basic
                             exactFile = file.FullPath;
                             numExactMatch++;
                         }
-                        else if (file.Name._Search(partOfFileName) != -1)
+                        else if (fullPathTmp._Search(partOfFileName) != -1)
                         {
-                            int originalLen = file.Name.Length;
+                            int originalLen = fullPathTmp.Length;
                             if (originalLen >= 1)
                             {
-                                int replacedLen = file.Name._ReplaceStr(partOfFileName, "").Length;
+                                int replacedLen = fullPathTmp._ReplaceStr(partOfFileName, "").Length;
                                 int matchLen = originalLen - replacedLen;
                                 FindSingleFileData d = new FindSingleFileData()
                                 {
