@@ -4964,21 +4964,7 @@ namespace IPA.Cores.Basic
         // 空かどうか調べる
         public static bool IsEmptyStr(string s)
         {
-            if (s == null) return true;
-            int strLen = s.Length;
-            if (strLen == 0) return true;
-            if (Char.IsWhiteSpace(s[0]) == false) return false;
-            if (Char.IsWhiteSpace(s[strLen - 1]) == false) return false;
-            if (strLen >= 3)
-            {
-                if (Char.IsWhiteSpace(s[strLen / 2]) == false) return false;
-            }
-            if (strLen >= 16)
-            {
-                if (Char.IsWhiteSpace(s[(strLen / 3) * 1]) == false) return false;
-                if (Char.IsWhiteSpace(s[(strLen / 3) * 2]) == false) return false;
-            }
-            return s.AsSpan().Trim().Length == 0;
+            return string.IsNullOrWhiteSpace(s);
         }
         public static bool IsFilledStr(string str)
         {

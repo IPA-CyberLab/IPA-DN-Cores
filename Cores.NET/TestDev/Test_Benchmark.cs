@@ -211,6 +211,24 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"isemptystr #1", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello_World  ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = Str.IsEmptyStr(s)._BoolToInt();
+                }
+            }), enabled: true, priority: 190801)
+
+            .Add(new MicroBenchmark($"isemptystr #2", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello_World  ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = string.IsNullOrWhiteSpace(s)._BoolToInt();
+                }
+            }), enabled: true, priority: 190802)
+
             .Add(new MicroBenchmark($"string test", Benchmark_CountForSlow, count =>
             {
                 string s = "  Hello_World  ";
