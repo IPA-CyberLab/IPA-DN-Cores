@@ -85,6 +85,11 @@ namespace IPA.Cores.Basic
             public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//" };
         }
 
+        public static partial class HiveNames
+        {
+            public const string DefaultWebServer = "WebServer";
+        }
+
         public static partial class MimeTypes
         {
             public const string Json = "application/json";

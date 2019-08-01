@@ -63,7 +63,7 @@ namespace IPA.Cores.AspNet
     public class AspNetLib : IDisposable
     {
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Util.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet);
+        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet);
 
         public AspNetLib(IConfiguration configuration)
         {

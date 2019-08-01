@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
                         {
                             bool ok = false;
 
-                            Hive.LocalAppSettingsEx["WebServer"].AccessData(false, k2 =>
+                            Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(false, k2 =>
                             {
                                 HttpServerSimpleBasicAuthDatabase db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
 
@@ -432,6 +432,8 @@ namespace IPA.Cores.Basic
 
         public bool HideKestrelServerHeader { get; set; } = true;
 
+        public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
+
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
         public bool UseGlobalCertVault { get; set; } = true;
@@ -571,7 +573,7 @@ namespace IPA.Cores.Basic
 
                 bool isDevelopmentMode = false;
 
-                Hive.LocalAppSettingsEx["WebServer"].AccessData(true,
+                Hive.LocalAppSettingsEx[this.Options.HiveName].AccessData(true,
                     k =>
                     {
                         isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);

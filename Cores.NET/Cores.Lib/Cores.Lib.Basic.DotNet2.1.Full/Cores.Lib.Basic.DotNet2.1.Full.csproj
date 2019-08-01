@@ -57,6 +57,7 @@
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
 
   </ItemGroup>
 
