@@ -9,6 +9,9 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\3_Client.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\1_Common.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\2_Server.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Hive.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\DevTools.cs" />
@@ -104,6 +107,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\SpeedTest.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\HttpClient\HttpClientResource.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\_NewSrcTemplate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\Daemon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\DaemonMain.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\UserModeService.cs" />
