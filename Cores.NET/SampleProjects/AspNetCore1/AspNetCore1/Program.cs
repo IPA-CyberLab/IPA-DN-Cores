@@ -20,13 +20,21 @@ namespace AspNetCore1
         {
             const string appName = "AspNetCore1";
 
-            return StandardMainFunctions.DaemonMain.DoMain(new CoresLibOptions(CoresMode.Application, appName, DebugMode.Debug, false, false), args,
+            return StandardMainFunctions.DaemonMain.DoMain(
+                new CoresLibOptions(CoresMode.Application,
+                    appName: appName,
+                    defaultDebugMode: DebugMode.Debug,
+                    defaultPrintStatToConsole: false,
+                    defaultRecordLeakFullStack: false),
+                args: args,
                 getDaemonProc: () => new HttpServerDaemon<Startup>(appName, appName, new HttpServerOptions
-                    {
-                        HttpPortsList = 80._SingleList(),
-                        HttpsPortsList = 443._SingleList(),
-                        UseKestrelWithIPACoreStack = true,
-                        DebugKestrelToConsole = false,
+                {
+                    HttpPortsList = 80._SingleList(),
+                    HttpsPortsList = 443._SingleList(),
+                    UseKestrelWithIPACoreStack = true,
+                    DebugKestrelToConsole = false,
+                    UseSimpleBasicAuthentication = false,
+                    HoldSimpleBasicAuthenticationDatabase = false,
                 }));
         }
     }

@@ -13,24 +13,34 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
+
 namespace AspNetCore1
 {
     public class Startup
     {
+        readonly HttpServerStartupHelper StartupHelper;
+        readonly AspNetLib AspNetLib;
+
         public Startup(IConfiguration configuration)
         {
+            StartupHelper = new HttpServerStartupHelper(configuration);
+
+            AspNetLib = new AspNetLib(configuration);
+
             Configuration = configuration;
-
-            Helper = new HttpServerStartupHelper(configuration);
         }
-
-        internal HttpServerStartupHelper Helper { get; }
+        
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            Helper.ConfigureServices(services);
+            AspNetLib.ConfigureServices(StartupHelper, services);
+
+            StartupHelper.ConfigureServices(services);
 
             //services.Configure<CookiePolicyOptions>(options =>
             //{
@@ -39,15 +49,29 @@ namespace AspNetCore1
             //    options.MinimumSameSitePolicy = SameSiteMode.None;
             //});
 
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddMvc()
+                .AddViewOptions(opt =>
+                {
+                    opt.HtmlHelperOptions.ClientValidationEnabled = false;
+                })
+                .AddRazorOptions(opt =>
+                {
+                    AspNetLib.ConfigureRazorOptions(opt);
+                })
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
-
+        
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
-            Helper.Configure(app, env);
+            // wwwroot directory of this project
+            StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 
-            if (Helper.IsDevelopmentMode)
+            AspNetLib.Configure(StartupHelper, app, env);
+
+            StartupHelper.Configure(app, env);
+            
+            if (StartupHelper.IsDevelopmentMode)
             {
                 app.UseDeveloperExceptionPage();
             }
@@ -55,6 +79,8 @@ namespace AspNetCore1
             {
                 app.UseExceptionHandler("/Home/Error");
             }
+
+            app.UseHttpExceptionLogger();
 
             app.UseStaticFiles();
             //app.UseCookiePolicy();
@@ -66,6 +92,11 @@ namespace AspNetCore1
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
 
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                AspNetLib._DisposeSafe();
+                StartupHelper._DisposeSafe();
+            });
         }
     }
 }

@@ -16,14 +16,12 @@ ASP.NET Core Web アプリケーション (C#) を追加する。
 「ブラウザーの起動」を OFF にする。
 
 
-■ Cores.Lib.DotNet2.1.Full の追加
+■ Cores.Lib.Basic.DotNet2.1.Full の追加
 ソリューションに
-「Cores.Lib.DotNet2.1.Full\Cores.Lib.DotNet2.1.Full.csproj」
+「Cores.Lib.Basic.DotNet2.1.Full\Cores.Lib.Basic.DotNet2.1.Full.csproj」
 を追加する。
 
-ASP.NET プロジェクトから Cores.Lib.DotNet2.1.Full に依存設定をする。
-
-Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo.cs」ファイルを必要に応じて編集する。
+ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定をする。
 
 
 ■ Cores.Basic.shproj の追加
@@ -40,8 +38,10 @@ Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo.cs」ファイルを必要に�
     <LangVersion>7.3</LangVersion>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
 ---
 ※ GC で ServerGC を false にする理由は、.NET Core 2.1 & 2.2 にはバグがあるため。.NET Core 3.0 で改善される予定。
+
 
 </PropertyGroup> の下に以下を追加
 ---
@@ -55,16 +55,82 @@ Cores.Lib.DotNet2.1.Full の「InternalsVisibleTo.cs」ファイルを必要に�
     <None Remove="Local\**" />
     <None Remove="Log\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../../../Cores.NET/Cores.AspNet/**/*.cs" />
+    <Content Include="../../../../Cores.NET/Cores.AspNet/**/*.cshtml" />
+    <EmbeddedResource Include="../../../../Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+  </ItemGroup>
+
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe stop DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe start DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
+---
+
+※ submodule 経由の場合
+
+---
+  <ItemGroup>
+    <Compile Remove="Local\**" />
+    <Compile Remove="Log\**" />
+    <Content Remove="Local\**" />
+    <Content Remove="Log\**" />
+    <EmbeddedResource Remove="Local\**" />
+    <EmbeddedResource Remove="Log\**" />
+    <None Remove="Local\**" />
+    <None Remove="Log\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/**/*.cs" />
+    <Content Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/**/*.cshtml" />
+    <EmbeddedResource Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+  </ItemGroup>
+
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe stop DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe start DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
 ---
 
 ・ Properties/launchSettings.json
+
 ---
 {
   "profiles": {
-    "AspNet": {
-      "commandName": "Project"
+    "DebugHost Run": {
+      "commandName": "Executable",
+      "executablePath": "$(ProjectDir)..\..\..\..\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe",
+      "commandLineArgs": "restart DN-FastReader dotnet exec $(TargetPath) Daemon Test",
+      "workingDirectory": ".\\"
     },
-    "AspNet /Test": {
+    "AspNet Test": {
+      "commandName": "Project",
+      "commandLineArgs": "Daemon test"
+    }
+  }
+}
+---
+
+※ submodule 経由の場合
+
+---
+{
+  "profiles": {
+    "DebugHost Run": {
+      "commandName": "Executable",
+      "executablePath": "$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe",
+      "commandLineArgs": "restart DN-FastReader dotnet exec $(TargetPath) Daemon Test",
+      "workingDirectory": ".\\"
+    },
+    "AspNet Test": {
       "commandName": "Project",
       "commandLineArgs": "Daemon test"
     }
@@ -85,13 +151,21 @@ Main の内容を以下のように変更
 ---
             const string appName = "AspNetCore1";
 
-            return StandardMainFunctions.DaemonMain.DoMain(new CoresLibOptions(CoresMode.Application, appName, DebugMode.Debug, false, false), args,
+            return StandardMainFunctions.DaemonMain.DoMain(
+                new CoresLibOptions(CoresMode.Application,
+                    appName: appName,
+                    defaultDebugMode: DebugMode.Debug,
+                    defaultPrintStatToConsole: false,
+                    defaultRecordLeakFullStack: false),
+                args: args,
                 getDaemonProc: () => new HttpServerDaemon<Startup>(appName, appName, new HttpServerOptions
                 {
                     HttpPortsList = 80._SingleList(),
                     HttpsPortsList = 443._SingleList(),
                     UseKestrelWithIPACoreStack = true,
                     DebugKestrelToConsole = false,
+                    UseSimpleBasicAuthentication = false,
+                    HoldSimpleBasicAuthenticationDatabase = false,
                 }));
 ---
 
@@ -104,21 +178,66 @@ CreateWebHostBuilder() の実装はコメントアウトする。
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
 ---
 
 Startup クラスに以下を追記
 
 ---
-internal HttpServerStartupHelper Helper { get; }
+readonly HttpServerStartupHelper StartupHelper;
+readonly AspNetLib AspNetLib;
+---
 
 コンストラクタ:
-Helper = new HttpServerStartupHelper(configuration);
+---
+StartupHelper = new HttpServerStartupHelper(configuration);
+
+AspNetLib = new AspNetLib(configuration);
+---
+
 
 ConfigureServices() の一番上:
-Helper.ConfigureServices(services);
+---
+AspNetLib.ConfigureServices(StartupHelper, services);
+
+StartupHelper.ConfigureServices(services);
+---
+
+ConfigureServices() の CookiePolicyOptions をコメントアウト
+
+ConfigureServices() の AddMvc() の行を消して以下に置換
+---
+services.AddMvc()
+    .AddViewOptions(opt =>
+    {
+        opt.HtmlHelperOptions.ClientValidationEnabled = false;
+    })
+    .AddRazorOptions(opt =>
+    {
+        AspNetLib.ConfigureRazorOptions(opt);
+    })
+    .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+---
+
+
+Configure() に引数
+---
+, IApplicationLifetime lifetime
+---
+を追加。
 
 Configure() の一番上:
-Helper.Configure(app, env);
+---
+// wwwroot directory of this project
+StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
+
+AspNetLib.Configure(StartupHelper, app, env);
+
+StartupHelper.Configure(app, env);
+---
 
 Configure() の中の
 
@@ -138,17 +257,31 @@ app.UseHttpExceptionLogger();
 
 を追加。
 
-コメントアウト
+app.UseStaticFiles(); をコメントアウト。
+app.UseCookiePolicy(); をコメントアウト。
 
-//services.Configure<CookiePolicyOptions>(options =>
-//{
-//    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
-//    options.CheckConsentNeeded = context => true;
-//    options.MinimumSameSitePolicy = SameSiteMode.None;
-//});
+一番下に
+---
+lifetime.ApplicationStopping.Register(() =>
+{
+    AspNetLib._DisposeSafe();
+    StartupHelper._DisposeSafe();
+});
+---
 
-//app.UseCookiePolicy();
+を追加。
 
+Views/_ViewImports.cshtml に以下を追加。
+
+---
+
+@using IPA.Cores.Basic;
+@using IPA.Cores.Helper.Basic;
+@using static IPA.Cores.Globals.Basic;
+
+@using IPA.Cores.AspNet;
+@using IPA.Cores.Helper.AspNet;
+@using static IPA.Cores.Globals.AspNet;
 ---
 
 

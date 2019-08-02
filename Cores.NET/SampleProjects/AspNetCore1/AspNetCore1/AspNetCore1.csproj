@@ -5,6 +5,7 @@
     <LangVersion>7.3</LangVersion>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,12 +20,26 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../../../Cores.NET/Cores.AspNet/**/*.cs" />
+    <Content Include="../../../../Cores.NET/Cores.AspNet/**/*.cshtml" />
+    <EmbeddedResource Include="../../../../Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+  </ItemGroup>
+  
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe stop DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe start DN-FastReader dotnet exec $(TargetPath) Daemon Test" />
+  </Target>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.DotNet2.1.Full\Cores.Lib.DotNet2.1.Full.csproj" />
+    <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.Basic.DotNet2.1.Full\Cores.Lib.Basic.DotNet2.1.Full.csproj" />
   </ItemGroup>
 
 </Project>
