@@ -259,6 +259,59 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Con.WriteLine((NoCaseTrim)"aa" == "AA");
+                Con.WriteLine("aa" == (NoCaseTrim)"AA");
+
+                Con.WriteLine((NoCaseTrim)"aa" == (NoCaseTrim)"AA");
+                Con.WriteLine((NoCaseTrim)"aa" == (NoCaseTrim)"AA");
+
+                Con.WriteLine((NoCaseTrim)"AA" == "aa");
+                Con.WriteLine("AA" == (NoCaseTrim)"aa");
+
+                Con.WriteLine(null == (NoCaseTrim)null);
+                Con.WriteLine((NoCaseTrim)null == null);
+
+                Con.WriteLine((NoCaseTrim)null == "");
+                Con.WriteLine((NoCaseTrim)"" == null);
+
+                Con.WriteLine(null == (NoCaseTrim)"");
+                Con.WriteLine("" == (NoCaseTrim)null);
+
+                Con.WriteLine((NoCaseTrim)"ab" == "AA");
+                Con.WriteLine((NoCaseTrim)"" == "AA");
+
+                //""._IsSamei
+                return;
+            }
+
+            if (true)
+            {
+                Con.WriteLine((NoCase)"aa" == "AA");
+                Con.WriteLine("aa" == (NoCase)"AA");
+
+                Con.WriteLine((NoCase)"aa" == (NoCase)"AA");
+                Con.WriteLine((NoCase)"aa" == (NoCase)"AA");
+
+                Con.WriteLine((NoCase)"AA" == "aa");
+                Con.WriteLine("AA" == (NoCase)"aa");
+
+                Con.WriteLine(null == (NoCase)null);
+                Con.WriteLine((NoCase)null == null);
+
+                Con.WriteLine((NoCase)null == "");
+                Con.WriteLine((NoCase)"" == null);
+
+                Con.WriteLine(null == (NoCase)"");
+                Con.WriteLine("" == (NoCase)null);
+
+
+                //""._IsSamei
+                return;
+            }
+
+
+            if (true)
+            {
                 Dbg.GetCurrentGitCommitInfo()._Print();
 
                 return;
@@ -781,7 +834,7 @@ namespace IPA.TestDev
 
             using (LogClient client = new LogClient(new LogClientOptions(null, cliSsl, "127.0.0.1")))
             {
-                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl, ports: Consts.Ports.LogServerDefaultServicePort._SingleArray() )))
+                using (LogServer server = new LogServer(new LogServerOptions(null, @"c:\tmp\190612", FileFlags.OnCreateSetCompressionFlag, null, null, svrSsl, ports: Consts.Ports.LogServerDefaultServicePort._SingleArray())))
                 {
                     CancellationTokenSource cts = new CancellationTokenSource();
 

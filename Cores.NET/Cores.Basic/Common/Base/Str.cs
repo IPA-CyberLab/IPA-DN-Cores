@@ -3814,7 +3814,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T: unmanaged, Enum
+        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return (T)StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
@@ -4964,21 +4964,7 @@ namespace IPA.Cores.Basic
         // 空かどうか調べる
         public static bool IsEmptyStr(string s)
         {
-            if (s == null) return true;
-            int strLen = s.Length;
-            if (strLen == 0) return true;
-            if (Char.IsWhiteSpace(s[0]) == false) return false;
-            if (Char.IsWhiteSpace(s[strLen - 1]) == false) return false;
-            if (strLen >= 3)
-            {
-                if (Char.IsWhiteSpace(s[strLen / 2]) == false) return false;
-            }
-            if (strLen >= 16)
-            {
-                if (Char.IsWhiteSpace(s[(strLen / 3) * 1]) == false) return false;
-                if (Char.IsWhiteSpace(s[(strLen / 3) * 2]) == false) return false;
-            }
-            return s.AsSpan().Trim().Length == 0;
+            return string.IsNullOrWhiteSpace(s);
         }
         public static bool IsFilledStr(string str)
         {
@@ -5718,7 +5704,7 @@ namespace IPA.Cores.Basic
         public int Index { get; }
     }
 
-    public class AmbiguousSearch<T> where T: class
+    public class AmbiguousSearch<T> where T : class
     {
         readonly List<KeyValuePair<string, T>> List = new List<KeyValuePair<string, T>>();
         readonly Singleton<string, T> SearchTopWithCacheSingleton;
@@ -5745,7 +5731,7 @@ namespace IPA.Cores.Basic
         {
             List<AmbiguousSearchResult<T>> ret = new List<AmbiguousSearchResult<T>>();
 
-            for (int i = 0;i < List.Count;i++)
+            for (int i = 0; i < List.Count; i++)
             {
                 KeyValuePair<string, T> t = List[i];
 
@@ -5898,6 +5884,123 @@ namespace IPA.Cores.Basic
                 }
                 StrValue = str;
             }
+        }
+    }
+
+    public readonly struct NoCase
+    {
+        // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
+        readonly string Value;
+
+        public NoCase(string value)
+        {
+            this.Value = value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is NoCase target)
+            {
+                return this == target;
+            }
+            else if (obj is string s)
+            {
+                return this == (NoCase)s;
+            }
+            else
+            {
+                string s2 = obj.ToString();
+                return this == s2;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return Value?.GetHashCode() ?? 0;
+        }
+
+        public static bool operator ==(NoCase a, NoCase b)
+        {
+            if ((object)a == null && (object)b == null) return true;
+            if ((object)a == null || (object)b == null) return false;
+
+            return a.Value._IsSamei(b.Value);
+        }
+
+        public static bool operator !=(NoCase a, NoCase b)
+        {
+            return !(a == b);
+        }
+
+        public static implicit operator string(NoCase s)
+        {
+            return s.Value;
+        }
+
+        public static implicit operator NoCase(string s)
+        {
+            return new NoCase(s);
+        }
+    }
+
+
+    public readonly struct NoCaseTrim
+    {
+        // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
+        readonly string Value;
+
+        public NoCaseTrim(string value)
+        {
+            this.Value = value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is NoCaseTrim target)
+            {
+                return this == target;
+            }
+            else if (obj is string s)
+            {
+                return this == (NoCaseTrim)s;
+            }
+            else
+            {
+                string s2 = obj.ToString();
+                return this == s2;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return Value?.GetHashCode() ?? 0;
+        }
+
+        public static bool operator ==(NoCaseTrim a, NoCaseTrim b)
+        {
+            if ((object)a == null && (object)b == null) return true;
+            if ((object)a == null || (object)b == null) return false;
+
+            return a.Value._IsSameTrimi(b.Value);
+        }
+
+        public static bool operator !=(NoCaseTrim a, NoCaseTrim b)
+        {
+            return !(a == b);
+        }
+
+        public static implicit operator string(NoCaseTrim s)
+        {
+            return s.Value;
+        }
+
+        public static implicit operator NoCaseTrim(string s)
+        {
+            return new NoCaseTrim(s);
         }
     }
 }

@@ -153,6 +153,9 @@ namespace IPA.TestDev
             }
         }
 
+        static volatile string TestString1 = "Hello World Nekosan";
+        static volatile string TestString2 = "hello world nekosan";
+
         static void BenchMark_Test1()
         {
             MemoryBuffer<byte> sparseTest1 = new MemoryBuffer<byte>();
@@ -210,6 +213,39 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark($"ignore case compare string 1", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = ((NoCase)TestString1 == TestString2)._BoolToInt();
+                }
+            }), enabled: true, priority: 190802)
+
+            .Add(new MicroBenchmark($"ignore case compare string 2", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = (TestString1._IsSamei(TestString2))._BoolToInt();
+                }
+            }), enabled: true, priority: 190802)
+
+            .Add(new MicroBenchmark($"isemptystr #1", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello_World  ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = Str.IsEmptyStr(s)._BoolToInt();
+                }
+            }), enabled: true, priority: 190801)
+
+            .Add(new MicroBenchmark($"isemptystr #2", Benchmark_CountForSlow, count =>
+            {
+                string s = "  Hello_World  ";
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = string.IsNullOrWhiteSpace(s)._BoolToInt();
+                }
+            }), enabled: true, priority: 190802)
 
             .Add(new MicroBenchmark($"string test", Benchmark_CountForSlow, count =>
             {

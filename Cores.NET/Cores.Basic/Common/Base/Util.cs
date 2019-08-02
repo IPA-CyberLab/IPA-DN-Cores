@@ -1035,11 +1035,7 @@ namespace IPA.Cores.Basic
                     case DateTimeOffset dt: return Util.IsZero(dt);
                     case ICollection c: return c.Count == 0;
                     case string s:
-                        int strLen = s.Length;
-                        if (strLen == 0) return true;
-                        if (Char.IsWhiteSpace(s[0]) == false) return false;
-                        if (Char.IsWhiteSpace(s[strLen - 1]) == false) return false;
-                        return s.Trim().Length == 0;
+                        return string.IsNullOrWhiteSpace(s);
                 }
             }
             catch
