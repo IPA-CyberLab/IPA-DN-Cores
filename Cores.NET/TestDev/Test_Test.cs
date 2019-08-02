@@ -259,6 +259,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                DebugHostUtil.Stop("daemonCenTer")._Debug();
+                return;
+            }
+
+            if (true)
+            {
                 bool b = (IsEmpty)" aaa ";
                 b._Print();
 

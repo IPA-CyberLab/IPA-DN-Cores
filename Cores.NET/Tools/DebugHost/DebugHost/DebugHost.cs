@@ -435,7 +435,10 @@ namespace IPA.Cores.Tools.DebugHost
                 Utils.GetKeyAndValue(argString, out string action, out string appIdAndCmdLine);
                 Utils.GetKeyAndValue(appIdAndCmdLine, out string appId, out string cmdLine);
 
-                appId = appId.ToLower();
+                if (string.IsNullOrWhiteSpace(appId) == false)
+                {
+                    StatusManager.SetTitleBase(appId);
+                }
 
                 if (string.IsNullOrWhiteSpace(argString) || string.IsNullOrWhiteSpace(appId))
                 {
@@ -443,9 +446,7 @@ namespace IPA.Cores.Tools.DebugHost
                 }
                 else
                 {
-                    StatusManager.SetTitleBase(appId);
-
-                    string appIdHash = Utils.ByteToHex(Utils.HashSHA1(Encoding.UTF8.GetBytes(appId + ":HashDebugHost")), "").ToLower();
+                    string appIdHash = Utils.ByteToHex(Utils.HashSHA1(Encoding.UTF8.GetBytes(appId.ToLower() + ":HashDebugHost")), "").ToLower();
 
                     string pipeName = "pipe_" + appIdHash;
 

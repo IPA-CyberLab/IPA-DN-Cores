@@ -125,6 +125,7 @@ start        - Start the daemon in the background mode.
 stop         - Stop the running daemon in the background mode.
 show         - Show the real-time log by the background daemon.
 test         - Start the daemon in the foreground testing mode.
+testdebug    - same to test, but for Visual Studio IDE debug.
 
 [Windows specific commands]
 winstart     - Start the daemon as a Windows service.

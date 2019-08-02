@@ -259,8 +259,7 @@ namespace IPA.Cores.Basic
 
             app.UseWebServerLogger();
 
-#if CORES_BASIC_JSON
-#if CORES_BASIC_SECURITY
+#if CORES_BASIC_JSON && CORES_BASIC_JSON
             if (this.ServerOptions.UseGlobalCertVault && this.ServerOptions.HasHttpPort80)
             {
                 // Add the ACME HTTP-based challenge responder
@@ -271,8 +270,7 @@ namespace IPA.Cores.Basic
                 IRouter router = rb.Build();
                 app.UseRouter(router);
             }
-#endif  // CORES_BASIC_JSON
-#endif  // CORES_BASIC_SECURITY;
+#endif  // CORES_BASIC_JSON && CORES_BASIC_SECURITY
 
             if (this.ServerOptions.MustIncludeHostnameStrList.Count >= 1)
             {
@@ -323,8 +321,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-#if CORES_BASIC_JSON
-#if CORES_BASIC_SECURITY
+#if CORES_BASIC_JSON && CORES_BASIC_JSON
 
         public virtual async Task AcmeGetChallengeFileRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
@@ -365,8 +362,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-#endif  // CORES_BASIC_JSON
-#endif  // CORES_BASIC_SECURITY;
+#endif  // CORES_BASIC_JSON && CORES_BASIC_JSON
 
     }
 

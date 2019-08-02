@@ -43,14 +43,14 @@ namespace DaemonCenter
             AspNetLib.ConfigureServices(StartupHelper, services);
 
             StartupHelper.ConfigureServices(services);
-
+            
             //services.Configure<CookiePolicyOptions>(options =>
             //{
             //    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
             //    options.CheckConsentNeeded = context => true;
             //    options.MinimumSameSitePolicy = SameSiteMode.None;
             //});
-
+            
             services.AddMvc()
                 .AddViewOptions(opt =>
                 {
@@ -98,6 +98,8 @@ namespace DaemonCenter
 
             lifetime.ApplicationStopping.Register(() =>
             {
+                server._DisposeSafe();
+
                 AspNetLib._DisposeSafe();
                 StartupHelper._DisposeSafe();
             });

@@ -3,15 +3,12 @@
     "DebugHost Run": {
       "commandName": "Executable",
       "executablePath": "$(ProjectDir)..\\..\\..\\..\\Cores.NET\\\\Tools\\\\CompiledBin\\\\DebugHost.exe",
-      "commandLineArgs": "restart DN-FastReader dotnet exec $(TargetPath) Daemon Test",
+      "commandLineArgs": "restart $(ProjectName) dotnet exec $(TargetPath) Daemon Test",
       "workingDirectory": ".\\"
     },
-    "SingleProcess Test": {
+    "SingleProcess Debug": {
       "commandName": "Project",
-      "commandLineArgs": "Daemon Test",
-      "environmentVariables": {
-        "IsSingleProcess": "true"
-      }
+      "commandLineArgs": "Daemon TestDebug /AppId:$(ProjectName)"
     }
   }
 }

@@ -46,6 +46,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO.Pipes;
 
 namespace IPA.Cores.Basic
 {
@@ -1444,6 +1445,65 @@ namespace IPA.Cores.Basic
                 }
             }
             return w.ToString();
+        }
+    }
+
+    public static class DebugHostUtil
+    {
+        [Flags]
+        public enum Cmd
+        {
+            Stop,
+            Start,
+            Restart,
+        }
+
+        public static bool Stop(string appId)
+        {
+            string pipeName = GetPipeName(appId);
+
+            var pipe = TryConnectPipe(pipeName);
+
+            if (pipe == null) return false;
+
+            using (pipe)
+            {
+                pipe.WriteByte((byte)Cmd.Stop);
+
+                pipe.ReadByte();
+
+                return true;
+            }
+        }
+
+        static NamedPipeClientStream TryConnectPipe(string pipeName)
+        {
+            NamedPipeClientStream cli = null;
+            try
+            {
+                cli = new NamedPipeClientStream(pipeName);
+                cli.Connect(0);
+                return cli;
+            }
+            catch
+            {
+                if (cli != null)
+                {
+                    try
+                    {
+                        cli.Dispose();
+                    }
+                    catch { }
+                }
+                return null;
+            }
+        }
+
+        static string GetPipeName(string appId)
+        {
+            string appIdHash = Str.ByteToHex(Secure.HashSHA1(Str.Utf8Encoding.GetBytes(appId.ToLower() + ":HashDebugHost")), "").ToLower();
+
+            return "pipe_" + appIdHash;
         }
     }
 }

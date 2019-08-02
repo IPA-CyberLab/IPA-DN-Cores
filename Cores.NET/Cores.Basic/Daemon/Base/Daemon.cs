@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         IHolder Leak;
 
         object Param = null;
-        
+
         public Daemon(DaemonOptions options)
         {
             this.Options = options;
@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
 
             return true;
         }
-    
+
         public async Task StartAsync(DaemonStartupMode startupMode, object param = null)
         {
             await Task.Yield();
@@ -246,14 +246,26 @@ namespace IPA.Cores.Basic
 
         Once StartedOnce;
 
-        public void TestRun()
+        public void TestRun(bool stopDebugHost = false, string appId = null)
         {
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
 
+            if (stopDebugHost && (IsFilled)appId)
+            {
+                try
+                {
+                    DebugHostUtil.Stop(appId);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+
             // Start the TelnetLogWatcher
             using (var telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                new IPEndPoint(IPAddress.Any, this.Daemon.Options.TelnetLogWatcherPort),
-                new IPEndPoint(IPAddress.IPv6Any, this.Daemon.Options.TelnetLogWatcherPort))))
+            new IPEndPoint(IPAddress.Any, this.Daemon.Options.TelnetLogWatcherPort),
+            new IPEndPoint(IPAddress.IPv6Any, this.Daemon.Options.TelnetLogWatcherPort))))
             {
                 this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -333,6 +345,7 @@ namespace IPA.Cores.Basic
         Start,
         Stop,
         Test,
+        TestDebug,
         Show,
         ExecMain,
 
@@ -350,8 +363,11 @@ namespace IPA.Cores.Basic
             ConsoleParam[] args =
             {
                 new ConsoleParam("[command]"),
+                new ConsoleParam("APPID", null, null, null, null),
             };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string appId = vl["APPID"].StrValue._NonNullTrim();
 
             Con.WriteLine();
             Con.WriteLine($"Daemon {daemon.ToString()} control command");
@@ -542,7 +558,11 @@ namespace IPA.Cores.Basic
                     break;
 
                 case DaemonCmdType.Test:
-                    host.TestRun();
+                    host.TestRun(false);
+                    break;
+
+                case DaemonCmdType.TestDebug:
+                    host.TestRun(true, appId);
                     break;
 
                 case DaemonCmdType.WinExecSvc:
