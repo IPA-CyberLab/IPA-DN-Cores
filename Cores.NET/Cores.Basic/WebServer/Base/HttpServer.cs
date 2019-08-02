@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
 
-            Hive.LocalAppSettingsEx["WebServer"].AccessData(true,
+            Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(true,
                 k =>
                 {
                     this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
@@ -488,6 +488,19 @@ namespace IPA.Cores.Basic
             opt.AddServerHeader = !this.HideKestrelServerHeader;
 
             KestrelServerWithStackOptions withStackOpt = opt as KestrelServerWithStackOptions;
+
+            Hive.LocalAppSettingsEx[this.HiveName].AccessData(true,
+                k =>
+                {
+                    string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(this.HttpPortsList));
+                    this.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
+
+                    string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(this.HttpsPortsList));
+                    this.HttpsPortsList = Str.ParsePortsList(httpsPortsList).ToList();
+
+                    this.LocalHostOnly = k.GetBool("LocalHostOnly", this.LocalHostOnly);
+                    this.IPv4Only = k.GetBool("IPv4Only", this.IPv4Only);
+                });
 
             if (this.LocalHostOnly)
             {

@@ -2532,6 +2532,13 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
+        public static string PortsListToStr(IEnumerable<int> ports)
+        {
+            SortedSet<int> tmp = new SortedSet<int>();
+            ports.Where(x => x >= 1 && x <= 65535)._DoForEach(x => tmp.Add(x));
+            return tmp.Select(x => x.ToString())._Combine(",");
+        }
+
         // アンエスケープ
         public static string Unescape(string str)
         {
