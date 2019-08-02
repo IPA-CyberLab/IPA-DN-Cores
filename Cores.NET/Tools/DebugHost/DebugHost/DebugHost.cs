@@ -115,15 +115,18 @@ namespace IPA.Cores.Tools.DebugHost
 
             Console.WriteLine("DebugHost: The process is stopped. Waiting for next start command ...");
 
-            CancellationTokenSource cancelSource = new CancellationTokenSource();
+            if (StartEvent.WaitOne(0) == false)
+            {
+                CancellationTokenSource cancelSource = new CancellationTokenSource();
 
-            Thread waitKeyThread = new Thread(WaitKeyThreadProc);
-            waitKeyThread.Start(cancelSource.Token);
+                Thread waitKeyThread = new Thread(WaitKeyThreadProc);
+                waitKeyThread.Start(cancelSource.Token);
 
-            StartEvent.WaitOne();
+                StartEvent.WaitOne();
 
-            cancelSource.Cancel();
-            waitKeyThread.Join();
+                cancelSource.Cancel();
+                waitKeyThread.Join();
+            }
 
             goto LABEL_RESTART;
         }

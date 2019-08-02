@@ -85,7 +85,7 @@ namespace IPA.Cores.AspNet
 
         public void ConfigureRazorOptions(RazorViewEngineOptions opt)
         {
-            opt.ViewLocationFormats.Add("/Cores.AspNet/Views/{1}/{0}.cshtml");
+            opt.ViewLocationFormats.Add("/AspNet.Cores/Views/{1}/{0}.cshtml");
 
             if (AspNetLib.LibRootFullPath._IsFilled())
             {

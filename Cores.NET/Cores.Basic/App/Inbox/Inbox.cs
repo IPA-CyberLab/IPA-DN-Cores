@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic
 
         readonly List<InboxAdapter> AdapterList = new List<InboxAdapter>();
         readonly CriticalSection LockObj = new CriticalSection();
-
+        
         readonly InboxAdapterFactory Factory;
 
         readonly CriticalSection FirstSeenTableLock = new CriticalSection();
