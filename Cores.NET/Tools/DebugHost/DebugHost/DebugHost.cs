@@ -1,6 +1,6 @@
 ﻿// IPA Cores.NET
 // 
-// Copyright (c) 2018- IPA CyberLab.
+// Copyright (c) 2019- IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
 // Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
 // All Rights Reserved.
@@ -83,6 +83,7 @@ namespace IPA.Cores.Tools.DebugHost
         void RunThreadProc()
         {
             LABEL_RESTART:
+            StartEvent.Reset();
             try
             {
                 Console.WriteLine($"DebugHost: Starting the child process '{this.CmdLine}' ...");
@@ -114,9 +115,53 @@ namespace IPA.Cores.Tools.DebugHost
 
             Console.WriteLine("DebugHost: The process is stopped. Waiting for next start command ...");
 
+            CancellationTokenSource cancelSource = new CancellationTokenSource();
+
+            Thread waitKeyThread = new Thread(WaitKeyThreadProc);
+            waitKeyThread.Start(cancelSource.Token);
+
             StartEvent.WaitOne();
 
+            cancelSource.Cancel();
+            waitKeyThread.Join();
+
             goto LABEL_RESTART;
+        }
+
+        void WaitKeyThreadProc(object param)
+        {
+            CancellationToken cancel = (CancellationToken)param;
+
+            ProcessStartInfo info = new ProcessStartInfo()
+            {
+                FileName = Process.GetCurrentProcess().MainModule.FileName,
+                Arguments = "wait",
+                UseShellExecute = false,
+                CreateNoWindow = false,
+            };
+
+            using (Process p = Process.Start(info))
+            {
+                var reg = cancel.Register(() =>
+                {
+                    p.Kill();
+                });
+
+                using (reg)
+                {
+                    p.WaitForExit();
+
+                    if (p.ExitCode == 0)
+                    {
+                        StartEvent.Set();
+                    }
+                    else if (p.ExitCode == 4)
+                    {
+                        Console.WriteLine("Terminating...");
+                        Process.GetCurrentProcess().Kill();
+                    }
+                }
+            }
         }
 
         public void Stop()
@@ -146,6 +191,11 @@ namespace IPA.Cores.Tools.DebugHost
 
         public void Start()
         {
+            if (CurrentRunningProcessId != 0)
+            {
+                return;
+            }
+
             StartEvent.Set();
 
             while (true)
@@ -315,6 +365,23 @@ namespace IPA.Cores.Tools.DebugHost
     {
         static int Main(string[] args)
         {
+            if (args.Length == 1 && args[0].ToLower() == "wait")
+            {
+                while (true)
+                {
+                    Console.Write("'r' to restart / 'q' to terminate>");
+                    string line = Console.ReadLine().Trim();
+                    if (string.Equals(line, "r", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return 0;
+                    }
+                    if (string.Equals(line, "q", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return 4;
+                    }
+                }
+            }
+
             Utils.DivideCommandLine(Environment.CommandLine, out _, out string argString);
 
             argString = argString.Trim();
