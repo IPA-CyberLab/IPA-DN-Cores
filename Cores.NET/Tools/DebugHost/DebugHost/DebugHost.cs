@@ -60,6 +60,14 @@ namespace IPA.Cores.Tools.DebugHost
         Restart,
     }
 
+    [Flags]
+    public enum Status
+    {
+        Initializing = 0,
+        Running,
+        Stopped,
+    }
+
     public class Host : IDisposable
     {
         public string CmdLine { get; }
@@ -73,6 +81,8 @@ namespace IPA.Cores.Tools.DebugHost
         public Host(string cmdLine)
         {
             this.CmdLine = cmdLine;
+
+            StatusManager.SetStatus(Status.Initializing);
 
             Thread thread = new Thread(RunThreadProc);
             thread.Start();
@@ -93,6 +103,8 @@ namespace IPA.Cores.Tools.DebugHost
                 {
                     CurrentRunningProcessId = p.Id;
 
+                    StatusManager.SetStatus(Status.Running);
+
                     try
                     {
                         p.WaitForExit();
@@ -112,6 +124,8 @@ namespace IPA.Cores.Tools.DebugHost
                 Console.WriteLine($"DebugHost: {ex.ToString()}");
                 Console.WriteLine("DebugHost: --------------------------------------------------------------");
             }
+
+            StatusManager.SetStatus(Status.Stopped);
 
             Console.WriteLine("DebugHost: The process is stopped. Waiting for next start command ...");
 
@@ -364,6 +378,31 @@ namespace IPA.Cores.Tools.DebugHost
         }
     }
 
+    public static class StatusManager
+    {
+        public static Status CurrentStatus { get; private set; }
+        public static string TitlePrefix { get; private set; } = "DebugHost";
+
+        public static void SetTitleBase(string titlePrefix)
+        {
+            TitlePrefix = titlePrefix;
+
+            SetStatus(CurrentStatus);
+        }
+
+        public static void SetStatus(Status status)
+        {
+            CurrentStatus = status;
+
+            string tmp = TitlePrefix + " - " + status.ToString();
+
+            if (Console.Title != tmp)
+            {
+                Console.Title = tmp;
+            }
+        }
+    }
+
     public static class MainClass
     {
         static int Main(string[] args)
@@ -404,6 +443,8 @@ namespace IPA.Cores.Tools.DebugHost
                 }
                 else
                 {
+                    StatusManager.SetTitleBase(appId);
+
                     string appIdHash = Utils.ByteToHex(Utils.HashSHA1(Encoding.UTF8.GetBytes(appId + ":HashDebugHost")), "").ToLower();
 
                     string pipeName = "pipe_" + appIdHash;
