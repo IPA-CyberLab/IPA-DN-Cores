@@ -26,11 +26,11 @@
   </ItemGroup>
   
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
-    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe stop DaemonCenter dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe stop $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="('$(BuildingInsideVisualStudio)' == 'true')">
-    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe start DaemonCenter dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <ItemGroup>
