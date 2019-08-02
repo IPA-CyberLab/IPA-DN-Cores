@@ -155,6 +155,8 @@ namespace IPA.TestDev
 
         static volatile string TestString1 = "Hello World Nekosan";
         static volatile string TestString2 = "hello world nekosan";
+        static volatile string TestString3 = "    aaaa    ";
+        static volatile string TestString4 = "            ";
 
         static void BenchMark_Test1()
         {
@@ -212,6 +214,24 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
 
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"isempty 1", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = (IsEmpty)TestString3 ? 1 : 0;
+                    Limbo.SInt32 = (IsEmpty)TestString4 ? 1 : 0;
+                }
+            }), enabled: true, priority: 190802)
+
+            .Add(new MicroBenchmark($"isempty 2", Benchmark_CountForSlow, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 = TestString3._IsEmpty() ? 1 : 0;
+                    Limbo.SInt32 = TestString4._IsEmpty() ? 1 : 0;
+                }
+            }), enabled: true, priority: 190802)
 
             .Add(new MicroBenchmark($"ignore case compare string 1", Benchmark_CountForSlow, count =>
             {

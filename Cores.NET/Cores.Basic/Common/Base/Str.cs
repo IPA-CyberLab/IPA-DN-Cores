@@ -5943,8 +5943,9 @@ namespace IPA.Cores.Basic
         {
             return new NoCase(s);
         }
-    }
 
+        public override string ToString() => this.Value;
+    }
 
     public readonly struct NoCaseTrim
     {
@@ -6002,5 +6003,51 @@ namespace IPA.Cores.Basic
         {
             return new NoCaseTrim(s);
         }
+
+        public override string ToString() => this.Value;
+    }
+
+    public readonly struct IsEmpty
+    {
+        readonly string Target;
+
+        public IsEmpty(string target)
+        {
+            this.Target = target;
+        }
+
+        public static implicit operator bool(IsEmpty t)
+        {
+            return t.Target._IsEmpty();
+        }
+
+        public static implicit operator IsEmpty(string target)
+        {
+            return new IsEmpty(target);
+        }
+
+        public override string ToString() => ((bool)this).ToString();
+    }
+
+    public readonly struct IsFilled
+    {
+        readonly string Target;
+
+        public IsFilled(string target)
+        {
+            this.Target = target;
+        }
+
+        public static implicit operator bool(IsFilled t)
+        {
+            return t.Target._IsFilled();
+        }
+
+        public static implicit operator IsFilled(string target)
+        {
+            return new IsFilled(target);
+        }
+
+        public override string ToString() => ((bool)this).ToString();
     }
 }

@@ -259,6 +259,11 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                bool b = (IsEmpty)" aaa ";
+                b._Print();
+
+                return;
+
                 Con.WriteLine((NoCaseTrim)"aa" == "AA");
                 Con.WriteLine("aa" == (NoCaseTrim)"AA");
 
