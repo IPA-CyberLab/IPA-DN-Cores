@@ -5887,12 +5887,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public readonly struct NoCase
+    public readonly struct IgnoreCase
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
         readonly string Value;
 
-        public NoCase(string value)
+        public IgnoreCase(string value)
         {
             this.Value = value;
         }
@@ -5901,13 +5901,13 @@ namespace IPA.Cores.Basic
         {
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj is NoCase target)
+            if (obj is IgnoreCase target)
             {
                 return this == target;
             }
             else if (obj is string s)
             {
-                return this == (NoCase)s;
+                return this == (IgnoreCase)s;
             }
             else
             {
@@ -5921,7 +5921,7 @@ namespace IPA.Cores.Basic
             return Value?.GetHashCode() ?? 0;
         }
 
-        public static bool operator ==(NoCase a, NoCase b)
+        public static bool operator ==(IgnoreCase a, IgnoreCase b)
         {
             if ((object)a == null && (object)b == null) return true;
             if ((object)a == null || (object)b == null) return false;
@@ -5929,30 +5929,30 @@ namespace IPA.Cores.Basic
             return a.Value._IsSamei(b.Value);
         }
 
-        public static bool operator !=(NoCase a, NoCase b)
+        public static bool operator !=(IgnoreCase a, IgnoreCase b)
         {
             return !(a == b);
         }
 
-        public static implicit operator string(NoCase s)
+        public static implicit operator string(IgnoreCase s)
         {
             return s.Value;
         }
 
-        public static implicit operator NoCase(string s)
+        public static implicit operator IgnoreCase(string s)
         {
-            return new NoCase(s);
+            return new IgnoreCase(s);
         }
 
         public override string ToString() => this.Value;
     }
 
-    public readonly struct NoCaseTrim
+    public readonly struct IgnoreCaseTrim
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
         readonly string Value;
 
-        public NoCaseTrim(string value)
+        public IgnoreCaseTrim(string value)
         {
             this.Value = value;
         }
@@ -5961,13 +5961,13 @@ namespace IPA.Cores.Basic
         {
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj is NoCaseTrim target)
+            if (obj is IgnoreCaseTrim target)
             {
                 return this == target;
             }
             else if (obj is string s)
             {
-                return this == (NoCaseTrim)s;
+                return this == (IgnoreCaseTrim)s;
             }
             else
             {
@@ -5981,7 +5981,7 @@ namespace IPA.Cores.Basic
             return Value?.GetHashCode() ?? 0;
         }
 
-        public static bool operator ==(NoCaseTrim a, NoCaseTrim b)
+        public static bool operator ==(IgnoreCaseTrim a, IgnoreCaseTrim b)
         {
             if ((object)a == null && (object)b == null) return true;
             if ((object)a == null || (object)b == null) return false;
@@ -5989,19 +5989,19 @@ namespace IPA.Cores.Basic
             return a.Value._IsSameTrimi(b.Value);
         }
 
-        public static bool operator !=(NoCaseTrim a, NoCaseTrim b)
+        public static bool operator !=(IgnoreCaseTrim a, IgnoreCaseTrim b)
         {
             return !(a == b);
         }
 
-        public static implicit operator string(NoCaseTrim s)
+        public static implicit operator string(IgnoreCaseTrim s)
         {
             return s.Value;
         }
 
-        public static implicit operator NoCaseTrim(string s)
+        public static implicit operator IgnoreCaseTrim(string s)
         {
-            return new NoCaseTrim(s);
+            return new IgnoreCaseTrim(s);
         }
 
         public override string ToString() => this.Value;
