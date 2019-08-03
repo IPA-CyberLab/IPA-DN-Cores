@@ -3454,21 +3454,48 @@ namespace IPA.Cores.Basic
                 if (result != 0)
                     return result;
             }
+            
             return firstLength.CompareTo(secondLength);
         }
     }
 
-    public class ReadOnlyMemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>, IComparer<ReadOnlyMemory<T>> where T : IEquatable<T>, IComparable<T>
+    public static partial class MemoryComparers
     {
-        public int Compare(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-            => x._MemCompare(y);
+        public static MemoryComparers<byte>.ReadOnlyMemoryComparerImpl ReadOnlyMemoryComparer { get; } = new MemoryComparers<byte>.ReadOnlyMemoryComparerImpl(EnsureInternal.Yes);
+        public static MemoryComparers<byte>.MemoryComparerImpl MemoryComparer { get; } = new MemoryComparers<byte>.MemoryComparerImpl(EnsureInternal.Yes);
+    }
 
-        public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-            => x._MemEquals(y);
+    public static partial class MemoryComparers<T> where T : unmanaged, IEquatable<T>, IComparable<T>
+    {
+        public static ReadOnlyMemoryComparerImpl ReadOnlyMemoryComparer { get; } = new ReadOnlyMemoryComparerImpl(EnsureInternal.Yes);
+        public static MemoryComparerImpl MemoryComparer { get; } = new MemoryComparerImpl(EnsureInternal.Yes);
 
-        public int GetHashCode(ReadOnlyMemory<T> obj)
+        public class ReadOnlyMemoryComparerImpl: IEqualityComparer<ReadOnlyMemory<T>>, IComparer<ReadOnlyMemory<T>>
         {
-            throw new NotImplementedException();
+            internal ReadOnlyMemoryComparerImpl(EnsureInternal yes) { }
+
+            public int Compare(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+                => x._MemCompare(y);
+
+            public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+                => x._MemEquals(y);
+
+            public int GetHashCode(ReadOnlyMemory<T> obj)
+                => obj._ComputeHash32();
+        }
+
+        public class MemoryComparerImpl : IEqualityComparer<Memory<T>>, IComparer<Memory<T>>
+        {
+            internal MemoryComparerImpl(EnsureInternal yes) { }
+
+            public int Compare(Memory<T> x, Memory<T> y)
+                => x._MemCompare(y);
+
+            public bool Equals(Memory<T> x, Memory<T> y)
+                => x._MemEquals(y);
+
+            public int GetHashCode(Memory<T> obj)
+                => obj._ComputeHash32();
         }
     }
 }

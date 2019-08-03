@@ -256,28 +256,40 @@ namespace IPA.TestDev
             //    }
             //}), enabled: true, priority: 999999)
 
-            //.Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
-            //{
-            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
-            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
-            //    Span<byte> span1 = b1;
-            //    Span<byte> span2 = b2;
-            //    for (int c = 0; c < count; c++)
-            //    {
-            //        Limbo.BoolVolatile = span1.SequenceEqual(span2);
-            //    }
-            //}), enabled: true, priority: 999999)
+            .Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            {
+                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+                ReadOnlyMemory<byte> span1 = b1;
+                ReadOnlyMemory<byte> span2 = b2;
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.Bool = span1._MemEquals(span2);
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            {
+                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+                ReadOnlyMemory<byte> span1 = b1;
+                ReadOnlyMemory<byte> span2 = b2;
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.Bool = MemoryComparers<byte>.ReadOnlyMemoryComparer.Equals(span1, span2);
+                }
+            }), enabled: true, priority: 999999)
 
             .Add(new MicroBenchmark($"GetHashCode #1", Benchmark_CountForNormal, count =>
             {
-                byte[] b1 = Str.MakeCharArray('x',4)._GetBytes_UTF8();
+                byte[] b1 = Str.MakeCharArray('x',32)._GetBytes_UTF8();
                 byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
                 Span<byte> span1 = b1;
                 Span<byte> span2 = b2;
 
                 for (int c = 0; c < count; c++)
                 {
-                    b1[1] = (byte)c;
+                    //b1[1] = (byte)c;
                     Limbo.SInt32 += span1._ComputeHash32();
                 }
             }), enabled: true, priority: 999999)

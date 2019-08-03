@@ -60,24 +60,31 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class FastHashHelper
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
             => data.GetHashCode(cmp);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this ReadOnlySpan<byte> data)
             => Marvin.ComputeHash32(data);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this Span<byte> data)
             => Marvin.ComputeHash32(data);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this byte[] data, int offset, int size)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset, size));
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this byte[] data, int offset)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset));
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32(this byte[] data)
             => Marvin.ComputeHash32(data._AsReadOnlySpan());
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
         {
             unsafe
@@ -88,24 +95,35 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
         {
             var span = MemoryMarshal.Cast<TStruct, byte>(data);
             return _ComputeHash32(span);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _ComputeHash32<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
+            => _ComputeHash32(data.Span);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
         {
             var span = MemoryMarshal.Cast<TStruct, byte>(data);
             return _ComputeHash32(span);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _ComputeHash32<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
+            => _ComputeHash32(data.Span);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
             => _ComputeHash32(data._AsReadOnlySpan(offset, size));
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
             => _ComputeHash32(data._AsReadOnlySpan(offset));
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int _ComputeHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
             => _ComputeHash32(data._AsReadOnlySpan());
     }
@@ -368,13 +386,27 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _MemEquals(this byte[] a, byte[] b) => Util.MemEquals(a, b);
         public static bool _MemEquals(this ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b) => Util.MemEquals(a, b);
+        public static bool _MemEquals(this Memory<byte> a, ReadOnlyMemory<byte> b) => Util.MemEquals(a, b);
+        public static bool _MemEquals(this ReadOnlySpan<byte> a, ReadOnlySpan<byte> b) => Util.MemEquals(a, b);
+        public static bool _MemEquals(this Span<byte> a, ReadOnlySpan<byte> b) => Util.MemEquals(a, b);
+
         public static bool _MemEquals<T>(this T[] a, T[] b) where T : IEquatable<T> => Util.MemEquals(a, b);
         public static bool _MemEquals<T>(this ReadOnlyMemory<T> a, ReadOnlyMemory<T> b) where T : IEquatable<T> => Util.MemEquals(a, b);
+        public static bool _MemEquals<T>(this Memory<T> a, ReadOnlyMemory<T> b) where T : IEquatable<T> => Util.MemEquals(a, b);
+        public static bool _MemEquals<T>(this ReadOnlySpan<T> a, ReadOnlySpan<T> b) where T : IEquatable<T> => Util.MemEquals(a, b);
+        public static bool _MemEquals<T>(this Span<T> a, ReadOnlySpan<T> b) where T : IEquatable<T> => Util.MemEquals(a, b);
 
         public static int _MemCompare(this byte[] a, byte[] b) => Util.MemCompare(a, b);
         public static int _MemCompare(this ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b) => Util.MemCompare(a, b);
+        public static int _MemCompare(this Memory<byte> a, ReadOnlyMemory<byte> b) => Util.MemCompare(a, b);
+        public static int _MemCompare(this ReadOnlySpan<byte> a, ReadOnlySpan<byte> b) => Util.MemCompare(a, b);
+        public static int _MemCompare(this Span<byte> a, ReadOnlySpan<byte> b) => Util.MemCompare(a, b);
+
         public static int _MemCompare<T>(this T[] a, T[] b) where T : IComparable<T> => Util.MemCompare(a, b);
         public static int _MemCompare<T>(this ReadOnlyMemory<T> a, ReadOnlyMemory<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
+        public static int _MemCompare<T>(this Memory<T> a, ReadOnlyMemory<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
+        public static int _MemCompare<T>(this ReadOnlySpan<T> a, ReadOnlySpan<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
+        public static int _MemCompare<T>(this Span<T> a, ReadOnlySpan<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
 
 
         //public static void _SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
@@ -490,7 +522,7 @@ namespace IPA.Cores.Helper.Basic
             return (T)Util.XmlToObject_PublicLegacy(data, o.GetType());
         }
 
-        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key) where TValue: new()
+        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key) where TValue : new()
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = new TValue();
@@ -883,7 +915,7 @@ namespace IPA.Cores.Helper.Basic
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
-        
+
         public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);

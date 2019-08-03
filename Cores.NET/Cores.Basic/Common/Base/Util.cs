@@ -2885,16 +2885,18 @@ namespace IPA.Cores.Basic
          * SOFTWARE. */
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed)
+        public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed = DefaultSeed)
         {
+            if (data.Length <= sizeof(uint))
+            {
+                return (int)((uint)data._RawReadValueUInt32() ^ (uint)seed);
+            }
+
             long hash64 = ComputeHash(data, seed);
             return ((int)(hash64 >> 32)) ^ (int)hash64;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int ComputeHash32(ReadOnlySpan<byte> data) => ComputeHash32(data, DefaultSeed);
-
-        public static long ComputeHash(ReadOnlySpan<byte> data, ulong seed)
+        static long ComputeHash(ReadOnlySpan<byte> data, ulong seed)
         {
             uint p0 = (uint)seed;
             uint p1 = (uint)(seed >> 32);
@@ -2968,7 +2970,7 @@ namespace IPA.Cores.Basic
             return (value << shift) | (value >> (32 - shift));
         }
 
-        public static ulong DefaultSeed { get; } = 0;
+        public const ulong DefaultSeed = 0;
 
         private static ulong GenerateSeed()
         {
