@@ -954,32 +954,140 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        // byte[] 配列をコピーする
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ZeroMemory(Memory<byte> dst)
+        {
+            checked
+            {
+                Unsafe.InitBlock(ref dst.Span[0], 0, (uint)dst.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ZeroMemory(Span<byte> dst)
+        {
+            checked
+            {
+                Unsafe.InitBlock(ref dst[0], 0, (uint)dst.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ZeroMemory(byte[] dst, int offset = 0, int size = DefaultSize)
+        {
+            checked
+            {
+                if (offset < 0 || offset >= dst.Length) throw new ArgumentOutOfRangeException(nameof(offset));
+
+                if (size == DefaultSize)
+                {
+                    size = dst.Length - offset;
+                }
+                else
+                {
+                    if (size <= 0) return;
+                }
+
+                if ((offset + size) > dst.Length) throw new ArgumentOutOfRangeException(nameof(size));
+
+                Unsafe.InitBlock(ref dst[offset], 0, (uint)size);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] CopyByte(byte[] src)
         {
-            return (byte[])src.Clone();
+            if (src == null) return new byte[0];
+
+            byte[] ret = new byte[src.Length];
+
+            CopyByte(ret, 0, src);
+
+            return ret;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] CopyByte(byte[] src, int srcOffset)
         {
             return CopyByte(src, srcOffset, src.Length - srcOffset);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] CopyByte(byte[] src, int srcOffset, int size)
         {
             byte[] ret = new byte[size];
             CopyByte(ret, 0, src, srcOffset, size);
             return ret;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CopyByte(byte[] dst, byte[] src, int srcOffset, int size)
         {
             CopyByte(dst, 0, src, srcOffset, size);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CopyByte(byte[] dst, int dstOffset, byte[] src)
         {
             CopyByte(dst, dstOffset, src, 0, src.Length);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CopyByte(byte[] dst, int dstOffset, byte[] src, int srcOffset, int size)
         {
-            Array.Copy(src, srcOffset, dst, dstOffset, size);
+            Span<byte> dstSpan = dst.AsSpan(dstOffset, size);
+            Span<byte> srcSpan = src.AsSpan(srcOffset, size);
+            srcSpan.CopyTo(dstSpan);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CopyByte(ref byte dst, in byte src, int size)
+        {
+            Unsafe.CopyBlock(ref dst, ref Unsafe.AsRef(in src), (uint)size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(ref byte dst, byte* src, int size)
+        {
+            ref byte srcref = ref Unsafe.AsRef<byte>((void *)src);
+
+            Unsafe.CopyBlock(ref dst, ref srcref, (uint)size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(byte *dst, in byte src, int size)
+        {
+            ref byte dstref = ref Unsafe.AsRef<byte>((void*)dst);
+            
+            Unsafe.CopyBlock(ref dstref, ref Unsafe.AsRef(src), (uint)size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(byte* dst, ReadOnlySpan<byte> src)
+        {
+            Span<byte> dstSpan = new Span<byte>(dst, src.Length);
+            src.CopyTo(dstSpan);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(ref byte dst, ReadOnlySpan<byte> src)
+        {
+            Span<byte> dstSpan = new Span<byte>(Unsafe.AsPointer(ref dst), src.Length);
+            src.CopyTo(dstSpan);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(Span<byte> dst, byte* src)
+        {
+            ReadOnlySpan<byte> srcSpan = new ReadOnlySpan<byte>(src, dst.Length);
+            srcSpan.CopyTo(dst);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void CopyByte(Span<byte> dst, in byte src)
+        {
+            ReadOnlySpan<byte> srcSpan = new ReadOnlySpan<byte>(Unsafe.AsPointer(ref Unsafe.AsRef(in src)), dst.Length);
+            srcSpan.CopyTo(dst);
         }
 
         public static DateTime NormalizeDateTime(DateTime dt)
@@ -1230,13 +1338,13 @@ namespace IPA.Cores.Basic
             long lenA = a.Length;
             long lenB = b.Length;
             if (lenA != lenB) return false;
-            return MemEquals(ref a[0], ref b[0], lenA);
+            return MemEquals(in a[0], in b[0], lenA);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool MemEquals(ref byte b1, ref byte b2, long length)
+        public static bool MemEquals(in byte b1, in byte b2, long length)
         {
-            return FastMemoryComparer.SequenceEqual(ref b1, ref b2, length);
+            return FastMemOperations.SequenceEqual(ref Unsafe.AsRef(in b1), ref Unsafe.AsRef(in b2), length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1254,13 +1362,13 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MemCompare(byte[] a, byte[] b)
         {
-            return MemCompare(ref a[0], a.Length, ref b[0], b.Length);
+            return MemCompare(in a[0], a.Length, in b[0], b.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MemCompare(ref byte b1, int b1Length, ref byte b2, int b2Length)
+        public static int MemCompare(in byte b1, int b1Length, in byte b2, int b2Length)
         {
-            return FastMemoryComparer.SequenceCompareTo(ref b1, b1Length, ref b2, b2Length);
+            return FastMemOperations.SequenceCompareTo(ref Unsafe.AsRef(in b1), b1Length, ref Unsafe.AsRef(in b2), b2Length);
         }
 
 
@@ -1286,13 +1394,13 @@ namespace IPA.Cores.Basic
             int lenA = a.Length;
             int lenB = b.Length;
             if (lenA != lenB) return false;
-            return MemEquals<T>(ref a[0], ref b[0], lenA);
+            return MemEquals<T>(in a[0], in b[0], lenA);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool MemEquals<T>(ref T b1, ref T b2, int length) where T : IEquatable<T>
+        public static bool MemEquals<T>(in T b1, in T b2, int length) where T : IEquatable<T>
         {
-            return FastMemoryComparer.SequenceEqual<T>(ref b1, ref b2, length);
+            return FastMemOperations.SequenceEqual<T>(ref Unsafe.AsRef(in b1), ref Unsafe.AsRef(in b2), length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1310,13 +1418,13 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MemCompare<T>(T[] a, T[] b) where T : IComparable<T>
         {
-            return MemCompare(ref a[0], a.Length, ref b[0], b.Length);
+            return MemCompare(in a[0], a.Length, in b[0], b.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MemCompare<T>(ref T b1, int b1Length, ref T b2, int b2Length) where T : IComparable<T>
+        public static int MemCompare<T>(in T b1, int b1Length, in T b2, int b2Length) where T : IComparable<T>
         {
-            return FastMemoryComparer.SequenceCompareTo(ref b1, b1Length, ref b2, b2Length);
+            return FastMemOperations.SequenceCompareTo(ref Unsafe.AsRef(in b1), b1Length, ref Unsafe.AsRef(in b2), b2Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1325,6 +1433,38 @@ namespace IPA.Cores.Basic
         {
             return MemEquals(b1, b2);
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe bool StructBitEquals<T>(in T s1, in T s2) where T : unmanaged
+        {
+            int size = sizeof(T);
+
+            ref T s1ref = ref Unsafe.AsRef(in s1);
+            ref byte b1ref = ref Unsafe.As<T, byte>(ref s1ref);
+
+            ref T s2ref = ref Unsafe.AsRef(in s2);
+            ref byte b2ref = ref Unsafe.As<T, byte>(ref s2ref);
+
+            return MemEquals(in b1ref, in b2ref, size);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int StructBitCompare<T>(in T s1, in T s2) where T : unmanaged
+        {
+            int size = sizeof(T);
+
+            ref T s1ref = ref Unsafe.AsRef(in s1);
+            ref byte b1ref = ref Unsafe.As<T, byte>(ref s1ref);
+
+            ref T s2ref = ref Unsafe.AsRef(in s2);
+            ref byte b2ref = ref Unsafe.As<T, byte>(ref s2ref);
+
+            return MemCompare(in b1ref, size, in b2ref, size);
+        }
+
+
 
         // byte[] 配列同士を比較する
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -4284,6 +4424,7 @@ namespace IPA.Cores.Basic
         public static float Float = 0.0f;
         public static float Float2 = 0.0f;
         public static float Float3 = 0.0f;
+        public static object ObjectSlow = null;
 
         public volatile static bool BoolVolatile = false;
         public volatile static int SInt32Volatile = 0;
@@ -5798,29 +5939,39 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public unsafe struct TestSt1
+    public unsafe struct TestSt2
     {
-        public fixed byte Data[4];
+        public fixed byte Data[8];
 
-        public TestSt1(int i)
+        public TestSt2(string str)
         {
+            str = str + "_____";
+            byte[] src = str._GetBytes_UTF8();
+
             fixed (byte* p = Data)
             {
-                *((int*)p) = i;
+                Util.CopyByte(p, src.AsSpan().Slice(0, 5));
             }
         }
+    }
 
-        public override bool Equals(object obj)
+    public class TestSt1 : IEquatable<TestSt1>
+    {
+        public readonly ReadOnlyMemory<byte> Data;
+
+        public TestSt1(ReadOnlyMemory<byte> data)
         {
-            if (!(obj is TestSt1)) return false;
-            TestSt1 target = (TestSt1)obj;
-            //Util.CompareByte(
-            return false;
+            this.Data = data;
+        }
+
+        public bool Equals(TestSt1 other)
+        {
+            return Data._MemEquals(other.Data);
         }
 
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return Data._MarvinHash32();
         }
     }
 

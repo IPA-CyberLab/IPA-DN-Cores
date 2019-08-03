@@ -1469,7 +1469,7 @@ namespace IPA.Cores.Basic
             using (pipe)
             {
                 pipe.WriteByte((byte)Cmd.Stop);
-
+                
                 pipe.ReadByte();
 
                 return true;

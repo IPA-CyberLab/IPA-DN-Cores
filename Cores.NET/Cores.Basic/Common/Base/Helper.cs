@@ -58,74 +58,74 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Helper.Basic
 {
-    public static class FastHashHelper
+    public static class MarvinHashHelper
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
+        public static int _MarvinHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
             => data.GetHashCode(cmp);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this ReadOnlySpan<byte> data)
+        public static int _MarvinHash32(this ReadOnlySpan<byte> data)
             => Marvin.ComputeHash32(data);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this Span<byte> data)
+        public static int _MarvinHash32(this Span<byte> data)
             => Marvin.ComputeHash32(data);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this byte[] data, int offset, int size)
+        public static int _MarvinHash32(this byte[] data, int offset, int size)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset, size));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this byte[] data, int offset)
+        public static int _MarvinHash32(this byte[] data, int offset)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32(this byte[] data)
+        public static int _MarvinHash32(this byte[] data)
             => Marvin.ComputeHash32(data._AsReadOnlySpan());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
+        public static int _MarvinHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
         {
             unsafe
             {
                 void* ptr = Unsafe.AsPointer(ref data);
                 Span<byte> span = new Span<byte>(ptr, sizeof(TStruct));
-                return _ComputeHash32(span);
+                return _MarvinHash32(span);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
+        public static int _MarvinHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
         {
-            var span = MemoryMarshal.Cast<TStruct, byte>(data);
-            return _ComputeHash32(span);
+            ReadOnlySpan<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return _MarvinHash32(span);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
-            => _ComputeHash32(data.Span);
+        public static int _MarvinHash32<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
+            => _MarvinHash32(data.Span);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
+        public static int _MarvinHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
         {
-            var span = MemoryMarshal.Cast<TStruct, byte>(data);
-            return _ComputeHash32(span);
+            Span<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return _MarvinHash32(span);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
-            => _ComputeHash32(data.Span);
+        public static int _MarvinHash32<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
+            => _MarvinHash32(data.Span);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
-            => _ComputeHash32(data._AsReadOnlySpan(offset, size));
+        public static int _MarvinHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
+            => _MarvinHash32(data._AsReadOnlySpan(offset, size));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
-            => _ComputeHash32(data._AsReadOnlySpan(offset));
+        public static int _MarvinHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
+            => _MarvinHash32(data._AsReadOnlySpan(offset));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _ComputeHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
-            => _ComputeHash32(data._AsReadOnlySpan());
+        public static int _MarvinHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
+            => _MarvinHash32(data._AsReadOnlySpan());
     }
 
     public static class BasicHelper
@@ -407,6 +407,9 @@ namespace IPA.Cores.Helper.Basic
         public static int _MemCompare<T>(this Memory<T> a, ReadOnlyMemory<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
         public static int _MemCompare<T>(this ReadOnlySpan<T> a, ReadOnlySpan<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
         public static int _MemCompare<T>(this Span<T> a, ReadOnlySpan<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
+
+        public static bool _StructBitEquals<T>(this ref T t1, in T t2) where T : unmanaged => Util.StructBitEquals(in t1, in t2);
+        public static int _StructBitCompare<T>(this ref T t1, in T t2) where T : unmanaged => Util.StructBitCompare(in t1, in t2);
 
 
         //public static void _SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)

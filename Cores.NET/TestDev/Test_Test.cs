@@ -259,6 +259,52 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                TestSt2 s1 = new TestSt2("Hello");
+                TestSt2 s2 = new TestSt2("Hello");
+
+                s1._MarvinHash32()._Debug();
+                s2._MarvinHash32()._Debug();
+
+                //s1.Equals(s2)._Debug();
+
+                Util.StructBitEquals(s1, s2)._Debug();
+
+                return;
+            }
+
+            if (true)
+            {
+                Dictionary<ReadOnlyMemory<byte>, int> testDic3 = new Dictionary<ReadOnlyMemory<byte>, int>(MemoryComparers.ReadOnlyMemoryComparer);
+                for (int i = 0; i < 65536; i++)
+                {
+                    MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                    buf.WriteSInt32(i);
+                    //var mem = buf.Memory;
+                    //mem._RawWriteValueSInt32(i);
+                    testDic3.Add(buf, i);
+                }
+
+                MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
+                targetBuffer.WriteSInt32(((int)32767));
+
+                ReadOnlyMemory<byte> rm = targetBuffer.Memory;
+
+
+                Limbo.Bool = true;
+
+                while (true)
+                {
+                    Dbg.Where();
+                    Limbo.SInt32 = testDic3[rm];
+                }
+
+                Limbo.SInt32._Debug();
+
+                return;
+            }
+
+            if (true)
+            {
                 SpanBuffer<byte> buf = new SpanBuffer<byte>();
                 buf.WriteSInt64(1234567890L._Endian64());
                 ReadOnlySpan<byte> span = buf.Span.Slice(0, 1);

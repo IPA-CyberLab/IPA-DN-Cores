@@ -48,6 +48,7 @@ using Microsoft.Extensions.Configuration;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Collections;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -208,7 +209,7 @@ namespace IPA.TestDev
             Dictionary<string, int> testDic1 = new Dictionary<string, int>();
             for (int i = 0; i < 65536; i++)
             {
-                testDic1.Add("Test_" + i.ToString(), i);
+                testDic1.Add("Tes" + i.ToString(), i);
             }
 
             Dictionary<long, int> testDic2 = new Dictionary<long, int>();
@@ -217,13 +218,40 @@ namespace IPA.TestDev
                 testDic2.Add(i, i);
             }
 
-            Dictionary<ReadOnlyMemory<byte>, int> testDic3 = new Dictionary<ReadOnlyMemory<byte>, int>();
+            Dictionary<ReadOnlyMemory<byte>, int> testDic3 = new Dictionary<ReadOnlyMemory<byte>, int>(MemoryComparers.ReadOnlyMemoryComparer);
             for (int i = 0; i < 65536; i++)
             {
                 MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
                 buf.WriteSInt32(i);
-                testDic3.Add(buf.Memory, i);
+                //var mem = buf.Memory;
+                //mem._RawWriteValueSInt32(i);
+                testDic3.Add(buf.Slice(0, 4).Clone(), i);
             }
+
+            Dictionary<TestSt1, int> testDic4 = new Dictionary<TestSt1, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                buf.WriteSInt32(i);
+                //var mem = buf.Memory;
+                //mem._RawWriteValueSInt32(i);
+                testDic4.Add(new TestSt1(buf.Memory), i);
+            }
+
+            Dictionary<byte[], int> testDic5 = new Dictionary<byte[], int>(MemoryComparers.ArrayComparer);
+            for (int i = 0; i < 65536; i++)
+            {
+                
+                testDic5.Add(("Test_" + i.ToString())._GetBytes_UTF8(), i);
+            }
+
+            Dictionary<TestSt2, int> testDic6 = new Dictionary<TestSt2, int>(StructComparers<TestSt2>.StructBitComparer);
+            for (int i = 0; i < 65536; i++)
+            {
+                string str = i.ToString();
+                testDic6.Add(new TestSt2(str), i);
+            }
+
 
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
@@ -256,61 +284,107 @@ namespace IPA.TestDev
             //    }
             //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            //.Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    ReadOnlyMemory<byte> span1 = b1;
+            //    ReadOnlyMemory<byte> span2 = b2;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.Bool = span1._MemEquals(span2);
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    ReadOnlyMemory<byte> span1 = b1;
+            //    ReadOnlyMemory<byte> span2 = b2;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.Bool = MemoryComparers<byte>.ReadOnlyMemoryComparer.Equals(span1, span2);
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"GetHashCode #1", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = Str.MakeCharArray('x',32)._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    Span<byte> span1 = b1;
+            //    Span<byte> span2 = b2;
+
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        //b1[1] = (byte)c;
+            //        Limbo.SInt32 += span1._ComputeHash32();
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"GetHashCode #2", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    string b1s = b1._GetString_UTF8();
+
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += b1s._ComputeHash32();
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Struct equals", Benchmark_CountForNormal, count =>
             {
-                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
-                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
-                ReadOnlyMemory<byte> span1 = b1;
-                ReadOnlyMemory<byte> span2 = b2;
+                TestSt2 s1 = new TestSt2("Hello");
+                TestSt2 s2 = new TestSt2("Helxo");
+                
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.Bool = span1._MemEquals(span2);
+                    Limbo.SInt32 = Util.StructBitCompare(s1, s2);
                 }
             }), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"Struct hash", Benchmark_CountForNormal, count =>
             {
-                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
-                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
-                ReadOnlyMemory<byte> span1 = b1;
-                ReadOnlyMemory<byte> span2 = b2;
+                TestSt2 s1 = new TestSt2("Hello");
+                TestSt2 s2 = new TestSt2("Helxo");
+
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.Bool = MemoryComparers<byte>.ReadOnlyMemoryComparer.Equals(span1, span2);
+                    Limbo.SInt32 = s1._ComputeGoldenHash();
+                    Limbo.SInt32 = s2._ComputeGoldenHash();
                 }
             }), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"GetHashCode #1", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"Generic clear #1", Benchmark_CountForNormal, count =>
             {
-                byte[] b1 = Str.MakeCharArray('x',32)._GetBytes_UTF8();
-                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
-                Span<byte> span1 = b1;
-                Span<byte> span2 = b2;
-
+                int size = 256;
+                byte[] tmp1 = new byte[size];
                 for (int c = 0; c < count; c++)
                 {
-                    //b1[1] = (byte)c;
-                    Limbo.SInt32 += span1._ComputeHash32();
+                    Unsafe.InitBlock(ref tmp1[0], 0, (uint)size);
                 }
             }), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"GetHashCode #2", Benchmark_CountForNormal, count =>
+            .Add(new MicroBenchmark($"Generic copy #1", Benchmark_CountForNormal, count =>
             {
-                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
-                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
-                string b1s = b1._GetString_UTF8();
-
+                int size = 256;
+                byte[] tmp1 = new byte[size];
+                byte[] tmp2 = new byte[size];
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.SInt32 += b1s._ComputeHash32();
+                    Util.CopyByte(tmp2, 0, tmp1, 0, size);
                 }
             }), enabled: true, priority: 999999)
 
             .Add(new MicroBenchmark($"Generic #1", Benchmark_CountForNormal, count =>
             {
+                int target = 32767;
+                string tstr = "Tes" + target;
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.SInt32 += testDic1["Test_32767"];
+                    Limbo.SInt32 += testDic1[tstr];
                 }
             }), enabled: true, priority: 999999)
 
@@ -322,14 +396,55 @@ namespace IPA.TestDev
                 }
             }), enabled: true, priority: 999999)
 
+            .Add(new MicroBenchmark($"Generic #4", Benchmark_CountForNormal, count =>
+            {
+                MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
+                targetBuffer.WriteSInt32(((int)32767));
+
+                ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+
+                TestSt1 st1 = new TestSt1(rm);
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic4[st1];
+                }
+            }), enabled: true, priority: 999999)
+
             .Add(new MicroBenchmark($"Generic #3", Benchmark_CountForNormal, count =>
             {
                 MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
-                targetBuffer.WriteSInt32(32767);
+                targetBuffer.WriteSInt32(((int)32767));
+
+                ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+                ReadOnlyMemory<byte> rm2 = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+
+                var cc = MemoryComparers.ReadOnlyMemoryComparer;
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic3[rm];
+                    //cc.GetHashCode(rm);
+                    //cc.GetHashCode(rm);
+                    //cc.Equals(rm, rm2);
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Generic #5", Benchmark_CountForNormal, count =>
+            {
+                byte[] rma = "Test_32767"._GetBytes_UTF8();
 
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.SInt32 += testDic3[targetBuffer];
+                    Limbo.SInt32 += testDic5[rma];
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Generic #6", Benchmark_CountForNormal, count =>
+            {
+                TestSt2 target = new TestSt2("32767");
+
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic6[target];
                 }
             }), enabled: true, priority: 999999)
 

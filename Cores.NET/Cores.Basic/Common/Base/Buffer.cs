@@ -166,7 +166,7 @@ namespace IPA.Cores.Basic
         {
             Span<T> span = Walk(size);
             ref T t = ref span[0];
-            void *dst = Unsafe.AsPointer(ref t);
+            void* dst = Unsafe.AsPointer(ref t);
             Unsafe.CopyBlock(dst, ptr, (uint)size);
         }
 
@@ -2919,7 +2919,7 @@ namespace IPA.Cores.Basic
         public int Length { get; private set; }
         public int PreAllocSize { get; private set; }
         public int PostAllocSize { get; private set; }
-        public int NumRealloc {get; private set; }
+        public int NumRealloc { get; private set; }
 
         public ElasticSpan(EnsureSpecial yes, Span<T> internalBuffer, int internalStart, int internalSize)
         {
@@ -3228,7 +3228,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class FastMemoryComparer
+    public static class FastMemOperations
     {
         // Licensed to the .NET Foundation under one or more agreements.
         // The .NET Foundation licenses this file to you under the MIT license.
@@ -3239,7 +3239,7 @@ namespace IPA.Cores.Basic
         {
             Debug.Assert(firstLength >= 0);
             Debug.Assert(secondLength >= 0);
-
+            
             if (Unsafe.AreSame(ref first, ref second))
                 goto Equal;
 
@@ -3454,8 +3454,33 @@ namespace IPA.Cores.Basic
                 if (result != 0)
                     return result;
             }
-            
+
             return firstLength.CompareTo(secondLength);
+        }
+    }
+
+    public static partial class StructComparers<T> where T : unmanaged
+    {
+        public static StructBitComparerImpl StructBitComparer { get; } = new StructBitComparerImpl(EnsureInternal.Yes);
+
+        public class StructBitComparerImpl : IEqualityComparer<T>, IComparer<T>
+        {
+            internal StructBitComparerImpl(EnsureInternal yes) { }
+
+            public int Compare(T x, T y)
+            {
+                return x._StructBitCompare(y);
+            }
+
+            public bool Equals(T x, T y)
+            {
+                return x._StructBitEquals(y);
+            }
+
+            public int GetHashCode(T obj)
+            {
+                return obj._MarvinHash32();
+            }
         }
     }
 
@@ -3463,25 +3488,33 @@ namespace IPA.Cores.Basic
     {
         public static MemoryComparers<byte>.ReadOnlyMemoryComparerImpl ReadOnlyMemoryComparer { get; } = new MemoryComparers<byte>.ReadOnlyMemoryComparerImpl(EnsureInternal.Yes);
         public static MemoryComparers<byte>.MemoryComparerImpl MemoryComparer { get; } = new MemoryComparers<byte>.MemoryComparerImpl(EnsureInternal.Yes);
+        public static MemoryComparers<byte>.ArrayComparerImpl ArrayComparer { get; } = new MemoryComparers<byte>.ArrayComparerImpl(EnsureInternal.Yes);
     }
 
     public static partial class MemoryComparers<T> where T : unmanaged, IEquatable<T>, IComparable<T>
     {
         public static ReadOnlyMemoryComparerImpl ReadOnlyMemoryComparer { get; } = new ReadOnlyMemoryComparerImpl(EnsureInternal.Yes);
         public static MemoryComparerImpl MemoryComparer { get; } = new MemoryComparerImpl(EnsureInternal.Yes);
+        public static ArrayComparerImpl ArrayComparer { get; } = new ArrayComparerImpl(EnsureInternal.Yes);
 
-        public class ReadOnlyMemoryComparerImpl: IEqualityComparer<ReadOnlyMemory<T>>, IComparer<ReadOnlyMemory<T>>
+        public class ReadOnlyMemoryComparerImpl : IEqualityComparer<ReadOnlyMemory<T>>, IComparer<ReadOnlyMemory<T>>
         {
             internal ReadOnlyMemoryComparerImpl(EnsureInternal yes) { }
 
             public int Compare(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-                => x._MemCompare(y);
+            {
+                return x._MemCompare(y);
+            }
 
             public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-                => x._MemEquals(y);
+            {
+                return x._MemEquals(y);
+            }
 
             public int GetHashCode(ReadOnlyMemory<T> obj)
-                => obj._ComputeHash32();
+            {
+                return obj._MarvinHash32();
+            }
         }
 
         public class MemoryComparerImpl : IEqualityComparer<Memory<T>>, IComparer<Memory<T>>
@@ -3489,13 +3522,39 @@ namespace IPA.Cores.Basic
             internal MemoryComparerImpl(EnsureInternal yes) { }
 
             public int Compare(Memory<T> x, Memory<T> y)
-                => x._MemCompare(y);
+            {
+                return x._MemCompare(y);
+            }
 
             public bool Equals(Memory<T> x, Memory<T> y)
-                => x._MemEquals(y);
+            {
+                return x._MemEquals(y);
+            }
 
             public int GetHashCode(Memory<T> obj)
-                => obj._ComputeHash32();
+            {
+                return obj._MarvinHash32();
+            }
+        }
+
+        public class ArrayComparerImpl : IEqualityComparer<T[]>, IComparer<T[]>
+        {
+            internal ArrayComparerImpl(EnsureInternal yes) { }
+
+            public int Compare(T[] x, T[] y)
+            {
+                return x._MemCompare(y);
+            }
+
+            public bool Equals(T[] x, T[] y)
+            {
+                return x._MemEquals(y);
+            }
+
+            public int GetHashCode(T[] obj)
+            {
+                return obj._MarvinHash32();
+            }
         }
     }
 }

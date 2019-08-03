@@ -395,7 +395,7 @@ namespace IPA.Cores.Basic
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
             ConfigureImpl_BeforeHelper(Helper.StartupConfig, app, env, lifetime);
-
+            
             Helper.Configure(app, env);
 
             ConfigureImpl_AfterHelper(Helper.StartupConfig, app, env, lifetime);
