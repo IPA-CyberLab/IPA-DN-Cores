@@ -404,15 +404,16 @@ namespace IPA.Cores.Basic
 
     public class HttpServerOptions
     {
+        // Settings which can be saved on the 
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
-
-        public List<string> MustIncludeHostnameStrList { get; set; } = new List<string>();
-
-        public string ContentsRoot { get; set; } = Env.AppRootDir;
-        public string WwwRoot { get; set; } = Env.AppRootDir._CombinePath("wwwroot");
         public bool LocalHostOnly { get; set; } = false;
         public bool IPv4Only { get; set; } = false;
+        public List<string> MustIncludeHostnameStrList { get; set; } = new List<string>();
+
+        // Other settings
+        public string ContentsRoot { get; set; } = Env.AppRootDir;
+        public string WwwRoot { get; set; } = Env.AppRootDir._CombinePath("wwwroot");
         public bool DebugKestrelToConsole { get; set; } = false;
         public bool DebugKestrelToLog { get; set; } = false;
         public bool UseStaticFiles { get; set; } = true;
@@ -488,19 +489,6 @@ namespace IPA.Cores.Basic
             opt.AddServerHeader = !this.HideKestrelServerHeader;
 
             KestrelServerWithStackOptions withStackOpt = opt as KestrelServerWithStackOptions;
-
-            Hive.LocalAppSettingsEx[this.HiveName].AccessData(true,
-                k =>
-                {
-                    string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(this.HttpPortsList));
-                    this.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
-
-                    string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(this.HttpsPortsList));
-                    this.HttpsPortsList = Str.ParsePortsList(httpsPortsList).ToList();
-
-                    this.LocalHostOnly = k.GetBool("LocalHostOnly", this.LocalHostOnly);
-                    this.IPv4Only = k.GetBool("IPv4Only", this.IPv4Only);
-                });
 
             if (this.LocalHostOnly)
             {
@@ -586,6 +574,20 @@ namespace IPA.Cores.Basic
                     k =>
                     {
                         isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
+
+                        // Update options with the config file
+                        string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
+                        Options.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
+
+                        string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(Options.HttpsPortsList));
+                        Options.HttpsPortsList = Str.ParsePortsList(httpsPortsList).ToList();
+
+                        Options.LocalHostOnly = k.GetBool("LocalHostOnly", Options.LocalHostOnly);
+                        Options.IPv4Only = k.GetBool("IPv4Only", Options.IPv4Only);
+
+                        string mustIncludeHostnameStr = k.GetStr("MustIncludeHostnameList", "");
+                        string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        tokens._DoForEach(x => Options.MustIncludeHostnameStrList.Add(x));
                     });
 
                 Lfs.CreateDirectory(Options.WwwRoot);

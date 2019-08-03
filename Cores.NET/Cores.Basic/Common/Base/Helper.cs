@@ -182,15 +182,24 @@ namespace IPA.Cores.Helper.Basic
         public static uint _BoolToUInt(this bool b) => (uint)(b ? 1 : 0);
         public static byte _BoolToByte(this bool b) => (byte)(b ? 1 : 0);
 
-        public static sbyte _Positive(this sbyte i) => (sbyte)(i >= 0 ? i : 0);
-        public static short _Positive(this short i) => (short)(i >= 0 ? i : 0);
-        public static int _Positive(this int i) => (int)(i >= 0 ? i : 0);
-        public static long _Positive(this long i) => (long)(i >= 0 ? i : 0);
+        public static double _NonNegative(this double i) => (double)(i >= 0 ? i : 0);
+        public static float _NonNegative(this float i) => (float)(i >= 0 ? i : 0);
 
-        public static byte _Positive(this byte i) => (byte)(i >= 0 ? i : 0);
-        public static ushort _Positive(this ushort i) => (ushort)(i >= 0 ? i : 0);
-        public static uint _Positive(this uint i) => (uint)(i >= 0 ? i : 0);
-        public static ulong _Positive(this ulong i) => (ulong)(i >= 0 ? i : 0);
+        public static double _Max(this double i, double target) => Math.Max(i, target);
+        public static float _Max(this float i, float target) => Math.Max(i, target);
+
+        public static double _Min(this double i, double target) => Math.Min(i, target);
+        public static float _Min(this float i, float target) => Math.Min(i, target);
+
+        public static sbyte _NonNegative(this sbyte i) => (sbyte)(i >= 0 ? i : 0);
+        public static short _NonNegative(this short i) => (short)(i >= 0 ? i : 0);
+        public static int _NonNegative(this int i) => (int)(i >= 0 ? i : 0);
+        public static long _NonNegative(this long i) => (long)(i >= 0 ? i : 0);
+
+        public static byte _NonNegative(this byte i) => (byte)(i >= 0 ? i : 0);
+        public static ushort _NonNegative(this ushort i) => (ushort)(i >= 0 ? i : 0);
+        public static uint _NonNegative(this uint i) => (uint)(i >= 0 ? i : 0);
+        public static ulong _NonNegative(this ulong i) => (ulong)(i >= 0 ? i : 0);
 
         public static sbyte _Min(this sbyte i, sbyte target) => Math.Min(i, target);
         public static short _Min(this short i, short target) => Math.Min(i, target);
@@ -356,8 +365,17 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _CombineByte(this byte[] a, byte[] b) => Util.CombineByteArray(a, b);
         public static byte[] _ExtractByte(this byte[] a, int start, int len) => Util.ExtractByteArray(a, start, len);
         public static byte[] _ExtractByte(this byte[] a, int start) => Util.ExtractByteArray(a, start, a.Length - start);
-        public static bool _IsSameByte(this byte[] a, byte[] b) => Util.CompareByte(a, b);
-        public static int _MemCmp(this byte[] a, byte[] b) => Util.CompareByteRetInt(a, b);
+
+        public static bool _MemEquals(this byte[] a, byte[] b) => Util.MemEquals(a, b);
+        public static bool _MemEquals(this ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b) => Util.MemEquals(a, b);
+        public static bool _MemEquals<T>(this T[] a, T[] b) where T : IEquatable<T> => Util.MemEquals(a, b);
+        public static bool _MemEquals<T>(this ReadOnlyMemory<T> a, ReadOnlyMemory<T> b) where T : IEquatable<T> => Util.MemEquals(a, b);
+
+        public static int _MemCompare(this byte[] a, byte[] b) => Util.MemCompare(a, b);
+        public static int _MemCompare(this ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b) => Util.MemCompare(a, b);
+        public static int _MemCompare<T>(this T[] a, T[] b) where T : IComparable<T> => Util.MemCompare(a, b);
+        public static int _MemCompare<T>(this ReadOnlyMemory<T> a, ReadOnlyMemory<T> b) where T : IComparable<T> => Util.MemCompare(a, b);
+
 
         //public static void _SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
         //    => BasicFile.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);

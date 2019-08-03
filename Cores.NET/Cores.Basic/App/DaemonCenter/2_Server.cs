@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 #if CORES_BASIC_JSON && CORES_BASIC_WEBSERVER && CORES_BASIC_DAEMON
+#pragma warning disable CS1998
 
 using System;
 using System.Linq;
@@ -60,8 +61,6 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class RpcServer : JsonRpcServerApi, IRpc
     {
-#pragma warning disable CS1998
-
         public RpcServer(CancellationToken cancel = default) : base(cancel)
         {
         }
@@ -71,9 +70,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             throw new NotImplementedException();
         }
 
-#pragma warning restore CS1998
     }
 }
 
+#pragma warning restore CS1998
 #endif
 

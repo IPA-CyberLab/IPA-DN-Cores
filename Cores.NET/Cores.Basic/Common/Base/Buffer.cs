@@ -44,6 +44,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Numerics;
 
 namespace IPA.Cores.Basic
 {
@@ -3224,6 +3225,250 @@ namespace IPA.Cores.Basic
             this.Count = 0;
 
             return ret;
+        }
+    }
+
+    public static class FastMemoryComparer
+    {
+        // Licensed to the .NET Foundation under one or more agreements.
+        // The .NET Foundation licenses this file to you under the MIT license.
+        // See the LICENSE file in the project root for more information.
+        // From: https://github.com/dotnet/corefx/tree/e2b4dc93c9f9482b67f962106937d4fdd46f5673/src/Common/src/CoreLib/System
+
+        public static unsafe int SequenceCompareTo(ref byte first, int firstLength, ref byte second, int secondLength)
+        {
+            Debug.Assert(firstLength >= 0);
+            Debug.Assert(secondLength >= 0);
+
+            if (Unsafe.AreSame(ref first, ref second))
+                goto Equal;
+
+            IntPtr minLength = (IntPtr)((firstLength < secondLength) ? firstLength : secondLength);
+
+            IntPtr i = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr n = (IntPtr)(void*)minLength;
+
+            if (Vector.IsHardwareAccelerated && (byte*)n > (byte*)Vector<byte>.Count)
+            {
+                n -= Vector<byte>.Count;
+                while ((byte*)n > (byte*)i)
+                {
+                    if (Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, i)) !=
+                        Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, i)))
+                    {
+                        goto NotEqual;
+                    }
+                    i += Vector<byte>.Count;
+                }
+                goto NotEqual;
+            }
+
+            if ((byte*)n > (byte*)sizeof(UIntPtr))
+            {
+                n -= sizeof(UIntPtr);
+                while ((byte*)n > (byte*)i)
+                {
+                    if (Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref first, i)) !=
+                        Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref second, i)))
+                    {
+                        goto NotEqual;
+                    }
+                    i += sizeof(UIntPtr);
+                }
+            }
+
+            NotEqual:  // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            while ((byte*)minLength > (byte*)i)
+            {
+                int result = Unsafe.AddByteOffset(ref first, i).CompareTo(Unsafe.AddByteOffset(ref second, i));
+                if (result != 0)
+                    return result;
+                i += 1;
+            }
+
+            Equal:
+            return firstLength - secondLength;
+        }
+
+        public static unsafe bool SequenceEqual(ref byte first, ref byte second, long length)
+        {
+            Debug.Assert(length >= 0);
+
+            if (Unsafe.AreSame(ref first, ref second))
+                goto Equal;
+
+            IntPtr i = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr n = (IntPtr)(void*)length;
+
+            if (Vector.IsHardwareAccelerated && (byte*)n >= (byte*)Vector<byte>.Count)
+            {
+                n -= Vector<byte>.Count;
+                while ((byte*)n > (byte*)i)
+                {
+                    if (Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, i)) !=
+                        Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, i)))
+                    {
+                        goto NotEqual;
+                    }
+                    i += Vector<byte>.Count;
+                }
+                return Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref first, n)) ==
+                       Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref second, n));
+            }
+
+            if ((byte*)n >= (byte*)sizeof(UIntPtr))
+            {
+                n -= sizeof(UIntPtr);
+                while ((byte*)n > (byte*)i)
+                {
+                    if (Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref first, i)) !=
+                        Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref second, i)))
+                    {
+                        goto NotEqual;
+                    }
+                    i += sizeof(UIntPtr);
+                }
+                return Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref first, n)) ==
+                       Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref second, n));
+            }
+
+            while ((byte*)n > (byte*)i)
+            {
+                if (Unsafe.AddByteOffset(ref first, i) != Unsafe.AddByteOffset(ref second, i))
+                    goto NotEqual;
+                i += 1;
+            }
+
+            Equal:
+            return true;
+
+            NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            return false;
+        }
+
+        public static bool SequenceEqual<T>(ref T first, ref T second, int length)
+            where T : IEquatable<T>
+        {
+            Debug.Assert(length >= 0);
+
+            if (Unsafe.AreSame(ref first, ref second))
+                goto Equal;
+
+            IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            T lookUp0;
+            T lookUp1;
+            while (length >= 8)
+            {
+                length -= 8;
+
+                lookUp0 = Unsafe.Add(ref first, index);
+                lookUp1 = Unsafe.Add(ref second, index);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 1);
+                lookUp1 = Unsafe.Add(ref second, index + 1);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 2);
+                lookUp1 = Unsafe.Add(ref second, index + 2);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 3);
+                lookUp1 = Unsafe.Add(ref second, index + 3);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 4);
+                lookUp1 = Unsafe.Add(ref second, index + 4);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 5);
+                lookUp1 = Unsafe.Add(ref second, index + 5);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 6);
+                lookUp1 = Unsafe.Add(ref second, index + 6);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 7);
+                lookUp1 = Unsafe.Add(ref second, index + 7);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+
+                index += 8;
+            }
+
+            if (length >= 4)
+            {
+                length -= 4;
+
+                lookUp0 = Unsafe.Add(ref first, index);
+                lookUp1 = Unsafe.Add(ref second, index);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 1);
+                lookUp1 = Unsafe.Add(ref second, index + 1);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 2);
+                lookUp1 = Unsafe.Add(ref second, index + 2);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                lookUp0 = Unsafe.Add(ref first, index + 3);
+                lookUp1 = Unsafe.Add(ref second, index + 3);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+
+                index += 4;
+            }
+
+            while (length > 0)
+            {
+                lookUp0 = Unsafe.Add(ref first, index);
+                lookUp1 = Unsafe.Add(ref second, index);
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                    goto NotEqual;
+                index += 1;
+                length--;
+            }
+
+            Equal:
+            return true;
+
+            NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            return false;
+        }
+
+        public static int SequenceCompareTo<T>(ref T first, int firstLength, ref T second, int secondLength)
+            where T : IComparable<T>
+        {
+            Debug.Assert(firstLength >= 0);
+            Debug.Assert(secondLength >= 0);
+
+            var minLength = firstLength;
+            if (minLength > secondLength)
+                minLength = secondLength;
+            for (int i = 0; i < minLength; i++)
+            {
+                T lookUp = Unsafe.Add(ref second, i);
+                int result = (Unsafe.Add(ref first, i)?.CompareTo(lookUp) ?? (((object)lookUp is null) ? 0 : -1));
+                if (result != 0)
+                    return result;
+            }
+            return firstLength.CompareTo(secondLength);
+        }
+    }
+
+    public class ReadOnlyMemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>, IComparer<ReadOnlyMemory<T>> where T : IEquatable<T>, IComparable<T>
+    {
+        public int Compare(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+            => x._MemCompare(y);
+
+        public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+            => x._MemEquals(y);
+
+        public int GetHashCode(ReadOnlyMemory<T> obj)
+        {
+            throw new NotImplementedException();
         }
     }
 }

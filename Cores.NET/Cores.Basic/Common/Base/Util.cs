@@ -1212,45 +1212,126 @@ namespace IPA.Cores.Basic
             return IsZeroFast(ptr, size);
         }
 
-        // byte[] 配列同士を比較する
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2)
+        {
+            return b1.SequenceEqual(b2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals(ReadOnlyMemory<byte> b1, ReadOnlyMemory<byte> b2)
+        {
+            return b1.Span.SequenceEqual(b2.Span);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals(byte[] a, byte[] b)
+        {
+            long lenA = a.Length;
+            long lenB = b.Length;
+            if (lenA != lenB) return false;
+            return MemEquals(ref a[0], ref b[0], lenA);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals(ref byte b1, ref byte b2, long length)
+        {
+            return FastMemoryComparer.SequenceEqual(ref b1, ref b2, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2)
+        {
+            return b1.SequenceCompareTo(b2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare(ReadOnlyMemory<byte> b1, ReadOnlyMemory<byte> b2)
+        {
+            return b1.Span.SequenceCompareTo(b2.Span);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare(byte[] a, byte[] b)
+        {
+            return MemCompare(ref a[0], a.Length, ref b[0], b.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare(ref byte b1, int b1Length, ref byte b2, int b2Length)
+        {
+            return FastMemoryComparer.SequenceCompareTo(ref b1, b1Length, ref b2, b2Length);
+        }
+
+
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals<T>(ReadOnlySpan<T> b1, ReadOnlySpan<T> b2) where T : IEquatable<T>
+        {
+            return b1.SequenceEqual(b2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals<T>(ReadOnlyMemory<T> b1, ReadOnlyMemory<T> b2) where T : IEquatable<T>
+        {
+            return b1.Span.SequenceEqual(b2.Span);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals<T>(T[] a, T[] b) where T : IEquatable<T>
+        {
+            int lenA = a.Length;
+            int lenB = b.Length;
+            if (lenA != lenB) return false;
+            return MemEquals<T>(ref a[0], ref b[0], lenA);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool MemEquals<T>(ref T b1, ref T b2, int length) where T : IEquatable<T>
+        {
+            return FastMemoryComparer.SequenceEqual<T>(ref b1, ref b2, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare<T>(ReadOnlySpan<T> b1, ReadOnlySpan<T> b2) where T : IComparable<T>
+        {
+            return b1.SequenceCompareTo(b2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare<T>(ReadOnlyMemory<T> b1, ReadOnlyMemory<T> b2) where T : IComparable<T>
+        {
+            return b1.Span.SequenceCompareTo(b2.Span);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare<T>(T[] a, T[] b) where T : IComparable<T>
+        {
+            return MemCompare(ref a[0], a.Length, ref b[0], b.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MemCompare<T>(ref T b1, int b1Length, ref T b2, int b2Length) where T : IComparable<T>
+        {
+            return FastMemoryComparer.SequenceCompareTo(ref b1, b1Length, ref b2, b2Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete]
         public static bool CompareByte(byte[] b1, byte[] b2)
         {
-            if (b1.Length != b2.Length)
-            {
-                return false;
-            }
-            return System.Linq.Enumerable.SequenceEqual<byte>(b1, b2);
+            return MemEquals(b1, b2);
         }
 
         // byte[] 配列同士を比較する
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete]
         public static int CompareByteRetInt(byte[] b1, byte[] b2)
         {
-            int i;
-            for (i = 0; ; i++)
-            {
-                int a1 = -1, a2 = -1;
-                if (i < b1.Length)
-                {
-                    a1 = (int)b1[i];
-                }
-                if (i < b2.Length)
-                {
-                    a2 = (int)b2[i];
-                }
-
-                if (a1 > a2)
-                {
-                    return 1;
-                }
-                else if (a1 < a2)
-                {
-                    return -1;
-                }
-                if (a1 == -1 && a2 == -1)
-                {
-                    return 0;
-                }
-            }
+            return MemCompare(b1, b2);
         }
 
         // byte[] 配列のコピー
@@ -4195,6 +4276,12 @@ namespace IPA.Cores.Basic
         public static ulong UInt64 = 0;
         public static int SInt32 = 0;
         public static uint UInt32 = 0;
+        public static double Double = 0.0;
+        public static double Double2 = 0.0;
+        public static double Double3 = 0.0;
+        public static float Float = 0.0f;
+        public static float Float2 = 0.0f;
+        public static float Float3 = 0.0f;
 
         public volatile static bool BoolVolatile = false;
         public volatile static int SInt32Volatile = 0;
@@ -5664,6 +5751,74 @@ namespace IPA.Cores.Basic
         public void Add(TKey key, TValue value)
         {
             this.Add(new KeyValuePair<TKey, TValue>(key, value));
+        }
+    }
+
+    public class RateLimiterOptions
+    {
+        public double Burst { get; }
+        public double LimitPerSecond { get; }
+        public int ExpiresMsec { get; }
+        public int MaxEntries { get; }
+
+        public RateLimiterOptions(double burst = Consts.RateLimiter.DefaultBurst, double limitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond,
+            int expiresMsec = Consts.RateLimiter.DefaultExpiresMsec, int maxEntries = Consts.RateLimiter.DefaultMaxEntries)
+        {
+            if (burst <= 0.0) throw new ArgumentOutOfRangeException(nameof(burst));
+            if (limitPerSecond < 0.0) throw new ArgumentOutOfRangeException(nameof(limitPerSecond));
+            if (expiresMsec <= 0) throw new ArgumentOutOfRangeException(nameof(expiresMsec));
+            if (maxEntries <= 0) throw new ArgumentOutOfRangeException(nameof(maxEntries));
+
+            this.Burst = burst;
+            this.LimitPerSecond = limitPerSecond;
+            this.ExpiresMsec = expiresMsec;
+            this.MaxEntries = maxEntries;
+        }
+    }
+
+    public class RateLimiterEntry
+    {
+        public RateLimiter Limiter { get; }
+
+        internal RateLimiterEntry(EnsureInternal yes, RateLimiter limiter)
+        {
+            this.Limiter = limiter;
+        }
+    }
+
+    public class RateLimiter
+    {
+        public RateLimiterOptions Options { get; }
+
+        public RateLimiter(RateLimiterOptions options)
+        {
+            this.Options = options;
+        }
+    }
+
+    public unsafe struct TestSt1
+    {
+        public fixed byte Data[4];
+
+        public TestSt1(int i)
+        {
+            fixed (byte* p = Data)
+            {
+                *((int*)p) = i;
+            }
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is TestSt1)) return false;
+            TestSt1 target = (TestSt1)obj;
+            //Util.CompareByte(
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
         }
     }
 

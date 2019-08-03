@@ -754,7 +754,7 @@ namespace IPA.Cores.Basic
             byte[] data = Util.CopyByte(filedata, 20);
             byte[] hash2 = Secure.HashSHA1(data);
 
-            if (Util.CompareByte(hash, hash2) == false)
+            if (Util.MemEquals(hash, hash2) == false)
             {
                 throw new ApplicationException("hash mismatch");
             }
@@ -774,7 +774,7 @@ namespace IPA.Cores.Basic
             byte[] data = Util.CopyByte(filedata, 20);
             byte[] hash2 = Secure.HashSHA1(data);
 
-            if (Util.CompareByte(hash, hash2) == false)
+            if (Util.MemEquals(hash, hash2) == false)
             {
                 throw new ApplicationException("hash mismatch");
             }

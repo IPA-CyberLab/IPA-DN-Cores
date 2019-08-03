@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
             b.SeekToBegin();
             byte[] hash2 = Secure.HashSHA1(Util.CopyByte(b.ByteData, 0, (int)b.Size - 20));
 
-            if (Util.CompareByte(hash, hash2) == false)
+            if (Util.MemEquals(hash, hash2) == false)
             {
                 throw new ApplicationException("Invalid Hash");
             }

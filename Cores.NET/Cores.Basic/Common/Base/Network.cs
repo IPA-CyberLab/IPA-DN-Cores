@@ -993,7 +993,7 @@ namespace IPA.Cores.Basic
             {
                 IPAddress tmp = IntToSubnetMask4(i);
 
-                if (Util.CompareByte(tmp.GetAddressBytes(), ip.GetAddressBytes()))
+                if (Util.MemEquals(tmp.GetAddressBytes(), ip.GetAddressBytes()))
                 {
                     return i;
                 }
@@ -1013,7 +1013,7 @@ namespace IPA.Cores.Basic
             {
                 IPAddress tmp = IntToSubnetMask6(i);
 
-                if (Util.CompareByte(tmp.GetAddressBytes(), ip.GetAddressBytes()))
+                if (Util.MemEquals(tmp.GetAddressBytes(), ip.GetAddressBytes()))
                 {
                     return i;
                 }
@@ -1197,7 +1197,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            return Util.CompareByte(a.GetAddressBytes(), b.GetAddressBytes());
+            return Util.MemEquals(a.GetAddressBytes(), b.GetAddressBytes());
         }
 
         // IP アドレス同士を比較する
@@ -1212,7 +1212,7 @@ namespace IPA.Cores.Basic
                 return a.AddressFamily.CompareTo(b.AddressFamily);
             }
 
-            return Util.CompareByteRetInt(a.GetAddressBytes(), b.GetAddressBytes());
+            return Util.MemCompare(a.GetAddressBytes(), b.GetAddressBytes());
         }
 
         // IP アドレスを正規化する
@@ -1688,7 +1688,7 @@ namespace IPA.Cores.Basic
                 throw new ApplicationException("Invalid MAC address");
             }
 
-            return Util.CompareByteRetInt(a, b);
+            return Util.MemCompare(a, b);
         }
         public static bool CompareMacAddress(string a, string b)
         {
@@ -1701,7 +1701,7 @@ namespace IPA.Cores.Basic
                 throw new ApplicationException("Invalid MAC address");
             }
 
-            return Util.CompareByte(a, b);
+            return Util.MemEquals(a, b);
         }
 
         // EUI-64 から MAC アドレスを取得する

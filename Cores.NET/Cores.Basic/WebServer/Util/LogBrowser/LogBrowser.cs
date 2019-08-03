@@ -228,8 +228,8 @@ namespace IPA.Cores.Basic
                     {
                         long fileSize = file.Size;
 
-                        long head = request._GetQueryStringFirst("head")._ToInt()._Positive();
-                        long tail = request._GetQueryStringFirst("tail")._ToInt()._Positive();
+                        long head = request._GetQueryStringFirst("head")._ToInt()._NonNegative();
+                        long tail = request._GetQueryStringFirst("tail")._ToInt()._NonNegative();
 
                         if (head != 0 && tail != 0) throw new ApplicationException("You can specify either head or tail.");
 

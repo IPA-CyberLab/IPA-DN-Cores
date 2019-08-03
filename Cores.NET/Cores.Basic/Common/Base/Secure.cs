@@ -334,7 +334,7 @@ namespace IPA.Cores.Basic
 
             string hash2 = SaltPassword(password, salt);
 
-            return hash._GetHexBytes()._IsSameByte(hash2._GetHexBytes());
+            return hash._GetHexBytes()._MemEquals(hash2._GetHexBytes());
         }
 
         // PKCS 証明書の読み込み

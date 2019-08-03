@@ -160,7 +160,7 @@ namespace IPA.Cores.Basic
             public const string Blank = "_blank";
         }
 
-        public partial class InboxProviderNames
+        public static partial class InboxProviderNames
         {
             public const string Gmail = "Gmail";
             public const string Slack_App = "Slack_as_Registered_App";
@@ -169,10 +169,18 @@ namespace IPA.Cores.Basic
             public const string Slack_Old = "Slack";
         }
 
-        public partial class HttpProtocolSchemes
+        public static partial class HttpProtocolSchemes
         {
             public const string Http = "http";
             public const string Https = "https";
+        }
+
+        public static partial class RateLimiter
+        {
+            public const double DefaultBurst = 100;
+            public const double DefaultLimitPerSecond = 100;
+            public const int DefaultExpiresMsec = 1000;
+            public const int DefaultMaxEntries = 65536;
         }
     }
 }

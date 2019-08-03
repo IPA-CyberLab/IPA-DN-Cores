@@ -259,6 +259,15 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                SpanBuffer<byte> buf = new SpanBuffer<byte>();
+                buf.WriteSInt64(1234567890L._Endian64());
+                ReadOnlySpan<byte> span = buf.Span.Slice(0, 1);
+                span._RawReadValueUInt64()._Debug();
+                return;
+            }
+
+            if (true)
+            {
                 DebugHostUtil.Stop("daemonCenTer")._Debug();
                 return;
             }

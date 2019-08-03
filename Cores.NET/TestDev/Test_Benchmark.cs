@@ -205,6 +205,25 @@ namespace IPA.TestDev
             Memory<byte> testFileWriteData = new byte[4096];
             Util.Rand(testFileWriteData.Span);
 
+            Dictionary<string, int> testDic1 = new Dictionary<string, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                testDic1.Add("Test_" + i.ToString(), i);
+            }
+
+            Dictionary<long, int> testDic2 = new Dictionary<long, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                testDic2.Add(i, i);
+            }
+
+            Dictionary<ReadOnlyMemory<byte>, int> testDic3 = new Dictionary<ReadOnlyMemory<byte>, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                buf.WriteSInt32(i);
+                testDic3.Add(buf.Memory, i);
+            }
 
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
@@ -214,6 +233,93 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
 
             var queue = new MicroBenchmarkQueue()
+
+            //.Add(new MicroBenchmark($"Compare Test #1", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.BoolVolatile = Util.MemEquals(b1, b2);
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"Compare Test #2", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    string s1 = b1._GetString_UTF8();
+            //    string s2 = b2._GetString_UTF8();
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.BoolVolatile = s1.Equals(s2);
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"Compare Test #3", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+            //    Span<byte> span1 = b1;
+            //    Span<byte> span2 = b2;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.BoolVolatile = span1.SequenceEqual(span2);
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"GetHashCode #1", Benchmark_CountForNormal, count =>
+            {
+                byte[] b1 = Str.MakeCharArray('x',4)._GetBytes_UTF8();
+                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+                Span<byte> span1 = b1;
+                Span<byte> span2 = b2;
+
+                for (int c = 0; c < count; c++)
+                {
+                    b1[1] = (byte)c;
+                    Limbo.SInt32 += span1._ComputeHash32();
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"GetHashCode #2", Benchmark_CountForNormal, count =>
+            {
+                byte[] b1 = "Hello World Neko Test"._GetBytes_UTF8();
+                byte[] b2 = "Hello World Neko Test"._GetBytes_UTF8();
+                string b1s = b1._GetString_UTF8();
+
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += b1s._ComputeHash32();
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Generic #1", Benchmark_CountForNormal, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic1["Test_32767"];
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Generic #2", Benchmark_CountForNormal, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic2[32767];
+                }
+            }), enabled: true, priority: 999999)
+
+            .Add(new MicroBenchmark($"Generic #3", Benchmark_CountForNormal, count =>
+            {
+                MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
+                targetBuffer.WriteSInt32(32767);
+
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32 += testDic3[targetBuffer];
+                }
+            }), enabled: true, priority: 999999)
 
             .Add(new MicroBenchmark($"isempty 1", Benchmark_CountForSlow, count =>
             {

@@ -1200,7 +1200,7 @@ namespace IPA.Cores.Basic
 
                 byte[] utf2 = Str.Utf8Encoding.GetBytes(str2);
 
-                return Util.CompareByte(utf1, utf2);
+                return Util.MemEquals(utf1, utf2);
             }
             catch
             {

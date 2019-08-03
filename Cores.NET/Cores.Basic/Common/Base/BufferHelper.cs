@@ -1532,6 +1532,215 @@ namespace IPA.Cores.Helper.Basic
         }
 
 
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt8<T>(this ReadOnlySpan<T> target, sbyte value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt8<T>(this ReadOnlyMemory<T> target, sbyte value) where T : unmanaged
+            => _RawWriteValueSInt8(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt16<T>(this ReadOnlySpan<T> target, short value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt16<T>(this ReadOnlyMemory<T> target, short value) where T : unmanaged
+            => _RawWriteValueSInt16(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt32<T>(this ReadOnlySpan<T> target, int value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) *((int*)ptr) = (int)value;
+            else if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt32<T>(this ReadOnlyMemory<T> target, int value) where T : unmanaged
+            => _RawWriteValueSInt32(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt64<T>(this ReadOnlySpan<T> target, long value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) *((long*)ptr) = value;
+            else if (size >= 4) *((int*)ptr) = (int)value;
+            else if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt64<T>(this ReadOnlyMemory<T> target, long value) where T : unmanaged
+            => _RawWriteValueSInt64(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt8<T>(this ReadOnlySpan<T> target, byte value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt8<T>(this ReadOnlyMemory<T> target, byte value) where T : unmanaged
+            => _RawWriteValueUInt8(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt16<T>(this ReadOnlySpan<T> target, ushort value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt16<T>(this ReadOnlyMemory<T> target, ushort value) where T : unmanaged
+            => _RawWriteValueUInt16(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt32<T>(this ReadOnlySpan<T> target, uint value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt32<T>(this ReadOnlyMemory<T> target, uint value) where T : unmanaged
+            => _RawWriteValueUInt32(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt64<T>(this ReadOnlySpan<T> target, ulong value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) *((ulong*)ptr) = value;
+            else if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt64<T>(this ReadOnlyMemory<T> target, ulong value) where T : unmanaged
+            => _RawWriteValueUInt64(target.Span, value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt8<T>(this Span<T> target, sbyte value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt8<T>(this Memory<T> target, sbyte value) where T : unmanaged
+            => _RawWriteValueSInt8(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt16<T>(this Span<T> target, short value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt16<T>(this Memory<T> target, short value) where T : unmanaged
+            => _RawWriteValueSInt16(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt32<T>(this Span<T> target, int value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) *((int*)ptr) = (int)value;
+            else if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt32<T>(this Memory<T> target, int value) where T : unmanaged
+            => _RawWriteValueSInt32(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt64<T>(this Span<T> target, long value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) *((long*)ptr) = value;
+            else if (size >= 4) *((int*)ptr) = (int)value;
+            else if (size >= 2) *((short*)ptr) = (short)value;
+            else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueSInt64<T>(this Memory<T> target, long value) where T : unmanaged
+            => _RawWriteValueSInt64(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt8<T>(this Span<T> target, byte value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt8<T>(this Memory<T> target, byte value) where T : unmanaged
+            => _RawWriteValueUInt8(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt16<T>(this Span<T> target, ushort value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt16<T>(this Memory<T> target, ushort value) where T : unmanaged
+            => _RawWriteValueUInt16(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt32<T>(this Span<T> target, uint value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt32<T>(this Memory<T> target, uint value) where T : unmanaged
+            => _RawWriteValueUInt32(target.Span, value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt64<T>(this Span<T> target, ulong value) where T : unmanaged
+        {
+            int size = sizeof(T);
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) *((ulong*)ptr) = value;
+            else if (size >= 4) *((uint*)ptr) = (uint)value;
+            else if (size >= 2) *((ushort*)ptr) = (ushort)value;
+            else if (size >= 1) *((byte*)ptr) = (byte)value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void _RawWriteValueUInt64<T>(this Memory<T> target, ulong value) where T : unmanaged
+            => _RawWriteValueUInt64(target.Span, value);
+
+
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe sbyte _RawReadValueSInt8<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
@@ -1615,6 +1824,205 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
+
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _RawReadValueSInt8<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _RawReadValueSInt16<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _RawReadValueSInt32<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) return *((int*)ptr);
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _RawReadValueSInt64<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) return *((long*)ptr);
+            if (size >= 4) return *((int*)ptr);
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _RawReadValueUInt8<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _RawReadValueUInt16<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _RawReadValueUInt32<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _RawReadValueUInt64<T>(this Span<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) return *((ulong*)ptr);
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _RawReadValueSInt8<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe sbyte _RawReadValueSInt8<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueSInt8(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _RawReadValueSInt16<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe short _RawReadValueSInt16<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueSInt16(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _RawReadValueSInt32<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) return *((int*)ptr);
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int _RawReadValueSInt32<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueSInt32(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _RawReadValueSInt64<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) return *((long*)ptr);
+            if (size >= 4) return *((int*)ptr);
+            if (size >= 2) return *((short*)ptr);
+            if (size >= 1) return *((sbyte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe long _RawReadValueSInt64<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueSInt64(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _RawReadValueUInt8<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe byte _RawReadValueUInt8<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueUInt8(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _RawReadValueUInt16<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ushort _RawReadValueUInt16<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueUInt16(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _RawReadValueUInt32<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint _RawReadValueUInt32<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueUInt32(target.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _RawReadValueUInt64<T>(this ReadOnlySpan<T> target) where T : unmanaged
+        {
+            int size = sizeof(T) * target.Length;
+            byte* ptr = (byte*)(Unsafe.AsPointer(ref MemoryMarshal.GetReference(target)));
+            if (size >= 8) return *((ulong*)ptr);
+            if (size >= 4) return *((uint*)ptr);
+            if (size >= 2) return *((ushort*)ptr);
+            if (size >= 1) return *((byte*)ptr);
+            return 0;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe ulong _RawReadValueUInt64<T>(this ReadOnlyMemory<T> target) where T : unmanaged
+            => _RawReadValueUInt64(target.Span);
+
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void* _AsPointer<T>(this ref T target) where T : unmanaged

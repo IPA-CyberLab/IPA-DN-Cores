@@ -222,12 +222,12 @@ namespace IPA.Cores.Basic
 
         public int CompareTo(IPAddr other)
         {
-            return Util.CompareByteRetInt(this.Bytes, other.Bytes);
+            return Util.MemCompare(this.Bytes, other.Bytes);
         }
 
         public bool Equals(IPAddr other)
         {
-            return Util.CompareByte(this.Bytes, other.Bytes);
+            return Util.MemEquals(this.Bytes, other.Bytes);
         }
 
         public static int GetAddressSizeFromAddressFamily(AddressFamily family)
@@ -595,17 +595,17 @@ namespace IPA.Cores.Basic
 
         public int CompareTo(object obj)
         {
-            return Util.CompareByteRetInt(this.Address.GetBytes(), ((FullRouteEntry)obj).Address.GetBytes());
+            return Util.MemCompare(this.Address.GetBytes(), ((FullRouteEntry)obj).Address.GetBytes());
         }
 
         int IComparable<FullRouteEntry>.CompareTo(FullRouteEntry other)
         {
-            return Util.CompareByteRetInt(this.Address.GetBytes(), other.Address.GetBytes());
+            return Util.MemCompare(this.Address.GetBytes(), other.Address.GetBytes());
         }
 
         bool IEquatable<FullRouteEntry>.Equals(FullRouteEntry other)
         {
-            return Util.CompareByte(this.Address.GetBytes(), other.Address.GetBytes());
+            return Util.MemEquals(this.Address.GetBytes(), other.Address.GetBytes());
         }
 
         public string GetBinaryString()

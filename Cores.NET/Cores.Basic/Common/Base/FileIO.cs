@@ -470,7 +470,7 @@ namespace IPA.Cores.Basic
                     // ファイルヘッダを読み込む
                     byte[] header = hamcore_io.Read(HamcoreHeaderSize);
                     byte[] header2 = Str.AsciiEncoding.GetBytes(HamcoreHeaderData);
-                    if (header == null || Util.CompareByte(header, header2) == false)
+                    if (header == null || Util.MemEquals(header, header2) == false)
                     {
                         throw new SystemException();
                     }
@@ -1307,7 +1307,7 @@ namespace IPA.Cores.Basic
                         {
                         }
 
-                        if (Util.CompareByte(srcData, destData))
+                        if (Util.MemEquals(srcData, destData))
                         {
                             changed = false;
                         }
@@ -1373,7 +1373,7 @@ namespace IPA.Cores.Basic
                     try
                     {
                         byte[] current_data = IO.ReadFile(name);
-                        if (Util.CompareByte(current_data, Util.ExtractByteArray(data, offset, size)))
+                        if (Util.MemEquals(current_data, Util.ExtractByteArray(data, offset, size)))
                         {
                             return;
                         }

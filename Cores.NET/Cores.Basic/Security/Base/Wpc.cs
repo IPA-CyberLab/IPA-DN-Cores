@@ -234,7 +234,7 @@ namespace IPA.Cores.Basic.Legacy
             byte[] entryNameByte = GenerateEntryName(entryName);
             foreach (WpcEntry e in entryList)
             {
-                if (Util.CompareByte(e.EntryName, entryNameByte))
+                if (Util.MemEquals(e.EntryName, entryNameByte))
                 {
                     return e;
                 }
@@ -359,7 +359,7 @@ namespace IPA.Cores.Basic.Legacy
                     {
                         byte[] hash2 = e.Data;
 
-                        if (Util.CompareByte(hash, hash2))
+                        if (Util.MemEquals(hash, hash2))
                         {
                             e = WpcEntry.FindEntry(o, "CERT");
                             if (e != null)
