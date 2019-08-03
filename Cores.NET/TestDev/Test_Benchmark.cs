@@ -352,8 +352,8 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    Limbo.SInt32 = s1._HashDjb2();
-                    Limbo.SInt32 = s2._HashDjb2();
+                    Limbo.SInt32 = s1._HashMarvin();
+                    Limbo.SInt32 = s2._HashMarvin();
                 }
             }), enabled: true, priority: 999999)
 

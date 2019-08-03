@@ -259,8 +259,6 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                Util.ComputeDjb2Hash("ABCDABCDABCD"._GetBytes_UTF8())._Debug();
-                Util.ComputeDjb2Hash("ABCDABDCABCD"._GetBytes_UTF8())._Debug();
                 return;
             }
 
