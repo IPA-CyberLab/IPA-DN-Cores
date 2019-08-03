@@ -2905,6 +2905,41 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int ComputeDjb2Hash(Span<byte> data)
+        {
+            fixed (byte* ptr = data)
+                return ComputeDjb2Hash(ptr, data.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static unsafe int ComputeDjb2Hash(void* ptr, int size)
+        {
+            uint hash = 5381;
+            byte* p = (byte*)ptr;
+            for (int i = 0; i < size; i++)
+            {
+                hash = ((hash << 5) + hash) + p[i];
+            }
+            return (int)hash;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int ComputeDjb2Hash<T>(ref T data, int size = DefaultSize) where T : unmanaged
+        {
+            size = size._DefaultSize(sizeof(T));
+            return ComputeDjb2Hash(Unsafe.AsPointer(ref data), size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe int ComputeDjb2Hash<T>(ReadOnlySpan<T> span) where T : unmanaged
+        {
+            fixed (T* ptr = span)
+            {
+                return ComputeDjb2Hash((void*)ptr, span.Length * sizeof(T));
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ComputeGoldenHash32(int src) => src * Consts.GoldenRatioPrime.S32;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2937,10 +2972,10 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int ComputeGoldenHash<T>(ref T data, int size = DefaultSize) where T : unmanaged
+        public static unsafe int ComputeGoldenHash<T>(in T data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
-            return ComputeGoldenHash(Unsafe.AsPointer(ref data), size);
+            return ComputeGoldenHash(Unsafe.AsPointer(ref Unsafe.AsRef(in data)), size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -5971,7 +6006,7 @@ namespace IPA.Cores.Basic
 
         public override int GetHashCode()
         {
-            return Data._MarvinHash32();
+            return Data._HashMarvin();
         }
     }
 

@@ -3479,7 +3479,7 @@ namespace IPA.Cores.Basic
 
             public int GetHashCode(T obj)
             {
-                return obj._MarvinHash32();
+                return obj._HashMarvin();
             }
         }
     }
@@ -3513,7 +3513,7 @@ namespace IPA.Cores.Basic
 
             public int GetHashCode(ReadOnlyMemory<T> obj)
             {
-                return obj._MarvinHash32();
+                return obj._HashMarvin();
             }
         }
 
@@ -3533,7 +3533,7 @@ namespace IPA.Cores.Basic
 
             public int GetHashCode(Memory<T> obj)
             {
-                return obj._MarvinHash32();
+                return obj._HashMarvin();
             }
         }
 
@@ -3553,7 +3553,7 @@ namespace IPA.Cores.Basic
 
             public int GetHashCode(T[] obj)
             {
-                return obj._MarvinHash32();
+                return obj._HashMarvin();
             }
         }
     }

@@ -559,7 +559,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe ushort IpChecksum(Span<byte> data, ushort initial = 0)
+        public static unsafe ushort IpChecksum(ReadOnlySpan<byte> data, ushort initial = 0)
         {
             fixed (byte* ptr = data)
                 return IpChecksum(ptr, data.Length, initial);

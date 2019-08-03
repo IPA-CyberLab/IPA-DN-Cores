@@ -58,74 +58,137 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Helper.Basic
 {
-    public static class MarvinHashHelper
+    public static class HashDjb2Helper
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this string data, StringComparison cmp = StringComparison.Ordinal)
-            => data.GetHashCode(cmp);
+        public static int _HashDjb2(this ReadOnlySpan<byte> data)
+            => Util.ComputeDjb2Hash(data);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this ReadOnlySpan<byte> data)
-            => Marvin.ComputeHash32(data);
+        public static int _HashDjb2(this Span<byte> data)
+            => Util.ComputeDjb2Hash(data);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this Span<byte> data)
-            => Marvin.ComputeHash32(data);
+        public static int _HashDjb2(this byte[] data, int offset, int size)
+            => Util.ComputeDjb2Hash(data._AsReadOnlySpan(offset, size));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this byte[] data, int offset, int size)
-            => Marvin.ComputeHash32(data._AsReadOnlySpan(offset, size));
+        public static int _HashDjb2(this byte[] data, int offset)
+            => Util.ComputeDjb2Hash(data._AsReadOnlySpan(offset));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this byte[] data, int offset)
-            => Marvin.ComputeHash32(data._AsReadOnlySpan(offset));
+        public static int _HashDjb2(this byte[] data)
+            => Util.ComputeDjb2Hash(data._AsReadOnlySpan());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32(this byte[] data)
-            => Marvin.ComputeHash32(data._AsReadOnlySpan());
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this ref TStruct data) where TStruct : unmanaged
+        public static int _HashDjb2<TStruct>(this ref TStruct data) where TStruct : unmanaged
         {
             unsafe
             {
                 void* ptr = Unsafe.AsPointer(ref data);
                 Span<byte> span = new Span<byte>(ptr, sizeof(TStruct));
-                return _MarvinHash32(span);
+                return _HashDjb2(span);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
+        public static int _HashDjb2<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
         {
             ReadOnlySpan<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
-            return _MarvinHash32(span);
+            return _HashDjb2(span);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
-            => _MarvinHash32(data.Span);
+        public static int _HashDjb2<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
+            => _HashDjb2(data.Span);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
+        public static int _HashDjb2<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
         {
             Span<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
-            return _MarvinHash32(span);
+            return _HashDjb2(span);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
-            => _MarvinHash32(data.Span);
+        public static int _HashDjb2<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
+            => _HashDjb2(data.Span);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
-            => _MarvinHash32(data._AsReadOnlySpan(offset, size));
+        public static int _HashDjb2<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
+            => _HashDjb2(data._AsReadOnlySpan(offset, size));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
-            => _MarvinHash32(data._AsReadOnlySpan(offset));
+        public static int _HashDjb2<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
+            => _HashDjb2(data._AsReadOnlySpan(offset));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int _MarvinHash32<TStruct>(this TStruct[] data) where TStruct : unmanaged
-            => _MarvinHash32(data._AsReadOnlySpan());
+        public static int _HashDjb2<TStruct>(this TStruct[] data) where TStruct : unmanaged
+            => _HashDjb2(data._AsReadOnlySpan());
+    }
+
+
+    public static class HashMarvinHelper
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin(this ReadOnlySpan<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin(this Span<byte> data)
+            => Marvin.ComputeHash32(data);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin(this byte[] data, int offset, int size)
+            => Marvin.ComputeHash32(data._AsReadOnlySpan(offset, size));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin(this byte[] data, int offset)
+            => Marvin.ComputeHash32(data._AsReadOnlySpan(offset));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin(this byte[] data)
+            => Marvin.ComputeHash32(data._AsReadOnlySpan());
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this ref TStruct data) where TStruct : unmanaged
+        {
+            unsafe
+            {
+                void* ptr = Unsafe.AsPointer(ref data);
+                Span<byte> span = new Span<byte>(ptr, sizeof(TStruct));
+                return _HashMarvin(span);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
+        {
+            ReadOnlySpan<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return _HashMarvin(span);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
+            => _HashMarvin(data.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
+        {
+            Span<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
+            return _HashMarvin(span);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
+            => _HashMarvin(data.Span);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
+            => _HashMarvin(data._AsReadOnlySpan(offset, size));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
+            => _HashMarvin(data._AsReadOnlySpan(offset));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int _HashMarvin<TStruct>(this TStruct[] data) where TStruct : unmanaged
+            => _HashMarvin(data._AsReadOnlySpan());
     }
 
     public static class BasicHelper
@@ -1349,7 +1412,7 @@ namespace IPA.Cores.Helper.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int _ComputeGoldenHash<T>(this ref T data, int size = DefaultSize) where T : unmanaged
-            => Util.ComputeGoldenHash(ref data, size);
+            => Util.ComputeGoldenHash(in data, size);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int _ComputeGoldenHash<T>(ReadOnlySpan<T> span) where T : unmanaged

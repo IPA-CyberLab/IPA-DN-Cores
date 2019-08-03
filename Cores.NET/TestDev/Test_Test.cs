@@ -259,11 +259,18 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Util.ComputeDjb2Hash("ABCDABCDABCD"._GetBytes_UTF8())._Debug();
+                Util.ComputeDjb2Hash("ABCDABDCABCD"._GetBytes_UTF8())._Debug();
+                return;
+            }
+
+            if (true)
+            {
                 TestSt2 s1 = new TestSt2("Hello");
                 TestSt2 s2 = new TestSt2("Hello");
 
-                s1._MarvinHash32()._Debug();
-                s2._MarvinHash32()._Debug();
+                s1._HashMarvin()._Debug();
+                s2._HashMarvin()._Debug();
 
                 //s1.Equals(s2)._Debug();
 
