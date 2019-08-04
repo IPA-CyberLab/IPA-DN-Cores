@@ -178,9 +178,10 @@ namespace IPA.Cores.Basic
         public static partial class RateLimiter
         {
             public const double DefaultBurst = 100;
-            public const double DefaultLimitPerSecond = 100;
+            public const double DefaultLimitPerSecond = 10;
             public const int DefaultExpiresMsec = 1000;
             public const int DefaultMaxEntries = 65536;
+            public const int DefaultGcInterval = 10000;
         }
     }
 }

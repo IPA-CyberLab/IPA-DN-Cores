@@ -42,6 +42,10 @@ namespace AspNetCore1
 
             StartupHelper.ConfigureServices(services);
 
+            services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(opt =>
+            {
+            });
+
             //services.Configure<CookiePolicyOptions>(options =>
             //{
             //    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
@@ -64,6 +68,8 @@ namespace AspNetCore1
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
+            app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
+
             // wwwroot directory of this project
             StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 

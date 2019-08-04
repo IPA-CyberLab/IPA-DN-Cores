@@ -259,6 +259,14 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode : RateLimiterMode.NoPenalty));
+                while (true)
+                {
+                    Con.ReadLine();
+                    bool ret = rl.TryInput(1, out RateLimiterEntry e);
+                    ret._Print();
+                    e.CurrentAmount._Print();
+                }
                 return;
             }
 

@@ -341,6 +341,15 @@ namespace IPA.Cores.Basic
         GlobalIp = 8192,
     }
 
+    // IPAddrsssType ヘルパー
+    public static class IPAddressTypeHelper
+    {
+        public static bool _IsLocalNetwork(this IPAddressType type)
+        {
+            return type.BitAny(IPAddressType.Loopback | IPAddressType.LocalUnicast);
+        }
+    }
+
     // IP ユーティリティ
     public static partial class IPUtil
     {

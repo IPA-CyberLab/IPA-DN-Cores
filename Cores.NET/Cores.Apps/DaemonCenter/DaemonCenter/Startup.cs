@@ -43,14 +43,18 @@ namespace DaemonCenter
             AspNetLib.ConfigureServices(StartupHelper, services);
 
             StartupHelper.ConfigureServices(services);
-            
+
+            services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(opt =>
+            {
+            });
+
             //services.Configure<CookiePolicyOptions>(options =>
             //{
             //    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
             //    options.CheckConsentNeeded = context => true;
             //    options.MinimumSameSitePolicy = SameSiteMode.None;
             //});
-            
+
             services.AddMvc()
                 .AddViewOptions(opt =>
                 {
@@ -68,13 +72,16 @@ namespace DaemonCenter
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime, Server server)
         {
+            // リクエスト数制限
+            app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
+
             // wwwroot directory of this project
             StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 
             AspNetLib.Configure(StartupHelper, app, env);
 
             StartupHelper.Configure(app, env);
-            
+
             if (StartupHelper.IsDevelopmentMode)
             {
                 app.UseDeveloperExceptionPage();

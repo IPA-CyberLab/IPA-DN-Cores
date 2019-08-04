@@ -1049,16 +1049,16 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void CopyByte(ref byte dst, byte* src, int size)
         {
-            ref byte srcref = ref Unsafe.AsRef<byte>((void *)src);
+            ref byte srcref = ref Unsafe.AsRef<byte>((void*)src);
 
             Unsafe.CopyBlock(ref dst, ref srcref, (uint)size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void CopyByte(byte *dst, in byte src, int size)
+        public static unsafe void CopyByte(byte* dst, in byte src, int size)
         {
             ref byte dstref = ref Unsafe.AsRef<byte>((void*)dst);
-            
+
             Unsafe.CopyBlock(ref dstref, ref Unsafe.AsRef(src), (uint)size);
         }
 
@@ -5897,15 +5897,25 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum RateLimiterMode
+    {
+        Penalty = 0, // 流量を超えて流入する場合でもペナルティ計測をする
+        NoPenalty, // ペナルティ計測をしない
+    }
+
     public class RateLimiterOptions
     {
         public double Burst { get; }
         public double LimitPerSecond { get; }
         public int ExpiresMsec { get; }
         public int MaxEntries { get; }
+        public RateLimiterMode Mode { get; }
+        public int GcInterval { get; }
 
         public RateLimiterOptions(double burst = Consts.RateLimiter.DefaultBurst, double limitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond,
-            int expiresMsec = Consts.RateLimiter.DefaultExpiresMsec, int maxEntries = Consts.RateLimiter.DefaultMaxEntries)
+            int expiresMsec = Consts.RateLimiter.DefaultExpiresMsec, RateLimiterMode mode = RateLimiterMode.Penalty, int maxEntries = Consts.RateLimiter.DefaultMaxEntries,
+            int gcInterval = Consts.RateLimiter.DefaultGcInterval)
         {
             if (burst <= 0.0) throw new ArgumentOutOfRangeException(nameof(burst));
             if (limitPerSecond < 0.0) throw new ArgumentOutOfRangeException(nameof(limitPerSecond));
@@ -5916,62 +5926,254 @@ namespace IPA.Cores.Basic
             this.LimitPerSecond = limitPerSecond;
             this.ExpiresMsec = expiresMsec;
             this.MaxEntries = maxEntries;
+            this.Mode = mode;
+            this.GcInterval = gcInterval;
         }
     }
 
     public class RateLimiterEntry
     {
-        public RateLimiter Limiter { get; }
+        readonly RateLimiterOptions Options;
+        readonly CriticalSection LockObj = new CriticalSection();
 
-        internal RateLimiterEntry(EnsureInternal yes, RateLimiter limiter)
+        public long CreatedTick { get; }
+        public long ExpiresTick => this.LastInputTick + Options.ExpiresMsec;
+        public double CurrentAmount { get; private set; } = 0.0;
+
+        public long LastInputTick { get; private set; }
+
+        internal RateLimiterEntry(EnsureInternal yes, RateLimiterOptions options, long createdTick)
         {
-            this.Limiter = limiter;
+            this.Options = options;
+            this.CreatedTick = createdTick;
+            this.LastInputTick = createdTick;
+        }
+
+        // Amount の値を計算して更新する
+        double CalcAndUpdateAmount(long now, double amount)
+        {
+            amount = amount._NonNegative();
+
+            //lock (LockObj)
+            {
+                now = now._Max(this.LastInputTick);
+
+                double current = this.CurrentAmount;
+
+                // 前回からの経過秒数を計測する
+                long timeDiff = now - this.LastInputTick;
+
+                this.LastInputTick = now;
+
+                if (timeDiff != 0)
+                {
+                    // わずかでも時間が経過していた場合
+                    double timeDiffDouble = (double)timeDiff / 1000.0;
+
+                    // 前回からの流出量を計算する
+                    double flowOut = (Options.LimitPerSecond * timeDiffDouble)._NonNegative();
+
+                    // 流出をさせる
+                    current -= flowOut;
+                    current = current._NonNegative();
+                }
+
+                // 許容値を超えた流入の記録は Penalty モードの場合のみ行なう
+                if (Options.Mode == RateLimiterMode.Penalty || (current <= Options.Burst))
+                {
+                    // 流入をさせる
+                    current += amount;
+                    current = current._NonNegative();
+                }
+
+                this.CurrentAmount = current;
+
+                return current;
+            }
+        }
+
+        // 流入
+        public bool TryInput(long now, double amount)
+        {
+            // 流入計算
+            double current = CalcAndUpdateAmount(now, amount);
+
+            // 許容バースト量よりも現在の量のほうが少ないかどうか検査
+            return current <= Options.Burst;
         }
     }
 
-    public class RateLimiter
+    public interface IConcurrentLimiter
+    {
+        bool TryEnter(object key, out int currentCount);
+        void Exit(object key, out int currentCount);
+    }
+
+    public class ConcurrentLimiter<TKey> : IConcurrentLimiter
+    {
+        public int MaxConcurrentRequests { get; }
+
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        readonly Dictionary<TKey, int> Table = new Dictionary<TKey, int>();
+
+        public ConcurrentLimiter(int maxConcurrentRequests)
+        {
+            this.MaxConcurrentRequests = maxConcurrentRequests._NonNegative();
+        }
+
+        public bool TryEnter(TKey key, out int currentCount)
+        {
+            if (this.MaxConcurrentRequests == 0)
+            {
+                currentCount = 0;
+                return true;
+            }
+
+            lock (LockObj)
+            {
+                if (this.Table.TryGetValue(key, out currentCount) == false)
+                {
+                    currentCount = 0;
+                }
+                else
+                {
+                    Debug.Assert(currentCount >= 1);
+                }
+
+                if (currentCount >= this.MaxConcurrentRequests)
+                {
+                    return false;
+                }
+
+                currentCount++;
+
+                this.Table[key] = currentCount;
+
+                return true;
+            }
+        }
+
+        public void Exit(TKey key, out int currentCount)
+        {
+            if (this.MaxConcurrentRequests == 0)
+            {
+                currentCount = 0;
+                return;
+            }
+
+            lock (LockObj)
+            {
+                if (this.Table.TryGetValue(key, out currentCount) == false)
+                {
+                    // Error!
+                    Debug.Assert(false);
+                }
+
+                Debug.Assert(currentCount >= 1);
+
+                currentCount--;
+
+                if (currentCount <= 0)
+                {
+                    this.Table.Remove(key);
+                }
+            }
+        }
+
+        public bool TryEnter(object key, out int currentCount)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            return TryEnter((TKey)key, out currentCount);
+        }
+
+        public void Exit(object key, out int currentCount)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            Exit((TKey)key, out currentCount);
+        }
+    }
+
+    public interface IRateLimiter
+    {
+        bool TryInput(object key, out RateLimiterEntry entry, double amount = 1.0, long now = 0);
+    }
+
+    public class RateLimiter<TKey> : IRateLimiter
     {
         public RateLimiterOptions Options { get; }
+
+        readonly Dictionary<TKey, RateLimiterEntry> Table = new Dictionary<TKey, RateLimiterEntry>();
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        long NextGcTick = 0;
 
         public RateLimiter(RateLimiterOptions options)
         {
             this.Options = options;
+
+            if (options.GcInterval > 0)
+                this.NextGcTick = Tick64.Now + options.GcInterval;
         }
-    }
 
-    public unsafe struct TestSt2
-    {
-        public fixed byte Data[8];
-
-        public TestSt2(string str)
+        // 有効期限が経過したエントリを削除する
+        void GcCollect(long now)
         {
-            str = str + "_____";
-            byte[] src = str._GetBytes_UTF8();
+            List<TKey> deletes = new List<TKey>();
 
-            fixed (byte* p = Data)
+            foreach (var kv in this.Table)
             {
-                Util.CopyByte(p, src.AsSpan().Slice(0, 5));
+                if (now > kv.Value.ExpiresTick)
+                {
+                    deletes.Add(kv.Key);
+                }
+            }
+
+            foreach (var key in deletes)
+            {
+                Table.Remove(key);
             }
         }
-    }
 
-    public class TestSt1 : IEquatable<TestSt1>
-    {
-        public readonly ReadOnlyMemory<byte> Data;
-
-        public TestSt1(ReadOnlyMemory<byte> data)
+        public bool TryInput(TKey key, out RateLimiterEntry entry, double amount = 1.0, long now = 0)
         {
-            this.Data = data;
+            // now が供給されていない場合は計測する
+            if (now == 0) now = Time.Tick64;
+
+            // テーブル全体のロックはできるだけ最小限にする
+            lock (LockObj)
+            {
+                // GC の実行
+                if (this.NextGcTick != 0 && this.NextGcTick <= now)
+                {
+                    this.NextGcTick = now + Options.GcInterval;
+
+                    GcCollect(now);
+                }
+
+                // エントリが作成されていない場合は作成する
+                if (this.Table.TryGetValue(key, out entry) == false)
+                {
+                    if (Table.Count >= this.Options.MaxEntries)
+                    {
+                        // 最大登録可能数を超過しているため作成できない
+                        entry = null;
+                        return false;
+                    }
+
+                    entry = new RateLimiterEntry(EnsureInternal.Yes, this.Options, now);
+                    this.Table.Add(key, entry);
+                }
+            }
+
+            // 取得されたエントリに対して流入操作を実行する
+            return entry.TryInput(now, amount);
         }
 
-        public bool Equals(TestSt1 other)
+        public bool TryInput(object key, out RateLimiterEntry entry, double amount = 1, long now = 0)
         {
-            return Data._MemEquals(other.Data);
-        }
-
-        public override int GetHashCode()
-        {
-            return Data._HashMarvin();
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            return TryInput((TKey)key, out entry, amount, now);
         }
     }
 

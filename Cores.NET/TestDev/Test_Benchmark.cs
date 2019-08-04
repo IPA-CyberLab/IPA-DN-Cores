@@ -53,6 +53,7 @@ using System.Collections;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 #pragma warning disable CS1998
+#pragma warning disable CS0414
 
 namespace IPA.TestDev
 {
@@ -133,6 +134,128 @@ namespace IPA.TestDev
         }
     }
 
+
+    public unsafe struct TestSt2
+    {
+        public fixed byte Data[8];
+
+        public TestSt2(string str)
+        {
+            str = str + "_____";
+            byte[] src = str._GetBytes_UTF8();
+
+            fixed (byte* p = Data)
+            {
+                Util.CopyByte(p, src.AsSpan().Slice(0, 5));
+            }
+        }
+    }
+
+    public readonly struct TestSt3 : IEquatable<TestSt3>
+    {
+        public readonly ulong Data1;
+        public readonly int Hash;
+
+        public TestSt3(string str)
+        {
+            str = str + "_________";
+            byte[] src = str._GetBytes_UTF8();
+
+            ReadOnlySpan<byte> span = src;
+            this.Data1 = span._RawReadValueUInt64();
+
+            this.Hash = this.Data1._HashMarvin();
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Hash;
+        }
+
+        public bool Equals(TestSt3 other)
+        {
+            return this.Data1 == other.Data1;
+        }
+    }
+
+    public class TestSt1 : IEquatable<TestSt1>
+    {
+        public readonly ReadOnlyMemory<byte> Data;
+
+        public TestSt1(ReadOnlyMemory<byte> data)
+        {
+            this.Data = data;
+        }
+
+        public bool Equals(TestSt1 other)
+        {
+            return Data._MemEquals(other.Data);
+        }
+
+        public override int GetHashCode()
+        {
+            return Data._HashMarvin();
+        }
+    }
+
+    public struct TestSt4
+    {
+        public int IntValue;
+        public long v1;
+        public long v2;
+        public long v3;
+        public long v4;
+    }
+
+    public class TestSt5 : IEquatable<TestSt5>, IComparable<TestSt5>
+    {
+        public int IntValue;
+        public long v1;
+        public long v2;
+        public long v3;
+        public long v4;
+
+        public int CompareTo(TestSt5 other)
+        {
+            int r;
+            if ((r = this.v1.CompareTo(other.v1)) != 0) return r;
+            if ((r = this.v2.CompareTo(other.v2)) != 0) return r;
+            if ((r = this.v3.CompareTo(other.v3)) != 0) return r;
+            if ((r = this.v4.CompareTo(other.v4)) != 0) return r;
+            if ((r = this.IntValue.CompareTo(other.IntValue)) != 0) return r;
+            return 0;
+        }
+
+        public bool Equals(TestSt5 other)
+        {
+            return
+                this.v1.Equals(other.v1) &&
+                this.v2.Equals(other.v2) &&
+                this.v3.Equals(other.v3) &&
+                this.v4.Equals(other.v4) &&
+                this.IntValue.Equals(other.IntValue);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((TestSt5)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return System.HashCode.Combine(
+                IntValue,
+                v1,
+                v2,
+                v3,
+                v4);
+        }
+
+        public override string ToString()
+        {
+            return this.IntValue.ToString();
+        }
+    }
 
     partial class TestDevCommands
     {
@@ -241,7 +364,7 @@ namespace IPA.TestDev
             Dictionary<byte[], int> testDic5 = new Dictionary<byte[], int>(MemoryComparers.ArrayComparer);
             for (int i = 0; i < 65536; i++)
             {
-                
+
                 testDic5.Add(("Test_" + i.ToString())._GetBytes_UTF8(), i);
             }
 
@@ -252,6 +375,24 @@ namespace IPA.TestDev
                 testDic6.Add(new TestSt2(str), i);
             }
 
+            Dictionary<TestSt3, int> testDic7 = new Dictionary<TestSt3, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                string str = i.ToString();
+                testDic7.Add(new TestSt3(str), i);
+            }
+
+            Dictionary<BitStructKey<TestSt4>, int> testDic8 = new Dictionary<BitStructKey<TestSt4>, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                testDic8.Add(new BitStructKey<TestSt4>(new TestSt4 { IntValue = i }), i);
+            }
+
+            Dictionary<TestSt5, int> testDic9 = new Dictionary<TestSt5, int>();
+            for (int i = 0; i < 65536; i++)
+            {
+                testDic9.Add(new TestSt5 { IntValue = i }, i);
+            }
 
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
             BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
@@ -261,6 +402,17 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
 
             var queue = new MicroBenchmarkQueue()
+
+
+            .Add(new MicroBenchmark($"RateLimiter", Benchmark_CountForVerySlow, count =>
+            {
+                RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode: RateLimiterMode.Penalty));
+                for (int c = 0; c < count; c++)
+                {
+                    rl.TryInput(1, out _);
+                }
+            }), enabled: true, priority: 190802)
+
 
             //.Add(new MicroBenchmark($"Compare Test #1", Benchmark_CountForNormal, count =>
             //{
@@ -334,137 +486,169 @@ namespace IPA.TestDev
             //    }
             //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Struct equals", Benchmark_CountForNormal, count =>
-            {
-                TestSt2 s1 = new TestSt2("Hello");
-                TestSt2 s2 = new TestSt2("Helxo");
-                
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 = Util.StructBitCompare(s1, s2);
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Struct equals", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt2 s1 = new TestSt2("Hello");
+            //    TestSt2 s2 = new TestSt2("Helxo");
 
-            .Add(new MicroBenchmark($"Struct hash", Benchmark_CountForNormal, count =>
-            {
-                TestSt2 s1 = new TestSt2("Hello");
-                TestSt2 s2 = new TestSt2("Helxo");
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 = Util.StructBitCompare(s1, s2);
+            //    }
+            //}), enabled: true, priority: 999999)
 
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 = s1._HashMarvin();
-                    Limbo.SInt32 = s2._HashMarvin();
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Struct hash", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt2 s1 = new TestSt2("Hello");
+            //    TestSt2 s2 = new TestSt2("Helxo");
 
-            .Add(new MicroBenchmark($"Generic clear #1", Benchmark_CountForNormal, count =>
-            {
-                int size = 256;
-                byte[] tmp1 = new byte[size];
-                for (int c = 0; c < count; c++)
-                {
-                    Unsafe.InitBlock(ref tmp1[0], 0, (uint)size);
-                }
-            }), enabled: true, priority: 999999)
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 = s1._HashMarvin();
+            //        Limbo.SInt32 = s2._HashMarvin();
+            //    }
+            //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Generic copy #1", Benchmark_CountForNormal, count =>
-            {
-                int size = 256;
-                byte[] tmp1 = new byte[size];
-                byte[] tmp2 = new byte[size];
-                for (int c = 0; c < count; c++)
-                {
-                    Util.CopyByte(tmp2, 0, tmp1, 0, size);
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Generic clear #1", Benchmark_CountForNormal, count =>
+            //{
+            //    int size = 256;
+            //    byte[] tmp1 = new byte[size];
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Unsafe.InitBlock(ref tmp1[0], 0, (uint)size);
+            //    }
+            //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Generic #1", Benchmark_CountForNormal, count =>
-            {
-                int target = 32767;
-                string tstr = "Tes" + target;
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic1[tstr];
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Generic copy #1", Benchmark_CountForNormal, count =>
+            //{
+            //    int size = 256;
+            //    byte[] tmp1 = new byte[size];
+            //    byte[] tmp2 = new byte[size];
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Util.CopyByte(tmp2, 0, tmp1, 0, size);
+            //    }
+            //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Generic #2", Benchmark_CountForNormal, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic2[32767];
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Generic #1", Benchmark_CountForNormal, count =>
+            //{
+            //    int target = 32767;
+            //    string tstr = "Tes" + target;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic1[tstr];
+            //    }
+            //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"Generic #4", Benchmark_CountForNormal, count =>
-            {
-                MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
-                targetBuffer.WriteSInt32(((int)32767));
+            //.Add(new MicroBenchmark($"Generic #2", Benchmark_CountForNormal, count =>
+            //{
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic2[32767];
+            //    }
+            //}), enabled: true, priority: 999999)
 
-                ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+            //.Add(new MicroBenchmark($"Generic #4", Benchmark_CountForNormal, count =>
+            //{
+            //    MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
+            //    targetBuffer.WriteSInt32(((int)32767));
 
-                TestSt1 st1 = new TestSt1(rm);
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic4[st1];
-                }
-            }), enabled: true, priority: 999999)
+            //    ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
 
-            .Add(new MicroBenchmark($"Generic #3", Benchmark_CountForNormal, count =>
-            {
-                MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
-                targetBuffer.WriteSInt32(((int)32767));
+            //    TestSt1 st1 = new TestSt1(rm);
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic4[st1];
+            //    }
+            //}), enabled: true, priority: 999999)
 
-                ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
-                ReadOnlyMemory<byte> rm2 = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+            //.Add(new MicroBenchmark($"Generic #3", Benchmark_CountForNormal, count =>
+            //{
+            //    MemoryBuffer<byte> targetBuffer = new MemoryBuffer<byte>();
+            //    targetBuffer.WriteSInt32(((int)32767));
 
-                var cc = MemoryComparers.ReadOnlyMemoryComparer;
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic3[rm];
-                    //cc.GetHashCode(rm);
-                    //cc.GetHashCode(rm);
-                    //cc.Equals(rm, rm2);
-                }
-            }), enabled: true, priority: 999999)
+            //    ReadOnlyMemory<byte> rm = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
+            //    ReadOnlyMemory<byte> rm2 = targetBuffer.Memory.Slice(0, 4)._CloneMemory();
 
-            .Add(new MicroBenchmark($"Generic #5", Benchmark_CountForNormal, count =>
-            {
-                byte[] rma = "Test_32767"._GetBytes_UTF8();
+            //    var cc = MemoryComparers.ReadOnlyMemoryComparer;
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic3[rm];
+            //        //cc.GetHashCode(rm);
+            //        //cc.GetHashCode(rm);
+            //        //cc.Equals(rm, rm2);
+            //    }
+            //}), enabled: true, priority: 999999)
 
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic5[rma];
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Generic #5", Benchmark_CountForNormal, count =>
+            //{
+            //    byte[] rma = "Test_32767"._GetBytes_UTF8();
 
-            .Add(new MicroBenchmark($"Generic #6", Benchmark_CountForNormal, count =>
-            {
-                TestSt2 target = new TestSt2("32767");
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic5[rma];
+            //    }
+            //}), enabled: true, priority: 999999)
 
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 += testDic6[target];
-                }
-            }), enabled: true, priority: 999999)
+            //.Add(new MicroBenchmark($"Generic #6", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt2 target = new TestSt2("32767");
 
-            .Add(new MicroBenchmark($"isempty 1", Benchmark_CountForSlow, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 = (IsEmpty)TestString3 ? 1 : 0;
-                    Limbo.SInt32 = (IsEmpty)TestString4 ? 1 : 0;
-                }
-            }), enabled: true, priority: 190802)
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic6[target];
+            //    }
+            //}), enabled: true, priority: 999999)
 
-            .Add(new MicroBenchmark($"isempty 2", Benchmark_CountForSlow, count =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.SInt32 = TestString3._IsEmpty() ? 1 : 0;
-                    Limbo.SInt32 = TestString4._IsEmpty() ? 1 : 0;
-                }
-            }), enabled: true, priority: 190802)
+            //.Add(new MicroBenchmark($"Generic #7", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt3 target = new TestSt3("32767");
+
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic7[target];
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"Generic #8", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt4 st4 = new TestSt4 { IntValue = 32767 };
+
+            //    var key = new BitStructKey<TestSt4>(st4);
+
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic8[key];
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"Generic #9", Benchmark_CountForNormal, count =>
+            //{
+            //    TestSt5 st5 = new TestSt5 { IntValue = 32767 };
+
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 += testDic9[st5];
+            //    }
+            //}), enabled: true, priority: 999999)
+
+            //.Add(new MicroBenchmark($"isempty 1", Benchmark_CountForSlow, count =>
+            //{
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 = (IsEmpty)TestString3 ? 1 : 0;
+            //        Limbo.SInt32 = (IsEmpty)TestString4 ? 1 : 0;
+            //    }
+            //}), enabled: true, priority: 190802)
+
+            //.Add(new MicroBenchmark($"isempty 2", Benchmark_CountForSlow, count =>
+            //{
+            //    for (int c = 0; c < count; c++)
+            //    {
+            //        Limbo.SInt32 = TestString3._IsEmpty() ? 1 : 0;
+            //        Limbo.SInt32 = TestString4._IsEmpty() ? 1 : 0;
+            //    }
+            //}), enabled: true, priority: 190802)
 
             .Add(new MicroBenchmark($"ignore case compare string 1", Benchmark_CountForSlow, count =>
             {

@@ -204,6 +204,10 @@ ConfigureServices() の一番上:
 AspNetLib.ConfigureServices(StartupHelper, services);
 
 StartupHelper.ConfigureServices(services);
+
+services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(opt =>
+{
+});
 ---
 
 ConfigureServices() の CookiePolicyOptions をコメントアウト
@@ -231,6 +235,8 @@ Configure() に引数
 
 Configure() の一番上:
 ---
+app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
+
 // wwwroot directory of this project
 StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 

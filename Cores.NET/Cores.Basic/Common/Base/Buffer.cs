@@ -3239,7 +3239,7 @@ namespace IPA.Cores.Basic
         {
             Debug.Assert(firstLength >= 0);
             Debug.Assert(secondLength >= 0);
-            
+
             if (Unsafe.AreSame(ref first, ref second))
                 goto Equal;
 
@@ -3457,6 +3457,57 @@ namespace IPA.Cores.Basic
 
             return firstLength.CompareTo(secondLength);
         }
+    }
+
+    public class BitStructKey<TStruct> : IEquatable<BitStructKey<TStruct>>, IComparable<BitStructKey<TStruct>>
+        where TStruct : unmanaged
+    {
+        public readonly TStruct Value;
+        public readonly int HashCode;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BitStructKey(TStruct value)
+        {
+            this.Value = value;
+            this.HashCode = this.Value._HashMarvin();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int CompareTo(BitStructKey<TStruct> other)
+        {
+            return Util.StructBitCompare(in this.Value, in other.Value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(BitStructKey<TStruct> other)
+        {
+            if (this.HashCode != other.HashCode) return false;
+            return Util.StructBitEquals(in this.Value, in other.Value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override bool Equals(object obj)
+        {
+            return Equals((BitStructKey<TStruct>)obj);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int GetHashCode()
+        {
+            return this.HashCode;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override string ToString()
+        {
+            return this.Value.ToString();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator TStruct(BitStructKey<TStruct> key) => key.Value;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BitStructKey<TStruct>(TStruct key) => new BitStructKey<TStruct>(key);
     }
 
     public static partial class StructComparers<T> where T : unmanaged

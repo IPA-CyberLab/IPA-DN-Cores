@@ -62,6 +62,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\UnixApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Util.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\LocalFileSystemUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\NetworkHashKeys.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\General\MasterData\MasterData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TcpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\TelnetStreamWatcher.cs" />
@@ -143,7 +144,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Wpc.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\CertVault\CertVault.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Auth\Basic\BasicAuth.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpEnforceHttps.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Middleware\EnforceHttps.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpExceptionLogger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpc.cs" />
@@ -153,6 +154,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\MsLogger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Middleware\HttpRequestRateLimiter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Util\LogBrowser\LogBrowser.cs" />
   </ItemGroup>
   <ItemGroup>

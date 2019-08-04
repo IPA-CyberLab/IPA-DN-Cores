@@ -36,34 +36,24 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Security.Authentication;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http.Extensions;
-using Newtonsoft.Json;
 using System.Linq;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.Internal;
+using Microsoft.Net.Http.Headers;
 
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Primitives;
-using Microsoft.AspNetCore.Routing;
-using IPA.Cores.ClientApi.Acme;
-using System.Security.Claims;
-using System.Runtime.Serialization;
-using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Http.Internal;
-using Microsoft.Net.Http.Headers;
 
 namespace IPA.Cores.Basic
 {
@@ -218,8 +208,6 @@ namespace IPA.Cores.Basic
 
             context.Response.StatusCode = StatusCode;
             context.Response.Headers[HeaderNames.Location] = redirectUrl;
-
-            redirectUrl._Debug();
 
             return Task.CompletedTask;
         }

@@ -31,9 +31,7 @@
 // LAW OR COURT RULE.
 
 // Author: Daiyuu Nobori
-// Description
-
-#if true
+// IP アドレスなどのネットワーク情報に基づくハッシュキーの実装
 
 using System;
 using System.Linq;
@@ -50,9 +48,37 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using System.Net;
+using System.Net.Sockets;
+
 namespace IPA.Cores.Basic
 {
-}
+    public static partial class HashKeys
+    {
+        // 1 つの IP アドレスに基づくハッシュキー
+        public class SingleIPAddress : IEquatable<SingleIPAddress>
+        {
+            public readonly IPAddress IPAddress;
+            public readonly int HashCode;
 
-#endif
+            public SingleIPAddress(IPAddress address)
+            {
+                this.IPAddress = address;
+                this.HashCode = address.GetHashCode();
+            }
+
+            public bool Equals(SingleIPAddress other)
+                => this.IPAddress.Equals(other.IPAddress);
+
+            public override bool Equals(object obj)
+                => Equals((SingleIPAddress)obj);
+
+            public override int GetHashCode()
+                => this.HashCode;
+
+            public override string ToString()
+                => this.IPAddress.ToString();
+        }
+    }
+}
 

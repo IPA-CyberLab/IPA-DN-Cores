@@ -196,7 +196,7 @@ namespace IPA.Cores.Helper.Basic
         public static uint _BoolToUInt(this bool b) => (uint)(b ? 1 : 0);
         public static byte _BoolToByte(this bool b) => (byte)(b ? 1 : 0);
 
-        public static double _NonNegative(this double i) => (double)(i >= 0 ? i : 0);
+        public static double _NonNegative(this double i) => (double)(i >= 0.0 ? i : 0.0);
         public static float _NonNegative(this float i) => (float)(i >= 0 ? i : 0);
 
         public static double _Max(this double i, double target) => Math.Max(i, target);
