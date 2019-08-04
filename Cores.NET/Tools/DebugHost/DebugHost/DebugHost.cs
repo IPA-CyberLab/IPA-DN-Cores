@@ -255,9 +255,27 @@ namespace IPA.Cores.Tools.DebugHost
 
                     Console.WriteLine($"DebugHost Client: starting the DebugHost server with cmdline '{cmdLine}' ...");
 
+                    // copy exe to temp path
+                    string dir = Path.Combine(Path.GetTempPath(), "CoresAspNet_DebugHost");
+                    string srcExe = Process.GetCurrentProcess().MainModule.FileName;
+                    string dstExe = Path.Combine(dir, "DebugHost_" + appId.ToLower() + ".exe");
+
+                    try
+                    {
+                        if (Directory.Exists(dir) == false)
+                        {
+                            Directory.CreateDirectory(dir);
+                        }
+
+                        File.Copy(srcExe, dstExe, true);
+                    }
+                    catch
+                    {
+                    }
+
                     ProcessStartInfo info = new ProcessStartInfo()
                     {
-                        FileName = Process.GetCurrentProcess().MainModule.FileName,
+                        FileName = dstExe,
                         Arguments = $"run {appId} {cmdLine}",
                         UseShellExecute = true,
                         CreateNoWindow = false,
