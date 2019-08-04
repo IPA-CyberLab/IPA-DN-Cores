@@ -30,6 +30,12 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
 を追加する。
 
 
+■ Cores.AspNet.shproj の追加
+ソリューションに
+「Cores.AspNet.shproj」
+を追加する。
+
+
 ■ ASP.NET Core プロジェクトの編集
 ・ csproj
 
