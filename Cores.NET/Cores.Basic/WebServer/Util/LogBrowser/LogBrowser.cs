@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
         public string SystemTitle { get; }
         public long TailSize { get; }
 
-        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle, long tailSize = Consts.Values.LogBrowserDefaultTailSize)
+        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle, long tailSize = Consts.Numbers.LogBrowserDefaultTailSize)
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;

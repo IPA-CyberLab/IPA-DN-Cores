@@ -94,7 +94,12 @@ namespace IPA.Cores.Basic
 
                     // Start Log Server
                     this.CertVault = new CertVault(certVaultDir,
-                        new CertVaultSettings { ReloadIntervalMsecs = 3600 });
+                        new CertVaultSettings(EnsureSpecial.Yes)
+                        {
+                            ReloadIntervalMsecs = 3600 * 1000,
+                            UseAcme = false,
+                            NonAcmeEnableAutoGenerateSubjectNameCert = false,
+                        });
 
                     Lfs.CreateDirectory(logDestDir, FileFlags.OnCreateSetCompressionFlag);
 

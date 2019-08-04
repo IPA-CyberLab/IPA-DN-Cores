@@ -15,11 +15,9 @@ namespace DaemonCenter.Controllers
             return View();
         }
 
-        public async Task<IActionResult> About()
+        public IActionResult About()
         {
             ViewData["Message"] = "Your application description page.";
-
-            await Task.Delay(1000);
 
             return View();
         }

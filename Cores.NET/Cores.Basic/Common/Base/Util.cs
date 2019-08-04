@@ -6177,6 +6177,57 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ResultOrExeption<T>
+    {
+        readonly T ResultInternal = default;
+        readonly Exception ExceptionInternal = null;
+
+        public T Value
+        {
+            get
+            {
+                if (ExceptionInternal != null)
+                {
+                    this.ExceptionInternal._ReThrow();
+                    throw this.ExceptionInternal; // 予備
+                }
+
+                return this.ResultInternal;
+            }
+        }
+
+        public Exception Exception => this.ExceptionInternal;
+
+        public bool IsError => ExceptionInternal != null;
+
+        public bool IsOk => (!IsError);
+
+        public ResultOrExeption(T result)
+        {
+            this.ResultInternal = result;
+        }
+
+        public ResultOrExeption(Exception ex)
+        {
+            this.ExceptionInternal = ex ?? throw new ArgumentNullException(nameof(ex));
+        }
+
+        public void ThrowIfException()
+        {
+            var ex = this.Exception;
+            if (ex != null)
+            {
+                ex._ReThrow();
+                throw ex; // 予備
+            }
+        }
+
+        public static implicit operator ResultOrExeption<T>(T result) => new ResultOrExeption<T>(result);
+        public static implicit operator ResultOrExeption<T>(Exception ex) => new ResultOrExeption<T>(ex);
+
+        public static implicit operator T(ResultOrExeption<T> resultOrException) => resultOrException.Value;
+    }
+
     public class None { }
 
     [Flags]

@@ -259,6 +259,35 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                CertificateStore parent = DevTools.CoresDebugCACert.PkiCertificateStore;
+
+                Certificate cert = new Certificate(priv, parent, new CertificateOptions(PkiAlgorithm.RSA, cn: "test"));
+                Lfs.WriteDataToFile(@"c:\tmp\test.cer", cert.Export());
+                return;
+            }
+
+            if (true)
+            {
+                DevTools.CoresDebugCACert.HashSHA256._Print();
+                return;
+            }
+
+            if (true)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "Cores.NET Debug Public CA", c: "US", expires: Util.MaxDateTimeOffsetValue));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteDataToFile(@"c:\tmp\ca.p12", store.ExportPkcs12());
+                return;
+            }
+
+            if (true)
+            {
                 RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode : RateLimiterMode.NoPenalty));
                 while (true)
                 {

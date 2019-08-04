@@ -1408,6 +1408,17 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _Base64UrlDecode(this string str) => Str.Base64UrlDecode(str);
 
         public static Task<T> FlushOtherStreamIfPending<T>(this Task<T> recvTask, PipeStream otherStream) => TaskUtil.FlushOtherStreamIfRecvPendingAsync(recvTask, otherStream);
+
+        public static IReadOnlyList<string> _GetCertSHAHashStrList(this X509Certificate cert)
+        {
+            List<string> ret = new List<string>();
+
+            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA1);
+            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
+            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA512);
+
+            return ret;
+        }
     }
 }
 

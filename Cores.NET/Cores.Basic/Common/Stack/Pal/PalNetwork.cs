@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class PalX509Certificate
+    public partial class PalX509Certificate
     {
         public X509Certificate NativeCertificate { get; }
 
@@ -67,21 +67,48 @@ namespace IPA.Cores.Basic
         public string ToString(bool details) => this.NativeCertificate.ToString(details);
 
         public string HashSHA1 => this.NativeCertificate.GetCertHashString();
+        public string HashSHA256 => this.NativeCertificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
+
+        public IReadOnlyList<string> GetSHAHashStrList() => this.NativeCertificate._GetCertSHAHashStrList();
 
         public PalX509Certificate(X509Certificate nativeCertificate)
         {
             if (nativeCertificate == null) throw new ArgumentNullException("nativeCertificate");
 
             NativeCertificate = nativeCertificate;
+
+            InitFields();
         }
 
         public PalX509Certificate(ReadOnlySpan<byte> pkcs12Data, string password = null)
         {
             NativeCertificate = Secure.LoadPkcs12(pkcs12Data.ToArray(), password);
+
+            InitFields();
         }
 
         public PalX509Certificate(FilePath filePath, string password = null)
             : this(filePath.EasyAccess.Binary.Span, password) { }
+
+        public void InitFields()
+        {
+            InitPkiFields();
+        }
+
+        partial void InitPkiFields();
+
+        public ReadOnlyMemory<byte> ExportCertificate()
+        {
+            var ret = this.NativeCertificate.GetRawCertData();
+            return ret;
+        }
+
+        public ReadOnlyMemory<byte> ExportCertificateAndKeyAsP12(string password = null)
+        {
+            password = password._NonNull();
+
+            return this.NativeCertificate.Export(X509ContentType.Pfx, password);
+        }
     }
 
     public struct PalSocketReceiveFromResult
@@ -411,10 +438,10 @@ namespace IPA.Cores.Basic
                 AllowRenegotiation = true,
                 RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
                 {
-                    string sha1 = cert.GetCertHashString();
+                    IReadOnlyList<string> certHashList = cert._GetCertSHAHashStrList();
 
                     bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
-                    bool b2 = ServerCertSHA1List?.Where(x => x._IsSamei(sha1)).Any() ?? false;
+                    bool b2 = ServerCertSHA1List?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
                     bool b3 = this.AllowAnyServerCert;
 
                     return b1 || b2 || b3;
@@ -464,10 +491,10 @@ namespace IPA.Cores.Basic
                 {
                     if (cert == null) return this.AllowAnyClientCert;
 
-                    string sha1 = cert.GetCertHashString();
+                    IReadOnlyList<string> certHashList = cert._GetCertSHAHashStrList();
 
                     bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
-                    bool b2 = ClientCertSHA1List?.Where(x => x._IsSamei(sha1)).Any() ?? false;
+                    bool b2 = ClientCertSHA1List?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
                     bool b3 = this.AllowAnyClientCert;
 
                     return b1 || b2 || b3;

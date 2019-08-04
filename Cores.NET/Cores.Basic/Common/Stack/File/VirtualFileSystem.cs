@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
 
         public virtual bool IsRoot { get; protected set; }
         public abstract Task<VfsEntity[]> EnumEntitiesAsync(EnumDirectoryFlags flags, CancellationToken cancel = default);
-        public abstract Task<ValueHolder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default);
+        public abstract Task<ResultOrExeption<ValueHolder<VfsEntity>>> OpenEntityAsync(string name, CancellationToken cancel = default);
         public abstract Task AddDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
         public abstract Task RemoveDirectoryAsync(VfsDirectory directory, CancellationToken cancel = default);
         public abstract Task AddFileAsync(VfsFile file, CancellationToken cancel = default);
@@ -218,7 +218,17 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (var nextEntityHolder = await this.OpenEntityAsync(nextName, cancel))
+                ResultOrExeption<ValueHolder<VfsEntity>> result = await this.OpenEntityAsync(nextName, cancel);
+
+                if (result.IsError && result.Exception is VfsNotFoundException)
+                {
+                    ctx.Exception = new VfsNotFoundException(ctx.SpecifiedPath,
+                        $"The object \"{nextName}\" is not found on the directory \"{this.FileSystem.PathParser.BuildAbsolutePathStringFromElements(ctx.NormalizedPathStack)}\".");
+
+                    return;
+                }
+
+                using (var nextEntityHolder = result.Value)
                 {
                     ctx.RemainingPathElements.Dequeue();
 
@@ -348,12 +358,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override async Task<ValueHolder<VfsEntity>> OpenEntityAsync(string name, CancellationToken cancel = default)
+        public override async Task<ResultOrExeption<ValueHolder<VfsEntity>>> OpenEntityAsync(string name, CancellationToken cancel = default)
         {
             using (await AsyncLock.LockWithAwait(cancel))
             {
                 if (this.EntityTable.TryGetValue(name, out VfsEntity entity) == false)
-                    throw new VfsNotFoundException(name, $"The object \"{name}\" not found on the directory.");
+                {
+                    // エラー
+                    return new VfsNotFoundException(name, $"The object \"{name}\" not found on the directory.");
+                }
 
                 entity.AddHandleRef();
 

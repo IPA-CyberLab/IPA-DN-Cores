@@ -137,6 +137,9 @@ namespace IPA.Cores.Basic
 
         public CertificateStoreContainer PrimaryContainer => InternalContainers.Values.Single();
 
+        public Certificate PrimaryCertificate => PrimaryContainer.CertificateList.First();
+        public PrivKey PrimaryPrivateKey => PrimaryContainer.PrivateKey;
+
         public CertificateStore(ReadOnlySpan<byte> chainedCertData, ReadOnlySpan<byte> privateKey, string password = null)
             : this(chainedCertData, new PrivKey(privateKey, password)) { }
 
@@ -148,6 +151,11 @@ namespace IPA.Cores.Basic
             this.InternalContainers.Add("default", new CertificateStoreContainer("default", chainedCertList.ToArray(), privateKey));
 
             InitFields();
+        }
+
+        public CertificateStore(PalX509Certificate certificate)
+            : this(certificate.ExportCertificateAndKeyAsP12().Span)
+        {
         }
 
         public CertificateStore(Certificate singleCert, PrivKey privateKey)
@@ -187,32 +195,33 @@ namespace IPA.Cores.Basic
 
                         List<Certificate> certList = new List<Certificate>();
 
-                        foreach (X509CertificateEntry cert in certs)
+                        if (certs != null)
                         {
-                            Certificate certObj = new Certificate(cert.Certificate);
+                            foreach (X509CertificateEntry cert in certs)
+                            {
+                                Certificate certObj = new Certificate(cert.Certificate);
 
-                            certList.Add(certObj);
+                                certList.Add(certObj);
+                            }
                         }
 
-                        if (certList.Count == 0)
+                        if (certList.Count >= 1)
                         {
-                            throw new ApplicationException("certList.Count == 0");
+                            PrivKey privateKey = null;
+
+                            if (privateKeyParam != null)
+                            {
+                                privateKey = new PrivKey(new AsymmetricCipherKeyPair(certList[0].PublicKey.PublicKeyData, privateKeyParam));
+                            }
+                            else
+                            {
+                                throw new ApplicationException("No private key found.");
+                            }
+
+                            CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
+
+                            this.InternalContainers.Add(alias, container);
                         }
-
-                        PrivKey privateKey = null;
-
-                        if (privateKeyParam != null)
-                        {
-                            privateKey = new PrivKey(new AsymmetricCipherKeyPair(certList[0].PublicKey.PublicKeyData, privateKeyParam));
-                        }
-                        else
-                        {
-                            throw new ApplicationException("No private key found.");
-                        }
-
-                        CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
-
-                        this.InternalContainers.Add(alias, container);
                     }
                 }
 
@@ -230,6 +239,12 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
         public string DigestSHA1Str { get; private set; }
 
+        public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; }
+        public string DigestSHA256Str { get; private set; }
+
+        public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; }
+        public string DigestSHA512Str { get; private set; }
+
         void InitFields()
         {
             X509CertificateSingleton = new Singleton<PalX509Certificate>(GetX509CertificateInternal);
@@ -242,6 +257,12 @@ namespace IPA.Cores.Basic
                 {
                     this.DigestSHA1Data = cert.DigestSHA1Data;
                     this.DigestSHA1Str = cert.DigestSHA1Str;
+
+                    this.DigestSHA256Data = cert.DigestSHA256Data;
+                    this.DigestSHA256Str = cert.DigestSHA256Str;
+
+                    this.DigestSHA512Data = cert.DigestSHA512Data;
+                    this.DigestSHA512Str = cert.DigestSHA512Str;
                 }
             }
         }
@@ -640,9 +661,31 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
         public string DigestSHA1Str { get; private set; }
 
+        public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; }
+        public string DigestSHA256Str { get; private set; }
+
+        public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; }
+        public string DigestSHA512Str { get; private set; }
+
         public IList<CertificateHostName> HostNameList => HostNameListInternal;
 
         List<CertificateHostName> HostNameListInternal = new List<CertificateHostName>();
+
+        public Certificate(PalX509Certificate cert)
+        {
+            ReadOnlyMemory<byte> data = cert.ExportCertificate();
+
+            Asn1InputStream decoder = new Asn1InputStream(data.ToArray());
+
+            Asn1Object obj = decoder.ReadObject();
+            Asn1Sequence seq = Asn1Sequence.GetInstance(obj);
+
+            X509CertificateStructure st = X509CertificateStructure.GetInstance(seq);
+
+            this.CertData = new X509Certificate(st);
+
+            InitFields();
+        }
 
         public Certificate(X509Certificate cert)
         {
@@ -669,6 +712,38 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 上位 CA によって署名されている証明書の作成
+        public Certificate(PrivKey signKey, CertificateStore parentCertificate, CertificateOptions options)
+        {
+            X509Name name = options.GenerateName();
+            X509V3CertificateGenerator gen = new X509V3CertificateGenerator();
+
+            gen.SetSerialNumber(new BigInteger(options.Serial.ToArray()));
+            gen.SetIssuerDN(parentCertificate.PrimaryCertificate.CertData.IssuerDN);
+            gen.SetSubjectDN(name);
+            gen.SetNotBefore(DateTime.Now.AddDays(-1));
+            gen.SetNotAfter(options.Expires.UtcDateTime);
+            gen.SetPublicKey(signKey.PublicKey.PublicKeyData);
+
+            X509Extension extConst = new X509Extension(true, new DerOctetString(new BasicConstraints(false)));
+            gen.AddExtension(X509Extensions.BasicConstraints, true, extConst.GetParsedValue());
+
+            X509Extension extBasicUsage = new X509Extension(false, new DerOctetString(new KeyUsage(KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.DataEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign)));
+            gen.AddExtension(X509Extensions.KeyUsage, false, extBasicUsage.GetParsedValue());
+
+            X509Extension extExtendedUsage = new X509Extension(false, new DerOctetString(new ExtendedKeyUsage(KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
+                KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning)));
+            gen.AddExtension(X509Extensions.ExtendedKeyUsage, false, extExtendedUsage.GetParsedValue());
+
+            X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
+            gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
+
+            this.CertData = gen.Generate(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), parentCertificate.PrimaryPrivateKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
+
+            InitFields();
+        }
+
+        // 自己署名証明書の作成
         public Certificate(PrivKey selfSignKey, CertificateOptions options)
         {
             X509Name name = options.GenerateName();
@@ -759,8 +834,15 @@ namespace IPA.Cores.Basic
             }
 
             byte[] der = this.CertData.GetEncoded();
+
             this.DigestSHA1Data = Secure.HashSHA1(der);
             this.DigestSHA1Str = this.DigestSHA1Data._GetHexString();
+
+            this.DigestSHA256Data = Secure.HashSHA256(der);
+            this.DigestSHA256Str = this.DigestSHA256Data._GetHexString();
+
+            this.DigestSHA512Data = Secure.HashSHA512(der);
+            this.DigestSHA512Str = this.DigestSHA512Data._GetHexString();
         }
 
         public bool IsMatchForHost(string hostname, out CertificateHostnameType matchType)
@@ -1007,6 +1089,23 @@ namespace IPA.Cores.Basic
             }
 
             return alg;
+        }
+    }
+
+    public partial class PalX509Certificate
+    {
+        Singleton<Certificate> PkiCertificateSingleton;
+        Singleton<CertificateStore> PkiCertificateStoreSingleton;
+
+        public Certificate PkiCertificate => PkiCertificateSingleton;
+        public CertificateStore PkiCertificateStore => PkiCertificateStoreSingleton;
+
+        // PalX509Certificate の追加的な初期化
+        partial void InitPkiFields()
+        {
+            PkiCertificateSingleton = new Singleton<Certificate>(() => new Certificate(this));
+
+            PkiCertificateStoreSingleton = new Singleton<CertificateStore>(() => new CertificateStore(this));
         }
     }
 }

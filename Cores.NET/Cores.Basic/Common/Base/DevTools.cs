@@ -65,8 +65,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly Singleton<PalX509Certificate> TestSampleCertSingleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/SampleDefaultCert.p12")));
-        public static PalX509Certificate TestSampleCert => TestSampleCertSingleton;
+        // テスト証明書
+        // SHA256: 8A18D75E4702CC5138F54DAC4C8C88B49C9D1A9E2B556C8B10A6C779658E0026
+        static readonly Singleton<PalX509Certificate> TestSampleCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/SampleDefaultCert.p12")));
+        public static PalX509Certificate TestSampleCert => TestSampleCert_Singleton;
+
+        // デバッグ用 CA
+        // SHA256: D9413D2F2E278BCDB277CD9321E5B9F0CB5EC468AF645C3EFD4942F9238FCE8F
+        static readonly Singleton<PalX509Certificate> CoresDebugCACert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/190804CoresDebugCA.p12")));
+        public static PalX509Certificate CoresDebugCACert => CoresDebugCACert_Singleton;
     }
 }
 

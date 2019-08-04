@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
         public static X509Certificate2 LoadPkcs12(byte[] data, string password = null)
         {
             password = password._NonNull();
-            return new X509Certificate2(data, password, X509KeyStorageFlags.MachineKeySet);
+            return new X509Certificate2(data, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
         }
         public static X509Certificate2 LoadPkcs12(string filename, string password = null, FileSystem fileSystem = null)
         {

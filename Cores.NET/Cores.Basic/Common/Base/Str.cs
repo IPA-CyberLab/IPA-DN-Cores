@@ -5625,7 +5625,7 @@ namespace IPA.Cores.Basic
 
             if (targetStr._IsSame(keyword, comparison))
             {
-                return Consts.Values.MaxMatchPoint;
+                return Consts.Numbers.MaxMatchPoint;
             }
 
             if (keyword._IsEmpty())
@@ -5644,7 +5644,7 @@ namespace IPA.Cores.Basic
 
                     matchLen = Math.Min(matchLen, originalLen);
 
-                    long v = (long)matchLen * Consts.Values.MaxMatchPoint / (long)originalLen;
+                    long v = (long)matchLen * Consts.Numbers.MaxMatchPoint / (long)originalLen;
 
                     return v;
                 }
@@ -5655,7 +5655,7 @@ namespace IPA.Cores.Basic
 
                     matchLen = Math.Min(matchLen, keyword.Length);
 
-                    long v = (long)matchLen * Consts.Values.MaxMatchPoint2 / (long)keyword.Length;
+                    long v = (long)matchLen * Consts.Numbers.MaxMatchPoint2 / (long)keyword.Length;
 
                     return v;
                 }

@@ -145,9 +145,9 @@ namespace IPA.Cores.Basic
         public bool EnableRateLimiter { get; set; } = true;
         public RateLimiterOptions RateLimiterOptions { get; set; }
             = new RateLimiterOptions(
-                burst: 3,
-                limitPerSecond: 1,
-                expiresMsec: 10000,
+                burst: 200,
+                limitPerSecond: 10,
+                expiresMsec: 20000,
                 mode: RateLimiterMode.Penalty,
                 maxEntries: 1_000_000,
                 gcInterval: 100_000);

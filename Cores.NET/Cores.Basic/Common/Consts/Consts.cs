@@ -57,11 +57,16 @@ namespace IPA.Cores.Basic
             public const long S64 = unchecked((long)(U64));
         }
 
-        public static partial class Values
+        public static partial class Numbers
         {
             public const long MaxMatchPoint = 1_0000_0000_0000_0000;
             public const long MaxMatchPoint2 = 1_0000_0000;
             public const long LogBrowserDefaultTailSize = 10_000;
+        }
+
+        public static partial class MaxLens
+        {
+            public const int MaxAutoCertGeneratingFqdnLen = 64;
         }
 
         public static partial class Ports
@@ -113,6 +118,7 @@ namespace IPA.Cores.Basic
             public const string CertVault_AcmeCertKey = "acme_cert.key";
 
             public const string CertVault_DefaultCert = "default.pfx";
+            public const string CertVault_AutoGeneratingCert = "ca.pfx";
 
             public const string DefaultStopRootSearchFileExtsForSafety = ".sln .git";
 
@@ -127,12 +133,13 @@ namespace IPA.Cores.Basic
 
         public static partial class Extensions
         {
-            public const string Certificate = ".crt";
+            public const string Certificate = ".cer";
+            public const string Certificate_Acme = ".crt";
             public const string Pkcs12 = ".pfx";
             public const string GenericKey = ".key";
 
             public const string Filter_Pkcs12s = "*.p12;*.pfx";
-            public const string Filter_Certificates = "*.crt;*.cer";
+            public const string Filter_Certificates = "*.cer;*.crt";
             public const string Filter_Keys = "*.key;*.pem";
 
             public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";

@@ -841,6 +841,10 @@ namespace IPA.Cores.Basic
                     if (pathStack.Count >= 1)
                         pathStack.RemoveAt(pathStack.Count - 1);
                 }
+                else if (trimmed.Length >= 1 && trimmed[0] == '.' && trimmed.ToCharArray().Where(c => c != '.').Any() == false)
+                {
+                    // "....." 等の '.' のみで構成される文字列
+                }
                 else
                 {
                     pathStack.Add(s);
@@ -1368,6 +1372,38 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        public bool IsSafeFileName(string name)
+        {
+            name = name._NonNullTrim();
+
+            char[] a = name.ToCharArray();
+
+            int i;
+            for (i = 0; i < a.Length; i++)
+            {
+                int j;
+
+                for (j = 0; j < InvalidFileNameChars.Length; j++)
+                {
+                    if (InvalidFileNameChars[j] == a[i])
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (name._IsEmpty()) return false;
+
+            if (name == "." || name == "..") return false;
+
+            if (name.Length >= 1 && name[0] == '.')
+            {
+                if (a.Where(c => c != '.').Any() == false) return false;
+            }
+
+            return true;
+        }
+
         public string MakeSafeFileName(string name)
         {
             char[] a = name.ToCharArray();
@@ -1406,6 +1442,8 @@ namespace IPA.Cores.Basic
 
             string trim = ret.Trim();
             if (trim == "." || trim == "..") ret = "_";
+
+            if (ret.ToCharArray().Where(x => x != '.').Any() == false) ret = "_";
 
             return ret;
         }
