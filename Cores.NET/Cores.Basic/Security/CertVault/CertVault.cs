@@ -755,7 +755,7 @@ namespace IPA.Cores.Basic
             public CertificateHostnameType MatchType;
         }
 
-        CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType, bool disableAcme = false)
+        public CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType, bool disableAcme = false)
         {
             hostname = hostname._NonNullTrim();
 
