@@ -96,6 +96,8 @@ namespace DaemonCenter
             app.UseStaticFiles();
             //app.UseCookiePolicy();
 
+            server.RegisterRoutesToHttpServer(app, "/rpc");
+
             app.UseMvc(routes =>
             {
                 routes.MapRoute(

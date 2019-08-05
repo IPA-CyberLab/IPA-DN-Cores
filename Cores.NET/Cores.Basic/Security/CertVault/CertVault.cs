@@ -54,6 +54,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class CertVaultSettings
         {
+            public static readonly Copenhagen<bool> DefaultUseAcme = true;
+
             public static readonly Copenhagen<int> DefaultReloadInterval = 60 * 1000;
 
             public static readonly Copenhagen<int> DefaultMaxAcmeCerts = 3;
@@ -208,7 +210,7 @@ namespace IPA.Cores.Basic
 
         public CertVaultSettings(EnsureSpecial defaultSetting)
         {
-            this.UseAcme = true;
+            this.UseAcme = CoresConfig.CertVaultSettings.DefaultUseAcme;
             this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
             this.ReloadIntervalMsecs = CoresConfig.CertVaultSettings.DefaultReloadInterval;
             this.AcmeContactEmail = GenDefaultContactEmail();

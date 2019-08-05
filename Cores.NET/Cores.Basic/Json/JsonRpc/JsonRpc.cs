@@ -341,10 +341,10 @@ namespace IPA.Cores.Basic
         public JsonRpcServerConfig Config { get; }
         public CancellationToken CancelToken { get => this.Api.GrandCancel; }
 
-        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg)
+        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg = null)
         {
             this.Api = api;
-            this.Config = cfg;
+            this.Config = cfg ?? new JsonRpcServerConfig();
         }
 
         public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req)

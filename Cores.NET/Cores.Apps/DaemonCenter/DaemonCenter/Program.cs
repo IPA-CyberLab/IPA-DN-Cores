@@ -20,6 +20,10 @@ namespace DaemonCenter
         {
             const string appName = "DaemonCenter";
 
+            // CertVault の設定
+            // ACME を無効化し、自己署名証明書を利用するように強制する
+            CoresConfig.CertVaultSettings.DefaultUseAcme.Set(false);
+
             return StandardMainFunctions.DaemonMain.DoMain(
                 new CoresLibOptions(CoresMode.Application,
                     appName: appName,

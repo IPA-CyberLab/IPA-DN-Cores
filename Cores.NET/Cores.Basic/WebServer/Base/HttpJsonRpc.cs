@@ -54,7 +54,7 @@ namespace IPA.Cores.Basic
 {
     public class JsonRpcHttpServer : JsonRpcServer
     {
-        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg) : base(api, cfg) { }
+        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg = null) : base(api, cfg) { }
 
         public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
@@ -155,7 +155,7 @@ namespace IPA.Cores.Basic
             await response._SendStringContents(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
         }
 
-        public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "rpc")
+        public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
         {
             RouteBuilder rb = new RouteBuilder(appBuilder);
 

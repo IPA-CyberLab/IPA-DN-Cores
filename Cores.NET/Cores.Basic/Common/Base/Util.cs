@@ -6078,6 +6078,10 @@ namespace IPA.Cores.Basic
                 {
                     this.Table.Remove(key);
                 }
+                else
+                {
+                    this.Table[key] = currentCount;
+                }
             }
         }
 

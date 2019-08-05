@@ -49,19 +49,44 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using Microsoft.AspNetCore.Builder;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
     public class Server : AsyncService
     {
+        readonly ApiServer ApiServer;
+
+        readonly JsonRpcHttpServer RpcServer;
+
         public Server(CancellationToken cancel = default) : base(cancel)
         {
+            this.ApiServer = new ApiServer(cancel);
+
+            this.RpcServer = new JsonRpcHttpServer(this.ApiServer);
+        }
+
+        public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
+        {
+            this.RpcServer.RegisterRoutesToHttpServer(appBuilder, path);
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                this.ApiServer._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
         }
     }
 
-    public class RpcServer : JsonRpcServerApi, IRpc
+    public class ApiServer : JsonRpcServerApi, IRpc
     {
-        public RpcServer(CancellationToken cancel = default) : base(cancel)
+        public ApiServer(CancellationToken cancel = default) : base(cancel)
         {
         }
 
