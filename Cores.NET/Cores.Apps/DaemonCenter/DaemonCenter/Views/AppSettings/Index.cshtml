@@ -1,15 +1,46 @@
-﻿@inject Server Server;
+﻿@inject Server Server
+@model IReadOnlyList<KeyValuePair<string, App>>
 
 @{
     Page.SiteName = "App 設定";
-    Page.Title = "登録アプリ一覧";
+    Page.Title = "登録 App 一覧";
+    var appList = Model.Select(x => x.Value).Select(x => x.Settings);
 }
 
 <h2 class="title is-4">@Page.Title</h2>
 
+<table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
+    <thead>
+        <tr>
+            <th>@Html.DisplayNameFor(model => model.First().Value.Settings.AppName)</th>
+            <th>@Html.DisplayNameFor(model => model.First().Value.Settings.InstanceKeyType)</th>
+            <th align="right">@Html.DisplayNameFor(model => model.First().Value.Settings.KeepAliveIntervalSecs)</th>
+            <th align="right">@Html.DisplayNameFor(model => model.First().Value.Settings.DeadIntervalSecs)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var kv in Model)
+        {
+            string appId = kv.Key;
+            App app = kv.Value;
+            AppSettings settings = app.Settings;
+
+            <tr>
+                <th><a asp-action="Edit" asp-route-id="@appId">@settings.AppName</a></th>
+                <th>@Html.DisplayFor(model => settings.InstanceKeyType)</th>
+                <th align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</th>
+                <th align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</th>
+            </tr>
+        }
+    </tbody>
+</table>
+
 <p>
-    @Html.ActionLink("新しい App 設定を追加", "Add", new { }, new { @class = "button is-info" })
+    <a class="button is-info" asp-action="Add">新しい App 設定を追加</a>
+</p>
+<p>　</p>
+<p>
+    <a asp-controller="Home" asp-action="Index">トップページに戻る</a>
 </p>
 
 
-<p>Hello</p>

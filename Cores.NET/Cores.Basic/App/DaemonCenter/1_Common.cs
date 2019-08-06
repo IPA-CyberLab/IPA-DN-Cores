@@ -57,19 +57,27 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
     public enum InstanceKeyType
     {
+        [Display(Name = "ホスト名")]
         Hostname = 0,
+
+        [Display(Name = "GUID")]
         Guid = 1,
     }
 
     public class AppSettings : INormalizable, IErrorCheckable, IValidatableObject
     {
+        [Display(Name = "アプリケーション名")]
         [Required]
         public string AppName { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
+        [Display(Name = "インスタンス識別方法")]
         public InstanceKeyType InstanceKeyType { get; set; }
 
+        [Display(Name = "KeepAlive させる秒数")]
         public int KeepAliveIntervalSecs { get; set; }
+
+        [Display(Name = "停止とみなす無通信秒数")]
         public int DeadIntervalSecs { get; set; }
 
         public void CheckError()
@@ -80,6 +88,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public void Normalize()
         {
+            this.AppName = this.AppName._NonNullTrim();
             this.KeepAliveIntervalSecs = this.KeepAliveIntervalSecs._Max(1);
             this.DeadIntervalSecs = this.DeadIntervalSecs._Max(3);
         }
@@ -131,9 +140,34 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string NextInstanceArguments;
     }
 
-    public class DbHive
+    public class Preference : INormalizable
     {
-        public Dictionary<string, App> AppList = new Dictionary<string, App>(StrComparer.IgnoreCaseTrimComparer);
+        public int DefaultKeepAliveIntervalSecs { get; set; }
+        public int DefaultDeadIntervalSecs { get; set; }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public InstanceKeyType DefaultInstanceKeyType { get; set; }
+
+        public void Normalize()
+        {
+            this.DefaultDeadIntervalSecs = this.DefaultDeadIntervalSecs._Max(1);
+            this.DefaultKeepAliveIntervalSecs = this.DefaultKeepAliveIntervalSecs._Max(3);
+        }
+    }
+
+    public class DbHive : INormalizable
+    {
+        public SortedDictionary<string, App> AppList = new SortedDictionary<string, App>(StrComparer.IgnoreCaseTrimComparer);
+
+        public Preference Preference = new Preference();
+
+        public void Normalize()
+        {
+            if (this.AppList == null) this.AppList = new SortedDictionary<string, App>();
+
+            if (this.Preference == null) this.Preference = new Preference();
+            this.Preference.Normalize();
+        }
     }
 
     public class RequestMsg

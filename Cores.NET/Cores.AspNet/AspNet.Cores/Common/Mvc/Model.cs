@@ -121,7 +121,10 @@ namespace IPA.Cores.AspNet
                     return "追加";
 
                 case ModelMode.Edit:
-                    return $"「{this.Data.ToString()}」の編集";
+                    if ((IsFilled)this.Data.ToString())
+                        return $"「{this.Data.ToString()}」の編集";
+                    else
+                        return $"編集";
 
                 case ModelMode.Delete:
                     return $"「{this.Data.ToString()}」の削除";

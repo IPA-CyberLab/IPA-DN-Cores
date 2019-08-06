@@ -5,6 +5,8 @@
     Page.SiteName = "App 設定";
 
     Page.Title = Model.GetOperationTitle();
+
+
 }
 
 <h2 class="title is-4">@Page.FullTitle</h2>
@@ -12,15 +14,14 @@
 <form asp-action="Edit">
     <div class="box">
         <div class="content">
-
             <div class="field is-horizontal">
                 <div class="field-label is-normal">
-                    <label class="label">AppName</label>
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.AppName)</label>
                 </div>
                 <div class="field-body">
                     <div class="field">
                         <p class="control">
-                            <input asp-for="Data.AppName" class="input is-info" />
+                            @Html.EditorFor(model => model.Data.AppName, new { htmlAttributes = new { @class = "input is-info" } })
                             <span class="help is-primary" asp-validation-for="Data.AppName"></span>
                         </p>
                     </div>
@@ -29,12 +30,13 @@
 
             <div class="field is-horizontal">
                 <div class="field-label is-normal">
-                    <label class="label">KeepAliveIntervalSecs</label>
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.KeepAliveIntervalSecs)</label>
                 </div>
                 <div class="field-body">
                     <div class="field is-narrow">
                         <p class="control">
-                            <input asp-for="Data.KeepAliveIntervalSecs" class="input is-info" />
+                            @Html.EditorFor(model => model.Data.KeepAliveIntervalSecs, new { htmlAttributes = new { @class = "input is-info" } })
+                            <span class="help is-primary" asp-validation-for="Data.KeepAliveIntervalSecs"></span>
                         </p>
                     </div>
                 </div>
@@ -42,12 +44,13 @@
 
             <div class="field is-horizontal">
                 <div class="field-label is-normal">
-                    <label class="label">DeadIntervalSecs</label>
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.DeadIntervalSecs)</label>
                 </div>
                 <div class="field-body">
                     <div class="field is-narrow">
                         <p class="control">
-                            <input asp-for="Data.DeadIntervalSecs" class="input is-info" />
+                            @Html.EditorFor(model => model.Data.DeadIntervalSecs, new { htmlAttributes = new { @class = "input is-info" } })
+                            <span class="help is-primary" asp-validation-for="Data.DeadIntervalSecs"></span>
                         </p>
                     </div>
                 </div>
@@ -55,13 +58,14 @@
 
             <div class="field is-horizontal">
                 <div class="field-label is-normal">
-                    <label class="label">InstanceKeyType</label>
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.InstanceKeyType)</label>
                 </div>
                 <div class="field-body">
                     <div class="field is-narrow">
                         <div class="control">
                             <div class="select is-fullwidth">
                                 <select asp-for="Data.InstanceKeyType" asp-items="Html.GetEnumSelectList<InstanceKeyType>()" class="input is-info"></select>
+                                <span class="help is-primary" asp-validation-for="Data.InstanceKeyType"></span>
                             </div>
                         </div>
                     </div>
@@ -76,6 +80,11 @@
                     <div class="field">
                         <div class="control">
                             <input class="button is-success" type="submit" asp-action="@Model.Mode" value="@Model.GetButtonTitle()">
+                            @if (Model.Mode == ModelMode.Edit)
+                            {
+                                @*<input class="button is-danger" type="submit" asp-action="Delete" asp-route-id="@Model.Id" value="削除">*@
+                                <button type="button" class="button is-danger" onclick="vue.deleteConfirm('@Url.Action(action: "Delete", new { id = Model.Id })')">削除</button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -85,4 +94,31 @@
 
         </div>
     </div>
+    <a class="is-info" asp-action="Index">App 一覧に戻る</a>
 </form>
+
+@section scripts {
+
+    <script type="text/javascript">
+
+        var vue = new Vue({
+
+            methods:
+            {
+                deleteConfirm: function (url) {
+                    this.$dialog.confirm({
+                        title: "削除",
+                        message: "指定されたオブジェクトを削除します。よろしいですか?",
+                        type: "is-danger",
+                        onConfirm: () => {
+                            window.location.href = url;
+                        },
+                    });
+                },
+            },
+
+        });
+
+    </script>
+
+}

@@ -116,6 +116,21 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             }
         }
 
+        public Preference GetPreference()
+        {
+            return DbSnapshot.Preference;
+        }
+
+        public void SetPreference(Preference preference)
+        {
+            preference.Normalize();
+
+            lock (DbLock)
+            {
+                Db.Preference = preference;
+            }
+        }
+
         public string AppAdd(AppSettings settings)
         {
             settings.Normalize();
@@ -123,7 +138,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             lock (DbLock)
             {
-                string appId = Str.NewGuid();
+                string appId = Str.NewFullId("APP");
 
                 App app = new App
                 {
@@ -136,6 +151,14 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
 
                 Db.AppList.Add(appId, app);
+
+                // デフォルト設定を保存
+                Preference pref = this.GetPreference();
+                pref.DefaultDeadIntervalSecs = settings.DeadIntervalSecs;
+                pref.DefaultKeepAliveIntervalSecs = settings.KeepAliveIntervalSecs;
+                pref.DefaultInstanceKeyType = settings.InstanceKeyType;
+                pref.Normalize();
+                this.SetPreference(pref);
 
                 return appId;
             }
@@ -171,13 +194,21 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     throw new ApplicationException($"アプリケーション名 '{app.Settings.AppName}' が重複しています。");
                 }
 
+                // デフォルト設定を保存
+                Preference pref = this.GetPreference();
+                pref.DefaultDeadIntervalSecs = settings.DeadIntervalSecs;
+                pref.DefaultKeepAliveIntervalSecs = settings.KeepAliveIntervalSecs;
+                pref.DefaultInstanceKeyType = settings.InstanceKeyType;
+                pref.Normalize();
+                this.SetPreference(pref);
+
                 app.Settings = settings;
             }
         }
 
-        public IReadOnlyList<App> AppEnum()
+        public IReadOnlyList<KeyValuePair<string, App>> AppEnum()
         {
-            return DbSnapshot.AppList.Values.ToArray();
+            return DbSnapshot.AppList.ToArray();
         }
     }
 

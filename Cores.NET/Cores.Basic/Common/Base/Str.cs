@@ -927,7 +927,7 @@ namespace IPA.Cores.Basic
             // FFFFF: 2015/08/10 からの秒数を 9600 で割った値
             // GGGGG: 乱数
             // CC: チェックサム (AAAAAAAAAABBBDDDDDEEEEEFFFFFGGGGG<ID> のハッシュ)
-            Str.NormalizeString(ref prefix);
+            prefix = prefix._NonNullTrim();
 
             DateTime start_dt = new DateTime(2000, 1, 1);
             DateTime now = DateTime.Now;
