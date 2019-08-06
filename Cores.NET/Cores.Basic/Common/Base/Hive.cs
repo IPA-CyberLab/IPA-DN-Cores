@@ -623,6 +623,15 @@ namespace IPA.Cores.Basic
 
         internal void UnregisterInternal(IHiveData hiveData)
         {
+            // 最後に Sync を実行する
+            HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
+
+            if (hiveData.IsReadOnly == false)
+                flags |= HiveSyncFlags.SaveToFile;
+
+            // エラーを無視
+            hiveData.SyncWithStorageAsync(flags, true)._GetResult();
+
             lock (LockObj)
             {
                 RegisteredHiveData.Remove(hiveData.DataName);
@@ -707,7 +716,7 @@ namespace IPA.Cores.Basic
         void Normalize();
     }
 
-    public class HiveData<T> : IHiveData where T : class, new()
+    public class HiveData<T> : IHiveData, IDisposable where T : class, new()
     {
         public HiveSyncPolicy Policy { get; private set; }
         public string DataName { get; }
@@ -725,6 +734,8 @@ namespace IPA.Cores.Basic
         readonly AsyncLock StorageAsyncLock = new AsyncLock();
 
         readonly Func<T> GetDefaultDataFunc;
+
+        readonly IHolder Leak = null;
 
         class HiveDataState
         {
@@ -789,6 +800,24 @@ namespace IPA.Cores.Basic
             if (this.IsManaged)
             {
                 this.Hive.RegisterInternal(this);
+
+                // リークチェック
+                this.Leak = LeakChecker.Enter(LeakCounterKind.ManagedHiveRunning);
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            // IsManaged の場合のみ Unregister 処理を実施する
+            if (this.IsManaged)
+            {
+                this.Hive.UnregisterInternal(this);
+
+                this.Leak._DisposeSafe();
             }
         }
 

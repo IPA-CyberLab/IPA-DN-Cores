@@ -235,6 +235,50 @@ namespace IPA.Cores.Helper.Basic
         public static uint _Max(this uint i, uint target) => Math.Max(i, target);
         public static ulong _Max(this ulong i, ulong target) => Math.Max(i, target);
 
+
+
+        public static void _SetNonNegative(this ref double i) => i = (double)(i >= 0.0 ? i : 0.0);
+        public static void _SetNonNegative(this ref float i) => i = (float)(i >= 0 ? i : 0);
+
+        public static void _SetMax(this ref double i, double target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref float i, float target) => i = Math.Max(i, target);
+
+        public static void _SetMin(this ref double i, double target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref float i, float target) => i = Math.Min(i, target);
+
+        public static void _SetNonNegative(this ref sbyte i) => i = (sbyte)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref short i) => i = (short)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref int i) => i = (int)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref long i) => i = (long)(i >= 0 ? i : 0);
+
+        public static void _SetNonNegative(this ref byte i) => i = (byte)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref ushort i) => i = (ushort)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref uint i) => i =(uint)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref ulong i) => i = (ulong)(i >= 0 ? i : 0);
+
+        public static void _SetMin(this ref sbyte i, sbyte target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref short i, short target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref int i, int target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref long i, long target) => i = Math.Min(i, target);
+
+        public static void _SetMin(this ref byte i, byte target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref ushort i, ushort target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref uint i, uint target) => i = Math.Min(i, target);
+        public static void _SetMin(this ref ulong i, ulong target) => i = Math.Min(i, target);
+
+        public static void _SetMax(this ref sbyte i, sbyte target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref short i, short target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref int i, int target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref long i, long target) => i = Math.Max(i, target);
+
+        public static void _SetMax(this ref byte i, byte target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref ushort i, ushort target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref uint i, uint target) => i = Math.Max(i, target);
+        public static void _SetMax(this ref ulong i, ulong target) => i = Math.Max(i, target);
+
+
+
+
         public static bool _ToBool(this string str) => Str.StrToBool(str);
         public static byte[] _ToByte(this string str) => Str.StrToByte(str);
         public static DateTime _ToDate(this string str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);

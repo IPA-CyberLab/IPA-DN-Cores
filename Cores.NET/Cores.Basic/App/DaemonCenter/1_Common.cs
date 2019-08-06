@@ -48,21 +48,108 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
+    [Flags]
+    public enum InstanceKeyType
+    {
+        Hostname = 0,
+        Guid = 1,
+    }
+
+    public class AppSettings : INormalizable, IErrorCheckable
+    {
+        public string AppName;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public InstanceKeyType InstanceKeyType;
+
+        public int KeepAliveIntervalSecs;
+        public int DeadIntervalSecs;
+
+        public void CheckError()
+        {
+            if (AppName._IsEmpty())
+                throw new ArgumentNullException(nameof(AppName));
+        }
+
+        public void Normalize()
+        {
+            this.KeepAliveIntervalSecs._SetMax(1);
+            this.DeadIntervalSecs._SetMax(3);
+        }
+    }
+
+    public class App
+    {
+        public string AppId;
+
+        public AppSettings Settings;
+
+        public List<Instance> InstanceList = new List<Instance>();
+    }
+
+    [Flags]
+    public enum StatFlag
+    {
+        None = 0,
+        IsOnGit = 1,
+    }
+
+    public class InstanceStat
+    {
+        public string CommitId;
+        public string InstanceArguments;
+        public CoresRuntimeStat RuntimeStat;
+        public EnvInfoSnapshot EnvInfo;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public StatFlag StatFlag;
+    }
+
+    public class Instance
+    {
+        public string Key;
+        public string SrcIpAddress;
+        public string HostName;
+
+        public DateTimeOffset FirstAlive;
+        public DateTimeOffset LastAlive;
+        public DateTimeOffset LastCommitIdChanged;
+        public DateTimeOffset LastInstanceArgumentsChanged;
+
+        public int NumAlive;
+        public string NextCommitId;
+        public string NextInstanceArguments;
+    }
+
+    public class DbHive
+    {
+        public Dictionary<string, App> AppList = new Dictionary<string, App>(StrComparer.IgnoreCaseTrimComparer);
+    }
+
     public class RequestMsg
     {
+        public string AppId;
+        public string HostName;
+        public InstanceStat Stat;
     }
 
     public class ResponseMsg
     {
+        public int NextKeepAliveMsec;
+
+        public string NextCommitId;
+        public string NextInstanceArguments;
     }
 
     [RpcInterface]
     public interface IRpc
     {
-        Task<ResponseMsg> KeepAliveAsync(RequestMsg req);
+        Task<ResponseMsg> KeepAlive(RequestMsg req);
     }
 }
 

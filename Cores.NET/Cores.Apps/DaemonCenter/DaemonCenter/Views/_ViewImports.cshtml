@@ -5,8 +5,12 @@
 @using IPA.Cores.Helper.Basic;
 @using static IPA.Cores.Globals.Basic;
 
+@using IPA.Cores.Basic.App.DaemonCenterLib;
+
 @using IPA.Cores.AspNet;
 @using IPA.Cores.Helper.AspNet;
 @using static IPA.Cores.Globals.AspNet;
 
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@inject PageContext Page;

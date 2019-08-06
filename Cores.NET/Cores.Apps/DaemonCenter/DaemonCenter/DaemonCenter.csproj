@@ -42,4 +42,10 @@
     <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.Basic.DotNet2.1.Full\Cores.Lib.Basic.DotNet2.1.Full.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="Views\Home\_new.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+  </ItemGroup>
+
 </Project>

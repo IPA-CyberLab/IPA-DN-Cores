@@ -55,6 +55,11 @@ namespace DaemonCenter
             //    options.MinimumSameSitePolicy = SameSiteMode.None;
             //});
 
+            // Cookie 認証を追加
+            EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
+            EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
+            EasyCookieAuth.ConfigureServices(services);
+
             services.AddMvc()
                 .AddViewOptions(opt =>
                 {
@@ -67,6 +72,8 @@ namespace DaemonCenter
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
             services.AddSingleton(new Server());
+
+            services.AddScoped<PageContext>();
         }
         
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -81,6 +88,9 @@ namespace DaemonCenter
             AspNetLib.Configure(StartupHelper, app, env);
 
             StartupHelper.Configure(app, env);
+
+            // Cookie 認証を追加
+            EasyCookieAuth.Configure(app, env);
 
             if (StartupHelper.IsDevelopmentMode)
             {

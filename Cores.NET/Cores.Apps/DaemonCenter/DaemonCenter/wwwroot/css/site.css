@@ -1,8 +1,8 @@
 ﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification\ 
 for details on configuring this project to bundle and minify static web assets. */
 body {
-    padding-top: 50px;
-    padding-bottom: 20px;
+    padding-top: 0px;
+    padding-bottom: 0px;
 }
 
 /* Wrapping element */
@@ -34,4 +34,8 @@ body {
     .carousel-caption {
         display: none;
     }
+}
+
+.footer {
+    padding: 1rem 1rem 1rem;
 }

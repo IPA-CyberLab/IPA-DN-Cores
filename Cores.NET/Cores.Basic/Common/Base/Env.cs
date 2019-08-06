@@ -53,6 +53,8 @@ namespace IPA.Cores.Basic
             HeaderText = headerText;
         }
 
+        // 注意: すべて通常の public 変数とすること (読み取り専用にしないこと)
+
         public string HeaderText;
         public DateTimeOffset TimeStamp = DateTime.Now;
         public string MachineName = Env.MachineName;
@@ -73,9 +75,9 @@ namespace IPA.Cores.Basic
         public bool IsMac = Env.IsMac;
         public bool IsLittenEndian = Env.IsLittleEndian;
         public bool IsBigEndian = Env.IsBigEndian;
-        public bool Is64BitProcess => Env.Is64BitProcess;
-        public bool Is64BitWindows => Env.Is64BitWindows;
-        public bool IsWow64 => Env.IsWow64;
+        public bool Is64BitProcess = Env.Is64BitProcess;
+        public bool Is64BitWindows = Env.Is64BitWindows;
+        public bool IsWow64 = Env.IsWow64;
         public Architecture CpuInfo = Env.CpuInfo;
         public string FrameworkInfoString = Env.FrameworkInfoString;
         public string OsInfoString = Env.OsInfoString;
@@ -83,7 +85,7 @@ namespace IPA.Cores.Basic
         public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
         public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
         public bool IsDebuggerAttached = Env.IsDebuggerAttached;
-        public int NumCpus => Env.NumCpus;
+        public int NumCpus = Env.NumCpus;
     }
 
     public static class Env

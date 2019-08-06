@@ -50,49 +50,137 @@ using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using Microsoft.AspNetCore.Builder;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
     public class Server : AsyncService
     {
-        readonly ApiServer ApiServer;
+        readonly RpcServer RpcServer;
 
-        readonly JsonRpcHttpServer RpcServer;
+        readonly JsonRpcHttpServer JsonRpcServer;
+
+        readonly SingleInstance SingleInstance;
+
+        // Hive ベースのデータベース
+        readonly HiveData<DbHive> HiveData;
+
+        // データベースへのアクセスを容易にするための自動プロパティ
+        CriticalSection DbLock => HiveData.DataLock;
+        DbHive Db => HiveData.ManagedData;
+        DbHive DbSnapshot => HiveData.GetManagedDataSnapshot();
 
         public Server(CancellationToken cancel = default) : base(cancel)
         {
-            this.ApiServer = new ApiServer(cancel);
+            try
+            {
+                this.SingleInstance = new SingleInstance("Cores.Basic.App.DaemonCenter");
 
-            this.RpcServer = new JsonRpcHttpServer(this.ApiServer);
+                // データベース
+                this.HiveData = new HiveData<DbHive>(Hive.SharedLocalConfigHive, "DaemonCenterServer/Database",
+                    getDefaultDataFunc: () => new DbHive(),
+                    policy: HiveSyncPolicy.AutoReadWriteFile,
+                    serializer: HiveSerializerSelection.RichJson);
+
+                this.RpcServer = new RpcServer(cancel);
+
+                this.JsonRpcServer = new JsonRpcHttpServer(this.RpcServer);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
         {
-            this.RpcServer.RegisterRoutesToHttpServer(appBuilder, path);
+            this.JsonRpcServer.RegisterRoutesToHttpServer(appBuilder, path);
         }
 
         protected override void DisposeImpl(Exception ex)
         {
             try
             {
-                this.ApiServer._DisposeSafe();
+                this.RpcServer._DisposeSafe();
+
+                // データベース
+                this.HiveData._DisposeSafe();
+
+                this.SingleInstance._DisposeSafe();
             }
             finally
             {
                 base.DisposeImpl(ex);
             }
         }
+
+        public string AppAdd(AppSettings settings)
+        {
+            settings.Normalize();
+            settings.CheckError();
+
+            lock (DbLock)
+            {
+                App app = new App
+                {
+                    AppId = Str.NewGuid(),
+                    Settings = settings,
+                };
+
+                Db.AppList.Add(app.AppId, app);
+
+                return app.AppId;
+            }
+        }
+
+        public void AppDelete(string appId)
+        {
+            lock (DbLock)
+            {
+                if (Db.AppList.Remove(appId) == false)
+                {
+                    throw new KeyNotFoundException(nameof(appId));
+                }
+            }
+        }
+
+        public App AppGet(string appId)
+        {
+            return DbSnapshot.AppList[appId];
+        }
+
+        public void AppSet(string appId, AppSettings settings)
+        {
+            settings.Normalize();
+            settings.CheckError();
+
+            lock (DbLock)
+            {
+                App app = Db.AppList[appId];
+
+                app.Settings = settings;
+            }
+        }
+
+        public IReadOnlyList<App> AppEnum()
+        {
+            return DbSnapshot.AppList.Values.ToArray();
+        }
     }
 
-    public class ApiServer : JsonRpcServerApi, IRpc
+    public class RpcServer : JsonRpcServerApi, IRpc
     {
-        public ApiServer(CancellationToken cancel = default) : base(cancel)
+        public RpcServer(CancellationToken cancel = default) : base(cancel)
         {
         }
 
-        public async Task<ResponseMsg> KeepAliveAsync(RequestMsg req)
+        public async Task<ResponseMsg> KeepAlive(RequestMsg req)
         {
-            throw new NotImplementedException();
+            var ret = new ResponseMsg();
+            
+            return ret;
         }
 
     }

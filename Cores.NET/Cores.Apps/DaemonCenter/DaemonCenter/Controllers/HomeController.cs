@@ -6,11 +6,32 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using DaemonCenter.Models;
 
+using IPA.Cores.Basic;
+using IPA.Cores.Helper.Basic;
+using static IPA.Cores.Globals.Basic;
+
+using IPA.Cores.AspNet;
+using IPA.Cores.Helper.AspNet;
+using static IPA.Cores.Globals.AspNet;
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
+
 namespace DaemonCenter.Controllers
 {
     public class HomeController : Controller
     {
+        public HomeController()
+        {
+        }
+
         public IActionResult Index()
+        {
+            return View();
+        }
+
+        [Authorize]
+        public IActionResult _new()
         {
             return View();
         }

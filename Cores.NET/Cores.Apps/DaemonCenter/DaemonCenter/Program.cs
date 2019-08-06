@@ -38,7 +38,7 @@ namespace DaemonCenter
                     UseKestrelWithIPACoreStack = true,
                     DebugKestrelToConsole = false,
                     UseSimpleBasicAuthentication = false,
-                    HoldSimpleBasicAuthenticationDatabase = false,
+                    HoldSimpleBasicAuthenticationDatabase = true,
                 }));
         }
     }

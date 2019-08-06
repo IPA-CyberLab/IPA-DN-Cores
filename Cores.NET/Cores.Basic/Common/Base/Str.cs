@@ -656,10 +656,38 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ExtendedStrComparer : IEqualityComparer<string>, IComparer<string>
+    {
+        public StringComparison Comparison { get; }
+
+        public ExtendedStrComparer(StringComparison comparison)
+        {
+            this.Comparison = comparison;
+        }
+
+        public int Compare(string x, string y)
+        {
+            return x._CmpTrim(y, this.Comparison);
+        }
+
+        public bool Equals(string x, string y)
+        {
+            return x._IsSameTrim(y, this.Comparison);
+        }
+
+        public int GetHashCode(string obj)
+        {
+            return obj._NonNullTrim().GetHashCode(this.Comparison);
+        }
+    }
+
     public class StrComparer : IEqualityComparer<string>, IComparer<string>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
+
+        public static ExtendedStrComparer IgnoreCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.OrdinalIgnoreCase);
+        public static ExtendedStrComparer SensitiveCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.Ordinal);
 
         readonly static Singleton<StringComparison, StrComparer> FromComparisonCache = new Singleton<StringComparison, StrComparer>(x => new StrComparer(x));
 
