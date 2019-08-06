@@ -1,0 +1,15 @@
+﻿@inject Server Server;
+
+@{
+    Page.SiteName = "App 設定";
+    Page.Title = "登録アプリ一覧";
+}
+
+<h2 class="title is-4">@Page.Title</h2>
+
+<p>
+    @Html.ActionLink("新しい App 設定を追加", "Add", new { }, new { @class = "button is-info" })
+</p>
+
+
+<p>Hello</p>

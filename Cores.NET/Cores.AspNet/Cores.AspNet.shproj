@@ -12,5 +12,6 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
   <ItemGroup>
     <Content Remove="AspNet.Cores\Common\Class1.cs" />
+    <Content Remove="AspNet.Cores\Common\Mvc\Model.cs" />
   </ItemGroup>
 </Project>

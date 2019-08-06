@@ -123,15 +123,21 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             lock (DbLock)
             {
+                string appId = Str.NewGuid();
+
                 App app = new App
                 {
-                    AppId = Str.NewGuid(),
                     Settings = settings,
                 };
 
-                Db.AppList.Add(app.AppId, app);
+                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings.AppName == settings.AppName).Any())
+                {
+                    throw new ApplicationException($"アプリケーション名 '{app.Settings.AppName}' が重複しています。");
+                }
 
-                return app.AppId;
+                Db.AppList.Add(appId, app);
+
+                return appId;
             }
         }
 
@@ -159,6 +165,11 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             lock (DbLock)
             {
                 App app = Db.AppList[appId];
+
+                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings.AppName == settings.AppName).Any())
+                {
+                    throw new ApplicationException($"アプリケーション名 '{app.Settings.AppName}' が重複しています。");
+                }
 
                 app.Settings = settings;
             }

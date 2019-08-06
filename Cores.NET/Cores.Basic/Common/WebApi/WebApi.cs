@@ -38,6 +38,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Net;
+using System.ComponentModel.DataAnnotations;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -69,6 +70,26 @@ namespace IPA.Cores.Basic
     public interface IErrorCheckable
     {
         void CheckError();
+    }
+
+    public static partial class IErrorCheckableHelper
+    {
+        // IErrorCheckable から IErrorCheckableHelper の実装に必要な Validate() 関数の応答を返す
+        public static IEnumerable<ValidationResult> _Validate(this IErrorCheckable targetObject, ValidationContext validationContext)
+        {
+            try
+            {
+                targetObject.CheckError();
+            }
+            catch (Exception ex)
+            {
+                ValidationResult err = new ValidationResult(ex.Message);
+
+                return err._SingleArray();
+            }
+
+            return EmptyEnumerable<ValidationResult>.Empty;
+        }
     }
 
     public class WebSendRecvRequest : IDisposable

@@ -62,7 +62,10 @@ namespace DaemonCenter
     public class PageContext : AspPageContext
     {
         // サイト名
-        public override string SiteName => "DaemonCenter";
+        public PageContext()
+        {
+            this.SiteName = "DaemonCenter";
+        }
     }
 }
 

@@ -51,24 +51,26 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
+using System.ComponentModel.DataAnnotations;
+
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
-    [Flags]
     public enum InstanceKeyType
     {
         Hostname = 0,
         Guid = 1,
     }
 
-    public class AppSettings : INormalizable, IErrorCheckable
+    public class AppSettings : INormalizable, IErrorCheckable, IValidatableObject
     {
-        public string AppName;
+        [Required]
+        public string AppName { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public InstanceKeyType InstanceKeyType;
+        public InstanceKeyType InstanceKeyType { get; set; }
 
-        public int KeepAliveIntervalSecs;
-        public int DeadIntervalSecs;
+        public int KeepAliveIntervalSecs { get; set; }
+        public int DeadIntervalSecs { get; set; }
 
         public void CheckError()
         {
@@ -78,15 +80,18 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public void Normalize()
         {
-            this.KeepAliveIntervalSecs._SetMax(1);
-            this.DeadIntervalSecs._SetMax(3);
+            this.KeepAliveIntervalSecs = this.KeepAliveIntervalSecs._Max(1);
+            this.DeadIntervalSecs = this.DeadIntervalSecs._Max(3);
         }
+
+        public override string ToString() => this.AppName;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            => this._Validate(validationContext);
     }
 
     public class App
     {
-        public string AppId;
-
         public AppSettings Settings;
 
         public List<Instance> InstanceList = new List<Instance>();

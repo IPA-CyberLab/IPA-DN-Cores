@@ -43,6 +43,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="Views\AppSettings\Index.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+    <Content Update="Views\AppSettings\Edit.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+    <Content Update="Views\AppSettings\_new.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
     <Content Update="Views\Home\_new.cshtml">
       <Pack>$(IncludeRazorContentInPack)</Pack>
     </Content>

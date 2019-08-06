@@ -1,0 +1,88 @@
+﻿@inject Server Server;
+@model SingleData<AppSettings>;
+
+@{
+    Page.SiteName = "App 設定";
+
+    Page.Title = Model.GetOperationTitle();
+}
+
+<h2 class="title is-4">@Page.FullTitle</h2>
+
+<form asp-action="Edit">
+    <div class="box">
+        <div class="content">
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">AppName</label>
+                </div>
+                <div class="field-body">
+                    <div class="field">
+                        <p class="control">
+                            <input asp-for="Data.AppName" class="input is-info" />
+                            <span class="help is-primary" asp-validation-for="Data.AppName"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">KeepAliveIntervalSecs</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-narrow">
+                        <p class="control">
+                            <input asp-for="Data.KeepAliveIntervalSecs" class="input is-info" />
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">DeadIntervalSecs</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-narrow">
+                        <p class="control">
+                            <input asp-for="Data.DeadIntervalSecs" class="input is-info" />
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">InstanceKeyType</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-narrow">
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                <select asp-for="Data.InstanceKeyType" asp-items="Html.GetEnumSelectList<InstanceKeyType>()" class="input is-info"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label">
+                    <!-- Left empty for spacing -->
+                </div>
+                <div class="field-body">
+                    <div class="field">
+                        <div class="control">
+                            <input class="button is-success" type="submit" asp-action="@Model.Mode" value="@Model.GetButtonTitle()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div asp-validation-summary="All" class="notification is-primary"></div>
+
+        </div>
+    </div>
+</form>

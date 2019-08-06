@@ -59,8 +59,7 @@ namespace IPA.Cores.AspNet
     public class AspPageContext
     {
         // タイトルのベース文字列 (共通的な Web サイト名など)
-        // 派生クラスでオーバーライド可能
-        public virtual string SiteName { get; } = "WebSite";
+        public string SiteName { get; set; } = "WebSite";
 
         // タイトル文字列
         string TitleInternal;

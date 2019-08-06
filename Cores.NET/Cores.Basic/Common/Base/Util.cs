@@ -6232,6 +6232,11 @@ namespace IPA.Cores.Basic
         public static implicit operator T(ResultOrExeption<T> resultOrException) => resultOrException.Value;
     }
 
+    public static class EmptyEnumerable<T>
+    {
+        public static IEnumerable<T> Empty { get; } = new List<T>();
+    }
+
     public class None { }
 
     [Flags]

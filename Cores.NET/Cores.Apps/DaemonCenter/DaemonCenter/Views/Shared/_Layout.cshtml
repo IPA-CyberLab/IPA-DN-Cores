@@ -6,6 +6,7 @@
     <title>@Page.FullTitle</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css" integrity="sha256-vK3UTo/8wHbaUn+dTQD0X6dzidqc5l7gczvH+Bnowwk=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0-12/css/all.css" integrity="sha256-qQHUQX+gGGYfpC7Zdni08sr+h0ymXr0avmIASucY4FM=" crossorigin="anonymous" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="shortcut icon" type="image/x-icon" href="~/favicon.ico" />
 </head>
@@ -17,7 +18,7 @@
             </a>
             <div class="navbar-item">
                 <div class="buttons">
-                    <a class="button is-light" id="config_button" asp-controller="App" asp-action="Index" v-cloak>設定</a>
+                    <a class="button is-light" id="config_button" asp-controller="AppSettings" asp-action="Index">設定</a>
                     <a class="button is-light" id="logout_button" asp-controller="EasyCookieAuth" asp-action="Logout">ログアウト</a>
                 </div>
             </div>
