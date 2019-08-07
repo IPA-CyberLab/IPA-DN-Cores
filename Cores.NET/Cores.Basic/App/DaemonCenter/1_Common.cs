@@ -150,8 +150,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public void Normalize()
         {
-            this.DefaultDeadIntervalSecs = this.DefaultDeadIntervalSecs._Max(1);
-            this.DefaultKeepAliveIntervalSecs = this.DefaultKeepAliveIntervalSecs._Max(3);
+            this.DefaultKeepAliveIntervalSecs = this.DefaultKeepAliveIntervalSecs._Max(1);
+            this.DefaultDeadIntervalSecs = this.DefaultDeadIntervalSecs._Max(3);
         }
     }
 
