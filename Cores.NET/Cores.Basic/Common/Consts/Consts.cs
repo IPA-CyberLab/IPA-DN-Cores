@@ -78,6 +78,16 @@ namespace IPA.Cores.Basic
 
             public const int Http = 80;
             public const int Https = 443;
+
+            public const int Smtp = 25;
+            public const int SmtpSubmission = 587;
+            public const int Smtps = 465;
+            public const int Pop3 = 110;
+            public const int Pop3s = 995;
+            public const int Imap4 = 143;
+            public const int Imap4s = 993;
+
+            public static readonly IEnumerable<int> PotentialHttpsPorts = new int[] { Https, Smtps, Pop3s, Imap4s };
         }
 
         public static partial class Strings
@@ -87,7 +97,7 @@ namespace IPA.Cores.Basic
 
             public const string LogBrowserDefaultSystemTitle = "HTTP Log Browser";
 
-            public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//" };
+            public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//", ";" };
         }
 
         public static partial class HiveNames

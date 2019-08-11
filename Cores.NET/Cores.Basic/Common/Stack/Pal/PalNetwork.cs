@@ -413,17 +413,17 @@ namespace IPA.Cores.Basic
         public PalSslClientAuthenticationOptions(bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
             : this(null, allowAnyServerCert, validateRemoteCertificateProc, serverCertSHA1List) { }
 
-        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
+        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHAList)
         {
             this.TargetHost = targetHost;
             this.AllowAnyServerCert = allowAnyServerCert;
             this.ValidateRemoteCertificateProc = validateRemoteCertificateProc;
-            this.ServerCertSHA1List = serverCertSHA1List;
+            this.ServerCertSHAList = serverCertSHAList;
         }
 
         public string TargetHost { get; set; }
         public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
-        public string[] ServerCertSHA1List { get; set; } = new string[0];
+        public string[] ServerCertSHAList { get; set; } = new string[0];
         public bool AllowAnyServerCert { get; set; } = false;
 
         public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
@@ -441,7 +441,7 @@ namespace IPA.Cores.Basic
                     IReadOnlyList<string> certHashList = cert._GetCertSHAHashStrList();
 
                     bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
-                    bool b2 = ServerCertSHA1List?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
+                    bool b2 = ServerCertSHAList?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
                     bool b3 = this.AllowAnyServerCert;
 
                     return b1 || b2 || b3;
@@ -463,16 +463,16 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions() { }
 
-        public PalSslServerAuthenticationOptions(PalX509Certificate serverCertificate, bool allowAnyClientCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] clientCertSHA1List)
+        public PalSslServerAuthenticationOptions(PalX509Certificate serverCertificate, bool allowAnyClientCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] clientCertSHAList)
         {
             this.AllowAnyClientCert = allowAnyClientCert;
             this.ValidateRemoteCertificateProc = validateRemoteCertificateProc;
-            this.ClientCertSHA1List = clientCertSHA1List;
+            this.ClientCertSHAList = clientCertSHAList;
             this.ServerCertificate = serverCertificate;
         }
 
         public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
-        public string[] ClientCertSHA1List { get; set; } = new string[0];
+        public string[] ClientCertSHAList { get; set; } = new string[0];
         public bool AllowAnyClientCert { get; set; } = true;
 
         public PalSslCertificateSelectionCallback ServerCertificateSelectionProc { get; set; }
@@ -494,7 +494,7 @@ namespace IPA.Cores.Basic
                     IReadOnlyList<string> certHashList = cert._GetCertSHAHashStrList();
 
                     bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
-                    bool b2 = ClientCertSHA1List?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
+                    bool b2 = ClientCertSHAList?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
                     bool b3 = this.AllowAnyClientCert;
 
                     return b1 || b2 || b3;

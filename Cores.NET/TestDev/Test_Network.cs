@@ -47,6 +47,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using IPA.Cores.Basic.AppLib;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -70,6 +71,56 @@ namespace IPA.TestDev
 
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+            "SslCertListCollector command",
+            "SslCertListCollector [dnsZonesDir] [/OUT:outDir]",
+            "SslCertListCollector command")]
+        static int SslCertListCollector(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("OUT", ConsoleService.Prompt, "outDir: ", ConsoleService.EvalNotEmpty, null),
+            };
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dirZonesDir = vl.DefaultParam.StrValue;
+            string outDir = vl["OUT"].StrValue;
+
+            // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
+            DnsFlatten flat = new DnsFlatten();
+
+            foreach (FileSystemEntity ent in Lfs.EnumDirectory(dirZonesDir, true))
+            {
+                if (ent.IsFile)
+                {
+                    string fn = ent.FullPath;
+                    fn._Print();
+
+                    flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
+                }
+            }
+
+            // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
+            DnsIpPairGenerator pairGenerator = new DnsIpPairGenerator(100, flat.FqdnSet);
+
+            List<DnsIpPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
+
+            // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
+            SslCertCollector col = new SslCertCollector(1000, list);
+
+            IReadOnlyList<SslCertEntry> ret = col.ExecuteAsync()._GetResult();
+
+            var x = Util.GenerateXmlAndXsd(ret);
+
+            string dir = outDir;
+
+            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XmlFileName), x.XmlData, flags: FileFlags.AutoCreateDirectory);
+            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XsdFileName), x.XsdData, flags: FileFlags.AutoCreateDirectory);
+
+            return 0;
+        }
+
         [ConsoleCommand(
             "TcpStressServer command",
             "TcpStressServer [port]",

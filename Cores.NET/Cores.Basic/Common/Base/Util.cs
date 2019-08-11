@@ -3301,15 +3301,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    namespace Legacy
+    public class XmlAndXsd
     {
-        public class XmlAndXsd
-        {
-            public byte[] XmlData;
-            public byte[] XsdData;
-            public string XmlFileName;
-            public string XsdFileName;
-        }
+        public byte[] XmlData;
+        public byte[] XsdData;
+        public string XmlFileName;
+        public string XsdFileName;
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体
@@ -3323,6 +3320,16 @@ namespace IPA.Cores.Basic
         public void Reset() => this.flag = 0;
 
         public override string ToString() => IsSet.ToString();
+
+        public void FirstCallOrThrowException(Exception ex = null)
+        {
+            if (IsFirstCall() == false)
+            {
+                if (ex == null) ex = new ApplicationException("The flag is already set.");
+
+                throw ex;
+            }
+        }
     }
 
     // 再試行ヘルパー
@@ -5831,11 +5838,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ConcurrentHashSet<T> : ConcurrentDictionary<T, int>
+    public class ConcurrentHashSet<TKey> : ConcurrentDictionary<TKey, int>
     {
-        public bool Add(T item) => TryAdd(item, 0);
-        public bool Remove(T item) => TryRemove(item, out _);
-        public bool Contains(T item) => ContainsKey(item);
+        public ConcurrentHashSet() { }
+
+        public ConcurrentHashSet(IEqualityComparer<TKey> comparer) : base(comparer) { }
+
+        public bool Add(TKey item) => TryAdd(item, 0);
+        public bool Remove(TKey item) => TryRemove(item, out _);
+        public bool Contains(TKey item) => ContainsKey(item);
     }
 
     public class SystemAndUser<TSystem, TUser>

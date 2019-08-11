@@ -9,6 +9,7 @@
     <Import_RootNamespace>Cores.Basic</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AppLib\Network\DnsAndCertUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\3_Client.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\1_Common.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\2_Server.cs" />

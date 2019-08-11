@@ -60,6 +60,8 @@ using Microsoft.AspNetCore.Http;
 
 using Microsoft.Extensions.FileProviders;
 using System.Web;
+using IPA.Cores.Basic.AppLib;
+using System.Text;
 
 
 
@@ -257,6 +259,48 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                List<DnsIpPair> list = @"c:\tmp\list1.txt"._FileToObject< List<DnsIpPair>>();
+
+                SslCertCollector col = new SslCertCollector(1000, list.Take(0));
+
+                IReadOnlyList<SslCertEntry> ret = col.ExecuteAsync()._GetResult();
+
+                var x = Util.GenerateXmlAndXsd(ret);
+
+                string dir = @"c:\tmp\190811";
+
+                Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XmlFileName), x.XmlData, flags: FileFlags.AutoCreateDirectory);
+                Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XsdFileName), x.XsdData, flags: FileFlags.AutoCreateDirectory);
+
+                return;
+            }
+
+            if (true)
+            {
+                DnsFlatten flat = new DnsFlatten();
+
+                foreach (FileSystemEntity ent in Lfs.EnumDirectory(@"_______", true))
+                {
+                    if (ent.IsFile)
+                    {
+                        string fn = ent.FullPath;
+                        fn._Print();
+
+                        flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
+                    }
+                }
+
+                DnsIpPairGenerator gen = new DnsIpPairGenerator(100, flat.FqdnSet);
+
+                List<DnsIpPair> list = gen.ExecuteAsync()._GetResult().ToList();
+
+                list._ObjectToFile(@"c:\tmp\list1.txt");
+
+                return;
+            }
+
             if (true)
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);

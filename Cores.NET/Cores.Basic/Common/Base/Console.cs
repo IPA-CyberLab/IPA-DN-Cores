@@ -700,6 +700,10 @@ namespace IPA.Cores.Basic
         {
             return WriteLine(string.Format(format, arg0), priority);
         }
+        public bool WriteLine(string format, object[] args, LogPriority priority = LogPriority.Info)
+        {
+            return WriteLine(string.Format(format, args), priority);
+        }
         public bool WriteLine(string format, LogPriority priority = LogPriority.Info, params object[] arg)
         {
             return WriteLine(string.Format(format, arg), priority);
