@@ -2541,6 +2541,48 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        // 指定した文字が Ascii 文字として 1 行で表示可能か
+        public static bool IsAsciiOneLinePrintable(char c)
+        {
+            if (c >= 32 && c <= 126)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        public static bool IsAsciiOneLinePrintable(string str)
+        {
+            foreach (char c in str)
+            {
+                if (IsAsciiOneLinePrintable(c) == false)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Ascii 文字として 1 行で表示可能な文字列に変換する
+        public static string MakeAsciiOneLinePrintableStr(string src, char alternativeChar = ' ')
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in src)
+            {
+                if (IsAsciiOneLinePrintable(c) == false)
+                {
+                    sb.Append(alternativeChar);
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
+        }
+
         public static int[] ParsePortsList(string str)
         {
             string[] tokens = str.Split(new char[] { ',', ' ', '　', '\t', '/', ';' }, StringSplitOptions.RemoveEmptyEntries);

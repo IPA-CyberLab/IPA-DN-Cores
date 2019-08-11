@@ -179,7 +179,11 @@ namespace IPA.Cores.Basic.AppLib
                         // 3 回トライする
                         try
                         {
-                            await PerformOneAsync(e, port, cancel);
+                            SslCertEntry e2 = e._CloneDeep();
+                            e2.Port = port;
+
+                            await PerformOneAsync(e2, cancel);
+
                             break;
                         }
                         catch (Exception ex)
@@ -192,9 +196,9 @@ namespace IPA.Cores.Basic.AppLib
         }
 
         // 1 つの SSL 接続試行を処理する非同期関数
-        async Task PerformOneAsync(SslCertEntry e, int port, CancellationToken cancel = default)
+        async Task PerformOneAsync(SslCertEntry e, CancellationToken cancel = default)
         {
-            using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress), port, connectTimeout: 5000), cancel))
+            using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress), e.Port, connectTimeout: 5000), cancel))
             {
                 using (SslSock ssl = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(e.SniHostName, true)))
                 {
@@ -203,26 +207,33 @@ namespace IPA.Cores.Basic.AppLib
 
                     Certificate cert2 = cert.PkiCertificate;
 
-                    e.CertIssuer = cert2.CertData.IssuerDN.ToString();
-                    e.CertSubject = cert2.CertData.SubjectDN.ToString();
-                    e.CertFqdnList = cert2.HostNameList.Select(x => x.HostName)._Combine(", ");
+                    e.CertIssuer = cert2.CertData.IssuerDN.ToString()._MakeAsciiOneLinePrintableStr();
+                    e.CertSubject = cert2.CertData.SubjectDN.ToString()._MakeAsciiOneLinePrintableStr();
+
+                    e.CertFqdnList = cert2.HostNameList.Select(x => x.HostName)._Combine(",")._MakeAsciiOneLinePrintableStr();
                     e.CertHashSha1 = cert2.DigestSHA1Str;
                     e.CertNotAfter = cert2.CertData.NotAfter;
                     e.CertNotBefore = cert2.CertData.NotBefore;
 
-                    this.ResultList.Add(e);
+                    // 無視リストに含まれないものだけを出力
+                    if (Consts.Strings.AutoEnrollCertificateSubjectInStrList.Where(x => e.CertIssuer._InStr(x, true)).Any() == false)
+                    {
+                        this.ResultList.Add(e);
+                    }
 
-                    $"OK: {e.SniHostName}:{port} => {e._ObjectToJson(compact: true)}"._Print();
+                    $"OK: {e.SniHostName}:{e.Port} => {e._ObjectToJson(compact: true)}"._Print();
                 }
             }
         }
     }
 
+    [Serializable]
     public class SslCertEntry
     {
         public string FriendName;
         public string SniHostName;
         public string IpAddress;
+        public int Port;
 
         public string CertHashSha1;
         public DateTime CertNotBefore;

@@ -87,6 +87,15 @@ namespace IPA.TestDev
             string dirZonesDir = vl.DefaultParam.StrValue;
             string outDir = vl["OUT"].StrValue;
 
+            var dirList = Lfs.EnumDirectory(dirZonesDir, false);
+            if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
+            {
+                // 指定されたディレクトリに *.dns ファイルが 1 つもない場合は子ディレクトリ名をソートして一番大きいものを選択する
+                dirZonesDir = dirList.OrderByDescending(x => x.Name).Where(x => x.IsDirectory).Select(x => x.FullPath).First();
+            }
+
+            Con.WriteLine($"Target directory: '{dirZonesDir}'");
+
             // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
             DnsFlatten flat = new DnsFlatten();
 
@@ -111,12 +120,12 @@ namespace IPA.TestDev
 
             IReadOnlyList<SslCertEntry> ret = col.ExecuteAsync()._GetResult();
 
-            var x = Util.GenerateXmlAndXsd(ret);
+            XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
 
             string dir = outDir;
 
-            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XmlFileName), x.XmlData, flags: FileFlags.AutoCreateDirectory);
-            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, x.XsdFileName), x.XsdData, flags: FileFlags.AutoCreateDirectory);
+            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XmlFileName), xmlData.XmlData, flags: FileFlags.AutoCreateDirectory);
+            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XsdFileName), xmlData.XsdData, flags: FileFlags.AutoCreateDirectory);
 
             return 0;
         }

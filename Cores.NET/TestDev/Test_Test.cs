@@ -261,6 +261,23 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                List<SslCertEntry> o = new List<SslCertEntry>();
+
+                o.Add(new SslCertEntry { CertFqdnList = "a" });
+                o.Add(new SslCertEntry { CertFqdnList = "b" });
+                o.Add(new SslCertEntry { CertFqdnList = "c" });
+
+                XmlAndXsd xmlData = Util.GenerateXmlAndXsd(o);
+
+                string dir = @"c:\tmp\190811_a";
+
+                Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XmlFileName), xmlData.XmlData, flags: FileFlags.AutoCreateDirectory);
+                Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XsdFileName), xmlData.XsdData, flags: FileFlags.AutoCreateDirectory);
+                return;
+            }
+
+            if (true)
+            {
                 List<DnsIpPair> list = @"c:\tmp\list1.txt"._FileToObject< List<DnsIpPair>>();
 
                 SslCertCollector col = new SslCertCollector(1000, list.Take(0));

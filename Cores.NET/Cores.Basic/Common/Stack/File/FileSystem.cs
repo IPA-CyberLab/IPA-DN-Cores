@@ -1202,6 +1202,7 @@ namespace IPA.Cores.Basic
             return path.Substring(0, i);
         }
 
+        // 拡張子を取得する (. を含む)
         public string GetExtension(string path, bool longExtension = false)
         {
             if (path == null) return null;

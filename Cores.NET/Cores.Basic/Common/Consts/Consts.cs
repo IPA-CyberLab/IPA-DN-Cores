@@ -98,6 +98,8 @@ namespace IPA.Cores.Basic
             public const string LogBrowserDefaultSystemTitle = "HTTP Log Browser";
 
             public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//", ";" };
+
+            public static readonly IEnumerable<string> AutoEnrollCertificateSubjectInStrList = new string[] { "Let's Encrypt", "Google Internet Authority", "Google Trust Services" };
         }
 
         public static partial class HiveNames

@@ -400,6 +400,8 @@ namespace IPA.Cores.Helper.Basic
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
         public static string _Combine(this IEnumerable<string> t, string sepstr) => Str.CombineStringArray(t, sepstr);
 
+        public static string _MakeAsciiOneLinePrintableStr(this string src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
+
         public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
         public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
         public static bool _IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
