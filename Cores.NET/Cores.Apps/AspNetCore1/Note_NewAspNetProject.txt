@@ -65,7 +65,7 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
   <ItemGroup>
     <Compile Include="../../../../Cores.NET/Cores.Codes/**/*.cs" />
     <Content Include="../../../../Cores.NET/Cores.Codes/**/*.cshtml" />
-    <EmbeddedResource Include="../../../../Cores.NET/Cores.Codes/AspNet.Cores.Resource/**/*" />
+    <EmbeddedResource Include="../../../../Cores.NET/Cores.Codes/Resources/**/*" />
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
@@ -94,7 +94,7 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
   <ItemGroup>
     <Compile Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/**/*.cs" />
     <Content Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/**/*.cshtml" />
-    <EmbeddedResource Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/AspNet.Cores.Resource/**/*" />
+    <EmbeddedResource Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/Resources/**/*" />
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
