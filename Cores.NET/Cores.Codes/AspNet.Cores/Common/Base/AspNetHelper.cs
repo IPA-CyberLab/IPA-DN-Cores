@@ -68,7 +68,7 @@ namespace IPA.Cores.Helper.Codes
 
 namespace IPA.Cores.Globals
 {
-    public static class AspNet
+    public static partial class Codes
     {
     }
 }
