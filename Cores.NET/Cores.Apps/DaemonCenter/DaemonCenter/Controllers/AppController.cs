@@ -17,40 +17,28 @@ using static IPA.Cores.Globals.Codes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 
+using IPA.Cores.Basic.App.DaemonCenterLib;
+
 namespace DaemonCenter.Controllers
 {
-    public class HomeController : Controller
+    public class AppController : Controller
     {
-        public HomeController()
+        readonly Server Server;
+
+        public AppController(Server server)
         {
+            this.Server = server;
         }
 
         public IActionResult Index()
         {
-            return View();
+            IReadOnlyList<KeyValuePair<string, App>> appList = Server.AppEnum();
+
+            return View(appList);
         }
 
         [Authorize]
         public IActionResult _new()
-        {
-            return View();
-        }
-
-        public IActionResult About()
-        {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
-        }
-
-        public IActionResult Contact()
-        {
-            ViewData["Message"] = "Your contact page.";
-
-            return View();
-        }
-
-        public IActionResult Privacy()
         {
             return View();
         }

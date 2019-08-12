@@ -80,17 +80,31 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         [Display(Name = "停止とみなす無通信秒数")]
         public int DeadIntervalSecs { get; set; }
 
+        [Display(Name = "デフォルトのコミット ID")]
+        public string DefaultCommitId { get; set; }
+
+        [Display(Name = "デフォルトのインスタンス引数")]
+        public string DefaultInstanceArgument { get; set; }
+
         public void CheckError()
         {
             if (AppName._IsEmpty())
                 throw new ArgumentNullException(nameof(AppName));
+
+            if (this.DefaultCommitId._IsFilled() && this.DefaultCommitId._GetHexBytes().Length != 20)
+            {
+                throw new ArgumentException(nameof(DefaultCommitId));
+            }
         }
 
         public void Normalize()
         {
-            this.AppName = this.AppName._NonNullTrim();
+            this.AppName = this.AppName._NonNullTrimSe();
             this.KeepAliveIntervalSecs = this.KeepAliveIntervalSecs._Max(1);
             this.DeadIntervalSecs = this.DeadIntervalSecs._Max(3);
+
+            this.DefaultCommitId = Str.NormalizeGitCommitId(this.DefaultCommitId);
+            this.DefaultInstanceArgument = this.DefaultInstanceArgument._NonNullTrim();
         }
 
         public override string ToString() => this.AppName;
@@ -126,9 +140,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class Instance
     {
-        public string Key;
         public string SrcIpAddress;
         public string HostName;
+        public string Guid;
 
         public DateTimeOffset FirstAlive;
         public DateTimeOffset LastAlive;
@@ -138,6 +152,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public int NumAlive;
         public string NextCommitId;
         public string NextInstanceArguments;
+
+        public InstanceStat LastStat;
+
+        public bool IsMatchForHost(InstanceKeyType matchType, string hostName, string guid)
+        {
+            if (matchType == InstanceKeyType.Guid)
+                return (IgnoreCaseTrim)guid == this.Guid;
+            else
+                return (IgnoreCaseTrim)hostName == this.HostName;
+        }
     }
 
     public class Preference : INormalizable
@@ -174,21 +198,28 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     {
         public string AppId;
         public string HostName;
+        public string Guid;
         public InstanceStat Stat;
     }
 
-    public class ResponseMsg
+    public class ResponseMsg : INormalizable
     {
         public int NextKeepAliveMsec;
 
         public string NextCommitId;
         public string NextInstanceArguments;
+
+        public void Normalize()
+        {
+            this.NextKeepAliveMsec._SetMin(Consts.Intervals.MinKeepAliveIntervalsMsec);
+            this.NextKeepAliveMsec._SetMax(Consts.Intervals.MaxKeepAliveIntervalsMsec);
+        }
     }
 
     [RpcInterface]
     public interface IRpc
     {
-        Task<ResponseMsg> KeepAlive(RequestMsg req);
+        Task<ResponseMsg> KeepAliveAsync(RequestMsg req);
     }
 }
 

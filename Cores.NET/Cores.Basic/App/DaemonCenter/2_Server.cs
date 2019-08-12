@@ -55,10 +55,8 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
-    public class Server : AsyncService
+    public class Server : JsonRpcServerApi, IRpc
     {
-        readonly RpcServer RpcServer;
-
         readonly JsonRpcHttpServer JsonRpcServer;
 
         readonly SingleInstance SingleInstance;
@@ -83,9 +81,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     policy: HiveSyncPolicy.AutoReadWriteFile,
                     serializer: HiveSerializerSelection.RichJson);
 
-                this.RpcServer = new RpcServer(cancel);
-
-                this.JsonRpcServer = new JsonRpcHttpServer(this.RpcServer);
+                this.JsonRpcServer = new JsonRpcHttpServer(this);
             }
             catch
             {
@@ -103,8 +99,6 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             try
             {
-                this.RpcServer._DisposeSafe();
-
                 // データベース
                 this.HiveData._DisposeSafe();
 
@@ -131,6 +125,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             }
         }
 
+        // App の追加
         public string AppAdd(AppSettings settings)
         {
             settings.Normalize();
@@ -164,6 +159,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             }
         }
 
+        // App の削除
         public void AppDelete(string appId)
         {
             lock (DbLock)
@@ -175,11 +171,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             }
         }
 
+        // App の取得
         public App AppGet(string appId)
         {
             return DbSnapshot.AppList[appId];
         }
 
+        // App の設定更新
         public void AppSet(string appId, AppSettings settings)
         {
             settings.Normalize();
@@ -206,28 +204,91 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             }
         }
 
+        // App の列挙
         public IReadOnlyList<KeyValuePair<string, App>> AppEnum()
         {
             return DbSnapshot.AppList.ToArray();
         }
-    }
 
-    public class RpcServer : JsonRpcServerApi, IRpc
-    {
-        public RpcServer(CancellationToken cancel = default) : base(cancel)
+
+        //////////// 以下 RPC API の実装
+
+        // Client からの KeepAlive の受信と対応処理
+        public async Task<ResponseMsg> KeepAliveAsync(RequestMsg req)
         {
-        }
+            lock (DbLock)
+            {
+                DateTimeOffset now = DateTimeOffset.Now;
 
-        public async Task<ResponseMsg> KeepAlive(RequestMsg req)
-        {
-            var ret = new ResponseMsg();
-            
-            return ret;
-        }
+                App app = Db.AppList[req.AppId];
 
+                ResponseMsg ret = new ResponseMsg();
+
+                // 応答メッセージの準備を開始
+                // 次回の KeepAlive 間隔を指定
+                ret.NextKeepAliveMsec = app.Settings.KeepAliveIntervalSecs * 1000;
+
+                // インスタンスを検索
+                Instance inst = app.InstanceList.Where(x => x.IsMatchForHost(app.Settings.InstanceKeyType, req.HostName, req.Guid)).SingleOrDefault();
+
+                if (inst == null)
+                {
+                    // インスタンスがまだ無いので作成する
+                    inst = new Instance
+                    {
+                        SrcIpAddress = this.ClientInfo.RemoteIP,
+                        HostName = req.HostName,
+                        Guid = req.Guid,
+
+                        FirstAlive = now,
+                        LastAlive = now,
+                        LastCommitIdChanged = now,
+                        LastInstanceArgumentsChanged = now,
+
+                        LastStat = req.Stat,
+
+                        // 初期 Commit ID および Arguments を書き込む
+                        NextCommitId = app.Settings.DefaultCommitId._NonNullTrim(),
+                        NextInstanceArguments = app.Settings.DefaultInstanceArgument._NonNullTrim(),
+                    };
+
+                    app.InstanceList.Add(inst);
+                }
+                else
+                {
+                    // すでにインスタンスが存在するので更新する
+                    inst.SrcIpAddress = this.ClientInfo.RemoteIP;
+                    inst.Guid = req.Guid;
+                    inst.HostName = req.HostName;
+                }
+
+                if (req.Stat.CommitId._IsFilled() && inst.NextCommitId._IsFilled() && (IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
+                {
+                    // クライアントから現在の CommitId が送付されてきて、
+                    // インスタンス設定の Next Commit ID が指定されている場合で、
+                    // 2 つの Commit ID の値が異なる場合は、
+                    // クライアントに対して更新指示を返送する
+                    ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
+                }
+
+                if (req.Stat.InstanceArguments._IsFilled() && inst.NextInstanceArguments._IsFilled() && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
+                {
+                    // クライアントから現在の InstanceArguments が送付されてきて、
+                    // インスタンス設定の Next InstanceArguments が指定されている場合で、
+                    // 2 つの InstanceArguments の値が異なる場合は、
+                    // クライアントに対して更新指示を返送する
+                    ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                }
+
+                // ステータスを更新する
+                inst.LastAlive = now;
+                inst.LastStat = req.Stat;
+
+                return ret;
+            }
+        }
     }
 }
 
-#pragma warning restore CS1998
 #endif
 

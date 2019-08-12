@@ -63,22 +63,22 @@ namespace IPA.Cores.Codes
     public static class EasyCookieAuth
     {
         public static readonly Copenhagen<string> LoginPath = "/EasyCookieAuth/";
-        public static readonly Copenhagen<string> CookieName = "authcookie1";
-        public static readonly Copenhagen<CookieSecurePolicy> CookiePolicy = CookieSecurePolicy.Always;
+        public static readonly Copenhagen<string> CookieNameBase = "authcookie1";
+        public static readonly Copenhagen<CookieSecurePolicy> CookiePolicy = CookieSecurePolicy.SameAsRequest;
         public static readonly Copenhagen<TimeSpan> CookieLifetime = TimeSpan.FromDays(365 * 2);
 
         public static readonly Copenhagen<string> LoginFormMessage = "Please log in.";
 
         public static Func<string, string, Task<bool>> AuthenticationPasswordValidator = null;
 
-        public static void ConfigureServices(IServiceCollection services)
+        public static void ConfigureServices(IServiceCollection services, bool allowHttp)
         {
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(opt =>
                 {
-                    opt.Cookie.Name = CookieName;
+                    opt.Cookie.Name = CookieNameBase + (allowHttp ? "_http_ok" : "");
                     opt.Cookie.Expiration = CookieLifetime.Value;
-                    opt.Cookie.SecurePolicy = CookiePolicy;
+                    opt.Cookie.SecurePolicy = allowHttp ? CookieSecurePolicy.None : CookiePolicy.Value;
                     opt.LoginPath = LoginPath.Value;
                     opt.SlidingExpiration = true;
                 });

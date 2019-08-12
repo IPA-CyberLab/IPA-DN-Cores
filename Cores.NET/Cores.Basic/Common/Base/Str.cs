@@ -1181,6 +1181,21 @@ namespace IPA.Cores.Basic
             return str;
         }
 
+        // 指定した文字列を Git Commit ID として正規化する
+        public static string NormalizeGitCommitId(string str)
+        {
+            if (str._IsEmpty()) return "";
+
+            str = str._NonNullTrimSe();
+
+            byte[] data = str._GetHexBytes();
+
+            if (data.Length != 20)
+                throw new ArgumentException(nameof(str));
+
+            return data._GetHexString().ToLower();
+        }
+
         // 指定した文字が全角かどうか調べる
         public static bool IsZenkaku(char c)
         {
@@ -5995,7 +6010,7 @@ namespace IPA.Cores.Basic
 
         public override int GetHashCode()
         {
-            return Value?.GetHashCode() ?? 0;
+            return Value?.GetHashCode(StringComparison.OrdinalIgnoreCase) ?? 0;
         }
 
         public static bool operator ==(IgnoreCase a, IgnoreCase b)
@@ -6019,6 +6034,66 @@ namespace IPA.Cores.Basic
         public static implicit operator IgnoreCase(string s)
         {
             return new IgnoreCase(s);
+        }
+
+        public override string ToString() => this.Value;
+    }
+
+    public readonly struct Trim
+    {
+        // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
+        readonly string Value;
+
+        public Trim(string value)
+        {
+            this.Value = value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is Trim target)
+            {
+                return this == target;
+            }
+            else if (obj is string s)
+            {
+                return this == (Trim)s;
+            }
+            else
+            {
+                string s2 = obj.ToString();
+                return this == s2;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return Value?._NonNullTrim().GetHashCode() ?? 0;
+        }
+
+        public static bool operator ==(Trim a, Trim b)
+        {
+            if ((object)a == null && (object)b == null) return true;
+            if ((object)a == null || (object)b == null) return false;
+
+            return a.Value._IsSameTrim(b.Value);
+        }
+
+        public static bool operator !=(Trim a, Trim b)
+        {
+            return !(a == b);
+        }
+
+        public static implicit operator string(Trim s)
+        {
+            return s.Value;
+        }
+
+        public static implicit operator Trim(string s)
+        {
+            return new Trim(s);
         }
 
         public override string ToString() => this.Value;
@@ -6055,7 +6130,7 @@ namespace IPA.Cores.Basic
 
         public override int GetHashCode()
         {
-            return Value?.GetHashCode() ?? 0;
+            return Value?._NonNullTrim().GetHashCode(StringComparison.OrdinalIgnoreCase) ?? 0;
         }
 
         public static bool operator ==(IgnoreCaseTrim a, IgnoreCaseTrim b)

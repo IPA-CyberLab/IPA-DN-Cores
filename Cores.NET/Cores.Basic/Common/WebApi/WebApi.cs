@@ -79,6 +79,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                if (targetObject is INormalizable norm) norm.Normalize();
+
                 targetObject.CheckError();
             }
             catch (Exception ex)

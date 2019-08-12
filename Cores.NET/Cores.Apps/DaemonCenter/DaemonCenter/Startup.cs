@@ -58,7 +58,7 @@ namespace DaemonCenter
             // Cookie 認証を追加
             EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
             EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
-            EasyCookieAuth.ConfigureServices(services);
+            EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
 
             services.AddMvc()
                 .AddViewOptions(opt =>
@@ -112,7 +112,7 @@ namespace DaemonCenter
             {
                 routes.MapRoute(
                     name: "default",
-                    template: "{controller=Home}/{action=Index}/{id?}");
+                    template: "{controller=App}/{action=Index}/{id?}");
             });
 
             lifetime.ApplicationStopping.Register(() =>

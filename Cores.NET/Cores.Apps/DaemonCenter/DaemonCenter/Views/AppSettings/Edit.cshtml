@@ -2,11 +2,7 @@
 @model SingleData<AppSettings>;
 
 @{
-    Page.SiteName = "App 設定";
-
     Page.Title = Model.GetOperationTitle();
-
-
 }
 
 <h2 class="title is-4">@Page.FullTitle</h2>
@@ -14,6 +10,22 @@
 <form asp-action="Edit">
     <div class="box">
         <div class="content">
+            @if (Model.Mode != ModelMode.Add)
+            {
+                <div class="field is-horizontal">
+                    <div class="field-label is-normal">
+                        <label class="label">GUID</label>
+                    </div>
+                    <div class="field-body">
+                        <div class="field">
+                            <p class="control">
+                                <input asp-for="Id" class="input is-success" type="text" readonly>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+
             <div class="field is-horizontal">
                 <div class="field-label is-normal">
                     <label class="label">@Html.DisplayNameFor(model => model.Data.AppName)</label>
@@ -73,6 +85,34 @@
             </div>
 
             <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.DefaultCommitId)</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-normal">
+                        <p class="control">
+                            @Html.EditorFor(model => model.Data.DefaultCommitId, new { htmlAttributes = new { @class = "input is-info" } })
+                            <span class="help is-primary" asp-validation-for="Data.DefaultCommitId"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">@Html.DisplayNameFor(model => model.Data.DefaultInstanceArgument)</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-normal">
+                        <p class="control">
+                            @Html.EditorFor(model => model.Data.DefaultInstanceArgument, new { htmlAttributes = new { @class = "input is-info" } })
+                            <span class="help is-primary" asp-validation-for="Data.DefaultInstanceArgument"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
                 <div class="field-label">
                     <!-- Left empty for spacing -->
                 </div>
@@ -82,7 +122,6 @@
                             <input class="button is-success" type="submit" asp-action="@Model.Mode" value="@Model.GetButtonTitle()">
                             @if (Model.Mode == ModelMode.Edit)
                             {
-                                @*<input class="button is-danger" type="submit" asp-action="Delete" asp-route-id="@Model.Id" value="削除">*@
                                 <button type="button" class="button is-danger" onclick="vue.deleteConfirm('@Url.Action(action: "Delete", new { id = Model.Id })')">削除</button>
                             }
                         </div>

@@ -341,6 +341,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _NonNull(this string s) { if (s == null) return ""; else return s; }
         public static string _NonNullTrim(this string s) { if (s == null) return ""; else return s.Trim(); }
+        public static string _NonNullTrimSe(this string s) { return Str.NormalizeStrSoftEther(s._NonNullTrim(), true); }
         public static string _TrimNonNull(this string s) => s._NonNullTrim();
         public static bool _TryTrimStartWith(this string srcStr, out string outStr, StringComparison comparison, params string[] keys) => Str.TryTrimStartWith(srcStr, out outStr, comparison, keys);
         public static string _NoSpace(this string s, string replaceWith = "_") => s._NonNull()._ReplaceStr(" ", replaceWith, false);

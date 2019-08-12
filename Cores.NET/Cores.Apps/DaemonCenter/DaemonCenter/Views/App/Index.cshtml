@@ -2,11 +2,10 @@
 @model IReadOnlyList<KeyValuePair<string, App>>
 
 @{
-    Page.Title = "登録 App 一覧";
     IEnumerable<AppSettings> appList = Model.Select(x => x.Value).Select(x => x.Settings);
 }
 
-<h2 class="title is-4">@Page.Title</h2>
+<h2 class="title is-4">DaemonCenter で管理されている App 一覧</h2>
 
 <table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
     <thead>
@@ -25,7 +24,7 @@
             AppSettings settings = app.Settings;
 
             <tr>
-                <th><a asp-action="Edit" asp-route-id="@appId">@settings.AppName</a></th>
+                <th><a asp-action="Status" asp-route-id="@appId">@settings.AppName</a></th>
                 <th>@Html.DisplayFor(model => settings.InstanceKeyType)</th>
                 <th align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</th>
                 <th align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</th>

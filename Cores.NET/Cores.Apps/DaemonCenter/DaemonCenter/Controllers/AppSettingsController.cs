@@ -64,7 +64,7 @@ namespace DaemonCenter.Controllers
 
         // 追加ページのボタンのクリック
         [HttpPost]
-        public IActionResult Add(SingleData<AppSettings> model)
+        public IActionResult Add([FromForm] SingleData<AppSettings> model)
         {
             model.Mode = ModelMode.Add;
 
@@ -80,7 +80,7 @@ namespace DaemonCenter.Controllers
 
         // 編集ページの表示
         [HttpGet]
-        public IActionResult Edit(string id)
+        public IActionResult Edit([FromRoute] string id)
         {
             AppSettings appSettings = Server.AppGet(id).Settings;
 
@@ -91,7 +91,7 @@ namespace DaemonCenter.Controllers
 
         // 編集ページのボタンのクリック
         [HttpPost]
-        public IActionResult Edit(string id, SingleData<AppSettings> model)
+        public IActionResult Edit([FromRoute] string id, [FromForm] SingleData<AppSettings> model)
         {
             model.Mode = ModelMode.Edit;
 
@@ -107,7 +107,7 @@ namespace DaemonCenter.Controllers
 
         // 削除ボタンのクリック
         [HttpGet]
-        public IActionResult Delete(string id, SingleData<AppSettings> model)
+        public IActionResult Delete([FromRoute] string id)
         {
             Server.AppDelete(id);
 

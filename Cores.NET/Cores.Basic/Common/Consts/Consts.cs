@@ -202,5 +202,11 @@ namespace IPA.Cores.Basic
             public const int DefaultMaxEntries = 65536;
             public const int DefaultGcInterval = 10000;
         }
+
+        public static partial class Intervals
+        {
+            public const int MinKeepAliveIntervalsMsec = 1 * 1000;
+            public const int MaxKeepAliveIntervalsMsec = 24 * 60 * 60 * 1000;
+        }
     }
 }
