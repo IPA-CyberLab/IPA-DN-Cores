@@ -12,8 +12,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Codes;
-using IPA.Cores.Helper.AspNet;
-using static IPA.Cores.Globals.AspNet;
+using IPA.Cores.Helper.Codes;
+using static IPA.Cores.Globals.Codes;
 
 namespace IPA.Cores.Codes
 {
