@@ -47,7 +47,6 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
-using IPA.Cores.Basic.AppLib;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -97,7 +96,7 @@ namespace IPA.TestDev
             Con.WriteLine($"Target directory: '{dirZonesDir}'");
 
             // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
-            DnsFlatten flat = new DnsFlatten();
+            DnsFlattenUtil flat = new DnsFlattenUtil();
 
             foreach (FileSystemEntity ent in Lfs.EnumDirectory(dirZonesDir, true))
             {
@@ -111,14 +110,14 @@ namespace IPA.TestDev
             }
 
             // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
-            DnsIpPairGenerator pairGenerator = new DnsIpPairGenerator(100, flat.FqdnSet);
+            DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
 
-            List<DnsIpPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
+            List<SniHostnameIpAddressPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
 
             // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
-            SslCertCollector col = new SslCertCollector(1000, list);
+            SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list);
 
-            IReadOnlyList<SslCertEntry> ret = col.ExecuteAsync()._GetResult();
+            IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
 
             XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
 

@@ -60,7 +60,6 @@ using Microsoft.AspNetCore.Http;
 
 using Microsoft.Extensions.FileProviders;
 using System.Web;
-using IPA.Cores.Basic.AppLib;
 using System.Text;
 
 
@@ -267,11 +266,11 @@ namespace IPA.TestDev
 
             if (true)
             {
-                List<SslCertEntry> o = new List<SslCertEntry>();
+                List<SslCertCollectorItem> o = new List<SslCertCollectorItem>();
 
-                o.Add(new SslCertEntry { CertFqdnList = "a" });
-                o.Add(new SslCertEntry { CertFqdnList = "b" });
-                o.Add(new SslCertEntry { CertFqdnList = "c" });
+                o.Add(new SslCertCollectorItem { CertFqdnList = "a" });
+                o.Add(new SslCertCollectorItem { CertFqdnList = "b" });
+                o.Add(new SslCertCollectorItem { CertFqdnList = "c" });
 
                 XmlAndXsd xmlData = Util.GenerateXmlAndXsd(o);
 
@@ -284,11 +283,11 @@ namespace IPA.TestDev
 
             if (true)
             {
-                List<DnsIpPair> list = @"c:\tmp\list1.txt"._FileToObject< List<DnsIpPair>>();
+                List<SniHostnameIpAddressPair> list = @"c:\tmp\list1.txt"._FileToObject< List<SniHostnameIpAddressPair>>();
 
-                SslCertCollector col = new SslCertCollector(1000, list.Take(0));
+                SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list.Take(0));
 
-                IReadOnlyList<SslCertEntry> ret = col.ExecuteAsync()._GetResult();
+                IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
 
                 var x = Util.GenerateXmlAndXsd(ret);
 
@@ -302,7 +301,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                DnsFlatten flat = new DnsFlatten();
+                DnsFlattenUtil flat = new DnsFlattenUtil();
 
                 foreach (FileSystemEntity ent in Lfs.EnumDirectory(@"_______", true))
                 {
@@ -315,9 +314,9 @@ namespace IPA.TestDev
                     }
                 }
 
-                DnsIpPairGenerator gen = new DnsIpPairGenerator(100, flat.FqdnSet);
+                DnsIpPairGeneratorUtil gen = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
 
-                List<DnsIpPair> list = gen.ExecuteAsync()._GetResult().ToList();
+                List<SniHostnameIpAddressPair> list = gen.ExecuteAsync()._GetResult().ToList();
 
                 list._ObjectToFile(@"c:\tmp\list1.txt");
 

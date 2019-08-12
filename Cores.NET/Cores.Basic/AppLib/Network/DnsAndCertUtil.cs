@@ -53,7 +53,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.AppLib
+namespace IPA.Cores.Basic
 {
     // 大解説書
     // 
@@ -70,18 +70,17 @@ namespace IPA.Cores.Basic.AppLib
     // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
     //  by SslCertCollector
 
-
     // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
-    public class SslCertCollector
+    public class SslCertCollectorUtil
     {
         public int MaxConcurrentTasks { get; }
         public TcpIpSystem TcpIp { get; }
 
-        ConcurrentQueue<SslCertEntry> Queue;
+        ConcurrentQueue<SslCertCollectorItem> Queue;
 
-        ConcurrentBag<SslCertEntry> ResultList = new ConcurrentBag<SslCertEntry>();
+        ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
 
-        public SslCertCollector(int maxConcurrentTasks, IEnumerable<DnsIpPair> pairs, TcpIpSystem tcpIp = null)
+        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -89,13 +88,13 @@ namespace IPA.Cores.Basic.AppLib
 
             // 入力リストを整理する
             // (SNI + IP アドレス のほか、IP アドレス + IP アドレスも追加する)
-            HashSet<DnsIpPair> tmpList = new HashSet<DnsIpPair>(pairs.Distinct());
+            HashSet<SniHostnameIpAddressPair> tmpList = new HashSet<SniHostnameIpAddressPair>(pairs.Distinct());
 
-            Queue = new ConcurrentQueue<SslCertEntry>();
+            Queue = new ConcurrentQueue<SslCertCollectorItem>();
 
-            foreach (DnsIpPair pair in pairs)
+            foreach (SniHostnameIpAddressPair pair in pairs)
             {
-                SslCertEntry e1 = new SslCertEntry
+                SslCertCollectorItem e1 = new SslCertCollectorItem
                 {
                     FriendName = pair.SniHostName,
                     SniHostName = pair.SniHostName,
@@ -104,7 +103,7 @@ namespace IPA.Cores.Basic.AppLib
 
                 Queue.Enqueue(e1);
 
-                SslCertEntry e2 = new SslCertEntry
+                SslCertCollectorItem e2 = new SslCertCollectorItem
                 {
                     FriendName = pair.SniHostName,
                     SniHostName = pair.IpAddress,
@@ -116,7 +115,7 @@ namespace IPA.Cores.Basic.AppLib
         }
 
         Once StartFlag;
-        public async Task<IReadOnlyList<SslCertEntry>> ExecuteAsync(CancellationToken cancel = default)
+        public async Task<IReadOnlyList<SslCertCollectorItem>> ExecuteAsync(CancellationToken cancel = default)
         {
             int totalCount = Queue.Count;
 
@@ -165,7 +164,7 @@ namespace IPA.Cores.Basic.AppLib
                 cancel.ThrowIfCancellationRequested();
 
                 // キューから 1 つ取ります
-                if (Queue.TryDequeue(out SslCertEntry e) == false)
+                if (Queue.TryDequeue(out SslCertCollectorItem e) == false)
                 {
                     // もう ありません
                     return;
@@ -179,7 +178,7 @@ namespace IPA.Cores.Basic.AppLib
                         // 3 回トライする
                         try
                         {
-                            SslCertEntry e2 = e._CloneDeep();
+                            SslCertCollectorItem e2 = e._CloneDeep();
                             e2.Port = port;
 
                             await PerformOneAsync(e2, cancel);
@@ -196,7 +195,7 @@ namespace IPA.Cores.Basic.AppLib
         }
 
         // 1 つの SSL 接続試行を処理する非同期関数
-        async Task PerformOneAsync(SslCertEntry e, CancellationToken cancel = default)
+        async Task PerformOneAsync(SslCertCollectorItem e, CancellationToken cancel = default)
         {
             using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress), e.Port, connectTimeout: 5000), cancel))
             {
@@ -228,7 +227,7 @@ namespace IPA.Cores.Basic.AppLib
     }
 
     [Serializable]
-    public class SslCertEntry
+    public class SslCertCollectorItem
     {
         public string FriendName;
         public string SniHostName;
@@ -244,16 +243,16 @@ namespace IPA.Cores.Basic.AppLib
     }
 
     // 2. FQDN の一覧を入力して FQDN、IP アドレス、ポート番号のペアの一覧を出力する
-    public class DnsIpPairGenerator
+    public class DnsIpPairGeneratorUtil
     {
         public int MaxConcurrentTasks { get; }
         public TcpIpSystem TcpIp { get; }
 
         ConcurrentQueue<string> FqdnQueue;
 
-        ConcurrentBag<DnsIpPair> ResultList = new ConcurrentBag<DnsIpPair>();
+        ConcurrentBag<SniHostnameIpAddressPair> ResultList = new ConcurrentBag<SniHostnameIpAddressPair>();
 
-        public DnsIpPairGenerator(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem tcpIp = null)
+        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -267,7 +266,7 @@ namespace IPA.Cores.Basic.AppLib
         }
 
         Once StartFlag;
-        public async Task<IReadOnlyList<DnsIpPair>> ExecuteAsync(CancellationToken cancel = default)
+        public async Task<IReadOnlyList<SniHostnameIpAddressPair>> ExecuteAsync(CancellationToken cancel = default)
         {
             StartFlag.FirstCallOrThrowException();
 
@@ -327,12 +326,12 @@ namespace IPA.Cores.Basic.AppLib
             addressList._DoForEach(addr =>
             {
                 $"{fqdn} => {addr}"._Print();
-                ResultList.Add(new DnsIpPair { SniHostName = fqdn, IpAddress = addr.ToString() });
+                ResultList.Add(new SniHostnameIpAddressPair { SniHostName = fqdn, IpAddress = addr.ToString() });
             });
         }
     }
 
-    public class DnsIpPair
+    public class SniHostnameIpAddressPair
     {
         const StringComparison Comparison = StringComparison.OrdinalIgnoreCase;
 
@@ -343,11 +342,11 @@ namespace IPA.Cores.Basic.AppLib
             => System.HashCode.Combine(SniHostName.GetHashCode(Comparison), IpAddress.GetHashCode(Comparison));
 
         public override bool Equals(object obj)
-            => this.SniHostName.Equals(((DnsIpPair)obj).SniHostName, Comparison) && this.IpAddress.Equals(((DnsIpPair)obj).IpAddress, Comparison);
+            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj).IpAddress, Comparison);
     }
 
     // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
-    public class DnsFlatten
+    public class DnsFlattenUtil
     {
         HashSet<string> FqdnSetInternal = new HashSet<string>(StrComparer.IgnoreCaseComparer);
 
