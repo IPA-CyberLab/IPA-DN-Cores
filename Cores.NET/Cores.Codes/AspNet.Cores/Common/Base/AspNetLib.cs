@@ -65,14 +65,14 @@ namespace IPA.Cores.Codes
     public class AspNetLib : IDisposable
     {
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet);
+        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresCodes);
 
         public AspNetLib(IConfiguration configuration)
         {
         }
 
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
-            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_AspNet)));
+            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresCodes)));
 
 
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
