@@ -48,13 +48,13 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.AspNet;
+using IPA.Cores.Codes;
 using IPA.Cores.Helper.AspNet;
 using static IPA.Cores.Globals.AspNet;
 
 using Microsoft.AspNetCore.Mvc.Razor;
 
-namespace IPA.Cores.AspNet
+namespace IPA.Cores.Codes
 {
     public class AspPageContext
     {

@@ -30,9 +30,9 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
 を追加する。
 
 
-■ Cores.AspNet.shproj の追加
+■ Cores.Codes.shproj の追加
 ソリューションに
-「Cores.AspNet.shproj」
+「Cores.Codes.shproj」
 を追加する。
 
 
@@ -63,9 +63,9 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../../../Cores.NET/Cores.AspNet/**/*.cs" />
-    <Content Include="../../../../Cores.NET/Cores.AspNet/**/*.cshtml" />
-    <EmbeddedResource Include="../../../../Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+    <Compile Include="../../../../Cores.NET/Cores.Codes/**/*.cs" />
+    <Content Include="../../../../Cores.NET/Cores.Codes/**/*.cshtml" />
+    <EmbeddedResource Include="../../../../Cores.NET/Cores.Codes/AspNet.Cores.Resource/**/*" />
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
@@ -92,9 +92,9 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/**/*.cs" />
-    <Content Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/**/*.cshtml" />
-    <EmbeddedResource Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+    <Compile Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/**/*.cs" />
+    <Content Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/**/*.cshtml" />
+    <EmbeddedResource Include="../submodules/IPA-DN-Cores/Cores.NET/Cores.Codes/AspNet.Cores.Resource/**/*" />
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
@@ -185,7 +185,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.AspNet;
+using IPA.Cores.Codes;
 using IPA.Cores.Helper.AspNet;
 using static IPA.Cores.Globals.AspNet;
 ---
@@ -291,7 +291,7 @@ Views/_ViewImports.cshtml に以下を追加。
 @using IPA.Cores.Helper.Basic;
 @using static IPA.Cores.Globals.Basic;
 
-@using IPA.Cores.AspNet;
+@using IPA.Cores.Codes;
 @using IPA.Cores.Helper.AspNet;
 @using static IPA.Cores.Globals.AspNet;
 ---

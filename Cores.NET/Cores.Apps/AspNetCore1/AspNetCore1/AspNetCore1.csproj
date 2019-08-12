@@ -20,9 +20,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../../../Cores.NET/Cores.AspNet/**/*.cs" />
-    <Content Include="../../../../Cores.NET/Cores.AspNet/**/*.cshtml" />
-    <EmbeddedResource Include="../../../../Cores.NET/Cores.AspNet/AspNet.Cores.Resource/**/*" />
+    <Compile Include="../../../../Cores.NET/Cores.Codes/**/*.cs" />
+    <Content Include="../../../../Cores.NET/Cores.Codes/**/*.cshtml" />
+    <EmbeddedResource Include="../../../../Cores.NET/Cores.Codes/AspNet.Cores.Resource/**/*" />
   </ItemGroup>
   
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
