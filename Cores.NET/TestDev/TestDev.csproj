@@ -24,10 +24,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="BenchmarkRecords\**" />
     <Compile Remove="Local\**" />
     <Compile Remove="Log\**" />
+    <EmbeddedResource Remove="BenchmarkRecords\**" />
     <EmbeddedResource Remove="Local\**" />
     <EmbeddedResource Remove="Log\**" />
+    <None Remove="BenchmarkRecords\**" />
     <None Remove="Local\**" />
     <None Remove="Log\**" />
   </ItemGroup>
@@ -36,6 +39,10 @@
     <Compile Include="../../Cores.NET/Cores.Codes/**/*.cs" />
     <Content Include="../../Cores.NET/Cores.Codes/**/*.cshtml" />
     <EmbeddedResource Include="../../Cores.NET/Cores.Codes/Resources/**/*" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Content Remove="BenchmarkRecords\**" />
   </ItemGroup>
   
   <ItemGroup>

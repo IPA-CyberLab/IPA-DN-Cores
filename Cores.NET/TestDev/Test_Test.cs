@@ -261,6 +261,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                CoresRes["190812codestest"].String._Print();
+                return;
+            }
+
+            if (true)
+            {
                 List<SslCertEntry> o = new List<SslCertEntry>();
 
                 o.Add(new SslCertEntry { CertFqdnList = "a" });
