@@ -48,8 +48,23 @@ ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定�
 ---
 ※ GC で ServerGC を false にする理由は、.NET Core 2.1 & 2.2 にはバグがあるため。.NET Core 3.0 で改善される予定。
 
+既存の </PropertyGroup> の下に以下を追加
 
-</PropertyGroup> の下に以下を追加
+---
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>CORES_CODES_ASPNETMVC;</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DefineConstants>TRACE;DEBUG;CORES_CODES_ASPNETMVC;</DefineConstants>
+  </PropertyGroup>
+---
+
+上記で追加した </PropertyGroup> の下に以下を追加
 ---
   <ItemGroup>
     <Compile Remove="Local\**" />

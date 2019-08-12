@@ -40,6 +40,7 @@
 
 ## コンパイルスイッチ一覧と必要なライブラリの列挙
 ### CORES_CODES_ASPNETMVC
+- ASP&#46;NET MVC 関係
 
 
 
