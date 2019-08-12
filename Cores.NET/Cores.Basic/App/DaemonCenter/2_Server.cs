@@ -262,7 +262,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     inst.HostName = req.HostName;
                 }
 
-                if (req.Stat.CommitId._IsFilled() && inst.NextCommitId._IsFilled() && (IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
+                if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId && (IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
                 {
                     // クライアントから現在の CommitId が送付されてきて、
                     // インスタンス設定の Next Commit ID が指定されている場合で、
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
                 }
 
-                if (req.Stat.InstanceArguments._IsFilled() && inst.NextInstanceArguments._IsFilled() && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
+                if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
                 {
                     // クライアントから現在の InstanceArguments が送付されてきて、
                     // インスタンス設定の Next InstanceArguments が指定されている場合で、
