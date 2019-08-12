@@ -30,6 +30,8 @@
 // Author: Daiyuu Nobori
 // Description
 
+#if  CORES_CODES_ASPNETMVC
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -154,3 +156,5 @@ namespace IPA.Cores.Codes
         }
     }
 }
+
+#endif

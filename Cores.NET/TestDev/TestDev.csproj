@@ -31,7 +31,13 @@
     <None Remove="Local\**" />
     <None Remove="Log\**" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <Compile Include="../../Cores.NET/Cores.Codes/**/*.cs" />
+    <Content Include="../../Cores.NET/Cores.Codes/**/*.cshtml" />
+    <EmbeddedResource Include="../../Cores.NET/Cores.Codes/Resources/**/*" />
+  </ItemGroup>
+  
   <ItemGroup>
     <!-- Cores.Basic.Common -->
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />

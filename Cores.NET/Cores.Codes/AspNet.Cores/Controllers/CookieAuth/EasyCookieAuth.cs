@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if  CORES_CODES_ASPNETMVC
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -172,3 +174,4 @@ namespace IPA.Cores.Codes
     }
 }
 
+#endif

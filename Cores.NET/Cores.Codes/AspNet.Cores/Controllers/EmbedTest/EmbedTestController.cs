@@ -1,4 +1,7 @@
-﻿using System;
+﻿#if  CORES_CODES_ASPNETMVC
+
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -33,3 +36,5 @@ namespace IPA.Cores.Codes
         }
     }
 }
+
+#endif

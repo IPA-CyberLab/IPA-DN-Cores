@@ -9,7 +9,6 @@
     <Import_RootNamespace>Cores.Codes</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)AspNet.Cores/**/*" />
-    <Content Include="$(MSBuildThisFileDirectory)Resources/**/*" />
+    <Content Include="$(MSBuildThisFileDirectory)**/*" />
   </ItemGroup>
 </Project>
