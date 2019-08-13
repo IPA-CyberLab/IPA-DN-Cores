@@ -55,6 +55,7 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
+    // サーバー
     public class Server : JsonRpcServerApi, IRpc
     {
         readonly JsonRpcHttpServer JsonRpcServer;
@@ -270,7 +271,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // クライアントに対して更新指示を返送する
                     ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
                 }
-
+                
                 if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
                 {
                     // クライアントから現在の InstanceArguments が送付されてきて、

@@ -48,6 +48,8 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class EnvInfoSnapshot
     {
+        public EnvInfoSnapshot() { }
+
         public EnvInfoSnapshot(string headerText)
         {
             HeaderText = headerText;

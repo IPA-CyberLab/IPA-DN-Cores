@@ -208,6 +208,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public string NextCommitId;
         public string NextInstanceArguments;
+        public bool RebootRequested;
 
         public void Normalize()
         {

@@ -49,8 +49,155 @@ using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
 
+namespace IPA.Cores.Basic
+{
+    public static partial class CoresConfig
+    {
+        public static partial class DaemonCenterLibSettings
+        {
+            public static readonly Copenhagen<int> RetryIntervalMsecsStandard = 1 * 1000;
+            public static readonly Copenhagen<int> RetryIntervalMsecsMax = 5 * 60 * 1000;
+        }
+    }
+}
+
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
+    // 固定的な設定
+    [Serializable]
+    public class ClientSettings
+    {
+        public string ServerUrl;
+        public string ServerCertSha;
+
+        public string AppId;
+        public string HostName;
+        public string HostGuid;
+    }
+
+    // 値がその都度コロコロ変わる変数データ
+    [Serializable]
+    public class ClientVariables
+    {
+        public string CurrentCommitId;
+        public string CurrentInstanceArguments;
+        public StatFlag StatFlag;
+    }
+
+    public delegate void RestartCallback(ResponseMsg res);
+
+    // クライアント
+    public class Client : AsyncServiceWithMainLoop
+    {
+        // 固定的な設定
+        readonly ClientSettings Settings;
+
+        // 起動時の可変データ
+        readonly ClientVariables Variables;
+
+        readonly JsonRpcHttpClient RpcClient;
+
+        readonly IRpc Rpc;
+
+        readonly RestartCallback RestartCb;
+
+        public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions webOptions = null, CancellationToken cancel = default) : base(cancel)
+        {
+            // 設定とデータをコピーする
+            this.Settings = settings._CloneDeep();
+            this.Variables = variables._CloneDeep();
+
+            // RPC Client を作成する
+            this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl, webOptions);
+
+            // RPC インターフェイスを作成する
+            this.Rpc = this.RpcClient.GenerateRpcInterface<IRpc>();
+
+            this.RestartCb = restartCb;
+
+            // メインループを開始する
+            this.StartMainLoop(MainLoopAsync);
+        }
+
+        // メインループ
+        async Task MainLoopAsync(CancellationToken cancel)
+        {
+            int numRetry = 0;
+
+            while (this.GrandCancel.IsCancellationRequested == false)
+            {
+                int nextInterval;
+
+                try
+                {
+                    nextInterval = await PerformOnceAsync(cancel);
+
+                    if (nextInterval == -1)
+                    {
+                        // 再起動を要求した後ここに飛ぶ
+                        // メインループを直ちに終了する
+                        break;
+                    }
+
+                    numRetry = 0;
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+
+                    numRetry++;
+
+                    nextInterval = Util.GenRandIntervalWithRetry(CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsStandard, numRetry,
+                        CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsMax);
+                }
+
+                await cancel._WaitUntilCanceledAsync(nextInterval);
+            }
+        }
+
+        // 1 回の処理
+        async Task<int> PerformOnceAsync(CancellationToken cancel = default)
+        {
+            CoresRuntimeStat runtimeStat = new CoresRuntimeStat();
+
+            runtimeStat.Refresh();
+
+            InstanceStat stat = new InstanceStat
+            {
+                CommitId = this.Variables.CurrentCommitId,
+                InstanceArguments = this.Variables.CurrentInstanceArguments,
+                RuntimeStat = runtimeStat,
+                EnvInfo = new EnvInfoSnapshot(),
+                StatFlag = this.Variables.StatFlag,
+            };
+
+            // リクエストメッセージの組立て
+            RequestMsg req = new RequestMsg
+            {
+                AppId = this.Settings.AppId,
+                HostName = this.Settings.HostName,
+                Guid = this.Settings.HostGuid,
+                Stat = stat,
+            };
+
+            // サーバーに送付し応答を受信
+            ResponseMsg res = await Rpc.KeepAliveAsync(req);
+
+            // 応答メッセージの分析
+            res.Normalize();
+
+            if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.RebootRequested)
+            {
+                // 再起動が要求された
+                this.RestartCb(res);
+
+                return -1;
+            }
+
+            // 次回 KeepAlive 間隔の応答
+            return res.NextKeepAliveMsec;
+        }
+    }
 }
 
 #endif
