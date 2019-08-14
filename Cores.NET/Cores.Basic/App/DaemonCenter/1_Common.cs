@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     public enum StatFlag
     {
         None = 0,
-        IsOnGit = 1,
+        OnGit = 1,
     }
 
     public class InstanceStat
