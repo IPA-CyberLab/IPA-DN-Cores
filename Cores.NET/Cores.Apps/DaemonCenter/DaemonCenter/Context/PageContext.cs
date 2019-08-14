@@ -61,6 +61,8 @@ namespace DaemonCenter
     // DaemonCenter 用のページコンテキスト
     public class PageContext : AspPageContext
     {
+        public DateTimeOffset Now = DateTimeOffset.Now;
+
         // サイト名
         public PageContext()
         {

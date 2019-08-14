@@ -11,9 +11,8 @@
     <thead>
         <tr>
             <th>@Html.DisplayNameFor(model => model.First().Value.Settings.AppName)</th>
-            <th>@Html.DisplayNameFor(model => model.First().Value.Settings.InstanceKeyType)</th>
-            <th align="right">@Html.DisplayNameFor(model => model.First().Value.Settings.KeepAliveIntervalSecs)</th>
-            <th align="right">@Html.DisplayNameFor(model => model.First().Value.Settings.DeadIntervalSecs)</th>
+            <th align="right">アクティブ</th>
+            <th align="right">非アクティブ</th>
         </tr>
     </thead>
     <tbody>
@@ -25,9 +24,8 @@
 
             <tr>
                 <th><a asp-action="Status" asp-route-id="@appId">@settings.AppName</a></th>
-                <th>@Html.DisplayFor(model => settings.InstanceKeyType)</th>
-                <th align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</th>
-                <th align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</th>
+                <th align="right">@app.GetActiveInstances(Page.Now, true).Count()</th>
+                <th align="right">@app.GetActiveInstances(Page.Now, false).Count()</th>
             </tr>
         }
     </tbody>

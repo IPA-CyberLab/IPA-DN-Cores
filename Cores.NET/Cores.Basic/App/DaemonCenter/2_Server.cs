@@ -288,7 +288,6 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
 
                 // ステータスを更新する
-                Dbg.Where();
                 inst.LastAlive = now;
                 inst.LastStat = req.Stat;
                 inst.NumAlive++;
