@@ -278,6 +278,30 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class TcpIpHostDataJsonSafe
+    {
+        public string HostName;
+        public string DomainName;
+        public string FqdnHostName;
+        public bool IsIPv4Supported;
+        public bool IsIPv6Supported;
+        public string[] IPAddressList;
+
+        public TcpIpHostDataJsonSafe() { }
+
+        public TcpIpHostDataJsonSafe(EnsureSpecial getThisHostInfo)
+        {
+            TcpIpSystemHostInfo info = LocalNet.GetHostInfo();
+
+            this.HostName = info.HostName;
+            this.DomainName = info.DomainName;
+            this.FqdnHostName = info.FqdnHostName;
+            this.IsIPv4Supported = info.IsIPv4Supported;
+            this.IsIPv6Supported = info.IsIPv6Supported;
+            this.IPAddressList = info.IPAddressList.Select(x => x.ToString()).ToArray();
+        }
+    }
+
     public abstract class TcpIpSystemHostInfo
     {
         public virtual int InfoVersion { get; protected set; }

@@ -119,6 +119,8 @@ namespace IPA.Cores.Basic
 
             throw new NotImplementedException();
         }
+
+        public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe() => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes);
     }
 }
 

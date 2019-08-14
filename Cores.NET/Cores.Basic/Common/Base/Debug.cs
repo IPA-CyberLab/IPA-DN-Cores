@@ -336,25 +336,25 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static string CurrentGitCommitInfoCache = null;
-        public static string GetCurrentGitCommitInfo()
+        static string CurrentGitCommitIdCache = null;
+        public static string GetCurrentGitCommitId()
         {
-            if (CurrentGitCommitInfoCache == null)
+            if (CurrentGitCommitIdCache == null)
             {
                 try
                 {
-                    CurrentGitCommitInfoCache = GetCurrentGitCommitInfoCore()._NonNullTrim();
+                    CurrentGitCommitIdCache = GetCurrentGitCommitIdInternal()._NonNullTrim();
                 }
                 catch
                 {
-                    CurrentGitCommitInfoCache = "";
+                    CurrentGitCommitIdCache = "";
                 }
             }
 
-            return CurrentGitCommitInfoCache._NonNullTrim();
+            return CurrentGitCommitIdCache._NonNullTrim();
         }
 
-        static string GetCurrentGitCommitInfoCore()
+        static string GetCurrentGitCommitIdInternal()
         {
             string tmpPath = Env.AppRootDir;
 

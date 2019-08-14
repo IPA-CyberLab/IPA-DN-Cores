@@ -341,6 +341,16 @@ namespace IPA.Cores.Basic
         GlobalIp = 8192,
     }
 
+    // 許容される IP アドレスの種類
+    [Flags]
+    public enum AllowedIPVersions
+    {
+        None = 0,
+        IPv4 = 1,
+        IPv6 = 2,
+        All = IPv4 | IPv6,
+    }
+
     // IPAddrsssType ヘルパー
     public static class IPAddressTypeHelper
     {
@@ -521,20 +531,51 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を IP アドレスに変換
-        public static IPAddress StrToIP(string str)
+        public static IPAddress StrToIP(string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
         {
-            if (Str.InStr(str, ":") == false && Str.InStr(str, ".") == false)
+            if (noExceptionAndReturnNull == false)
             {
-                throw new ArgumentException("str is not IPv4 nor IPv6 address.");
-            }
-            IPAddress ret = IPAddress.Parse(str);
+                if (Str.InStr(str, ":") == false && Str.InStr(str, ".") == false)
+                {
+                    throw new ArgumentException("str is not IPv4 nor IPv6 address.");
+                }
 
-            if (ret.AddressFamily != AddressFamily.InterNetwork && ret.AddressFamily != AddressFamily.InterNetworkV6)
+                IPAddress ip = IPAddress.Parse(str);
+
+                if (CheckIsIpAddressVersionAllowed(ip, allowed) == false)
+                {
+                    throw new ArgumentOutOfRangeException($"The specified IP address \"{str}\"'s version is not allowed.");
+                }
+
+                return ip;
+            }
+            else
             {
-                throw new ArgumentException("str is not IPv4 nor IPv6 address.");
-            }
+                if (Str.InStr(str, ":") == false && Str.InStr(str, ".") == false)
+                {
+                    return null;
+                }
 
-            return ret;
+                if (IPAddress.TryParse(str, out IPAddress ip) == false)
+                    return null;
+
+                if (CheckIsIpAddressVersionAllowed(ip, allowed) == false)
+                    return null;
+
+                return ip;
+            }
+        }
+
+        // IP アドレスの種類を検査
+        public static bool CheckIsIpAddressVersionAllowed(IPAddress ip, AllowedIPVersions allowed)
+        {
+            bool ok = false;
+
+            if (allowed.BitAny(AllowedIPVersions.IPv4)) if (ip.AddressFamily == AddressFamily.InterNetwork) ok = true;
+
+            if (allowed.BitAny(AllowedIPVersions.IPv6)) if (ip.AddressFamily == AddressFamily.InterNetworkV6) ok = true;
+
+            return ok;
         }
 
         // 指定された IP ネットワークとサブネットマスクから、最初と最後の IP を取得
@@ -604,45 +645,19 @@ namespace IPA.Cores.Basic
         // 指定された文字列が IP アドレスかどうか検査
         public static bool IsStrIP(string str)
         {
-            if (Str.InStr(str, ":") == false && Str.InStr(str, ".") == false)
-            {
-                return false;
-            }
-            try
-            {
-                StrToIP(str);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            return StrToIP(str, AllowedIPVersions.All, true) != null;
         }
 
         // 指定された文字列が IPv4 アドレスかどうか検査
         public static bool IsStrIPv4(string str)
         {
-            try
-            {
-                return IsIPv4(StrToIP(str));
-            }
-            catch
-            {
-                return false;
-            }
+            return StrToIP(str, AllowedIPVersions.IPv4, true) != null;
         }
 
         // 指定された文字列が IPv6 アドレスかどうか検査
         public static bool IsStrIPv6(string str)
         {
-            try
-            {
-                return IsIPv6(StrToIP(str));
-            }
-            catch
-            {
-                return false;
-            }
+            return StrToIP(str, AllowedIPVersions.IPv6, true) != null;
         }
 
         // IPv4 / IPv6 マスクを文字列に変換

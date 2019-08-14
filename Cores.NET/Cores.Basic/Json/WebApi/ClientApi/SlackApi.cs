@@ -118,13 +118,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string next_cursor;
         }
 
-        public abstract class SlackResponseBase : IErrorCheckable
+        public abstract class SlackResponseBase : IValidatable
         {
             public bool ok;
             public string error;
             public ResponseMetadata response_metadata;
 
-            public void CheckError()
+            public void Validate()
             {
                 if (ok == false)
                     throw new ApplicationException(error._FilledOrDefault("Slack response unknown error"));

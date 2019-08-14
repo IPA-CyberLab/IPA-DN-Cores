@@ -4504,7 +4504,7 @@ namespace IPA.Cores.Basic
         public static void RecordStart()
         {
             WriteTextLog($"----- Start new benchmark -----");
-            WriteTextLog($"Commit: {Dbg.GetCurrentGitCommitInfo()}");
+            WriteTextLog($"Commit: {Dbg.GetCurrentGitCommitId()}");
             WriteTextLog($"ExeFileName: {Env.AppExecutableExeOrDllFileName}");
             WriteTextLog($"OS: {Env.OsInfoString}");
             WriteTextLog($"Framework: {Env.FrameworkInfoString}");

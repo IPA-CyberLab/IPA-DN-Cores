@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
     // 固定的な設定
     [Serializable]
-    public class ClientSettings
+    public class ClientSettings : IValidatable
     {
         public string ServerUrl;
         public string ServerCertSha;
@@ -73,6 +73,14 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string AppId;
         public string HostName;
         public string HostGuid;
+
+        public void Validate()
+        {
+            if ((IsEmpty)ServerUrl) throw new ArgumentNullException(nameof(ServerUrl));
+            if ((IsEmpty)AppId) throw new ArgumentNullException(nameof(AppId));
+            if ((IsEmpty)HostName) throw new ArgumentNullException(nameof(HostName));
+            if ((IsEmpty)HostGuid) throw new ArgumentNullException(nameof(HostGuid));
+        }
     }
 
     // 値がその都度コロコロ変わる変数データ
@@ -103,9 +111,25 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions webOptions = null, CancellationToken cancel = default) : base(cancel)
         {
+            settings.Validate();
+
             // 設定とデータをコピーする
             this.Settings = settings._CloneDeep();
             this.Variables = variables._CloneDeep();
+
+            // Web オプションを設定する
+            if (webOptions == null) webOptions = new WebApiOptions();
+
+            if ((IsEmpty)settings.ServerCertSha)
+            {
+                webOptions.Settings.SslAcceptAnyCerts = true;
+            }
+            else
+            {
+                webOptions.Settings.SslAcceptCertSHAHashList.Clear();
+                webOptions.Settings.SslAcceptCertSHAHashList.Add(settings.ServerCertSha);
+                webOptions.Settings.SslAcceptAnyCerts = false;
+            }
 
             // RPC Client を作成する
             this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl, webOptions);
@@ -162,6 +186,14 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             runtimeStat.Refresh();
 
+            string[] globalIpList = null;
+
+            try
+            {
+                globalIpList = (await LocalNet.GetLocalHostPossibleIpAddressListAsync(cancel)).Select(x => x.ToString()).ToArray();
+            }
+            catch { }
+
             InstanceStat stat = new InstanceStat
             {
                 CommitId = this.Variables.CurrentCommitId,
@@ -169,6 +201,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 RuntimeStat = runtimeStat,
                 EnvInfo = new EnvInfoSnapshot(),
                 StatFlag = this.Variables.StatFlag,
+                TcpIpHostData = LocalNet.GetTcpIpHostDataJsonSafe(),
+                GlobalIpList = globalIpList,
             };
 
             // リクエストメッセージの組立て
@@ -196,6 +230,18 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             // 次回 KeepAlive 間隔の応答
             return res.NextKeepAliveMsec;
+        }
+
+        protected override void DisposeImpl(Exception ex)
+        {
+            try
+            {
+                this.RpcClient._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
         }
     }
 }

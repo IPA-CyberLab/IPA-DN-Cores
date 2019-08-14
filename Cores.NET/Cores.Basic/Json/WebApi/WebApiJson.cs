@@ -65,9 +65,9 @@ namespace IPA.Cores.Basic
 
             if (checkError)
             {
-                if (ret is IErrorCheckable b)
+                if (ret is IValidatable b)
                 {
-                    b.CheckError();
+                    b.Validate();
                 }
             }
 

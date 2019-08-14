@@ -182,6 +182,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static byte[] _GetHexBytes(this string str) => Str.HexToByte(str);
 
+        public static string _NormalizeHexString(this string src, bool lowerCase = false, string padding = "") => Str.NormalizeHexString(src, lowerCase, padding);
+
         public static bool _ToBool(this bool b) => b;
         public static bool _ToBool(this sbyte i) => (i != 0);
         public static bool _ToBool(this byte i) => (i != 0);
@@ -1466,6 +1468,14 @@ namespace IPA.Cores.Helper.Basic
 
             return ret;
         }
+
+        public static bool _IsStrIP(this string str) => IPUtil.IsStrIP(str);
+        public static bool _IsStrIPv4(this string str) => IPUtil.IsStrIPv4(str);
+        public static bool _IsStrIPv6(this string str) => IPUtil.IsStrIPv6(str);
+
+        public static IPAddress _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
+            => IPUtil.StrToIP(str, allowed, noException);
+
     }
 }
 

@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string AppAdd(AppSettings settings)
         {
             settings.Normalize();
-            settings.CheckError();
+            settings.Validate();
 
             lock (DbLock)
             {
@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public void AppSet(string appId, AppSettings settings)
         {
             settings.Normalize();
-            settings.CheckError();
+            settings.Validate();
 
             lock (DbLock)
             {
@@ -263,6 +263,12 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     inst.HostName = req.HostName;
                 }
 
+                // AcceptableIpList の生成
+                HashSet<string> acceptableIpList = new HashSet<string>(StrComparer.IpAddressStrComparer);
+                acceptableIpList.Add(this.ClientInfo.RemoteIP);
+                req.Stat.GlobalIpList._DoForEach(x => acceptableIpList.Add(x));
+                req.Stat.AcceptableIpList = acceptableIpList.ToArray();
+
                 if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId && (IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
                 {
                     // クライアントから現在の CommitId が送付されてきて、
@@ -282,8 +288,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
 
                 // ステータスを更新する
+                Dbg.Where();
                 inst.LastAlive = now;
                 inst.LastStat = req.Stat;
+                inst.NumAlive++;
 
                 return ret;
             }

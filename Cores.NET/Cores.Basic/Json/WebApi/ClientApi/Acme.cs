@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.ClientApi.Acme
 {
-    public class AcmeEntryPoints : IErrorCheckable
+    public class AcmeEntryPoints : IValidatable
     {
         public string keyChange;
         public string newAccount;
@@ -86,7 +86,7 @@ namespace IPA.Cores.ClientApi.Acme
         public string newOrder;
         public string revokeCert;
 
-        public void CheckError()
+        public void Validate()
         {
             if (this.keyChange._IsEmpty() ||
                 this.newAccount._IsEmpty() ||

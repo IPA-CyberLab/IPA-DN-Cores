@@ -61,6 +61,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
 using System.Web;
 using System.Text;
+using IPA.Cores.Basic.App.DaemonCenterLib;
 
 
 
@@ -168,7 +169,9 @@ namespace IPA.TestDev
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
 
-            Test_Generic();
+            //Test_Generic();
+
+            Test_DaemonCenterClient();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -197,6 +200,31 @@ namespace IPA.TestDev
             //Test_GcDelay();
         }
 
+
+        static void Test_DaemonCenterClient()
+        {
+            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
+
+            ClientSettings settings = new ClientSettings
+            {
+                AppId = "ID-0619097921-639-051627953879105-APP-13189-99628",
+                HostGuid = "guid1",
+                HostName = hostData.FqdnHostName,
+                ServerCertSha = "06:52:5B:35:EE:1A:A4:A4:4A:E1:F7:D6:D2:F0:15:9F:E0:B9:22:F7:23:04:20:9A:3D:03:90:E3:80:0A:31:92",
+                ServerUrl = "https://pc34.sehosts.com/rpc",
+            };
+
+            ClientVariables vars = new ClientVariables
+            {
+                CurrentCommitId = Dbg.GetCurrentGitCommitId(),
+                StatFlag = StatFlag.IsOnGit,
+            };
+
+            using (Client client = new Client(settings, vars, (msg) => Dbg.Where()))
+            {
+                Con.ReadLine();
+            }
+        }
 
 
         volatile static List<object> __gc_test_list = null;
@@ -486,7 +514,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                Dbg.GetCurrentGitCommitInfo()._Print();
+                Dbg.GetCurrentGitCommitId()._Print();
 
                 return;
             }

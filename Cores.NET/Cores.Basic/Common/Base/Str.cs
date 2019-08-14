@@ -47,6 +47,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net;
+using System.Net.Sockets;
 using System.Collections;
 
 namespace IPA.Cores.Basic
@@ -681,6 +682,67 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class IpAddressStrComparer : IEqualityComparer<string>, IComparer<string>
+    {
+        public int Compare(string x, string y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return 0;
+
+            if (IPAddress.TryParse(x, out IPAddress ip1))
+            {
+                if (IPAddress.TryParse(y, out IPAddress ip2))
+                {
+                    int r = ip1.AddressFamily.CompareTo(ip2.AddressFamily);
+                    if (r != 0) return r;
+
+                    r = Util.MemCompare(ip1.GetAddressBytes(), ip2.GetAddressBytes());
+                    if (r != 0) return r;
+
+                    if (ip1.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6) return 0;
+
+                    return ip1.ScopeId.CompareTo(ip2.ScopeId);
+                }
+            }
+
+            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public bool Equals(string x, string y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return true;
+
+            if (IPAddress.TryParse(x, out IPAddress ip1))
+            {
+                if (IPAddress.TryParse(y, out IPAddress ip2))
+                {
+                    return ip1.Equals(ip2);
+                }
+            }
+
+            return false;
+        }
+
+        public int GetHashCode(string obj)
+        {
+            obj = obj._NonNullTrim();
+
+            if (IPAddress.TryParse(obj, out IPAddress addr) == false)
+            {
+                return 0;
+            }
+            else
+            {
+                return addr.GetHashCode();
+            }
+        }
+    }
+
     public class StrComparer : IEqualityComparer<string>, IComparer<string>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
@@ -688,6 +750,8 @@ namespace IPA.Cores.Basic
 
         public static ExtendedStrComparer IgnoreCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.OrdinalIgnoreCase);
         public static ExtendedStrComparer SensitiveCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.Ordinal);
+
+        public static IpAddressStrComparer IpAddressStrComparer { get; } = new IpAddressStrComparer();
 
         readonly static Singleton<StringComparison, StrComparer> FromComparisonCache = new Singleton<StringComparison, StrComparer>(x => new StrComparer(x));
 
@@ -832,6 +896,19 @@ namespace IPA.Cores.Basic
 
         static CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        // 16 進数文字列を正規化
+        public static string NormalizeHexString(string src, bool lowerCase = false, string padding = "")
+        {
+            src = src._NonNullTrimSe();
+            byte[] data = src._GetHexBytes();
+            string ret = data._GetHexString(padding);
+
+            if (lowerCase)
+                ret = ret.ToLower();
+
+            return ret;
+        }
 
         // エラー文字列のシリアライズ
         public static string SerializeErrorStr(string code, string lang, string msg)
@@ -4966,7 +5043,7 @@ namespace IPA.Cores.Basic
                             tmp = "";
                         }
                     }
-                    else if (c == ' ' || c == ',' || c == '-' || c == ';')
+                    else if (c == ' ' || c == ',' || c == '-' || c == ';' || c == ':')
                     {
                         // 何もしない
                     }

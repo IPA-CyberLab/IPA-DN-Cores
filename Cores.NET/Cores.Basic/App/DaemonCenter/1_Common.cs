@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         Guid = 1,
     }
 
-    public class AppSettings : INormalizable, IErrorCheckable, IValidatableObject
+    public class AppSettings : INormalizable, IValidatable, IValidatableObject
     {
         [Display(Name = "アプリケーション名")]
         [Required]
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         [Display(Name = "デフォルトのインスタンス引数")]
         public string DefaultInstanceArgument { get; set; }
 
-        public void CheckError()
+        public void Validate()
         {
             if (AppName._IsEmpty())
                 throw new ArgumentNullException(nameof(AppName));
@@ -133,6 +133,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string InstanceArguments;
         public CoresRuntimeStat RuntimeStat;
         public EnvInfoSnapshot EnvInfo;
+        public TcpIpHostDataJsonSafe TcpIpHostData;
+        public string[] GlobalIpList;
+        public string[] AcceptableIpList;
 
         [JsonConverter(typeof(StringEnumConverter))]
         public StatFlag StatFlag;
@@ -212,8 +215,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public void Normalize()
         {
-            this.NextKeepAliveMsec._SetMin(Consts.Intervals.MinKeepAliveIntervalsMsec);
-            this.NextKeepAliveMsec._SetMax(Consts.Intervals.MaxKeepAliveIntervalsMsec);
+            this.NextKeepAliveMsec._SetMax(Consts.Intervals.MinKeepAliveIntervalsMsec);
+            this.NextKeepAliveMsec._SetMin(Consts.Intervals.MaxKeepAliveIntervalsMsec);
         }
     }
 

@@ -47,6 +47,8 @@ using static IPA.Cores.Globals.Basic;
 //using System.Net.Http;
 //using System.Net.Http.Headers;
 using IPA.Cores.Basic.HttpClientCore;
+using System.Security.Cryptography;
+using System.Linq;
 
 namespace IPA.Cores.Basic
 {
@@ -67,21 +69,21 @@ namespace IPA.Cores.Basic
         public WebResponseException(string message) : base(message) { }
     }
 
-    public interface IErrorCheckable
+    public interface IValidatable
     {
-        void CheckError();
+        void Validate();
     }
 
     public static partial class IErrorCheckableHelper
     {
         // IErrorCheckable から IErrorCheckableHelper の実装に必要な Validate() 関数の応答を返す
-        public static IEnumerable<ValidationResult> _Validate(this IErrorCheckable targetObject, ValidationContext validationContext)
+        public static IEnumerable<ValidationResult> _Validate(this IValidatable targetObject, ValidationContext validationContext)
         {
             try
             {
                 if (targetObject is INormalizable norm) norm.Normalize();
 
-                targetObject.CheckError();
+                targetObject.Validate();
             }
             catch (Exception ex)
             {
@@ -247,7 +249,7 @@ namespace IPA.Cores.Basic
         public int MaxAutomaticRedirections = 10;
 
         public bool SslAcceptAnyCerts = false;
-        public List<string> SslAcceptCertSHA1HashList = new List<string>();
+        public List<string> SslAcceptCertSHAHashList = new List<string>();
 
         public bool DebugPrintResponse = false;
     }
@@ -382,12 +384,16 @@ namespace IPA.Cores.Basic
                 {
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
                 }
-                else if (this.Settings.SslAcceptCertSHA1HashList != null && this.Settings.SslAcceptCertSHA1HashList.Count >= 1)
+                else if (this.Settings.SslAcceptCertSHAHashList != null && this.Settings.SslAcceptCertSHAHashList.Count >= 1)
                 {
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
                     {
-                        foreach (var s in this.Settings.SslAcceptCertSHA1HashList)
-                            if (cert.GetCertHashString()._IsSamei(s)) return true;
+                        foreach (var s in this.Settings.SslAcceptCertSHAHashList.Select(x => x._NormalizeHexString()))
+                        {
+                            if (cert.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
+                            if (cert.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
+                            if (cert.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
+                        }
                         return false;
                     };
                 }
