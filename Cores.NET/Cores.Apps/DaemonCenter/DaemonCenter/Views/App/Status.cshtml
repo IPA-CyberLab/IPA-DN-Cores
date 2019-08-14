@@ -1,0 +1,52 @@
+﻿@inject Server Server;
+@model SingleData<App>;
+
+@{
+    App app = Model.Data;
+    string appId = Model.Id;
+
+    Page.Title = $"App 「{app.Settings.AppName}」 のインスタンス一覧";
+}
+
+<h2 class="title is-4">@Page.Title</h2>
+
+<table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
+    <thead>
+        <tr>
+            <th>状態</th>
+            <th>ホスト</th>
+            <th>最終稼働確認日時</th>
+            <th align="right">通信回数</th>
+            <th>フラグ</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (Instance inst in Model.Data.InstanceList)
+        {
+            string instId = inst.GetId(app);
+            AppSettings settings = app.Settings;
+
+        <tr>
+            <th>
+                @if (inst.IsActive(app.Settings, Page.Now))
+                {
+                    <span class="icon"><i class="fas fa-check"></i></span>
+                }
+                else
+                {
+                    <span class="icon"><i class="fas fa-question"></i></span>
+                }
+            </th>
+            <th><a asp-action="InstanceDetails" asp-route-id="@appId" asp-route-instid="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
+            <th>@inst.LastAlive.LocalDateTime._ToDtStr()</th>
+            <th align="right">@inst.NumAlive._ToString3()</th>
+            <th>@inst.LastStat.StatFlag.ToString()</th>
+        </tr>
+        }
+    </tbody>
+</table>
+<p>　</p>
+<p>
+    <a asp-controller="App" asp-action="Index">トップページに戻る</a>
+</p>
+

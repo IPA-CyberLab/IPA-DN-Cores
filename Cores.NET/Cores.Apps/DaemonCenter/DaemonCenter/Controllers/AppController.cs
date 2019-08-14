@@ -30,6 +30,13 @@ namespace DaemonCenter.Controllers
             this.Server = server;
         }
 
+        [Authorize]
+        public IActionResult _new()
+        {
+            return View();
+        }
+
+        // App 一覧
         public IActionResult Index()
         {
             IReadOnlyList<KeyValuePair<string, App>> appList = Server.AppEnum();
@@ -37,10 +44,14 @@ namespace DaemonCenter.Controllers
             return View(appList);
         }
 
-        [Authorize]
-        public IActionResult _new()
+        // App ステータスページ (インスタンス一覧の表示)
+        public IActionResult Status([FromRoute] string id)
         {
-            return View();
+            App app = Server.AppGet(id);
+
+            SingleData<App> data = new SingleData<App>(id, app, ModelMode.Edit);
+
+            return View(data);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

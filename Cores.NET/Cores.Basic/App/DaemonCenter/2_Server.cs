@@ -287,9 +287,22 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
                 }
 
+                if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.LastStat.CommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
+                {
+                    // Commit Id が変化したことを記録
+                    inst.LastCommitIdChanged = now;
+                }
+
+                if ((Trim)inst.LastStat.InstanceArguments != req.Stat.InstanceArguments)
+                {
+                    // Arguments が変化したことを記録
+                    inst.LastInstanceArgumentsChanged = now;
+                }
+
                 // ステータスを更新する
                 inst.LastAlive = now;
                 inst.LastStat = req.Stat;
+
                 inst.NumAlive++;
 
                 return ret;

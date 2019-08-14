@@ -122,6 +122,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         // Active な (または Dead な) インスタンス一覧を取得
         public IEnumerable<Instance> GetActiveInstances(DateTimeOffset now, bool active)
             => this.InstanceList.Where(x => (x.IsActive(this.Settings, now) == active));
+
+        // ID を指定することによるインスタンスの取得
+        public Instance GetInstanceById(string id)
+            => this.InstanceList.Where(x => (IgnoreCaseTrim)x.GetId(this) == id).Single();
     }
 
     [Flags]
@@ -173,6 +177,14 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public bool IsActive(AppSettings appSettings, DateTimeOffset now)
         {
             return now <= (this.LastAlive.AddSeconds(appSettings.DeadIntervalSecs));
+        }
+
+        public string GetId(App app)
+        {
+            if (app.Settings.InstanceKeyType == InstanceKeyType.Guid)
+                return this.Guid;
+            else
+                return this.HostName;
         }
     }
 
