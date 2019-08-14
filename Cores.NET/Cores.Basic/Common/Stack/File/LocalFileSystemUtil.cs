@@ -57,6 +57,8 @@ namespace IPA.Cores.Basic
     {
         public DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
         {
+            IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
+
             try
             {
                 DirectoryPath currentDir = sampleFilePath.GetParentDirectory();
@@ -76,7 +78,12 @@ namespace IPA.Cores.Basic
                         return null;
                     }
 
-                    if (elements.Where(x => x.IsFile && Consts.FileNames.AppRootMarkerFileNames.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
+                    if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
+                    {
+                        return null;
+                    }
+
+                    if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker.StartsWith(".") && x.Name.EndsWith(marker, StringComparison.OrdinalIgnoreCase)).Any()).Any())
                     {
                         return null;
                     }

@@ -65,6 +65,8 @@ namespace IPA.Cores.Basic
 
                 try
                 {
+                    Env.AppRootDir._Print();
+
                     return ConsoleService.EntryPoint(Env.CommandLine, "Daemon", typeof(DaemonMain));
                 }
                 finally

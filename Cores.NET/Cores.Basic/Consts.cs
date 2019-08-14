@@ -134,7 +134,9 @@ namespace IPA.Cores.Basic
 
             public const string DefaultStopRootSearchFileExtsForSafety = ".sln .git";
 
-            public static readonly IEnumerable<string> AppRootMarkerFileNames = new string[] { "approot", "appsettings.json", "appsettings.Development.json" };
+            public static readonly IEnumerable<string> AppRootMarkerFileNamesForBinary = new string[] { "approot", "appsettings.json", "appsettings.Development.json" };
+
+            public static readonly IEnumerable<string> AppRootMarkerFileNames = new string[] { "approot", ".csproj" };
 
             public const string ResourceRootAbsoluteDirName = "/ResourceRoot";
 

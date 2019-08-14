@@ -199,24 +199,46 @@ namespace IPA.Cores.Basic
             PathSeparatorChar = PathSeparator[0];
             AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
             AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+
+            Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
+
+            if (Env.IsHostedByDotNetProcess)
+            {
+                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
+            }
+
             if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
             {
                 AppRootDir = AppExecutableExeOrDllFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
                 string tmp = AppExecutableExeOrDllFileDir;
+
+                IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
+                
                 while (true)
                 {
                     try
                     {
                         bool found = false;
 
+                        var filenames = Directory.GetFiles(tmp).Select(x => Path.GetFileName(x));
+
                         foreach (string fn in Consts.FileNames.AppRootMarkerFileNames)
                         {
-                            if (File.Exists(Path.Combine(tmp, fn)))
+                            if (filenames.Where(x => (IgnoreCaseTrim)x == fn).Any())
                             {
                                 found = true;
                                 break;
-                            }        
+                            }
+
+                            if (fn.StartsWith("."))
+                            {
+                                if (filenames.Where(x => x.EndsWith(fn, StringComparison.OrdinalIgnoreCase)).Any())
+                                {
+                                    found = true;
+                                    break;
+                                }
+                            }
                         }
 
                         if (found)
@@ -332,13 +354,6 @@ namespace IPA.Cores.Basic
             IsLittleEndian = BitConverter.IsLittleEndian;
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
             IsAdmin = checkIsAdmin();
-
-            Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
-
-            if (Env.IsHostedByDotNetProcess)
-            {
-                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
-            }
 
             if (IsUnix)
             {
