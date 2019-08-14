@@ -112,7 +112,7 @@ namespace DaemonCenter
             {
                 routes.MapRoute(
                     name: "default",
-                    template: "{controller=App}/{action=Index}/{id?}");
+                    template: "{controller=App}/{action=Index}/{id?}/{id2?}");
             });
 
             lifetime.ApplicationStopping.Register(() =>

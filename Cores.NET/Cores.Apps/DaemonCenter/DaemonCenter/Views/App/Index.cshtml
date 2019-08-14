@@ -24,8 +24,8 @@
 
             <tr>
                 <th><a asp-action="Status" asp-route-id="@appId">@settings.AppName</a></th>
-                <th align="right">@app.GetActiveInstances(Page.Now, true).Count()</th>
-                <th align="right">@app.GetActiveInstances(Page.Now, false).Count()</th>
+                <th align="right"><a asp-action="Status" asp-route-id="@appId" asp-route-mode="1">@app.GetActiveInstances(Page.Now, true).Count()</a></th>
+                <th align="right"><a asp-action="Status" asp-route-id="@appId" asp-route-mode="2">@app.GetActiveInstances(Page.Now, false).Count()</a></th>
             </tr>
         }
     </tbody>

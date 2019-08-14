@@ -56,7 +56,7 @@ namespace IPA.Cores.Basic
         public static partial class DaemonCenterLibSettings
         {
             public static readonly Copenhagen<int> RetryIntervalMsecsStandard = 1 * 1000;
-            public static readonly Copenhagen<int> RetryIntervalMsecsMax = 5 * 60 * 1000;
+            public static readonly Copenhagen<int> RetryIntervalMsecsMax = 30 * 1000;
         }
     }
 }
@@ -148,6 +148,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             int numRetry = 0;
 
+            int intervalCache = 0;
+
             while (this.GrandCancel.IsCancellationRequested == false)
             {
                 int nextInterval;
@@ -162,6 +164,12 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                         // メインループを直ちに終了する
                         break;
                     }
+                    else
+                    {
+                        intervalCache = nextInterval;
+
+                        nextInterval = Util.GenRandInterval(nextInterval);
+                    }
 
                     numRetry = 0;
                 }
@@ -171,8 +179,15 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
                     numRetry++;
 
-                    nextInterval = Util.GenRandIntervalWithRetry(CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsStandard, numRetry,
-                        CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsMax);
+                    if (intervalCache == 0)
+                    {
+                        nextInterval = Util.GenRandIntervalWithRetry(CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsStandard, numRetry,
+                            CoresConfig.DaemonCenterLibSettings.RetryIntervalMsecsMax);
+                    }
+                    else
+                    {
+                        nextInterval = Util.GenRandInterval(intervalCache);
+                    }
                 }
 
                 await cancel._WaitUntilCanceledAsync(nextInterval);

@@ -45,11 +45,33 @@ namespace DaemonCenter.Controllers
         }
 
         // App ステータスページ (インスタンス一覧の表示)
-        public IActionResult Status([FromRoute] string id)
+        public IActionResult Status([FromRoute] string id, [FromQuery] int mode)
         {
             App app = Server.AppGet(id);
 
-            SingleData<App> data = new SingleData<App>(id, app, ModelMode.Edit);
+            IEnumerable<Instance> instanceList = app.InstanceList;
+
+            // ソート
+            instanceList = instanceList.OrderBy(x => x.HostName);
+
+            // フィルタの実施
+            if (mode == 1) instanceList = instanceList.Where(x => x.IsActive(app.Settings, DateTimeOffset.Now));
+
+            if (mode == 2) instanceList = instanceList.Where(x => !x.IsActive(app.Settings, DateTimeOffset.Now));
+
+            DualData<App, List<Instance>> data = new DualData<App, List<Instance>>(id, app, id, instanceList.ToList(), ModelMode.Edit);
+
+            return View(data);
+        }
+
+        // インスタンス情報
+        public IActionResult InstanceInfo([FromRoute] string id, [FromRoute] string id2)
+        {
+            App app = Server.AppGet(id);
+
+            Instance inst = app.GetInstanceById(id2);
+
+            DualData<App, Instance> data = new DualData<App, Instance>(id, app, id2, inst, ModelMode.Edit);
 
             return View(data);
         }

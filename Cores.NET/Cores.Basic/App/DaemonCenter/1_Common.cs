@@ -147,6 +147,22 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         [JsonConverter(typeof(StringEnumConverter))]
         public StatFlag StatFlag;
+
+        public string GetInfoString()
+        {
+            StringWriter w = new StringWriter();
+
+            string osInfo = "Windows";
+            if (this.EnvInfo.IsUnix) osInfo = "Linux";
+            if (this.EnvInfo.IsMac) osInfo = "Mac";
+
+            w.WriteLine($"OS: {osInfo}");
+            w.WriteLine($"CPU: {RuntimeStat.Cpu}%");
+            w.WriteLine($"Mem: {Str.GetFileSizeStr(RuntimeStat.Mem * 1024)}");
+            w.WriteLine($"Objs: {RuntimeStat.Obj._ToString3()}");
+
+            return w.ToString();
+        }
     }
 
     public class Instance

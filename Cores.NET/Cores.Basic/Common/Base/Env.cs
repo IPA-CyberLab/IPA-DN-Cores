@@ -59,6 +59,7 @@ namespace IPA.Cores.Basic
 
         public string HeaderText;
         public DateTimeOffset TimeStamp = DateTime.Now;
+        public DateTimeOffset BootTime = Env.BootTime;
         public string MachineName = Env.MachineName;
         public string FrameworkVersion = Env.FrameworkVersion.ToString();
         public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
@@ -157,9 +158,13 @@ namespace IPA.Cores.Basic
         public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
         public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
 
+        public static DateTimeOffset BootTime { get; }
+
         // 初期化
         static Env()
         {
+            BootTime = DateTimeOffset.Now;
+
             NumCpus = Math.Max(Environment.ProcessorCount, 1);
 
             int debugChecker = 0;

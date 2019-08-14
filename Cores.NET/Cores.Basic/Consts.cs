@@ -67,6 +67,9 @@ namespace IPA.Cores.Basic
         public static partial class MaxLens
         {
             public const int MaxAutoCertGeneratingFqdnLen = 64;
+
+            public const int GitCommitIdTruncateLen = 8;
+            public const int StandardTruncateLen = 32;
         }
 
         public static partial class Ports

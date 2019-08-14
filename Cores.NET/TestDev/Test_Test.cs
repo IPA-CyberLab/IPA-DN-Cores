@@ -169,9 +169,9 @@ namespace IPA.TestDev
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
 
-            Test_Generic();
+            //Test_Generic();
 
-            //Test_DaemonCenterClient();
+            Test_DaemonCenterClient();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 

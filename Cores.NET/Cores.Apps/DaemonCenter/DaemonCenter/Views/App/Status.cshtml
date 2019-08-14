@@ -1,8 +1,10 @@
 ﻿@inject Server Server;
-@model SingleData<App>;
+@model DualData<App, List<Instance>>;
 
 @{
     App app = Model.Data;
+    List<Instance> instanceList = Model.Data2;
+
     string appId = Model.Id;
 
     Page.Title = $"App 「{app.Settings.AppName}」 のインスタンス一覧";
@@ -10,38 +12,67 @@
 
 <h2 class="title is-4">@Page.Title</h2>
 
+<p>アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="1"><b>@app.GetActiveInstances(Page.Now, true).Count() インスタンス</b></a> /
+非アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="2"><b>@app.GetActiveInstances(Page.Now, false).Count() インスタンス</b></a> /
+合計: <a asp-action="Status" asp-route-id="@appId"><b>@app.InstanceList.Count() インスタンス</b></a></p>
+<p>　</p>
+
 <table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
     <thead>
         <tr>
             <th>状態</th>
             <th>ホスト</th>
+            <th>プロセス起動日時</th>
             <th>最終稼働確認日時</th>
             <th align="right">通信回数</th>
             <th>フラグ</th>
+            <th>Git コミット ID</th>
+            <th>引数</th>
+            <th>情報</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (Instance inst in Model.Data.InstanceList)
+        @foreach (Instance inst in instanceList)
         {
             string instId = inst.GetId(app);
             AppSettings settings = app.Settings;
-
-        <tr>
-            <th>
-                @if (inst.IsActive(app.Settings, Page.Now))
-                {
-                    <span class="icon"><i class="fas fa-check"></i></span>
-                }
-                else
-                {
-                    <span class="icon"><i class="fas fa-question"></i></span>
-                }
-            </th>
-            <th><a asp-action="InstanceDetails" asp-route-id="@appId" asp-route-instid="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
-            <th>@inst.LastAlive.LocalDateTime._ToDtStr()</th>
-            <th align="right">@inst.NumAlive._ToString3()</th>
-            <th>@inst.LastStat.StatFlag.ToString()</th>
-        </tr>
+            <tr>
+                <th>
+                    @if (inst.IsActive(app.Settings, Page.Now))
+                    {
+                        <span class="icon"><i class="fas fa-check"></i></span>
+                    }
+                    else
+                    {
+                        <span class="icon"><i class="fas fa-question"></i></span>
+                    }
+                </th>
+                <th><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
+                <th>
+                    @if (inst.IsActive(settings, Page.Now))
+                    {
+                        @inst.LastStat.EnvInfo.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
+                    }
+                </th>
+                <th>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</th>
+                <th align="right">@inst.NumAlive._ToString3()</th>
+                <th>@inst.LastStat.StatFlag.ToString()</th>
+                <th>
+                    現在: @inst.LastStat.CommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)
+                    @if ((IsFilled)inst.NextCommitId)
+                    {
+                        <BR /><text>次回: @inst.NextCommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)</text>
+                    }
+                </th>
+                <th>
+                    現在: @inst.LastStat.InstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)
+                    @if ((IsFilled)inst.NextInstanceArguments)
+                    {
+                        <BR /><text>次回: @inst.NextInstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)</text>
+                    }
+                </th>
+                <th>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</th>
+            </tr>
         }
     </tbody>
 </table>

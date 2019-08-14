@@ -64,6 +64,51 @@ namespace IPA.Cores.Codes
         Delete,
     }
 
+    public class DualData<TData1, TData2> : SingleData<TData1>
+        where TData1 : new()
+        where TData2 : new()
+    {
+        public TData2 Data2 { get; set; }
+        public string Id2 { get; set; }
+
+        public DualData() : base()
+        {
+            this.Data2 = new TData2();
+        }
+
+        public DualData(string id1, TData1 data1, string id2, TData2 data2, ModelMode mode) : base(id1, data1, mode)
+        {
+            if (mode != ModelMode.Add)
+            {
+                if ((IsEmpty)id2)
+                {
+                    throw new ArgumentNullException(nameof(id2));
+                }
+
+                id2 = id2._NonNullTrim();
+            }
+            else
+            {
+                if ((IsFilled)id2)
+                {
+                    throw new ArgumentOutOfRangeException($"{nameof(id2)} is specified.");
+                }
+                id2 = null;
+            }
+
+            this.Id2 = id2;
+            this.Data2 = data2;
+
+            NormalizeImpl();
+        }
+
+        protected override void NormalizeImpl()
+        {
+            base.NormalizeImpl();
+            if (this.Data2 is INormalizable normalize) normalize.Normalize();
+        }
+    }
+
     public class SingleData<TData> where TData : new()
     {
         public TData Data { get; set; }

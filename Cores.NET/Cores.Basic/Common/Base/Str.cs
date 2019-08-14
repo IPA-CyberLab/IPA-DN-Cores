@@ -5855,6 +5855,23 @@ namespace IPA.Cores.Basic
                 return srcLine;
             }
         }
+
+        public static string GetTimeSpanStr(TimeSpan ts)
+        {
+            if (ts.Ticks < 0) ts = new TimeSpan(0);
+
+            if (ts.TotalDays >= 1)
+                return $"{ts.Days}d {ts.Hours}h {ts.Minutes}m {ts.Seconds}s";
+            else if (ts.TotalHours >= 1)
+                return $"{ts.Hours}h {ts.Minutes}m {ts.Seconds}s";
+            else if (ts.Minutes >= 1)
+                return $"{ts.Minutes}m {ts.Seconds}s";
+            else
+                return $"{ts.Seconds}s";
+        }
+
+        public static string GetTimeSpanStr(long tick)
+            => GetTimeSpanStr(new TimeSpan(tick));
     }
 
     public class AmbiguousSearchResult<T>
