@@ -102,9 +102,12 @@ namespace IPA.Cores.Basic
         public void OnStart()
         {
             // Start the TelnetLogWatcher
-            TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
-                new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
+            if (this.TelnetLogWatcherPort != 0)
+            {
+                TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
+                    new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
+                    new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
+            }
 
             // Start the service
             this.OnStartInternal();

@@ -44,6 +44,8 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net;
+using System.Runtime.Serialization;
+using IPA.Cores.Basic.App.DaemonCenterLib;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -56,6 +58,7 @@ namespace IPA.Cores.Helper.Basic
 
 namespace IPA.Cores.Basic
 {
+    // Daemon 抽象クラス (具体的な Daemon 動作はこのクラスを継承して実装すること)
     public abstract class Daemon
     {
         public DaemonOptions Options { get; }
@@ -226,6 +229,50 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // Daemon 設定
+    [Serializable]
+    [DataContract]
+    public class DaemonSettings : INormalizable
+    {
+        [DataMember]
+        public bool DaemonCenterEnable = false;
+
+        [DataMember]
+        public string DaemonCenterRpcUrl = "";
+
+        [DataMember]
+        public string DaemonCenterCertSha = "";
+
+        [DataMember]
+        public int TelnetLogWatcherPort = Consts.Ports.TelnetLogWatcher;
+
+        [DataMember]
+        public string DaemonCenterStartupArgument = "";
+
+        [DataMember]
+        public string DaemonCenterSecret = "";
+
+        [DataMember]
+        public string DaemonCenterAppId = "";
+
+        [DataMember]
+        public string DaemonCenterInstanceGuid = "";
+
+        public void Normalize()
+        {
+            this.DaemonCenterRpcUrl = this.DaemonCenterRpcUrl._NonNullTrim();
+            this.DaemonCenterCertSha = this.DaemonCenterCertSha._NonNullTrim();
+            this.DaemonCenterStartupArgument = this.DaemonCenterStartupArgument._NonNullTrim();
+            this.DaemonCenterAppId = this.DaemonCenterAppId._NonNullTrim();
+
+            // 新しいシークレットを作成する
+            if ((IsEmpty)this.DaemonCenterSecret) this.DaemonCenterSecret = Str.GenRandPassword();
+
+            // 新しい GUID を作成する
+            if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
+        }
+    }
+
     [Flags]
     public enum DaemonMode
     {
@@ -233,19 +280,38 @@ namespace IPA.Cores.Basic
         WindowsServiceMode = 1,
     }
 
-    public class DaemonHost
+    // Daemon をホストするユーティリティクラス (このクラス自体は Daemon の実装ではない)
+    public sealed class DaemonHost
     {
         public Daemon Daemon { get; }
         public object Param { get; }
+        public DaemonSettings DefaultDaemonSettings { get; }
 
-        public DaemonHost(Daemon daemon, object param = null)
+        readonly HiveData<DaemonSettings> SettingsHive;
+
+        // 'Config\DaemonSettings' のデータ
+        DaemonSettings Settings => SettingsHive.ManagedData;
+
+        // DaemonCenter クライアントを有効化すべきかどうかのフラグ
+        bool IsDaemonCenterEnabled => true;/* (this.Mode == DaemonMode.UserMode &&
+            this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() && Env.IsWindows == false &&
+            Env.IsDotNetCore && Env.IsHostedByDotNetProcess);*/
+
+        IService CurrentRunningService = null;
+
+        public DaemonHost(Daemon daemon, DaemonSettings defaultDaemonSettings, object param = null)
         {
+            this.DefaultDaemonSettings = (defaultDaemonSettings ?? throw new ArgumentNullException(nameof(defaultDaemonSettings)))._CloneDeep();
             this.Daemon = daemon;
             this.Param = param;
+
+            // DaemonSettings を読み込む
+            this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
         }
 
         Once StartedOnce;
 
+        // テスト動作させる
         public void TestRun(bool stopDebugHost = false, string appId = null)
         {
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
@@ -262,16 +328,29 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            // Start the TelnetLogWatcher
-            using (var telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-            new IPEndPoint(IPAddress.Any, this.Daemon.Options.TelnetLogWatcherPort),
-            new IPEndPoint(IPAddress.IPv6Any, this.Daemon.Options.TelnetLogWatcherPort))))
+            TelnetLocalLogWatcher telnetWatcher = null;
+
+            if (this.Settings.TelnetLogWatcherPort != 0)
             {
-                this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
+                telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
+                    new IPEndPoint(IPAddress.Any, this.Settings.TelnetLogWatcherPort),
+                    new IPEndPoint(IPAddress.IPv6Any, this.Settings.TelnetLogWatcherPort)));
+            }
 
-                Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+            using (var cli = StartDaemonCenterClientIfEnabled())
+            {
+                try
+                {
+                    this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                this.Daemon.Stop(false);
+                    Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+
+                    this.Daemon.Stop(false);
+                }
+                finally
+                {
+                    telnetWatcher._DisposeSafe();
+                }
             }
         }
 
@@ -289,7 +368,7 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Daemon.Options.TelnetLogWatcherPort);
+                    this.Settings.TelnetLogWatcherPort);
             }
             else
             {
@@ -298,12 +377,13 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Daemon.Options.TelnetLogWatcherPort);
+                    this.Settings.TelnetLogWatcherPort);
             }
 
             return service;
         }
 
+        // 子プロセスとして起動させられた自らを Daemon としてサービス機能を動作させる
         public void ExecMain(DaemonMode mode)
         {
             if (Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode)
@@ -315,9 +395,12 @@ namespace IPA.Cores.Basic
 
             IService service = CreateService(mode);
 
+            CurrentRunningService = service;
+
             service.ExecMain();
         }
 
+        // 子プロセスとして稼働している Daemon プロセスの動作を停止させる
         public void StopService(DaemonMode mode)
         {
             IService service = CreateService(mode);
@@ -330,11 +413,103 @@ namespace IPA.Cores.Basic
             Con.WriteLine($"The daemon {Daemon.ToString()} is stopped successfully.");
         }
 
+        // 子プロセスとして稼働している Daemon プロセスに接続して現在の状態を表示する
         public void Show(DaemonMode mode)
         {
             IService service = CreateService(mode);
 
             service.Show();
+        }
+
+        // DaemonCenter クライアントを起動する (有効な場合)
+        IDisposable StartDaemonCenterClientIfEnabled()
+        {
+            if (IsDaemonCenterEnabled == false) return new EmptyDisposable();
+
+            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
+
+            ClientSettings cs = new ClientSettings
+            {
+                AppId = Settings.DaemonCenterAppId,
+                HostGuid = Settings.DaemonCenterInstanceGuid,
+                HostName = hostData.FqdnHostName,
+                ServerUrl = Settings.DaemonCenterRpcUrl,
+                ServerCertSha = Settings.DaemonCenterCertSha,
+            };
+
+            ClientVariables vars = new ClientVariables
+            {
+                CurrentCommitId = Dbg.GetCurrentGitCommitId(),
+                StatFlag = StatFlag.OnGit,
+                CurrentInstanceArguments = Settings.DaemonCenterStartupArgument,
+            };
+
+            Client cli = new Client(cs, vars, DaemonCenterRestartRequestedCallback);
+
+            return cli;
+        }
+
+
+        Once RebootRequestedOnce;
+
+        // DaemonCenter サーバーによって何らかの原因で再起動要求が送付されてきた
+        void DaemonCenterRestartRequestedCallback(ResponseMsg res)
+        {
+            if (RebootRequestedOnce.IsFirstCall() == false) return;
+
+            Con.WriteError($"The DaemonCenter Server requested rebooting.\r\nMessage = '{res._ObjectToRuntimeJsonStr()}'");
+
+            // 次回起動引数が指定されている場合は設定ファイルを更新する
+            if (res.NextInstanceArguments._IsFilled())
+            {
+                this.SettingsHive.AccessData(true, data =>
+                {
+                    data.DaemonCenterStartupArgument = res.NextInstanceArguments;
+                });
+            }
+
+            // Daemon の正常停止を試行する
+            Con.WriteError($"Shutting down the daemon service normally...");
+
+            ThreadObj stopThread = new ThreadObj((obj) =>
+            {
+                try
+                {
+                    (this.CurrentRunningService as UserModeService)?.InternalStop();
+
+                    Con.WriteError("Stopping the daemon service completed.");
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError($"Stopping the daemon service caused an exception: {ex.ToString()}");
+                }
+            });
+
+            if (stopThread.WaitForEnd(Consts.Intervals.DaemonCenterRebootRequestTimeout) == false)
+            {
+                // タイムアウトが発生した
+                Con.WriteError("Stopping the daemon service caused timed out.");
+            }
+
+            // ローカルログを Flush する
+            try
+            {
+                Con.WriteError($"Calling LocalLogRouter.FlushAsync() ...");
+                if (LocalLogRouter.FlushAsync().Wait(Consts.Intervals.DaemonCenterRebootRequestTimeout))
+                {
+                    Con.WriteError($"LocalLogRouter.FlushAsync() completed.");
+                }
+                else
+                {
+                    Con.WriteError($"LocalLogRouter.FlushAsync() timed out.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"LocalLogRouter.FlushAsync() caused an exception: {ex.ToString()}");
+            }
+
+            Thread.Sleep(300);
         }
     }
 
@@ -358,8 +533,10 @@ namespace IPA.Cores.Basic
 
     public class DaemonCmdLineTool
     {
-        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon)
+        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon, string thisCommandName, DaemonSettings defaultDaemonSettings)
         {
+            if (defaultDaemonSettings == null) throw new ArgumentNullException(nameof(defaultDaemonSettings));
+
             ConsoleParam[] args =
             {
                 new ConsoleParam("[command]"),
@@ -392,11 +569,11 @@ namespace IPA.Cores.Basic
             Con.WriteLine($"Executing the {cmdType.ToString().ToLower()} command.");
             Con.WriteLine();
 
-            DaemonHost host = new DaemonHost(daemon);
+            DaemonHost host = new DaemonHost(daemon, defaultDaemonSettings);
 
             switch (cmdType)
             {
-                case DaemonCmdType.Start:
+                case DaemonCmdType.Start: // Daemon を開始する (子プロセスを起動する)
                     if (daemon.IsInstanceRunning())
                     {
                         Con.WriteError($"The {daemon.ToString()} is already running.");
@@ -545,32 +722,32 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                case DaemonCmdType.Stop:
+                case DaemonCmdType.Stop: // 子プロセスとして動作している Daemon を停止させる
                     host.StopService(DaemonMode.UserMode);
                     break;
 
-                case DaemonCmdType.Show:
+                case DaemonCmdType.Show: // 現在起動している Daemon の状態を表示する
                     host.Show(DaemonMode.UserMode);
                     break;
 
-                case DaemonCmdType.ExecMain:
+                case DaemonCmdType.ExecMain: // 子プロセスとして自分自身が起動さられたので、目的とするサービス動作を開始する
                     host.ExecMain(DaemonMode.UserMode);
                     break;
 
-                case DaemonCmdType.Test:
+                case DaemonCmdType.Test: // テストモードとして自分自身が起動させられたので、目的とするサービス動作を開始する
                     host.TestRun(false);
                     break;
 
-                case DaemonCmdType.TestDebug:
+                case DaemonCmdType.TestDebug: // テストモードとして自分自身が起動させられたので、目的とするサービス動作を開始する (同一 appId の他インスタンスを強制終了する)
                     host.TestRun(true, appId);
                     break;
 
-                case DaemonCmdType.WinExecSvc:
+                case DaemonCmdType.WinExecSvc: // Windows サービスプロセスとして自分自身が起動させられたので、目的とするサービス動作を開始する
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
                     host.ExecMain(DaemonMode.WindowsServiceMode);
                     break;
 
-                case DaemonCmdType.WinInstall:
+                case DaemonCmdType.WinInstall: // Windows サービスプロセスとして自分自身をレジストリにインストールする
                     {
                         if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
@@ -605,7 +782,7 @@ namespace IPA.Cores.Basic
                         return 0;
                     }
 
-                case DaemonCmdType.WinUninstall:
+                case DaemonCmdType.WinUninstall: // Windows サービスプロセスをアンインストールする
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
                     if (Win32ApiUtil.IsServiceInstalled(daemon.Options.Name) == false)
@@ -633,7 +810,7 @@ namespace IPA.Cores.Basic
 
                     return 0;
 
-                case DaemonCmdType.WinStart:
+                case DaemonCmdType.WinStart: // Windows サービスプロセスを起動する
 
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 
@@ -657,7 +834,7 @@ namespace IPA.Cores.Basic
 
                     return 0;
 
-                case DaemonCmdType.WinStop:
+                case DaemonCmdType.WinStop: // Windows サービスプロセスを終了する
 
                     if (Env.IsWindows == false) throw new PlatformNotSupportedException();
 

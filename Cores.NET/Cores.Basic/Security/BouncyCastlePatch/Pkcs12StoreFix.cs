@@ -1,4 +1,36 @@
-﻿#if CORES_BASIC_SECURITY
+﻿// IPA Cores.NET
+// 
+// Copyright (c) 2018- IPA CyberLab.
+// Copyright (c) 2003-2018 Daiyuu Nobori.
+// Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
+// All Rights Reserved.
+// 
+// License: The Apache License, Version 2.0
+// https://www.apache.org/licenses/LICENSE-2.0
+// 
+// THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// 
+// THIS SOFTWARE IS DEVELOPED IN JAPAN, AND DISTRIBUTED FROM JAPAN, UNDER
+// JAPANESE LAWS. YOU MUST AGREE IN ADVANCE TO USE, COPY, MODIFY, MERGE, PUBLISH,
+// DISTRIBUTE, SUBLICENSE, AND/OR SELL COPIES OF THIS SOFTWARE, THAT ANY
+// JURIDICAL DISPUTES WHICH ARE CONCERNED TO THIS SOFTWARE OR ITS CONTENTS,
+// AGAINST US (IPA CYBERLAB, DAIYUU NOBORI, SOFTETHER VPN PROJECT OR OTHER
+// SUPPLIERS), OR ANY JURIDICAL DISPUTES AGAINST US WHICH ARE CAUSED BY ANY KIND
+// OF USING, COPYING, MODIFYING, MERGING, PUBLISHING, DISTRIBUTING, SUBLICENSING,
+// AND/OR SELLING COPIES OF THIS SOFTWARE SHALL BE REGARDED AS BE CONSTRUED AND
+// CONTROLLED BY JAPANESE LAWS, AND YOU MUST FURTHER CONSENT TO EXCLUSIVE
+// JURISDICTION AND VENUE IN THE COURTS SITTING IN TOKYO, JAPAN. YOU MUST WAIVE
+// ALL DEFENSES OF LACK OF PERSONAL JURISDICTION AND FORUM NON CONVENIENS.
+// PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
+// LAW OR COURT RULE.
+
+#if CORES_BASIC_SECURITY
 
 using System;
 using System.IO;
@@ -54,6 +86,30 @@ namespace IPA.Cores.Basic
 
 namespace IPA.Cores.Basic.Internals
 {
+    // From: https://github.com/chrishaly/bc-csharp/tree/18f1d45b8d649b051c26fd2a5c70d37ab00604a6
+    // 
+    // LICENSE
+    // Copyright (c) 2000 - 2017 The Legion of the Bouncy Castle Inc. 
+    // (http://www.bouncycastle.org)
+    // 
+    // Permission is hereby granted, free of charge, to any person obtaining 
+    // a copy of this software and associated documentation files (the "Software"), 
+    // to deal in the Software without restriction, including without limitation 
+    // the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+    // and/or sell copies of the Software, and to permit persons to whom the
+    // Software is furnished to do so, subject to the following conditions:
+    // 
+    // The above copyright notice and this permission notice shall be included
+    // in all copies or substantial portions of the Software.
+    // 
+    // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    // OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT 
+    // SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+    // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH 
+    // THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
     public class Pkcs12StoreFix
     {
         static class Platform

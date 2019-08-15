@@ -5789,9 +5789,8 @@ namespace IPA.Cores.Basic
         public string FriendlyName { get; }
         public int StopTimeout { get; }
         public bool SingleInstance { get; }
-        public int TelnetLogWatcherPort { get; }
 
-        public DaemonOptions(string name, string friendlyName, bool singleInstance, int stopTimeout = 0, int telnetLogWatcherPort = 0)
+        public DaemonOptions(string name, string friendlyName, bool singleInstance, int stopTimeout = 0)
         {
             if (stopTimeout == 0)
                 stopTimeout = CoresConfig.DaemonSettings.DefaultStopTimeout;
@@ -5803,8 +5802,6 @@ namespace IPA.Cores.Basic
             this.StopTimeout = stopTimeout;
 
             this.SingleInstance = singleInstance;
-
-            this.TelnetLogWatcherPort = telnetLogWatcherPort;
         }
     }
 

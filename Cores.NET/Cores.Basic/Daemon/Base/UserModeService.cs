@@ -146,11 +146,19 @@ namespace IPA.Cores.Basic
                 }
 
                 // Start the TelnetLogWatcher
+                List<IPEndPoint> telnetWatcherEpList = new List<IPEndPoint>();
+
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Loopback, HiveData.ManagedData.LocalLogWatchPort));
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Loopback, HiveData.ManagedData.LocalLogWatchPort));
+
+                if (this.TelnetLogWatcherPort != 0)
+                {
+                    telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort));
+                    telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort));
+                }
+
                 TelnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                    new IPEndPoint(IPAddress.Loopback, HiveData.ManagedData.LocalLogWatchPort),
-                    new IPEndPoint(IPAddress.IPv6Loopback, HiveData.ManagedData.LocalLogWatchPort),
-                    new IPEndPoint(IPAddress.Any, this.TelnetLogWatcherPort),
-                    new IPEndPoint(IPAddress.IPv6Any, this.TelnetLogWatcherPort)));
+                    telnetWatcherEpList.ToArray()));
 
                 InternalStart();
 
@@ -167,14 +175,13 @@ namespace IPA.Cores.Basic
                 // The daemon routine is now started. Wait here until InternalStop() is called.
                 StoppedEvent.Wait();
             }
-            catch
+            finally
             {
                 this.TelnetWatcher._DisposeSafe();
                 this.TelnetWatcher = null;
 
                 this.SingleInstance._DisposeSafe();
                 this.SingleInstance = null;
-                throw;
             }
         }
 
@@ -193,7 +200,7 @@ namespace IPA.Cores.Basic
 
         Once StopOnce;
 
-        void InternalStop()
+        internal void InternalStop()
         {
             this.SingleInstance._DisposeSafe();
             this.SingleInstance = null;

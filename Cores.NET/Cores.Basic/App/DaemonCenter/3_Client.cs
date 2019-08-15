@@ -153,6 +153,12 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             int intervalCache = 0;
 
+            string lastError = "";
+
+            bool firstConnected = false;
+
+            Con.WriteError($"DaemonCenterClient: Trying to connect to the DaemonCenter Server '{this.Settings.ServerUrl}' ...");
+
             while (this.GrandCancel.IsCancellationRequested == false)
             {
                 int nextInterval;
@@ -160,6 +166,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 try
                 {
                     nextInterval = await PerformOnceAsync(cancel);
+
+                    if (firstConnected == false)
+                    {
+                        firstConnected = true;
+
+                        Con.WriteError($"DaemonCenterClient: Connected OK.");
+                    }
 
                     if (nextInterval == -1)
                     {
@@ -178,7 +191,15 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
                 catch (Exception ex)
                 {
-                    ex._Debug();
+                    firstConnected = false;
+
+                    string errStr = ex._GetSingleException().ToString();
+
+                    if (lastError != errStr)
+                    {
+                        lastError = errStr;
+                        Con.WriteError($"DaemonCenterClient Error: {errStr}");
+                    }
 
                     numRetry++;
 

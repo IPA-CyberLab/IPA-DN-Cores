@@ -1301,16 +1301,16 @@ namespace IPA.Cores.Basic
             return WaitInitForUserAsync.WaitAsync();
         }
 
-        public void WaitForEnd(int timeout)
+        public bool WaitForEnd(int timeout)
         {
-            WaitEnd.WaitOne(timeout, false);
+            return WaitEnd.WaitOne(timeout, false);
         }
-        public void WaitForEnd()
+        public bool WaitForEnd()
         {
-            WaitEnd.WaitOne();
+            return WaitEnd.WaitOne();
         }
 
-        public Task WaitForEndAsync()
+        public Task<bool> WaitForEndAsync()
         {
             return WaitEndAsync.WaitAsync();
         }

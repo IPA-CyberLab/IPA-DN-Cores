@@ -50,8 +50,8 @@ namespace IPA.Cores.Helper.Basic
 
         AsyncService HttpServerInstance = null;
 
-        public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions, int telnetLogWatcherPort = Consts.Ports.TelnetLogWatcher)
-            : base(new DaemonOptions(name, friendlyName, true, telnetLogWatcherPort: telnetLogWatcherPort))
+        public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions)
+            : base(new DaemonOptions(name, friendlyName, true))
         {
             this.HttpOptions = httpOptions;
         }

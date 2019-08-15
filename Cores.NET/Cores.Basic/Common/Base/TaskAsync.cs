@@ -1328,16 +1328,16 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public void Wait(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
+        public bool Wait(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
             => WaitAsync(timeout, cancel, leakCounterKind)._GetResult();
 
-        public Task WaitAsync()
+        public Task<bool> WaitAsync()
         {
             lock (lockobj)
             {
                 if (isSet)
                 {
-                    return Task.CompletedTask;
+                    return Task<bool>.FromResult(true);
                 }
                 else
                 {
@@ -1345,7 +1345,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public void Wait() => WaitAsync()._GetResult();
+        public bool Wait() => WaitAsync()._GetResult();
 
         public void Set(bool softly = false)
         {

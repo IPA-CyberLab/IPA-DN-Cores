@@ -56,17 +56,18 @@ namespace IPA.Cores.Basic
         public static class DaemonMain
         {
             static Func<Daemon> GetDaemonProc = null;
+            static DaemonSettings DefaultDaemonSettings = null;
 
-            public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc)
+            public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc, DaemonSettings defaultDaemonSettings = null)
             {
+                DaemonMain.DefaultDaemonSettings = defaultDaemonSettings ?? new DaemonSettings();
+
                 DaemonMain.GetDaemonProc = getDaemonProc ?? throw new ArgumentNullException("getDaemonProc");
 
                 CoresLib.Init(coresOptions, args);
 
                 try
                 {
-                    Env.AppRootDir._Print();
-
                     return ConsoleService.EntryPoint(Env.CommandLine, "Daemon", typeof(DaemonMain));
                 }
                 finally
@@ -127,7 +128,7 @@ start        - Start the daemon in the background mode.
 stop         - Stop the running daemon in the background mode.
 show         - Show the real-time log by the background daemon.
 test         - Start the daemon in the foreground testing mode.
-testdebug    - same to test, but for Visual Studio IDE debug.
+testdebug    - Similar to test, but for Visual Studio IDE debug.
 
 [Windows specific commands]
 winstart     - Start the daemon as a Windows service.
@@ -136,7 +137,7 @@ wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
                 static int Daemon(ConsoleService c, string cmdName, string str)
                 {
-                    return DaemonCmdLineTool.EntryPoint(c, cmdName, str, GetDaemonProc());
+                    return DaemonCmdLineTool.EntryPoint(c, cmdName, str, GetDaemonProc(), nameof(Daemon), DaemonMain.DefaultDaemonSettings);
                 }
             }
         }

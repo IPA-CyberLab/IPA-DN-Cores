@@ -3782,11 +3782,12 @@ namespace IPA.Cores.Basic
         }
 
         // 新しいパスワードを生成
-        public static string GenRandPassword()
+        public static string GenRandPassword(int count = 16)
         {
+            count._SetMax(4);
+
             while (true)
             {
-                int count = 16;
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < count; i++)
                 {
