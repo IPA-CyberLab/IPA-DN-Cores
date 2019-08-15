@@ -608,8 +608,31 @@ namespace IPA.Cores.Basic
         public PalHostNetInfo()
         {
             IPGlobalProperties prop = IPGlobalProperties.GetIPGlobalProperties();
-            this.HostName = prop.HostName;
-            this.DomainName = prop.DomainName;
+
+            if (prop.DomainName._IsSamei("(none)") || prop.DomainName._IsEmpty())
+            {
+                string hn = prop.HostName;
+
+                this.HostName = PathParser.Linux.GetFileNameWithoutExtension(hn, true);
+                this.DomainName = PathParser.Linux.GetExtension(hn, true);
+            }
+            else
+            {
+                this.HostName = prop.HostName;
+                this.DomainName = prop.DomainName;
+            }
+
+            this.HostName = this.HostName._NonNullTrim();
+            this.DomainName = this.DomainName._NonNullTrim();
+
+            this.HostName = this.HostName._TrimStartWith(".");
+            this.HostName = this.HostName._TrimEndsWith(".");
+
+            this.DomainName = this.DomainName._TrimStartWith(".");
+            this.DomainName = this.DomainName._TrimEndsWith(".");
+
+            if (this.HostName._IsEmpty()) this.HostName = "unknown-host";
+
             HashSet<IPAddress> hash = new HashSet<IPAddress>();
 
             if (IsUnix)

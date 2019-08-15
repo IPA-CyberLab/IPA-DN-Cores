@@ -293,9 +293,10 @@ namespace IPA.Cores.Basic
         DaemonSettings Settings => SettingsHive.ManagedData;
 
         // DaemonCenter クライアントを有効化すべきかどうかのフラグ
-        bool IsDaemonCenterEnabled => true;/* (this.Mode == DaemonMode.UserMode &&
+        bool IsDaemonCenterEnabled => (this.Mode == DaemonMode.UserMode &&
+            Dbg.GetCurrentGitCommitId()._IsFilled() &&
             this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() && Env.IsWindows == false &&
-            Env.IsDotNetCore && Env.IsHostedByDotNetProcess);*/
+            Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
 
         IService CurrentRunningService = null;
 
@@ -337,7 +338,7 @@ namespace IPA.Cores.Basic
                     new IPEndPoint(IPAddress.IPv6Any, this.Settings.TelnetLogWatcherPort)));
             }
 
-            using (var cli = StartDaemonCenterClientIfEnabled())
+            //using (var cli = StartDaemonCenterClientIfEnabled())
             {
                 try
                 {
@@ -397,7 +398,12 @@ namespace IPA.Cores.Basic
 
             CurrentRunningService = service;
 
-            service.ExecMain();
+            // DaemonCenter クライアントを起動する (有効な場合)
+            using (IDisposable cli = StartDaemonCenterClientIfEnabled())
+            {
+                // サービス本体処理を実施する
+                service.ExecMain();
+            }
         }
 
         // 子プロセスとして稼働している Daemon プロセスの動作を停止させる
@@ -452,7 +458,7 @@ namespace IPA.Cores.Basic
 
         Once RebootRequestedOnce;
 
-        // DaemonCenter サーバーによって何らかの原因で再起動要求が送付されてきた
+        // DaemonCenter サーバーによって何らかの原因で再起動要求が送付されてきたので指示に従って再起動を実施する
         void DaemonCenterRestartRequestedCallback(ResponseMsg res)
         {
             if (RebootRequestedOnce.IsFirstCall() == false) return;
@@ -510,6 +516,19 @@ namespace IPA.Cores.Basic
             }
 
             Thread.Sleep(300);
+
+            if (res.NextCommitId._IsEmpty())
+            {
+                // Git Commit ID に変化がない場合:
+                // 単にプロセスを異常終了させる。親プロセスがこれに気付いてプロセスを再起動するはずである
+                Process currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+
+                currentProcess.Kill();
+            }
+            else
+            {
+                // Git Commit ID に変化がある場合
+            }
         }
     }
 
