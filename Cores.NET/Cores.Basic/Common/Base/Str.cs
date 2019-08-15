@@ -4984,6 +4984,40 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 簡易エンコードを実施
+        public static string EncodeEasy(string str)
+        {
+            try
+            {
+                str = str._NonNull();
+                return Consts.Strings.EncodeEasyPrefix + str._GetBytes_UTF8()._GetHexString();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        // 簡易デコードを実施
+        public static string DecodeEasy(string str)
+        {
+            try
+            {
+                str = str._NonNull();
+
+                if (str._TryTrimStartWith(out string str2, StringComparison.OrdinalIgnoreCase, Consts.Strings.EncodeEasyPrefix) == false)
+                {
+                    return "";
+                }
+
+                return str2._GetHexBytes()._GetString_UTF8();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         // バイト列を 16 進数文字列に変換
         public static string ByteToHex(ReadOnlySpan<byte> data)
         {

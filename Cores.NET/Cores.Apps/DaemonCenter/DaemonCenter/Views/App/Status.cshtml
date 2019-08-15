@@ -12,31 +12,52 @@
 
 <h2 class="title is-4">@Page.Title</h2>
 
-<p>アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="1"><b>@app.GetActiveInstances(Page.Now, true).Count() インスタンス</b></a> /
-非アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="2"><b>@app.GetActiveInstances(Page.Now, false).Count() インスタンス</b></a> /
-合計: <a asp-action="Status" asp-route-id="@appId"><b>@app.InstanceList.Count() インスタンス</b></a></p>
+<p>
+    アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="1"><b>@app.GetActiveInstances(Page.Now, true).Count() インスタンス</b></a> /
+    非アクティブ: <a asp-action="Status" asp-route-id="@appId" asp-route-mode="2"><b>@app.GetActiveInstances(Page.Now, false).Count() インスタンス</b></a> /
+    合計: <a asp-action="Status" asp-route-id="@appId"><b>@app.InstanceList.Count() インスタンス</b></a>
+</p>
+<p>
+    <a asp-action="Status" class="button">一覧を更新</a>
+</p>
+
+@if (((string)ViewBag.Error)._IsFilled())
+{
+    <div class="box">
+        <div class="content">
+            <p>@((string)ViewBag.Error)</p>
+        </div>
+    </div>
+}
+
 <p>　</p>
 
-<table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
-    <thead>
-        <tr>
-            <th>状態</th>
-            <th>ホスト</th>
-            <th>プロセス起動日時</th>
-            <th>最終稼働確認日時</th>
-            <th align="right">通信回数</th>
-            <th>フラグ</th>
-            <th>Git コミット ID</th>
-            <th>引数</th>
-            <th>情報</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (Instance inst in instanceList)
-        {
-            string instId = inst.GetId(app);
-            AppSettings settings = app.Settings;
+<form name="form1" method="post">
+    <table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
+        <thead>
             <tr>
+                <th>操作<br><input type="checkbox" id="_all" name="cb" value="_all" class="switch" onClick="AllChecked();"><label for="_all"></label></th>
+                <th>状態</th>
+                <th>再起動要求</th>
+                <th>ホスト</th>
+                <th>プロセス起動日時</th>
+                <th>最終稼働確認日時</th>
+                <th align="right">通信回数</th>
+                <th>状態フラグ</th>
+                <th>Git コミット ID</th>
+                <th>引数</th>
+                <th>情報</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Instance inst in instanceList)
+            {
+                string instId = inst.GetId(app);
+                AppSettings settings = app.Settings;
+            <tr>
+                <th>
+                    <input type="checkbox" id="@instId" name="cb" value="@instId" class="switch" @Html.Raw(inst.ViewIsSelected ? "checked" : "") onClick="DisChecked();"><label for="@instId"></label>
+                </th>
                 <th>
                     @if (inst.IsActive(app.Settings, Page.Now))
                     {
@@ -47,6 +68,7 @@
                         <span class="icon"><i class="fas fa-question"></i></span>
                     }
                 </th>
+                <th>@(inst.RequestReboot ? "はい" : "")</th>
                 <th><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
                 <th>
                     @if (inst.IsActive(settings, Page.Now))
@@ -73,11 +95,96 @@
                 </th>
                 <th>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</th>
             </tr>
-        }
-    </tbody>
-</table>
+            }
+        </tbody>
+    </table>
+
+    <h3 class="title is-5">上記選択インスタンスに対する操作</h3>
+    <p>操作対象とするインスタンスのチェックボックスをチェックしてから、以下を操作してください。</p>
+
+    <div class="box">
+        <div class="content">
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">操作の種類</label>
+                </div>
+                <div class="field-body">
+                    <div class="field is-narrow">
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                <select name="operation" asp-items="Html.GetEnumSelectList<OperationType>()" class="input is-info"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label is-normal">
+                    <label class="label">引数</label>
+                </div>
+                <div class="field-body">
+                    <div class="field">
+                        <p class="control">
+                            <input class="input is-info text-box single-line" name="args" type="text" value="" />
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-horizontal">
+                <div class="field-label">
+                    <!-- Left empty for spacing -->
+                </div>
+                <div class="field-body">
+                    <div class="field">
+                        <div class="control">
+                            <input class="button is-danger" type="submit" value="操作の実行">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div asp-validation-summary="All" class="notification is-primary"></div>
+
+        </div>
+    </div>
+
+</form>
 <p>　</p>
 <p>
     <a asp-controller="App" asp-action="Index">トップページに戻る</a>
 </p>
+
+@section scripts {
+
+    <script type="text/javascript">
+
+        // 「全て選択」チェックで全てにチェック付く
+        function AllChecked() {
+            var all = document.form1._all.checked;
+            for (var i = 0; i < document.form1.cb.length; i++) {
+                document.form1.cb[i].checked = all;
+            }
+        }
+
+        // 一つでもチェックを外すと「全て選択」のチェック外れる
+        function DisChecked() {
+            var checks = document.form1.cb;
+            var checksCount = 0;
+            for (var i = 0; i < checks.length; i++) {
+                if (checks[i].checked == false) {
+                    document.form1._all.checked = false;
+                } else {
+                    checksCount += 1;
+                    if (checksCount == checks.length) {
+                        document.form1._all.checked = true;
+                    }
+                }
+            }
+        }
+
+    </script>
+
+}
 

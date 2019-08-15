@@ -218,9 +218,10 @@ namespace IPA.TestDev
             {
                 CurrentCommitId = Dbg.GetCurrentGitCommitId(),
                 StatFlag = StatFlag.OnGit,
+                CurrentInstanceArguments = "hello",
             };
 
-            using (Client client = new Client(settings, vars, (msg) => Dbg.Where()))
+            using (Client client = new Client(settings, vars, (msg) => Dbg.Where(msg._ObjectToJson())))
             {
                 Con.ReadLine();
             }

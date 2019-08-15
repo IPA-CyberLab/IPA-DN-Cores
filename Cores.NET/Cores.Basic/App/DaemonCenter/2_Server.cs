@@ -211,6 +211,66 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             return DbSnapshot.AppList.ToArray();
         }
 
+        // オペレーションの実行
+        public void AppInstanceOperation(string appId, IEnumerable<string> targetInstances, OperationType operationType, string arguments)
+        {
+            arguments = arguments._NonNullTrim();
+
+            if (operationType == OperationType.None)
+            {
+                throw new ApplicationException("操作が選択されていません。");
+            }
+
+            lock (DbLock)
+            {
+                App app = Db.AppList[appId];
+
+                IEnumerable<Instance> instList = app.GetInstanceListByIdList(targetInstances);
+
+                if (instList.Any() == false)
+                {
+                    throw new ApplicationException("選択されたインスタンスが 1 つもありません。");
+                }
+
+                if (operationType == OperationType.Delete)
+                {
+                    // 削除
+                    instList.ToArray()._DoForEach(x => app.InstanceList.Remove(x));
+                }
+                else if (operationType == OperationType.UpdateArguments)
+                {
+                    // 引数の変更
+                    instList._DoForEach(x => x.NextInstanceArguments = arguments);
+                }
+                else if (operationType == OperationType.SetRebootRequestFlag)
+                {
+                    // 再起動の要求のセット
+                    instList._DoForEach(x => x.RequestReboot = true);
+                }
+                else if (operationType == OperationType.UnsetRebootRequestFlag)
+                {
+                    // 再起動の要求の解除
+                    instList._DoForEach(x => x.RequestReboot = false);
+                }
+                else if (operationType == OperationType.UpdateGit)
+                {
+                    string commitId;
+
+                    try
+                    {
+                        commitId = Str.NormalizeGitCommitId(arguments);
+                    }
+                    catch
+                    {
+                        throw new ApplicationException("Git Commit ID が不正です。");
+                    }
+
+                    // Git Commit ID の変更
+                    instList._DoForEach(x => x.NextCommitId = commitId);
+                }
+            }
+        }
+
 
         //////////// 以下 RPC API の実装
 
@@ -276,8 +336,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの Commit ID の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
+                    inst.NextCommitId = "";
                 }
-                
+
                 if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
                 {
                     // クライアントから現在の InstanceArguments が送付されてきて、
@@ -285,6 +346,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの InstanceArguments の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                    inst.NextInstanceArguments = "";
+                }
+
+                if (inst.RequestReboot)
+                {
+                    // フラグにより再起動が要求されている
+                    ret.RebootRequested = true;
+
+                    // フラグは消す
+                    inst.RequestReboot = false;
                 }
 
                 if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.LastStat.CommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))

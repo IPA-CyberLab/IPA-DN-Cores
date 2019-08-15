@@ -21,6 +21,7 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 
 namespace DaemonCenter.Controllers
 {
+    [AutoValidateAntiforgeryToken]
     public class AppController : Controller
     {
         readonly Server Server;
@@ -45,23 +46,58 @@ namespace DaemonCenter.Controllers
         }
 
         // App ステータスページ (インスタンス一覧の表示)
+        [HttpGet]
         public IActionResult Status([FromRoute] string id, [FromQuery] int mode)
         {
             App app = Server.AppGet(id);
 
             IEnumerable<Instance> instanceList = app.InstanceList;
 
+            DualData<App, List<Instance>> data = GetFilteredInstanceListView(id, mode, app, instanceList);
+
+            return View(data);
+        }
+
+        // App ステータスページにおける操作の実行と結果の応答
+        [HttpPost]
+        public IActionResult Status([FromRoute] string id, [FromQuery] int mode, [FromForm] IEnumerable<string> cb, [FromForm] OperationType operation, [FromForm] string args)
+        {
+            try
+            {
+                Server.AppInstanceOperation(id, cb, operation, args);
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Error = ex.Message;
+            }
+
+            App app = Server.AppGet(id);
+
+            IEnumerable<Instance> instanceList = app.InstanceList;
+
+            // チェックボックスがチェックされたインスタンスの IsSelected フラグを true にする
+            instanceList._DoForEach(inst => inst.ViewIsSelected = cb.Where(selectedId => (IgnoreCaseTrim)selectedId == inst.GetId(app)).Any());
+
+            // 列挙結果を返す
+            DualData<App, List<Instance>> data = GetFilteredInstanceListView(id, mode, app, instanceList);
+
+            return View(data);
+        }
+
+        // インスタンス一覧データをフィルタリングして返す
+        DualData<App, List<Instance>> GetFilteredInstanceListView(string appId, int filterMode, App app, IEnumerable<Instance> instanceList)
+        {
             // ソート
             instanceList = instanceList.OrderBy(x => x.HostName);
 
             // フィルタの実施
-            if (mode == 1) instanceList = instanceList.Where(x => x.IsActive(app.Settings, DateTimeOffset.Now));
+            if (filterMode == 1) instanceList = instanceList.Where(x => x.IsActive(app.Settings, DateTimeOffset.Now));
 
-            if (mode == 2) instanceList = instanceList.Where(x => !x.IsActive(app.Settings, DateTimeOffset.Now));
+            if (filterMode == 2) instanceList = instanceList.Where(x => !x.IsActive(app.Settings, DateTimeOffset.Now));
 
-            DualData<App, List<Instance>> data = new DualData<App, List<Instance>>(id, app, id, instanceList.ToList(), ModelMode.Edit);
+            DualData<App, List<Instance>> data = new DualData<App, List<Instance>>(appId, app, appId, instanceList.ToList(), ModelMode.Edit);
 
-            return View(data);
+            return data;
         }
 
         // インスタンス情報

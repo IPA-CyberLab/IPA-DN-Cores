@@ -55,13 +55,34 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
+    public enum OperationType
+    {
+        [Display(Name = "何もしない")]
+        None = 0,
+
+        [Display(Name = "再起動要求フラグを ON にする")]
+        SetRebootRequestFlag,
+
+        [Display(Name = "再起動要求フラグを OFF にする")]
+        UnsetRebootRequestFlag,
+
+        [Display(Name = "次回の Git コミット ID を変更する")]
+        UpdateGit,
+
+        [Display(Name = "次回の起動引数を変更する")]
+        UpdateArguments,
+
+        [Display(Name = "削除する")]
+        Delete,
+    }
+
     public enum InstanceKeyType
     {
         [Display(Name = "ホスト名")]
         Hostname = 0,
 
         [Display(Name = "GUID")]
-        Guid = 1,
+        Guid,
     }
 
     public class AppSettings : INormalizable, IValidatable, IValidatableObject
@@ -126,6 +147,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         // ID を指定することによるインスタンスの取得
         public Instance GetInstanceById(string id)
             => this.InstanceList.Where(x => (IgnoreCaseTrim)x.GetId(this) == id).Single();
+
+        // リストを指定することによるインスタンス一覧の取得
+        public IEnumerable<Instance> GetInstanceListByIdList(IEnumerable<string> idList)
+            => this.InstanceList.Where(x => idList.Where(idInList => (IgnoreCaseTrim)idInList == x.GetId(this)).Any());
     }
 
     [Flags]
@@ -176,6 +201,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public DateTimeOffset LastCommitIdChanged;
         public DateTimeOffset LastInstanceArgumentsChanged;
 
+        public bool RequestReboot;
         public int NumAlive;
         public string NextCommitId;
         public string NextInstanceArguments;
@@ -202,6 +228,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             else
                 return this.HostName;
         }
+
+        // Web フォーム用
+        [JsonIgnore]
+        public bool ViewIsSelected;
     }
 
     public class Preference : INormalizable

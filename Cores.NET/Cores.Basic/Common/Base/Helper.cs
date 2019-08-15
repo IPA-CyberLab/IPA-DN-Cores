@@ -367,6 +367,10 @@ namespace IPA.Cores.Helper.Basic
         public static string _DecodeUrlPath(this string str) => Str.DecodeUrlPath(str);
         public static string _EncodeHtml(this string str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
         public static string _DecodeHtml(this string str) => Str.DecodeHtml(str);
+
+        public static string _EncodeEasy(this string str) => Str.EncodeEasy(str);
+        public static string _DecodeEasy(this string str) => Str.DecodeEasy(str);
+
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _Unescape(this string s) => Str.Unescape(s);
         public static string _Escape(this string s) => Str.Escape(s);
