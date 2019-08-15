@@ -131,6 +131,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 webOptions.Settings.SslAcceptAnyCerts = false;
             }
 
+            // Proxy は使用しないようにする
+            webOptions.Settings.UseProxy = false;
+
             // RPC Client を作成する
             this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl, webOptions);
 
