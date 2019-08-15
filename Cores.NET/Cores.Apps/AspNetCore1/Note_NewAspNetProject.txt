@@ -187,6 +187,7 @@ Main の内容を以下のように変更
                     DebugKestrelToConsole = false,
                     UseSimpleBasicAuthentication = false,
                     HoldSimpleBasicAuthenticationDatabase = false,
+                    AutomaticRedirectToHttpsIfPossible = true,
                 }));
 ---
 
@@ -272,7 +273,7 @@ if (env.IsDevelopment())
 
 を
 
-if (Helper.IsDevelopmentMode)
+if (StartupHelper.IsDevelopmentMode)
 
 に変更。
 
@@ -284,7 +285,6 @@ app.UseHttpExceptionLogger();
 
 を追加。
 
-app.UseStaticFiles(); をコメントアウト。
 app.UseCookiePolicy(); をコメントアウト。
 
 一番下に
