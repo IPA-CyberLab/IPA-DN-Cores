@@ -321,9 +321,10 @@ namespace IPA.Cores.Basic
 
                 this.StartMainLoop(MainLoopAsync);
             }
-            catch
+            catch (Exception ex)
             {
                 this._DisposeSafe();
+                ex._Debug();
                 throw;
             }
         }
