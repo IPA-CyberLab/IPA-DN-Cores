@@ -336,6 +336,11 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの Commit ID の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
+                }
+
+                if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId)
+                {
+                    // NextCommitId は消す
                     inst.NextCommitId = "";
                 }
 
@@ -346,6 +351,11 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの InstanceArguments の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                }
+
+                if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments)
+                {
+                    // NextInstanceArguments は消す
                     inst.NextInstanceArguments = "";
                 }
 
