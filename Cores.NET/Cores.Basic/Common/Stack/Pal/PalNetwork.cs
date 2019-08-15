@@ -107,7 +107,9 @@ namespace IPA.Cores.Basic
         {
             password = password._NonNull();
 
-            return this.NativeCertificate.Export(X509ContentType.Pfx, password);
+            ReadOnlyMemory<byte> ret = this.NativeCertificate.Export(X509ContentType.Pfx, password);
+
+            return ret;
         }
     }
 

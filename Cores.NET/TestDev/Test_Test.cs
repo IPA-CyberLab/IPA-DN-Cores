@@ -169,9 +169,9 @@ namespace IPA.TestDev
             //    ._Base64UrlDecode()._GetString_UTF8()._Print();
             //return;
 
-            //Test_Generic();
+            Test_Generic();
 
-            Test_DaemonCenterClient();
+            //Test_DaemonCenterClient();
 
             //var c = new Certificate(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2018\all.open.ad.jp_chained.crt").Span);
 
@@ -287,6 +287,42 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                var ca = DevTools.CoresDebugCACert;
+
+                CertificateStore x = ca.PkiCertificateStore;
+
+                return;
+            }
+
+            if (true)
+            {
+                var ca = DevTools.CoresDebugCACert;
+
+                var mem = ca.ExportCertificateAndKeyAsP12();
+
+                mem._DataToFile(PP.Combine(Env.AppRootDir, "test.p12"));
+
+                mem = @"\\10.40.0.110\vmdata1\containers\dn-lxd-vm2-test1\rootfs\root\Copy-IPA-DN-Cores\Cores.NET\TestDev\test.p12"._FileToData();
+
+                ////var x = new CertificateStore(mem.Span, "");
+
+                //mem = CertificateUtil.NormalizePkcs12MemoryData(mem.Span, "");
+
+                //mem._DataToFile(PP.Combine(Env.AppRootDir, "test_fix1.p12"));
+
+                CertificateStore x = ca.PkiCertificateStore;
+
+                x.ExportPkcs12()._DataToFile(PP.Combine(Env.AppRootDir, "test2.p12"));
+
+                x.ExportChainedPem(out ReadOnlyMemory<byte> cert, out _, "");
+
+                cert._DataToFile(PP.Combine(Env.AppRootDir, "test3.txt"));
+
+                return;
+            }
+
             if (true)
             {
                 Env.AppRootDir._Print();

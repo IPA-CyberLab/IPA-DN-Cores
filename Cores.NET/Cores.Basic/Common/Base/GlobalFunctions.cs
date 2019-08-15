@@ -121,6 +121,8 @@ namespace IPA.Cores.Globals
         public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
         public static ResourceFileSystem CoresRes => Res.Cores;
 
+        public static PathParser PP => PathParser.Local;
+
 #if CORES_BASIC_GIT
         public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
 #endif // CORES_BASIC_GIT

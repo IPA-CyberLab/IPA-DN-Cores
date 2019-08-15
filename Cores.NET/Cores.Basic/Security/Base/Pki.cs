@@ -165,9 +165,12 @@ namespace IPA.Cores.Basic
         {
             password = password._NonNull();
 
+            // 2019/8/15 to Fix the Linux .NET Core bug: https://github.com/dotnet/corefx/issues/30946
+            ReadOnlyMemory<byte> pkcs12Normalized = CertificateUtil.NormalizePkcs12MemoryData(pkcs12, password);
+
             using (MemoryStream ms = new MemoryStream())
             {
-                ms.Write(pkcs12);
+                ms.Write(pkcs12Normalized.Span);
                 ms._SeekToBegin();
 
                 Pkcs12Store p12 = new Pkcs12Store(ms, password.ToCharArray());
@@ -924,7 +927,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class CertificateUtil
+    public static partial class CertificateUtil
     {
         public static ReadOnlyMemory<byte> ExportChainedCertificates(this IEnumerable<Certificate> certList)
         {
