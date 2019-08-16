@@ -286,6 +286,24 @@ namespace IPA.Cores.Basic
         WindowsServiceMode = 1,
     }
 
+    // 何もしない Daemon
+    public class PausingDaemon : Daemon
+    {
+        public PausingDaemon() : base(new DaemonOptions("PausingDaemon", "PausingDaemon", false))
+        {
+        }
+
+        protected override Task StartImplAsync(DaemonStartupMode startupMode, object param)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override Task StopImplAsync(object param)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     // Daemon をホストするユーティリティクラス (このクラス自体は Daemon の実装ではない)
     public sealed class DaemonHost
     {
@@ -296,7 +314,7 @@ namespace IPA.Cores.Basic
         readonly HiveData<DaemonSettings> SettingsHive;
 
         // 'Config\DaemonSettings' のデータ
-        DaemonSettings Settings => SettingsHive.ManagedData;
+        DaemonSettings Settings => SettingsHive.GetManagedDataSnapshot();
 
         // DaemonCenter クライアントを有効化すべきかどうかのフラグ
         bool IsDaemonCenterEnabled() => (this.Mode == DaemonMode.UserMode &&
@@ -310,11 +328,18 @@ namespace IPA.Cores.Basic
         public DaemonHost(Daemon daemon, DaemonSettings defaultDaemonSettings, object param = null)
         {
             this.DefaultDaemonSettings = (defaultDaemonSettings ?? throw new ArgumentNullException(nameof(defaultDaemonSettings)))._CloneDeep();
-            this.Daemon = daemon;
             this.Param = param;
 
             // DaemonSettings を読み込む
             this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
+            
+            if (this.Settings.DaemonPauseFlag == PauseFlag.Pause)
+            {
+                // 一時停止状態の場合は「何もしない Daemon」を代わりにロードする
+                daemon = new PausingDaemon();
+            }
+
+            this.Daemon = daemon;
         }
 
         Once StartedOnce;
@@ -345,20 +370,17 @@ namespace IPA.Cores.Basic
                     new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort)));
             }
 
-            //using (var cli = StartDaemonCenterClientIfEnabled())
+            try
             {
-                try
-                {
-                    this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
+                this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                    Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+                Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
 
-                    this.Daemon.Stop(false);
-                }
-                finally
-                {
-                    telnetWatcher._DisposeSafe();
-                }
+                this.Daemon.Stop(false);
+            }
+            finally
+            {
+                telnetWatcher._DisposeSafe();
             }
         }
 
