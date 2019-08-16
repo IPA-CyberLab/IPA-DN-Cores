@@ -289,6 +289,18 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine(">");
+
+                    Str.SplitBySpecialChar(line)._Combine(", ")._Print();
+
+                }
+                return;
+            }
+
+            if (true)
+            {
                 var ca = DevTools.CoresDebugCACert;
 
                 CertificateStore x = ca.PkiCertificateStore;

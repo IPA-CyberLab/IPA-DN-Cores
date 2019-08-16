@@ -669,10 +669,8 @@ namespace IPA.Cores.Basic
 
     public class DaemonCmdLineTool
     {
-        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon, string thisCommandName, DaemonSettings defaultDaemonSettings = null)
+        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon, DaemonSettings defaultDaemonSettings = null)
         {
-            if (defaultDaemonSettings == null) defaultDaemonSettings = new DaemonSettings();
-
             ConsoleParam[] args =
             {
                 new ConsoleParam("[command]"),

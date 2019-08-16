@@ -5920,6 +5920,63 @@ namespace IPA.Cores.Basic
 
         public static string GetTimeSpanStr(long tick)
             => GetTimeSpanStr(new TimeSpan(tick));
+
+        // 文字列を特殊文字で区切る ただし特殊文字が 2 つ続いた場合は元の 1 つの特殊文字であるとみなす
+        // 例: abc;def => [abc], [def]
+        // 例: abc;;def;ghi => [abc;def], [ghi]
+        public static IReadOnlyList<string> SplitBySpecialChar(string str, char sp = ';')
+        {
+            str = str._NonNullTrim();
+
+            int mode = 0;
+
+            StringBuilder sb = new StringBuilder();
+
+            List<string> ret = new List<string>();
+
+            foreach (char c in str)
+            {
+                if (mode == 0)
+                {
+                    if (c != sp)
+                    {
+                        sb.Append(c);
+                    }
+                    else
+                    {
+                        mode = 1;
+                    }
+                }
+                else if (mode == 1)
+                {
+                    if (c == sp)
+                    {
+                        // 連続 2 文字 = 1 文字
+                        sb.Append(c);
+                    }
+                    else
+                    {
+                        // 区切り検出
+                        string s = sb.ToString();
+                        if (s._IsFilled())
+                        {
+                            ret.Add(sb.ToString());
+                        }
+                        sb.Clear();
+                    }
+
+                    mode = 0;
+                }
+            }
+
+            string t = sb.ToString();
+            if (t._IsFilled())
+            {
+                ret.Add(t);
+            }
+
+            return ret;
+        }
     }
 
     public class AmbiguousSearchResult<T>
@@ -6118,6 +6175,14 @@ namespace IPA.Cores.Basic
                 }
                 StrValue = str;
             }
+        }
+    }
+
+    public class OneLineParams : KeyValueList<string, string>
+    {
+        public override string ToString()
+        {
+            return base.ToString();
         }
     }
 

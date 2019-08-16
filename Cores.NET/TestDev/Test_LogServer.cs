@@ -50,7 +50,7 @@ namespace IPA.TestDev
 {
     class LogServerDaemon : Daemon
     {
-        public LogServerDaemon() : base(new DaemonOptions("LogServer", "Log Server Service", true, telnetLogWatcherPort: 8023))
+        public LogServerDaemon() : base(new DaemonOptions("LogServer", "Log Server Service", true))
         {
         }
 
