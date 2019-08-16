@@ -98,9 +98,12 @@
                     <td nowrap>@(inst.RequestReboot ? "はい" : "")</td>
                     <td><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId"><b>@inst.HostName</b></a><br />@inst.SrcIpAddress</td>
                     <td>
-                        @if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string browseUrl))
+                        @if (inst.IsActive(app.Settings, Page.Now))
                         {
-                            <a href="@browseUrl" target="_blank"><b>表示</b></a>
+                            if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string browseUrl))
+                            {
+                                <a href="@browseUrl" target="_blank"><b>表示</b></a>
+                            }
                         }
                     </td>
                     <td>
