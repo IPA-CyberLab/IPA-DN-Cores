@@ -350,6 +350,7 @@ namespace IPA.Cores.Basic
                 RedirectStandardError = false,
                 RedirectStandardInput = false,
                 CreateNoWindow = true,
+                WorkingDirectory = Env.AppRootDir,
             };
 
             Con.WriteError("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
