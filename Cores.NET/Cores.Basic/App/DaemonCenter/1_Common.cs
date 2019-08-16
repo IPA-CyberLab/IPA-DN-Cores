@@ -160,6 +160,14 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         OnGit = 1,
     }
 
+    [Flags]
+    public enum PauseFlag
+    {
+        None = 0,
+        Run,
+        Pause,
+    }
+
     public class InstanceStat
     {
         public string CommitId;
@@ -172,6 +180,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         [JsonConverter(typeof(StringEnumConverter))]
         public StatFlag StatFlag;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public PauseFlag PauseFlag;
 
         public string GetInfoString()
         {
@@ -280,7 +291,11 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public string NextCommitId;
         public string NextInstanceArguments;
+
         public bool RebootRequested;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public PauseFlag NextPauseFlag;
 
         public void Normalize()
         {

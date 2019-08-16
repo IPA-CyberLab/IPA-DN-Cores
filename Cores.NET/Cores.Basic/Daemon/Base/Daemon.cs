@@ -258,6 +258,9 @@ namespace IPA.Cores.Basic
         [DataMember]
         public string DaemonCenterInstanceGuid = "";
 
+        [DataMember]
+        public PauseFlag DaemonPauseFlag = PauseFlag.Run;
+
         public void Normalize()
         {
             this.DaemonCenterRpcUrl = this.DaemonCenterRpcUrl._NonNullTrim();
@@ -270,6 +273,9 @@ namespace IPA.Cores.Basic
 
             // 新しい GUID を作成する
             if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
+
+            if (this.DaemonPauseFlag != PauseFlag.Pause)
+                this.DaemonPauseFlag = PauseFlag.Run;
         }
     }
 
@@ -472,6 +478,15 @@ namespace IPA.Cores.Basic
                 this.SettingsHive.AccessData(true, data =>
                 {
                     data.DaemonCenterStartupArgument = res.NextInstanceArguments;
+                });
+            }
+
+            // Pause Flag が変更されている場合は設定ファイルを更新する
+            if (res.NextPauseFlag != PauseFlag.None)
+            {
+                this.SettingsHive.AccessData(true, data =>
+                {
+                    data.DaemonPauseFlag = res.NextPauseFlag;
                 });
             }
 

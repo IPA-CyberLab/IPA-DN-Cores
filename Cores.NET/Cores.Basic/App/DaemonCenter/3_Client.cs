@@ -90,6 +90,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string CurrentCommitId;
         public string CurrentInstanceArguments;
         public StatFlag StatFlag;
+        public PauseFlag PauseFlag;
     }
 
     public delegate void RestartCallback(ResponseMsg res);
@@ -242,6 +243,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 StatFlag = this.Variables.StatFlag,
                 TcpIpHostData = LocalNet.GetTcpIpHostDataJsonSafe(),
                 GlobalIpList = globalIpList,
+                PauseFlag = Variables.PauseFlag,
             };
 
             // リクエストメッセージの組立て
