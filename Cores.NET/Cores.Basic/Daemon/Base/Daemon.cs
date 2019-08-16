@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
     // 何もしない Daemon
     public class PausingDaemon : Daemon
     {
-        public PausingDaemon() : base(new DaemonOptions("PausingDaemon", "PausingDaemon", false))
+        public PausingDaemon(DaemonOptions options) : base(options)
         {
         }
 
@@ -388,18 +388,13 @@ namespace IPA.Cores.Basic
             // DaemonSettings を読み込む
             this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
 
-            DaemonSettings settingsCopy = this.Settings._CloneDeep();
-            settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
-
-            Con.WriteLine($"DaemonHost: '{daemon.ToString()}': Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
-
             // 現在の Daemon 設定をグローバル変数に適用する
             GlobalDaemonStateManager.SetCurrentDaemonSettings(this.Settings);
 
             if (this.Settings.DaemonPauseFlag == PauseFlag.Pause)
             {
                 // 一時停止状態の場合は「何もしない Daemon」を代わりにロードする
-                daemon = new PausingDaemon();
+                daemon = new PausingDaemon(new DaemonOptions(daemon.Name, daemon.Options.FriendlyName, false));
             }
 
             this.Daemon = daemon;
@@ -486,6 +481,11 @@ namespace IPA.Cores.Basic
                 throw new ArgumentException("Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode");
 
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
+
+            DaemonSettings settingsCopy = this.Settings._CloneDeep();
+            settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
+
+            Console.WriteLine($"DaemonHost: Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
 
             this.Mode = mode;
 
