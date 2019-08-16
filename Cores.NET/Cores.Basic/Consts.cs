@@ -98,17 +98,21 @@ namespace IPA.Cores.Basic
             public const int Imap4 = 143;
             public const int Imap4s = 993;
 
+            public const int DynamicPortMin = 10000;
+            public const int DynamicPortMax = 19999;
+
             public static readonly IEnumerable<int> PotentialHttpsPorts = new int[] { Https, Smtps, Pop3s, Imap4s };
         }
 
         public static partial class DaemonArgKeys
         {
             public const string StartLogFileBrowser = "StartLogFileBrowser";
+            public const string LogFileBrowserPort = "LogFileBrowserPort";
         }
 
         public static partial class DaemonMetaStatKeys
         {
-            public const string LogFileBrowserUrl = "LogFileBrowserUrl";
+            public const string CurrentLogFileBrowserUrl = "CurrentLogFileBrowserUrl";
         }
 
         public static partial class Strings

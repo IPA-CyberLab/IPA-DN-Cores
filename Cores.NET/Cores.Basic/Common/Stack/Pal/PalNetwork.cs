@@ -195,10 +195,18 @@ namespace IPA.Cores.Basic
         public PalSocket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType, TcpDirectionType direction)
             : this(new Socket(addressFamily, socketType, protocolType), direction) { }
 
+        public void TrySetRecommendedSettings()
+        {
+            this.LingerTime.TrySet(0);
+            this.NoDelay.TrySet(true);
+        }
+
         public Task ConnectAsync(IPAddress address, int port) => ConnectAsync(new IPEndPoint(address, port));
 
         public async Task ConnectAsync(EndPoint remoteEP)
         {
+            this.TrySetRecommendedSettings();
+
             await _Socket.ConnectAsync(remoteEP);
 
             this.LocalEndPoint.Flush();
@@ -211,6 +219,8 @@ namespace IPA.Cores.Basic
 
         public void Bind(EndPoint localEP)
         {
+            this.TrySetRecommendedSettings();
+
             _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, true);
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
@@ -227,7 +237,11 @@ namespace IPA.Cores.Basic
         public async Task<PalSocket> AcceptAsync()
         {
             Socket newSocket = await _Socket.AcceptAsync();
-            return new PalSocket(newSocket, TcpDirectionType.Server);
+            PalSocket s = new PalSocket(newSocket, TcpDirectionType.Server);
+
+            s.TrySetRecommendedSettings();
+
+            return s;
         }
 
         public Task<int> SendAsync(IEnumerable<ReadOnlyMemory<byte>> buffers)
@@ -362,6 +376,25 @@ namespace IPA.Cores.Basic
             catch { }
 
             return false;
+        }
+
+        public static bool CheckTcpPortListenable(int port)
+        {
+            try
+            {
+                using (PalSocket sock = new PalSocket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Server))
+                {
+                    sock.Bind(new IPEndPoint(IPAddress.Any, port));
+
+                    sock.Listen();
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

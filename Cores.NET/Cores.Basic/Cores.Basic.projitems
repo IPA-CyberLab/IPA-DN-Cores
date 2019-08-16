@@ -112,6 +112,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\_NewSrcTemplate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\Daemon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\DaemonMain.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\DaemonUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\UserModeService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Daemon\Base\WindowsService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />

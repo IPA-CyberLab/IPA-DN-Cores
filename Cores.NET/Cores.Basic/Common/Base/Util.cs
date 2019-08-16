@@ -3006,6 +3006,13 @@ namespace IPA.Cores.Basic
 
             throw new ArgumentException(nameof(protocol));
         }
+
+        public static int GenerateRandomPortNumberBySeedString(string seed)
+        {
+            seed = seed._NonNullTrim().ToLower();
+
+            return 0;
+        }
     }
 
 
@@ -4364,6 +4371,19 @@ namespace IPA.Cores.Basic
             Setter = setter;
             Getter = getter;
             Normalizer = normalizer;
+        }
+
+        public bool TrySet(T value)
+        {
+            try
+            {
+                Set(value);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public void Set(T value)

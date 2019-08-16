@@ -1547,6 +1547,33 @@ namespace IPA.Cores.Helper.Basic
 
             return numMatch >= 1;
         }
+
+
+        public static bool _HasKey<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey> comparer = null)
+        {
+            if (comparer == null) comparer = EqualityComparer<TKey>.Default;
+
+            return target.Where(x => comparer.Equals(x.Key, key)).Any();
+        }
+
+        public static bool _TryGetFirstValue<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, out TValue value, IEqualityComparer<TKey> comparer = null)
+        {
+            if (comparer == null) comparer = EqualityComparer<TKey>.Default;
+
+            var tmp = target.Where(x => comparer.Equals(x.Key, key));
+
+            if (tmp.Any() == false)
+            {
+                value = default;
+                return false;
+            }
+            else
+            {
+                value = tmp.First().Value;
+                return true;
+            }
+        }
+
     }
 }
 

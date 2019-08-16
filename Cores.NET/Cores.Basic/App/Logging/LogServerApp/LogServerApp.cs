@@ -70,7 +70,7 @@ namespace IPA.Cores.Basic
 
         CertVault CertVault = null;
 
-        HttpServer<LogBrowserHttpServerBuilder> HttpServer = null;
+        HttpServer<LogBrowserHttpServerBuilder> LogBrowserHttpServer = null;
 
         public LogServerApp()
         {
@@ -134,7 +134,7 @@ namespace IPA.Cores.Basic
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir);
 
-                    this.HttpServer = LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions);
+                    this.LogBrowserHttpServer = LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions);
                 });
             }
             catch
@@ -148,7 +148,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                this.HttpServer._DisposeSafe();
+                this.LogBrowserHttpServer._DisposeSafe();
 
                 this.LogServer._DisposeSafe();
 
