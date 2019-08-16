@@ -101,7 +101,7 @@ namespace IPA.Cores.Basic
                     };
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
-                        systemTitle: "DaemonClient Local File Viewer",
+                        systemTitle: $"DaemonClient Local File Viewer - {Env.DnsFqdnHostName}",
                         urlSecret: GlobalDaemonStateManager.DaemonSecret,
                         clientIpAcl: (ip) =>
                         {
