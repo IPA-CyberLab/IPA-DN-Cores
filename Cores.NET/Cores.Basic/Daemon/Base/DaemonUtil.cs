@@ -102,7 +102,26 @@ namespace IPA.Cores.Basic
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
                         systemTitle: "DaemonClient File Viewer",
-                        urlSecret: "abc");
+                        urlSecret: "abc",
+                        clientIpAcl: (ip) =>
+                        {
+                            // 接続元 IP アドレスの種類を取得
+                            IPAddressType type = ip._GetIPAddressType();
+
+                            if (type.Bit(IPAddressType.GlobalIp))
+                            {
+                                // 接続元がグローバル IP の場合
+                                if (GlobalDaemonStateManager.IsDaemonClientLocalIpAddressGlobal == false)
+                                {
+                                    // DaemonCenter との接続にプライベート IP を利用している場合: 接続拒否
+                                    return false;
+                                }
+                            }
+
+                            // それ以外の場合: 接続許可
+                            return true;
+                        }
+                        );
 
                     DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
                 }

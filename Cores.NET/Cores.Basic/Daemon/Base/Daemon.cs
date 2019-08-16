@@ -82,15 +82,29 @@ namespace IPA.Cores.Basic
         // DaemonCenter に接続を行なう際の自分自身の IP アドレス
         public static IPAddress DaemonClientLocalIpAddress { get; private set; } = IPAddress.Any;
 
+        // DaemonCenter に接続を行なう際の自分自身の IP アドレスはグローバル IP か?
+        public static bool IsDaemonClientLocalIpAddressGlobal { get; private set; } = false;
+
         public static void SetDaemonClientLocalIpAddress(string ipAddress)
         {
-            if (IPAddress.TryParse(ipAddress, out IPAddress ip))
+            ipAddress = ipAddress._NonNullTrim();
+
+            if (ipAddress._IsFilled() && IPAddress.TryParse(ipAddress, out IPAddress ip))
             {
                 // 変数に入れる
                 DaemonClientLocalIpAddress = ip;
 
+                // DaemonCenter に接続を行なう際の自分自身の IP アドレスがグローバル IP かどうか判定をする
+                IPAddressType type = ip._GetIPAddressType();
+
+                IsDaemonClientLocalIpAddressGlobal = type.BitAny(IPAddressType.IPv4 & IPAddressType.GlobalIp) || type.BitAny(IPAddressType.IPv6);
+
                 // MetaStat に入れる
                 MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentDaemonClientLocalIp] = ip.ToString();
+            }
+            else
+            {
+                IsDaemonClientLocalIpAddressGlobal = false;
             }
         }
     }

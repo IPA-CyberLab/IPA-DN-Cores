@@ -804,10 +804,10 @@ namespace IPA.Cores.Basic
         public WebApi WebApi { get; private set; }
         public string ApiBaseUrl { get; set; }
 
-        public string LastLocalIp { get; private set; } = "0.0.0.0";
+        public string LastLocalIp { get; private set; } = "";
         public int LastLocalPort { get; private set; } = 0;
 
-        public string LastRemoteIp { get; private set; } = "0.0.0.0";
+        public string LastRemoteIp { get; private set; } = "";
         public int LastRemotePort { get; private set; } = 0;
 
         long NextEndPointInfoGetTick = 0;
