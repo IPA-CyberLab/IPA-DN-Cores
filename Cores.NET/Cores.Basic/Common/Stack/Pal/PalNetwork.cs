@@ -644,10 +644,10 @@ namespace IPA.Cores.Basic
 
             if (prop.DomainName._IsSamei("(none)") || prop.DomainName._IsEmpty())
             {
-                string hn = prop.HostName;
+                string fqdn = prop.HostName;
 
-                hostName = PathParser.Linux.GetFileNameWithoutExtension(hn, true);
-                domainName = PathParser.Linux.GetExtension(hn, true);
+                hostName = Str.GetHostNameFromFqdn(fqdn);
+                domainName = Str.GetDomainFromFqdn(fqdn);
             }
             else
             {
@@ -668,6 +668,7 @@ namespace IPA.Cores.Basic
 
             return prop;
         }
+
 
         public PalHostNetInfo()
         {
