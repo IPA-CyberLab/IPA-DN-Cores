@@ -3024,8 +3024,10 @@ namespace IPA.Cores.Basic
             return rand % count + min;
         }
 
-        public static int GenerateDynamicListenableTcpPortWithSeed(string seed, int minPort = Consts.Ports.DynamicPortMin, int maxPort = Consts.Ports.DynamicPortMax)
+        public static int GenerateDynamicListenableTcpPortWithSeed(string seed, int minPort = Consts.Ports.DynamicPortMin, int maxPort = Consts.Ports.DynamicPortMax, IEnumerable<int> excludePorts = null)
         {
+            if (excludePorts == null) excludePorts = EmptyEnumerable<int>.Empty;
+
             for (int i = 0; ; i++)
             {
                 int port = (int)HashDynamicLongValueWithSeed(i.ToString() + seed, minPort, maxPort);
@@ -3035,9 +3037,12 @@ namespace IPA.Cores.Basic
                     return port;
                 }
 
-                if (PalSocket.CheckTcpPortListenable(port))
+                if (excludePorts.Contains(port) == false)
                 {
-                    return port;
+                    if (PalSocket.CheckIsTcpPortListenable(port))
+                    {
+                        return port;
+                    }
                 }
             }
         }

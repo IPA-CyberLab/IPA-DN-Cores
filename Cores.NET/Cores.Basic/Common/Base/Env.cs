@@ -90,6 +90,9 @@ namespace IPA.Cores.Basic
         public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
         public bool IsDebuggerAttached = Env.IsDebuggerAttached;
         public int NumCpus = Env.NumCpus;
+        public string DnsHostName = Env.DnsHostName;
+        public string DnsDomainName = Env.DnsDomainName;
+        public string DnsFqdnHostName = Env.DnsFqdnHostName;
     }
 
     public static class Env
@@ -155,10 +158,14 @@ namespace IPA.Cores.Basic
         public static bool Is64BitProcess => (IntPtr.Size == 8);
         public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
         public static bool IsWow64 => Kernel.InternalCheckIsWow64();
-
+        
         public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
         public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
         public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
+
+        public static string DnsHostName { get; }
+        public static string DnsDomainName { get; }
+        public static string DnsFqdnHostName => DnsHostName + (string.IsNullOrEmpty(DnsDomainName) ? "" : "." + DnsDomainName);
 
         public static DateTimeOffset BootTime { get; }
 
@@ -214,6 +221,12 @@ namespace IPA.Cores.Basic
             {
                 Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
             }
+
+            // DNS ホスト名とドメイン名の取得
+            PalHostNetInfo.GetHostNameAndDomainNameInfo(out string dnsHostName, out string dnsDomainName);
+
+            DnsHostName = dnsHostName;
+            DnsDomainName = dnsDomainName;
 
             if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
             {

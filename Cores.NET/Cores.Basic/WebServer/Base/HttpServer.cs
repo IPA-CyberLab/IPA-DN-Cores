@@ -139,31 +139,34 @@ namespace IPA.Cores.Basic
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
             this.StartupConfig = new HttpServerStartupConfig();
 
-            Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(true,
-                k =>
-                {
-                    this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
-
-                    if (this.ServerOptions.UseSimpleBasicAuthentication || this.ServerOptions.HoldSimpleBasicAuthenticationDatabase)
+            if (this.ServerOptions.DisableHiveBasedSetting == false)
+            {
+                Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(true,
+                    k =>
                     {
-                        k.Get("SimpleBasicAuthDatabase", new HttpServerSimpleBasicAuthDatabase(EnsureSpecial.Yes));
+                        this.IsDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
 
-                        SimpleBasicAuthenticationPasswordValidator = async (username, password) =>
+                        if (this.ServerOptions.UseSimpleBasicAuthentication || this.ServerOptions.HoldSimpleBasicAuthenticationDatabase)
                         {
-                            bool ok = false;
+                            k.Get("SimpleBasicAuthDatabase", new HttpServerSimpleBasicAuthDatabase(EnsureSpecial.Yes));
 
-                            Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(false, k2 =>
+                            SimpleBasicAuthenticationPasswordValidator = async (username, password) =>
                             {
-                                HttpServerSimpleBasicAuthDatabase db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
+                                bool ok = false;
 
-                                ok = db.Authenticate(username, password);
-                            });
+                                Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(false, k2 =>
+                                {
+                                    HttpServerSimpleBasicAuthDatabase db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
 
-                            await Task.CompletedTask;
-                            return ok;
-                        };
-                    }
-                });
+                                    ok = db.Authenticate(username, password);
+                                });
+
+                                await Task.CompletedTask;
+                                return ok;
+                            };
+                        }
+                    });
+            }
         }
 
         public virtual void ConfigureServices(IServiceCollection services)
@@ -430,6 +433,7 @@ namespace IPA.Cores.Basic
         public bool HideKestrelServerHeader { get; set; } = true;
 
         public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
+        public bool DisableHiveBasedSetting = false;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
@@ -570,25 +574,28 @@ namespace IPA.Cores.Basic
 
                 bool isDevelopmentMode = false;
 
-                Hive.LocalAppSettingsEx[this.Options.HiveName].AccessData(true,
-                    k =>
-                    {
-                        isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
+                if (this.Options.DisableHiveBasedSetting == false)
+                {
+                    Hive.LocalAppSettingsEx[this.Options.HiveName].AccessData(true,
+                        k =>
+                        {
+                            isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
 
                         // Update options with the config file
                         string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
-                        Options.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
+                            Options.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
 
-                        string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(Options.HttpsPortsList));
-                        Options.HttpsPortsList = Str.ParsePortsList(httpsPortsList).ToList();
+                            string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(Options.HttpsPortsList));
+                            Options.HttpsPortsList = Str.ParsePortsList(httpsPortsList).ToList();
 
-                        Options.LocalHostOnly = k.GetBool("LocalHostOnly", Options.LocalHostOnly);
-                        Options.IPv4Only = k.GetBool("IPv4Only", Options.IPv4Only);
+                            Options.LocalHostOnly = k.GetBool("LocalHostOnly", Options.LocalHostOnly);
+                            Options.IPv4Only = k.GetBool("IPv4Only", Options.IPv4Only);
 
-                        string mustIncludeHostnameStr = k.GetStr("MustIncludeHostnameList", "");
-                        string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        tokens._DoForEach(x => Options.MustIncludeHostnameStrList.Add(x));
-                    });
+                            string mustIncludeHostnameStr = k.GetStr("MustIncludeHostnameList", "");
+                            string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            tokens._DoForEach(x => Options.MustIncludeHostnameStrList.Add(x));
+                        });
+                }
 
                 Lfs.CreateDirectory(Options.WwwRoot);
                 Lfs.CreateDirectory(Options.ContentsRoot);

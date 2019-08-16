@@ -63,28 +63,57 @@ namespace IPA.Cores.Basic
 
         public DaemonUtil(string startupArguments, CancellationToken cancel = default) : base(cancel)
         {
-            // 起動パラメータ
-            this.Params = new OneLineParams(startupArguments);
-
-            if (Params._HasKey(Consts.DaemonArgKeys.StartLogFileBrowser))
+            try
             {
-                // Log Browser の起動
-                HttpServerOptions httpServerOptions = new HttpServerOptions
+                // 起動パラメータ
+                this.Params = new OneLineParams(startupArguments);
+
+                if (Params._HasKey(Consts.DaemonArgKeys.StartLogFileBrowser))
                 {
-                    UseStaticFiles = false,
-                    UseSimpleBasicAuthentication = false,
-                    //HttpPortsList = Str.ParsePortsList(httpPortsStr).ToList(),
-                    //HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
-                    RequireBasicAuthenticationToAllRequests = true,
-                    DebugKestrelToConsole = true,
-                    UseKestrelWithIPACoreStack = true,
-                    AutomaticRedirectToHttpsIfPossible = true,
-                    LocalHostOnly = false,
-                };
+                    // Log Browser で利用されるべきポート番号の決定
+                    int httpPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
+                    if (httpPort == 0) httpPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_http");
 
-                LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir);
+                    int httpsPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
+                    if (httpsPort == 0) httpsPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_https", excludePorts: httpPort._SingleArray());
 
-                DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
+                    // Log Browser 用の CertVault の作成
+                    CertVault certVault = new CertVault(PP.Combine(Env.AppLocalDir, "Config/DaemonUtil_LogBrowser/CertVault"),
+                        new CertVaultSettings(defaultSetting: EnsureSpecial.Yes) { UseAcme = false });
+
+                    DisposeList.Add(certVault);
+
+                    // Log Browser の起動
+                    HttpServerOptions httpServerOptions = new HttpServerOptions
+                    {
+                        UseStaticFiles = false,
+                        UseSimpleBasicAuthentication = false,
+                        HttpPortsList = httpPort._SingleList(),
+                        HttpsPortsList = httpsPort._SingleList(),
+                        RequireBasicAuthenticationToAllRequests = false, // Disable Basic Auth
+                        DebugKestrelToConsole = false,
+                        UseKestrelWithIPACoreStack = true,
+                        AutomaticRedirectToHttpsIfPossible = false,
+                        LocalHostOnly = false,
+                        UseGlobalCertVault = false, // Disable Global CertVault
+                        DisableHiveBasedSetting = true, // Disable Hive based settings
+                        ServerCertSelector = certVault.X509CertificateSelectorForHttpsServerNoAcme,
+                    };
+
+                    LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
+                        systemTitle: "DaemonClient File Viewer",
+                        urlSecret: "abc");
+
+                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+
+                this._DisposeSafe();
+
+                throw;
             }
         }
 
@@ -92,6 +121,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                DisposeList.ForEach(x => x._DisposeSafe());
             }
             finally
             {

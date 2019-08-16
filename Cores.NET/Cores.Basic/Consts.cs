@@ -128,6 +128,8 @@ namespace IPA.Cores.Basic
             public static readonly IEnumerable<string> AutoEnrollCertificateSubjectInStrList = new string[] { "Let's Encrypt", "Google Internet Authority", "Google Trust Services" };
 
             public const string EncodeEasyPrefix = "_E_";
+
+            public const string HidePassword = "********";
         }
 
         public static partial class HiveNames
@@ -239,6 +241,13 @@ namespace IPA.Cores.Basic
             public const int MaxKeepAliveIntervalsMsec = 24 * 60 * 60 * 1000;
 
             public const int DaemonCenterRebootRequestTimeout = 15 * 1000;
+
+            public const int JsonRpcClientEndPointInfoUpdateInterval = 60 * 1000;
+        }
+
+        public static partial class Timeouts
+        {
+            public const int Rapid = 5 * 1000;
         }
     }
 }

@@ -378,7 +378,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public static bool CheckTcpPortListenable(int port)
+        public static bool CheckIsTcpPortListenable(int port)
         {
             try
             {
@@ -638,7 +638,7 @@ namespace IPA.Cores.Basic
             public int Compare(byte[] x, byte[] y) => x.AsSpan().SequenceCompareTo(y.AsSpan());
         }
 
-        public PalHostNetInfo()
+        public static IPGlobalProperties GetHostNameAndDomainNameInfo(out string hostName, out string domainName)
         {
             IPGlobalProperties prop = IPGlobalProperties.GetIPGlobalProperties();
 
@@ -646,25 +646,32 @@ namespace IPA.Cores.Basic
             {
                 string hn = prop.HostName;
 
-                this.HostName = PathParser.Linux.GetFileNameWithoutExtension(hn, true);
-                this.DomainName = PathParser.Linux.GetExtension(hn, true);
+                hostName = PathParser.Linux.GetFileNameWithoutExtension(hn, true);
+                domainName = PathParser.Linux.GetExtension(hn, true);
             }
             else
             {
-                this.HostName = prop.HostName;
-                this.DomainName = prop.DomainName;
+                hostName = prop.HostName;
+                domainName = prop.DomainName;
             }
 
-            this.HostName = this.HostName._NonNullTrim();
-            this.DomainName = this.DomainName._NonNullTrim();
+            hostName = hostName._NonNullTrim();
+            domainName = domainName._NonNullTrim();
 
-            this.HostName = this.HostName._TrimStartWith(".");
-            this.HostName = this.HostName._TrimEndsWith(".");
+            hostName = hostName._TrimStartWith(".");
+            hostName = hostName._TrimEndsWith(".");
 
-            this.DomainName = this.DomainName._TrimStartWith(".");
-            this.DomainName = this.DomainName._TrimEndsWith(".");
+            domainName = domainName._TrimStartWith(".");
+            domainName = domainName._TrimEndsWith(".");
 
-            if (this.HostName._IsEmpty()) this.HostName = "unknown-host";
+            if (hostName._IsEmpty()) hostName = "unknown-host";
+
+            return prop;
+        }
+
+        public PalHostNetInfo()
+        {
+            IPGlobalProperties prop = GetHostNameAndDomainNameInfo(out this.HostName, out this.DomainName);
 
             HashSet<IPAddress> hash = new HashSet<IPAddress>();
 

@@ -1574,6 +1574,15 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static TValue _GetFirstValueOrDefault<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey> comparer = null)
+        {
+            if (_TryGetFirstValue(target, key, out TValue ret, comparer))
+            {
+                return ret;
+            }
+
+            return default;
+        }
     }
 }
 

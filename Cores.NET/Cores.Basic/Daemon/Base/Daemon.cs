@@ -342,7 +342,8 @@ namespace IPA.Cores.Basic
         bool IsDaemonCenterEnabled() => (this.Mode == DaemonMode.UserMode &&
             Dbg.IsGitCommandSupported() &&
             Dbg.GetCurrentGitCommitId()._IsFilled() &&
-            this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() && Env.IsWindows == false &&
+            this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() &&
+            Env.IsWindows == false &&
             Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
 
         IService CurrentRunningService = null;
@@ -354,6 +355,11 @@ namespace IPA.Cores.Basic
 
             // DaemonSettings を読み込む
             this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
+
+            DaemonSettings settingsCopy = this.Settings._CloneDeep();
+            settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
+
+            Con.WriteLine($"DaemonHost: '{daemon.ToString()}': Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
 
             // 現在の Daemon 設定をグローバル変数に適用する
             GlobalDaemonStateManager.SetCurrentDaemonSettings(this.Settings);
@@ -397,11 +403,14 @@ namespace IPA.Cores.Basic
 
             try
             {
-                this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
+                using (DaemonUtil util = new DaemonUtil(this.Settings.DaemonStartupArgument))
+                {
+                    this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+                    Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
 
-                this.Daemon.Stop(false);
+                    this.Daemon.Stop(false);
+                }
             }
             finally
             {

@@ -913,6 +913,11 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public X509Certificate2 X509CertificateSelectorForHttpsServerNoAcme(object param, string sniHostname)
+        {
+            return (X509Certificate2)X509CertificateSelector(sniHostname, true).NativeCertificate;
+        }
+
         protected override void CancelImpl(Exception ex)
         {
             base.CancelImpl(ex);

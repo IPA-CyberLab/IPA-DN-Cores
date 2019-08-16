@@ -44,6 +44,7 @@ using Newtonsoft.Json.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -803,6 +804,15 @@ namespace IPA.Cores.Basic
         public WebApi WebApi { get; private set; }
         public string ApiBaseUrl { get; set; }
 
+        public string LastLocalIp { get; private set; } = "0.0.0.0";
+        public int LastLocalPort { get; private set; } = 0;
+
+        public string LastRemoteIp { get; private set; } = "0.0.0.0";
+        public int LastRemotePort { get; private set; } = 0;
+
+        long NextEndPointInfoGetTick = 0;
+        int LastNexInfoVer = int.MaxValue;
+
         public override int TimeoutMsecs { get => WebApi.TimeoutMsecs; set => WebApi.TimeoutMsecs = value; }
         public override void AddHeader(string name, string value) => WebApi.AddHeader(name, value);
 
@@ -816,7 +826,37 @@ namespace IPA.Cores.Basic
         {
             WebRet ret = await this.WebApi.SimplePostDataAsync(this.ApiBaseUrl, req._GetBytes_UTF8(), cancel, Consts.MimeTypes.Json);
 
+            int networkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
+
+            if (networkInfoVer != LastNexInfoVer || NextEndPointInfoGetTick == 0 || NextEndPointInfoGetTick <= Time.Tick64)
+            {
+                NextEndPointInfoGetTick = Time.Tick64 + Consts.Intervals.JsonRpcClientEndPointInfoUpdateInterval;
+                LastNexInfoVer = networkInfoVer;
+
+                // ネットワーク情報を更新する
+                await TryToGetEndPointsInfo(cancel);
+            }
+
             return ret.ToString();
+        }
+
+        public async Task TryToGetEndPointsInfo(CancellationToken cancel = default)
+        {
+            try
+            {
+                Uri uri = new Uri(this.ApiBaseUrl);
+
+                using (var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(uri.Host, uri.Port, connectTimeout: Consts.Timeouts.Rapid, dnsTimeout: Consts.Timeouts.Rapid)))
+                {
+                    LastLocalIp = sock.EndPointInfo.LocalIP;
+                    LastLocalPort = sock.EndPointInfo.LocalPort;
+
+                    LastRemoteIp = sock.EndPointInfo.RemoteIP;
+                    LastRemotePort = sock.EndPointInfo.RemotePort;
+                }
+            }
+            catch
+            { }
         }
 
         Once DisposedFlag;

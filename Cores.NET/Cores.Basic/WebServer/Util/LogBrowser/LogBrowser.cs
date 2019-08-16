@@ -60,18 +60,25 @@ namespace IPA.Cores.Basic
         public DirectoryPath RootDir { get; }
         public string SystemTitle { get; }
         public long TailSize { get; }
+        public string UrlSecret { get; }
 
-        public LogBrowserHttpServerOptions(DirectoryPath rootDir, string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle, long tailSize = Consts.Numbers.LogBrowserDefaultTailSize)
+        public LogBrowserHttpServerOptions(DirectoryPath rootDir,
+            string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
+            long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
+            string urlSecret = null)
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
             this.TailSize = tailSize._Max(1);
+            this.UrlSecret = urlSecret;
         }
     }
 
     public class LogBrowserHttpServerBuilder : HttpServerStartupBase
     {
         public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param;
+
+        string AbsolutePathPrefix = "";
 
         public ChrootFileSystem RootFs;
 
@@ -92,7 +99,17 @@ namespace IPA.Cores.Basic
 
             RouteBuilder rb = new RouteBuilder(app);
 
-            rb.MapGet("{*path}", GetRequestHandler);
+            if (Options.UrlSecret._IsEmpty())
+            {
+                // 通常
+                rb.MapGet("{*path}", GetRequestHandler);
+            }
+            else
+            {
+                // URL Secret を設定
+                rb.MapGet(Options.UrlSecret + "/{*path}", GetRequestHandler);
+                AbsolutePathPrefix = $"/" + Options.UrlSecret;
+            }
 
             IRouter router = rb.Build();
             app.UseRouter(router);
@@ -124,7 +141,7 @@ namespace IPA.Cores.Basic
                     classStr = " class=\"is-active\"";
                 }
 
-                breadCrumbsHtml.WriteLine($"<li{classStr}><a href=\"{crumb.PathString._EncodeUrlPath()}\"><span class=\"icon\"><i class=\"{iconInfo.Item1} {iconInfo.Item2}\" aria-hidden=\"true\"></i></span><b>{printName._EncodeHtml(true)}</b></a></li>");
+                breadCrumbsHtml.WriteLine($"<li{classStr}><a href=\"{AbsolutePathPrefix}{crumb.PathString._EncodeUrlPath()}\"><span class=\"icon\"><i class=\"{iconInfo.Item1} {iconInfo.Item2}\" aria-hidden=\"true\"></i></span><b>{printName._EncodeHtml(true)}</b></a></li>");
             }
 
             // File contents
@@ -168,10 +185,10 @@ namespace IPA.Cores.Basic
 
                 if (e.IsDirectory == false)
                 {
-                    dirHtml.WriteLine($@"<a href=""{absolutePath._EncodeUrlPath()}?tail={Options.TailSize}""><i class=""far fa-eye""></i></a>&nbsp;");
+                    dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}?tail={Options.TailSize}""><i class=""far fa-eye""></i></a>&nbsp;");
                 }
 
-                dirHtml.WriteLine($@"<a href=""{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printName._EncodeHtml(true)}</a>");
+                dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printName._EncodeHtml(true)}</a>");
 
                 dirHtml.WriteLine("</th>");
 
