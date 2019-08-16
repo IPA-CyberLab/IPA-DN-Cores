@@ -64,6 +64,7 @@ namespace IPA.Cores.Basic
         public string FrameworkVersion = Env.FrameworkVersion.ToString();
         public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
         public string AppExecutableExeOrDllFileName = Env.AppExecutableExeOrDllFileName;
+        public string BuildConfigurationName = Env.BuildConfigurationName;
         public string AppRootDir = Env.AppRootDir;
         public string UserName = Env.UserName;
         public string UserNameEx = Env.UserNameEx;
@@ -102,6 +103,7 @@ namespace IPA.Cores.Basic
         static public string UnixMutantDir { get; }
         static public string AppRealProcessExeFileName { get; }
         static public string AppExecutableExeOrDllFileName { get; }
+        static public string BuildConfigurationName { get; }
         static public string AppExecutableExeOrDllFileDir { get; }
         static public string AppRootDir { get; }
         static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
@@ -204,6 +206,7 @@ namespace IPA.Cores.Basic
             PathSeparatorChar = PathSeparator[0];
             AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
             AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+            BuildConfigurationName = GetBuildConfigurationNameInternal();
 
             Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
 
@@ -404,18 +407,19 @@ namespace IPA.Cores.Basic
             }
         }
 
+        static string GetBuildConfigurationNameInternal()
+        {
+            Assembly mainAssembly = Assembly.GetEntryAssembly();
+            return (string)mainAssembly.CustomAttributes.Where(x => x.AttributeType == typeof(AssemblyConfigurationAttribute))
+                .First()
+                .ConstructorArguments[0].Value;
+        }
+
         static string GetAppExeOrDllImageFilePathInternal()
         {
-            try
-            {
-                Assembly mainAssembly = Assembly.GetEntryAssembly();
-                Module[] modules = mainAssembly.GetModules();
-                return modules[0].FullyQualifiedName;
-            }
-            catch
-            {
-                return "";
-            }
+            Assembly mainAssembly = Assembly.GetEntryAssembly();
+            Module[] modules = mainAssembly.GetModules();
+            return modules[0].FullyQualifiedName;
         }
 
         static string GetAppRealProcessExeFileNameInternal()
