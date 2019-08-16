@@ -659,6 +659,7 @@ namespace IPA.Cores.Basic
 
                         if (Env.IsUnix)
                         {
+                            // UNIX の場合はシェルスクリプトを起動する
                             exe = "nohup";
                             arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
 
@@ -671,6 +672,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
+                            // Windows の場合は普通にプロセスを起動する
                             exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"");
                             arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
                         }
@@ -684,7 +686,11 @@ namespace IPA.Cores.Basic
                             RedirectStandardError = true,
                             RedirectStandardInput = false,
                             CreateNoWindow = true,
+                            WorkingDirectory = Env.AppRootDir,
                         };
+
+                        info.EnvironmentVariables.Add("IPA_DN_CORES_DOTNET_EXE", Env.DotNetHostProcessExeName);
+                        info.EnvironmentVariables.Add("IPA_DN_CORES_BUILD_CONFIGURATION", Env.BuildConfigurationName);
 
                         try
                         {

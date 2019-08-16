@@ -9,16 +9,39 @@ fi
 
 while [ 1 ];
 do
-    errstr="run_daemon.sh: starting the command '$@' ..."
+    errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': starting the command '$@' ..."
     logger ${errstr}
     $@
     retcode=$?
+
     if [ $retcode -eq 0 ]
     then
         break
     fi
-    errstr="run_daemon.sh: the command '$@' abnormally terminated. Returned code: '$retcode'. Restarting..."
+
+	if [ $retcode -eq 4002 ]
+	then
+	    # Rebuild
+		errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$@' terminated with Git Update. Returned code: '$retcode'. Rebuilding..."
+		echo ${errstr}
+		logger ${errstr}
+
+		$IPA_DN_CORES_DOTNET_EXE build -c $IPA_DN_CORES_BUILD_CONFIGURATION --force
+		retcode2=$?
+
+		if [ retcode2 -ne 0 ]
+		then
+			errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$IPA_DN_CORES_DOTNET_EXE' abnormally terminated. Returned code: '$retcode2'. Stopping the bash script..."
+			echo ${errstr}
+			logger ${errstr}
+
+			exit 1
+		fi
+	fi
+
+    errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$@' abnormally terminated. Returned code: '$retcode'. Restarting..."
     echo ${errstr}
     logger ${errstr}
+
     sleep 5
 done
