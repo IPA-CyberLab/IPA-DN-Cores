@@ -304,6 +304,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
                     else
                     {
+                        dnsReply.IPAddressList.Select(x => x.ToString())._Combine(", ")._Debug();
                         Dbg.Where();
                     }
                 }
