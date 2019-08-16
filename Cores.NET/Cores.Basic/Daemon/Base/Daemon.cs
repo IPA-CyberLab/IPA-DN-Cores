@@ -391,7 +391,7 @@ namespace IPA.Cores.Basic
             DaemonSettings settingsCopy = this.Settings._CloneDeep();
             settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
 
-            Con.WriteLine($"DaemonHost: '{daemon.ToString()}': Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
+            $"DaemonHost: '{daemon.ToString()}': Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}"._Debug();
 
             // 現在の Daemon 設定をグローバル変数に適用する
             GlobalDaemonStateManager.SetCurrentDaemonSettings(this.Settings);
