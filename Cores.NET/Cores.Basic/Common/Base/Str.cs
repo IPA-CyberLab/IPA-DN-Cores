@@ -1259,18 +1259,31 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列を Git Commit ID として正規化する
-        public static string NormalizeGitCommitId(string str)
+        public static string NormalizeGitCommitId(string src)
         {
-            if (str._IsEmpty()) return "";
+            if (TryNormalizeGitCommitId(src, out string dst))
+            {
+                return dst;
+            }
 
-            str = str._NonNullTrimSe();
+            return "";
+        }
+        public static bool TryNormalizeGitCommitId(string src, out string dst)
+        {
+            dst = "";
 
-            byte[] data = str._GetHexBytes();
+            if (src._IsEmpty()) return false;
+
+            src = src._NonNullTrimSe();
+
+            byte[] data = src._GetHexBytes();
 
             if (data.Length != 20)
-                throw new ArgumentException(nameof(str));
+                return false;
 
-            return data._GetHexString().ToLower();
+            dst = data._GetHexString().ToLower();
+
+            return true;
         }
 
         // 指定した文字が全角かどうか調べる

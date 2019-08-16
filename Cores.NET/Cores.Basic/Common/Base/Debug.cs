@@ -368,6 +368,11 @@ namespace IPA.Cores.Basic
                     string headContents = Lfs.ReadStringFromFile(headFilename);
                     foreach (string line in headContents._GetLines())
                     {
+                        if (Str.TryNormalizeGitCommitId(line, out string commitId))
+                        {
+                            return commitId;
+                        }
+
                         if (line._GetKeyAndValue(out string key, out string value, ":"))
                         {
                             if (key._IsSamei("ref"))
