@@ -6258,7 +6258,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            string oneLine = o._Combine("" + this.Delimiter);
+            string oneLine = o._Combine("" + this.Delimiter + " ");
 
             oneLine = Str.EncodeCEscape(oneLine);
 

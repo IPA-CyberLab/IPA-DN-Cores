@@ -300,9 +300,18 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     {
                         // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
                         hostname = fqdn;
+                        Dbg.Where();
+                    }
+                    else
+                    {
+                        Dbg.Where();
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Dbg.Where();
+                    ex._Debug();
+                }
 
                 // url
                 string url = $"https://{hostname}:{GlobalDaemonStateManager.FileBrowserHttpsPortNumber}/{GlobalDaemonStateManager.DaemonSecret}/";
