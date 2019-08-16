@@ -49,6 +49,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class ExitCodes
         {
+            public const int NoError = 0;
             public const int DaemonCenterRebootRequestd_Normal = 4001;
             public const int DaemonCenterRebootRequestd_GitUpdated = 4002;
         }
@@ -221,7 +222,7 @@ namespace IPA.Cores.Basic
             public const int MinKeepAliveIntervalsMsec = 1 * 1000;
             public const int MaxKeepAliveIntervalsMsec = 24 * 60 * 60 * 1000;
 
-            public const int DaemonCenterRebootRequestTimeout = 5 * 1000;
+            public const int DaemonCenterRebootRequestTimeout = 15 * 1000;
         }
     }
 }

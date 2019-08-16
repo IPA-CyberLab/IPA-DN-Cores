@@ -518,7 +518,7 @@ namespace IPA.Cores.Basic
 
             Thread.Sleep(300);
 
-            if (res.NextCommitId._IsEmpty())
+            if (Str.TryNormalizeGitCommitId(res.NextCommitId, out string commitId) || res.NextCommitId._IsEmpty())
             {
                 // Git Commit ID に変化がない場合:
                 // 単にプロセスを異常終了させる。親プロセスがこれに気付いてプロセスを再起動するはずである
@@ -527,7 +527,61 @@ namespace IPA.Cores.Basic
             else
             {
                 // Git Commit ID に変化がある場合
-                Environment.Exit(0);
+                Con.WriteError($"DaemonCenter Client: NextCommitId = '{commitId}'");
+
+                // git のローカルリポジトリの update を試みる
+                // Prepare update_daemon_git.sh
+                string body = CoresRes["CoresInternal/190816_update_daemon_git.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
+                string fn = Env.AppLocalDir._CombinePath("daemon_helper", "update_daemon_git.sh");
+                Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
+
+                ProcessStartInfo info = new ProcessStartInfo()
+                {
+                    FileName = "bash",
+                    Arguments = $"\"{fn}\" {commitId}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    RedirectStandardInput = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Env.AppRootDir,
+                };
+
+                Con.WriteError($"DaemonCenter Client: Trying to execute {info.FileName} {info.Arguments} ...");
+                try
+                {
+                    using (Process p = Process.Start(info))
+                    {
+                        string err1 = p.StandardError.ReadToEnd();
+                        string err2 = p.StandardError.ReadToEnd();
+                        p.WaitForExit(Consts.Intervals.DaemonCenterRebootRequestTimeout);
+                        try
+                        {
+                            p.Kill();
+                        }
+                        catch { }
+
+                        if (p.ExitCode == 0)
+                        {
+                            // Git 更新に成功した場合はプロセスを再起動する
+                            Con.WriteError("DaemonCenter Client: Update completed. Rebooting...");
+
+                            Environment.Exit(Consts.ExitCodes.DaemonCenterRebootRequestd_GitUpdated);
+                        }
+                        else
+                        {
+                            Con.WriteError($"Git command '{info.Arguments}' execution error code: {p.ExitCode}");
+                            Con.WriteError($"Git command '{info.Arguments}' result:\n{err1}\n{err2}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteError($"Git command '{info.Arguments}' execution error: {ex.Message}");
+                }
+
+                // 失敗した場合はエラーコード 0 で終了する (Daemon を完全終了し、再起動させない)
+                Environment.Exit(Consts.ExitCodes.NoError);
             }
         }
     }
@@ -609,10 +663,8 @@ namespace IPA.Cores.Basic
                             arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
 
                             // Prepare run_daemon.sh
-                            string shellscript_name = "CoresInternal/190714_run_daemon.sh.txt";
-
-                            string body = CoresRes[shellscript_name].String._NormalizeCrlf(CrlfStyle.Lf);
-                            string fn = Env.AppLocalDir._CombinePath("daemon_helper", shellscript_name);
+                            string body = CoresRes["CoresInternal/190714_run_daemon.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
+                            string fn = Env.AppLocalDir._CombinePath("daemon_helper", "run_daemon.sh");
                             Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
 
                             arguments = $"bash \"{fn}\" \"{arguments}\"";
