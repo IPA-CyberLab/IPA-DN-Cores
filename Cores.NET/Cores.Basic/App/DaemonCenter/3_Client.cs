@@ -244,6 +244,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 TcpIpHostData = LocalNet.GetTcpIpHostDataJsonSafe(),
                 GlobalIpList = globalIpList,
                 PauseFlag = Variables.PauseFlag,
+                MetaStatusDictionary = GlobalDaemonStateManager.MetaStatusDictionary,
             };
 
             // リクエストメッセージの組立て

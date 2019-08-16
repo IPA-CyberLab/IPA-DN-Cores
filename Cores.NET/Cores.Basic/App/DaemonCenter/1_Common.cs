@@ -216,6 +216,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         [JsonConverter(typeof(StringEnumConverter))]
         public PauseFlag PauseFlag;
 
+        public ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
+
         public string GetInfoString()
         {
             StringWriter w = new StringWriter();
@@ -228,6 +230,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             w.WriteLine($"CPU: {RuntimeStat.Cpu}%");
             w.WriteLine($"Mem: {Str.GetFileSizeStr(RuntimeStat.Mem * 1024)}");
             w.WriteLine($"Objs: {RuntimeStat.Obj._ToString3()}");
+            w.WriteLine($"MetaStat: {this.MetaStatusDictionary.Count}");
 
             return w.ToString();
         }

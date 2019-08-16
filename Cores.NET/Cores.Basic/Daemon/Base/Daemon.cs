@@ -37,6 +37,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.ServiceProcess;
 
@@ -58,6 +59,24 @@ namespace IPA.Cores.Helper.Basic
 
 namespace IPA.Cores.Basic
 {
+    // グローバルな Daemon 状態の管理
+    public static class GlobalDaemonStateManager
+    {
+        // 現在の Daemon 設定のキャッシュ
+        static DaemonSettings CurrentDaemonSettingsInternal = new DaemonSettings();
+        public static DaemonSettings CurrentDaemonSettings => CurrentDaemonSettingsInternal._CloneDeep();
+        public static void SetCurrentDaemonSettings(DaemonSettings settings)
+        {
+            CurrentDaemonSettingsInternal = settings._CloneDeep();
+        }
+
+        // Startup arguments
+        public static string StartupArguments => CurrentDaemonSettingsInternal.DaemonStartupArgument._NonNullTrim();
+
+        // DaemonCenter に伝えたいメタデータの Dictionary
+        public static readonly ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
+    }
+
     // Daemon 抽象クラス (具体的な Daemon 動作はこのクラスを継承して実装すること)
     public abstract class Daemon
     {
@@ -332,7 +351,10 @@ namespace IPA.Cores.Basic
 
             // DaemonSettings を読み込む
             this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
-            
+
+            // 現在の Daemon 設定をグローバル変数に適用する
+            GlobalDaemonStateManager.SetCurrentDaemonSettings(this.Settings);
+
             if (this.Settings.DaemonPauseFlag == PauseFlag.Pause)
             {
                 // 一時停止状態の場合は「何もしない Daemon」を代わりにロードする
