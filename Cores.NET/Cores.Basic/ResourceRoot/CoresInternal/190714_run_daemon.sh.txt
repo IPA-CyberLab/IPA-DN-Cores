@@ -16,6 +16,9 @@ do
 
     if [ $retcode -eq 0 ]
     then
+		errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$@' terminated. Returned code: '$retcode'."
+		echo ${errstr}
+		logger ${errstr}
         break
     fi
 
@@ -43,5 +46,5 @@ do
     echo ${errstr}
     logger ${errstr}
 
-    sleep 5
+    sleep 2
 done
