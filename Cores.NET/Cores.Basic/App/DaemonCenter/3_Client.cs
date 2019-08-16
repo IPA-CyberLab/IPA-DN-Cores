@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             // 応答メッセージの分析
             res.Normalize();
 
-            if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.RebootRequested)
+            if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {
                 // 再起動が要求された
                 this.RestartCb(res);
