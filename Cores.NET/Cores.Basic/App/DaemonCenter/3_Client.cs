@@ -245,6 +245,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 GlobalIpList = globalIpList,
                 PauseFlag = Variables.PauseFlag,
                 MetaStatusDictionary = GlobalDaemonStateManager.MetaStatusDictionary,
+                DaemonSecret = GlobalDaemonStateManager.CurrentDaemonSettings.DaemonSecret,
             };
 
             // リクエストメッセージの組立て

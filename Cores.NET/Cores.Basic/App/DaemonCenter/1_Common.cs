@@ -209,6 +209,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public TcpIpHostDataJsonSafe TcpIpHostData;
         public string[] GlobalIpList;
         public string[] AcceptableIpList;
+        public string DaemonSecret;
 
         [JsonConverter(typeof(StringEnumConverter))]
         public StatFlag StatFlag;

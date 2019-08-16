@@ -73,6 +73,9 @@ namespace IPA.Cores.Basic
         // Startup arguments
         public static string StartupArguments => CurrentDaemonSettingsInternal.DaemonStartupArgument._NonNullTrim();
 
+        // Daemon Secret
+        public static string DaemonSecret => CurrentDaemonSettingsInternal.DaemonSecret._NonNullTrim();
+
         // DaemonCenter に伝えたいメタデータの Dictionary
         public static readonly ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
     }
