@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
                 // DaemonCenter に接続を行なう際の自分自身の IP アドレスがグローバル IP かどうか判定をする
                 IPAddressType type = ip._GetIPAddressType();
 
-                IsDaemonClientLocalIpAddressGlobal = type.BitAny(IPAddressType.IPv4 & IPAddressType.GlobalIp) || type.BitAny(IPAddressType.IPv6);
+                IsDaemonClientLocalIpAddressGlobal = type.BitAny(IPAddressType.GlobalIp);
 
                 // MetaStat に入れる
                 MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentDaemonClientLocalIp] = ip.ToString();
