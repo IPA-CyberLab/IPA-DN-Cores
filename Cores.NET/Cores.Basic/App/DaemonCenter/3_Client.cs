@@ -152,6 +152,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             int numRetry = 0;
 
+            int numOk = 0;
+
             int intervalCache = 0;
 
             string lastError = "";
@@ -177,8 +179,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
                     if (nextInterval == -1)
                     {
-                        // 再起動を要求した後ここに飛ぶ
-                        // メインループを直ちに終了する
+                        // 再起動が要求されたら、ここに飛ぶ。
+                        // メインループを直ちに終了する。
                         break;
                     }
                     else
@@ -189,6 +191,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
 
                     numRetry = 0;
+
+                    numOk++;
+                    if (numOk == 1)
+                    {
+                        // 初回のみ nextInterval を 100 msec にする (直ちに再試行するようにする)
+                        nextInterval = 100;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -203,6 +212,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
 
                     numRetry++;
+
+                    numOk = 0;
 
                     if (intervalCache == 0)
                     {
@@ -262,6 +273,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             // 応答メッセージの分析
             res.Normalize();
+
+            // ローカル IP アドレスを覚える
+            GlobalDaemonStateManager.SetDaemonClientLocalIpAddress(RpcClient.LastLocalIp);
 
             if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {

@@ -78,6 +78,21 @@ namespace IPA.Cores.Basic
 
         // DaemonCenter に伝えたいメタデータの Dictionary
         public static readonly ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
+
+        // DaemonCenter に接続を行なう際の自分自身の IP アドレス
+        public static IPAddress DaemonClientLocalIpAddress { get; private set; } = IPAddress.Any;
+
+        public static void SetDaemonClientLocalIpAddress(string ipAddress)
+        {
+            if (IPAddress.TryParse(ipAddress, out IPAddress ip))
+            {
+                // 変数に入れる
+                DaemonClientLocalIpAddress = ip;
+
+                // MetaStat に入れる
+                MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentDaemonClientLocalIp] = ip.ToString();
+            }
+        }
     }
 
     // Daemon 抽象クラス (具体的な Daemon 動作はこのクラスを継承して実装すること)
