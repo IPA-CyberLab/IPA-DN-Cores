@@ -85,6 +85,9 @@ namespace IPA.Cores.Basic
         // DaemonCenter に接続を行なう際の自分自身の IP アドレスはグローバル IP か?
         public static bool IsDaemonClientLocalIpAddressGlobal { get; private set; } = false;
 
+        // FileBrowser の HTTPS ポート番号
+        public static int FileBrowserHttpsPortNumber { get; set; } = 0;
+
         public static void SetDaemonClientLocalIpAddress(string ipAddress)
         {
             ipAddress = ipAddress._NonNullTrim();
@@ -432,7 +435,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (DaemonUtil util = new DaemonUtil(this.Settings.DaemonStartupArgument))
+                using (DaemonUtil util = new DaemonUtil())
                 {
                     this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -490,11 +493,15 @@ namespace IPA.Cores.Basic
 
             CurrentRunningService = service;
 
-            // DaemonCenter クライアントを起動する (有効な場合)
-            using (IDisposable cli = StartDaemonCenterClientIfEnabled())
+            // DaemonUtil クラスを起動する
+            using (DaemonUtil util = new DaemonUtil())
             {
-                // サービス本体処理を実施する
-                service.ExecMain();
+                // DaemonCenter クライアントを起動する (有効な場合)
+                using (IDisposable client = StartDaemonCenterClientIfEnabled())
+                {
+                    // サービス本体処理を実施する
+                    service.ExecMain();
+                }
             }
         }
 

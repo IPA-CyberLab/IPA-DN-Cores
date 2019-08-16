@@ -48,6 +48,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -276,6 +277,28 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             // ローカル IP アドレスを覚える
             GlobalDaemonStateManager.SetDaemonClientLocalIpAddress(RpcClient.LastLocalIp);
+
+            // FileBrowser の URL が分かればこれを DaemonCenter に送付する
+            if (GlobalDaemonStateManager.FileBrowserHttpsPortNumber != 0)
+            {
+                IPAddress ip = GlobalDaemonStateManager.DaemonClientLocalIpAddress;
+                string ipstr = ip.ToString();
+
+                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                {
+                    // ipv6
+                    ipstr = $"[{ipstr}]";
+                }
+
+                // url
+                string url = $"https://{ipstr}:{GlobalDaemonStateManager.FileBrowserHttpsPortNumber}/{GlobalDaemonStateManager.DaemonSecret}/";
+
+                GlobalDaemonStateManager.MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl] = url;
+            }
+            else
+            {
+                GlobalDaemonStateManager.MetaStatusDictionary.TryRemove(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out _);
+            }
 
             if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {
