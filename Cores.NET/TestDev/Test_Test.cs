@@ -289,6 +289,20 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                int port = Util.GenerateDynamicListenableTcpPortWithSeed("aaa")._Print();
+
+                LocalNet.CreateListener(new TcpListenParam((l, s) =>
+                {
+                    return Task.CompletedTask;
+                },
+                port));
+
+                ThreadObj.Sleep(Timeout.Infinite);
+                return;
+            }
+
+            if (true)
+            {
                 OneLineParams ol = new OneLineParams();
 
                 ol._SetSingle("a", "1");

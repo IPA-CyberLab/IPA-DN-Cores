@@ -100,6 +100,7 @@ namespace IPA.Cores.Basic
 
             public const int DynamicPortMin = 10000;
             public const int DynamicPortMax = 19999;
+            public const int DynamicPortCheckRetryMaxCount = 200;
 
             public static readonly IEnumerable<int> PotentialHttpsPorts = new int[] { Https, Smtps, Pop3s, Imap4s };
         }

@@ -3007,11 +3007,39 @@ namespace IPA.Cores.Basic
             throw new ArgumentException(nameof(protocol));
         }
 
-        public static int GenerateRandomPortNumberBySeedString(string seed)
+        public static long HashDynamicLongValueWithSeed(string seed, long min, long max)
         {
+            max._SetMax(min);
+
+            long count = max - min + 1;
+
+            if (count <= 1) return min;
+
+            count = Math.Min(count, long.MaxValue);
+
             seed = seed._NonNullTrim().ToLower();
 
-            return 0;
+            long rand = (long)(Secure.HashSHA1AsLong(seed._GetBytes_UTF8()) & long.MaxValue);
+
+            return rand % count + min;
+        }
+
+        public static int GenerateDynamicListenableTcpPortWithSeed(string seed, int minPort = Consts.Ports.DynamicPortMin, int maxPort = Consts.Ports.DynamicPortMax)
+        {
+            for (int i = 0; ; i++)
+            {
+                int port = (int)HashDynamicLongValueWithSeed(i.ToString() + seed, minPort, maxPort);
+
+                if (i >= Consts.Ports.DynamicPortCheckRetryMaxCount)
+                {
+                    return port;
+                }
+
+                if (PalSocket.CheckTcpPortListenable(port))
+                {
+                    return port;
+                }
+            }
         }
     }
 
