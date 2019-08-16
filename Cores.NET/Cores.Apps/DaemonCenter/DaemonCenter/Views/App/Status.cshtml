@@ -54,47 +54,57 @@
             {
                 string instId = inst.GetId(app);
                 AppSettings settings = app.Settings;
-            <tr>
-                <th>
-                    <input type="checkbox" id="@instId" name="cb" value="@instId" class="switch" @Html.Raw(inst.ViewIsSelected ? "checked" : "") onClick="DisChecked();"><label for="@instId"></label>
-                </th>
-                <th>
-                    @if (inst.IsActive(app.Settings, Page.Now))
-                    {
-                        <span class="icon"><i class="fas fa-check"></i></span>
-                    }
-                    else
-                    {
-                        <span class="icon"><i class="fas fa-question"></i></span>
-                    }
-                </th>
-                <th>@(inst.RequestReboot ? "はい" : "")</th>
-                <th><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
-                <th>
-                    @if (inst.IsActive(settings, Page.Now))
-                    {
-                        @inst.LastStat.EnvInfo.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
-                    }
-                </th>
-                <th>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</th>
-                <th align="right">@inst.NumAlive._ToString3()</th>
-                <th>@inst.LastStat.StatFlag.ToString()</th>
-                <th>
-                    現在: @inst.LastStat.CommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)
-                    @if ((IsFilled)inst.NextCommitId)
-                    {
-                        <BR /><text>次回: @inst.NextCommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)</text>
-                    }
-                </th>
-                <th>
-                    現在: @inst.LastStat.InstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)
-                    @if ((IsFilled)inst.NextInstanceArguments)
-                    {
-                        <BR /><text>次回: @inst.NextInstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)</text>
-                    }
-                </th>
-                <th>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</th>
-            </tr>
+                <tr>
+                    <th>
+                        <input type="checkbox" id="@instId" name="cb" value="@instId" class="switch" @Html.Raw(inst.ViewIsSelected ? "checked" : "") onClick="DisChecked();"><label for="@instId"></label>
+                    </th>
+                    <th>
+                        @if (inst.IsActive(app.Settings, Page.Now))
+                        {
+                            if (inst.IsRestarting == false)
+                            {
+                                // 通常
+                                <span class="icon"><i class="fas fa-check"></i></span>
+                            }
+                            else
+                            {
+                                // 再起動中
+                                <span class="icon"><i class="fas fa-radiation"></i></span>
+                            }
+                        }
+                        else
+                        {
+                            // 停止中または不明
+                            <span class="icon"><i class="fas fa-question"></i></span>
+                        }
+                    </th>
+                    <th>@(inst.RequestReboot ? "はい" : "")</th>
+                    <th><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
+                    <th>
+                        @if (inst.IsActive(settings, Page.Now))
+                        {
+                            @inst.LastStat.EnvInfo.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
+                        }
+                    </th>
+                    <th>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</th>
+                    <th align="right">@inst.NumAlive._ToString3()</th>
+                    <th>@inst.LastStat.StatFlag.ToString()</th>
+                    <th>
+                        現在: @inst.LastStat.CommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)
+                        @if ((IsFilled)inst.NextCommitId)
+                        {
+                            <BR /><text>次回: @inst.NextCommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)</text>
+                        }
+                    </th>
+                    <th>
+                        現在: @inst.LastStat.InstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)
+                        @if ((IsFilled)inst.NextInstanceArguments)
+                        {
+                            <BR /><text>次回: @inst.NextInstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)</text>
+                        }
+                    </th>
+                    <th>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</th>
+                </tr>
             }
         </tbody>
     </table>

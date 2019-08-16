@@ -208,6 +208,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public InstanceStat LastStat;
 
+        public bool IsRestarting;
+
         public bool IsMatchForHost(InstanceKeyType matchType, string hostName, string guid)
         {
             if (matchType == InstanceKeyType.Guid)
@@ -218,7 +220,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public bool IsActive(AppSettings appSettings, DateTimeOffset now)
         {
-            return now <= (this.LastAlive.AddSeconds(appSettings.DeadIntervalSecs));
+            return this.IsRestarting || (now <= (this.LastAlive.AddSeconds(appSettings.DeadIntervalSecs)));
         }
 
         public string GetId(App app)

@@ -321,6 +321,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     inst.SrcIpAddress = this.ClientInfo.RemoteIP;
                     inst.Guid = req.Guid;
                     inst.HostName = req.HostName;
+
+                    // 再起動中フラグは消す (再起動要求の際にフラグをセットしたのであるから、その後リクエストが届いたとすれば再起動が完了したことを示すためである)
+                    inst.IsRestarting = false;
                 }
 
                 // AcceptableIpList の生成
@@ -336,6 +339,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの Commit ID の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
+                    inst.IsRestarting = true;
                 }
 
                 if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId)
@@ -351,6 +355,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // 2 つの InstanceArguments の値が異なる場合は、
                     // クライアントに対して更新指示を返送する
                     ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                    inst.IsRestarting = true;
                 }
 
                 if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments)
@@ -363,6 +368,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 {
                     // フラグにより再起動が要求されている
                     ret.RebootRequested = true;
+
+                    inst.IsRestarting = true;
 
                     // フラグは消す
                     inst.RequestReboot = false;
