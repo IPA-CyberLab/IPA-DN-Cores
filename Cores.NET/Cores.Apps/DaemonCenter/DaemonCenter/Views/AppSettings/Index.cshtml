@@ -25,10 +25,10 @@
             AppSettings settings = app.Settings;
 
             <tr>
-                <th><a asp-action="Edit" asp-route-id="@appId">@settings.AppName</a></th>
-                <th>@Html.DisplayFor(model => settings.InstanceKeyType)</th>
-                <th align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</th>
-                <th align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</th>
+                <td><a asp-action="Edit" asp-route-id="@appId">@settings.AppName</a></td>
+                <td>@Html.DisplayFor(model => settings.InstanceKeyType)</td>
+                <td align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</td>
+                <td align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</td>
             </tr>
         }
     </tbody>
@@ -39,7 +39,7 @@
 </p>
 <p>　</p>
 <p>
-    <a asp-controller="Home" asp-action="Index">トップページに戻る</a>
+    <a asp-controller="App" asp-action="Index">トップページに戻る</a>
 </p>
 
 

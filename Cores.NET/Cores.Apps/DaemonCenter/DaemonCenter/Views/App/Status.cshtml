@@ -36,18 +36,18 @@
     <table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
         <thead>
             <tr>
-                <th>操作<br><input type="checkbox" id="_all" name="cb" value="_all" class="switch" onClick="AllChecked();"><label for="_all"></label></th>
-                <th>状態</th>
-                <th>機能</th>
-                <th>再起動要求</th>
-                <th>ホスト</th>
-                <th>プロセス起動日時</th>
-                <th>最終稼働確認日時</th>
-                <th align="right">通信回数</th>
-                <th>状態フラグ</th>
-                <th>Git コミット ID</th>
-                <th>引数</th>
-                <th>情報</th>
+                <th nowrap>操作<br><input type="checkbox" id="_all" name="cb" value="_all" class="switch" onClick="AllChecked();"><label for="_all"></label></thnowrap>
+                <th nowrap>状態</th>
+                <th nowrap>機能</th>
+                <th nowrap>再起動<br>要求</th>
+                <th nowrap>ホスト</th>
+                <th nowrap>プロセス起動日時</th>
+                <th nowrap>最終稼働確認日時</th>
+                <th nowrap align="right">通信回数</th>
+                <th nowrap>状態フラグ</th>
+                <th nowrap>Git コミット ID</th>
+                <th nowrap>引数</th>
+                <th nowrap>情報</th>
             </tr>
         </thead>
         <tbody>
@@ -56,10 +56,10 @@
                 string instId = inst.GetId(app);
                 AppSettings settings = app.Settings;
                 <tr>
-                    <th>
+                    <td nowrap>
                         <input type="checkbox" id="@instId" name="cb" value="@instId" class="switch" @Html.Raw(inst.ViewIsSelected ? "checked" : "") onClick="DisChecked();"><label for="@instId"></label>
-                    </th>
-                    <th>
+                    </td>
+                    <td nowrap>
                         @if (inst.IsActive(app.Settings, Page.Now))
                         {
                             if (inst.IsRestarting == false)
@@ -78,40 +78,40 @@
                             // 停止中または不明
                             <span class="icon"><i class="fas fa-question"></i></span>
                         }
-                    </th>
-                    <th>
-                        現在: @inst.LastStat.PauseFlag._GetFriendlyString()
+                    </td>
+                    <td nowrap>
+                        @inst.LastStat.PauseFlag._GetFriendlyString()
                         @if (inst.NextPauseFlag != PauseFlag.None)
                         {
                             <BR /><text>次回: @inst.NextPauseFlag._GetFriendlyString()</text>
                         }
-                    </th>
-                    <th>@(inst.RequestReboot ? "はい" : "")</th>
-                    <th><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId">@inst.HostName</a><br />@inst.SrcIpAddress</th>
-                    <th>
+                    </td>
+                    <td nowrap>@(inst.RequestReboot ? "はい" : "")</td>
+                    <td><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId"><b>@inst.HostName</b></a><br />@inst.SrcIpAddress</td>
+                    <td>
                         @if (inst.IsActive(settings, Page.Now))
                         {
                             @inst.LastStat.EnvInfo.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
                         }
-                    </th>
-                    <th>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</th>
-                    <th align="right">@inst.NumAlive._ToString3()</th>
-                    <th>@inst.LastStat.StatFlag.ToString()</th>
-                    <th>
+                    </td>
+                    <td nowrap>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</td>
+                    <td nowrap align="right">@inst.NumAlive._ToString3()</td>
+                    <td nowrap>@inst.LastStat.StatFlag.ToString()</td>
+                    <td nowrap>
                         現在: @inst.LastStat.CommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)
                         @if ((IsFilled)inst.NextCommitId)
                         {
                             <BR /><text>次回: @inst.NextCommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)</text>
                         }
-                    </th>
-                    <th>
+                    </td>
+                    <td>
                         現在: @inst.LastStat.InstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)
                         @if ((IsFilled)inst.NextInstanceArguments)
                         {
                             <BR /><text>次回: @inst.NextInstanceArguments._TruncStrEx(Consts.MaxLens.StandardTruncateLen)</text>
                         }
-                    </th>
-                    <th>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</th>
+                    </td>
+                    <td nowrap>@Html.Raw(inst.LastStat.GetInfoString()._EncodeHtml())</td>
                 </tr>
             }
         </tbody>
