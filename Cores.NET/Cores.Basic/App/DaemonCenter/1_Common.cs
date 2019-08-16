@@ -74,6 +74,12 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         [Display(Name = "削除する")]
         Delete,
+
+        [Display(Name = "一時停止する")]
+        SetPauseFlagOn,
+
+        [Display(Name = "一時停止を解除する (再開する)")]
+        SetPauseFlagOff,
     }
 
     public enum InstanceKeyType
@@ -106,6 +112,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         [Display(Name = "デフォルトのインスタンス引数")]
         public string DefaultInstanceArgument { get; set; }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        [Display(Name = "デフォルトの Pause Flag")]
+        public PauseFlag DefaultPauseFlag { get; set; }
 
         public void Validate()
         {
@@ -168,6 +178,24 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         Pause,
     }
 
+    public static class _PauseFlagHelper
+    {
+        public static string _GetFriendlyString(this PauseFlag flag)
+        {
+            switch (flag)
+            {
+                case PauseFlag.Pause:
+                    return "一時停止";
+
+                case PauseFlag.Run:
+                    return "稼働";
+
+                default:
+                    return "";
+            }
+        }
+    }
+
     public class InstanceStat
     {
         public string CommitId;
@@ -216,6 +244,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public int NumAlive;
         public string NextCommitId;
         public string NextInstanceArguments;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public PauseFlag NextPauseFlag;
 
         public InstanceStat LastStat;
 

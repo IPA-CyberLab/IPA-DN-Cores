@@ -311,6 +311,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                         // 初期 Commit ID および Arguments を書き込む
                         NextCommitId = app.Settings.DefaultCommitId._NonNullTrim(),
                         NextInstanceArguments = app.Settings.DefaultInstanceArgument._NonNullTrim(),
+                        NextPauseFlag = app.Settings.DefaultPauseFlag,
                     };
 
                     app.InstanceList.Add(inst);
@@ -332,36 +333,55 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 req.Stat.GlobalIpList._DoForEach(x => acceptableIpList.Add(x));
                 req.Stat.AcceptableIpList = acceptableIpList.ToArray();
 
-                if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId && (IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
-                {
-                    // クライアントから現在の CommitId が送付されてきて、
-                    // インスタンス設定の Next Commit ID が指定されている場合で、
-                    // 2 つの Commit ID の値が異なる場合は、
-                    // クライアントに対して更新指示を返送する
-                    ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
-                    inst.IsRestarting = true;
-                }
-
                 if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId)
                 {
-                    // NextCommitId は消す
-                    inst.NextCommitId = "";
-                }
-
-                if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
-                {
-                    // クライアントから現在の InstanceArguments が送付されてきて、
-                    // インスタンス設定の Next InstanceArguments が指定されている場合で、
-                    // 2 つの InstanceArguments の値が異なる場合は、
-                    // クライアントに対して更新指示を返送する
-                    ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
-                    inst.IsRestarting = true;
+                    if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
+                    {
+                        // クライアントから現在の CommitId が送付されてきて、
+                        // インスタンス設定の Next Commit ID が指定されている場合で、
+                        // 2 つの Commit ID の値が異なる場合は、
+                        // クライアントに対して更新指示を返送する
+                        ret.NextCommitId = Str.NormalizeGitCommitId(inst.NextCommitId);
+                        inst.IsRestarting = true;
+                    }
+                    else
+                    {
+                        // 2 つの Commit ID の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
+                        inst.NextCommitId = "";
+                    }
                 }
 
                 if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments)
                 {
-                    // NextInstanceArguments は消す
-                    inst.NextInstanceArguments = "";
+                    if ((Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
+                    {
+                        // クライアントから現在の InstanceArguments が送付されてきて、
+                        // インスタンス設定の Next InstanceArguments が指定されている場合で、
+                        // 2 つの InstanceArguments の値が異なる場合は、
+                        // クライアントに対して更新指示を返送する
+                        ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                        inst.IsRestarting = true;
+                    }
+                    else
+                    {
+                        // 2 つの Args の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
+                        inst.NextInstanceArguments = "";
+                    }
+                }
+
+                if (inst.NextPauseFlag != PauseFlag.None && inst.LastStat.PauseFlag != PauseFlag.None)
+                {
+                    if (inst.NextPauseFlag != inst.LastStat.PauseFlag)
+                    {
+                        // クライアントから現在の Pause Flag が送付されてきた場合で変化がある場合は変化を指示する
+                        ret.NextPauseFlag = inst.NextPauseFlag;
+                        inst.IsRestarting = true;
+                    }
+                    else
+                    {
+                        // 2 つの Args の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
+                        ret.NextPauseFlag = PauseFlag.None;
+                    }
                 }
 
                 if (inst.RequestReboot)

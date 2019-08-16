@@ -55,6 +55,8 @@ namespace DaemonCenter.Controllers
 
             DualData<App, List<Instance>> data = GetFilteredInstanceListView(id, mode, app, instanceList);
 
+            ViewBag.mode = mode;
+
             return View(data);
         }
 
@@ -80,6 +82,8 @@ namespace DaemonCenter.Controllers
 
             // 列挙結果を返す
             DualData<App, List<Instance>> data = GetFilteredInstanceListView(id, mode, app, instanceList);
+
+            ViewBag.mode = mode;
 
             return View(data);
         }

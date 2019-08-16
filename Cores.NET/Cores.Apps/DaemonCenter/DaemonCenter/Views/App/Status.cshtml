@@ -18,7 +18,7 @@
     合計: <a asp-action="Status" asp-route-id="@appId"><b>@app.InstanceList.Count() インスタンス</b></a>
 </p>
 <p>
-    <a asp-action="Status" class="button">一覧を更新</a>
+    <a asp-action="Status" asp-route-id="@appId" asp-route-mode="@ViewBag.mode" class="button">一覧を更新</a>
 </p>
 
 @if (((string)ViewBag.Error)._IsFilled())
@@ -38,6 +38,7 @@
             <tr>
                 <th>操作<br><input type="checkbox" id="_all" name="cb" value="_all" class="switch" onClick="AllChecked();"><label for="_all"></label></th>
                 <th>状態</th>
+                <th>機能</th>
                 <th>再起動要求</th>
                 <th>ホスト</th>
                 <th>プロセス起動日時</th>
@@ -76,6 +77,13 @@
                         {
                             // 停止中または不明
                             <span class="icon"><i class="fas fa-question"></i></span>
+                        }
+                    </th>
+                    <th>
+                        現在: @inst.LastStat.PauseFlag._GetFriendlyString()
+                        @if (inst.NextPauseFlag != PauseFlag.None)
+                        {
+                            <BR /><text>次回: @inst.NextPauseFlag._GetFriendlyString()</text>
                         }
                     </th>
                     <th>@(inst.RequestReboot ? "はい" : "")</th>
