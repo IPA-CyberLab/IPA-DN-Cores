@@ -2434,6 +2434,30 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static string GetHostNameFromFqdn(string fqdn)
+        {
+            if (fqdn == null) return null;
+            if (fqdn._IsEmpty()) return "";
+            int[] dots = fqdn._FindStringIndexes(".", true);
+            if (dots.Length == 0)
+                return fqdn;
+
+            int i = dots.First();
+            return fqdn.Substring(0, i);
+        }
+
+        public static string GetDomainFromFqdn(string fqdn)
+        {
+            if (fqdn == null) return null;
+            if (fqdn._IsEmpty()) return "";
+            int[] dots = fqdn._FindStringIndexes(".", true);
+            if (dots.Length == 0)
+                return fqdn;
+
+            int i = dots.First();
+            return fqdn.Substring(i);
+        }
+
         // URL パスエンコード
         public static string EncodeUrlPath(string str)
         {
@@ -6234,7 +6258,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            string oneLine = o._Combine("" + this.Delimiter);
+            string oneLine = o._Combine("" + this.Delimiter + " ");
 
             oneLine = Str.EncodeCEscape(oneLine);
 

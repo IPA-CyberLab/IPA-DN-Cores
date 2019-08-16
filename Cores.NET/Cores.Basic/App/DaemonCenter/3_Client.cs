@@ -48,6 +48,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -152,6 +153,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             int numRetry = 0;
 
+            int numOk = 0;
+
             int intervalCache = 0;
 
             string lastError = "";
@@ -177,8 +180,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
                     if (nextInterval == -1)
                     {
-                        // 再起動を要求した後ここに飛ぶ
-                        // メインループを直ちに終了する
+                        // 再起動が要求されたら、ここに飛ぶ。
+                        // メインループを直ちに終了する。
                         break;
                     }
                     else
@@ -189,6 +192,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
 
                     numRetry = 0;
+
+                    numOk++;
+                    if (numOk == 1)
+                    {
+                        // 初回のみ nextInterval を 100 msec にする (直ちに再試行するようにする)
+                        nextInterval = 100;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -203,6 +213,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
 
                     numRetry++;
+
+                    numOk = 0;
 
                     if (intervalCache == 0)
                     {
@@ -262,6 +274,55 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             // 応答メッセージの分析
             res.Normalize();
+
+            // ローカル IP アドレスを覚える
+            GlobalDaemonStateManager.SetDaemonClientLocalIpAddress(RpcClient.LastLocalIp);
+
+            // FileBrowser の URL が分かればこれを DaemonCenter に送付する
+            if (GlobalDaemonStateManager.FileBrowserHttpsPortNumber != 0)
+            {
+                IPAddress ip = GlobalDaemonStateManager.DaemonClientLocalIpAddress;
+                string hostname = ip.ToString();
+
+                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                {
+                    // ipv6
+                    hostname = $"[{hostname}]";
+                }
+
+                try
+                {
+                    // FQDN を DNS 解決する
+                    string fqdn = req.Stat.TcpIpHostData.FqdnHostName;
+
+                    DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
+                    if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                    {
+                        // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
+                        hostname = fqdn;
+                        Dbg.Where();
+                    }
+                    else
+                    {
+                        dnsReply.IPAddressList.Select(x => x.ToString())._Combine(", ")._Debug();
+                        Dbg.Where();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Dbg.Where();
+                    ex._Debug();
+                }
+
+                // url
+                string url = $"https://{hostname}:{GlobalDaemonStateManager.FileBrowserHttpsPortNumber}/{GlobalDaemonStateManager.DaemonSecret}/";
+
+                GlobalDaemonStateManager.MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl] = url;
+            }
+            else
+            {
+                GlobalDaemonStateManager.MetaStatusDictionary.TryRemove(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out _);
+            }
 
             if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {

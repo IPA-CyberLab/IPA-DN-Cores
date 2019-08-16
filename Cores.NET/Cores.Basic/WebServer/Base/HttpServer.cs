@@ -407,7 +407,7 @@ namespace IPA.Cores.Basic
 
     public class HttpServerOptions
     {
-        // Settings which can be saved on the 
+        // Settings which can be saved on the Hive
         public List<int> HttpPortsList { get; set; } = new List<int>(new int[] { 88, 8080 });
         public List<int> HttpsPortsList { get; set; } = new List<int>(new int[] { 8081 });
         public bool LocalHostOnly { get; set; } = false;

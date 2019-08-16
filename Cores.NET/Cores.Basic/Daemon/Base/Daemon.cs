@@ -78,6 +78,38 @@ namespace IPA.Cores.Basic
 
         // DaemonCenter に伝えたいメタデータの Dictionary
         public static readonly ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
+
+        // DaemonCenter に接続を行なう際の自分自身の IP アドレス
+        public static IPAddress DaemonClientLocalIpAddress { get; private set; } = IPAddress.Any;
+
+        // DaemonCenter に接続を行なう際の自分自身の IP アドレスはグローバル IP か?
+        public static bool IsDaemonClientLocalIpAddressGlobal { get; private set; } = false;
+
+        // FileBrowser の HTTPS ポート番号
+        public static int FileBrowserHttpsPortNumber { get; set; } = 0;
+
+        public static void SetDaemonClientLocalIpAddress(string ipAddress)
+        {
+            ipAddress = ipAddress._NonNullTrim();
+
+            if (ipAddress._IsFilled() && IPAddress.TryParse(ipAddress, out IPAddress ip))
+            {
+                // 変数に入れる
+                DaemonClientLocalIpAddress = ip;
+
+                // DaemonCenter に接続を行なう際の自分自身の IP アドレスがグローバル IP かどうか判定をする
+                IPAddressType type = ip._GetIPAddressType();
+
+                IsDaemonClientLocalIpAddressGlobal = type.BitAny(IPAddressType.GlobalIp);
+
+                // MetaStat に入れる
+                MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentDaemonClientLocalIp] = ip.ToString();
+            }
+            else
+            {
+                IsDaemonClientLocalIpAddressGlobal = false;
+            }
+        }
     }
 
     // Daemon 抽象クラス (具体的な Daemon 動作はこのクラスを継承して実装すること)
@@ -403,7 +435,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (DaemonUtil util = new DaemonUtil(this.Settings.DaemonStartupArgument))
+                using (DaemonUtil util = new DaemonUtil())
                 {
                     this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -461,11 +493,15 @@ namespace IPA.Cores.Basic
 
             CurrentRunningService = service;
 
-            // DaemonCenter クライアントを起動する (有効な場合)
-            using (IDisposable cli = StartDaemonCenterClientIfEnabled())
+            // DaemonUtil クラスを起動する
+            using (DaemonUtil util = new DaemonUtil())
             {
-                // サービス本体処理を実施する
-                service.ExecMain();
+                // DaemonCenter クライアントを起動する (有効な場合)
+                using (IDisposable client = StartDaemonCenterClientIfEnabled())
+                {
+                    // サービス本体処理を実施する
+                    service.ExecMain();
+                }
             }
         }
 

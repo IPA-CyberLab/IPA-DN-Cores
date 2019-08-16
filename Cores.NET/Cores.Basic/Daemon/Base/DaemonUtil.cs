@@ -61,12 +61,12 @@ namespace IPA.Cores.Basic
 
         List<IDisposable> DisposeList = new List<IDisposable>();
 
-        public DaemonUtil(string startupArguments, CancellationToken cancel = default) : base(cancel)
+        public DaemonUtil(CancellationToken cancel = default) : base(cancel)
         {
             try
             {
                 // 起動パラメータ
-                this.Params = new OneLineParams(startupArguments);
+                this.Params = new OneLineParams(GlobalDaemonStateManager.StartupArguments);
 
                 if (Params._HasKey(Consts.DaemonArgKeys.StartLogFileBrowser))
                 {
@@ -101,10 +101,31 @@ namespace IPA.Cores.Basic
                     };
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
-                        systemTitle: "DaemonClient File Viewer",
-                        urlSecret: "abc");
+                        systemTitle: "DaemonClient Local File Viewer",
+                        urlSecret: GlobalDaemonStateManager.DaemonSecret,
+                        clientIpAcl: (ip) =>
+                        {
+                            // 接続元 IP アドレスの種類を取得
+                            IPAddressType type = ip._GetIPAddressType();
+
+                            if (type.Bit(IPAddressType.GlobalIp))
+                            {
+                                // 接続元がグローバル IP の場合
+                                if (GlobalDaemonStateManager.IsDaemonClientLocalIpAddressGlobal == false)
+                                {
+                                    // DaemonCenter との接続にプライベート IP を利用している場合: 接続拒否
+                                    return false;
+                                }
+                            }
+
+                            // それ以外の場合: 接続許可
+                            return true;
+                        }
+                        );
 
                     DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
+
+                    GlobalDaemonStateManager.FileBrowserHttpsPortNumber = httpsPort;
                 }
             }
             catch (Exception ex)

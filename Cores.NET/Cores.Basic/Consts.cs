@@ -114,6 +114,7 @@ namespace IPA.Cores.Basic
         public static partial class DaemonMetaStatKeys
         {
             public const string CurrentLogFileBrowserUrl = "CurrentLogFileBrowserUrl";
+            public const string CurrentDaemonClientLocalIp = "CurrentDaemonClientLocalIp";
         }
 
         public static partial class Strings
