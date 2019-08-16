@@ -518,7 +518,7 @@ namespace IPA.Cores.Basic
 
             Thread.Sleep(300);
 
-            if (Str.TryNormalizeGitCommitId(res.NextCommitId, out string commitId) || res.NextCommitId._IsEmpty())
+            if (Str.TryNormalizeGitCommitId(res.NextCommitId, out string commitId) == false || res.NextCommitId._IsEmpty())
             {
                 // Git Commit ID に変化がない場合:
                 // 単にプロセスを異常終了させる。親プロセスがこれに気付いてプロセスを再起動するはずである
