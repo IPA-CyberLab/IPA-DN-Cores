@@ -768,7 +768,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        printStr = $"{closure}{o.ToString()._Unescape()}{closure}";
+                        printStr = $"{closure}{o.ToString()._EncodeCEscape()}{closure}";
                     }
                 }
 

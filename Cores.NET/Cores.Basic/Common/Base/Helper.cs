@@ -372,8 +372,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _DecodeEasy(this string str) => Str.DecodeEasy(str);
 
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
-        public static string _Unescape(this string s) => Str.Unescape(s);
-        public static string _Escape(this string s) => Str.Escape(s);
+        public static string _EncodeCEscape(this string s) => Str.EncodeCEscape(s);
+        public static string _DecodeCEscape(this string s) => Str.DecodeCEscape(s);
         public static int _GetWidth(this string s) => Str.GetStrWidth(s);
         public static bool _IsAllUpperStr(this string s) => Str.IsAllUpperStr(s);
         public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);

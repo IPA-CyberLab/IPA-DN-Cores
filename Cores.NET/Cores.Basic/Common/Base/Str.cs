@@ -96,8 +96,8 @@ namespace IPA.Cores.Basic
                     int i = Str.SearchStr(line, "=", 0);
                     if (i != -1)
                     {
-                        string key = Str.Escape(line.Substring(0, i));
-                        string value = Str.Escape(line.Substring(i + 1));
+                        string key = Str.DecodeCEscape(line.Substring(0, i));
+                        string value = Str.DecodeCEscape(line.Substring(i + 1));
 
                         v.Add(key, value);
                     }
@@ -196,7 +196,7 @@ namespace IPA.Cores.Basic
                 StringWriter w = new StringWriter();
                 foreach (string name in data.Keys)
                 {
-                    string line = string.Format("{0}={1}", Str.Unescape(name), Str.Unescape(data[name]));
+                    string line = string.Format("{0}={1}", Str.EncodeCEscape(name), Str.EncodeCEscape(data[name]));
 
                     w.WriteLine(line);
                 }
@@ -2714,8 +2714,8 @@ namespace IPA.Cores.Basic
             return tmp.Select(x => x.ToString())._Combine(",");
         }
 
-        // アンエスケープ
-        public static string Unescape(string str)
+        // エスケープエンコード (本来のデータ => C 風の安全なデータ)
+        public static string EncodeCEscape(string str)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -2768,8 +2768,8 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        // エスケープ
-        public static string Escape(string str)
+        // エスケープデコード (C 風の安全なデータ => 本来のデータ)
+        public static string DecodeCEscape(string str)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -5963,6 +5963,7 @@ namespace IPA.Cores.Basic
                             ret.Add(sb.ToString());
                         }
                         sb.Clear();
+                        sb.Append(c);
                     }
 
                     mode = 0;
@@ -6180,9 +6181,64 @@ namespace IPA.Cores.Basic
 
     public class OneLineParams : KeyValueList<string, string>
     {
+        public char Delimiter { get; }
+
+        public OneLineParams(string oneLine = "", char delimiter = ';')
+        {
+            oneLine = oneLine._NonNullTrim();
+
+            // Parse
+            this.Delimiter = delimiter;
+
+            oneLine = Str.DecodeCEscape(oneLine);
+
+            IReadOnlyList<string> list = Str.SplitBySpecialChar(oneLine, this.Delimiter);
+
+            foreach (string token in list)
+            {
+                Str.GetKeyAndValue(token, out string key, out string value, "=:");
+
+                if (key._IsFilled())
+                {
+                    key = key._NonNullTrim();
+                    value = value._NonNullTrim();
+
+                    this.Add(key, value);
+                }
+            }
+        }
+
         public override string ToString()
         {
-            return base.ToString();
+            // Combine
+            List<string> o = new List<string>();
+
+            foreach (var kv in this)
+            {
+                if (kv.Key._IsFilled())
+                {
+                    string tmp;
+
+                    if (kv.Value._IsEmpty())
+                    {
+                        tmp = kv.Key;
+                    }
+                    else
+                    {
+                        tmp = kv.Key + "=" + kv.Value;
+                    }
+
+                    tmp = tmp._ReplaceStr("" + this.Delimiter, "" + this.Delimiter + this.Delimiter, true);
+
+                    o.Add(tmp);
+                }
+            }
+
+            string oneLine = o._Combine("" + this.Delimiter);
+
+            oneLine = Str.EncodeCEscape(oneLine);
+
+            return oneLine;
         }
     }
 

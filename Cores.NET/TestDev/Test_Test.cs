@@ -293,7 +293,11 @@ namespace IPA.TestDev
                 {
                     string line = Con.ReadLine(">");
 
-                    Str.SplitBySpecialChar(line)._Combine(", ")._Print();
+                    OneLineParams ol = new OneLineParams(line);
+
+                    ol._DebugAsJson();
+
+                    ol.ToString()._Print();
 
                 }
                 return;
