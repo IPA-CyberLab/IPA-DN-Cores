@@ -346,8 +346,8 @@ namespace IPA.Cores.Basic
                 FileName = "git",
                 Arguments = "status",
                 UseShellExecute = false,
-                RedirectStandardOutput = false,
-                RedirectStandardError = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 RedirectStandardInput = false,
                 CreateNoWindow = true,
                 WorkingDirectory = Env.AppRootDir,
@@ -359,6 +359,8 @@ namespace IPA.Cores.Basic
             {
                 using (Process p = Process.Start(info))
                 {
+                    string err1 = p.StandardError.ReadToEnd();
+                    string err2 = p.StandardError.ReadToEnd();
                     p.WaitForExit(10000);
                     try
                     {
@@ -373,6 +375,7 @@ namespace IPA.Cores.Basic
                     else
                     {
                         Con.WriteError($"Git command error code: {p.ExitCode}");
+                        Con.WriteError($"Git result:\n{err1}\n{err2}");
                     }
                 }
             }
