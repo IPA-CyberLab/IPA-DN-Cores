@@ -459,13 +459,17 @@ namespace IPA.Cores.Basic
         public static string AppRootLocalTempDirRoot_Internal { get; private set; }
         public static string MyGlobalTempDir { get; private set; }
 
+        static string LocalDir;
+
         static void InitModule()
         {
             string dirPrefix = "App";
 
             if (CoresLib.Mode == CoresMode.Library) dirPrefix = "Lib";
 
-            AppLocalDir = Path.Combine(Env.AppRootDir, "Local", $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
+            LocalDir = Path.Combine(Env.AppRootDir, "Local");
+
+            AppLocalDir = Path.Combine(LocalDir, $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
 
             AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
 
@@ -477,6 +481,11 @@ namespace IPA.Cores.Basic
                 SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
                 MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
             }
+        }
+
+        public static void CreateLocalDirGitIgnore()
+        {
+            Util.PutGitIgnoreFileOnDirectory(LocalDir);
         }
 
         static void FreeModule()

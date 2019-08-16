@@ -204,6 +204,7 @@ namespace IPA.Cores.Basic
 
             // After all initialization completed
             LocalLogRouter.PutGitIgnoreFileOnLogDirectory();
+            CoresLocalDirs.CreateLocalDirGitIgnore();
         }
 
         static CoresLibraryResult FreeModules()
