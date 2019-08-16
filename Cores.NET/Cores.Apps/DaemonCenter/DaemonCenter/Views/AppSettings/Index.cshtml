@@ -25,7 +25,7 @@
             AppSettings settings = app.Settings;
 
             <tr>
-                <td><a asp-action="Edit" asp-route-id="@appId">@settings.AppName</a></td>
+                <td><a asp-action="Edit" asp-route-id="@appId"><b>@settings.AppName</b></a></td>
                 <td>@Html.DisplayFor(model => settings.InstanceKeyType)</td>
                 <td align="right">@Html.DisplayFor(model => settings.KeepAliveIntervalSecs)</td>
                 <td align="right">@Html.DisplayFor(model => settings.DeadIntervalSecs)</td>

@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string DefaultInstanceArgument { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
-        [Display(Name = "デフォルトの Pause Flag")]
+        [Display(Name = "デフォルトの稼働状態")]
         public PauseFlag DefaultPauseFlag { get; set; }
 
         public void Validate()
@@ -170,11 +170,15 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         OnGit = 1,
     }
 
-    [Flags]
     public enum PauseFlag
     {
+        [Display(Name = "設定なし")]
         None = 0,
+
+        [Display(Name = "稼働")]
         Run,
+
+        [Display(Name = "一時停止")]
         Pause,
     }
 

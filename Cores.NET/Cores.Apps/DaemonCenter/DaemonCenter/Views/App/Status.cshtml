@@ -64,8 +64,16 @@
                         {
                             if (inst.IsRestarting == false)
                             {
-                                // 通常
-                                <span class="icon"><i class="fas fa-check"></i></span>
+                                if (inst.LastStat.PauseFlag == PauseFlag.Pause)
+                                {
+                                    // 停止中
+                                    <span class="icon"><i class="fas fa-pause"></i></span>
+                                }
+                                else
+                                {
+                                    // 通常
+                                    <span class="icon"><i class="fas fa-check"></i></span>
+                                }
                             }
                             else
                             {

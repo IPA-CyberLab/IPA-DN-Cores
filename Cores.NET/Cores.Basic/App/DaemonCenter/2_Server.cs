@@ -361,22 +361,17 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
                 }
 
-                if ((IsFilled)req.Stat.InstanceArguments && (IsFilled)inst.NextInstanceArguments)
+                if (inst.NextInstanceArguments._IsFilled() && (Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
                 {
-                    if ((Trim)inst.NextInstanceArguments != req.Stat.InstanceArguments)
-                    {
-                        // クライアントから現在の InstanceArguments が送付されてきて、
-                        // インスタンス設定の Next InstanceArguments が指定されている場合で、
-                        // 2 つの InstanceArguments の値が異なる場合は、
-                        // クライアントに対して更新指示を返送する
-                        ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
-                        inst.IsRestarting = true;
-                    }
-                    else
-                    {
-                        // 2 つの Args の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
-                        inst.NextInstanceArguments = "";
-                    }
+                    // 2 つの InstanceArguments の値が異なる場合は、
+                    // クライアントに対して更新指示を返送する
+                    ret.NextInstanceArguments = inst.NextInstanceArguments._NonNullTrim();
+                    inst.IsRestarting = true;
+                }
+                else
+                {
+                    // 2 つの Args の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
+                    inst.NextInstanceArguments = "";
                 }
 
                 if (inst.NextPauseFlag != PauseFlag.None && inst.LastStat.PauseFlag != PauseFlag.None)
