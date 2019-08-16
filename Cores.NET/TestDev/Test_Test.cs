@@ -289,6 +289,21 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                OneLineParams ol = new OneLineParams();
+
+                ol._SetSingle("a", "1");
+                ol._SetSingle("b", "2");
+                ol._SetSingle("c", "3");
+                ol.Add("b", "9");
+                ol._SetSingle("b", "4");
+
+                ol.ToString()._Print();
+
+                return;
+            }
+
+            if (true)
+            {
                 while (true)
                 {
                     string line = Con.ReadLine(">");

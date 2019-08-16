@@ -1485,6 +1485,68 @@ namespace IPA.Cores.Helper.Basic
 
         public static Memory<byte> _FileToData(this string path, FileSystem fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => (fs ?? Lfs).ReadDataFromFile(path, maxSize, flags, cancel);
+
+        public static bool _SetSingle<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey> comparer = null)
+        {
+            if (comparer == null) comparer = EqualityComparer<TKey>.Default;
+
+            List<KeyValuePair<TKey, TValue>> deleteTarget = new List<KeyValuePair<TKey, TValue>>();
+
+            int numMatch = 0;
+
+            for (int i = 0; i < target.Count; i++)
+            {
+                KeyValuePair<TKey, TValue> current = target[i];
+
+                if (comparer.Equals(current.Key, key))
+                {
+                    if (numMatch == 0)
+                    {
+                        target[i] = new KeyValuePair<TKey, TValue>(key, value);
+                    }
+                    else
+                    {
+                        deleteTarget.Add(current);
+                    }
+
+                    numMatch++;
+                }
+            }
+
+            deleteTarget.ForEach(x => target.Remove(x));
+
+            if (numMatch == 0)
+            {
+                target.Add(new KeyValuePair<TKey, TValue>(key, value));
+            }
+
+            return numMatch >= 1;
+        }
+
+        public static bool _RemoveAll<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey> comparer = null)
+        {
+            if (comparer == null) comparer = EqualityComparer<TKey>.Default;
+
+            List<KeyValuePair<TKey, TValue>> deleteTarget = new List<KeyValuePair<TKey, TValue>>();
+
+            int numMatch = 0;
+
+            for (int i = 0; i < target.Count; i++)
+            {
+                KeyValuePair<TKey, TValue> current = target[i];
+
+                if (comparer.Equals(current.Key, key))
+                {
+                    deleteTarget.Add(current);
+
+                    numMatch++;
+                }
+            }
+
+            deleteTarget.ForEach(x => target.Remove(x));
+
+            return numMatch >= 1;
+        }
     }
 }
 
