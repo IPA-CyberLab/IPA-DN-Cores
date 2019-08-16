@@ -101,6 +101,16 @@ namespace IPA.Cores.Basic
             public static readonly IEnumerable<int> PotentialHttpsPorts = new int[] { Https, Smtps, Pop3s, Imap4s };
         }
 
+        public static partial class DaemonArgKeys
+        {
+            public const string StartLogFileBrowser = "StartLogFileBrowser";
+        }
+
+        public static partial class DaemonMetaStatKeys
+        {
+            public const string LogFileBrowserUrl = "LogFileBrowserUrl";
+        }
+
         public static partial class Strings
         {
             public const string DefaultCertCN = "DefaultCertificate";
