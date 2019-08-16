@@ -1209,6 +1209,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 注: DaemonCenter で利用しているためいじらないこと
     public class CoresRuntimeStat
     {
         public int Task;

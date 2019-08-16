@@ -282,16 +282,30 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             if (GlobalDaemonStateManager.FileBrowserHttpsPortNumber != 0)
             {
                 IPAddress ip = GlobalDaemonStateManager.DaemonClientLocalIpAddress;
-                string ipstr = ip.ToString();
+                string hostname = ip.ToString();
 
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
                 {
                     // ipv6
-                    ipstr = $"[{ipstr}]";
+                    hostname = $"[{hostname}]";
                 }
 
+                try
+                {
+                    // FQDN を DNS 解決する
+                    string fqdn = req.Stat.TcpIpHostData.FqdnHostName;
+
+                    DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
+                    if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                    {
+                        // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
+                        hostname = fqdn;
+                    }
+                }
+                catch { }
+
                 // url
-                string url = $"https://{ipstr}:{GlobalDaemonStateManager.FileBrowserHttpsPortNumber}/{GlobalDaemonStateManager.DaemonSecret}/";
+                string url = $"https://{hostname}:{GlobalDaemonStateManager.FileBrowserHttpsPortNumber}/{GlobalDaemonStateManager.DaemonSecret}/";
 
                 GlobalDaemonStateManager.MetaStatusDictionary[Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl] = url;
             }
