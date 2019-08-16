@@ -197,7 +197,7 @@ namespace IPA.Cores.Basic
             this.Msg = message;
             if (filename._IsFilled())
                 this.Where = filename + ":" + lineNumber;
-            this.ThreadID = threadId == 0 ? (int ?)null : threadId;
+            this.ThreadID = threadId == 0 ? (int?)null : threadId;
             this.Function = callerName;
         }
     }
@@ -337,6 +337,42 @@ namespace IPA.Cores.Basic
                 this.Exception = ex;
             }
         }
+
+        // git コマンドが実行可能かどうか確認する
+        public static readonly Singleton<Ref<bool>> IsGitCommandSupportedSingleton = new Singleton<Ref<bool>>(() =>
+        {
+            ProcessStartInfo info = new ProcessStartInfo()
+            {
+                FileName = "git",
+                Arguments = "status",
+                UseShellExecute = false,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                RedirectStandardInput = false,
+                CreateNoWindow = true,
+            };
+
+            Dbg.Where("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
+
+            try
+            {
+                using (Process p = Process.Start(info))
+                {
+                    p.WaitForExit();
+                    if (p.ExitCode == 0)
+                    {
+                        Dbg.Where("Git is supported.");
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            Dbg.Where("Git is not supported.");
+
+            return false;
+        });
+        public static bool IsGitCommandSupported() => IsGitCommandSupportedSingleton.CreateOrGet();
 
         static string CurrentGitCommitIdCache = null;
         public static string GetCurrentGitCommitId()
@@ -1409,7 +1445,7 @@ namespace IPA.Cores.Basic
                 {
                     if (Count == 0)
                     {
-//                        writer.WriteLine("@@@ No leaks @@@");
+                        //                        writer.WriteLine("@@@ No leaks @@@");
                     }
                     else
                     {
@@ -1477,7 +1513,7 @@ namespace IPA.Cores.Basic
             using (pipe)
             {
                 pipe.WriteByte((byte)Cmd.Stop);
-                
+
                 pipe.ReadByte();
 
                 return true;

@@ -47,6 +47,12 @@ namespace IPA.Cores.Basic
 {
     public static partial class Consts
     {
+        public static partial class ExitCodes
+        {
+            public const int DaemonCenterRebootRequestd_Normal = 4001;
+            public const int DaemonCenterRebootRequestd_GitUpdated = 4002;
+        }
+
         public static partial class GoldenRatioPrime
         {
             // From https://github.com/torvalds/linux/blob/88c5083442454e5e8a505b11fa16f32d2879651e/include/linux/hash.h

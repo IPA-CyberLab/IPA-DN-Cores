@@ -293,7 +293,8 @@ namespace IPA.Cores.Basic
         DaemonSettings Settings => SettingsHive.ManagedData;
 
         // DaemonCenter クライアントを有効化すべきかどうかのフラグ
-        bool IsDaemonCenterEnabled => (this.Mode == DaemonMode.UserMode &&
+        bool IsDaemonCenterEnabled() => (this.Mode == DaemonMode.UserMode &&
+            Dbg.IsGitCommandSupported() &&
             Dbg.GetCurrentGitCommitId()._IsFilled() &&
             this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() && Env.IsWindows == false &&
             Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
@@ -430,7 +431,7 @@ namespace IPA.Cores.Basic
         // DaemonCenter クライアントを起動する (有効な場合)
         IDisposable StartDaemonCenterClientIfEnabled()
         {
-            if (IsDaemonCenterEnabled == false) return new EmptyDisposable();
+            if (IsDaemonCenterEnabled() == false) return new EmptyDisposable();
 
             TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
 
@@ -521,13 +522,12 @@ namespace IPA.Cores.Basic
             {
                 // Git Commit ID に変化がない場合:
                 // 単にプロセスを異常終了させる。親プロセスがこれに気付いてプロセスを再起動するはずである
-                Process currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-
-                currentProcess.Kill();
+                Environment.Exit(Consts.ExitCodes.DaemonCenterRebootRequestd_Normal);
             }
             else
             {
                 // Git Commit ID に変化がある場合
+                Environment.Exit(0);
             }
         }
     }
