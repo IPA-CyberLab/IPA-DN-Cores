@@ -19,7 +19,7 @@ do
         break
     fi
 
-	if [ $retcode -eq 4002 ]
+	if [ $retcode -eq 82 ]
 	then
 	    # Rebuild
 		errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$@' terminated with Git Update. Returned code: '$retcode'. Rebuilding..."

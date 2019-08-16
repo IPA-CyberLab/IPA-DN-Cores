@@ -49,9 +49,10 @@ namespace IPA.Cores.Basic
     {
         public static partial class ExitCodes
         {
-            public const int NoError = 0;
-            public const int DaemonCenterRebootRequestd_Normal = 4001;
-            public const int DaemonCenterRebootRequestd_GitUpdated = 4002;
+            // UNIX の制限のため、0 - 255 に限る。
+            public const byte NoError = 0;
+            public const byte DaemonCenterRebootRequestd_Normal = 81;
+            public const byte DaemonCenterRebootRequestd_GitUpdated = 82;
         }
 
         public static partial class GoldenRatioPrime
