@@ -352,23 +352,35 @@ namespace IPA.Cores.Basic
                 CreateNoWindow = true,
             };
 
-            Dbg.Where("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
+            Con.WriteError("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
 
             try
             {
                 using (Process p = Process.Start(info))
                 {
-                    p.WaitForExit();
+                    p.WaitForExit(10000);
+                    try
+                    {
+                        p.Kill();
+                    }
+                    catch { }
                     if (p.ExitCode == 0)
                     {
-                        Dbg.Where("Git is supported.");
+                        Con.WriteError("Git is supported.");
                         return true;
+                    }
+                    else
+                    {
+                        Con.WriteError($"Git command error code: {p.ExitCode}");
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Con.WriteError($"Git command execution error: {ex.Message}");
+            }
 
-            Dbg.Where("Git is not supported.");
+            Con.WriteError("Git is not supported.");
 
             return false;
         });
