@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
     // 何もしない Daemon
     public class PausingDaemon : Daemon
     {
-        public PausingDaemon() : base(new DaemonOptions("PausingDaemon", "PausingDaemon", false))
+        public PausingDaemon(DaemonOptions options) : base(options)
         {
         }
 
@@ -399,7 +399,7 @@ namespace IPA.Cores.Basic
             if (this.Settings.DaemonPauseFlag == PauseFlag.Pause)
             {
                 // 一時停止状態の場合は「何もしない Daemon」を代わりにロードする
-                daemon = new PausingDaemon();
+                daemon = new PausingDaemon(new DaemonOptions(daemon.Name, daemon.Options.FriendlyName, false));
             }
 
             this.Daemon = daemon;
