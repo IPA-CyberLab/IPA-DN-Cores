@@ -244,13 +244,13 @@ namespace IPA.Cores.Basic
         public string DaemonCenterCertSha = "";
 
         [DataMember]
-        public int TelnetLogWatcherPort = Consts.Ports.TelnetLogWatcher;
+        public int DaemonTelnetLogWatcherPort = Consts.Ports.TelnetLogWatcher;
 
         [DataMember]
-        public string DaemonCenterStartupArgument = "";
+        public string DaemonStartupArgument = "";
 
         [DataMember]
-        public string DaemonCenterSecret = "";
+        public string DaemonSecret = "";
 
         [DataMember]
         public string DaemonCenterAppId = "";
@@ -265,11 +265,11 @@ namespace IPA.Cores.Basic
         {
             this.DaemonCenterRpcUrl = this.DaemonCenterRpcUrl._NonNullTrim();
             this.DaemonCenterCertSha = this.DaemonCenterCertSha._NonNullTrim();
-            this.DaemonCenterStartupArgument = this.DaemonCenterStartupArgument._NonNullTrim();
+            this.DaemonStartupArgument = this.DaemonStartupArgument._NonNullTrim();
             this.DaemonCenterAppId = this.DaemonCenterAppId._NonNullTrim();
 
             // 新しいシークレットを作成する
-            if ((IsEmpty)this.DaemonCenterSecret) this.DaemonCenterSecret = Str.GenRandPassword();
+            if ((IsEmpty)this.DaemonSecret) this.DaemonSecret = Str.GenRandPassword();
 
             // 新しい GUID を作成する
             if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
@@ -338,11 +338,11 @@ namespace IPA.Cores.Basic
 
             TelnetLocalLogWatcher telnetWatcher = null;
 
-            if (this.Settings.TelnetLogWatcherPort != 0)
+            if (this.Settings.DaemonTelnetLogWatcherPort != 0)
             {
                 telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                    new IPEndPoint(IPAddress.Any, this.Settings.TelnetLogWatcherPort),
-                    new IPEndPoint(IPAddress.IPv6Any, this.Settings.TelnetLogWatcherPort)));
+                    new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort),
+                    new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort)));
             }
 
             //using (var cli = StartDaemonCenterClientIfEnabled())
@@ -376,7 +376,7 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Settings.TelnetLogWatcherPort);
+                    this.Settings.DaemonTelnetLogWatcherPort);
             }
             else
             {
@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Settings.TelnetLogWatcherPort);
+                    this.Settings.DaemonTelnetLogWatcherPort);
             }
 
             return service;
@@ -454,7 +454,8 @@ namespace IPA.Cores.Basic
             {
                 CurrentCommitId = Dbg.GetCurrentGitCommitId(),
                 StatFlag = StatFlag.OnGit,
-                CurrentInstanceArguments = Settings.DaemonCenterStartupArgument,
+                CurrentInstanceArguments = Settings.DaemonStartupArgument,
+                PauseFlag = Settings.DaemonPauseFlag,
             };
 
             Client cli = new Client(cs, vars, DaemonCenterRestartRequestedCallback);
@@ -477,7 +478,7 @@ namespace IPA.Cores.Basic
             {
                 this.SettingsHive.AccessData(true, data =>
                 {
-                    data.DaemonCenterStartupArgument = res.NextInstanceArguments;
+                    data.DaemonStartupArgument = res.NextInstanceArguments;
                 });
             }
 
