@@ -41,6 +41,7 @@
                 <th nowrap>機能</th>
                 <th nowrap>再起動<br>要求</th>
                 <th nowrap>ホスト</th>
+                <th nowrap>ブラウズ</th>
                 <th nowrap>プロセス起動日時</th>
                 <th nowrap>最終稼働確認日時</th>
                 <th nowrap align="right">通信回数</th>
@@ -96,6 +97,12 @@
                     </td>
                     <td nowrap>@(inst.RequestReboot ? "はい" : "")</td>
                     <td><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId"><b>@inst.HostName</b></a><br />@inst.SrcIpAddress</td>
+                    <td>
+                        @if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string browseUrl))
+                        {
+                            <a href="@browseUrl" target="_blank"><b>表示</b></a>
+                        }
+                    </td>
                     <td>
                         @if (inst.IsActive(settings, Page.Now))
                         {
