@@ -268,6 +268,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     // Git Commit ID の変更
                     instList._DoForEach(x => x.NextCommitId = commitId);
                 }
+                else if (operationType == OperationType.SetPauseFlagOn)
+                {
+                    // 稼働を一時停止
+                    instList._DoForEach(x => x.NextPauseFlag = PauseFlag.Pause);
+                }
+                else if (operationType == OperationType.SetPauseFlagOff)
+                {
+                    // 稼働を再開
+                    instList._DoForEach(x => x.NextPauseFlag = PauseFlag.Run);
+                }
             }
         }
 
@@ -380,7 +390,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     else
                     {
                         // 2 つの Args の値が同一の場合は、更新が完了したことを示すのであるから状態を消す
-                        ret.NextPauseFlag = PauseFlag.None;
+                        inst.NextPauseFlag = PauseFlag.None;
                     }
                 }
 
