@@ -42,11 +42,10 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
 以下のプロパティを <PropertyGroup> に追加
 ---
     <LangVersion>7.3</LangVersion>
-    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
 ---
-※ GC で ServerGC を false にする理由は、.NET Core 2.1 & 2.2 にはバグがあるため。.NET Core 3.0 で改善される予定。
 
 既存の </PropertyGroup> の下に以下を追加
 
@@ -90,6 +89,13 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
     <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.0.0-preview8.19405.7" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.0.0-preview8.19405.4" />
+  </ItemGroup>
 ---
 
 ※ submodule 経由の場合
@@ -119,6 +125,13 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
     <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.0.0-preview8.19405.7" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.0.0-preview8.19405.4" />
+  </ItemGroup>
 ---
 
 ・ Properties/launchSettings.json
@@ -221,82 +234,99 @@ AspNetLib = new AspNetLib(configuration);
 ---
 
 
-ConfigureServices() の一番上:
+ConfigureServices()
 ---
-AspNetLib.ConfigureServices(StartupHelper, services);
+            // AspNetLib による設定を追加
+            AspNetLib.ConfigureServices(StartupHelper, services);
 
-StartupHelper.ConfigureServices(services);
+            // 基本的な設定を追加
+            StartupHelper.ConfigureServices(services);
 
-services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(opt =>
-{
-});
+            // リクエスト数制限機能を追加
+            services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(_ => { });
+
+            ////// Cookie 認証機能を追加
+            //EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
+            //EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
+            //EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
+
+            // MVC 機能を追加
+            services.AddControllersWithViews()
+                .AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
+                .AddRazorOptions(opt => AspNetLib.ConfigureRazorOptions(opt))
+                .AddRazorRuntimeCompilation(opt => AspNetLib.ConfigureRazorRuntimeCompilationOptions(opt))
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+
+            // シングルトンサービスの注入
+            //services.AddSingleton(new Server());
+
+            // 全ページ共通コンテキストの注入
+            //services.AddScoped<PageContext>();
 ---
 
-ConfigureServices() の CookiePolicyOptions をコメントアウト
-
-ConfigureServices() の AddMvc() の行を消して以下に置換
----
-services.AddMvc()
-    .AddViewOptions(opt =>
-    {
-        opt.HtmlHelperOptions.ClientValidationEnabled = false;
-    })
-    .AddRazorOptions(opt =>
-    {
-        AspNetLib.ConfigureRazorOptions(opt);
-    })
-    .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
----
 
 
 Configure() に引数
 ---
-, IApplicationLifetime lifetime
+, IHostApplicationLifetime lifetime
 ---
 を追加。
 
-Configure() の一番上:
+Configure() 
 ---
-app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
+            // リクエスト数制限
+            app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
 
-// wwwroot directory of this project
-StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
+            // wwwroot ディレクトリを static ファイルのルートとして追加
+            StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 
-AspNetLib.Configure(StartupHelper, app, env);
+            // AspNetLib による設定を追加
+            AspNetLib.Configure(StartupHelper, app, env);
 
-StartupHelper.Configure(app, env);
+            // 基本的な設定を追加
+            StartupHelper.Configure(app, env);
+
+            // エラーページを追加
+            if (StartupHelper.IsDevelopmentMode)
+            {
+                app.UseDeveloperExceptionPage();
+            }
+            else
+            {
+                app.UseExceptionHandler("/Home/Error");
+            }
+
+            // エラーログを追加
+            app.UseHttpExceptionLogger();
+
+            // Static ファイルを追加
+            app.UseStaticFiles();
+
+            // ルーティングを有効可 (認証を利用する場合は認証前に呼び出す必要がある)
+            app.UseRouting();
+
+            // 認証・認可を実施
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            // ルートマップを定義
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
+            });
+
+            // クリーンアップ動作を定義
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                //server._DisposeSafe();
+
+                AspNetLib._DisposeSafe();
+                StartupHelper._DisposeSafe();
+            });
 ---
 
-Configure() の中の
-
-if (env.IsDevelopment())
-
-を
-
-if (StartupHelper.IsDevelopmentMode)
-
-に変更。
-
-app.UseStaticFiles();
-
-の前に
-
-app.UseHttpExceptionLogger();
-
-を追加。
-
-app.UseCookiePolicy(); をコメントアウト。
-
-一番下に
----
-lifetime.ApplicationStopping.Register(() =>
-{
-    AspNetLib._DisposeSafe();
-    StartupHelper._DisposeSafe();
-});
----
-
-を追加。
 
 Views/_ViewImports.cshtml に以下を追加。
 
