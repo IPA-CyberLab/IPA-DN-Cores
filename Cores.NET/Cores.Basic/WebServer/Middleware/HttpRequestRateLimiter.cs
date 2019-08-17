@@ -32,7 +32,7 @@
 
 // Description
 
-#if CORES_BASIC_WEBSERVER
+#if CORES_BASIC_WEBAPP
 
 using System;
 using System.Linq;
