@@ -97,7 +97,8 @@ namespace IPA.Cores.Helper.Basic
 
         // From: https://github.com/aspnet/HttpAbstractions/blob/31a836c9f35987c736161bf6e3f763517da8d504/src/Microsoft.AspNetCore.Http.Extensions/SendFileResponseExtensions.cs
         // Copyright (c) .NET Foundation. All rights reserved.
-        // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+        // Licensed under the Apache License, Version 2.0.
+        // License: https://github.com/aspnet/HttpAbstractions/blob/31a836c9f35987c736161bf6e3f763517da8d504/LICENSE.txt
         static void CheckStreamRange(long offset, long? count, long fileLength)
         {
             if (offset < 0 || offset > fileLength)

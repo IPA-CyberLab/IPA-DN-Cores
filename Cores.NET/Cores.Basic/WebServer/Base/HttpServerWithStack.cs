@@ -77,7 +77,8 @@ using System.Collections;
 // Some codes are copied from  https://github.com/aspnet/AspNetCore/tree/7795537181bf5fd4f4855a7846bee29c6a0fcc1c
 // 
 // Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed under the Apache License, Version 2.0.
+// License: https://github.com/aspnet/AspNetCore/blob/7795537181bf5fd4f4855a7846bee29c6a0fcc1c/LICENSE.txt
 
 namespace IPA.Cores.Basic
 {
