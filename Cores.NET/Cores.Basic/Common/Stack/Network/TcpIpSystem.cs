@@ -381,35 +381,74 @@ namespace IPA.Cores.Basic
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel)._GetResult();
 
+        // リスナーを作成する
+        // 注意: param.AcceptCallback == null の場合は NetTcpListener.AcceptNextSocketFromQueueUtilAsync() で通常のソケット Accept() 動作と同様の動作が可能となる
         public NetTcpListener CreateListener(TcpListenParam param)
         {
             var hostInfo = GetHostInfo();
 
-            using (EnterCriticalCounter())
+            // ユーザーが Callback を指定していないので GenericAcceptQueueUtil キューユーティリティを初期化する
+            GenericAcceptQueueUtil<ConnSock> acceptQueueUtil = null;
+            if (param.AcceptCallback == null)
             {
-                NetTcpListener ret = CreateListenerImpl((listener, sock) =>
+                acceptQueueUtil = new GenericAcceptQueueUtil<ConnSock>();
+            }
+
+            try
+            {
+                using (EnterCriticalCounter())
                 {
-                    this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
-
-                    return param.AcceptCallback(listener, sock);
-                });
-
-                foreach (IPEndPoint ep in param.EndPointsList)
-                {
-                    try
+                    NetTcpListener ret = CreateListenerImpl(async (listener, sock) =>
                     {
-                        if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port,  IPVersion.IPv4, ep.Address);
-                    }
-                    catch { }
+                        this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
 
-                    try
+                        // ソケットが Accept されたらここに飛ぶ。
+                        // この非同期 Callback はユーザーがソケットを閉じてもはや不要となるまで await しなければならない。
+
+                        if (param.AcceptCallback != null)
+                        {
+                            // ユーザー指定の Callback が設定されている
+                            await param.AcceptCallback(listener, sock);
+                        }
+                        else
+                        {
+                            // GenericAcceptQueueUtil ユーティリティでキューに登録する
+                            await acceptQueueUtil.InjectAndWaitAsync(sock);
+                        }
+                    });
+
+                    if (acceptQueueUtil != null)
                     {
-                        if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                        // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
+                        ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
+
+                        // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
+                        ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
                     }
-                    catch { }
+
+                    foreach (IPEndPoint ep in param.EndPointsList)
+                    {
+                        try
+                        {
+                            if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
+                        }
+                        catch { }
+
+                        try
+                        {
+                            if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                        }
+                        catch { }
+                    }
+
+                    return ret;
                 }
-
-                return ret;
+            }
+            catch (Exception ex)
+            {
+                // 途中でエラーが発生した場合は GenericAcceptQueueUtil キューをキャンセルする
+                acceptQueueUtil._DisposeSafe(ex);
+                throw;
             }
         }
 

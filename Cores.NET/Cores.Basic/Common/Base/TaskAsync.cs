@@ -1198,7 +1198,7 @@ namespace IPA.Cores.Basic
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
 
-        public async Task<bool> WaitOneAsync(int timeout, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
+        public async Task<bool> WaitOneAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             try
             {
@@ -1649,6 +1649,7 @@ namespace IPA.Cores.Basic
         }
 
         Once Cleanuped;
+        public bool IsCleanuped => Cleanuped.IsSet;
         public async Task CleanupAsync(Exception ex = null)
         {
             IsCanceledPrivateFlag = true;
@@ -1667,6 +1668,7 @@ namespace IPA.Cores.Basic
         }
 
         Once Disposed;
+        public bool IsDisposed => Disposed.IsSet;
         public void Dispose() => Dispose(null);
         public void Dispose(Exception ex)
         {

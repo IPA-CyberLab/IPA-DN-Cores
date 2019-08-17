@@ -227,6 +227,7 @@ namespace IPA.TestDev
             //Net_Test2_Ssl_Client();
 
             //Net_Test3_PlainTcp_Server();
+            Net_Test3_2_PlainTcp_Server_AcceptQueue();
             //return 0;
 
             ////while (true)
@@ -259,7 +260,7 @@ namespace IPA.TestDev
 
             //Net_Test13_WebSocketClientAsync()._GetResult();
 
-            Net_Test14_WebSocketClient2Async()._GetResult();
+            //Net_Test14_WebSocketClient2Async()._GetResult();
 
             return 0;
         }
@@ -677,6 +678,38 @@ Content-Length: {totalSize}
                     },
                     9821)))
             {
+                Con.ReadLine(">");
+            }
+        }
+
+        static void Net_Test3_2_PlainTcp_Server_AcceptQueue()
+        {
+            using (var listener = LocalNet.CreateListener(new TcpListenParam(null, 9821)))
+            {
+                Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    // Accept ループタスク
+                    while (true)
+                    {
+                        ConnSock sock = await listener.AcceptNextSocketFromQueueUtilAsync();
+
+                        TaskUtil.StartAsyncTaskAsync(async (obj) =>
+                        {
+                            using (ConnSock s = (ConnSock)obj)
+                            {
+                                var stream = s.GetStream();
+                                StreamWriter w = new StreamWriter(stream);
+                                while (true)
+                                {
+                                    w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
+                                    await w.FlushAsync();
+                                    await Task.Delay(100);
+                                }
+                            }
+                        }, sock)._LaissezFaire();
+                    }
+                });
+
                 Con.ReadLine(">");
             }
         }

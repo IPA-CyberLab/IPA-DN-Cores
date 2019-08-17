@@ -899,6 +899,8 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public delegate Task<ConnSock> NetTcpListenerAcceptNextAsync(CancellationToken cancel = default);
+
     public abstract class NetTcpListener : AsyncService
     {
         readonly CriticalSection LockObj = new CriticalSection();
@@ -908,6 +910,8 @@ namespace IPA.Cores.Basic
         readonly Dictionary<Task, ConnSock> RunningAcceptedTasks = new Dictionary<Task, ConnSock>();
 
         NetTcpListenerAcceptedProcCallback AcceptedProc { get; }
+
+        public NetTcpListenerAcceptNextAsync AcceptNextSocketFromQueueUtilAsync { get; set; } = (c) => throw new NotImplementedException();
 
         public bool HideAcceptProcError { get; set; } = false;
 
