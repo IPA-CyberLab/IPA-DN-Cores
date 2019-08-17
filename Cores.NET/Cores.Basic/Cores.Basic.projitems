@@ -147,6 +147,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Security\BouncyCastlePatch\Pkcs12StoreFix.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\CertVault\CertVault.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Auth\Basic\BasicAuth.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Middleware\EnforceHttps.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpExceptionLogger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServer.cs" />
