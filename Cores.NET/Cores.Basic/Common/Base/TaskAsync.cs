@@ -1392,7 +1392,7 @@ namespace IPA.Cores.Basic
         void Dispose(Exception ex = null);
     }
 
-    public abstract class AsyncService : IAsyncService
+    public abstract class AsyncService : IAsyncService, IAsyncDisposable
     {
         static long IdSeed = 0;
 
@@ -1715,6 +1715,25 @@ namespace IPA.Cores.Basic
             this._CancelSafe(ex);
             await this._CleanupSafeAsync(ex);
             this._DisposeSafe(ex);
+        }
+
+        // 非同期 Dispose
+        public ValueTask DisposeAsync() => DisposeAsync(null);
+
+        public async ValueTask DisposeAsync(Exception ex)
+        {
+            // まず非同期 Cleanup をする
+            try
+            {
+                await CleanupAsync(ex);
+            }
+            catch (Exception ex2)
+            {
+                Dbg.WriteLine("Cleanup exception: " + ex2._GetSingleException().ToString());
+            }
+
+            // 次に Dispose のメイン処理を実施する
+            Dispose(ex);
         }
     }
 
