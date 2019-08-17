@@ -51,7 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.Basic.DotNet2.1.Full\Cores.Lib.Basic.DotNet2.1.Full.csproj" />
+    <ProjectReference Include="..\..\..\Cores.Lib\Cores.Lib.Basic.AspNet3.0.Full\Cores.Lib.Basic.AspNet3.0.Full.csproj" />
   </ItemGroup>
 
 </Project>

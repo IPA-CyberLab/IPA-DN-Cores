@@ -15,7 +15,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "Cores.Lib.Basic.DotNet2.1.Full": {
+    "Cores.Lib.Basic.AspNet3.0.Full": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

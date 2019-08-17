@@ -16,12 +16,12 @@ ASP.NET Core Web アプリケーション (C#) を追加する。
 「ブラウザーの起動」を OFF にする。
 
 
-■ Cores.Lib.Basic.DotNet2.1.Full の追加
+■ Cores.Lib.Basic.AspNet3.0.Full の追加
 ソリューションに
-「Cores.Lib.Basic.DotNet2.1.Full\Cores.Lib.Basic.DotNet2.1.Full.csproj」
+「Cores.Lib.Basic.AspNet3.0.Full\Cores.Lib.Basic.AspNet3.0.Full.csproj」
 を追加する。
 
-ASP.NET プロジェクトから Cores.Lib.Basic.DotNet2.1.Full に依存設定をする。
+ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定をする。
 
 
 ■ Cores.Basic.shproj の追加
