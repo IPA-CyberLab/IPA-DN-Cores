@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>8.0</LangVersion>
     <PackageId>Cores.Lib.DotNet2.1.Full</PackageId>
     <Authors>IPA-CyberLab</Authors>
     <ServerGarbageCollection>true</ServerGarbageCollection>

@@ -41,7 +41,7 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
 
 以下のプロパティを <PropertyGroup> に追加
 ---
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>8.0</LangVersion>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
