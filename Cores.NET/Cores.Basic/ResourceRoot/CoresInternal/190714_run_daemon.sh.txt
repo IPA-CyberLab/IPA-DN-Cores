@@ -14,7 +14,8 @@ do
     $@
     retcode=$?
 
-    if [ $retcode -eq 0 ] || [ $retcode -eq 137 ] || [ $retcode -eq 143 ]
+	# exit code 137: kill -KILL, 143: kill (normal hup)
+    if [ $retcode -eq 0 ] || [ $retcode -eq 143 ]
     then
 		errstr="run_daemon.sh: Config='$IPA_DN_CORES_BUILD_CONFIGURATION': the command '$@' terminated normally. Returned code: '$retcode'."
 		echo ${errstr}
