@@ -62,7 +62,6 @@ using System.Security.Claims;
 using System.Runtime.Serialization;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.Net.Http.Headers;
 
 namespace IPA.Cores.Basic

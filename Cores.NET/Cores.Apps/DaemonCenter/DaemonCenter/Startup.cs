@@ -18,6 +18,7 @@ using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 
 namespace DaemonCenter
 {
@@ -34,7 +35,7 @@ namespace DaemonCenter
 
             Configuration = configuration;
         }
-        
+
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -71,11 +72,16 @@ namespace DaemonCenter
                 })
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
+            services.Configure<MvcRazorRuntimeCompilationOptions>(opt =>
+            {
+                AspNetLib.ConfigureRazorOptions(opt);
+            });
+
             services.AddSingleton(new Server());
 
             services.AddScoped<PageContext>();
         }
-        
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime, Server server)
         {

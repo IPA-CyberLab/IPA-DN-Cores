@@ -59,6 +59,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
+using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 
 namespace IPA.Cores.Codes
 {
@@ -88,7 +89,10 @@ namespace IPA.Cores.Codes
         public void ConfigureRazorOptions(RazorViewEngineOptions opt)
         {
             opt.ViewLocationFormats.Add("/AspNet.Cores/Views/{1}/{0}.cshtml");
+        }
 
+        public void ConfigureRazorOptions(MvcRazorRuntimeCompilationOptions opt)
+        {
             if (AspNetLib.LibRootFullPath._IsFilled())
             {
                 opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));

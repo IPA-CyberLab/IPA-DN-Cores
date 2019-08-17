@@ -1,8 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
     <LangVersion>7.3</LangVersion>
     <PackageId>Cores.Lib.DotNet2.1.Full</PackageId>
     <Authors>IPA-CyberLab</Authors>
@@ -25,21 +25,21 @@
 
   <ItemGroup>
     <!-- Cores.Basic.Common -->
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
-    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.5.0" />
-    <PackageReference Include="System.IO.Pipelines" Version="4.5.3" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="2.1.1" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="2.1.1" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="2.1.1" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.6.0-preview8.19405.3" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.6.0-preview8.19405.3" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.6.0-preview8.19405.3" />
+    <PackageReference Include="System.IO.Pipelines" Version="4.6.0-preview8.19405.3" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.0.0-preview8.19405.4" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.0.0-preview8.19405.4" />
 
     <!-- Cores.Basic.Daemon -->
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.5.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.6.0-preview8.19405.3" Condition="$(DefineConstants.Contains('CORES_BASIC_DAEMON;'))" />
 
     <!-- Cores.Basic.Database -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.1.8" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.0.0-preview8.19405.11" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.0-preview8.19405.11" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.0.0-preview8.19405.11" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper.Contrib" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 
@@ -54,10 +54,10 @@
     <PackageReference Include="BouncyCastle.NetCore" Version="1.8.5" Condition="$(DefineConstants.Contains('CORES_BASIC_SECURITY;'))" />
 
     <!-- Cores.Basic.WebServer -->
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
+    <!--<PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBSERVER;'))" />-->
 
   </ItemGroup>
 

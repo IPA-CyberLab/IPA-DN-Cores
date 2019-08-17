@@ -398,7 +398,7 @@ namespace IPA.Cores.Basic
         public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
         {
             ConfigureImpl_BeforeHelper(Helper.StartupConfig, app, env, lifetime);
-            
+
             Helper.Configure(app, env);
 
             ConfigureImpl_AfterHelper(Helper.StartupConfig, app, env, lifetime);
@@ -581,8 +581,8 @@ namespace IPA.Cores.Basic
                         {
                             isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
 
-                        // Update options with the config file
-                        string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
+                            // Update options with the config file
+                            string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
                             Options.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
 
                             string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(Options.HttpsPortsList));

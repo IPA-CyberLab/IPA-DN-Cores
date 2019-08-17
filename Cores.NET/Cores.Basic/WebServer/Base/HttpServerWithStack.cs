@@ -42,8 +42,8 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.Internal;
-using Microsoft.AspNetCore.Server.Kestrel.Core.Adapter.Internal;
+//using Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.Internal;
+//using Microsoft.AspNetCore.Server.Kestrel.Core.Adapter.Internal;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -58,7 +58,7 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Buffers;
 using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal;
+//using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal;
 using System.Diagnostics;
 using System.IO.Pipelines;
 
@@ -80,75 +80,31 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class KestrelStackTransport : ITransport
+    public sealed class KestrelStackConnectionListener : IConnectionListener
     {
-        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransport
-
-        readonly IEndPointInformation EndPointInformation;
-        readonly IConnectionDispatcher Dispatcher;
-        readonly IApplicationLifetime AppLifetime;
-        readonly ISocketsTrace Trace;
-
-        readonly PipeScheduler PipeScheduler = PipeScheduler.ThreadPool;
-
+        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketConnectionListener.cs
         public KestrelServerWithStack Server { get; }
+        public EndPoint EndPoint { get; private set; }
 
-        public KestrelStackTransport(
-            KestrelServerWithStack server,
-            IEndPointInformation endPointInformation,
-            IConnectionDispatcher dispatcher,
-            IApplicationLifetime applicationLifetime,
-            int ioQueueCount,
-            ISocketsTrace trace)
+        private readonly SocketTransportOptions _options;
+
+        public KestrelStackConnectionListener(KestrelServerWithStack server,  EndPoint endpoint, SocketTransportOptions options)
         {
-            Debug.Assert(endPointInformation != null);
-            Debug.Assert(endPointInformation.Type == ListenType.IPEndPoint);
-            Debug.Assert(dispatcher != null);
-            Debug.Assert(applicationLifetime != null);
-            Debug.Assert(trace != null);
-
-            EndPointInformation = endPointInformation;
-            Dispatcher = dispatcher;
-            AppLifetime = applicationLifetime;
-            Trace = trace;
-
             this.Server = server;
+            this.EndPoint = endpoint;
+            this._options = options;
         }
 
         NetTcpListener Listener = null;
 
-        public Task BindAsync()
+        public void Bind()
         {
             if (Listener != null)
                 throw new ApplicationException("Listener is already bound.");
 
-            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes,ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint));
-
-            return Task.CompletedTask;
+            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, ListenerAcceptNewSocketCallback, EndPoint));
         }
 
-        public Task StopAsync()
-        {
-            return Task.CompletedTask;
-        }
-
-        public async Task UnbindAsync()
-        {
-            try
-            {
-                if (Listener != null)
-                {
-                    await Listener._CleanupSafeAsync();
-                    Listener._DisposeSafe();
-                    Listener = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
-                throw;
-            }
-        }
 
         async Task ListenerAcceptNewSocketCallback(NetTcpListenerPort listener, ConnSock newSock)
         {
@@ -170,109 +126,69 @@ namespace IPA.Cores.Basic
                 connection._DisposeSafe();
             }
         }
-    }
 
-    // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal.SocketConnection
-    public class KestrelStackConnection : TransportConnection, IDisposable
-    {
-        readonly ConnSock Sock;
-        readonly PipeScheduler Scheduler;
-
-        public KestrelStackConnection(ConnSock sock, PipeScheduler scheduler)
+        public ValueTask<ConnectionContext> AcceptAsync(CancellationToken cancellationToken = default)
         {
-            this.Sock = sock;
-            this.Scheduler = scheduler;
-
-            LocalAddress = sock.Info.Ip.LocalIPAddress;
-            LocalPort = sock.Info.Tcp.LocalPort;
-
-            RemoteAddress = sock.Info.Ip.RemoteIPAddress;
-            RemotePort = sock.Info.Tcp.RemotePort;
-
-            this.ConnectionClosed = this.Sock.GrandCancel;
+            throw new NotImplementedException();
         }
 
-        public async Task StartAsync()
+        public ValueTask DisposeAsync()
         {
-            try
-            {
-                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application))
-                {
-                    // Now wait for complete
-                    await wrapper.MainLoopToWaitComplete;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Stop the socket (for just in case)
-                Sock._CancelSafe(new DisconnectedException());
-
-                ex._Debug();
-            }
+            throw new NotImplementedException();
         }
 
-        public void Dispose() => Dispose(true);
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
+        public ValueTask UnbindAsync(CancellationToken cancellationToken = default)
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            // Here
-        }
-
-        public override void Abort()
-        {
-            this.Sock._CancelSafe();
-            base.Abort();
-        }
-
-        public override void Abort(ConnectionAbortedException abortReason)
-        {
-            this.Sock._CancelSafe(abortReason);
-            base.Abort(abortReason);
+            throw new NotImplementedException();
         }
     }
 
-    public class KestrelStackTransportFactory : ITransportFactory
+
+    public class KestrelStackTransportFactory : IConnectionListenerFactory
     {
-        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory
+        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketTransportFactory.cs
         readonly SocketTransportOptions Options;
-        readonly IApplicationLifetime AppLifeTime;
-        readonly SocketsTrace Trace;
+        //readonly IApplicationLifetime AppLifeTime;
+        //readonly SocketsTrace Trace;
 
         public KestrelServerWithStack Server { get; private set; }
 
         public KestrelStackTransportFactory(
             IOptions<SocketTransportOptions> options,
-            IApplicationLifetime applicationLifetime,
+            //IApplicationLifetime applicationLifetime,
             ILoggerFactory loggerFactory)
         {
             if (options == null)
                 throw new ArgumentNullException(nameof(options));
 
-            if (applicationLifetime == null)
-                throw new ArgumentNullException(nameof(applicationLifetime));
+            //if (applicationLifetime == null)
+            //    throw new ArgumentNullException(nameof(applicationLifetime));
 
             if (loggerFactory == null)
                 throw new ArgumentNullException(nameof(loggerFactory));
 
             Options = options.Value;
-            AppLifeTime = applicationLifetime;
-            var logger = loggerFactory.CreateLogger("Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets");
-            Trace = new SocketsTrace(logger);
+            //AppLifeTime = applicationLifetime;
+            //var logger = loggerFactory.CreateLogger("Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets");
+            //Trace = new SocketsTrace(logger);
         }
 
-        public ITransport Create(IEndPointInformation endPointInformation, IConnectionDispatcher dispatcher)
+        public ValueTask<IConnectionListener> BindAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
         {
-            if (endPointInformation == null)
-                throw new ArgumentNullException(nameof(endPointInformation));
+            //if (endPointInformation == null)
+            //    throw new ArgumentNullException(nameof(endPointInformation));
 
-            if (endPointInformation.Type != ListenType.IPEndPoint)
-                throw new ArgumentException("OnlyIPEndPointsSupported");
+            //if (endPointInformation.Type != ListenType.IPEndPoint)
+            //    throw new ArgumentException("OnlyIPEndPointsSupported");
 
-            if (dispatcher == null)
-                throw new ArgumentNullException(nameof(dispatcher));
+            //if (dispatcher == null)
+            //    throw new ArgumentNullException(nameof(dispatcher));
 
-            return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
+            //return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
+
+            var transport = new KestrelStackConnectionListener(this.Server, endpoint, Options);
+            transport.Bind();
+            return new ValueTask<IConnectionListener>(transport);
         }
 
         public void SetServer(KestrelServerWithStack server)
