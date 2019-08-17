@@ -23,16 +23,16 @@ namespace IPA.TestDev
 
         public static void jsonrpc_client_server_both_test()
         {
-                //jsonrpc_server_invoke_test().Wait();return;
+            //jsonrpc_server_invoke_test().Wait();return;
 
-                // start server
-                HttpServerOptions http_cfg = new HttpServerOptions()
-                {
-                    DebugKestrelToConsole = false,
-                };
-                JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
-                {
-                };
+            // start server
+            HttpServerOptions http_cfg = new HttpServerOptions()
+            {
+                DebugKestrelToConsole = false,
+            };
+            JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig()
+            {
+            };
 
             using (RpcServerApiTest h = new RpcServerApiTest())
             using (var s = JsonRpcHttpServerBuilder.StartServer(http_cfg, rpc_cfg, h))

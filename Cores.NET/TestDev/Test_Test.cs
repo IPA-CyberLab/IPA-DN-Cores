@@ -289,6 +289,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                JsonRpcTest.jsonrpc_client_server_both_test();
+                return;
+            }
+
+            if (true)
+            {
                 int port = Util.GenerateDynamicListenableTcpPortWithSeed("aaa")._Print();
 
                 LocalNet.CreateListener(new TcpListenParam((l, s) =>
