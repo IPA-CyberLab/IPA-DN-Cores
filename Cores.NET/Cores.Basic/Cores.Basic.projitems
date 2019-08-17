@@ -154,7 +154,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpJsonRpcEasy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerDaemon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerHelper.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\HttpServerWithStack3.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\LogDef\LogDef.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Base\MsLogger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WebServer\Middleware\HttpRequestRateLimiter.cs" />
