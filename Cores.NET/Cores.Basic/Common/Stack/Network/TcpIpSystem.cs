@@ -447,7 +447,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 // 途中でエラーが発生した場合は GenericAcceptQueueUtil キューをキャンセルする
-                acceptQueueUtil?.Cancel(ex);
+                acceptQueueUtil._DisposeSafe(ex);
                 throw;
             }
         }
