@@ -30,7 +30,7 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_BASIC_WEBAPP
+#if CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER
 
 using System;
 using System.Threading;
@@ -53,6 +53,11 @@ using Microsoft.Net.Http.Headers;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+
+#if CORES_BASIC_HTTPSERVER
+// ASP.NET Core 2.2 専用
+using Microsoft.AspNetCore.Http.Internal;
+#endif
 
 namespace IPA.Cores.Basic
 {
