@@ -176,24 +176,22 @@ namespace IPA.Cores.Basic
 
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
-                services.AddEnforceHttps(opt =>
-                {
-                });
+                services.AddEnforceHttps(_ => { } );
             }
 
             services.AddRouting();
 
 
+            if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+            {
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
+                });
+            }
+
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
-                if (ServerOptions.RequireBasicAuthenticationToAllRequests)
-                {
-                    services.AddAuthorization(options =>
-                    {
-                        options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
-                    });
-                }
-
                 // Simple BASIC authentication
                 services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
                     .AddBasic(options =>
