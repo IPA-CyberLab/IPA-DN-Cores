@@ -82,17 +82,6 @@ namespace IPA.Cores.Codes
                     opt.LoginPath = LoginPath.Value;
                     opt.SlidingExpiration = true;
                 });
-
-            //services.AddAuthorization(opt =>
-            //{
-            //});
-        }
-
-        public static void Configure(IApplicationBuilder app, IHostingEnvironment env)
-        {
-            app.UseAuthentication();
-            app.UseAuthorization();
-
         }
     }
 

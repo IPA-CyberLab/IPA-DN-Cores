@@ -31,7 +31,7 @@ namespace DaemonCenter.Controllers
             this.Server = server;
         }
 
-        [Authorize(AuthenticationSchemes ="aa")]
+        [Authorize]
         public IActionResult _new()
         {
             $"username = {this.HttpContext.User?.Identity?.Name}"._Print();
