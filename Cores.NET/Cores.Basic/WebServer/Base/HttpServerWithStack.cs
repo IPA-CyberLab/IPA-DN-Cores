@@ -73,6 +73,12 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Connections.Features;
 using System.Collections;
 
+
+// Some codes are copied from  https://github.com/aspnet/AspNetCore/tree/7795537181bf5fd4f4855a7846bee29c6a0fcc1c
+// 
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
 namespace IPA.Cores.Basic
 {
     public static partial class CoresConfig
@@ -130,6 +136,40 @@ namespace IPA.Cores.Basic
             Listener._DisposeSafe();
             return default;
         }
+    }
+
+    // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.FeatureCollection.cs
+    public partial class TransportConnection : IConnectionIdFeature,
+                                                 IConnectionTransportFeature,
+                                                 IConnectionItemsFeature,
+                                                 IMemoryPoolFeature,
+                                                 IConnectionLifetimeFeature
+    {
+        // NOTE: When feature interfaces are added to or removed from this TransportConnection class implementation,
+        // then the list of `features` in the generated code project MUST also be updated.
+        // See also: tools/CodeGenerator/TransportConnectionFeatureCollection.cs
+
+        MemoryPool<byte> IMemoryPoolFeature.MemoryPool => MemoryPool;
+
+        IDuplexPipe IConnectionTransportFeature.Transport
+        {
+            get => Transport;
+            set => Transport = value;
+        }
+
+        IDictionary<object, object> IConnectionItemsFeature.Items
+        {
+            get => Items;
+            set => Items = value;
+        }
+
+        CancellationToken IConnectionLifetimeFeature.ConnectionClosed
+        {
+            get => ConnectionClosed;
+            set => ConnectionClosed = value;
+        }
+
+        void IConnectionLifetimeFeature.Abort() => Abort(new ConnectionAbortedException("The connection was aborted by the application via IConnectionLifetimeFeature.Abort()."));
     }
 
     // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.Generated.cs
@@ -441,6 +481,8 @@ namespace IPA.Cores.Basic
         readonly ConnSock Sock;
         Task _processingTask;
 
+        public override MemoryPool<byte> MemoryPool { get; }
+
         public KestrelStackConnection(ConnSock sock)
         {
             this.Sock = sock;
@@ -449,6 +491,17 @@ namespace IPA.Cores.Basic
             this.RemoteEndPoint = new IPEndPoint(sock.Info.Ip.RemoteIPAddress, sock.Info.Tcp.RemotePort);
 
             this.ConnectionClosed = this.Sock.GrandCancel;
+
+            this.MemoryPool = MemoryPool<byte>.Shared;
+
+            var inputOptions = new PipeOptions();
+            var outputOptions = new PipeOptions();
+
+            var pair = PipelineDuplex.CreateConnectionPair(inputOptions, outputOptions);
+
+            // Set the transport and connection id
+            Transport = pair.Transport;
+            Application = pair.Application;
         }
 
         public void Start()

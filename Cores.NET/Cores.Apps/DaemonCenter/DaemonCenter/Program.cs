@@ -35,7 +35,7 @@ namespace DaemonCenter
                 {
                     HttpPortsList = 80._SingleList(),
                     HttpsPortsList = 443._SingleList(),
-                    UseKestrelWithIPACoreStack = false,
+                    UseKestrelWithIPACoreStack = true,
                     DebugKestrelToConsole = true,
                     UseSimpleBasicAuthentication = false,
                     HoldSimpleBasicAuthenticationDatabase = true,

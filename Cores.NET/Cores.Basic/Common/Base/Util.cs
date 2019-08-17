@@ -55,6 +55,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
+using System.IO.Pipelines;
 
 namespace IPA.Cores.Basic
 {
@@ -6377,6 +6378,43 @@ namespace IPA.Cores.Basic
         public static implicit operator ResultOrExeption<T>(Exception ex) => new ResultOrExeption<T>(ex);
 
         public static implicit operator T(ResultOrExeption<T> resultOrException) => resultOrException.Value;
+    }
+
+    public class PipelineDuplex : IDuplexPipe
+    {
+        public PipelineDuplex(PipeReader reader, PipeWriter writer)
+        {
+            Input = reader;
+            Output = writer;
+        }
+
+        public PipeReader Input { get; }
+
+        public PipeWriter Output { get; }
+
+        public static PipelineDuplexPair CreateConnectionPair(PipeOptions inputOptions, PipeOptions outputOptions)
+        {
+            var input = new Pipe(inputOptions);
+            var output = new Pipe(outputOptions);
+
+            var transportToApplication = new PipelineDuplex(output.Reader, input.Writer);
+            var applicationToTransport = new PipelineDuplex(input.Reader, output.Writer);
+
+            return new PipelineDuplexPair(applicationToTransport, transportToApplication);
+        }
+
+        // This class exists to work around issues with value tuple on .NET Framework
+        public readonly struct PipelineDuplexPair
+        {
+            public IDuplexPipe Transport { get; }
+            public IDuplexPipe Application { get; }
+
+            public PipelineDuplexPair(IDuplexPipe transport, IDuplexPipe application)
+            {
+                Transport = transport;
+                Application = application;
+            }
+        }
     }
 
     public static class EmptyEnumerable<T>
