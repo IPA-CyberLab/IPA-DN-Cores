@@ -2523,6 +2523,8 @@ namespace IPA.Cores.Basic
         // HTML エンコード
         public static string EncodeHtml(string str, bool forceAllSpaceToTag = false)
         {
+            str = str._NonNull();
+
             // 改行を正規化
             str = NormalizeCrlf(str, CrlfStyle.CrLf);
 
