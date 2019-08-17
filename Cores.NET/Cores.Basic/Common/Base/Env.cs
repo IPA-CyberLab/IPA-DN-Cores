@@ -216,11 +216,43 @@ namespace IPA.Cores.Basic
             AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
             BuildConfigurationName = GetBuildConfigurationNameInternal();
 
+            // dotnet プロセスによって起動されたプロセスであるか否かを判別
+
+            // .NET Core 2.2 以前は以下の方法で判別できる
             Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
 
             if (Env.IsHostedByDotNetProcess)
             {
                 Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
+            }
+            else
+            {
+                // .NET Core 3.0 以降はスタンドアロンプロセスモードでも起動できるようになった
+                // この場合は、
+                // 1. DOTNET_ROOT 環境変数にディレクトリ名が入っていること
+                // 2. DOTNET_ROOT 環境変数 + "\dotnet" というファイル (dotnet の実行可能ファイルである) が存在すること
+                // で判定を行なう
+                // (Windows ではこの方法で判別ができない)
+
+                if (IsUnix)
+                {
+                    string dotNetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+
+                    if (dotNetRoot._IsFilled())
+                    {
+                        if (Directory.Exists(dotNetRoot))
+                        {
+                            string dotnetExeName = Path.Combine(dotNetRoot, "dotnet");
+
+                            if (File.Exists(dotnetExeName))
+                            {
+                                // 判定成功
+                                Env.IsHostedByDotNetProcess = true;
+                                Env.DotNetHostProcessExeName = dotnetExeName;
+                            }
+                        }
+                    }
+                }
             }
 
             // DNS ホスト名とドメイン名の取得

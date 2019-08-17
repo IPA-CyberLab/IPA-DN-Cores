@@ -773,7 +773,7 @@ namespace IPA.Cores.Basic
                             string body = CoresRes["CoresInternal/190714_run_daemon.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
                             string fn = Env.AppLocalDir._CombinePath("daemon_helper", "run_daemon.sh");
                             Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
-
+                            
                             arguments = $"bash \"{fn}\" \"{arguments}\"";
                         }
                         else
