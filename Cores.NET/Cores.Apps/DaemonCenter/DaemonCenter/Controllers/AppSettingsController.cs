@@ -34,7 +34,6 @@ namespace DaemonCenter.Controllers
         [Authorize]
         public IActionResult _new()
         {
-            $"username = {this.HttpContext.User?.Identity?.Name}"._Print();
             return View();
         }
 

@@ -6242,6 +6242,92 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ResultAndError<T>
+    {
+        readonly T ResultInternal = default;
+        readonly bool IsErrorInternal = false;
+
+        public T Value
+        {
+            get
+            {
+                return this.ResultInternal;
+            }
+        }
+
+        public bool IsError => IsErrorInternal;
+        public bool IsOk => (!IsError);
+
+        public ResultAndError(T result, bool ok)
+        {
+            this.ResultInternal = result;
+            this.IsErrorInternal = !ok;
+        }
+
+        public void ThrowIfError()
+        {
+            if (IsErrorInternal) throw new ApplicationException("ResultAndError: Error was occured.");
+        }
+
+        public static implicit operator ResultAndError<T>(bool boolValue)
+        {
+            if (boolValue != false) throw new ArgumentException($"{nameof(boolValue)} must be false.");
+
+            return new ResultAndError<T>(default, false);
+        }
+
+        public static implicit operator T(ResultAndError<T> resultOrException) => resultOrException.Value;
+
+        public static implicit operator bool(ResultAndError<T> resultOrException) => resultOrException.IsOk;
+    }
+
+    public class ResultOrError<T>
+    {
+        readonly T ResultInternal = default;
+        readonly bool IsErrorInternal = false;
+
+        public T Value
+        {
+            get
+            {
+                if (IsErrorInternal) throw new ApplicationException("ResultOrError: Error was occured.");
+                return this.ResultInternal;
+            }
+        }
+
+        public bool IsError => IsErrorInternal;
+        public bool IsOk => (!IsError);
+
+        public ResultOrError(T result)
+        {
+            this.ResultInternal = result;
+            this.IsErrorInternal = false;
+        }
+
+        public ResultOrError(EnsureError error)
+        {
+            this.ResultInternal = default;
+            this.IsErrorInternal = true;
+        }
+
+        public void ThrowIfError()
+        {
+            if (IsErrorInternal) throw new ApplicationException("ResultOrError: Error was occured.");
+        }
+
+        public static implicit operator ResultOrError<T>(T result) => new ResultOrError<T>(result);
+        public static implicit operator ResultOrError<T>(bool boolValue)
+        {
+            if (boolValue != false) throw new ArgumentException($"{nameof(boolValue)} must be false.");
+
+            return new ResultOrError<T>(EnsureError.Error);
+        }
+
+        public static implicit operator T(ResultOrError<T> resultOrException) => resultOrException.Value;
+
+        public static implicit operator bool(ResultOrError<T> resultOrException) => resultOrException.IsOk;
+    }
+
     public class ResultOrExeption<T>
     {
         readonly T ResultInternal = default;
@@ -6322,6 +6408,12 @@ namespace IPA.Cores.Basic
     public enum EnsureInternal
     {
         Yes = 0,
+    }
+
+    [Flags]
+    public enum EnsureError
+    {
+        Error = 0,
     }
 
     [Flags]

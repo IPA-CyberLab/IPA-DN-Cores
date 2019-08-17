@@ -80,6 +80,9 @@ namespace IPA.Cores.Basic
         public string AuthUserName;
         public string AuthType;
 
+        public bool? BasicAuthResult;
+        public string BasicAuthUserName;
+
         public int ResponseCode;
         public int ProcessTimeMsecs;
 

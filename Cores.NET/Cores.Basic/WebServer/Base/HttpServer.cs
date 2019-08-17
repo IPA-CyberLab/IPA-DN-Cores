@@ -181,54 +181,59 @@ namespace IPA.Cores.Basic
 
             services.AddRouting();
 
-
-            if (ServerOptions.RequireBasicAuthenticationToAllRequests)
-            {
-                services.AddAuthorization(options =>
-                {
-                    options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
-                });
-            }
-
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
-                // Simple BASIC authentication
-                services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
-                    .AddBasic(options =>
-                    {
-                        options.AllowInsecureProtocol = true;
-                        options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
-
-                        options.Events = new BasicAuthEvents
-                        {
-                            OnValidateCredentials = async (context) =>
-                            {
-                                if (await this.SimpleBasicAuthenticationPasswordValidator(context.Username, context.Password))
-                                {
-                                    var claims = new[]
-                                    {
-                                    new Claim(
-                                        ClaimTypes.NameIdentifier,
-                                        context.Username,
-                                        ClaimValueTypes.String,
-                                        context.Options.ClaimsIssuer),
-
-                                    new Claim(
-                                        ClaimTypes.Name,
-                                        context.Username,
-                                        ClaimValueTypes.String,
-                                        context.Options.ClaimsIssuer)
-                                    };
-
-                                    context.Principal = new ClaimsPrincipal(
-                                        new ClaimsIdentity(claims, context.Scheme.Name));
-
-                                    context.Success();
-                                }
-                            }
-                        };
-                    });
+                // Basic 認証の追加
+                services.AddBasicAuth(opt => opt.PasswordValidatorAsync = this.SimpleBasicAuthenticationPasswordValidator);
             }
+
+        //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+        //    {
+        //        services.AddAuthorization(options =>
+        //        {
+        //            options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
+        //        });
+        //    }
+
+        //    if (ServerOptions.UseSimpleBasicAuthentication)
+        //    {
+        //        // Simple BASIC authentication
+        //        services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
+        //            .AddBasic(options =>
+        //            {
+        //                options.AllowInsecureProtocol = true;
+        //                options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
+
+        //                options.Events = new BasicAuthEvents
+        //                {
+        //                    OnValidateCredentials = async (context) =>
+        //                    {
+        //                        if (await this.SimpleBasicAuthenticationPasswordValidator(context.Username, context.Password))
+        //                        {
+        //                            var claims = new[]
+        //                            {
+        //                            new Claim(
+        //                                ClaimTypes.NameIdentifier,
+        //                                context.Username,
+        //                                ClaimValueTypes.String,
+        //                                context.Options.ClaimsIssuer),
+
+        //                            new Claim(
+        //                                ClaimTypes.Name,
+        //                                context.Username,
+        //                                ClaimValueTypes.String,
+        //                                context.Options.ClaimsIssuer)
+        //                            };
+
+        //                            context.Principal = new ClaimsPrincipal(
+        //                                new ClaimsIdentity(claims, context.Scheme.Name));
+
+        //                            context.Success();
+        //                        }
+        //                    }
+        //                };
+        //            });
+        //    }
         }
 
         public void AddStaticFileProvider(string physicalDirectoryPath)
@@ -290,26 +295,33 @@ namespace IPA.Cores.Basic
                 });
             }
 
+            //if (ServerOptions.UseSimpleBasicAuthentication)
+            //{
+            //    // Simple Basic Authentication
+            //    app.UseAuthentication();
+
+            //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+            //    {
+            //        app.Use(async (context, next) =>
+            //        {
+            //            AuthorizationResult allowed = await context.RequestServices.GetRequiredService<IAuthorizationService>().AuthorizeAsync(context.User, null, nameof(HttpServerAnyAuthenticationRequired));
+            //            if (allowed.Succeeded)
+            //            {
+            //                await next();
+            //            }
+            //            else
+            //            {
+            //                await context.RequestServices.GetRequiredService<IAuthenticationService>().ChallengeAsync(context, BasicAuthDefaults.AuthenticationScheme, new AuthenticationProperties());
+            //            }
+            //        });
+            //    }
+            //}
+
+
             if (ServerOptions.UseSimpleBasicAuthentication)
             {
-                // Simple Basic Authentication
-                app.UseAuthentication();
-
-                if (ServerOptions.RequireBasicAuthenticationToAllRequests)
-                {
-                    app.Use(async (context, next) =>
-                    {
-                        AuthorizationResult allowed = await context.RequestServices.GetRequiredService<IAuthorizationService>().AuthorizeAsync(context.User, null, nameof(HttpServerAnyAuthenticationRequired));
-                        if (allowed.Succeeded)
-                        {
-                            await next();
-                        }
-                        else
-                        {
-                            await context.RequestServices.GetRequiredService<IAuthenticationService>().ChallengeAsync(context, BasicAuthDefaults.AuthenticationScheme, new AuthenticationProperties());
-                        }
-                    });
-                }
+                // Basic 認証の実施
+                app.UseBasicAuth();
             }
 
             if (ServerOptions.UseStaticFiles)
@@ -421,8 +433,6 @@ namespace IPA.Cores.Basic
         public bool UseStaticFiles { get; set; } = true;
         public bool ShowDetailError { get; set; } = true;
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
-
-        public bool RequireBasicAuthenticationToAllRequests { get; set; } = false;
 
         public bool UseSimpleBasicAuthentication { get; set; } = false;
         public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;

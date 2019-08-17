@@ -90,7 +90,6 @@ namespace IPA.Cores.Basic
                         UseSimpleBasicAuthentication = false,
                         HttpPortsList = httpPort._SingleList(),
                         HttpsPortsList = httpsPort._SingleList(),
-                        RequireBasicAuthenticationToAllRequests = false, // Disable Basic Auth
                         DebugKestrelToConsole = false,
                         UseKestrelWithIPACoreStack = true,
                         AutomaticRedirectToHttpsIfPossible = false,

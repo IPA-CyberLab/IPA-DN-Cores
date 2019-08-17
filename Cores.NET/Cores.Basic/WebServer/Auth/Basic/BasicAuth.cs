@@ -61,347 +61,96 @@ using System.Text.Encodings.Web;
 using System.Text;
 using Microsoft.Net.Http.Headers;
 
-// Copied from: https://github.com/blowdart/idunno.Authentication/tree/0cee3a0a3e24b1f9c5ea9d022d7aeb055aa43a18/
-// 
-// Copyright (c) Barry Dorrans. All rights reserved.
-// 
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-//﻿ Copyright 2017 Barry Dorrans.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 namespace IPA.Cores.Basic
 {
-    /// <summary>
-    /// Default values related to basic authentication middleware
-    /// </summary>
-    public static class BasicAuthDefaults
+    public static class BasicAuthHelper
     {
-        /// <summary>
-        /// The default value used for BasicAuthenticationOptions.AuthenticationScheme
-        /// </summary>
-        public const string AuthenticationScheme = "Basic";
-    }
-
-    /// <summary>
-    /// Extension methods to add Basic authentication capabilities to an HTTP application pipeline.
-    /// </summary>
-    public static class BasicAuthAppBuilderExtensions
-    {
-        public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder)
-            => builder.AddBasic(BasicAuthDefaults.AuthenticationScheme);
-
-        public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder, string authenticationScheme)
-            => builder.AddBasic(authenticationScheme, configureOptions: null);
-
-        public static AuthenticationBuilder AddBasic(this AuthenticationBuilder builder, Action<BasicAuthOptions> configureOptions)
-            => builder.AddBasic(BasicAuthDefaults.AuthenticationScheme, configureOptions);
-
-        public static AuthenticationBuilder AddBasic(
-            this AuthenticationBuilder builder,
-            string authenticationScheme,
-            Action<BasicAuthOptions> configureOptions)
+        public static IServiceCollection AddBasicAuth(this IServiceCollection services, Action<BasicAuthSettings> configureOptions)
         {
-            return builder.AddScheme<BasicAuthOptions, BasicAuthHandler>(authenticationScheme, configureOptions);
+            if (services == null) throw new ArgumentNullException(nameof(services));
+            if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
+
+            services.Configure(configureOptions);
+
+            return services;
+        }
+
+        public static IApplicationBuilder UseBasicAuth(this IApplicationBuilder app)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+
+            app.UseMiddleware<BasicAuthMiddleware>();
+
+            return app;
         }
     }
 
-    public class BasicAuthHandler : AuthenticationHandler<BasicAuthOptions>
+    public class BasicAuthSettings
     {
-        private const string _Scheme = "Basic";
+        public Func<string, string, Task<bool>> PasswordValidatorAsync = (user, pass) => Task.FromResult(false);
+        public string Realm = "Basic Authentication";
+    }
 
-        public BasicAuthHandler(
-            IOptionsMonitor<BasicAuthOptions> options,
-            ILoggerFactory logger,
-            UrlEncoder encoder,
-            ISystemClock clock) : base(options, logger, encoder, clock)
+    public class BasicAuthMiddleware
+    {
+        public static readonly string BasicAuthResultItemName = Str.NewGuid();
+
+        readonly RequestDelegate Next;
+        public BasicAuthSettings Settings { get; }
+
+        public BasicAuthMiddleware(RequestDelegate next, IOptions<BasicAuthSettings> options)
         {
+            Next = next ?? throw new ArgumentNullException(nameof(next));
+
+            this.Settings = options.Value;
         }
 
-        /// <summary>
-        /// The handler calls methods on the events which give the application control at certain points where processing is occurring.
-        /// If it is not provided a default instance is supplied which does nothing when the methods are called.
-        /// </summary>
-        protected new BasicAuthEvents Events
+        public async Task Invoke(HttpContext context)
         {
-            get { return (BasicAuthEvents)base.Events; }
-            set { base.Events = value; }
-        }
+            ResultAndError<string> result = await DoAuthenticateInternalAsync(context);
 
-        protected override Task<object> CreateEventsAsync() => Task.FromResult<object>(new BasicAuthEvents());
+            context.Items[BasicAuthResultItemName] = result;
 
-        /// <summary>
-        /// Creates a new instance of the events instance.
-        /// </summary>
-        /// <returns>A new instance of the events instance.</returns>
-        //protected override Task<object> CreateEventsAsync() => Task.FromResult<object>(new BasicAuthenticationEvents());
-
-        protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
-        {
-            string authorizationHeader = Request.Headers["Authorization"];
-            if (string.IsNullOrEmpty(authorizationHeader))
+            if (result == false)
             {
-                return AuthenticateResult.NoResult();
-            }
+                // 認証失敗
+                string header = $"Basic realm=\"{Settings.Realm._FilledOrDefault("Auth")}\'";
 
-            if (!authorizationHeader.StartsWith(_Scheme + ' ', StringComparison.OrdinalIgnoreCase))
-            {
-                return AuthenticateResult.NoResult();
-            }
-
-            string encodedCredentials = authorizationHeader.Substring(_Scheme.Length).Trim();
-
-            if (string.IsNullOrEmpty(encodedCredentials))
-            {
-                const string noCredentialsMessage = "No credentials";
-                Logger.LogInformation(noCredentialsMessage);
-                return AuthenticateResult.Fail(noCredentialsMessage);
-            }
-
-            try
-            {
-                string decodedCredentials = string.Empty;
-                try
-                {
-                    decodedCredentials = Encoding.UTF8.GetString(Convert.FromBase64String(encodedCredentials));
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Failed to decode credentials : {encodedCredentials}", ex);
-                }
-
-                var delimiterIndex = decodedCredentials.IndexOf(':');
-                if (delimiterIndex == -1)
-                {
-                    const string missingDelimiterMessage = "Invalid credentials, missing delimiter.";
-                    Logger.LogInformation(missingDelimiterMessage);
-                    return AuthenticateResult.Fail(missingDelimiterMessage);
-                }
-
-                var username = decodedCredentials.Substring(0, delimiterIndex);
-                var password = decodedCredentials.Substring(delimiterIndex + 1);
-
-                var validateCredentialsContext = new BasicAuthValidateCredentialsContext(Context, Scheme, Options)
-                {
-                    Username = username,
-                    Password = password
-                };
-
-                await Events.ValidateCredentials(validateCredentialsContext);
-
-                if (validateCredentialsContext.Result != null &&
-                    validateCredentialsContext.Result.Succeeded)
-                {
-                    var ticket = new AuthenticationTicket(validateCredentialsContext.Principal, Scheme.Name);
-                    return AuthenticateResult.Success(ticket);
-                }
-
-                if (validateCredentialsContext.Result != null &&
-                    validateCredentialsContext.Result.Failure != null)
-                {
-                    return AuthenticateResult.Fail(validateCredentialsContext.Result.Failure);
-                }
-
-                return AuthenticateResult.NoResult();
-            }
-            catch (Exception ex)
-            {
-                var authenticationFailedContext = new BasicAuthFailedContext(Context, Scheme, Options)
-                {
-                    Exception = ex
-                };
-
-                await Events.AuthenticationFailed(authenticationFailedContext);
-
-                if (authenticationFailedContext.Result != null)
-                {
-                    return authenticationFailedContext.Result;
-                }
-
-                throw;
-            }
-        }
-
-        protected override Task HandleChallengeAsync(AuthenticationProperties properties)
-        {
-            if (!Request.IsHttps && !Options.AllowInsecureProtocol)
-            {
-                const string insecureProtocolMessage = "Request is HTTP, Basic Authentication will not respond.";
-                Logger.LogInformation(insecureProtocolMessage);
-                Response.StatusCode = 500;
-                var encodedResponseText = Encoding.UTF8.GetBytes(insecureProtocolMessage);
-                Response.Body.Write(encodedResponseText, 0, encodedResponseText.Length);
+                context.Response.StatusCode = 401;
+                context.Response.Headers.Append(HeaderNames.WWWAuthenticate, header);
             }
             else
             {
-                Response.StatusCode = 401;
-
-                var headerValue = _Scheme + $" realm=\"{Options.Realm}\"";
-                Response.Headers.Append(HeaderNames.WWWAuthenticate, headerValue);
-            }
-
-            return Task.CompletedTask;
-        }
-    }
-
-    /// <summary>
-    /// Contains the options used by the BasicAuthenticationMiddleware
-    /// </summary>
-    /// <summary>
-    /// Contains the options used by the BasicAuthenticationMiddleware
-    /// </summary>
-    public class BasicAuthOptions : AuthenticationSchemeOptions
-    {
-        private string _realm;
-
-        /// <summary>
-        /// Create an instance of the options initialized with the default values
-        /// </summary>
-        public BasicAuthOptions()
-        {
-        }
-
-        /// <summary>
-        /// Gets or sets the Realm sent in the WWW-Authenticate header.
-        /// </summary>
-        /// <remarks>
-        /// The realm value (case-sensitive), in combination with the canonical root URL
-        /// of the server being accessed, defines the protection space.
-        /// These realms allow the protected resources on a server to be partitioned into a
-        /// set of protection spaces, each with its own authentication scheme and/or
-        /// authorization database.
-        /// </remarks>
-        public string Realm
-        {
-            get
-            {
-                return _realm;
-            }
-
-            set
-            {
-                if (!string.IsNullOrEmpty(value) && !IsAscii(value))
-                {
-                    throw new ArgumentException("Realm must be US ASCII");
-                }
-
-                _realm = value;
+                // 認証成功
+                await Next(context);
             }
         }
 
-        /// <summary>
-        /// Gets or sets a flag indicating if the handler will prompt for authentication on HTTP requests.
-        /// </summary>
-        /// <remarks>
-        /// If you set this to true you're a horrible person.
-        /// </remarks>
-        public bool AllowInsecureProtocol
+        async Task<ResultAndError<string>> DoAuthenticateInternalAsync(HttpContext context)
         {
-            get; set;
+            string header = context.Request.Headers["Authorization"];
+
+            if (header._IsEmpty()) return false;
+
+            if (Str.GetKeyAndValue(header, out string scheme, out string base64, " \t") == false)
+                return false;
+
+            if (scheme._IsSamei("Basic") == false) return false;
+
+            if (base64._IsEmpty()) return false;
+
+            base64 = base64._NonNullTrim();
+
+            // Base64 デコード
+            string usernameAndPassword = base64._Base64Decode()._GetString_UTF8();
+
+            if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":") == false) return false;
+
+            // ユーザー認証を実施
+            bool ok = await Settings.PasswordValidatorAsync(username, password);
+
+            return new ResultAndError<string>(username, ok);
         }
-
-        /// <summary>
-        /// The object provided by the application to process events raised by the basic authentication middleware.
-        /// The application may implement the interface fully, or it may create an instance of BasicAuthenticationEvents
-        /// and assign delegates only to the events it wants to process.
-        /// </summary>
-        public new BasicAuthEvents Events
-
-        {
-            get { return (BasicAuthEvents)base.Events; }
-
-            set { base.Events = value; }
-        }
-
-
-        private static bool IsAscii(string input)
-        {
-            foreach (char c in input)
-            {
-                if (c < 32 || c >= 127)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
-    public class BasicAuthValidateCredentialsContext : ResultContext<BasicAuthOptions>
-    {
-        /// <summary>
-        /// Creates a new instance of <see cref="BasicAuthValidateCredentialsContext"/>.
-        /// </summary>
-        /// <param name="context">The HttpContext the validate context applies too.</param>
-        /// <param name="scheme">The scheme used when the Basic Authentication handler was registered.</param>
-        /// <param name="options">The <see cref="BasicAuthOptions"/> for the instance of
-        /// <see cref="BasicAuthenticationMiddleware"/> creating this instance.</param>
-        /// <param name="ticket">Contains the intial values for the identit.</param>
-        public BasicAuthValidateCredentialsContext(
-            HttpContext context,
-            AuthenticationScheme scheme,
-            BasicAuthOptions options)
-            : base(context, scheme, options)
-        {
-        }
-
-        /// <summary>
-        /// The user name to validate.
-        /// </summary>
-        public string Username { get; set; }
-
-        /// <summary>
-        /// The password to validate.
-        /// </summary>
-        public string Password { get; set; }
-    }
-
-    public class BasicAuthFailedContext : ResultContext<BasicAuthOptions>
-    {
-        public BasicAuthFailedContext(
-            HttpContext context,
-            AuthenticationScheme scheme,
-            BasicAuthOptions options)
-            : base(context, scheme, options)
-        {
-        }
-
-        public Exception Exception { get; set; }
-    }
-
-    /// <summary>
-    /// This default implementation of the IBasicAuthenticationEvents may be used if the
-    /// application only needs to override a few of the interface methods.
-    /// This may be used as a base class or may be instantiated directly.
-    /// </summary>
-    public class BasicAuthEvents
-    {
-        /// <summary>
-        /// A delegate assigned to this property will be invoked when the authentication fails.
-        /// </summary>
-        public Func<BasicAuthFailedContext, Task> OnAuthenticationFailed { get; set; } = context => Task.CompletedTask;
-
-        /// <summary>
-        /// A delegate assigned to this property will be invoked when the credentials need validation.
-        /// </summary>
-        /// <remarks>
-        /// You must provide a delegate for this property for authentication to occur.
-        /// In your delegate you should construct an authentication principal from the user details,
-        /// attach it to the context.Principal property and finally call context.Success();
-        /// </remarks>
-        public Func<BasicAuthValidateCredentialsContext, Task> OnValidateCredentials { get; set; } = context => Task.CompletedTask;
-
-        public virtual Task AuthenticationFailed(BasicAuthFailedContext context) => OnAuthenticationFailed(context);
-
-        public virtual Task ValidateCredentials(BasicAuthValidateCredentialsContext context) => OnValidateCredentials(context);
     }
 }
 

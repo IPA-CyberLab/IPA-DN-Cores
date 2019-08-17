@@ -684,6 +684,15 @@ namespace IPA.Cores.Basic
                 log.AuthUserName = log.AuthUserName._NullIfEmpty();
                 log.QueryString = log.QueryString._NullIfEmpty();
 
+                if (context.Items.TryGetValue(BasicAuthMiddleware.BasicAuthResultItemName, out object basicAuthResultObj))
+                {
+                    if (basicAuthResultObj is ResultAndError<string> basicAuthRet)
+                    {
+                        log.BasicAuthResult = basicAuthRet.IsOk;
+                        log.BasicAuthUserName = basicAuthRet.Value;
+                    }
+                }
+
                 if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
                     log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
 

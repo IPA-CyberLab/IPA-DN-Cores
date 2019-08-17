@@ -119,7 +119,6 @@ namespace IPA.Cores.Basic
                         UseSimpleBasicAuthentication = true,
                         HttpPortsList = Str.ParsePortsList(httpPortsStr).ToList(),
                         HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
-                        RequireBasicAuthenticationToAllRequests = true,
                         DebugKestrelToConsole = true,
                         UseKestrelWithIPACoreStack = true,
                         AutomaticRedirectToHttpsIfPossible = true,
