@@ -64,6 +64,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
 
 namespace IPA.Cores.Basic
 {
@@ -251,7 +252,7 @@ namespace IPA.Cores.Basic
                 provider._DoForEach(x => AddStaticFileProvider(x));
         }
 
-        public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
@@ -379,9 +380,9 @@ namespace IPA.Cores.Basic
         public object Param => Helper.Param;
         public CancellationToken CancelToken => Helper.CancelToken;
 
-        protected abstract void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
+        protected abstract void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime);
 
-        protected abstract void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime);
+        protected abstract void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime);
 
         public HttpServerStartupBase(IConfiguration configuration)
         {
@@ -395,7 +396,7 @@ namespace IPA.Cores.Basic
             Helper.ConfigureServices(services);
         }
 
-        public virtual void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
             ConfigureImpl_BeforeHelper(Helper.StartupConfig, app, env, lifetime);
 

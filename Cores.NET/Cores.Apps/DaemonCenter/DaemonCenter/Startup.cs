@@ -19,6 +19,7 @@ using static IPA.Cores.Globals.Codes;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
+using Microsoft.Extensions.Hosting;
 
 namespace DaemonCenter
 {
@@ -69,7 +70,7 @@ namespace DaemonCenter
             services.AddScoped<PageContext>();
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime, Server server)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, Server server)
         {
             // リクエスト数制限
             app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();

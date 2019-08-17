@@ -80,7 +80,7 @@ namespace IPA.Cores.Codes
         {
         }
 
-        public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
         {
             // Embedded resource of the assembly
             helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/wwwroot/"));
