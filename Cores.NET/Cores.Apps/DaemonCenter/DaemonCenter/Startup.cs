@@ -61,7 +61,7 @@ namespace DaemonCenter
             EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
             EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
 
-            services.AddMvc()
+            services.AddControllersWithViews()
                 .AddViewOptions(opt =>
                 {
                     opt.HtmlHelperOptions.ClientValidationEnabled = false;
@@ -70,12 +70,11 @@ namespace DaemonCenter
                 {
                     AspNetLib.ConfigureRazorOptions(opt);
                 })
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-
-            services.Configure<MvcRazorRuntimeCompilationOptions>(opt =>
-            {
-                AspNetLib.ConfigureRazorOptions(opt);
-            });
+                .AddRazorRuntimeCompilation(opt =>
+                {
+                    AspNetLib.ConfigureRazorRuntimeCompilationOptions(opt);
+                })
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
 
             services.AddSingleton(new Server());
 
@@ -85,6 +84,7 @@ namespace DaemonCenter
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime, Server server)
         {
+
             // リクエスト数制限
             app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
 
@@ -104,7 +104,7 @@ namespace DaemonCenter
             }
             else
             {
-                app.UseExceptionHandler("/Home/Error");
+                app.UseExceptionHandler("/App/Error");
             }
 
             app.UseHttpExceptionLogger();
@@ -113,12 +113,15 @@ namespace DaemonCenter
             //app.UseCookiePolicy();
 
             server.RegisterRoutesToHttpServer(app, "/rpc");
+            //app.UseAuthorization();
+            app.UseRouting();
 
-            app.UseMvc(routes =>
+            app.UseEndpoints(endpoints =>
             {
-                routes.MapRoute(
+                endpoints.MapControllerRoute(
                     name: "default",
-                    template: "{controller=App}/{action=Index}/{id?}/{id2?}");
+                    pattern: "{controller=App}/{action=Index}/{id?}/{id2?}")
+                .RequireAuthorization();
             });
 
             lifetime.ApplicationStopping.Register(() =>

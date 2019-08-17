@@ -91,7 +91,7 @@ namespace IPA.Cores.Codes
             opt.ViewLocationFormats.Add("/AspNet.Cores/Views/{1}/{0}.cshtml");
         }
 
-        public void ConfigureRazorOptions(MvcRazorRuntimeCompilationOptions opt)
+        public void ConfigureRazorRuntimeCompilationOptions(MvcRazorRuntimeCompilationOptions opt)
         {
             if (AspNetLib.LibRootFullPath._IsFilled())
             {

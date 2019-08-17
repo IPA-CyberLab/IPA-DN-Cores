@@ -77,16 +77,22 @@ namespace IPA.Cores.Codes
                 .AddCookie(opt =>
                 {
                     opt.Cookie.Name = CookieNameBase + (allowHttp ? "_http_ok" : "");
-                    opt.Cookie.Expiration = CookieLifetime.Value;
+                    opt.ExpireTimeSpan = CookieLifetime.Value;
                     opt.Cookie.SecurePolicy = allowHttp ? CookieSecurePolicy.None : CookiePolicy.Value;
                     opt.LoginPath = LoginPath.Value;
                     opt.SlidingExpiration = true;
                 });
+
+            //services.AddAuthorization(opt =>
+            //{
+            //});
         }
 
         public static void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             app.UseAuthentication();
+            app.UseAuthorization();
+
         }
     }
 
