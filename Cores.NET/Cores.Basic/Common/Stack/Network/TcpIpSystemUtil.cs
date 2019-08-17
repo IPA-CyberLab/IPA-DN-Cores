@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
 
             if (hostInfo.IsIPv4Supported)
             {
-                AddAttempt(new Attempt(system,new TcpConnectParam(basicParam.DestHostname, basicParam.DestPort, AddressFamily.InterNetwork,
+                AddAttempt(new Attempt(system, new TcpConnectParam(basicParam.DestHostname, basicParam.DestPort, AddressFamily.InterNetwork,
                     connectTimeout: basicParam.ConnectTimeout, dnsTimeout: basicParam.DnsTimeout), 0));
             }
 
@@ -278,6 +278,118 @@ namespace IPA.Cores.Basic
         }
         public static SslSock SslStartClient(this ConnSock baseSock, PalSslClientAuthenticationOptions sslOptions, CancellationToken cancel = default)
             => SslStartClientAsync(baseSock, sslOptions, cancel)._GetResult();
+    }
+
+    public class GenericAcceptQueueUtil<TSocket> : AsyncService
+        where TSocket : AsyncService
+    {
+        readonly CriticalSection Lock = new CriticalSection();
+        readonly Queue<SocketEntry> AcceptedQueue = new Queue<SocketEntry>();
+        readonly AsyncAutoResetEvent AcceptedEvent = new AsyncAutoResetEvent();
+
+        class SocketEntry
+        {
+            public TSocket Socket { get; }
+            public AsyncManualResetEvent DisconnectedEvent { get; }
+
+            public SocketEntry(TSocket sock)
+            {
+                this.Socket = sock;
+                this.DisconnectedEvent = new AsyncManualResetEvent();
+
+                // この Socket がユーザーによって Dispose されたときにイベントを発生させる
+                this.Socket.AddOnDisposeAction(() =>
+                {
+                    this.DisconnectedEvent.Set(true);
+                });
+            }
+        }
+
+        public int BackLog { get; }
+
+        public GenericAcceptQueueUtil(int backLog = 512)
+        {
+            backLog._SetMax(1);
+            this.BackLog = backLog;
+        }
+
+        // 新しいソケットをキューに入れてから、ソケットが切断されるまで待機する
+        public async Task<bool> InjectAndWaitAsync(TSocket newSocket)
+        {
+            if (newSocket == null) return false;
+
+            SocketEntry sockEntry = null;
+
+            lock (Lock)
+            {
+                if (AcceptedQueue.Count >= this.BackLog)
+                {
+                    // バックログがいっぱいです
+                    Dbg.Where($"Backlog exceeded: {AcceptedQueue.Count} >= {this.BackLog}");
+                    return false;
+                }
+
+                if (this.IsCanceled)
+                {
+                    // 終了されようとしている
+                    return false;
+                }
+
+                AcceptedQueue.Enqueue(sockEntry = new SocketEntry(newSocket));
+            }
+
+            AcceptedEvent.Set();
+
+            if (sockEntry.Socket.IsDisposed)
+            {
+                // すでに Dispose されていた
+                return false;
+            }
+
+            // このソケットがユーザーによって Dispose されるまでの間待機する
+            await sockEntry.DisconnectedEvent.WaitAsync();
+
+            return true;
+        }
+
+        // 新しいソケットがキューに入るまで待機し、キューに入ったらこれを Accept する
+        public async Task<TSocket> AcceptAsync(CancellationToken cancel = default)
+        {
+            LABEL_RETRY:
+
+            SocketEntry sockEntry = null;
+
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+                this.GrandCancel.ThrowIfCancellationRequested();
+
+                lock (Lock)
+                {
+                    if (this.AcceptedQueue.TryDequeue(out sockEntry))
+                    {
+                        break;
+                    }
+                }
+
+                cancel.ThrowIfCancellationRequested();
+                this.GrandCancel.ThrowIfCancellationRequested();
+
+                using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
+                {
+                    await AcceptedEvent.WaitOneAsync(cancel: cancel2);
+                }
+            }
+
+            if (sockEntry.Socket.IsDisposed)
+            {
+                // すでに Dispose されていた
+                sockEntry.DisconnectedEvent.Set(true);
+                goto LABEL_RETRY;
+            }
+
+            return sockEntry.Socket;
+        }
     }
 }
 
