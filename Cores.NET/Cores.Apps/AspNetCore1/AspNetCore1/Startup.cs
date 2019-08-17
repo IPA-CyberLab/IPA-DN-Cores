@@ -16,6 +16,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
+using Microsoft.Extensions.Hosting;
 
 namespace AspNetCore1
 {
@@ -38,45 +39,50 @@ namespace AspNetCore1
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // AspNetLib による設定を追加
             AspNetLib.ConfigureServices(StartupHelper, services);
 
+            // 基本的な設定を追加
             StartupHelper.ConfigureServices(services);
 
-            services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(opt =>
-            {
-            });
+            // リクエスト数制限機能を追加
+            services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(_ => { });
 
-            //services.Configure<CookiePolicyOptions>(options =>
-            //{
-            //    // This lambda determines whether user consent for non-essential cookies is needed for a given request.
-            //    options.CheckConsentNeeded = context => true;
-            //    options.MinimumSameSitePolicy = SameSiteMode.None;
-            //});
+            ////// Cookie 認証機能を追加
+            //EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
+            //EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
+            //EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
 
-            services.AddMvc()
-                .AddViewOptions(opt =>
-                {
-                    opt.HtmlHelperOptions.ClientValidationEnabled = false;
-                })
-                .AddRazorOptions(opt =>
-                {
-                    AspNetLib.ConfigureRazorOptions(opt);
-                })
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            // MVC 機能を追加
+            services.AddControllersWithViews()
+                .AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
+                .AddRazorOptions(opt => AspNetLib.ConfigureRazorOptions(opt))
+                .AddRazorRuntimeCompilation(opt => AspNetLib.ConfigureRazorRuntimeCompilationOptions(opt))
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+
+            // シングルトンサービスの注入
+            //services.AddSingleton(new Server());
+
+            // 全ページ共通コンテキストの注入
+            //services.AddScoped<PageContext>();
         }
-        
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
+            // リクエスト数制限
             app.UseHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>();
 
-            // wwwroot directory of this project
+            // wwwroot ディレクトリを static ファイルのルートとして追加
             StartupHelper.AddStaticFileProvider(Env.AppRootDir._CombinePath("wwwroot"));
 
+            // AspNetLib による設定を追加
             AspNetLib.Configure(StartupHelper, app, env);
 
+            // 基本的な設定を追加
             StartupHelper.Configure(app, env);
-            
+
+            // エラーページを追加
             if (StartupHelper.IsDevelopmentMode)
             {
                 app.UseDeveloperExceptionPage();
@@ -86,20 +92,32 @@ namespace AspNetCore1
                 app.UseExceptionHandler("/Home/Error");
             }
 
+            // エラーログを追加
             app.UseHttpExceptionLogger();
 
+            // Static ファイルを追加
             app.UseStaticFiles();
-            //app.UseCookiePolicy();
 
-            app.UseMvc(routes =>
+            // ルーティングを有効可 (認証を利用する場合は認証前に呼び出す必要がある)
+            app.UseRouting();
+
+            // 認証・認可を実施
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            // ルートマップを定義
+            app.UseEndpoints(endpoints =>
             {
-                routes.MapRoute(
+                endpoints.MapControllerRoute(
                     name: "default",
-                    template: "{controller=Home}/{action=Index}/{id?}");
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
             });
 
+            // クリーンアップ動作を定義
             lifetime.ApplicationStopping.Register(() =>
             {
+                //server._DisposeSafe();
+
                 AspNetLib._DisposeSafe();
                 StartupHelper._DisposeSafe();
             });
