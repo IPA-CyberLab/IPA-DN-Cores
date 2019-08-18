@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DaemonCenter", "DaemonCente
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Basic", "..\..\Cores.Basic\Cores.Basic.shproj", "{1C674893-7C84-4E7C-834E-6E2370225DA0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cores.Lib.Basic.AspNet3.0.Full", "..\..\Cores.Lib\Cores.Lib.Basic.AspNet3.0.Full\Cores.Lib.Basic.AspNet3.0.Full.csproj", "{DF8D777F-2BF8-467E-88F0-21D4F97E1316}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cores.Web", "..\..\Cores.Web\Cores.Web.csproj", "{DF8D777F-2BF8-467E-88F0-21D4F97E1316}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Codes", "..\..\Cores.Codes\Cores.Codes.shproj", "{1C674893-7C84-4E7A-834E-6E2370225D99}"
 EndProject

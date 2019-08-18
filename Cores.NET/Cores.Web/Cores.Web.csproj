@@ -4,7 +4,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
-    <PackageId>Cores.Lib.DotNet2.1.Full</PackageId>
+    <PackageId>Cores.Web</PackageId>
     <Authors>IPA-CyberLab</Authors>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
@@ -53,14 +53,8 @@
     <!-- Cores.Basic.Security -->
     <PackageReference Include="BouncyCastle.NetCore" Version="1.8.5" Condition="$(DefineConstants.Contains('CORES_BASIC_SECURITY;'))" />
 
-    <!-- Cores.Basic.WebServer -->
-    <!--<PackageReference Include="Microsoft.AspNetCore" Version="2.1.7" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBAPP;'))" />
-    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBAPP;'))" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBAPP;'))" />
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="2.1.1" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBAPP;'))" />-->
-
   </ItemGroup>
 
-  <Import Project="..\..\Cores.Basic\Cores.Basic.projitems" Label="Shared" />
+  <Import Project="..\Cores.Basic\Cores.Basic.projitems" Label="Shared" />
 
 </Project>
