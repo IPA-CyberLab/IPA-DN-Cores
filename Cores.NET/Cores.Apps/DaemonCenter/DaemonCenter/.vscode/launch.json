@@ -13,7 +13,8 @@
             "program": "${workspaceFolder}/bin/Debug/netcoreapp3.0/DaemonCenter.dll",
             "args": ["daemon", "test"],
             "cwd": "${workspaceFolder}",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
             "stopAtEntry": false,
             "justMyCode": false,
             "symbolOptions": {
