@@ -61,8 +61,12 @@ namespace IPA.Cores.Basic
 
         List<IDisposable> DisposeList = new List<IDisposable>();
 
-        public DaemonUtil(CancellationToken cancel = default) : base(cancel)
+        public DaemonUtil(string daemonName, CancellationToken cancel = default) : base(cancel)
         {
+            if (daemonName._IsEmpty()) throw new ArgumentNullException(nameof(daemonName));
+
+            daemonName = daemonName._NonNullTrim();
+
             try
             {
                 // 起動パラメータ
@@ -72,10 +76,10 @@ namespace IPA.Cores.Basic
                 {
                     // Log Browser で利用されるべきポート番号の決定
                     int httpPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
-                    if (httpPort == 0) httpPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_http");
+                    if (httpPort == 0) httpPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_http" + Env.AppRootDir + "@" + daemonName);
 
                     int httpsPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
-                    if (httpsPort == 0) httpsPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_https", excludePorts: httpPort._SingleArray());
+                    if (httpsPort == 0) httpsPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_https" + Env.AppRootDir + "@" + daemonName, excludePorts: httpPort._SingleArray());
 
                     // Log Browser 用の CertVault の作成
                     CertVault certVault = new CertVault(PP.Combine(Env.AppLocalDir, "Config/DaemonUtil_LogBrowser/CertVault"),

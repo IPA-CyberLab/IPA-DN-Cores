@@ -74,6 +74,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string AppId;
         public string HostName;
         public string HostGuid;
+        public string DaemonName;
 
         public void Validate()
         {
@@ -81,6 +82,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             if ((IsEmpty)AppId) throw new ArgumentNullException(nameof(AppId));
             if ((IsEmpty)HostName) throw new ArgumentNullException(nameof(HostName));
             if ((IsEmpty)HostGuid) throw new ArgumentNullException(nameof(HostGuid));
+            if ((IsEmpty)DaemonName) throw new ArgumentNullException(nameof(DaemonName));
         }
     }
 
@@ -248,6 +250,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             InstanceStat stat = new InstanceStat
             {
+                DaemonName = this.Settings.DaemonName,
                 CommitId = this.Variables.CurrentCommitId,
                 InstanceArguments = this.Variables.CurrentInstanceArguments,
                 RuntimeStat = runtimeStat,

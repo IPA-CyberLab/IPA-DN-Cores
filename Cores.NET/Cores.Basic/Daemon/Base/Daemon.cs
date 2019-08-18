@@ -386,7 +386,7 @@ namespace IPA.Cores.Basic
             this.Param = param;
 
             // DaemonSettings を読み込む
-            this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, "DaemonSettings/DaemonSettings", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
+            this.SettingsHive = new HiveData<DaemonSettings>(Hive.SharedLocalConfigHive, $"DaemonSettings/{daemon.Name}", () => this.DefaultDaemonSettings, HiveSyncPolicy.None);
 
             // 現在の Daemon 設定をグローバル変数に適用する
             GlobalDaemonStateManager.SetCurrentDaemonSettings(this.Settings);
@@ -430,7 +430,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (DaemonUtil util = new DaemonUtil())
+                using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
                 {
                     this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -494,7 +494,7 @@ namespace IPA.Cores.Basic
             CurrentRunningService = service;
 
             // DaemonUtil クラスを起動する
-            using (DaemonUtil util = new DaemonUtil())
+            using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
             {
                 // DaemonCenter クライアントを起動する (有効な場合)
                 using (IDisposable client = StartDaemonCenterClientIfEnabled())
@@ -536,6 +536,7 @@ namespace IPA.Cores.Basic
             ClientSettings cs = new ClientSettings
             {
                 AppId = Settings.DaemonCenterAppId,
+                DaemonName = this.Daemon.Name,
                 HostGuid = Settings.DaemonCenterInstanceGuid,
                 HostName = hostData.FqdnHostName,
                 ServerUrl = Settings.DaemonCenterRpcUrl,

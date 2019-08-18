@@ -202,6 +202,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class InstanceStat
     {
+        public string DaemonName;
         public string CommitId;
         public string InstanceArguments;
         public CoresRuntimeStat RuntimeStat;
