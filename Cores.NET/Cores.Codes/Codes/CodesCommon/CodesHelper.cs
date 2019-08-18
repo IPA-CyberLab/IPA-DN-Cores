@@ -56,10 +56,12 @@ using static IPA.Cores.Globals.Codes;
 
 namespace IPA.Cores.Codes
 {
+    public static class _Dummy1 { }
 }
 
 namespace IPA.Cores.Helper.Codes
 {
+    public static class _Dummy2 { }
 }
 
 namespace IPA.Cores.Globals

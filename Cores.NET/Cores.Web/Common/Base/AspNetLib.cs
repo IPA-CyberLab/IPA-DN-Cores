@@ -30,8 +30,6 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if  CORES_CODES_ASPNETMVC
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -51,29 +49,29 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
-using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Web
 {
     public class AspNetLib : IDisposable
     {
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresCodes);
+        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb);
 
         public AspNetLib(IConfiguration configuration)
         {
         }
 
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
-            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresCodes)));
+            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)));
 
 
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
@@ -83,7 +81,7 @@ namespace IPA.Cores.Codes
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
         {
             // Embedded resource of the assembly
-            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/wwwroot/"));
+            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/"));
         }
 
         public void ConfigureRazorOptions(RazorViewEngineOptions opt)
@@ -108,5 +106,3 @@ namespace IPA.Cores.Codes
         }
     }
 }
-
-#endif

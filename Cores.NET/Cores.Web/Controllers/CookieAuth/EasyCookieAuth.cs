@@ -30,8 +30,6 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if  CORES_CODES_ASPNETMVC
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -54,11 +52,11 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Web
 {
     public static class EasyCookieAuth
     {
@@ -168,5 +166,3 @@ namespace IPA.Cores.Codes
         }
     }
 }
-
-#endif

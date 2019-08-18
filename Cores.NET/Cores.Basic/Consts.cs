@@ -174,6 +174,7 @@ namespace IPA.Cores.Basic
             public const string RootMarker_Resource = "resource_root";
             public const string RootMarker_Library_CoresBasic = "cores_basic_root";
             public const string RootMarker_Library_CoresCodes = "cores_codes_root";
+            public const string RootMarker_Library_CoresWeb = "cores_web_root";
         }
 
         public static partial class Extensions

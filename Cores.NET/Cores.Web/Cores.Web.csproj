@@ -24,6 +24,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="wwwroot/**/*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Cores.Basic.Common -->
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.6.0-preview8.19405.3" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="4.6.0-preview8.19405.3" />
@@ -52,6 +56,9 @@
 
     <!-- Cores.Basic.Security -->
     <PackageReference Include="BouncyCastle.NetCore" Version="1.8.5" Condition="$(DefineConstants.Contains('CORES_BASIC_SECURITY;'))" />
+
+    <!-- Cores.Web specific -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.0.0-preview8.19405.7" />
 
   </ItemGroup>
 

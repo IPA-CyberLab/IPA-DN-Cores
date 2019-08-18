@@ -1094,6 +1094,25 @@ namespace IPA.Cores.Basic
             return fileName;
         }
 
+        public string GetRelativeDirectoryName(string directoryName, string baseDirName)
+        {
+            directoryName = directoryName._TrimNonNull();
+            baseDirName = baseDirName._TrimNonNull();
+
+            directoryName = this.NormalizeDirectorySeparator(directoryName);
+            directoryName = this.RemoveLastSeparatorChar(directoryName);
+
+            baseDirName = this.NormalizeDirectorySeparator(baseDirName);
+            baseDirName = this.RemoveLastSeparatorChar(baseDirName);
+
+            if (this.PathStringComparer.Equals(directoryName, baseDirName))
+            {
+                return this.NormalizeDirectorySeparator("./");
+            }
+
+            return GetRelativeFileName(directoryName, baseDirName);
+        }
+
         public string GetRelativeFileName(string fileName, string baseDirName)
         {
             fileName = fileName._TrimNonNull();

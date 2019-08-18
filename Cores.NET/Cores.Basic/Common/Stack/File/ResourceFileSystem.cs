@@ -83,8 +83,27 @@ namespace IPA.Cores.Basic
             this.SourceRootList = srcRootList;
         }
 
-        public override bool Equals(object obj) => this.Assembly.Equals(((AssemblyWithSourceInfo)obj).Assembly);
-        public override int GetHashCode() => this.Assembly.GetHashCode();
+        public override bool Equals(object obj)
+        {
+            AssemblyWithSourceInfo other = (AssemblyWithSourceInfo)obj;
+
+            if (this.Assembly.Equals(other.Assembly) == false) return false;
+
+            string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+            string otherSourceListConcat = other.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+
+            if (thisSourceListConcat != otherSourceListConcat) return false;
+
+            return true;
+        }
+        public override int GetHashCode()
+        {
+            int code1 = this.Assembly.GetHashCode();
+            string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+            int code2 = thisSourceListConcat.GetHashCode();
+
+            return HashCode.Combine(code1, code2);
+        }
     }
 
     [Flags]
@@ -164,7 +183,8 @@ namespace IPA.Cores.Basic
             if (this.PathParser.IsAbsolutePath(relativeRoot))
             {
                 relativeRoot = this.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativeRoot);
-                relativeRoot = this.PathParser.GetRelativeFileName(relativeRoot, "/");
+
+                relativeRoot = this.PathParser.GetRelativeDirectoryName(relativeRoot, "/");
             }
 
             if (this.PathParser.IsAbsolutePath(relativeRoot))

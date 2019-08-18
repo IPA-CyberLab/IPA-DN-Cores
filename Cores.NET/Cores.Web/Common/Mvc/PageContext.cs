@@ -33,8 +33,6 @@
 // Author: Daiyuu Nobori
 // Description
 
-#if  CORES_CODES_ASPNETMVC
-
 using System;
 using System.Linq;
 using System.Threading;
@@ -50,13 +48,13 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
 
 using Microsoft.AspNetCore.Mvc.Razor;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Web
 {
     public class AspPageContext
     {
@@ -90,7 +88,5 @@ namespace IPA.Cores.Codes
         }
     }
 }
-
-#endif
 
 
