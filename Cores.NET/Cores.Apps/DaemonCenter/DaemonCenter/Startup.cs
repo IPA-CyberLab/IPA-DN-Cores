@@ -34,10 +34,13 @@ namespace DaemonCenter
 
         public Startup(IConfiguration configuration)
         {
+            // HttpServer ヘルパーの初期化
             StartupHelper = new HttpServerStartupHelper(configuration);
 
-            AspNetLib = new AspNetLib(configuration);
+            // AspNetLib の初期化: 必要な機能のみ ON にすること
+            AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.EasyCookieAuth);
 
+            // 設定データへの参照の保存
             Configuration = configuration;
         }
 
@@ -62,10 +65,7 @@ namespace DaemonCenter
 
             // MVC 機能を追加
             services.AddControllersWithViews()
-                .AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
-                .AddRazorOptions(opt => AspNetLib.ConfigureRazorOptions(opt))
-                .AddRazorRuntimeCompilation(opt => AspNetLib.ConfigureRazorRuntimeCompilationOptions(opt))
-                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+                .ConfigureMvcWithAspNetLib(AspNetLib);
 
             // シングルトンサービスの注入
             services.AddSingleton(new Server());

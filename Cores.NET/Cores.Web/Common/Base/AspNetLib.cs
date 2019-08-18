@@ -50,6 +50,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.Controllers;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -58,16 +60,64 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
+using System.Reflection;
 
 namespace IPA.Cores.Web
 {
+    // AspNetLib の機能を識別する bit スイッチ。各 Controller クラスの [AspNetLibFeature] 属性としてメンバを記述すること
+    [Flags]
+    public enum AspNetLibFeatures : long
+    {
+        None = 0,
+        Any = 1,
+        EasyCookieAuth = 2,
+    }
+    
+    // [AspNetLibFeature] 属性の実装
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public class AspNetLibFeatureAttribute : Attribute
+    {
+        public AspNetLibFeatures FeatureSwitch { get; }
+
+        public AspNetLibFeatureAttribute(AspNetLibFeatures featureSwitch = AspNetLibFeatures.None)
+        {
+            this.FeatureSwitch = featureSwitch;
+        }
+    }
+
+    // AspNetLib から必要なクラスだけを ASP.NET MVC に登録する処理の実装
+    public class AspNetLibControllersProvider : IApplicationFeatureProvider<ControllerFeature>
+    {
+        public AspNetLib Lib { get; }
+
+        public AspNetLibControllersProvider(AspNetLib lib)
+        {
+            this.Lib = lib;
+        }
+
+        public void PopulateFeature(IEnumerable<ApplicationPart> parts, ControllerFeature feature)
+        {
+            Assembly asm = Lib.ThisAssembly;
+
+            // AspNetLib に含まれているすべてのクラスに関して、AspNetLibFeatureAttribute が付いているものでかつビットが一致するもののみを追加する
+            asm.GetTypes()
+                .Where(x => Lib.EnabledFeatures.Bit(x.GetCustomAttribute<AspNetLibFeatureAttribute>()?.FeatureSwitch ?? (AspNetLibFeatures)long.MaxValue))
+                ._DoForEach(x => feature.Controllers.Add(x.GetTypeInfo()));
+        }
+    }
+
     public class AspNetLib : IDisposable
     {
+        public readonly Assembly ThisAssembly = typeof(AspNetLib).Assembly;
+
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
         public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb);
 
-        public AspNetLib(IConfiguration configuration)
+        public AspNetLibFeatures EnabledFeatures { get; }
+
+        public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
         {
+            this.EnabledFeatures = features | AspNetLibFeatures.Any;
         }
 
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
@@ -84,17 +134,31 @@ namespace IPA.Cores.Web
             helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/"));
         }
 
-        public void ConfigureRazorOptions(RazorViewEngineOptions opt)
+        public IMvcBuilder ConfigureAspNetLibMvc(IMvcBuilder mvc)
         {
-            opt.ViewLocationFormats.Add("/AspNet.Cores/Views/{1}/{0}.cshtml");
-        }
+            // MVC の設定
+            mvc = mvc.AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
+                .AddRazorRuntimeCompilation(opt =>
+                {
+                    //以下を追加すると重くなるので追加しないようにした。その代わり Cores.Web の View をいじる場合は再コンパイルが必要
+                    //if (AspNetLib.LibRootFullPath._IsFilled())
+                    //    opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
+                })
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
 
-        public void ConfigureRazorRuntimeCompilationOptions(MvcRazorRuntimeCompilationOptions opt)
-        {
-            if (AspNetLib.LibRootFullPath._IsFilled())
+            // この AspNetLib アセンブリのすべてのコントローラをデフォルト読み込み対象から除外する
+            mvc = mvc.ConfigureApplicationPartManager(apm =>
             {
-                opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
-            }
+                List<ApplicationPart> removesList = new List<ApplicationPart>();
+
+                apm.ApplicationParts.OfType<AssemblyPart>().Where(x => x.Assembly.Equals(ThisAssembly))._DoForEach(x => removesList.Add(x));
+
+                removesList.ForEach(x => apm.ApplicationParts.Remove(x));
+
+                apm.FeatureProviders.Add(new AspNetLibControllersProvider(this));
+            });
+
+            return mvc;
         }
 
         public void Dispose() => Dispose(true);

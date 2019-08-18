@@ -17,6 +17,7 @@ using static IPA.Cores.Globals.Web;
 
 namespace IPA.Cores.Web
 {
+    [AspNetLibFeature(AspNetLibFeatures.Any)]
     public class EmbedTestController : Controller
     {
         public IActionResult Index()

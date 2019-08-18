@@ -56,7 +56,10 @@ using static IPA.Cores.Globals.Codes;
 
 namespace IPA.Cores.Codes
 {
-    public static class _Dummy1 { }
+    public static class CodesLib
+    {
+        public static readonly string CodesLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
+    }
 }
 
 namespace IPA.Cores.Helper.Codes
@@ -68,6 +71,13 @@ namespace IPA.Cores.Globals
 {
     public static partial class Codes
     {
+        public static ResourceFileSystem CodesRes => Res.Codes;
+
+        public static partial class Res
+        {
+            public static readonly ResourceFileSystem Codes = ResourceFileSystem.CreateOrGet(
+                new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CodesLib.CodesLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresCodes)));
+        }
     }
 }
 

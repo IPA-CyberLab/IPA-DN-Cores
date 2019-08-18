@@ -76,6 +76,9 @@ namespace IPA.Cores.Helper.Web
                 StatusCode = 200,
             };
         }
+
+        public static IMvcBuilder ConfigureMvcWithAspNetLib(this IMvcBuilder mvc, AspNetLib lib)
+            => lib.ConfigureAspNetLibMvc(mvc);
     }
 }
 

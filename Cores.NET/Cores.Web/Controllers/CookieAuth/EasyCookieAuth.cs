@@ -92,6 +92,7 @@ namespace IPA.Cores.Web
         public string ErrorStr { get; set; }
     }
 
+    [AspNetLibFeature(AspNetLibFeatures.EasyCookieAuth)]
     public class EasyCookieAuthController : Controller
     {
         [HttpGet]
