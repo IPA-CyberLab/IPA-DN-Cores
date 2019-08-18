@@ -323,7 +323,7 @@ namespace IPA.Cores.Basic
             this.DaemonCenterAppId = this.DaemonCenterAppId._NonNullTrim();
 
             // 新しいシークレットを作成する
-            if ((IsEmpty)this.DaemonSecret) this.DaemonSecret = Str.GenRandPassword();
+            if ((IsEmpty)this.DaemonSecret) this.DaemonSecret = Str.GenRandPassword(32);
 
             // 新しい GUID を作成する
             if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
@@ -773,7 +773,7 @@ namespace IPA.Cores.Basic
                             string body = CoresRes["CoresInternal/190714_run_daemon.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
                             string fn = Env.AppLocalDir._CombinePath("daemon_helper", "run_daemon.sh");
                             Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
-
+                            
                             arguments = $"bash \"{fn}\" \"{arguments}\"";
                         }
                         else
