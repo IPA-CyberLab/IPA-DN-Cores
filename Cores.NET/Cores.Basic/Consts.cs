@@ -202,6 +202,11 @@ namespace IPA.Cores.Basic
             public const string GmailIcon = "https://upload.wikimedia.org/wikipedia/commons/4/4e/Gmail_Icon.png";
         }
 
+        public static partial class UrlPaths
+        {
+            public const string Robots = "/robots.txt";
+        }
+
         public static partial class OAuthScopes
         {
             public const string Slack_Client = "client";

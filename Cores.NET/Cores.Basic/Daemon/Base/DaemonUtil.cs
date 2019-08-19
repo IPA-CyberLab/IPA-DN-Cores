@@ -101,6 +101,7 @@ namespace IPA.Cores.Basic
                         UseGlobalCertVault = false, // Disable Global CertVault
                         DisableHiveBasedSetting = true, // Disable Hive based settings
                         ServerCertSelector = certVault.X509CertificateSelectorForHttpsServerNoAcme,
+                        DenyRobots = true, // Deny robots
                     };
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 

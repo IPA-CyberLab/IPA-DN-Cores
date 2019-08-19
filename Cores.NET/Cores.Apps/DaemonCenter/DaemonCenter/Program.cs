@@ -40,6 +40,7 @@ namespace DaemonCenter
                     UseSimpleBasicAuthentication = false,
                     HoldSimpleBasicAuthenticationDatabase = true,
                     AutomaticRedirectToHttpsIfPossible = false,
+                    DenyRobots = true,
                 }));
         }
     }

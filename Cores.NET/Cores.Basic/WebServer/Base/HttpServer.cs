@@ -267,6 +267,23 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            if (this.ServerOptions.DenyRobots)
+            {
+                app.Use((context, next) =>
+                {
+                    if (context.Request.Path.Value._IsSameTrimi(Consts.UrlPaths.Robots))
+                    {
+                        string replyBody = "User-agent: *\r\nDisallow: /\r\n";
+                        context.Response.StatusCode = 200;
+                        return context.Response.WriteAsync(replyBody, context.RequestAborted);
+                    }
+                    else
+                    {
+                        return next();
+                    }
+                });
+            }
+
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
                 app.UseEnforceHttps();
@@ -276,7 +293,7 @@ namespace IPA.Cores.Basic
 
             app.UseWebServerLogger();
 
-#if CORES_BASIC_JSON && CORES_BASIC_JSON
+#if CORES_BASIC_JSON
             if (this.ServerOptions.UseGlobalCertVault && this.ServerOptions.HasHttpPort80)
             {
                 // Add the ACME HTTP-based challenge responder
@@ -287,7 +304,7 @@ namespace IPA.Cores.Basic
                 IRouter router = rb.Build();
                 app.UseRouter(router);
             }
-#endif  // CORES_BASIC_JSON && CORES_BASIC_SECURITY
+#endif  // CORES_BASIC_JSON
 
             if (this.ServerOptions.MustIncludeHostnameStrList.Count >= 1)
             {
@@ -453,6 +470,8 @@ namespace IPA.Cores.Basic
 
         public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
         public bool DisableHiveBasedSetting = false;
+
+        public bool DenyRobots = false;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
