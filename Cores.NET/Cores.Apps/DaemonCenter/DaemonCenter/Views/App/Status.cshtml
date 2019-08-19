@@ -96,7 +96,7 @@
                             <BR /><text>次回: @inst.NextPauseFlag._GetFriendlyString()</text>
                         }
                     </td>
-                    <td nowrap>@(inst.RequestReboot ? "はい" : "")</td>
+                    <td nowrap>@(inst.RequestOsReboot ? "OS" : (inst.RequestReboot ? "デーモン" : ""))</td>
                     <td nowrap>
                         <b>@inst.LastStat.DaemonName</b>
                     </td>

@@ -60,11 +60,17 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         [Display(Name = "何もしない")]
         None = 0,
 
-        [Display(Name = "再起動要求フラグを ON にする")]
+        [Display(Name = "デーモン再起動要求フラグを ON にする")]
         SetRebootRequestFlag,
 
-        [Display(Name = "再起動要求フラグを OFF にする")]
+        [Display(Name = "デーモン再起動要求フラグを OFF にする")]
         UnsetRebootRequestFlag,
+
+        [Display(Name = "OS 再起動要求フラグを ON にする")]
+        SetOsRebootRequestFlag,
+
+        [Display(Name = "OS 再起動要求フラグを OFF にする")]
+        UnsetOsRebootRequestFlag,
 
         [Display(Name = "次回の Git コミット ID を変更する")]
         UpdateGit,
@@ -249,6 +255,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public DateTimeOffset LastCommitIdChanged;
         public DateTimeOffset LastInstanceArgumentsChanged;
 
+        public bool RequestOsReboot;
         public bool RequestReboot;
         public int NumAlive;
         public string NextCommitId;
@@ -333,6 +340,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public string NextInstanceArguments;
 
         public bool RebootRequested;
+        public bool OsRebootRequested;
 
         [JsonConverter(typeof(StringEnumConverter))]
         public PauseFlag NextPauseFlag;

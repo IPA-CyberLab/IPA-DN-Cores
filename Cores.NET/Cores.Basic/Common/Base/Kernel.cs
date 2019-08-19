@@ -32,8 +32,9 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
-
+using System.Threading;
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
@@ -98,7 +99,7 @@ namespace IPA.Cores.Basic
         public static string GetEnvStr(string name)
         {
             string ret = Environment.GetEnvironmentVariable(name);
-            
+
             if (ret == null)
             {
                 ret = "";
@@ -124,6 +125,88 @@ namespace IPA.Cores.Basic
             p.Start();
 
             return p;
+        }
+
+        // OS の再起動
+        static Once RebootOnceFlag;
+        public static void RebootOperatingSystemForcefullyDangerous()
+        {
+            if (Env.IsLinux)
+            {
+                if (RebootOnceFlag.IsFirstCall())
+                {
+                    // sync, sync, sync
+                    for (int i = 0; i < 3; i++)
+                    {
+                        UnixTryRunSystemProgram(EnsureInternal.Yes, "sync", "", 5 * 1000);
+                    }
+
+                    Sleep(300);
+
+                    // reboot
+                    UnixTryRunSystemProgram(EnsureInternal.Yes, "reboot", "--reboot --force", 10 * 1000);
+
+                    Sleep(300);
+
+                    // reboot with BIOS (最後の手段)
+                    Lfs.WriteStringToFile(@"/proc/sys/kernel/sysrq", "1");
+
+                    Sleep(300);
+
+                    Lfs.WriteStringToFile(@"/proc/sysrq-trigger", "b");
+                }
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public static bool UnixTryRunSystemProgram(EnsureInternal yes, string commandName, string args, int timeout = Timeout.Infinite)
+        {
+            string[] dirs = { "/sbin/", "/bin/", "/usr/bin/", "/usr/local/bin/", "/usr/local/sbin/", "/usr/local/bin/" };
+
+            foreach (string dir in dirs)
+            {
+                if (UnixTryRunProgramInternal(yes, Path.Combine(dir, commandName), args, timeout))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool UnixTryRunProgramInternal(EnsureInternal yes, string exe, string args, int timeout = Timeout.Infinite)
+        {
+            if (exe._IsEmpty()) throw new ArgumentNullException(nameof(exe));
+            args = args._NonNull();
+
+            try
+            {
+                ProcessStartInfo info = new ProcessStartInfo()
+                {
+                    FileName = exe,
+                    Arguments = args,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = false,
+                    RedirectStandardError = false,
+                    RedirectStandardInput = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Env.AppRootDir,
+                };
+
+                using (Process p = Process.Start(info))
+                {
+                    return p.WaitForExit(timeout);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+
+            return false;
         }
     }
 

@@ -317,6 +317,19 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 GlobalDaemonStateManager.MetaStatusDictionary.TryRemove(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out _);
             }
 
+            if (res.OsRebootRequested)
+            {
+                // OS そのものの再起動が要求されたので再起動を行なう
+                if (Env.IsAdmin)
+                {
+                    try
+                    {
+                        Kernel.RebootOperatingSystemForcefullyDangerous();
+                    }
+                    catch { }
+                }
+            }
+
             if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {
                 // 再起動が要求された

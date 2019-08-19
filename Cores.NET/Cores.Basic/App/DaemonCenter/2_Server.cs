@@ -244,13 +244,23 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
                 else if (operationType == OperationType.SetRebootRequestFlag)
                 {
-                    // 再起動の要求のセット
+                    // デーモン再起動の要求のセット
                     instList._DoForEach(x => x.RequestReboot = true);
                 }
                 else if (operationType == OperationType.UnsetRebootRequestFlag)
                 {
-                    // 再起動の要求の解除
+                    // デーモン再起動の要求の解除
                     instList._DoForEach(x => x.RequestReboot = false);
+                }
+                else if (operationType == OperationType.SetOsRebootRequestFlag)
+                {
+                    // OS 再起動の要求のセット
+                    instList._DoForEach(x => x.RequestOsReboot = true);
+                }
+                else if (operationType == OperationType.UnsetOsRebootRequestFlag)
+                {
+                    // OS 再起動の要求の解除
+                    instList._DoForEach(x => x.RequestOsReboot = false);
                 }
                 else if (operationType == OperationType.UpdateGit)
                 {
@@ -389,15 +399,17 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     }
                 }
 
-                if (inst.RequestReboot)
+                if (inst.RequestReboot || inst.RequestOsReboot)
                 {
                     // フラグにより再起動が要求されている
-                    ret.RebootRequested = true;
+                    ret.RebootRequested = inst.RequestReboot;
+                    ret.OsRebootRequested = inst.RequestOsReboot;
 
                     inst.IsRestarting = true;
 
                     // フラグは消す
                     inst.RequestReboot = false;
+                    inst.RequestOsReboot = false;
                 }
 
                 if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.LastStat.CommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
