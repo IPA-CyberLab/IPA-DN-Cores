@@ -6205,6 +6205,33 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class StrClass
+    {
+        public string Value { get; } = null;
+
+        public StrClass() { }
+
+        public StrClass(string str)
+        {
+            this.Value = str;
+        }
+
+        public override string ToString()
+        {
+            return this.Value;
+        }
+
+        public static implicit operator string(StrClass s)
+        {
+            return s.Value;
+        }
+
+        public static implicit operator StrClass(string s)
+        {
+            return new StrClass(s);
+        }
+    }
+
     public class OneLineParams : KeyValueList<string, string>
     {
         public char Delimiter { get; }

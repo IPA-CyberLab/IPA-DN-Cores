@@ -372,7 +372,7 @@ namespace IPA.Cores.Basic.Legacy
             strings = new List<string>();
             foreach (string s in elements)
             {
-                string str = s;
+                string str = s._NonNull();
 
                 if (str.StartsWith("\"") && str.EndsWith("\"") && str.Length >= 2)
                 {

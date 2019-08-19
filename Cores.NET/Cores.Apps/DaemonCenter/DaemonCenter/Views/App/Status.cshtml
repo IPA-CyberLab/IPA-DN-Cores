@@ -40,6 +40,7 @@
                 <th nowrap>状態</th>
                 <th nowrap>機能</th>
                 <th nowrap>再起動<br>要求</th>
+                <th nowrap>デーモン名</th>
                 <th nowrap>ホスト</th>
                 <th nowrap>ブラウズ</th>
                 <th nowrap>プロセス起動日時</th>
@@ -96,13 +97,16 @@
                         }
                     </td>
                     <td nowrap>@(inst.RequestReboot ? "はい" : "")</td>
+                    <td nowrap>
+                        <b>@inst.LastStat.DaemonName</b>
+                    </td>
                     <td><a asp-action="InstanceInfo" asp-route-id="@appId" asp-route-id2="@instId"><b>@inst.HostName</b></a><br />@inst.SrcIpAddress</td>
                     <td>
                         @if (inst.IsActive(app.Settings, Page.Now))
                         {
                             if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string browseUrl))
                             {
-                                <a href="@browseUrl" target="_blank"><b>表示</b></a>
+                                <a href="@browseUrl" target="_blank"><b>ブラウズ</b></a>
                             }
                         }
                     </td>
@@ -185,6 +189,9 @@
 
         </div>
     </div>
+
+    <h3 class="title is-5">CSV 一括設定の実施</h3>
+    <a asp-controller="App" asp-action="CsvSet" asp-route-id="@appId" asp-route-mode="@ViewBag.mode"><b>インスタンスの起動引数の一括設定</b></a>
 
 </form>
 <p>　</p>

@@ -26,6 +26,7 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 namespace DaemonCenter.Controllers
 {
     [AutoValidateAntiforgeryToken]
+    [Authorize]
     public class AppSettingsController : Controller
     {
         readonly Server Server;

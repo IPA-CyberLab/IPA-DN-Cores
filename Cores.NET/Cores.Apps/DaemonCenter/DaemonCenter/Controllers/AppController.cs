@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using DaemonCenter.Models;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
@@ -22,10 +23,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 
 using IPA.Cores.Basic.App.DaemonCenterLib;
+using System.IO;
 
 namespace DaemonCenter.Controllers
 {
     [AutoValidateAntiforgeryToken]
+    [Authorize]
     public class AppController : Controller
     {
         readonly Server Server;
@@ -35,7 +38,6 @@ namespace DaemonCenter.Controllers
             this.Server = server;
         }
 
-        [Authorize]
         public IActionResult _new()
         {
             return View();
@@ -118,6 +120,64 @@ namespace DaemonCenter.Controllers
             DualData<App, Instance> data = new DualData<App, Instance>(id, app, id2, inst, ModelMode.Edit);
 
             return View(data);
+        }
+
+        // CSV 一括設定ページ
+        [HttpGet]
+        public IActionResult CsvSet([FromRoute] string id, [FromQuery] int mode)
+        {
+            App app = Server.AppGet(id);
+
+            IEnumerable<Instance> instanceList = app.InstanceList;
+
+            DualData<App, List<Instance>> filtered = GetFilteredInstanceListView(id, mode, app, instanceList);
+
+            // CSV データの生成
+            StringWriter w = new StringWriter();
+
+            foreach (Instance inst in filtered.Data2)
+            {
+                w.WriteLine($"# {inst.HostName} - {inst.LastStat.DaemonName}");
+                w.WriteLine($"{inst.GetId(app)},{inst.LastStat.InstanceArguments}");
+                w.WriteLine();
+            }
+
+            string csvText = w.ToString();
+
+            DualData<App, StrClass> model = new DualData<App, StrClass>(id, app, "dummyId", csvText, ModelMode.Edit);
+
+            ViewBag.mode = mode;
+
+            return View(model);
+        }
+
+        // CSV 一括設定の実施
+        [HttpPost]
+        public IActionResult CsvSet([FromRoute] string id, [FromQuery] int mode, [FromForm] string Data2)
+        {
+            App app = Server.AppGet(id);
+
+            // CSV データのパース
+            foreach (string line in Data2._GetLines())
+            {
+                if (line._StripCommentFromLine()._GetKeyAndValue(out string key, out string value, ","))
+                {
+                    if (value._IsFilled())
+                    {
+                        key = key._NonNullTrim();
+                        value = value._NonNullTrim();
+
+                        // 一括設定操作の実施
+                        try
+                        {
+                            Server.AppInstanceOperation(id, key._SingleArray(), OperationType.UpdateArguments, value);
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            return RedirectToAction("Status", new { id, mode });
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
