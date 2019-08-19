@@ -131,6 +131,10 @@ namespace IPA.Cores.Basic
             public const string EncodeEasyPrefix = "_E_";
 
             public const string HidePassword = "********";
+
+            public const string RootUsername = "root";
+
+            public const string DaemonDefFileMarker = "hTNdwaKmxL4MNPAyyes2qsgT";
         }
 
         public static partial class HiveNames
@@ -170,6 +174,8 @@ namespace IPA.Cores.Basic
             public static readonly IEnumerable<string> AppRootMarkerFileNames = new string[] { "approot", ".csproj" };
 
             public const string ResourceRootAbsoluteDirName = "/ResourceRoot";
+
+            public const string SystemdConfigDirName = "/etc/systemd/system/";
 
             public const string RootMarker_Resource = "resource_root";
             public const string RootMarker_Library_CoresBasic = "cores_basic_root";

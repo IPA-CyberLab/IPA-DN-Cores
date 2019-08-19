@@ -407,7 +407,7 @@ namespace IPA.Cores.Basic
             CommandLine = initCommandLine(Environment.CommandLine);
             IsLittleEndian = BitConverter.IsLittleEndian;
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
-            IsAdmin = checkIsAdmin();
+            IsAdmin = CheckIsAdmin();
 
             if (IsUnix)
             {
@@ -417,10 +417,19 @@ namespace IPA.Cores.Basic
 
         public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
 
-        static bool checkIsAdmin()
+        // 現在のユーザーが管理者権限を有するかどうか確認をする
+        static bool CheckIsAdmin()
         {
-            // TODO
-            return true;
+            if (Env.IsUnix)
+            {
+                // Windows: TODO
+                return true;
+            }
+            else
+            {
+                // Unix: 現在のユーザー名が「root」であるかどうかで判別をする
+                return Env.UserName._IsSamei(Consts.Strings.RootUsername);
+            }
         }
 
         static string initCommandLine(string src)
