@@ -170,8 +170,8 @@ namespace IPA.Cores.Basic
 
                 HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
 
-                // Save pid.txt
-                string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".txt");
+                // Save pid
+                string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".pid");
                 string pidBody = Env.ProcessId.ToString() + Env.NewLine;
                 Lfs.WriteStringToFile(pidFileName, pidBody, FileFlags.AutoCreateDirectory);
 
@@ -235,8 +235,8 @@ namespace IPA.Cores.Basic
                         HiveData.ManagedData.Pid = 0;
                     }
 
-                    // Delete pid.txt
-                    string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".txt");
+                    // Delete pid
+                    string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".pid");
                     try
                     {
                         Lfs.DeleteFile(pidFileName);
