@@ -88,7 +88,7 @@ namespace IPA.Cores.Basic
                 StringReader r = new StringReader(fromString);
                 while (true)
                 {
-                    string line = r.ReadLine();
+                    string? line = r.ReadLine();
                     if (line == null)
                     {
                         break;
@@ -214,9 +214,9 @@ namespace IPA.Cores.Basic
         // シリアライズされたエラー文字列
         public class SerializedError
         {
-            public string Code;
-            public string Language;
-            public string ErrorMsg;
+            public string Code = null!;
+            public string Language = null!;
+            public string ErrorMsg = null!;
         }
     }
 
@@ -440,7 +440,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        tmp = param.ToString();
+                        tmp = param.ToString()._NonNull();
                     }
                     break;
             }
@@ -879,7 +879,7 @@ namespace IPA.Cores.Basic
             GB2312Encoding = Encoding.GetEncoding("gb2312");
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
-            BomUtf8 = Str.GetBOM(Str.Utf8Encoding);
+            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
         }
 
         internal static readonly char[] standardSplitChars =
@@ -1037,7 +1037,7 @@ namespace IPA.Cores.Basic
         }
 
         // ID 文字列を短縮する
-        public static string GetShortId(string fullId)
+        public static string? GetShortId(string fullId)
         {
             Str.NormalizeString(ref fullId);
             fullId = fullId.ToUpper();
@@ -1376,7 +1376,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                string line = r.ReadLine();
+                string? line = r.ReadLine();
                 if (line == null)
                 {
                     break;
@@ -1392,7 +1392,7 @@ namespace IPA.Cores.Basic
         }
 
         // 前方から指定文字だけ取得する
-        public static string GetLeft(string str, int len)
+        public static string? GetLeft(string str, int len)
         {
             if (str == null)
             {
@@ -1479,12 +1479,12 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したデータに BOM が付いているかどうか判別する
-        public static Encoding CheckBOM(ReadOnlySpan<byte> data)
+        public static Encoding? CheckBOM(ReadOnlySpan<byte> data)
         {
             int i;
             return CheckBOM(data, out i);
         }
-        public static Encoding CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
+        public static Encoding? CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
             try
@@ -1558,7 +1558,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public static byte[] GetBOM(Encoding encoding)
+        public static byte[]? GetBOM(Encoding encoding)
         {
             var span = GetBOMSpan(encoding);
 
@@ -1589,7 +1589,7 @@ namespace IPA.Cores.Basic
 
             string str = srcEncoding.GetString(srcData);
 
-            byte[] b1 = null;
+            byte[]? b1 = null;
             if (appendBom)
             {
                 b1 = GetBOM(destEncoding);
@@ -1631,7 +1631,7 @@ namespace IPA.Cores.Basic
         public static void WriteTextFile(string filename, string contents, Encoding encoding, bool writeBom)
         {
             Buf buf = new Buf();
-            byte[] bom = GetBOM(encoding);
+            byte[]? bom = GetBOM(encoding);
             if (writeBom && bom != null && bom.Length >= 1)
             {
                 buf.Write(bom);
@@ -1696,7 +1696,7 @@ namespace IPA.Cores.Basic
             int utf8 = 0;
             byte b1, b2;
 
-            Encoding bomEncoding = CheckBOM(data, out bomSize);
+            Encoding? bomEncoding = CheckBOM(data, out bomSize);
             if (bomEncoding != null)
             {
                 return bomEncoding;
@@ -3168,11 +3168,11 @@ namespace IPA.Cores.Basic
             MemberInfo[] members = t.GetMembers(BindingFlags.Instance | BindingFlags.Public);
             foreach (MemberInfo member in members)
             {
-                FieldInfo fi = member as FieldInfo;
-                PropertyInfo pi = member as PropertyInfo;
+                FieldInfo? fi = member as FieldInfo;
+                PropertyInfo? pi = member as PropertyInfo;
 
-                string from = null;
-                string to = null;
+                string? from = null;
+                string? to = null;
 
                 if (fi != null)
                 {
@@ -5326,7 +5326,7 @@ namespace IPA.Cores.Basic
         }
 
         // double かどうか取得
-        public static bool IsDouble(string str)
+        public static bool IsDouble(string? str)
         {
             double v;
             Str.NormalizeString(ref str, true, true, false, false);
@@ -5335,7 +5335,7 @@ namespace IPA.Cores.Basic
         }
 
         // long かどうか取得
-        public static bool IsLong(string str)
+        public static bool IsLong(string? str)
         {
             long v;
             Str.RemoveSpaceChar(ref str);
@@ -5345,7 +5345,7 @@ namespace IPA.Cores.Basic
         }
 
         // int かどうか取得
-        public static bool IsInt(string str)
+        public static bool IsInt(string? str)
         {
             int v;
             Str.RemoveSpaceChar(ref str);
@@ -5355,9 +5355,9 @@ namespace IPA.Cores.Basic
         }
 
         // 数値かどうか取得
-        public static bool IsNumber(string str)
+        public static bool IsNumber(string? str)
         {
-            str = str.Trim();
+            str = str._NonNullTrim();
             Str.RemoveSpaceChar(ref str);
             Str.NormalizeString(ref str, true, true, false, false);
             str = str.Replace(",", "");

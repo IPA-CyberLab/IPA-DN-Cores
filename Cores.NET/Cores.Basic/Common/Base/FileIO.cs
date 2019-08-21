@@ -85,7 +85,7 @@ namespace IPA.Cores.Basic
             try
             {
                 // 列挙
-                List<DirEntry> list = IO.EnumDirsWithCancel(dirList, extensionList, cancel);
+                List<DirEntry> list = IO.EnumDirsWithCancel(dirList, extensionList, cancel)!;
 
                 // 更新日時でソート
                 list.Sort((x, y) => (x.UpdateDate.CompareTo(y.UpdateDate)));
@@ -230,14 +230,14 @@ namespace IPA.Cores.Basic
             public uint Size = 0;
             public uint SizeCompressed = 0;
             public uint Offset = 0;
-            public byte[] Buffer = null;
+            public byte[]? Buffer = null;
             public long LastAccess = 0;
 
-            public int CompareTo(object obj)
+            public int CompareTo(object? obj)
             {
                 HamCoreEntry hc1, hc2;
                 hc1 = this;
-                hc2 = (HamCoreEntry)obj;
+                hc2 = (HamCoreEntry)obj!;
 
                 return Str.StrCmpiRetInt(hc1.FileName, hc2.FileName);
             }
@@ -246,14 +246,14 @@ namespace IPA.Cores.Basic
         // HamCore ビルダー
         public class HamCoreBuilderFileEntry : IComparable<HamCoreBuilderFileEntry>
         {
-            public string Name;
-            public Buf RawData;
-            public Buf CompressedData;
+            public string? Name;
+            public Buf? RawData;
+            public Buf? CompressedData;
             public int Offset = 0;
 
             int IComparable<HamCoreBuilderFileEntry>.CompareTo(HamCoreBuilderFileEntry other)
             {
-                return this.Name.CompareTo(other.Name);
+                return this.Name!.CompareTo(other.Name);
             }
         }
 
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (HamCoreBuilderFileEntry f in fileList)
                 {
-                    if (f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    if (f.Name!.Equals(name, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
@@ -282,7 +282,7 @@ namespace IPA.Cores.Basic
             {
                 foreach (HamCoreBuilderFileEntry f in fileList)
                 {
-                    if (f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    if (f.Name!.Equals(name, StringComparison.OrdinalIgnoreCase))
                     {
                         fileList.Remove(f);
                         return true;
@@ -364,7 +364,7 @@ namespace IPA.Cores.Basic
                 foreach (HamCoreBuilderFileEntry f in this.fileList)
                 {
                     // ファイル名
-                    z += Str.ShiftJisEncoding.GetByteCount(f.Name) + sizeof(int);
+                    z += Str.ShiftJisEncoding.GetByteCount(f.Name!) + sizeof(int);
                     // ファイルサイズ
                     z += sizeof(int);
                     z += sizeof(int);
@@ -375,7 +375,7 @@ namespace IPA.Cores.Basic
                 foreach (HamCoreBuilderFileEntry f in this.fileList)
                 {
                     f.Offset = z;
-                    z += (int)f.CompressedData.Size;
+                    z += (int)f.CompressedData!.Size;
                 }
 
                 // 書き込み
@@ -386,17 +386,17 @@ namespace IPA.Cores.Basic
                 foreach (HamCoreBuilderFileEntry f in this.fileList)
                 {
                     // ファイル名
-                    b.WriteStr(f.Name, true);
+                    b.WriteStr(f.Name!, true);
                     // ファイルサイズ
-                    b.WriteInt(f.RawData.Size);
-                    b.WriteInt(f.CompressedData.Size);
+                    b.WriteInt(f.RawData!.Size);
+                    b.WriteInt(f.CompressedData!.Size);
                     // オフセット
                     b.WriteInt((uint)f.Offset);
                 }
                 // 本体
                 foreach (HamCoreBuilderFileEntry f in this.fileList)
                 {
-                    b.Write(f.CompressedData.ByteData);
+                    b.Write(f.CompressedData!.ByteData);
                 }
 
                 b.SeekToBegin();
@@ -421,12 +421,7 @@ namespace IPA.Cores.Basic
 
             Dictionary<string, HamCoreEntry> list;
 
-            IO hamcore_io;
-
-            public HamCore(string filename)
-            {
-                init(filename);
-            }
+            IO? hamcore_io;
 
             public string[] GetFileNames()
             {
@@ -440,11 +435,11 @@ namespace IPA.Cores.Basic
                 return ret.ToArray();
             }
 
-            void init(string filename)
+            public HamCore(string filename)
             {
                 filename = IO.InnerFilePath(filename);
                 string filenameOnly = Path.GetFileName(filename);
-                string filenameAlt = Path.Combine(Path.GetDirectoryName(filename), "_" + filenameOnly);
+                string filenameAlt = Path.Combine(Path.GetDirectoryName(filename)!, "_" + filenameOnly);
 
                 try
                 {
@@ -468,7 +463,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     // ファイルヘッダを読み込む
-                    byte[] header = hamcore_io.Read(HamcoreHeaderSize);
+                    byte[] header = hamcore_io.Read(HamcoreHeaderSize)!;
                     byte[] header2 = Str.AsciiEncoding.GetBytes(HamcoreHeaderData);
                     if (header == null || Util.MemEquals(header, header2) == false)
                     {
@@ -476,7 +471,7 @@ namespace IPA.Cores.Basic
                     }
 
                     uint num = 0;
-                    byte[] buf = hamcore_io.Read(Util.SizeOfInt32);
+                    byte[] buf = hamcore_io.Read(Util.SizeOfInt32)!;
                     num = Util.ByteToUInt(buf);
                     uint i;
                     for (i = 0; i < num; i++)
@@ -484,26 +479,26 @@ namespace IPA.Cores.Basic
                         // ファイル名
                         uint str_size;
 
-                        buf = hamcore_io.Read(Util.SizeOfInt32);
+                        buf = hamcore_io.Read(Util.SizeOfInt32)!;
                         str_size = Util.ByteToUInt(buf);
                         if (str_size >= 1)
                         {
                             str_size--;
                         }
 
-                        byte[] str_data = hamcore_io.Read((int)str_size);
+                        byte[] str_data = hamcore_io.Read((int)str_size)!;
                         string tmp = Str.ShiftJisEncoding.GetString(str_data);
 
                         HamCoreEntry c = new HamCoreEntry();
                         c.FileName = tmp;
 
-                        buf = hamcore_io.Read(Util.SizeOfInt32);
+                        buf = hamcore_io.Read(Util.SizeOfInt32)!;
                         c.Size = Util.ByteToUInt(buf);
 
-                        buf = hamcore_io.Read(Util.SizeOfInt32);
+                        buf = hamcore_io.Read(Util.SizeOfInt32)!;
                         c.SizeCompressed = Util.ByteToUInt(buf);
 
-                        buf = hamcore_io.Read(Util.SizeOfInt32);
+                        buf = hamcore_io.Read(Util.SizeOfInt32)!;
                         c.Offset = Util.ByteToUInt(buf);
 
                         list.Add(c.FileName.ToUpper(), c);
@@ -531,7 +526,7 @@ namespace IPA.Cores.Basic
                 filename = filename.Replace("/", "\\");
 
                 // ローカルディスクの hamcore/ ディレクトリにファイルがあればそれを読み込む
-                Buf b;
+                Buf? b;
 
                 if (this.disableReadRawFile == false)
                 {
@@ -568,10 +563,10 @@ namespace IPA.Cores.Basic
                         else
                         {
                             // 読み込まれていないのでファイルから読み込む
-                            if (hamcore_io.Seek(SeekOrigin.Begin, (int)c.Offset))
+                            if (hamcore_io!.Seek(SeekOrigin.Begin, (int)c.Offset))
                             {
                                 // 圧縮データの読み込み
-                                byte[] data = hamcore_io.Read((int)c.SizeCompressed);
+                                byte[] data = hamcore_io.Read((int)c.SizeCompressed)!;
 
                                 // 展開する
                                 int dstSize = (int)c.Size;
@@ -600,7 +595,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                return b;
+                return b!;
             }
         }
 
@@ -610,13 +605,13 @@ namespace IPA.Cores.Basic
             internal bool folder;
             public bool IsFolder => folder;
 
-            internal string fileName;
+            internal string fileName = "";
             public string FileName => fileName;
 
-            internal string fullPath;
+            internal string fullPath = "";
             public string FullPath => fullPath;
 
-            internal string relativePath;
+            internal string relativePath = "";
             public string RelativePath => relativePath;
 
             internal long fileSize;
@@ -672,7 +667,7 @@ namespace IPA.Cores.Basic
                     // 宛先ファイル名
                     string relativeFileName = IO.GetRelativeFileName(srcFile, srcDirName);
                     string destFileName = Path.Combine(destDirName, relativeFileName);
-                    string destFileDirName = Path.GetDirectoryName(destFileName);
+                    string destFileDirName = Path.GetDirectoryName(destFileName)!;
 
                     if (preCopy != null)
                     {
@@ -732,13 +727,13 @@ namespace IPA.Cores.Basic
             }
 
             static bool tryToUseHamcore = true;
-            static HamCore hamCore = null;
+            static HamCore? hamCore = null;
             static object hamLockObj = new object();
-            public static HamCore HamCore
+            public static HamCore? HamCore
             {
                 get
                 {
-                    HamCore ret = null;
+                    HamCore? ret = null;
 
                     lock (hamLockObj)
                     {
@@ -771,8 +766,8 @@ namespace IPA.Cores.Basic
             {
                 get { return name; }
             }
-            FileStream p;
-            public FileStream InnerFileStream
+            FileStream? p;
+            public FileStream? InnerFileStream
             {
                 get { return p; }
             }
@@ -786,7 +781,7 @@ namespace IPA.Cores.Basic
             {
                 get { return hamMode; }
             }
-            Buf hamBuf;
+            Buf? hamBuf;
 
             object lockObj;
             readonly AsyncLock AsyncLockObj = new AsyncLock();
@@ -821,7 +816,7 @@ namespace IPA.Cores.Basic
                 filename = Path.GetFileName(filename);
                 return filename.EndsWith(extension, StringComparison.OrdinalIgnoreCase);
             }
-            public static bool IsExtensionsMatch(string filename, string extensions)
+            public static bool IsExtensionsMatch(string filename, string? extensions)
             {
                 // 指定された拡張子を整理
                 if (extensions != null)
@@ -867,7 +862,7 @@ namespace IPA.Cores.Basic
                 fileName = InnerFilePath(fileName);
 
                 byte[] data = encoding.GetBytes(str);
-                byte[] bom = null;
+                byte[]? bom = null;
                 if (appendBom)
                 {
                     bom = Str.GetBOM(encoding);
@@ -973,11 +968,11 @@ namespace IPA.Cores.Basic
 
                 return true;
             }
-            public static List<DirEntry> EnumDirWithCancel(string dirList, string fileExtensions = null, CancellationToken cancel = default(CancellationToken))
+            public static List<DirEntry>? EnumDirWithCancel(string dirList, string? fileExtensions = null, CancellationToken cancel = default(CancellationToken))
             {
                 return EnumDirsWithCancel(new string[] { dirList }, fileExtensions, cancel);
             }
-            public static List<DirEntry> EnumDirsWithCancel(string[] dirList, string fileExtensions = null, CancellationToken cancel = default(CancellationToken))
+            public static List<DirEntry>? EnumDirsWithCancel(string[] dirList, string? fileExtensions = null, CancellationToken cancel = default(CancellationToken))
             {
                 EnumDirParam p = new EnumDirParam();
                 p.cancel = cancel;
@@ -997,7 +992,7 @@ namespace IPA.Cores.Basic
 
             // サブディレクトリを含んだディレクトリの列挙 (コールバック)
             public delegate bool EnumDirCallbackProc(DirEntry e, object param);
-            public static bool EnumDirsWithCallback(string[] dirList, string fileExtensions, EnumDirCallbackProc callback, object callbackParam)
+            public static bool EnumDirsWithCallback(string[] dirList, string? fileExtensions, EnumDirCallbackProc callback, object callbackParam)
             {
                 foreach (string dir in dirList)
                 {
@@ -1005,15 +1000,15 @@ namespace IPA.Cores.Basic
                 }
                 return true;
             }
-            public static bool EnumDirWithCallback(string dirName, string fileExtensions, EnumDirCallbackProc callback, object callbackParam)
+            public static bool EnumDirWithCallback(string dirName, string? fileExtensions, EnumDirCallbackProc callback, object callbackParam)
             {
                 return enumDirWithCallback(dirName, dirName, callback, fileExtensions, callbackParam);
             }
-            static bool enumDirWithCallback(string dirName, string baseDirName, EnumDirCallbackProc callback, string fileExtensions, object cb_param)
+            static bool enumDirWithCallback(string dirName, string baseDirName, EnumDirCallbackProc callback, string? fileExtensions, object cb_param)
             {
                 string tmp = IO.InnerFilePath(dirName);
 
-                string[] dirs = null;
+                string[]? dirs = null;
 
                 try
                 {
@@ -1030,7 +1025,7 @@ namespace IPA.Cores.Basic
                     {
                         string fullPath = name;
 
-                        DirectoryInfo info = null;
+                        DirectoryInfo? info = null;
 
                         try
                         {
@@ -1062,7 +1057,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                string[] files = null;
+                string[]? files = null;
 
                 try
                 {
@@ -1085,7 +1080,7 @@ namespace IPA.Cores.Basic
 
                         if (ok)
                         {
-                            FileInfo info = null;
+                            FileInfo? info = null;
 
                             try
                             {
@@ -1352,7 +1347,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     int size = io.FileSize;
-                    byte[] ret = io.Read(size);
+                    byte[] ret = io.Read(size)!;
                     return ret;
                 }
                 finally
@@ -1483,7 +1478,7 @@ namespace IPA.Cores.Basic
                         {
                             if (hamMode)
                             {
-                                return (long)hamBuf.Size;
+                                return (long)hamBuf!.Size;
                             }
                         }
 
@@ -1533,7 +1528,7 @@ namespace IPA.Cores.Basic
             }
 
             // ファイルから読み込む
-            public byte[] Read(int size)
+            public byte[]? Read(int size)
             {
                 byte[] buf = new byte[size];
                 bool ret = Read(buf, size);
@@ -1558,7 +1553,7 @@ namespace IPA.Cores.Basic
                 {
                     if (this.HamMode)
                     {
-                        byte[] ret = hamBuf.Read((uint)size);
+                        byte[] ret = hamBuf!.Read((uint)size)!;
 
                         if (ret.Length != size)
                         {
@@ -1608,7 +1603,7 @@ namespace IPA.Cores.Basic
 
                 if (this.HamMode)
                 {
-                    byte[] ret = hamBuf.Read((uint)memory.Length);
+                    byte[] ret = hamBuf!.Read((uint)memory.Length);
 
                     if (ret.Length != memory.Length)
                     {
@@ -1858,7 +1853,7 @@ namespace IPA.Cores.Basic
 
                 if (name[0] == '|')
                 {
-                    HamCore hc = IO.HamCore;
+                    HamCore hc = IO.HamCore!;
 
                     Buf b = hc.ReadHamcore(name);
                     if (b == null)
@@ -2297,13 +2292,13 @@ namespace IPA.Cores.Basic
                 return File.GetLastAccessTime(InnerFilePath(filename));
             }
 
-            public static Stream ReadEmbeddedFileStream(string name, Type assemblyType = null)
+            public static Stream ReadEmbeddedFileStream(string name, Type? assemblyType = null)
             {
                 if (assemblyType == null) assemblyType = typeof(IO).GetType();
-                return assemblyType.Assembly.GetManifestResourceStream(name);
+                return assemblyType.Assembly.GetManifestResourceStream(name)!;
             }
 
-            public static byte[] ReadEmbeddedFileData(string name, Type assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType)._ReadToEnd();
+            public static byte[] ReadEmbeddedFileData(string name, Type? assemblyType = null) => ReadEmbeddedFileStream(name, assemblyType)._ReadToEnd();
         }
 
         // Win32 フォルダ圧縮操ユーティリティ

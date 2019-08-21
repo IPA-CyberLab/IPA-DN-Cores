@@ -183,8 +183,10 @@ namespace IPA.Cores.Basic
         {
             UserList.Clear();
 
-            foreach (CsvEntry e in csv.Items)
+            foreach (CsvEntry? e in csv.Items)
             {
+                if (e == null) continue;
+
                 if (e.Count >= 4)
                 {
                     try
@@ -278,7 +280,7 @@ namespace IPA.Cores.Basic
             {
                 if (Str.IsEmptyStr(this.SrcBodyHtml))
                 {
-                    return null;
+                    return "";
                 }
                 else
                 {
@@ -287,7 +289,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        string hashCache = null;
+        string? hashCache = null;
         public string Hash
         {
             get
@@ -401,9 +403,10 @@ namespace IPA.Cores.Basic
     {
         public static MailItem[] GenerateMailItemListToSend(string from, MailUserList destList, string subject, string body)
         {
-            return GenerateMailItemListToSend(from, destList, subject, body, null, null, null);
+            return GenerateMailItemListToSend(from, destList, subject, body, "", null, null);
         }
-        public static MailItem[] GenerateMailItemListToSend(string from, MailUserList destList, string subject, string body, string bodyHtml, MailUtilResourceFile[] resourceFiles, MailUtilAttachedFile[] attachedFiles)
+        public static MailItem[] GenerateMailItemListToSend(string from, MailUserList destList, string subject, string body, string bodyHtml,
+            MailUtilResourceFile[]? resourceFiles, MailUtilAttachedFile[]? attachedFiles)
         {
             if (resourceFiles == null)
             {

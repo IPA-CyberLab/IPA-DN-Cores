@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
 {
     public abstract class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
     {
-        public byte[] Bytes;
+        public byte[] Bytes = null!;
         public int Size;
         public AddressFamily AddressFamily;
 
@@ -458,8 +458,8 @@ namespace IPA.Cores.Basic
         public readonly int SubnetLength;
         public int[] AsPath;
         public int OriginAs;
-        public string TagString = null;
-        public object TmpObject;
+        public string TagString = "";
+        public object? TmpObject;
         int hash_code;
 
         public FullRouteEntry(Buf buf, int addressSize)
@@ -593,9 +593,9 @@ namespace IPA.Cores.Basic
             return hash_code;
         }
 
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
-            return Util.MemCompare(this.Address.GetBytes(), ((FullRouteEntry)obj).Address.GetBytes());
+            return Util.MemCompare(this.Address.GetBytes(), ((FullRouteEntry)obj!).Address.GetBytes());
         }
 
         int IComparable<FullRouteEntry>.CompareTo(FullRouteEntry other)
@@ -674,8 +674,8 @@ namespace IPA.Cores.Basic
         public readonly string Name;
         public readonly string Country2;
 
-        public List<FullRouteEntry> Stat_IPv4List = null;
-        public List<FullRouteEntry> Stat_IPv6List = null;
+        public List<FullRouteEntry>? Stat_IPv4List = null;
+        public List<FullRouteEntry>? Stat_IPv6List = null;
 
         public ulong NumIPv4;
         public ulong NumIPv6;
@@ -701,7 +701,7 @@ namespace IPA.Cores.Basic
             buf.WriteAsciiStr(this.Country2);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is FullRouteAsNumber)
             {
@@ -822,7 +822,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FullRouteAsNumber Lookup(int n)
+        public FullRouteAsNumber? Lookup(int n)
         {
             if (List.ContainsKey(n))
             {
@@ -933,9 +933,9 @@ namespace IPA.Cores.Basic
     {
         public readonly string Country2;
         public readonly string CountryFull;
-        public List<FullRouteAsNumber> Stat_AsList = null;
-        public List<FullRouteEntry> Stat_IPv4List = null;
-        public List<FullRouteEntry> Stat_IPv6List = null;
+        public List<FullRouteAsNumber>? Stat_AsList = null;
+        public List<FullRouteEntry>? Stat_IPv4List = null;
+        public List<FullRouteEntry>? Stat_IPv6List = null;
 
         public ulong NumIPv4;
         public ulong NumIPv6;
@@ -968,7 +968,7 @@ namespace IPA.Cores.Basic
             return this.Country2.Equals(other.Country2, StringComparison.OrdinalIgnoreCase);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is FullRouteCountryEntry)
             {
@@ -1021,7 +1021,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FullRouteCountryEntry Lookup(string country_code)
+        public FullRouteCountryEntry? Lookup(string country_code)
         {
             if (this.List.ContainsKey(country_code))
             {
@@ -1090,7 +1090,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                string line = r.ReadLine();
+                string? line = r.ReadLine();
                 if (line == null)
                 {
                     break;
@@ -1134,14 +1134,14 @@ namespace IPA.Cores.Basic
 
     public class FullRouteSetResult
     {
-        public string IPAddress;
-        public string IPRouteNetwork;
+        public string? IPAddress;
+        public string? IPRouteNetwork;
         public int IPRouteSubnetLength;
         public int ASNumber;
-        public int[] AS_Path;
-        public string ASName;
-        public string CountryCode2;
-        public string CountryName;
+        public int[]? AS_Path;
+        public string? ASName;
+        public string? CountryCode2;
+        public string? CountryName;
         public AddressFamily AddressFamily;
 
         public string AS_PathString
@@ -1149,7 +1149,7 @@ namespace IPA.Cores.Basic
             get
             {
                 string ret = "";
-                foreach (int i in this.AS_Path)
+                foreach (int i in this.AS_Path!)
                 {
                     ret += i.ToString() + " ";
                 }
@@ -1194,12 +1194,12 @@ namespace IPA.Cores.Basic
                 {
                     if (this.CountryList.List.ContainsKey(asn.Country2))
                     {
-                        this.CountryList.List[asn.Country2].Stat_AsList.Add(asn);
+                        this.CountryList.List[asn.Country2].Stat_AsList!.Add(asn);
                     }
                 }
                 foreach (FullRouteCountryEntry ce in this.CountryList.List.Values)
                 {
-                    ce.Stat_AsList.Sort();
+                    ce.Stat_AsList!.Sort();
                 }
 
                 // 国ごとの IPv4 / IPv6 ルート
@@ -1209,32 +1209,32 @@ namespace IPA.Cores.Basic
                     ce.Stat_IPv6List = new List<FullRouteEntry>();
                 }
                 Dictionary<string, int> unk = new Dictionary<string, int>();
-                foreach (FullRouteEntry fe in this.IPv4.Trie.EnumAllObjects())
+                foreach (FullRouteEntry? fe in this.IPv4.Trie!.EnumAllObjects())
                 {
-                    FullRouteAsNumber asn = this.AsList.Lookup(fe.OriginAs);
+                    FullRouteAsNumber asn = this.AsList.Lookup(fe!.OriginAs)!;
                     if (asn != null)
                     {
                         if (this.CountryList.List.ContainsKey(asn.Country2))
                         {
-                            this.CountryList.List[asn.Country2].Stat_IPv4List.Add(fe);
+                            this.CountryList.List[asn.Country2].Stat_IPv4List!.Add(fe);
                         }
                     }
                 }
-                foreach (FullRouteEntry fe in this.IPv6.Trie.EnumAllObjects())
+                foreach (FullRouteEntry? fe in this.IPv6.Trie!.EnumAllObjects())
                 {
-                    FullRouteAsNumber asn = this.AsList.Lookup(fe.OriginAs);
+                    FullRouteAsNumber asn = this.AsList.Lookup(fe!.OriginAs)!;
                     if (asn != null)
                     {
                         if (this.CountryList.List.ContainsKey(asn.Country2))
                         {
-                            this.CountryList.List[asn.Country2].Stat_IPv6List.Add(fe);
+                            this.CountryList.List[asn.Country2].Stat_IPv6List!.Add(fe);
                         }
                     }
                 }
                 foreach (FullRouteCountryEntry ce in this.CountryList.List.Values)
                 {
-                    ce.Stat_IPv4List.Sort();
-                    ce.Stat_IPv6List.Sort();
+                    ce.Stat_IPv4List!.Sort();
+                    ce.Stat_IPv6List!.Sort();
                 }
 
                 // ISP ごとの IPv4 / IPv6 ルート
@@ -1243,39 +1243,39 @@ namespace IPA.Cores.Basic
                     asn.Stat_IPv4List = new List<FullRouteEntry>();
                     asn.Stat_IPv6List = new List<FullRouteEntry>();
                 }
-                foreach (FullRouteEntry fe in this.IPv4.Trie.EnumAllObjects())
+                foreach (FullRouteEntry? fe in this.IPv4.Trie.EnumAllObjects())
                 {
-                    FullRouteAsNumber asn = this.AsList.Lookup(fe.OriginAs);
+                    FullRouteAsNumber? asn = this.AsList.Lookup(fe!.OriginAs);
                     if (asn != null)
                     {
-                        asn.Stat_IPv4List.Add(fe);
+                        asn.Stat_IPv4List!.Add(fe);
                     }
                 }
-                foreach (FullRouteEntry fe in this.IPv6.Trie.EnumAllObjects())
+                foreach (FullRouteEntry? fe in this.IPv6.Trie.EnumAllObjects())
                 {
-                    FullRouteAsNumber asn = this.AsList.Lookup(fe.OriginAs);
+                    FullRouteAsNumber? asn = this.AsList.Lookup(fe!.OriginAs);
                     if (asn != null)
                     {
-                        asn.Stat_IPv6List.Add(fe);
+                        asn.Stat_IPv6List!.Add(fe);
                     }
                 }
                 foreach (FullRouteAsNumber asn in this.AsList.List.Values)
                 {
-                    asn.Stat_IPv4List.Sort();
-                    asn.Stat_IPv6List.Sort();
+                    asn.Stat_IPv4List!.Sort();
+                    asn.Stat_IPv6List!.Sort();
                 }
 
                 Con.WriteLine("CalcStatistics end.");
             }
         }
 
-        public FullRouteSetResult Lookup(string ip)
+        public FullRouteSetResult? Lookup(string ip)
         {
             try
             {
                 IPAddr addr = IPAddr.FromString(ip);
 
-                FullRoute r = null;
+                FullRoute? r = null;
 
                 if (addr.AddressFamily == AddressFamily.InterNetwork)
                 {
@@ -1290,7 +1290,7 @@ namespace IPA.Cores.Basic
                     return null;
                 }
 
-                FullRouteEntry fe = r.Lookup(addr);
+                FullRouteEntry? fe = r.Lookup(addr);
                 if (fe == null)
                 {
                     return null;
@@ -1306,7 +1306,7 @@ namespace IPA.Cores.Basic
                 ret.ASNumber = fe.OriginAs;
                 ret.AS_Path = fe.AsPath;
 
-                FullRouteAsNumber asn = this.AsList.Lookup(fe.OriginAs);
+                FullRouteAsNumber? asn = this.AsList.Lookup(fe.OriginAs);
                 if (asn == null)
                 {
                     asn = FullRouteAsNumber.NewDummyAs(fe.OriginAs);
@@ -1315,14 +1315,14 @@ namespace IPA.Cores.Basic
 
                 ret.CountryCode2 = asn.Country2;
 
-                FullRouteCountryEntry ce = this.CountryList.Lookup(ret.CountryCode2);
+                FullRouteCountryEntry? ce = this.CountryList.Lookup(ret.CountryCode2);
                 if (ce != null)
                 {
                     ret.CountryName = ce.CountryFull;
                 }
                 else
                 {
-                    ret.CountryName = ce.Country2;
+                    ret.CountryName = ret.CountryCode2;
                 }
 
                 return ret;
@@ -1343,14 +1343,14 @@ namespace IPA.Cores.Basic
 
         bool calc_statistics = false;
 
-        string url;
-        ThreadObj main_thread = null;
-        Event halt_event = null;
+        string url = "";
+        ThreadObj? main_thread = null;
+        Event? halt_event = null;
         volatile bool halt_flag = false;
         object lock_obj = new object();
-        Event ready_event = null;
+        Event? ready_event = null;
 
-        FullRouteSet current_fs = null;
+        FullRouteSet? current_fs = null;
 
         public FullRouteSetThread(bool calcStatistics)
         {
@@ -1361,7 +1361,7 @@ namespace IPA.Cores.Basic
             init(url, calcStatistics);
         }
 
-        public FullRouteSet FullRouteSet
+        public FullRouteSet? FullRouteSet
         {
             get
             {
@@ -1369,7 +1369,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FullRouteSetResult Lookup(string ip)
+        public FullRouteSetResult? Lookup(string ip)
         {
             try
             {
@@ -1390,7 +1390,7 @@ namespace IPA.Cores.Basic
         {
             Con.WriteLine("fetch_main");
 
-            FullRouteSet fs = null;
+            FullRouteSet? fs = null;
 
             try
             {
@@ -1422,7 +1422,7 @@ namespace IPA.Cores.Basic
 
             this.current_fs = fs;
 
-            ready_event.Set();
+            ready_event!.Set();
         }
 
         void init(string url, bool calcStatistics)
@@ -1431,7 +1431,7 @@ namespace IPA.Cores.Basic
 
             this.url = url;
 
-            IO.MakeDirIfNotExists(Path.GetDirectoryName(CacheFileName));
+            IO.MakeDirIfNotExists(Path.GetDirectoryName(CacheFileName)!);
 
             halt_event = new Event();
             halt_flag = false;
@@ -1448,7 +1448,7 @@ namespace IPA.Cores.Basic
                 if (main_thread != null)
                 {
                     halt_flag = true;
-                    halt_event.Set();
+                    halt_event!.Set();
 
                     main_thread.WaitForEnd();
 
@@ -1477,7 +1477,7 @@ namespace IPA.Cores.Basic
                     break;
                 }
 
-                halt_event.Wait(next_interval);
+                halt_event!.Wait(next_interval);
             }
 
             Con.WriteLine("Halt.");
@@ -1485,7 +1485,7 @@ namespace IPA.Cores.Basic
 
         public bool WaitForReady(int timeout)
         {
-            return ready_event.Wait(timeout);
+            return ready_event!.Wait(timeout);
         }
     }
 
@@ -1538,14 +1538,14 @@ namespace IPA.Cores.Basic
 
                 // AS データのダウンロード
                 Con.WriteLine("AS List");
-                FullRouteAsList as_list = null;
+                FullRouteAsList? as_list = null;
 
                 try
                 {
                     as_list = LoadAsListFromUrl(AsURL);
 
                     // 検査
-                    if (Str.StrCmpi(as_list.Lookup(59103).Country2, "jp") == false)
+                    if (Str.StrCmpi(as_list.Lookup(59103)!.Country2, "jp") == false)
                     {
                         throw new ApplicationException("Invalid AS numbers list HTML");
                     }
@@ -1567,7 +1567,7 @@ namespace IPA.Cores.Basic
                 Con.WriteLine("IPv6");
                 FullRoute ipv6 = LoadFullRouteFromUrl(FullRouteURL_IPv6, AddressFamily.InterNetworkV6);
 
-                Con.WriteLine("country={0} ipv4={1} ipv6={2} as={3}", country_list.List.Count, ipv4.Trie.Count, ipv6.Trie.Count, as_list.List.Count);
+                Con.WriteLine("country={0} ipv4={1} ipv6={2} as={3}", country_list.List.Count, ipv4.Trie!.Count, ipv6.Trie!.Count, as_list.List.Count);
 
                 if (country_list.List.Count < 200)
                 {
@@ -1744,13 +1744,13 @@ namespace IPA.Cores.Basic
 
             if (Key is FullRouteAsNumber)
             {
-                FullRouteAsNumber asn = Key as FullRouteAsNumber;
+                FullRouteAsNumber asn = (FullRouteAsNumber)Key;
                 FullRoute.WriteCreditHeaderString(w, "IP Address Filter List for AS" + asn.Number.ToString() + " (" + asn.Name + ")", string.Format("{0} entries", this.EntryList.Length), true);
                 w.WriteLine("# Plain list of IP addresses which are originated by AS" + asn.Number.ToString() + " (" + asn.Name + ")");
             }
             else if (Key is FullRouteCountryEntry)
             {
-                FullRouteCountryEntry ce = Key as FullRouteCountryEntry;
+                FullRouteCountryEntry ce = (FullRouteCountryEntry)Key;
                 FullRoute.WriteCreditHeaderString(w, "IP Address Filter List for IP addresses located in " + ce.Country2 + " (" + ce.CountryFull + ")", string.Format("{0} entries", this.EntryList.Length), true);
                 w.WriteLine("# Plain list of IP addresses which are located in " + ce.Country2 + " (" + ce.CountryFull + ")");
             }
@@ -1764,12 +1764,12 @@ namespace IPA.Cores.Basic
 
             if (Key is FullRouteAsNumber)
             {
-                FullRouteAsNumber asn = Key as FullRouteAsNumber;
+                FullRouteAsNumber asn = (FullRouteAsNumber)Key;
                 w.WriteLine("# iptables rules list of IP addresses which are originated by " + asn.Number.ToString() + " (" + asn.Name + ")");
             }
             else if (Key is FullRouteCountryEntry)
             {
-                FullRouteCountryEntry ce = Key as FullRouteCountryEntry;
+                FullRouteCountryEntry ce = (FullRouteCountryEntry)Key;
                 w.WriteLine("# iptables rules list of IP addresses which are located in " + ce.Country2 + " (" + ce.CountryFull + ")");
             }
 
@@ -1805,14 +1805,14 @@ namespace IPA.Cores.Basic
             AddToBoundaryList(boundary_list, IPAddr.GetMinValue(fullRoute.AddressFamily));
             AddToBoundaryList(boundary_list, IPAddr.GetMaxValue(fullRoute.AddressFamily));
 
-            ArrayList all_nodes = fullRoute.Trie.EnumAllObjects();
+            ArrayList all_nodes = fullRoute.Trie!.EnumAllObjects();
 
-            foreach (FullRouteEntry e in all_nodes)
+            foreach (FullRouteEntry? e in all_nodes)
             {
-                AddToBoundaryList(boundary_list, e.Address);
+                AddToBoundaryList(boundary_list, e!.Address);
 
                 IPAddr a = e.Address;
-                IPAddr b = null;
+                IPAddr? b = null;
 
                 if (fullRoute.AddressFamily == AddressFamily.InterNetwork)
                 {
@@ -1849,15 +1849,15 @@ namespace IPA.Cores.Basic
 
             tmp2.Sort();
 
-            object current_value = null;
+            object? current_value = null;
 
-            IPAddr current_start = null;
+            IPAddr? current_start = null;
 
             foreach (IPAddr a in tmp2)
             {
-                FullRouteEntry entry = fullRoute.Lookup(a);
+                FullRouteEntry? entry = fullRoute.Lookup(a);
 
-                object value = null;
+                object? value = null;
 
                 if (entry != null)
                 {
@@ -1871,7 +1871,7 @@ namespace IPA.Cores.Basic
                     }
                     else if (type == FullRouteSpaceType.ByCountry)
                     {
-                        FullRouteAsNumber asn = asList.Lookup(entry.OriginAs);
+                        FullRouteAsNumber? asn = asList.Lookup(entry.OriginAs);
                         if (asn == null)
                         {
                             asn = FullRouteAsNumber.NewDummyAs(entry.OriginAs);
@@ -1888,14 +1888,14 @@ namespace IPA.Cores.Basic
                 {
                     if (current_value != null)
                     {
-                        IPAddr start = current_start;
+                        IPAddr start = current_start!;
                         IPAddr end = a.Add(-1);
 
                         FullRouteSpaceEntry ent = new FullRouteSpaceEntry(start, end, current_value);
 
                         this.List.Add(ent);
 
-                        string hash_key = ent.Value.ToString();
+                        string hash_key = ent.Value.ToString()._NonNull();
                         if (this.HashList.ContainsKey(hash_key) == false)
                         {
                             this.HashList.Add(hash_key, new List<FullRouteSpaceEntry>());
@@ -1932,14 +1932,14 @@ namespace IPA.Cores.Basic
             int n = 0;
             foreach (object key in keys)
             {
-                string key_str = key.ToString();
+                string key_str = key.ToString()._NonNull();
                 Con.WriteLine("GenerateIPFilterLists: {0}/{1} ({2})", n, keys.Count, key_str);
-                FullRouteSpaceEntry[] fse = null;
+                FullRouteSpaceEntry[]? fse = null;
                 if (this.HashList.ContainsKey(key_str))
                 {
                     fse = this.HashList[key_str].ToArray();
                 }
-                FullRouteIPFilterList o = new FullRouteIPFilterList(this.Type, key, SubnetGenerator.GenerateSubnets(fse));
+                FullRouteIPFilterList o = new FullRouteIPFilterList(this.Type, key, SubnetGenerator.GenerateSubnets(fse!));
                 ret.Add(o);
                 n++;
             }
@@ -1956,7 +1956,7 @@ namespace IPA.Cores.Basic
 
             foreach (FullRouteIPFilterList p in ip_list)
             {
-                string key2 = p.Key.ToString();
+                string key2 = p.Key.ToString()._NonNull();
                 if (p.Key is FullRouteAsNumber)
                 {
                     key2 = "AS" + key2;
@@ -1972,7 +1972,7 @@ namespace IPA.Cores.Basic
 
                     if (this.Type == FullRouteSpaceType.ByAS)
                     {
-                        FullRouteAsNumber asn = p.Key as FullRouteAsNumber;
+                        FullRouteAsNumber asn = (FullRouteAsNumber)p.Key;
                         if (this.AddressFamily == AddressFamily.InterNetwork)
                         {
                             asn.NumIPv4 += e.NumIP;
@@ -1984,7 +1984,7 @@ namespace IPA.Cores.Basic
                     }
                     else if (this.Type == FullRouteSpaceType.ByCountry)
                     {
-                        FullRouteCountryEntry ce = p.Key as FullRouteCountryEntry;
+                        FullRouteCountryEntry ce = (FullRouteCountryEntry)p.Key;
                         if (this.AddressFamily == AddressFamily.InterNetwork)
                         {
                             ce.NumIPv4 += e.NumIP;
@@ -2019,12 +2019,12 @@ namespace IPA.Cores.Basic
             {
                 if (this.Type == FullRouteSpaceType.ByAS)
                 {
-                    FullRouteAsNumber asn = e.TmpObject as FullRouteAsNumber;
+                    FullRouteAsNumber asn = (FullRouteAsNumber)e.TmpObject!;
                     w.WriteLine("{0}/{1},AS{2},{3}", e.Address.ToString(), e.SubnetLength.ToString(), asn.Number.ToString(), asn.Name);
                 }
                 else
                 {
-                    FullRouteCountryEntry ce = e.TmpObject as FullRouteCountryEntry;
+                    FullRouteCountryEntry ce = (FullRouteCountryEntry)e.TmpObject!;
                     w.WriteLine("{0}/{1},{2},{3}", e.Address.ToString(), e.SubnetLength.ToString(), ce.Country2, ce.CountryFull);
                 }
             }
@@ -2071,7 +2071,7 @@ namespace IPA.Cores.Basic
 
                 if (e.Value is FullRouteAsNumber)
                 {
-                    FullRouteAsNumber asn = e.Value as FullRouteAsNumber;
+                    FullRouteAsNumber asn = (FullRouteAsNumber)e.Value;
 
                     data.Add("AS" + asn.Number.ToString());
                     data.Add(asn.Country2);
@@ -2079,7 +2079,7 @@ namespace IPA.Cores.Basic
                 }
                 else if (e.Value is FullRouteCountryEntry)
                 {
-                    FullRouteCountryEntry ce = e.Value as FullRouteCountryEntry;
+                    FullRouteCountryEntry ce = (FullRouteCountryEntry)e.Value;
 
                     data.Add(ce.Country2);
                     data.Add(ce.CountryFull);
@@ -2124,7 +2124,7 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        static bool CompareObj(object obj1, object obj2)
+        static bool CompareObj(object? obj1, object? obj2)
         {
             if (obj1 == null && obj2 == null)
             {
@@ -2282,7 +2282,7 @@ namespace IPA.Cores.Basic
     {
         public readonly AddressFamily AddressFamily;
         public Dictionary<FullRouteEntry, int> BulkList = new Dictionary<FullRouteEntry, int>();
-        public RadixTrie Trie = null;
+        public RadixTrie? Trie = null;
         readonly bool is_readonly = false;
         public readonly int AddressSize = 0;
 
@@ -2330,7 +2330,7 @@ namespace IPA.Cores.Basic
             }
 
             WriteCreditHeaderString(w, ip_type + " Full Route",
-                this.Trie.Count.ToString() + " routes");
+                this.Trie!.Count.ToString() + " routes");
 
             w.WriteLine("#NetworkAddress,SubnetLength,OriginAS,AS_PATH");
 
@@ -2338,9 +2338,9 @@ namespace IPA.Cores.Basic
 
             o.Sort();
 
-            foreach (FullRouteEntry e in o)
+            foreach (FullRouteEntry? e in o)
             {
-                w.WriteLine(e.ToCsvLine());
+                w.WriteLine(e!.ToCsvLine());
             }
 
             return w.ToString();
@@ -2355,7 +2355,7 @@ namespace IPA.Cores.Basic
             {
                 FullRouteEntry e = new FullRouteEntry(buf, this.AddressSize);
 
-                this.Trie.Count++;
+                this.Trie!.Count++;
 
                 n.Object = e;
             }
@@ -2375,7 +2375,7 @@ namespace IPA.Cores.Basic
         {
             buf.RawWriteInt((uint)n.Label.Length);
             buf.Write(n.Label);
-            FullRouteEntry e = n.Object as FullRouteEntry;
+            FullRouteEntry? e = n.Object as FullRouteEntry;
             if (e == null)
             {
                 buf.RawWriteInt(0);
@@ -2403,7 +2403,7 @@ namespace IPA.Cores.Basic
             // addr family
             buf.WriteInt((uint)this.AddressFamily);
 
-            DumpNode(buf, this.Trie.Root);
+            DumpNode(buf, this.Trie!.Root);
         }
 
         public void Insert(FullRouteEntry e)
@@ -2455,7 +2455,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public FullRouteEntry Lookup(IPAddr addr)
+        public FullRouteEntry? Lookup(IPAddr addr)
         {
             if (addr.AddressFamily != this.AddressFamily)
             {
@@ -2466,7 +2466,7 @@ namespace IPA.Cores.Basic
 
             byte[] key = addr.GetBinaryBytes();
 
-            RadixNode n = this.Trie.Lookup(key);
+            RadixNode n = this.Trie!.Lookup(key);
             if (n == null)
             {
                 return null;
@@ -2495,14 +2495,14 @@ namespace IPA.Cores.Basic
         public void InsertFromBirdText(string str)
         {
             StringReader r = new StringReader(str);
-            string current_ip_and_subnet = null;
+            string? current_ip_and_subnet = null;
             string tag = "BGP.as_path:";
 
             int num_insert = 0;
 
             while (true)
             {
-                string line = r.ReadLine();
+                string? line = r.ReadLine();
 
                 /*if (num_insert >= 10000)
 				{
@@ -2794,7 +2794,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                string ip = Con.ReadLine("IP>");
+                string? ip = Con.ReadLine("IP>");
 
                 if (Str.IsNumber(ip))
                 {
@@ -2834,9 +2834,9 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    IPAddr target = IPAddr.FromString(ip);
-                    FullRouteEntry e = r.Lookup(target);
-                    Con.WriteLine(e.ToString());
+                    IPAddr target = IPAddr.FromString(ip!);
+                    FullRouteEntry? e = r.Lookup(target);
+                    Con.WriteLine(e!.ToString());
 
                     Con.WriteLine("  " + target.GetBinaryString());
                     Con.WriteLine("  " + e.GetBinaryString());

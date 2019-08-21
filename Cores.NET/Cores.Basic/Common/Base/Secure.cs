@@ -608,6 +608,7 @@ namespace IPA.Cores.Basic
 
             private RC4()
             {
+                state = null!;
             }
 
             public object Clone()

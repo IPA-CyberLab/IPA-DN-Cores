@@ -38,6 +38,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -88,9 +89,9 @@ namespace IPA.Cores.Basic
 
     public class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
     {
-        public DataContractJsonSerializerSettings JsonSettings { get; }
+        public DataContractJsonSerializerSettings? JsonSettings { get; }
 
-        public RuntimeJsonHiveSerializerOptions(DataContractJsonSerializerSettings jsonSettings = null)
+        public RuntimeJsonHiveSerializerOptions(DataContractJsonSerializerSettings? jsonSettings = null)
         {
             this.JsonSettings = jsonSettings;
         }
@@ -100,7 +101,7 @@ namespace IPA.Cores.Basic
     {
         public new RuntimeJsonHiveSerializerOptions Options => (RuntimeJsonHiveSerializerOptions)base.Options;
 
-        public RuntimeJsonHiveSerializer(RuntimeJsonHiveSerializerOptions options = null) : base(options ?? new RuntimeJsonHiveSerializerOptions()) { }
+        public RuntimeJsonHiveSerializer(RuntimeJsonHiveSerializerOptions? options = null) : base(options ?? new RuntimeJsonHiveSerializerOptions()) { }
 
         protected override Memory<byte> SerializeImpl<T>(T obj)
         {
@@ -193,7 +194,7 @@ namespace IPA.Cores.Basic
 
         AsyncLock LockObj = new AsyncLock();
 
-        SingleInstance SingleInstance = null;
+        SingleInstance? SingleInstance = null;
 
         public FileHiveStorageProvider(FileHiveStorageOptions options) : base(options)
         {
@@ -235,7 +236,7 @@ namespace IPA.Cores.Basic
             string newFilename = filename + Options.TmpFileExtension;
             string directoryName = PathParser.GetDirectoryName(filename);
 
-            Mutant mutant = null;
+            Mutant? mutant = null;
 
             if (this.Options.GlobalLock)
             {
@@ -338,7 +339,7 @@ namespace IPA.Cores.Basic
             string filename = MakeFileName(dataName, Options.FileExtension);
             string newFilename = filename + Options.TmpFileExtension;
 
-            Mutant mutant = null;
+            Mutant? mutant = null;
 
             if (this.Options.GlobalLock)
             {
@@ -438,9 +439,9 @@ namespace IPA.Cores.Basic
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
         static readonly string UserConfigHiveDirName = Path.Combine(Env.HomeDir, ".Cores.NET/Config");
 
-        public static Hive SharedLocalConfigHive { get; private set; } = null;
-        public static Hive SharedConfigHive { get; private set; } = null;
-        public static Hive SharedUserConfigHive { get; private set; } = null;
+        public static Hive SharedLocalConfigHive { get; private set; } = null!;
+        public static Hive SharedConfigHive { get; private set; } = null!;
+        public static Hive SharedUserConfigHive { get; private set; } = null!;
 
 
         // Normal runtime hive data
@@ -726,7 +727,7 @@ namespace IPA.Cores.Basic
         public bool IsReadOnly => this.Policy.Bit(HiveSyncPolicy.ReadOnly);
         public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
 
-        T DataInternal = null;
+        T? DataInternal = null;
         long StorageHash = 0;
 
         public CriticalSection DataLock { get; } = new CriticalSection();
@@ -735,16 +736,16 @@ namespace IPA.Cores.Basic
 
         readonly Func<T> GetDefaultDataFunc;
 
-        readonly IHolder Leak = null;
+        readonly IHolder? Leak = null;
 
         class HiveDataState
         {
-            public T Data;
+            public T? Data;
             public Memory<byte> SerializedData;
             public long Hash;
         }
 
-        public HiveData(Hive hive, string dataName, Func<T> getDefaultDataFunc = null, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer customSerializer = null)
+        public HiveData(Hive hive, string dataName, Func<T>? getDefaultDataFunc = null, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer? customSerializer = null)
         {
             if (getDefaultDataFunc == null)
                 getDefaultDataFunc = () => new T();
@@ -866,7 +867,7 @@ namespace IPA.Cores.Basic
                     this.StorageHash = result.Hash;
                 }
 
-                return this.DataInternal;
+                return this.DataInternal!;
             }
         }
 
@@ -999,7 +1000,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        string cacheForSupressSameError = null;
+        string? cacheForSupressSameError = null;
 
         async Task<HiveDataState> LoadDataCoreAsync(CancellationToken cancel = default)
         {
@@ -1116,7 +1117,7 @@ namespace IPA.Cores.Basic
             return keyName;
         }
 
-        public bool SetObject(string keyName, object value)
+        public bool SetObject(string keyName, object? value)
         {
             keyName = NormalizeKeyName(keyName);
 
@@ -1140,7 +1141,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public object GetObject(string keyName, object defaultValue = null)
+        public object? GetObject(string keyName, object? defaultValue = null)
         {
             keyName = NormalizeKeyName(keyName);
             lock (LockObj.LockObj)
@@ -1185,12 +1186,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool Set<T>(string keyName, T value)
+        public bool Set<T>(string keyName, [AllowNull] T value)
             => SetObject(keyName, value);
 
-        public T Get<T>(string keyName, T defaultValue = default)
+        [return: MaybeNull]
+        public T Get<T>(string keyName, [AllowNull] T defaultValue = default)
         {
-            object obj = GetObject(keyName, defaultValue);
+            object? obj = GetObject(keyName, defaultValue);
             if (obj == null)
             {
                 obj = defaultValue;
@@ -1203,7 +1205,7 @@ namespace IPA.Cores.Basic
             }
 #endif  // CORES_BASIC_JSON
 
-            return (T)obj;
+            return (T)obj!;
         }
 
         public bool Delete<T>(string keyName)
@@ -1213,7 +1215,7 @@ namespace IPA.Cores.Basic
         }
 
         public bool SetStr(string key, string value) => Set(key, value._NonNull());
-        public string GetStr(string key, string defaultValue = null) => Get(key, defaultValue)._NonNull();
+        public string GetStr(string key, string? defaultValue = null) => Get(key, defaultValue)._NonNull();
 
         public bool SetSInt32(string key, int value) => Set(key, value);
         public int GetSInt32(string key, int defaultValue = 0) => Get(key, defaultValue);

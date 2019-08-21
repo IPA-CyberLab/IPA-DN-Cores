@@ -51,9 +51,9 @@ namespace IPA.Cores.Basic
         object data;            // データ
 
         // 比較
-        int IComparable.CompareTo(object obj)
+        int IComparable.CompareTo(object? obj)
         {
-            PackValue v = (PackValue)obj;
+            PackValue v = (PackValue)obj!;
 
             return this.index.CompareTo(v.index);
         }
@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         }
 
         // デフォルトの値
-        public static PackValue GetDefaultValue(uint index, PackValueType type)
+        public static PackValue? GetDefaultValue(uint index, PackValueType type)
         {
             switch (type)
             {
@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
         }
 
         // 読み込む
-        public static PackValue CreateFromBuf(Buf b, uint index, PackValueType type)
+        public static PackValue? CreateFromBuf(Buf b, uint index, PackValueType type)
         {
             switch (type)
             {
@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
     {
         string name;            // 要素名
         PackValueType type;         // 型
-                                //List<Value> values;		// 値リスト
+                                    //List<Value> values;		// 値リスト
         Dictionary<uint, PackValue> values;
         uint maxIndex;
 
@@ -223,12 +223,12 @@ namespace IPA.Cores.Basic
         }
 
         // 値の取得
-        public PackValue GetValue(uint index)
+        public PackValue? GetValue(uint index)
         {
             bool tmp;
             return GetValue(index, out tmp);
         }
-        public PackValue GetValue(uint index, out bool exists)
+        public PackValue? GetValue(uint index, out bool exists)
         {
             if (values.ContainsKey(index) == false)
             {
@@ -246,7 +246,7 @@ namespace IPA.Cores.Basic
         public void AddValue(PackValue value)
         {
             bool exists;
-            PackValue existValue = GetValue(value.Index, out exists);
+            PackValue? existValue = GetValue(value.Index, out exists);
 
             if (exists)
             {
@@ -309,7 +309,7 @@ namespace IPA.Cores.Basic
             uint i;
             for (i = 0; i < num; i++)
             {
-                PackValue v = PackValue.CreateFromBuf(b, i, type);
+                PackValue v = PackValue.CreateFromBuf(b, i, type)!;
 
                 e.AddValue(v);
             }
@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
             }
             for (i = 0; i < this.Count; i++)
             {
-                PackValue v = this.GetValue(i);
+                PackValue v = this.GetValue(i)!;
 
                 v.WriteToBuf(b, this.type);
             }
@@ -347,13 +347,13 @@ namespace IPA.Cores.Basic
     // Pack の値
     public class PackValueAccessor
     {
-        public string StrValue = null;
-        public string UniStrValue = null;
+        public string? StrValue = null;
+        public string? UniStrValue = null;
         public uint IntValue = 0;
         public ulong Int64Value = 0;
-        public byte[] DataValue = null;
+        public byte[]? DataValue = null;
         public DateTime DateTimeValue = new DateTime(0);
-        public Boolean BoolValue = false;
+        public bool BoolValue = false;
     }
 
     // Pack
@@ -504,7 +504,7 @@ namespace IPA.Cores.Basic
         }
 
         // 要素の取得
-        PackElement getElement(string name)
+        PackElement? getElement(string name)
         {
             PackElement t = new PackElement(name, PackValueType.Int);
             if (elementsSorted == false)
@@ -524,7 +524,7 @@ namespace IPA.Cores.Basic
         }
         PackElement getElementAndCreateIfNotExists(string name, PackValueType type)
         {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e != null)
             {
                 return e;
@@ -538,7 +538,7 @@ namespace IPA.Cores.Basic
 
         public uint GetCount(string name)
         {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -546,13 +546,9 @@ namespace IPA.Cores.Basic
             return e.Count;
         }
 
-        public string GetStr(string name)
+        public string? GetStr(string name, uint index = 0)
         {
-            return GetStr(name, 0);
-        }
-        public string GetStr(string name, uint index)
-        {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -561,7 +557,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            PackValue v = e.GetValue(index);
+            PackValue? v = e.GetValue(index);
             if (v == null)
             {
                 return null;
@@ -569,13 +565,9 @@ namespace IPA.Cores.Basic
             return v.StrValue;
         }
 
-        public string GetUniStr(string name)
+        public string? GetUniStr(string name, uint index = 0)
         {
-            return GetUniStr(name, 0);
-        }
-        public string GetUniStr(string name, uint index)
-        {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -584,7 +576,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            PackValue v = e.GetValue(index);
+            PackValue? v = e.GetValue(index);
             if (v == null)
             {
                 return null;
@@ -598,7 +590,7 @@ namespace IPA.Cores.Basic
         }
         public uint GetInt(string name, uint index)
         {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -607,7 +599,7 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-            PackValue v = e.GetValue(index);
+            PackValue? v = e.GetValue(index);
             if (v == null)
             {
                 return 0;
@@ -630,7 +622,7 @@ namespace IPA.Cores.Basic
         }
         public ulong GetInt64(string name, uint index)
         {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return 0;
@@ -639,7 +631,7 @@ namespace IPA.Cores.Basic
             {
                 return 0;
             }
-            PackValue v = e.GetValue(index);
+            PackValue? v = e.GetValue(index);
             if (v == null)
             {
                 return 0;
@@ -647,13 +639,9 @@ namespace IPA.Cores.Basic
             return v.Int64Value;
         }
 
-        public byte[] GetData(string name)
+        public byte[]? GetData(string name, uint index = 0)
         {
-            return GetData(name, 0);
-        }
-        public byte[] GetData(string name, uint index)
-        {
-            PackElement e = getElement(name);
+            PackElement? e = getElement(name);
             if (e == null)
             {
                 return null;
@@ -662,7 +650,7 @@ namespace IPA.Cores.Basic
             {
                 return null;
             }
-            PackValue v = e.GetValue(index);
+            PackValue? v = e.GetValue(index);
             if (v == null)
             {
                 return null;

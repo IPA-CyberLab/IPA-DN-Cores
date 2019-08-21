@@ -147,7 +147,7 @@ namespace IPA.Cores.Basic
         public string MailPriority = "3";
         public MailAddress From;
         public MailAddress To;
-        public MailAddress ReplyTo = null;
+        public MailAddress? ReplyTo = null;
         public string Subject;
         public string Body;
         public string BodyHtml = "";
@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic
         {
             this.AttatchedFileList.Add(a);
         }
-        public void AddAttachedFile(byte[] data, string contentType, string name, string id)
+        public void AddAttachedFile(byte[] data, string contentType, string name, string? id)
         {
             MemoryStream ms = new MemoryStream(data);
             Attachment a = new Attachment(ms, contentType);
