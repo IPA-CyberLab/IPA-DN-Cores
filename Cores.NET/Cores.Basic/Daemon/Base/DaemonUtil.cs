@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
 
                     LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
                         systemTitle: $"{Env.DnsFqdnHostName}",
-                        urlSecret: GlobalDaemonStateManager.DaemonSecret,
+                        absolutePathPrefix: "/" + GlobalDaemonStateManager.DaemonSecret,
                         clientIpAcl: (ip) =>
                         {
                             // 接続元 IP アドレスの種類を取得

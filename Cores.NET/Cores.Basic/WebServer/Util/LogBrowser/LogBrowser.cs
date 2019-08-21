@@ -61,25 +61,35 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 
 namespace IPA.Cores.Basic
 {
-
+    // LogBrowser のオプション
     public class LogBrowserHttpServerOptions
     {
         public DirectoryPath RootDir { get; }
         public string SystemTitle { get; }
         public long TailSize { get; }
-        public string UrlSecret { get; }
+        public string AbsolutePathPrefix { get; }
         public Func<IPAddress, bool> ClientIpAcl { get; }
 
         public LogBrowserHttpServerOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
             long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
-            string urlSecret = null,
+            string absolutePathPrefix = null,
             Func<IPAddress, bool> clientIpAcl = null)
         {
+            absolutePathPrefix = absolutePathPrefix._NonNullTrim();
+
+            if (absolutePathPrefix._IsFilled())
+            {
+                if (absolutePathPrefix.StartsWith("/") == false)
+                {
+                    throw new ArgumentException("Must be an absolute URL.", nameof(absolutePathPrefix));
+                }
+            }
+
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
             this.TailSize = tailSize._Max(1);
-            this.UrlSecret = urlSecret;
+            this.AbsolutePathPrefix = absolutePathPrefix;
 
             // デフォルト ACL はすべて通す
             if (clientIpAcl == null) clientIpAcl = (ip) => true;
@@ -88,50 +98,98 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class LogBrowserHttpServerBuilder : HttpServerStartupBase
+    // 汎用的に任意の Kestrel App から利用できる LogBrowser
+    public class LogBrowserImpl : AsyncService
     {
-        public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param;
-
-        string AbsolutePathPrefix = "";
+        public LogBrowserHttpServerOptions Options { get; }
 
         public ChrootFileSystem RootFs;
 
-        public static HttpServer<LogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
-            => new HttpServer<LogBrowserHttpServerBuilder>(httpCfg, options, cancel);
+        public string AbsolutePathPrefix => Options.AbsolutePathPrefix;
 
-        public LogBrowserHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        public LogBrowserImpl(LogBrowserHttpServerOptions options)
         {
-        }
+            this.Options = options;
 
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-        }
-
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
             this.RootFs = new ChrootFileSystem(new ChrootFileSystemParam(Options.RootDir.FileSystem, Options.RootDir.PathString, FileSystemMode.ReadOnly));
+        }
 
-            RouteBuilder rb = new RouteBuilder(app);
+        public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        {
+            CancellationToken cancel = request._GetRequestCancellationToken();
 
-            if (Options.UrlSecret._IsEmpty())
+            try
             {
-                // 通常
-                rb.MapGet("{*path}", GetRequestHandler);
+                // クライアント IP による ACL のチェック
+                if (Options.ClientIpAcl(request.HttpContext.Connection.RemoteIpAddress) == false)
+                {
+                    // Not found
+                    response.StatusCode = 403;
+                    await response._SendStringContents($"403 Forbidden", cancel: cancel);
+                }
+                else
+                {
+                    string path = routeData.Values._GetStr("path");
+
+                    if (path.StartsWith("/") == false) path = "/" + path;
+
+                    path = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
+
+                    if (RootFs.IsDirectoryExists(path, cancel))
+                    {
+                        // Directory
+                        string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
+
+                        await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel);
+                    }
+                    else if (RootFs.IsFileExists(path, cancel))
+                    {
+                        // File
+                        string extension = RootFs.PathParser.GetExtension(path);
+                        string mimeType = MasterData.ExtensionToMime.Get(extension);
+
+                        using (FileObject file = await RootFs.OpenAsync(path, cancel: cancel))
+                        {
+                            long fileSize = file.Size;
+
+                            long head = request._GetQueryStringFirst("head")._ToInt()._NonNegative();
+                            long tail = request._GetQueryStringFirst("tail")._ToInt()._NonNegative();
+
+                            if (head != 0 && tail != 0) throw new ApplicationException("You can specify either head or tail.");
+
+                            head = head._Min(fileSize);
+                            tail = tail._Min(fileSize);
+
+                            long readStart = 0;
+                            long readSize = fileSize;
+
+                            if (head != 0)
+                            {
+                                readStart = 0;
+                                readSize = head;
+                            }
+                            else if (tail != 0)
+                            {
+                                readStart = fileSize - tail;
+                                readSize = tail;
+                            }
+
+                            await response._SendFileContents(file, readStart, readSize, mimeType, cancel);
+                        }
+                    }
+                    else
+                    {
+                        // Not found
+                        response.StatusCode = 404;
+                        await response._SendStringContents($"404 File not found", cancel: cancel);
+                    }
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // URL Secret を設定
-                rb.MapGet(Options.UrlSecret + "/{*path}", GetRequestHandler);
-                AbsolutePathPrefix = $"/" + Options.UrlSecret;
+                response.StatusCode = 500;
+                await response._SendStringContents($"HTTP Status Code: {response.StatusCode}\r\n" + ex.ToString(), cancel: cancel);
             }
-
-            IRouter router = rb.Build();
-            app.UseRouter(router);
-
-            lifetime.ApplicationStopping.Register(() =>
-            {
-                this.RootFs._DisposeSafe();
-            });
         }
 
         string BuildDirectoryHtml(DirectoryPath dir)
@@ -230,82 +288,61 @@ namespace IPA.Cores.Basic
             return body;
         }
 
-        public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        protected override void DisposeImpl(Exception ex)
         {
-            CancellationToken cancel = request._GetRequestCancellationToken();
-
             try
             {
-                // クライアント IP による ACL のチェック
-                if (Options.ClientIpAcl(request.HttpContext.Connection.RemoteIpAddress) == false)
-                {
-                    // Not found
-                    response.StatusCode = 403;
-                    await response._SendStringContents($"403 Forbidden", cancel: cancel);
-                }
-                else
-                {
-                    string path = routeData.Values._GetStr("path");
-
-                    if (path.StartsWith("/") == false) path = "/" + path;
-
-                    path = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(path);
-
-                    if (RootFs.IsDirectoryExists(path, cancel))
-                    {
-                        // Directory
-                        string htmlBody = BuildDirectoryHtml(new DirectoryPath(path, RootFs));
-
-                        await response._SendStringContents(htmlBody, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel);
-                    }
-                    else if (RootFs.IsFileExists(path, cancel))
-                    {
-                        // File
-                        string extension = RootFs.PathParser.GetExtension(path);
-                        string mimeType = MasterData.ExtensionToMime.Get(extension);
-
-                        using (FileObject file = await RootFs.OpenAsync(path, cancel: cancel))
-                        {
-                            long fileSize = file.Size;
-
-                            long head = request._GetQueryStringFirst("head")._ToInt()._NonNegative();
-                            long tail = request._GetQueryStringFirst("tail")._ToInt()._NonNegative();
-
-                            if (head != 0 && tail != 0) throw new ApplicationException("You can specify either head or tail.");
-
-                            head = head._Min(fileSize);
-                            tail = tail._Min(fileSize);
-
-                            long readStart = 0;
-                            long readSize = fileSize;
-
-                            if (head != 0)
-                            {
-                                readStart = 0;
-                                readSize = head;
-                            }
-                            else if (tail != 0)
-                            {
-                                readStart = fileSize - tail;
-                                readSize = tail;
-                            }
-
-                            await response._SendFileContents(file, readStart, readSize, mimeType, cancel);
-                        }
-                    }
-                    else
-                    {
-                        // Not found
-                        response.StatusCode = 404;
-                        await response._SendStringContents($"404 File not found", cancel: cancel);
-                    }
-                }
+                this.RootFs._DisposeSafe();
             }
-            catch (Exception ex)
+            finally
             {
-                response.StatusCode = 500;
-                await response._SendStringContents($"HTTP Status Code: {response.StatusCode}\r\n" + ex.ToString(), cancel: cancel);
+                base.DisposeImpl(ex);
             }
+        }
+    }
+
+    // LogBrowser 用の新しい Kestrel 専用サーバーを立てるためのスタートアップクラス
+    public class LogBrowserHttpServerBuilder : HttpServerStartupBase
+    {
+        public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param;
+
+        public LogBrowserImpl Impl = null;
+
+        public static HttpServer<LogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
+            => new HttpServer<LogBrowserHttpServerBuilder>(httpCfg, options, cancel);
+
+        public LogBrowserHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        {
+        }
+
+        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+        {
+        }
+
+        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+        {
+            this.Impl = new LogBrowserImpl(this.Options);
+
+            RouteBuilder rb = new RouteBuilder(app);
+
+            if (this.Impl.AbsolutePathPrefix._IsEmpty())
+            {
+                // 通常
+                rb.MapGet("{*path}", Impl.GetRequestHandler);
+            }
+            else
+            {
+                // URL Secret を設定
+                rb.MapGet(this.Impl.AbsolutePathPrefix + "/{*path}", Impl.GetRequestHandler);
+            }
+
+            IRouter router = rb.Build();
+            app.UseRouter(router);
+
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                this.Impl._DisposeSafe();
+            });
         }
     }
 }
