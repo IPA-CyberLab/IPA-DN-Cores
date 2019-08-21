@@ -39,7 +39,7 @@ namespace DaemonCenter
                     DebugKestrelToConsole = false,
                     UseSimpleBasicAuthentication = false,
                     HoldSimpleBasicAuthenticationDatabase = true,
-                    AutomaticRedirectToHttpsIfPossible = false,
+                    AutomaticRedirectToHttpsIfPossible = true,
                     DenyRobots = true,
                 }));
         }

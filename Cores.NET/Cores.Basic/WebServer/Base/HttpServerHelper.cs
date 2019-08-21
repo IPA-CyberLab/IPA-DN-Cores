@@ -55,6 +55,10 @@ namespace IPA.Cores.Helper.Basic
         public static CancellationToken _GetRequestCancellationToken(this HttpRequest h) => h.HttpContext.RequestAborted;
         public static CancellationToken _GetRequestCancellationToken(this HttpContext h) => h.RequestAborted;
 
+#if CORES_BASIC_WEBAPP
+        public static CancellationToken _GetRequestCancellationToken(this Microsoft.AspNetCore.Mvc.Controller c) => c.HttpContext._GetRequestCancellationToken();
+#endif
+
         public static async Task _SendHttpResultAsync(this HttpResponse h, HttpResult result, CancellationToken cancel = default)
         {
             if (result.Offset != 0)

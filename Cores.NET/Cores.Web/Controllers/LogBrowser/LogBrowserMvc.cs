@@ -47,6 +47,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -58,13 +59,14 @@ using static IPA.Cores.Globals.Web;
 
 namespace IPA.Cores.Web
 {
+    [Authorize]
     [AspNetLibFeature(AspNetLibFeatures.LogBrowser)]
     [Route(Consts.UrlPaths.LogBrowserMvcPath + "/{*path}")]
     public class LogBrowserController : Controller
     {
-        public IActionResult Index([FromServices] LogBrowserImpl logBrowser)
+        public async Task<IActionResult> Index([FromServices] LogBrowser logBrowser)
         {
-            string fullpath = HttpContext.Request._GetRequestPathAndQueryString();
+            string fullpath = Request._GetRequestPathAndQueryString();
 
             if (fullpath._TryTrimStartWith(out string path, StringComparison.OrdinalIgnoreCase, Consts.UrlPaths.LogBrowserMvcPath) == false)
             {
@@ -72,7 +74,11 @@ namespace IPA.Cores.Web
             }
             else
             {
-                return new ContentResult { Content = "OK", ContentType = "text/plain", StatusCode = 200 };
+                HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.LocalIpAddress._UnmapIPv4(),
+                    Request._GetRequestPathAndQueryString(),
+                    this._GetRequestCancellationToken());
+
+                return result.GetHttpActionResult();
             }
         }
     }

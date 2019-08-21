@@ -116,7 +116,7 @@ namespace IPA.Cores.Web
 
         public AspNetLibFeatures EnabledFeatures { get; }
 
-        LogBrowserImpl LogBrowser = null;
+        LogBrowser LogBrowser = null;
 
         public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
         {
@@ -137,7 +137,7 @@ namespace IPA.Cores.Web
 
             if (LogBrowser != null) throw new ApplicationException("SetupLogBrowser is already called.");
 
-            LogBrowser = new LogBrowserImpl(options, Consts.UrlPaths.LogBrowserMvcPath);
+            LogBrowser = new LogBrowser(options, Consts.UrlPaths.LogBrowserMvcPath);
 
             services.AddSingleton(this.LogBrowser);
         }

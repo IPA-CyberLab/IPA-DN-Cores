@@ -65,7 +65,7 @@ namespace DaemonCenter
             EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
 
             // LogBrowesr 機能を設定
-            AspNetLib.SetupLogBrowser(services, new LogBrowserOptions(Env.AppRootDir));
+            AspNetLib.SetupLogBrowser(services, new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), "DaemonCenter Server 本体ログブラウザ"));
 
             // MVC 機能を追加
             services.AddControllersWithViews()

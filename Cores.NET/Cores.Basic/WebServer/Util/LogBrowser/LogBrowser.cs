@@ -101,7 +101,7 @@ namespace IPA.Cores.Basic
     }
 
     // 汎用的に任意の Kestrel App から利用できる LogBrowser
-    public class LogBrowserImpl : AsyncService
+    public class LogBrowser : AsyncService
     {
         public LogBrowserOptions Options { get; }
 
@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
 
         public string AbsolutePathPrefix { get; }
 
-        public LogBrowserImpl(LogBrowserOptions options, string absolutePathPrefix)
+        public LogBrowser(LogBrowserOptions options, string absolutePathPrefix)
         {
             if (absolutePathPrefix._IsFilled())
             {
@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
     {
         public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param;
 
-        public LogBrowserImpl Impl = null;
+        public LogBrowser Impl = null;
 
         public static HttpServer<LogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
             => new HttpServer<LogBrowserHttpServerBuilder>(httpCfg, options, cancel);
@@ -352,7 +352,7 @@ namespace IPA.Cores.Basic
 
         protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
-            this.Impl = new LogBrowserImpl(this.Options.LogBrowserOptions, this.Options.AbsolutePrefixPath);
+            this.Impl = new LogBrowser(this.Options.LogBrowserOptions, this.Options.AbsolutePrefixPath);
 
             RouteBuilder rb = new RouteBuilder(app);
 
