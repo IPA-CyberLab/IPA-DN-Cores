@@ -71,6 +71,7 @@ namespace IPA.Cores.Web
         None = 0,
         Any = 1,
         EasyCookieAuth = 2,
+        LogBrowser = 4,
     }
     
     // [AspNetLibFeature] 属性の実装

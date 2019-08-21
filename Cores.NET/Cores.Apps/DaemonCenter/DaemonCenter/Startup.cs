@@ -24,6 +24,7 @@ using static IPA.Cores.Globals.Codes;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Routing;
 
 namespace DaemonCenter
 {
@@ -114,6 +115,14 @@ namespace DaemonCenter
             app.UseAuthentication();
             app.UseAuthorization();
 
+            //// LogBrowser を実装
+            //LogBrowserImpl impl = new LogBrowserImpl(new LogBrowserHttpServerOptions(Env.AppRootDir, absolutePathPrefix: "/log"));
+
+            //RouteBuilder rb = new RouteBuilder(app);
+            //rb.MapGet(impl.AbsolutePathPrefix + "/{*path}", impl.GetRequestHandler);
+            //IRouter router = rb.Build();
+            //app.UseRouter(router);
+
             // ルートマップを定義
             app.UseEndpoints(endpoints =>
             {
@@ -129,6 +138,8 @@ namespace DaemonCenter
 
                 AspNetLib._DisposeSafe();
                 StartupHelper._DisposeSafe();
+
+                //impl._DisposeSafe();
             });
         }
     }
