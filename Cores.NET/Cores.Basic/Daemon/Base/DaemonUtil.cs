@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
                         HttpPortsList = httpPort._SingleList(),
                         HttpsPortsList = httpsPort._SingleList(),
                         DebugKestrelToConsole = false,
-                        UseKestrelWithIPACoreStack = false,
+                        UseKestrelWithIPACoreStack = true,
                         AutomaticRedirectToHttpsIfPossible = false,
                         LocalHostOnly = false,
                         UseGlobalCertVault = false, // Disable Global CertVault
@@ -104,8 +104,8 @@ namespace IPA.Cores.Basic
                         DenyRobots = true, // Deny robots
                     };
 
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(@"c:\tmp\",
-                        //Env.AppRootDir, 
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(
+                        Env.AppRootDir, 
                         systemTitle: $"{Env.DnsFqdnHostName}",
                         clientIpAcl: (ip) =>
                         {

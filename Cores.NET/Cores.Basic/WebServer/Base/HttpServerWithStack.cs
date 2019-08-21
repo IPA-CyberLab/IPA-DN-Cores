@@ -195,8 +195,8 @@ namespace IPA.Cores.Basic
                 WebServerLogData log = new WebServerLogData()
                 {
                     ConnectionId = conn.Id,
-                    LocalIP = conn.LocalIpAddress.ToString(),
-                    RemoteIP = conn.RemoteIpAddress.ToString(),
+                    LocalIP = conn.LocalIpAddress._UnmapIPv4().ToString(),
+                    RemoteIP = conn.RemoteIpAddress._UnmapIPv4().ToString(),
                     LocalPort = conn.LocalPort,
                     RemotePort = conn.RemotePort,
 

@@ -129,7 +129,7 @@ namespace IPA.Cores.Basic
         {
             CancellationToken cancel = request._GetRequestCancellationToken();
 
-            using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress,
+            using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
                 request._GetRequestPathAndQueryString(),
                 cancel))
             {
@@ -139,6 +139,8 @@ namespace IPA.Cores.Basic
 
         public async Task<HttpResult> ProcessRequestAsync(IPAddress clientIpAddress, string requestPathAndQueryString, CancellationToken cancel = default)
         {
+            clientIpAddress = clientIpAddress._UnmapIPv4();
+
             try
             {
                 // クライアント IP による ACL のチェック

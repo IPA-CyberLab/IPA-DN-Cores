@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         public static IHttpRequestRateLimiterHashKey CreateFromHttpContext<TKey>(HttpContext context, HttpRequestRateLimiterOptions<TKey> options) where TKey : IHttpRequestRateLimiterHashKey
         {
             // Src IP の処理
-            IPAddress srcIp = context.Connection.RemoteIpAddress;
+            IPAddress srcIp = context.Connection.RemoteIpAddress._UnmapIPv4();
 
             if (options.SrcIPExcludeLocalNetwork)
             {

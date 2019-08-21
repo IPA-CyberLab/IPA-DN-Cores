@@ -508,26 +508,14 @@ namespace IPA.Cores.Basic
         // IPv6 射影アドレスを IPv4 アドレスに変換
         public static IPAddress UnmapIPv6AddressToIPv4Address(IPAddress addr)
         {
-            if (IsIPv4MappedIPv6Address(addr, out IPAddress ret))
-                return ret;
+            if (addr == null) return null;
+
+            if (addr.IsIPv4MappedToIPv6)
+            {
+                return addr.MapToIPv4();
+            }
 
             return addr;
-        }
-
-        // IPv6 射影アドレスかどうか取得
-        public static bool IsIPv4MappedIPv6Address(IPAddress addr) => IsIPv4MappedIPv6Address(addr, out _);
-        public static bool IsIPv4MappedIPv6Address(IPAddress addr, out IPAddress ipv4_ret)
-        {
-            ipv4_ret = default;
-            if (IsIPv6(addr) == false) return false;
-            byte[] b = addr.GetAddressBytes();
-            if (b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 &&
-                b[10] == 0xff && b[11] == 0xff)
-            {
-                ipv4_ret = new IPAddress(b.AsSpan(12, 4));
-                return true;
-            }
-            return false;
         }
 
         // 文字列を IP アドレスに変換
