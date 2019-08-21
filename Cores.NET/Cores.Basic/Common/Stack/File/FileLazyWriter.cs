@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
         PipePoint Reader;
         PipePoint Writer;
 
-        public LazyBuffer(LazyBufferEmitterBase initialEmitter = null, LazyBufferOptions options = null, CancellationToken cancel = default) : base(cancel)
+        public LazyBuffer(LazyBufferEmitterBase? initialEmitter = null, LazyBufferOptions? options = null, CancellationToken cancel = default) : base(cancel)
         {
             if (options == null) options = new LazyBufferOptions();
 

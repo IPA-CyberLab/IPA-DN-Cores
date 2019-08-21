@@ -69,7 +69,7 @@ namespace IPA.Cores.Helper.Basic
             await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel);
         }
 
-        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             byte[] ret_data = encoding.GetBytes(body);
@@ -79,7 +79,7 @@ namespace IPA.Cores.Helper.Basic
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
-        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 

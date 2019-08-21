@@ -113,7 +113,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         readonly RestartCallback RestartCb;
 
-        public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions webOptions = null, CancellationToken cancel = default) : base(cancel)
+        public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions? webOptions = null, CancellationToken cancel = default) : base(cancel)
         {
             settings.Validate();
 

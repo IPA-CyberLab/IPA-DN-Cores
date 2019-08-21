@@ -35,6 +35,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -91,11 +92,9 @@ namespace IPA.Cores.Basic
     // コンソール入出力
     public static partial class Con
     {
-        
+        static ConsoleService? cs = null;
 
-        static ConsoleService cs = null;
-
-        public static ConsoleService ConsoleService
+        public static ConsoleService? ConsoleService
         {
             get { return Con.cs; }
         }
@@ -110,15 +109,7 @@ namespace IPA.Cores.Basic
             cs = null;
         }
 
-        public static string ReadLine()
-        {
-            return ReadLine("");
-        }
-        public static string ReadLine(string prompt)
-        {
-            return ReadLine(prompt, false);
-        }
-        public static string ReadLine(string prompt, bool noFile)
+        public static string? ReadLine(string prompt = "", bool noFile = false)
         {
             if (cs != null)
             {
@@ -139,7 +130,7 @@ namespace IPA.Cores.Basic
             WriteLine("");
         }
 
-        public static void WriteLine(object arg, Type type = null)
+        public static void WriteLine(object? arg, Type? type = null)
         {
             if (cs != null)
             {
@@ -302,27 +293,17 @@ namespace IPA.Cores.Basic
     public class ConsoleParam
     {
         public readonly string Name;                // パラメータ名
-        public readonly ConsolePromptProcDelegate PromptProc;   // パラメータが指定されていない場合に自動的に呼び出すプロンプト関数 (NULL の場合は呼ばない)
-        public readonly object PromptProcParam;     // プロンプト関数に渡す任意のポインタ
-        public readonly ConsoleEvalProcDelegate EvalProc;   // パラメータ文字列検証関数
-        public readonly object EvalProcParam;       // 検証関数に渡す任意のポインタ
-        internal string Tmp = null;                 // 一時変数
+        public readonly ConsolePromptProcDelegate? PromptProc;   // パラメータが指定されていない場合に自動的に呼び出すプロンプト関数 (NULL の場合は呼ばない)
+        public readonly object? PromptProcParam;     // プロンプト関数に渡す任意のポインタ
+        public readonly ConsoleEvalProcDelegate? EvalProc;   // パラメータ文字列検証関数
+        public readonly object? EvalProcParam;       // 検証関数に渡す任意のポインタ
+        internal string? Tmp = null;                 // 一時変数
 
-        public ConsoleParam(string name)
-            : this(name, null, null)
-        {
-        }
         public ConsoleParam(string name,
-            ConsolePromptProcDelegate promptProc,
-            object promptProcParam)
-            : this(name, promptProc, promptProcParam, null, null)
-        {
-        }
-        public ConsoleParam(string name,
-            ConsolePromptProcDelegate promptProc,
-            object promptProcParam,
-            ConsoleEvalProcDelegate evalProc,
-            object evalProcParam)
+            ConsolePromptProcDelegate? promptProc = null,
+            object? promptProcParam = null,
+            ConsoleEvalProcDelegate? evalProc = null,
+            object? evalProcParam = null)
         {
             this.Name = name;
             this.PromptProc = promptProc;
@@ -333,12 +314,12 @@ namespace IPA.Cores.Basic
     }
 
     // デリゲート
-    public delegate string ConsolePromptProcDelegate(ConsoleService c, object param);
-    public delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object param);
+    public delegate string? ConsolePromptProcDelegate(ConsoleService c, object? param);
+    public delegate bool ConsoleEvalProcDelegate(ConsoleService c, string str, object? param);
 
     public delegate void ConsoleFreeDelegate();
-    public delegate string ConsoleReadLineDelegate(string prompt, bool nofile);
-    public delegate string ConsoleReadPasswordDelegate(string prompt);
+    public delegate string? ConsoleReadLineDelegate(string prompt, bool nofile);
+    public delegate string? ConsoleReadPasswordDelegate(string prompt);
     public delegate bool ConsoleWriteDelegate(string str, LogPriority priority);
     public delegate int ConsoleGetWidthDelegate();
 
@@ -408,7 +389,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の取得
-        public string GetStr(string name)
+        public string? GetStr(string name)
         {
             ConsoleParamValue v = this[name];
             if (v == null)
@@ -488,9 +469,9 @@ namespace IPA.Cores.Basic
         public readonly SortedList<string, string> ParamHelp;
 
         internal BindingFlags bindingFlag;
-        internal MemberInfo memberInfo;
-        internal MethodInfo methodInfo;
-        internal string name;
+        internal MemberInfo? memberInfo;
+        internal MethodInfo? methodInfo;
+        internal string? name;
 
         public ConsoleCommand() : this("", "", "") { }
 
@@ -562,9 +543,9 @@ namespace IPA.Cores.Basic
     // コンソールサービス
     public class ConsoleService
     {
-        IO inFile;                      // 入力ファイル
-        Buf inBuf;                      // 入力バッファ
-        IO outFile;                     // 出力ファイル
+        IO? inFile;                      // 入力ファイル
+        Buf? inBuf;                      // 入力バッファ
+        IO? outFile;                     // 出力ファイル
         int win32_OldConsoleWidth;      // 以前のコンソールサイズ
 
         // 定数
@@ -586,13 +567,13 @@ namespace IPA.Cores.Basic
         }
 
         // 最後のエラーメッセージ
-        string retErrorMessage;
+        string? retErrorMessage;
         public string RetErrorMessage
         {
             get
             {
                 bool b;
-                string s = ConsoleErrorCode.ErrorCodeToString(this.RetCode, out b);
+                string? s = ConsoleErrorCode.ErrorCodeToString(this.RetCode, out b);
 
                 if (b)
                 {
@@ -606,22 +587,22 @@ namespace IPA.Cores.Basic
         }
 
         // 解放関数
-        ConsoleFreeDelegate free;
+        ConsoleFreeDelegate? free;
 
         // 1 行読み込む関数
-        ConsoleReadLineDelegate readLine;
+        ConsoleReadLineDelegate? readLine;
 
         // パスワードを読み込む関数
-        ConsoleReadPasswordDelegate readPassword;
+        ConsoleReadPasswordDelegate? readPassword;
 
         // 文字列を書き出す関数
-        ConsoleWriteDelegate write;
+        ConsoleWriteDelegate? write;
 
         // 画面の横幅の取得
-        ConsoleGetWidthDelegate getWidth;
+        ConsoleGetWidthDelegate? getWidth;
 
         // 現在呼び出し中のコマンドリスト
-        SortedList<string, ConsoleCommand> currentCmdList = null;
+        SortedList<string, ConsoleCommand>? currentCmdList = null;
 
 
         private ConsoleService()
@@ -636,9 +617,9 @@ namespace IPA.Cores.Basic
         public static int EntryPoint(string cmdLine, string programName, Type commandClass, out string lastErrorMessage)
         {
             int ret = 0;
-            string infile, outfile;
-            string csvmode;
-            ConsoleService c;
+            string? infile, outfile;
+            string? csvmode;
+            ConsoleService? c;
 
             cmdLine = cmdLine._NonNullTrim();
 
@@ -670,10 +651,10 @@ namespace IPA.Cores.Basic
             csvmode = ParseCommand(cmdLine, "csv");
             if (csvmode != null)
             {
-                c.consoleType = ConsoleType.Csv;
+                c!.consoleType = ConsoleType.Csv;
             }
 
-            if (c.DispatchCommand(cmdLine, ">", commandClass) == false)
+            if (c!.DispatchCommand(cmdLine, ">", commandClass) == false)
             {
                 ret = ConsoleErrorCode.ERR_BAD_COMMAND_OR_PARAM;
             }
@@ -690,7 +671,7 @@ namespace IPA.Cores.Basic
         // 文字列の表示
         public bool WriteLine(object value, LogPriority priority = LogPriority.Info)
         {
-            return WriteLine(value.ToString(), priority);
+            return WriteLine(value.ToString() ?? "null", priority);
         }
         public bool WriteLine(string str, LogPriority priority = LogPriority.Info)
         {
@@ -710,11 +691,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の取得
-        public string ReadLine(string prompt)
-        {
-            return ReadLine(prompt, false);
-        }
-        public string ReadLine(string prompt, bool noFile)
+        public string? ReadLine(string prompt, bool noFile = false)
         {
             return localReadLine(prompt, noFile);
         }
@@ -730,11 +707,11 @@ namespace IPA.Cores.Basic
         {
             get { return new ConsolePromptProcDelegate(prompt); }
         }
-        static string prompt(ConsoleService c, object param)
+        static string? prompt(ConsoleService c, object? param)
         {
             string p = (param == null) ? (CoreStr.CMD_PROMPT) : (string)param;
 
-            return c.readLine(p, true);
+            return c.readLine!(p, true);
         }
 
         // 指定されたファイルが存在するかどうか評価
@@ -742,7 +719,7 @@ namespace IPA.Cores.Basic
         {
             get { return new ConsoleEvalProcDelegate(evalIsFile); }
         }
-        static bool evalIsFile(ConsoleService c, string str, object param)
+        static bool evalIsFile(ConsoleService c, string str, object? param)
         {
             string tmp;
             // 引数チェック
@@ -755,13 +732,13 @@ namespace IPA.Cores.Basic
 
             if (Str.IsEmptyStr(tmp))
             {
-                c.write((CoreStr.CMD_FILE_NAME_EMPTY), LogPriority.Error);
+                c.write!((CoreStr.CMD_FILE_NAME_EMPTY), LogPriority.Error);
                 return false;
             }
 
             if (IO.IsFileExists(tmp) == false)
             {
-                c.write(Str.FormatC((CoreStr.CMD_FILE_NOT_FOUND), tmp), LogPriority.Error);
+                c.write!(Str.FormatC((CoreStr.CMD_FILE_NOT_FOUND), tmp), LogPriority.Error);
 
                 return false;
             }
@@ -774,13 +751,13 @@ namespace IPA.Cores.Basic
         {
             get { return new ConsoleEvalProcDelegate(evalInt1); }
         }
-        static bool evalInt1(ConsoleService c, string str, object param)
+        static bool evalInt1(ConsoleService c, string str, object? param)
         {
             string p = (param == null) ? (CoreStr.CMD_EVAL_INT) : (string)param;
 
             if (Str.StrToInt(str) == 0)
             {
-                c.write(p, LogPriority.Error);
+                c.write!(p, LogPriority.Error);
 
                 return false;
             }
@@ -793,7 +770,7 @@ namespace IPA.Cores.Basic
         {
             get { return new ConsoleEvalProcDelegate(evalNotEmpty); }
         }
-        static bool evalNotEmpty(ConsoleService c, string str, object param)
+        static bool evalNotEmpty(ConsoleService c, string str, object? param)
         {
             string p = (param == null) ? (CoreStr.CMD_EVAL_NOT_EMPTY) : (string)param;
 
@@ -802,7 +779,7 @@ namespace IPA.Cores.Basic
                 return true;
             }
 
-            c.write(p, LogPriority.Error);
+            c.write!(p, LogPriority.Error);
 
             return false;
         }
@@ -812,7 +789,7 @@ namespace IPA.Cores.Basic
         {
             get { return new ConsoleEvalProcDelegate(evalMinMax); }
         }
-        static bool evalMinMax(ConsoleService c, string str, object param)
+        static bool evalMinMax(ConsoleService c, string str, object? param)
         {
             string tag;
             int v;
@@ -841,7 +818,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                c.write(Str.FormatC(tag, e.MinValue, e.MaxValue), LogPriority.Error);
+                c.write!(Str.FormatC(tag, e.MinValue, e.MaxValue), LogPriority.Error);
 
                 return false;
             }
@@ -865,16 +842,16 @@ namespace IPA.Cores.Basic
 
             width = GetConsoleWidth() - 2;
 
-            description = this.currentCmdList[cmdName].Description;
-            args = this.currentCmdList[cmdName].ArgsHelp;
-            help = this.currentCmdList[cmdName].BodyHelp;
+            description = this.currentCmdList![cmdName].Description;
+            args = this.currentCmdList![cmdName].ArgsHelp;
+            help = this.currentCmdList![cmdName].BodyHelp;
 
             space = Str.MakeCharArray(' ', 2);
 
             // タイトル
             tmp = Str.FormatC((CoreStr.CMD_HELP_TITLE), cmdName);
-            this.write(tmp, LogPriority.Info);
-            this.write("", LogPriority.Info);
+            this.write!(tmp, LogPriority.Info);
+            this.write!("", LogPriority.Info);
 
             // 目的
             this.write((CoreStr.CMD_HELP_DESCRIPTION), LogPriority.Info);
@@ -917,7 +894,7 @@ namespace IPA.Cores.Basic
         }
 
         // 候補一覧のヘルプを表示する
-        public void PrintCandidateHelp(string cmdName, string[] candidateList, int leftSpace, SortedList<string, ConsoleCommand> ccList)
+        public void PrintCandidateHelp(string? cmdName, string[] candidateList, int leftSpace, SortedList<string, ConsoleCommand> ccList)
         {
             int console_width;
             int max_keyword_width;
@@ -1055,7 +1032,7 @@ namespace IPA.Cores.Basic
                             left_space_array, max_space_array, t[j]);
                     }
 
-                    this.write(tmpbuf, LogPriority.Info);
+                    this.write!(tmpbuf, LogPriority.Info);
                 }
             }
         }
@@ -1141,16 +1118,16 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドの実行
-        public bool DispatchCommand(string execCommandOrNull, string prompt, Type commandClass, object invokerInstance = null, bool ignoreUnsupportedOptions = false)
+        public bool DispatchCommand(string execCommandOrNull, string? prompt, Type commandClass, object? invokerInstance = null, bool ignoreUnsupportedOptions = false)
         {
             SortedList<string, ConsoleCommand> cmdList = GetCommandList(commandClass);
 
             currentCmdList = cmdList;
             try
             {
-                string str, tmp, cmd_name;
+                string? str;
+                string tmp;
                 bool b_exit = false;
-                string cmd_param;
                 int ret = 0;
                 List<string> t, candidate;
                 int i;
@@ -1159,8 +1136,8 @@ namespace IPA.Cores.Basic
                 {
                     // プロンプト表示
                     RETRY:
-                    tmp = prompt;
-                    str = this.readLine(tmp, false);
+                    tmp = prompt!;
+                    str = this.readLine!(tmp, false);
 
                     if (str != null && Str.IsEmptyStr(str))
                     {
@@ -1195,13 +1172,13 @@ namespace IPA.Cores.Basic
                 }
 
                 // コマンド名とパラメータに分ける
-                if (SeparateCommandAndParam(str, out cmd_name, out cmd_param) == false)
+                if (SeparateCommandAndParam(str, out string? cmd_name, out string? cmd_param) == false)
                 {
                     // 何もしない
                     return true;
                 }
 
-                if (cmd_name.Length >= 2 && cmd_name[0] == '?' && cmd_name[1] != '?')
+                if (cmd_name!.Length >= 2 && cmd_name[0] == '?' && cmd_name[1] != '?')
                 {
                     cmd_name = cmd_name.Substring(1);
                     cmd_param = "/?";
@@ -1222,24 +1199,24 @@ namespace IPA.Cores.Basic
 
                 if (IsHelpStr(cmd_name))
                 {
-                    if (Str.IsEmptyStr(cmd_param))
+                    if (Str.IsEmptyStr(cmd_param!))
                     {
                         // 使用できるコマンド一覧を表示する
-                        this.write(Str.FormatC((CoreStr.CMD_HELP_1), t.Count), LogPriority.Info);
-                        this.write("", LogPriority.Info);
+                        this.write!(Str.FormatC((CoreStr.CMD_HELP_1), t.Count), LogPriority.Info);
+                        this.write!("", LogPriority.Info);
 
                         string[] candidateList = t.ToArray();
 
                         PrintCandidateHelp(null, candidateList, 1, cmdList);
 
-                        this.write("", LogPriority.Info);
-                        this.write((CoreStr.CMD_HELP_2), LogPriority.Info);
+                        this.write!("", LogPriority.Info);
+                        this.write!((CoreStr.CMD_HELP_2), LogPriority.Info);
                     }
                     else
                     {
                         // 指定したコマンドのヘルプを表示する
                         string tmp2, tmp3;
-                        if (SeparateCommandAndParam(cmd_param, out tmp2, out tmp3))
+                        if (SeparateCommandAndParam(cmd_param!, out tmp2!, out tmp3!))
                         {
                             bool b = true;
 
@@ -1268,19 +1245,19 @@ namespace IPA.Cores.Basic
                     if (candidate == null || candidate.Count == 0)
                     {
                         // 候補無し
-                        this.write(Str.FormatC((CoreStr.CON_UNKNOWN_CMD), cmd_name), LogPriority.Error);
+                        this.write!(Str.FormatC((CoreStr.CON_UNKNOWN_CMD), cmd_name), LogPriority.Error);
 
                         this.retCode = ConsoleErrorCode.ERR_BAD_COMMAND_OR_PARAM;
                     }
                     else if (candidate.Count >= 2)
                     {
                         // 候補が複数ある
-                        this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_CMD), cmd_name), LogPriority.Error);
-                        this.write((CoreStr.CON_AMBIGIOUS_CMD_1), LogPriority.Error);
+                        this.write!(Str.FormatC((CoreStr.CON_AMBIGIOUS_CMD), cmd_name), LogPriority.Error);
+                        this.write!((CoreStr.CON_AMBIGIOUS_CMD_1), LogPriority.Error);
                         string[] candidateArray = candidate.ToArray();
 
                         PrintCandidateHelp(null, candidateArray, 1, cmdList);
-                        this.write((CoreStr.CON_AMBIGIOUS_CMD_2), LogPriority.Error);
+                        this.write!((CoreStr.CON_AMBIGIOUS_CMD_2), LogPriority.Error);
 
                         this.retCode = ConsoleErrorCode.ERR_BAD_COMMAND_OR_PARAM;
                     }
@@ -1299,22 +1276,22 @@ namespace IPA.Cores.Basic
                                 // CSV モードでなければコマンドの説明を表示する
                                 if (this.consoleType != ConsoleType.Csv)
                                 {
-                                    this.write(Str.FormatC((CoreStr.CMD_EXEC_MSG_NAME),
-                                        cmdList.Values[j].name,
-                                        cmdList.Values[j].Description), LogPriority.Info);
+                                    this.write!(Str.FormatC((CoreStr.CMD_EXEC_MSG_NAME),
+                                        cmdList.Values[j].name!,
+                                        cmdList.Values[j].Description!), LogPriority.Info);
                                 }
 
                                 // コマンドのプロシージャを呼び出す
-                                object srcObject = null;
-                                if (cmdList.Values[j].methodInfo.IsStatic == false)
+                                object? srcObject = null;
+                                if (cmdList.Values[j].methodInfo!.IsStatic == false)
                                 {
-                                    srcObject = invokerInstance;
+                                    srcObject = invokerInstance!;
                                 }
                                 object[] paramList =
                                 {
                                     this,
                                     real_cmd_name,
-                                    cmd_param,
+                                    cmd_param!,
                                 };
 
                                 try
@@ -1323,12 +1300,12 @@ namespace IPA.Cores.Basic
 
                                     var methodInfo = cmdList.Values[j].methodInfo;
 
-                                    if (methodInfo.GetParameters().Length == 0)
+                                    if (methodInfo!.GetParameters().Length == 0)
                                         paramList = new object[0];
                                     else if (methodInfo.GetParameters().Length == 1)
-                                        paramList = new object[1] { cmd_param };
+                                        paramList = new object[1] { cmd_param! };
 
-                                    object retobj = methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
+                                    object? retobj = methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
 
                                     if (retobj is int)
                                     {
@@ -1352,8 +1329,8 @@ namespace IPA.Cores.Basic
                                 catch (ConsoleUserCancelException)
                                 {
                                     // ユーザーによるパラメータ指定キャンセル
-                                    this.write(CoreStr.CON_USER_CANCELED, LogPriority.Error);
-                                    this.write("", LogPriority.Error);
+                                    this.write!(CoreStr.CON_USER_CANCELED, LogPriority.Error);
+                                    this.write!("", LogPriority.Error);
                                     this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
 
                                     GC.Collect();
@@ -1363,8 +1340,8 @@ namespace IPA.Cores.Basic
                                 {
                                     ex2 = ex2._GetSingleException();
 
-                                    this.write(ex2.ToString(), LogPriority.Error);
-                                    this.write("", LogPriority.Error);
+                                    this.write!(ex2.ToString(), LogPriority.Error);
+                                    this.write!("", LogPriority.Error);
 
                                     this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                     this.retErrorMessage = ex2.Message;
@@ -1422,9 +1399,9 @@ namespace IPA.Cores.Basic
                 {
                     if ((info.MemberType & MemberTypes.Method) != 0)
                     {
-                        MethodInfo mInfo = commandClass.GetMethod(info.Name, bFlag);
+                        MethodInfo? mInfo = commandClass.GetMethod(info.Name, bFlag);
 
-                        object[] customAtts = mInfo.GetCustomAttributes(true);
+                        object[] customAtts = mInfo!.GetCustomAttributes(true);
 
                         foreach (object att in customAtts)
                         {
@@ -1455,7 +1432,7 @@ namespace IPA.Cores.Basic
         // 現在のコンソールの横幅を取得する
         public int GetConsoleWidth()
         {
-            int size = this.getWidth();
+            int size = this.getWidth!();
 
             if (size == 0)
             {
@@ -1476,12 +1453,12 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドラインをコマンドとパラメータの 2 つに分離する
-        public static bool SeparateCommandAndParam(string src, out string cmd, out string param)
+        public static bool SeparateCommandAndParam(string src, [NotNullWhen(true)] out string? cmd, [NotNullWhen(true)] out string? param)
         {
             int i, len;
             StringBuilder tmp;
             string src_tmp;
-            cmd = param = null;
+            cmd = param = null!;
             // 引数チェック
             if (src == null)
             {
@@ -1586,7 +1563,7 @@ namespace IPA.Cores.Basic
         // ユーザーが指定したコマンドが既存のコマンドの省略形かどうかチェックする
         public static bool IsOmissionName(string inputName, string realName)
         {
-            string oname;
+            string? oname;
             // 引数チェック
             if (inputName == null || realName == null)
             {
@@ -1606,7 +1583,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            if (oname.StartsWith(inputName, StringComparison.OrdinalIgnoreCase))
+            if (oname!.StartsWith(inputName, StringComparison.OrdinalIgnoreCase))
             {
                 // 例: AccountSecureCertSet の oname は ascs だが
                 //     ユーザーが asc と入力した場合は true を返す
@@ -1630,7 +1607,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したコマンド名の省略名を取得する
-        public static string GetOmissionName(string src)
+        public static string? GetOmissionName(string src)
         {
             int i, len;
             // 引数チェック
@@ -1674,9 +1651,9 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドリストをパースする
-        public ConsoleParamValueList ParseCommandList(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
+        public ConsoleParamValueList? ParseCommandList(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
         {
-            ConsoleParamValueList ret = ParseCommandLineInternalMain(cmdName, command, param, noErrorOnUnknownArg);
+            ConsoleParamValueList? ret = ParseCommandLineInternalMain(cmdName, command, param, noErrorOnUnknownArg);
 
             if (ret == null)
             {
@@ -1685,14 +1662,14 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
-        private ConsoleParamValueList ParseCommandLineInternalMain(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
+        private ConsoleParamValueList? ParseCommandLineInternalMain(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
         {
             int i;
             ConsoleParamValueList o;
             List<string> param_list;
             List<string> real_name_list;
             bool help_mode = false;
-            string tmp;
+            string? tmp;
             bool ok = true;
             // 引数チェック
             if (command == null || cmdName == null)
@@ -1766,14 +1743,14 @@ namespace IPA.Cores.Basic
                 {
                     if (candidate.Length >= 2)
                     {
-                        this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM),
+                        this.write!(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM),
                             param_list[i]), LogPriority.Error);
 
-                        this.write(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM_1),
+                        this.write!(Str.FormatC((CoreStr.CON_AMBIGIOUS_PARAM_1),
                             cmdName), LogPriority.Error);
 
-                        PrintCandidateHelp(cmdName, candidate, 1, this.currentCmdList);
-                        this.write((CoreStr.CON_AMBIGIOUS_PARAM_2), LogPriority.Error);
+                        PrintCandidateHelp(cmdName, candidate, 1, this.currentCmdList!);
+                        this.write!((CoreStr.CON_AMBIGIOUS_PARAM_2), LogPriority.Error);
 
                         ok = false;
                     }
@@ -1796,7 +1773,7 @@ namespace IPA.Cores.Basic
                 {
                     if (noErrorOnUnknownArg == false)
                     {
-                        this.write(Str.FormatC((CoreStr.CON_INVALID_PARAM),
+                        this.write!(Str.FormatC((CoreStr.CON_INVALID_PARAM),
                             param_list[i],
                             cmdName,
                             cmdName), LogPriority.Error);
@@ -1828,7 +1805,8 @@ namespace IPA.Cores.Basic
                 if (p.Tmp != null || p.PromptProc != null)
                 {
                     string name = p.Name;
-                    string tmp2, str;
+                    string tmp2;
+                    string? str;
 
                     if (p.Tmp != null)
                     {
@@ -1862,7 +1840,7 @@ namespace IPA.Cores.Basic
 
                         if (ret == false)
                         {
-                            string tmp3;
+                            string? tmp3;
                             // 指定した値は不正である
                             if (p.PromptProc == null)
                             {
@@ -1885,7 +1863,7 @@ namespace IPA.Cores.Basic
                                 else
                                 {
                                     // ユーザーが入力した
-                                    this.write("", LogPriority.Info);
+                                    this.write!("", LogPriority.Info);
                                     str = tmp3;
                                     goto EVAL_VALUE;
                                 }
@@ -1901,7 +1879,7 @@ namespace IPA.Cores.Basic
                         // 読み込みに失敗した。指定されたパラメータが指定されていない
                         if (p.PromptProc != null)
                         {
-                            string tmp4;
+                            string? tmp4;
                             // 必須パラメータであるのでプロンプトを表示する
                             tmp4 = p.PromptProc(this, p.PromptProcParam);
                             if (tmp4 == null)
@@ -1913,7 +1891,7 @@ namespace IPA.Cores.Basic
                             else
                             {
                                 // ユーザーが入力した
-                                this.write("", LogPriority.Info);
+                                this.write!("", LogPriority.Info);
                                 str = tmp4;
                                 if (true)
                                 {
@@ -1993,21 +1971,22 @@ namespace IPA.Cores.Basic
                 return new string[0];
             }
 
-            string[] pl;
+            string[]? pl;
             ParseCommand(str, "dummy_str", out pl);
 
-            return pl;
+            return pl!;
         }
 
         // コマンドをパースする
-        public static string ParseCommand(string str, string name)
+        public static string? ParseCommand(string str, string? name)
         {
             return ParseCommand(str, name, out _);
         }
-        public static string ParseCommand(string str, string name, out string[] paramList)
+        public static string? ParseCommand(string str, string? name, out string[]? paramList)
         {
             int i;
-            string tmp, ret = null;
+            string tmp;
+            string? ret = null;
             SortedList<string, int> o;
             // 引数チェック
             paramList = null;
@@ -2239,17 +2218,9 @@ namespace IPA.Cores.Basic
         }
 
         // 新しいローカルコンソールの作成
-        public static ConsoleService NewLocalConsoleService()
+        public static ConsoleService? NewLocalConsoleService(string? inFileName = null, string? outFileName = null)
         {
-            return NewLocalConsoleService(null, null);
-        }
-        public static ConsoleService NewLocalConsoleService(string outFileName)
-        {
-            return NewLocalConsoleService(null, outFileName);
-        }
-        public static ConsoleService NewLocalConsoleService(string inFileName, string outFileName)
-        {
-            IO in_io = null, out_io = null;
+            IO? in_io = null, out_io = null;
 
             ConsoleService c = new ConsoleService();
             int old_size = 0;
@@ -2266,14 +2237,14 @@ namespace IPA.Cores.Basic
                 // 入力ファイルが指定されている
                 try
                 {
-                    in_io = IO.FileOpen(inFileName, false);
+                    in_io = IO.FileOpen(inFileName!, false);
                 }
                 catch
                 {
-                    c.write(Str.FormatC((CoreStr.CON_INFILE_ERROR), inFileName), LogPriority.Error);
+                    c.write(Str.FormatC((CoreStr.CON_INFILE_ERROR), inFileName!), LogPriority.Error);
                     return null;
                 }
-                c.write(Str.FormatC((CoreStr.CON_INFILE_START), inFileName), LogPriority.Info);
+                c.write(Str.FormatC((CoreStr.CON_INFILE_START), inFileName!), LogPriority.Info);
             }
 
             if (Str.IsEmptyStr(outFileName) == false)
@@ -2281,11 +2252,11 @@ namespace IPA.Cores.Basic
                 // 出力ファイルが指定されている
                 try
                 {
-                    out_io = IO.FileCreate(outFileName);
+                    out_io = IO.FileCreate(outFileName!);
                 }
                 catch
                 {
-                    c.write(Str.FormatC((CoreStr.CON_OUTFILE_ERROR), outFileName), LogPriority.Error);
+                    c.write(Str.FormatC((CoreStr.CON_OUTFILE_ERROR), outFileName!), LogPriority.Error);
                     if (in_io != null)
                     {
                         in_io.Close();
@@ -2293,7 +2264,7 @@ namespace IPA.Cores.Basic
 
                     return null;
                 }
-                c.write(Str.FormatC((CoreStr.CON_OUTFILE_START), outFileName), LogPriority.Info);
+                c.write(Str.FormatC((CoreStr.CON_OUTFILE_START), outFileName!), LogPriority.Info);
             }
 
             c.inFile = in_io;
@@ -2342,9 +2313,9 @@ namespace IPA.Cores.Basic
         }
 
         // コンソールから 1 行読み込む
-        string localReadLine(string prompt, bool noFile)
+        string? localReadLine(string prompt, bool noFile)
         {
-            string ret;
+            string? ret;
             if (prompt == null)
             {
                 prompt = ">";
@@ -2399,7 +2370,7 @@ namespace IPA.Cores.Basic
         }
 
         // コンソールからパスワードを読み込む
-        string localReadPassword(string prompt)
+        string? localReadPassword(string prompt)
         {
             if (prompt == null)
             {
@@ -2439,7 +2410,7 @@ namespace IPA.Cores.Basic
         }
 
         // 入力ファイルから次の 1 行を読み込む
-        string readNextFromInFile()
+        string? readNextFromInFile()
         {
             if (inBuf == null)
             {
@@ -2448,7 +2419,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                string str = inBuf.ReadNextLineAsString();
+                string? str = inBuf.ReadNextLineAsString();
                 if (str == null)
                 {
                     return null;

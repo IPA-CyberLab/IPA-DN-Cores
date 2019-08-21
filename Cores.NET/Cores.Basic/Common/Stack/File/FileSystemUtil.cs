@@ -536,7 +536,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -546,7 +546,7 @@ namespace IPA.Cores.Basic
         }
 
 #pragma warning disable CS1998
-        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool>? callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, bool>? exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
                 async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
                 async (dirInfo, entity, c) => { return (callbackForDirectoryAgain != null) ? callbackForDirectoryAgain(dirInfo, entity, c) : true; },
@@ -671,7 +671,7 @@ namespace IPA.Cores.Basic
         public FileFlags Flags { get; }
         public PathParser PathParser => this.FileSystem.PathParser;
 
-        public FileSystemPath(string pathString, FileSystem fileSystem = null, FileFlags flags = FileFlags.None)
+        public FileSystemPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None)
         {
             if (pathString == null || pathString == "") throw new ArgumentNullException("pathString");
 

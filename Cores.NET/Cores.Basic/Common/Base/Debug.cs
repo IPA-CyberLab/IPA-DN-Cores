@@ -42,6 +42,7 @@ using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.Net;
 using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -187,16 +188,18 @@ namespace IPA.Cores.Basic
 
     public class DebugWhereContainer
     {
-        public object Msg;
+        public object? Msg;
         public string Where;
-        public string Function;
+        public string? Function;
         public int? ThreadID;
 
-        public DebugWhereContainer(object message, string filename, int lineNumber, int threadId, string callerName)
+        public DebugWhereContainer(object? message, string filename, int lineNumber, int threadId, string? callerName)
         {
             this.Msg = message;
             if (filename._IsFilled())
                 this.Where = filename + ":" + lineNumber;
+            else
+                this.Where = "";
             this.ThreadID = threadId == 0 ? (int?)null : threadId;
             this.Function = callerName;
         }
@@ -238,7 +241,7 @@ namespace IPA.Cores.Basic
             WriteLine("");
             return "";
         }
-        public static object WriteLine(object obj)
+        public static object? WriteLine(object? obj)
         {
             if (Dbg.IsDebugMode == false) return obj;
             LocalLogRouter.PrintConsole(obj ?? "null", priority: LogPriority.Debug);
@@ -283,31 +286,31 @@ namespace IPA.Cores.Basic
             WriteTrace("");
         }
 
-        public static object WriteTrace(object obj)
+        public static object? WriteTrace(object? obj)
         {
             if (Dbg.IsTraceMode == false) return obj;
             LocalLogRouter.PrintConsole(obj ?? "null", priority: LogPriority.Trace);
             return obj;
         }
-        public static void WriteTrace(string str)
+        public static void WriteTrace(string? str)
         {
             if (Dbg.IsTraceMode == false) return;
             if (str == null) str = "null";
             str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Trace);
         }
-        public static void WriteTrace(string str, params object[] args)
+        public static void WriteTrace(string? str, params object[] args)
         {
             if (Dbg.IsTraceMode == false) return;
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Trace);
         }
 
-        public static void Where(object message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null, bool printThreadId = false)
+        public static void Where(object? message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             if (Dbg.IsDebugMode)
             {
-                filename = filename._GetFileName();
+                filename = filename._GetFileName()!;
 
                 DebugWhereContainer c = new DebugWhereContainer(message, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
                 DebugObject(c);
@@ -323,7 +326,7 @@ namespace IPA.Cores.Basic
 
         static partial void InternalIsJsonSupported(ref bool ret);
 
-        static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull = false, bool escapeHtml = false,
+        static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull = false, bool escapeHtml = false,
             int? maxDepth = 8, bool compact = false, bool referenceHandling = false);
 
         class ExceptionWrapper
@@ -390,7 +393,7 @@ namespace IPA.Cores.Basic
         });
         public static bool IsGitCommandSupported() => IsGitCommandSupportedSingleton.CreateOrGet();
 
-        static string CurrentGitCommitIdCache = null;
+        static string? CurrentGitCommitIdCache = null;
         public static string GetCurrentGitCommitId()
         {
             if (CurrentGitCommitIdCache == null)
@@ -448,12 +451,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectDump(object obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type type = null)
+        public static string GetObjectDump(object? obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
         {
             if (obj is Exception ex)
             {
                 obj = new ExceptionWrapper(ex);
             }
+
+            if (obj == null) return "null";
 
             if (type == null)
             {
@@ -464,7 +469,7 @@ namespace IPA.Cores.Basic
             {
                 if (jsonIfPossible)
                 {
-                    string jsonStr = null;
+                    string? jsonStr = null;
                     try
                     {
                         InternalConvertToJsonStringIfPossible(ref jsonStr, obj, compact: true);
@@ -477,9 +482,9 @@ namespace IPA.Cores.Basic
                 }
 
                 if (obj != null && type._IsAnonymousType())
-                    return obj.ToString();
+                    return obj.ToString()._NonNull();
 
-                DebugVars v = GetVarsFromClass(type, separatorStr, hideEmpty, instanceBaseName, obj);
+                DebugVars v = GetVarsFromClass(type, separatorStr, hideEmpty, instanceBaseName, obj!);
 
                 return v.ToString();
             }
@@ -489,7 +494,7 @@ namespace IPA.Cores.Basic
                 if (obj == null) return "null";
                 try
                 {
-                    return obj.ToString();
+                    return obj.ToString()._NonNull();
                 }
                 catch
                 {
@@ -498,19 +503,19 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void DebugObject(object obj)
+        public static void DebugObject(object? obj)
         {
             if (Dbg.IsDebugMode == false) return;
 
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static void PrintObject(object obj)
+        public static void PrintObject(object? obj)
         {
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static DebugVars GetVarsFromClass(Type t, string separatorStr, bool hideEmpty, string instanceBaseName, object obj, ImmutableHashSet<object> duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type? t, string separatorStr, bool hideEmpty, string instanceBaseName, object? obj, ImmutableHashSet<object>? duplicateCheck = null)
         {
             if (obj == null || IsPrimitiveType(t) || t.IsArray)
             {
@@ -520,7 +525,7 @@ namespace IPA.Cores.Basic
 
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
 
-            if (instanceBaseName == null) instanceBaseName = t?.Name ?? "null";
+            if (instanceBaseName == null) instanceBaseName = t.Name;
 
             DebugVars ret = new DebugVars(separatorStr, hideEmpty, obj is ObjectContainerForDebugVars);
 
@@ -533,7 +538,7 @@ namespace IPA.Cores.Basic
                 bool ok = false;
                 if (info.MemberType == MemberTypes.Field)
                 {
-                    FieldInfo fi = info as FieldInfo;
+                    FieldInfo fi = (FieldInfo)info;
 
                     ok = true;
 
@@ -544,8 +549,6 @@ namespace IPA.Cores.Basic
                 }
                 else if (info.MemberType == MemberTypes.Property)
                 {
-                    PropertyInfo pi = info as PropertyInfo;
-
                     ok = true;
                 }
 
@@ -553,8 +556,8 @@ namespace IPA.Cores.Basic
                 {
                     //if (info.Name == "lockFile") Debugger.Break();
 
-                    object data = GetValueOfFieldOrProperty(info, obj);
-                    Type data_type = data?.GetType() ?? null;
+                    object? data = GetValueOfFieldOrProperty(info, obj!);
+                    Type? data_type = data?.GetType() ?? null;
 
                     if (!(data is MethodBase) && (data_type == null || data_type.MemberType.Bit(MemberTypes.TypeInfo) || data_type.MemberType.Bit(MemberTypes.NestedType)))
                     {
@@ -583,11 +586,11 @@ namespace IPA.Cores.Basic
                                     else
                                     {
                                         int n = 0;
-                                        foreach (object item in (IEnumerable)data)
+                                        foreach (object? item in (IEnumerable)data)
                                         {
-                                            if (duplicateCheck.Contains(item) == false)
+                                            if (item == null || duplicateCheck.Contains(item) == false)
                                             {
-                                                Type data_type2 = item?.GetType() ?? null;
+                                                Type? data_type2 = item?.GetType() ?? null;
 
                                                 if (IsPrimitiveType(data_type2))
                                                 {
@@ -646,7 +649,7 @@ namespace IPA.Cores.Basic
             return a.Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property)._ToArrayList();
         }
 
-        public static object GetValueOfFieldOrProperty(MemberInfo m, object obj)
+        public static object? GetValueOfFieldOrProperty(MemberInfo m, object obj)
         {
             switch (m)
             {
@@ -667,7 +670,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public static bool IsPrimitiveType(Type t)
+        public static bool IsPrimitiveType([NotNullWhen(false)] Type? t)
         {
             if (t == null) return true;
             if (t._IsSubClassOfOrSame(typeof(System.Type))) return true;
@@ -722,8 +725,8 @@ namespace IPA.Cores.Basic
 
     public class ObjectContainerForDebugVars
     {
-        public object Object;
-        public ObjectContainerForDebugVars(object obj)
+        public object? Object;
+        public ObjectContainerForDebugVars(object? obj)
         {
             this.Object = obj;
         }
@@ -744,7 +747,7 @@ namespace IPA.Cores.Basic
             this.IsSimplePrimitive = isSimplePrimitive;
         }
 
-        public List<(MemberInfo memberInfo, object data, int order)> Vars = new List<(MemberInfo, object, int)>();
+        public List<(MemberInfo memberInfo, object? data, int order)> Vars = new List<(MemberInfo, object?, int)>();
         public List<(DebugVars child, int order)> Childlen = new List<(DebugVars, int)>();
 
         public void WriteToString(List<string> currentList, ImmutableList<string> parents)
@@ -756,7 +759,7 @@ namespace IPA.Cores.Basic
                 bool hide = false;
 
                 MemberInfo p = data.memberInfo;
-                object o = data.data;
+                object? o = data.data;
                 string printStr = "null";
                 string closure = "\"";
                 if ((o?.GetType().IsPrimitive ?? true) || (o?.GetType().IsEnum ?? false)) closure = "";
@@ -768,7 +771,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        printStr = $"{closure}{o.ToString()._EncodeCEscape()}{closure}";
+                        printStr = $"{closure}{o.ToString()._NonNull()._EncodeCEscape()}{closure}";
                     }
                 }
 
@@ -856,7 +859,7 @@ namespace IPA.Cores.Basic
             public int Interval { get; }
             public long IncrementMe = 0;
             Once DisposeFlag;
-            ThreadObj Thread;
+            ThreadObj? Thread;
             ManualResetEventSlim HaltEvent = new ManualResetEventSlim();
             bool HaltFlag = false;
             public string Name { get; }
@@ -918,7 +921,7 @@ namespace IPA.Cores.Basic
                 {
                     HaltFlag = true;
                     HaltEvent.Set();
-                    this.Thread.WaitForEnd();
+                    this.Thread?.WaitForEnd();
                 }
             }
         }
@@ -930,10 +933,10 @@ namespace IPA.Cores.Basic
             public static T New<T>() where T : new()
             {
                 Type t = typeof(T);
-                string name = t.AssemblyQualifiedName;
+                string name = t.AssemblyQualifiedName._NonNull();
                 lock (Table)
                 {
-                    object ret = null;
+                    object? ret = null;
                     if (Table.ContainsKey(name))
                         ret = Table[name];
                     else
@@ -949,8 +952,8 @@ namespace IPA.Cores.Basic
         public partial class GlobalIntervalReporter
         {
             public const int Interval = 1000;
-            SortedList<string, Ref<(int ver, string value)>> table = new SortedList<string, Ref<(int ver, string value)>>();
-            SortedList<string, object> table2 = new SortedList<string, object>();
+            SortedList<string, Ref<(int ver, string? value)>> table = new SortedList<string, Ref<(int ver, string? value)>>();
+            SortedList<string, object?> table2 = new SortedList<string, object?>();
             ThreadObj thread;
 
             public static GlobalIntervalReporter Singleton { get => OldSingletonFactory.New<GlobalIntervalReporter>(); }
@@ -960,7 +963,7 @@ namespace IPA.Cores.Basic
                 thread = new ThreadObj(main_thread);
             }
 
-            public void ReportRefObject(string name, object refObj)
+            public void ReportRefObject(string? name, object? refObj)
             {
                 name = name._NonNullTrim();
                 lock (table2)
@@ -978,13 +981,13 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public void Report(string name, string value)
+            public void Report(string? name, string? value)
             {
                 if (Dbg.IsDebugMode == false) return;
                 name = name._NonNullTrim();
                 lock (table)
                 {
-                    Ref<(int ver, string value)> r;
+                    Ref<(int ver, string? value)> r;
                     if (table.ContainsKey(name))
                     {
                         if (value._IsEmpty()) table.Remove(name);
@@ -993,7 +996,7 @@ namespace IPA.Cores.Basic
                     else
                     {
                         if (value._IsEmpty()) return;
-                        r = new Ref<(int ver, string value)>();
+                        r = new Ref<(int ver, string? value)>();
                         table.Add(name, r);
                     }
                     r.Set((r.Value.ver + 1, value));
@@ -1012,10 +1015,13 @@ namespace IPA.Cores.Basic
                     }
                     foreach (string name in table2.Keys)
                     {
-                        object r = table2[name];
+                        object? r = table2[name];
                         try
                         {
-                            o.Add($"{name}: {r.ToString()}");
+                            if (r != null)
+                            {
+                                o.Add($"{name}: {r.ToString()}");
+                            }
                         }
                         catch
                         {
@@ -1045,15 +1051,15 @@ namespace IPA.Cores.Basic
         {
             public int Interval { get; }
             Once d;
-            ThreadObj thread;
+            ThreadObj? thread;
             ManualResetEventSlim halt_event = new ManualResetEventSlim();
             bool halt_flag = false;
             public string Name { get; }
-            public object SetMeToPrint = null;
+            public object? SetMeToPrint = null;
             public const int DefaultInterval = 1000;
-            public Func<string> PrintProc { get; }
+            public Func<string>? PrintProc { get; }
 
-            public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string> printProc = null)
+            public IntervalReporter(string name = "Reporter", int interval = DefaultInterval, Func<string>? printProc = null)
             {
                 if (interval == 0) interval = DefaultInterval;
                 this.Interval = interval;
@@ -1090,8 +1096,8 @@ namespace IPA.Cores.Basic
             public virtual void Print()
             {
                 string str = "";
-                object obj = this.SetMeToPrint;
-                if (obj != null) str = obj.ToString();
+                object? obj = this.SetMeToPrint;
+                if (obj != null) str = obj.ToString()._NonNull();
                 if (this.PrintProc != null)
                 {
                     str = this.PrintProc();
@@ -1108,7 +1114,7 @@ namespace IPA.Cores.Basic
                 {
                     halt_flag = true;
                     halt_event.Set();
-                    this.thread.WaitForEnd();
+                    this.thread?.WaitForEnd();
                 }
             }
 
@@ -1249,7 +1255,7 @@ namespace IPA.Cores.Basic
 
     public static class CoresRuntimeStatReporter
     {
-        public static StatisticsReporter<CoresRuntimeStat> Reporter { get; private set; } = null;
+        public static StatisticsReporter<CoresRuntimeStat>? Reporter { get; private set; } = null;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -1344,7 +1350,7 @@ namespace IPA.Cores.Basic
 
                 DisposeFlag = new Once();
 
-                lock (LeakChecker._InternalList)
+                lock (LeakChecker._InternalList!)
                     LeakChecker._InternalList.Add(Id, this);
             }
 
@@ -1353,7 +1359,7 @@ namespace IPA.Cores.Basic
             {
                 if (Id == 0) return;
                 if (DisposeFlag.IsFirstCall() == false) return;
-                lock (LeakChecker._InternalList)
+                lock (LeakChecker._InternalList!)
                 {
                     Debug.Assert(LeakChecker._InternalList.ContainsKey(Id));
                     LeakChecker._InternalList.Remove(Id);
@@ -1361,9 +1367,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static Dictionary<long, LeakCheckerHolder> _InternalList;
+        static Dictionary<long, LeakCheckerHolder>? _InternalList;
         static long _InternalCurrentId = 0;
-        static int[] LeakCounters;
+        static int[]? LeakCounters;
         static bool FullStackTrace;
 
         public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
@@ -1391,7 +1397,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        public static IHolder Enter(LeakCounterKind leakKind = LeakCounterKind.OthersCounter, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static IHolder Enter(LeakCounterKind leakKind = LeakCounterKind.OthersCounter, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (FullStackTrace && leakKind != LeakCounterKind.DoNotTrack)
             {
@@ -1407,7 +1413,7 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
                     int ret = 0;
 
@@ -1417,7 +1423,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        for (int k = 0; k < LeakCounters.Length; k++)
+                        for (int k = 0; k < LeakCounters!.Length; k++)
                         {
                             LeakCounterKind kind = (LeakCounterKind)k;
                             int counter = LeakCounters[k];
@@ -1433,14 +1439,14 @@ namespace IPA.Cores.Basic
         public static void IncrementLeakCounter(LeakCounterKind kind)
         {
             if (kind == LeakCounterKind.DoNotTrack) return;
-            int r = Interlocked.Increment(ref LeakCounters[(int)kind]);
+            int r = Interlocked.Increment(ref LeakCounters![(int)kind]);
             Debug.Assert(r >= 1);
         }
 
         public static void DecrementLeakCounter(LeakCounterKind kind)
         {
             if (kind == LeakCounterKind.DoNotTrack) return;
-            int r = Interlocked.Decrement(ref LeakCounters[(int)kind]);
+            int r = Interlocked.Decrement(ref LeakCounters![(int)kind]);
             Debug.Assert(r >= 0);
         }
 
@@ -1456,7 +1462,7 @@ namespace IPA.Cores.Basic
                 ret = false;
             }
 
-            lock (_InternalList)
+            lock (_InternalList!)
             {
                 if (Dbg.IsConsoleDebugMode)
                 {
@@ -1482,7 +1488,7 @@ namespace IPA.Cores.Basic
         {
             StringWriter w = new StringWriter();
             int num = 0;
-            lock (_InternalList)
+            lock (_InternalList!)
             {
                 foreach (var v in _InternalList.OrderBy(x => x.Key))
                 {
@@ -1495,7 +1501,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                for (int k = 0; k < LeakCounters.Length; k++)
+                for (int k = 0; k < LeakCounters!.Length; k++)
                 {
                     LeakCounterKind kind = (LeakCounterKind)k;
                     int c = LeakCounters[k];
@@ -1537,9 +1543,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static NamedPipeClientStream TryConnectPipe(string pipeName)
+        static NamedPipeClientStream? TryConnectPipe(string pipeName)
         {
-            NamedPipeClientStream cli = null;
+            NamedPipeClientStream? cli = null;
             try
             {
                 cli = new NamedPipeClientStream(pipeName);

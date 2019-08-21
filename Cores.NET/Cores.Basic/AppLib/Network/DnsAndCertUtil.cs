@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
 
         ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
 
-        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem tcpIp = null)
+        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -252,7 +252,7 @@ namespace IPA.Cores.Basic
 
         ConcurrentBag<SniHostnameIpAddressPair> ResultList = new ConcurrentBag<SniHostnameIpAddressPair>();
 
-        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem tcpIp = null)
+        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -342,7 +342,7 @@ namespace IPA.Cores.Basic
             => System.HashCode.Combine(SniHostName.GetHashCode(Comparison), IpAddress.GetHashCode(Comparison));
 
         public override bool Equals(object obj)
-            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj).IpAddress, Comparison);
+            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj!).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj!).IpAddress, Comparison);
     }
 
     // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
@@ -352,7 +352,7 @@ namespace IPA.Cores.Basic
 
         public IReadOnlyCollection<string> FqdnSet => FqdnSetInternal;
 
-        public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding encoding = null)
+        public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding? encoding = null)
         {
             encoding = encoding ?? Str.Utf8Encoding;
 

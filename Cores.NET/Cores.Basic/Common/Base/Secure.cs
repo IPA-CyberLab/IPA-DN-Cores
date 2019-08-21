@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
         public const int PasswordSaltSize = 16;
         public const int PasswordKeySize = 32;
         public const int PasswordIterations = 1234;
-        public static string SaltPassword(string password, byte[] salt = null)
+        public static string SaltPassword(string password, byte[]? salt = null)
         {
             if (salt == null)
             {
@@ -338,18 +338,18 @@ namespace IPA.Cores.Basic
         }
 
         // PKCS 証明書の読み込み
-        public static X509Certificate2 LoadPkcs12(byte[] data, string password = null)
+        public static X509Certificate2 LoadPkcs12(byte[] data, string? password = null)
         {
             password = password._NonNull();
             return new X509Certificate2(data, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
         }
-        public static X509Certificate2 LoadPkcs12(string filename, string password = null, FileSystem fileSystem = null)
+        public static X509Certificate2 LoadPkcs12(string filename, string? password = null, FileSystem? fileSystem = null)
         {
             if (fileSystem == null) fileSystem = Lfs;
 
             return LoadPkcs12(fileSystem.ReadDataFromFile(filename).ToArray(), password);
         }
-        public static X509Certificate2 LoadPkcs12(ResourceFileSystem resFs, string partOfFileName, string password = null, bool exact = false)
+        public static X509Certificate2 LoadPkcs12(ResourceFileSystem resFs, string partOfFileName, string? password = null, bool exact = false)
         {
             return LoadPkcs12(resFs.EasyReadData(partOfFileName, exact: true).ToArray(), password);
         }

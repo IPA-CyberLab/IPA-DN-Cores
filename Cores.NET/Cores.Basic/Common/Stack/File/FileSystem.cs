@@ -1424,8 +1424,10 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public string MakeSafeFileName(string name)
+        public string MakeSafeFileName(string? name)
         {
+            name = name._NonNull();
+
             char[] a = name.ToCharArray();
             StringBuilder sb = new StringBuilder();
 

@@ -48,6 +48,7 @@ using System.Reflection;
 using System.Collections;
 using System.Reflection.Emit;
 using System.Runtime.Serialization.Json;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -140,7 +141,7 @@ namespace IPA.Cores.Basic
 
             public static CoreLanguageClass GetCurrentThreadLanguageClass()
             {
-                CoreLanguageClass lang = null;
+                CoreLanguageClass? lang = null;
 
                 try
                 {
@@ -230,7 +231,7 @@ namespace IPA.Cores.Basic
         public int Increment() => Interlocked.Increment(ref this.Value);
         public int Decrement() => Interlocked.Decrement(ref this.Value);
 
-        public override bool Equals(object obj) => obj is RefInt x && this.Value == x.Value;
+        public override bool Equals(object? obj) => obj is RefInt x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
         public bool Equals(RefInt other) => this.Value.Equals(other.Value);
@@ -257,7 +258,7 @@ namespace IPA.Cores.Basic
         public long Increment() => Interlocked.Increment(ref this._value);
         public long Decrement() => Interlocked.Decrement(ref this._value);
 
-        public override bool Equals(object obj) => obj is RefLong x && this.Value == x.Value;
+        public override bool Equals(object? obj) => obj is RefLong x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
         public bool Equals(RefLong other) => this.Value.Equals(other.Value);
@@ -281,7 +282,7 @@ namespace IPA.Cores.Basic
         public bool Get() => this.Value;
         public override string ToString() => this.Value.ToString();
 
-        public override bool Equals(object obj) => obj is RefBool x && this.Value == x.Value;
+        public override bool Equals(object? obj) => obj is RefBool x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
         public bool Equals(RefBool other) => this.Value.Equals(other.Value);
@@ -307,8 +308,7 @@ namespace IPA.Cores.Basic
 
     public class Ref<T>
     {
-        public Ref() : this(default) { }
-        public Ref(T value)
+        public Ref(T value = default)
         {
             Value = value;
         }
@@ -327,11 +327,11 @@ namespace IPA.Cores.Basic
                 case string s:
                     return bool.TryParse(s, out bool ret2) ? ret2 : false;
             }
-            return bool.TryParse(this.Value.ToString(), out bool ret) ? ret : false;
+            return bool.TryParse(this.Value?.ToString(), out bool ret) ? ret : false;
         }
-        public override string ToString() => Value?.ToString() ?? null;
+        public override string? ToString() => Value?.ToString() ?? null;
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             var refObj = obj as Ref<T>;
             return refObj != null &&
@@ -425,7 +425,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             var refObj = obj as Ref<T>;
             return refObj != null &&
@@ -434,7 +434,7 @@ namespace IPA.Cores.Basic
 
         public override int GetHashCode() => -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value);
 
-        public override string ToString() => Value?.ToString() ?? null;
+        public override string? ToString() => Value?.ToString() ?? null;
 
         public static implicit operator T(Copenhagen<T> r) => r.Value;
         public static implicit operator Copenhagen<T>(T value) => new Copenhagen<T>(value);
@@ -623,10 +623,11 @@ namespace IPA.Cores.Basic
         }
 
         // byte 配列を結合する
-        public static byte[] CombineByteArray(byte[] b1, byte[] b2)
+        public static byte[] CombineByteArray(byte[]? b1, byte[]? b2)
         {
-            if (b1 == null || b1.Length == 0) return b2;
-            if (b2 == null || b2.Length == 0) return b1;
+            if (b1 == null && b2 == null) return new byte[0];
+            if (b1 == null || b1.Length == 0) return b2 == null ? new byte[0] : b2;
+            if (b2 == null || b2.Length == 0) return b1 == null ? new byte[0] : b1;
             byte[] ret = new byte[b1.Length + b2.Length];
             Array.Copy(b1, 0, ret, 0, b1.Length);
             Array.Copy(b2, 0, ret, b1.Length, b2.Length);
@@ -647,7 +648,7 @@ namespace IPA.Cores.Basic
         }
 
         // 2 つの値を引き算する return (a - b)
-        public static object Subtract(object a, object b)
+        public static object? Subtract(object a, object b)
         {
             if (a == null) return null;
             if (b == null) return a;
@@ -675,7 +676,7 @@ namespace IPA.Cores.Basic
         }
 
         // 割り算する (return a / b)
-        public static object Divide(object a, double b)
+        public static object? Divide(object a, double b)
         {
             if (a == null) return null;
 
@@ -1620,9 +1621,9 @@ namespace IPA.Cores.Basic
 
             MemoryStream ms = new MemoryStream();
             StreamWriter sw = new StreamWriter(ms);
-            foreach (System.Xml.Schema.XmlSchema sm in sms)
+            foreach (System.Xml.Schema.XmlSchema? sm in sms)
             {
-                sm.Write(sw);
+                sm?.Write(sw);
             }
             sw.Close();
             ms.Flush();
@@ -1640,11 +1641,15 @@ namespace IPA.Cores.Basic
         // オブジェクトを XML に変換
         public static string ObjectToXmlString_PublicLegacy(object o)
         {
-            byte[] data = ObjectToXml_PublicLegacy(o);
+            byte[]? data = ObjectToXml_PublicLegacy(o);
+
+            if (data == null) return "";
 
             return Str.Utf8Encoding.GetString(data);
         }
-        public static byte[] ObjectToXml_PublicLegacy(object o)
+
+        [return: NotNullIfNotNull("o")]
+        public static byte[]? ObjectToXml_PublicLegacy(object o)
         {
             if (o == null)
             {
@@ -1656,11 +1661,15 @@ namespace IPA.Cores.Basic
         }
         public static string ObjectToXmlString_PublicLegacy(object o, Type t)
         {
-            byte[] data = ObjectToXml_PublicLegacy(o, t);
+            byte[]? data = ObjectToXml_PublicLegacy(o, t);
+
+            if (data == null) return "";
 
             return Str.Utf8Encoding.GetString(data);
         }
-        public static byte[] ObjectToXml_PublicLegacy(object o, Type t)
+
+        [return: NotNullIfNotNull("o")]
+        public static byte[]? ObjectToXml_PublicLegacy(object o, Type t)
         {
             if (o == null)
             {
@@ -1684,7 +1693,7 @@ namespace IPA.Cores.Basic
             };
         }
 
-        public static void ObjectToRuntimeJson(object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings settings = null)
+        public static void ObjectToRuntimeJson(object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings? settings = null)
         {
             if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
             DataContractJsonSerializer d = new DataContractJsonSerializer(obj.GetType(), settings);
@@ -1693,27 +1702,27 @@ namespace IPA.Cores.Basic
                 d.WriteObject(writer, obj);
             }
         }
-        public static byte[] ObjectToRuntimeJson(object obj, DataContractJsonSerializerSettings settings = null)
+        public static byte[] ObjectToRuntimeJson(object obj, DataContractJsonSerializerSettings? settings = null)
         {
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
             ObjectToRuntimeJson(obj, buf, settings);
             return buf.Span.ToArray();
         }
 
-        public static object RuntimeJsonToObject(MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings settings = null)
+        public static object RuntimeJsonToObject(MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null)
         {
             if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
             DataContractJsonSerializer d = new DataContractJsonSerializer(type, settings);
             return d.ReadObject(src._AsDirectStream());
         }
-        public static T RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings settings = null) => (T)RuntimeJsonToObject(src, typeof(T), settings);
+        public static T RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => (T)RuntimeJsonToObject(src, typeof(T), settings);
 
-        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject(src._AsMemoryBuffer(), type, settings);
-        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings settings = null) => RuntimeJsonToObject<T>(src._AsMemoryBuffer(), settings);
+        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject(src._AsMemoryBuffer(), type, settings);
+        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject<T>(src._AsMemoryBuffer(), settings);
 
 
 
-        public static void ObjectToXml(object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings settings = null)
+        public static void ObjectToXml(object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings? settings = null)
         {
             if (settings == null)
             {
@@ -1723,14 +1732,14 @@ namespace IPA.Cores.Basic
             DataContractSerializer d = new DataContractSerializer(obj.GetType(), settings);
             d.WriteObject(dst._AsDirectStream(), obj);
         }
-        public static byte[] ObjectToXml(object obj, DataContractSerializerSettings settings = null)
+        public static byte[] ObjectToXml(object obj, DataContractSerializerSettings? settings = null)
         {
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
             ObjectToXml(obj, buf, settings);
             return buf.Span.ToArray();
         }
 
-        public static object XmlToObject(MemoryBuffer<byte> src, Type type, DataContractSerializerSettings settings = null)
+        public static object XmlToObject(MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null)
         {
             if (settings == null)
             {
@@ -1740,13 +1749,14 @@ namespace IPA.Cores.Basic
             DataContractSerializer d = new DataContractSerializer(type, settings);
             return d.ReadObject(src._AsDirectStream());
         }
-        public static T XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings settings = null) => (T)XmlToObject(src, typeof(T), settings);
+        public static T XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => (T)XmlToObject(src, typeof(T), settings);
 
-        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings settings = null) => XmlToObject(src._AsMemoryBuffer(), type, settings);
-        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings settings = null) => XmlToObject<T>(src._AsMemoryBuffer(), settings);
+        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings? settings = null) => XmlToObject(src._AsMemoryBuffer(), type, settings);
+        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings? settings = null) => XmlToObject<T>(src._AsMemoryBuffer(), settings);
 
         // オブジェクトをクローンする
-        public static object CloneObject_UsingBinary(object o)
+        [return: NotNullIfNotNull("o")]
+        public static object? CloneObject_UsingBinary(object? o)
         {
             if (o == null) return null;
             return BinaryToObject(ObjectToBinary(o));
@@ -1778,11 +1788,11 @@ namespace IPA.Cores.Basic
         {
             byte[] data = Util.ObjectToXml_PublicLegacy(o);
 
-            return Util.XmlToObject_PublicLegacy(data, o.GetType());
+            return Util.XmlToObject_PublicLegacy(data, o.GetType())!;
         }
 
         // XML をオブジェクトに変換
-        public static object XmlToObject_PublicLegacy(string str, Type t)
+        public static object? XmlToObject_PublicLegacy(string? str, Type t)
         {
             if (Str.IsEmptyStr(str))
             {
@@ -1793,7 +1803,8 @@ namespace IPA.Cores.Basic
 
             return XmlToObject_PublicLegacy(data, t);
         }
-        public static object XmlToObject_PublicLegacy(byte[] data, Type t)
+
+        public static object? XmlToObject_PublicLegacy(byte[] data, Type t)
         {
             if (data == null || data.Length == 0)
             {
@@ -1855,7 +1866,11 @@ namespace IPA.Cores.Basic
             {
                 Marshal.Copy(src, 0, p, size);
 
-                return Marshal.PtrToStructure(p, type);
+                var ret = Marshal.PtrToStructure(p, type);
+
+                if (ret == null) throw new NullReferenceException();
+
+                return ret;
             }
             finally
             {
@@ -2146,7 +2161,7 @@ namespace IPA.Cores.Basic
             foreach (var p in propertyList)
             {
                 var propertyType = p.PropertyType;
-                object value = p.GetValue(overwriteData);
+                object? value = p.GetValue(overwriteData);
                 if (value._IsEmpty())
                 {
                     value = p.GetValue(baseData);
@@ -2173,22 +2188,22 @@ namespace IPA.Cores.Basic
                 {
                     if (ptype == typeof(string))
                     {
-                        string s = (string)p.GetValue(obj);
+                        string? s = (string?)p.GetValue(obj);
                         if (s == null) p.SetValue(obj, "");
                     }
                     else if (ptype == typeof(DateTime))
                     {
-                        DateTime d = (DateTime)p.GetValue(obj);
-                        if (d._IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeValue);
+                        DateTime? d = (DateTime?)p.GetValue(obj);
+                        if (d?._IsZeroDateTime() ?? true) p.SetValue(obj, Util.ZeroDateTimeValue);
                     }
                     else if (ptype == typeof(DateTimeOffset))
                     {
-                        DateTimeOffset d = (DateTimeOffset)p.GetValue(obj);
-                        if (d._IsZeroDateTime()) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
+                        DateTimeOffset? d = (DateTimeOffset?)p.GetValue(obj);
+                        if (d?._IsZeroDateTime() ?? true) p.SetValue(obj, Util.ZeroDateTimeOffsetValue);
                     }
                     else if (ptype == typeof(byte[]))
                     {
-                        byte[] b = (byte[])p.GetValue(obj);
+                        byte[]? b = (byte[]?)p.GetValue(obj);
                         if (b == null) p.SetValue(obj, new byte[0]);
                     }
                 }
@@ -2197,7 +2212,7 @@ namespace IPA.Cores.Basic
 
         public static T CloneIfClonable<T>(T obj)
         {
-            if (obj == default) return default;
+            if (obj == default) return default!;
             if (typeof(T).IsClass == false) return obj;
             if (obj is ICloneable clonable) return (T)clonable.Clone();
             return obj;
@@ -2207,11 +2222,11 @@ namespace IPA.Cores.Basic
         {
             bool allOk = true;
             bool anyOk = false;
-            Exception firstException = null;
+            Exception? firstException = null;
 
-            TResult firstRet = default;
-            bool isFirstRetSet = false;
-            TResult lastRet = default;
+            TResult firstRet = default!;
+            bool? isFirstRetSet = false;
+            TResult lastRet = default!;
 
             if (funcs != null)
             {
@@ -2256,7 +2271,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        throw firstException;
+                        throw firstException!;
                     }
                     return firstRet;
 
@@ -2264,14 +2279,14 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAll:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return firstRet;
 
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return lastRet;
 
@@ -2284,11 +2299,11 @@ namespace IPA.Cores.Basic
         {
             bool allOk = true;
             bool anyOk = false;
-            Exception firstException = null;
+            Exception? firstException = null;
 
-            TResult firstRet = default;
+            TResult firstRet = default!;
             bool isFirstRetSet = false;
-            TResult lastRet = default;
+            TResult lastRet = default!;
 
             if (funcs != null)
             {
@@ -2333,7 +2348,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        throw firstException;
+                        throw firstException!;
                     }
                     return firstRet;
 
@@ -2341,14 +2356,14 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAll:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return firstRet;
 
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return lastRet;
 
@@ -2361,7 +2376,7 @@ namespace IPA.Cores.Basic
         {
             bool allOk = true;
             bool anyOk = false;
-            Exception firstException = null;
+            Exception? firstException = null;
 
             if (actions != null)
             {
@@ -2399,7 +2414,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return true;
 
@@ -2408,7 +2423,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return allOk;
 
@@ -2422,7 +2437,7 @@ namespace IPA.Cores.Basic
         {
             bool allOk = true;
             bool anyOk = false;
-            Exception firstException = null;
+            Exception? firstException = null;
 
             if (actions != null)
             {
@@ -2460,7 +2475,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AllOk:
                     if (allOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return true;
 
@@ -2469,7 +2484,7 @@ namespace IPA.Cores.Basic
                 case MultipleActionsFlag.AnyOkContinueAllRetLast:
                     if (anyOk == false)
                     {
-                        firstException._ReThrow();
+                        firstException!._ReThrow();
                     }
                     return allOk;
 
@@ -2686,7 +2701,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    pos._Walk(chunk.Size).Fill(default);
+                    pos._Walk(chunk.Size).Fill(default!);
                     size += chunk.Size;
                 }
             }
@@ -2844,7 +2859,7 @@ namespace IPA.Cores.Basic
 
             List<ReadOnlyMemory<T>> ret = new List<ReadOnlyMemory<T>>();
 
-            MemoryBuffer<T> current = null;
+            MemoryBuffer<T>? current = null;
 
             foreach (ReadOnlyMemory<T> src in srcDataList)
             {
@@ -3026,7 +3041,7 @@ namespace IPA.Cores.Basic
             return rand % count + min;
         }
 
-        public static int GenerateDynamicListenableTcpPortWithSeed(string seed, int minPort = Consts.Ports.DynamicPortMin, int maxPort = Consts.Ports.DynamicPortMax, IEnumerable<int> excludePorts = null)
+        public static int GenerateDynamicListenableTcpPortWithSeed(string seed, int minPort = Consts.Ports.DynamicPortMin, int maxPort = Consts.Ports.DynamicPortMax, IEnumerable<int>? excludePorts = null)
         {
             if (excludePorts == null) excludePorts = EmptyEnumerable<int>.Empty;
 
@@ -3345,10 +3360,10 @@ namespace IPA.Cores.Basic
 
     public class XmlAndXsd
     {
-        public byte[] XmlData;
-        public byte[] XsdData;
-        public string XmlFileName;
-        public string XsdFileName;
+        public byte[]? XmlData;
+        public byte[]? XsdData;
+        public string? XmlFileName;
+        public string? XsdFileName;
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体
@@ -3363,7 +3378,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => IsSet.ToString();
 
-        public void FirstCallOrThrowException(Exception ex = null)
+        public void FirstCallOrThrowException(Exception? ex = null)
         {
             if (IsFirstCall() == false)
             {
@@ -3393,7 +3408,7 @@ namespace IPA.Cores.Basic
             tryCount = Math.Max((int)tryCount, 1);
             retryInterval = Math.Max((int)retryInterval, 0);
 
-            Exception first_exception = null;
+            Exception? firstException = null;
 
             for (int i = 0; i < tryCount; i++)
             {
@@ -3406,9 +3421,9 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
-                    if (first_exception == null)
+                    if (firstException == null)
                     {
-                        first_exception = ex;
+                        firstException = ex;
                     }
 
                     cancel.ThrowIfCancellationRequested();
@@ -3426,7 +3441,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            throw first_exception;
+            throw firstException!;
         }
 
         public Task<T> RunAsync(Func<Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
@@ -3697,7 +3712,7 @@ namespace IPA.Cores.Basic
     public class SingletonSlim<TObject> where TObject : class
     {
         readonly Func<TObject> CreateProc;
-        TObject Object = null;
+        TObject? Object = null;
         public bool IsCreated { get; private set; }
 
         public SingletonSlim(Func<TObject> createProc)
@@ -3733,7 +3748,7 @@ namespace IPA.Cores.Basic
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TObject> CreateProc;
-        TObject Object = null;
+        TObject? Object = null;
         public bool IsCreated { get; private set; }
 
         public Singleton(Func<TObject> createProc)
@@ -3774,7 +3789,7 @@ namespace IPA.Cores.Basic
 
         public void Clear()
         {
-            TObject obj = null;
+            TObject? obj = null;
             lock (LockObj)
             {
                 obj = this.Object;
@@ -3789,13 +3804,14 @@ namespace IPA.Cores.Basic
     }
 
     public class Singleton<TKey, TObject> : IDisposable where TObject : class
+        where TKey : notnull
     {
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
         public IEnumerable<TKey> Keys => this.Table.Keys;
 
-        public Singleton(Func<TKey, TObject> createProc, IEqualityComparer<TKey> keyComparer = null)
+        public Singleton(Func<TKey, TObject> createProc, IEqualityComparer<TKey>? keyComparer = null)
         {
             this.CreateProc = createProc;
 
@@ -3815,12 +3831,12 @@ namespace IPA.Cores.Basic
             {
                 if (DisposeFlag) throw new ObjectDisposedException("Singleton");
 
-                if (this.Table.TryGetValue(key, out TObject obj) == false)
+                if (this.Table.TryGetValue(key, out TObject? obj) == false)
                 {
                     obj = this.CreateProc(key);
                     this.Table.Add(key, obj);
                 }
-                return obj;
+                return obj!;
             }
         }
 
@@ -3851,13 +3867,13 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SingletonSlim<TKey, TObject> where TObject : class
+    public class SingletonSlim<TKey, TObject> where TObject : class where TKey : notnull
     {
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
         public IEnumerable<TKey> Keys => this.Table.Keys;
 
-        public SingletonSlim(Func<TKey, TObject> createProc, IEqualityComparer<TKey> keyComparer = null)
+        public SingletonSlim(Func<TKey, TObject> createProc, IEqualityComparer<TKey>? keyComparer = null)
         {
             this.CreateProc = createProc;
 
@@ -3871,12 +3887,12 @@ namespace IPA.Cores.Basic
 
         public TObject CreateOrGet(TKey key)
         {
-            if (this.Table.TryGetValue(key, out TObject obj) == false)
+            if (this.Table.TryGetValue(key, out TObject? obj) == false)
             {
                 obj = this.CreateProc(key);
                 this.Table.Add(key, obj);
             }
-            return obj;
+            return obj!;
         }
 
         public void Clear()
@@ -3906,34 +3922,34 @@ namespace IPA.Cores.Basic
     {
         public SyncCache(int lifeTime) : base(lifeTime) { }
 
-        public SyncCache(int lifeTime, CacheFlags flags, Func<TData> getProc) : base(lifeTime, flags, x => getProc())
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TData?> getProc) : base(lifeTime, flags, x => getProc())
         {
         }
 
-        public SyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, TData> getProc) : base(lifeTime, flags, (x, c) => getProc(c))
+        public SyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, TData?> getProc) : base(lifeTime, flags, (x, c) => getProc(c))
         {
         }
 
-        public TData Get(CancellationToken cancel = default)
+        public TData? Get(CancellationToken cancel = default)
             => base.Get(0, cancel);
 
-        public void Set(TData data)
+        public void Set(TData? data)
             => base.Set(0, data);
 
-        public static implicit operator TData(SyncCache<TData> cache) => cache.Get();
+        public static implicit operator TData?(SyncCache<TData> cache) => cache.Get();
     }
 
-    public class SyncCache<TKey, TData> where TData : class
+    public class SyncCache<TKey, TData> where TData : class where TKey : notnull
     {
         class Entry
         {
             public long Expires;
-            public TData Data;
+            public TData? Data;
         }
 
         public CacheFlags Flags { get; }
         public long LifeTime { get; }
-        public Func<TKey, CancellationToken, TData> GetProc { get; }
+        public Func<TKey, CancellationToken, TData?>? GetProc { get; }
 
         long NextGcTime;
 
@@ -3943,12 +3959,12 @@ namespace IPA.Cores.Basic
         CriticalSection Lock = new CriticalSection();
 
         public SyncCache(int lifeTime)
-            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, TData>)null) { }
+            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, TData?>)null!) { }
 
-        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, TData> getProc)
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, TData?> getProc)
             : this(lifeTime, flags, (key, cancel) => getProc(key)) { }
 
-        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, TData> getProc)
+        public SyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, TData?>? getProc)
         {
             this.LifeTime = Math.Max(0, lifeTime);
             if (lifeTime < 0 || lifeTime == int.MaxValue)
@@ -3959,7 +3975,7 @@ namespace IPA.Cores.Basic
             this.GetProc = getProc;
         }
 
-        public TData this[TKey key]
+        public TData? this[TKey key]
         {
             get => Get(key);
             set => Set(key, value);
@@ -3989,7 +4005,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public TData Get(TKey key, CancellationToken cancel = default)
+        public TData? Get(TKey key, CancellationToken cancel = default)
         {
             long now = Tick64.Now;
 
@@ -3997,15 +4013,15 @@ namespace IPA.Cores.Basic
             {
                 Gc(now);
 
-                if (Table.TryGetValue(key, out Entry entry) && now <= entry.Expires)
+                if (Table.TryGetValue(key, out Entry? entry) && now <= entry.Expires)
                 {
                     return entry.Data;
                 }
             }
 
-            TData data = null;
+            TData? data = null;
 
-            if (this.GetProc == null) return default;
+            if (this.GetProc == null) return null;
 
             try
             {
@@ -4013,12 +4029,13 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
-                {
+                if (this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
                     throw;
-                }
 
-                data = entry.Data;
+                if (Table.TryGetValue(key, out Entry? entry) == false)
+                    throw;
+
+                data = entry!.Data;
             }
 
             now = Tick64.Now;
@@ -4035,7 +4052,7 @@ namespace IPA.Cores.Basic
             return data;
         }
 
-        public void Set(TKey key, TData data)
+        public void Set(TKey key, TData? data)
         {
             long now = Tick64.Now;
 
@@ -4057,34 +4074,34 @@ namespace IPA.Cores.Basic
     {
         public AsyncCache(int lifeTime) : base(lifeTime) { }
 
-        public AsyncCache(int lifeTime, CacheFlags flags, Func<Task<TData>> getProcAsync) : base(lifeTime, flags, x => getProcAsync())
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<Task<TData?>> getProcAsync) : base(lifeTime, flags, x => getProcAsync())
         {
         }
 
-        public AsyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, Task<TData>> getProcAsync) : base(lifeTime, flags, (x, c) => getProcAsync(c))
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<CancellationToken, Task<TData?>> getProcAsync) : base(lifeTime, flags, (x, c) => getProcAsync(c))
         {
         }
 
-        public Task<TData> GetAsync(CancellationToken cancel = default)
+        public Task<TData?> GetAsync(CancellationToken cancel = default)
             => base.GetAsync(0, cancel);
 
-        public void Set(TData data)
+        public void Set(TData? data)
             => base.Set(0, data);
 
-        public static implicit operator TData(AsyncCache<TData> cache) => cache.GetAsync()._GetResult();
+        public static implicit operator TData?(AsyncCache<TData> cache) => cache.GetAsync()._GetResult();
     }
 
-    public class AsyncCache<TKey, TData> where TData : class
+    public class AsyncCache<TKey, TData> where TData : class where TKey : notnull
     {
         class Entry
         {
             public long Expires;
-            public TData Data;
+            public TData? Data;
         }
 
         public CacheFlags Flags { get; }
         public long LifeTime { get; }
-        public Func<TKey, CancellationToken, Task<TData>> GetProcAsync { get; }
+        public Func<TKey, CancellationToken, Task<TData?>>? GetProcAsync { get; }
 
         long NextGcTime;
 
@@ -4094,12 +4111,12 @@ namespace IPA.Cores.Basic
         CriticalSection Lock = new CriticalSection();
 
         public AsyncCache(int lifeTime)
-            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, Task<TData>>)null) { }
+            : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, Task<TData?>>)null!) { }
 
-        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, Task<TData>> getProcAsync)
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, Task<TData?>> getProcAsync)
             : this(lifeTime, flags, (key, cancel) => getProcAsync(key)) { }
 
-        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, Task<TData>> getProcAsync)
+        public AsyncCache(int lifeTime, CacheFlags flags, Func<TKey, CancellationToken, Task<TData?>>? getProcAsync)
         {
             this.LifeTime = Math.Max(0, lifeTime);
             if (lifeTime < 0 || lifeTime == int.MaxValue)
@@ -4110,7 +4127,7 @@ namespace IPA.Cores.Basic
             this.GetProcAsync = getProcAsync;
         }
 
-        public TData this[TKey key]
+        public TData? this[TKey key]
         {
             get => GetAsync(key)._GetResult();
             set => Set(key, value);
@@ -4140,7 +4157,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<TData> GetAsync(TKey key, CancellationToken cancel = default)
+        public async Task<TData?> GetAsync(TKey key, CancellationToken cancel = default)
         {
             long now = Tick64.Now;
 
@@ -4148,13 +4165,13 @@ namespace IPA.Cores.Basic
             {
                 Gc(now);
 
-                if (Table.TryGetValue(key, out Entry entry) && now <= entry.Expires)
+                if (Table.TryGetValue(key, out Entry? entry) && now <= entry.Expires)
                 {
                     return entry.Data;
                 }
             }
 
-            TData data = null;
+            TData? data = null;
 
             if (this.GetProcAsync == null) return default;
 
@@ -4164,12 +4181,15 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                if (Table.TryGetValue(key, out Entry entry) == false && this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
+                if (this.Flags.Bit(CacheFlags.IgnoreUpdateError) == false)
+                    throw;
+
+                if (Table.TryGetValue(key, out Entry? entry) == false)
                 {
                     throw;
                 }
 
-                data = entry.Data;
+                data = entry!.Data;
             }
 
             now = Tick64.Now;
@@ -4186,7 +4206,7 @@ namespace IPA.Cores.Basic
             return data;
         }
 
-        public void Set(TKey key, TData data)
+        public void Set(TKey key, TData? data)
         {
             long now = Tick64.Now;
 
@@ -4227,25 +4247,33 @@ namespace IPA.Cores.Basic
     {
         static Dictionary<string, object> table = new Dictionary<string, object>();
 
-        public static bool TryWithdraw(string token, out object ret)
+        public static bool TryWithdraw(string token, [NotNullWhen(true)] out object? ret)
         {
             lock (table)
             {
-                return table.TryGetValue(token, out ret);
+                if (table.TryGetValue(token, out ret) == false)
+                {
+                    return false;
+                }
+                if (ret == null) return false;
+
+                return true;
             }
         }
 
         public static object Withdraw(string token)
         {
-            if (TryWithdraw(token, out object ret) == false)
+            if (TryWithdraw(token, out object? ret) == false)
             {
                 throw new ApplicationException("invalid token");
             }
-            return ret;
+            return ret!;
         }
 
         public static string Deposit(object o)
         {
+            if (o == null) throw new ArgumentNullException(nameof(o));
+
             string id = Str.NewGuid();
             lock (table) table.Add(id, o);
             return id;
@@ -4292,6 +4320,7 @@ namespace IPA.Cores.Basic
     }
 
     public class Distinct<T>
+        where T : notnull
     {
         Dictionary<T, T> d = new Dictionary<T, T>();
 
@@ -4314,6 +4343,7 @@ namespace IPA.Cores.Basic
     namespace Legacy
     {
         public class DelayLoader<T> : IDisposable
+            where T : class
         {
             Func<long, (T, long)> LoadProc;
             int RetryInterval;
@@ -4323,7 +4353,7 @@ namespace IPA.Cores.Basic
             public readonly ManualResetEventSlim LoadCompleteEvent = new ManualResetEventSlim();
             bool HaltFlag = false;
 
-            public T Data { get; private set; }
+            public T? Data { get; private set; }
 
             public DelayLoader(Func<long, (T data, long dataTimeStamp)> loadProc, int retryInterval = 1000, int updateInterval = 1000)
             {
@@ -4395,13 +4425,13 @@ namespace IPA.Cores.Basic
     {
         object LockObj = new object();
         bool IsCached = false;
-        T CachedValue;
+        T CachedValue = default!;
 
-        Func<T> Getter;
-        Func<T, T> Setter;
-        Func<T, T> Normalizer;
+        Func<T>? Getter;
+        Func<T, T>? Setter;
+        Func<T, T>? Normalizer;
 
-        public CachedProperty(Func<T, T> setter = null, Func<T> getter = null, Func<T, T> normalizer = null)
+        public CachedProperty(Func<T, T>? setter = null, Func<T>? getter = null, Func<T, T>? normalizer = null)
         {
             Setter = setter;
             Getter = getter;
@@ -4464,7 +4494,7 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 IsCached = false;
-                CachedValue = default;
+                CachedValue = default!;
             }
         }
 
@@ -4486,12 +4516,12 @@ namespace IPA.Cores.Basic
         public static float Float = 0.0f;
         public static float Float2 = 0.0f;
         public static float Float3 = 0.0f;
-        public static object ObjectSlow = null;
+        public static object? ObjectSlow = null;
 
         public volatile static bool BoolVolatile = false;
         public volatile static int SInt32Volatile = 0;
         public volatile static uint UInt32Volatile = 0;
-        public volatile static object ObjectVolatileSlow = null;
+        public volatile static object? ObjectVolatileSlow = null;
     }
 
     public static class GlobalMicroBenchmark
@@ -4518,7 +4548,7 @@ namespace IPA.Cores.Basic
         }
 
         public static int DefaultDurationMSecs { get; private set; }
-        static LogRouter LogRouter = null;
+        static LogRouter? LogRouter = null;
         static Once OnceFlag;
 
         public static void SetParameters(bool recordLog, int? defaultDurationMsecs = null)
@@ -4605,7 +4635,7 @@ namespace IPA.Cores.Basic
 
     public class MicroBenchmark : MicroBenchmark<int>
     {
-        public MicroBenchmark(string name, int iterations, Action<int> proc, Func<int> init = null)
+        public MicroBenchmark(string name, int iterations, Action<int> proc, Func<int>? init = null)
             : base(name, iterations, (_state, _iterations) => proc(_iterations), init) { }
     }
 
@@ -4616,7 +4646,7 @@ namespace IPA.Cores.Basic
         object LockObj = new object();
         public readonly int Iterations;
 
-        public readonly Func<TUserVariable> Init;
+        public readonly Func<TUserVariable>? Init;
         public readonly Action<TUserVariable, int> Proc;
 
         readonly Action<TUserVariable, int> DummyLoopProc = (state, count) =>
@@ -4624,7 +4654,7 @@ namespace IPA.Cores.Basic
             for (int i = 0; i < count; i++) Limbo.SInt64++;
         };
 
-        public MicroBenchmark(string name, int iterations, Action<TUserVariable, int> proc, Func<TUserVariable> init = null)
+        public MicroBenchmark(string name, int iterations, Action<TUserVariable, int> proc, Func<TUserVariable>? init = null)
         {
             Name = name;
             Init = init;
@@ -4708,7 +4738,7 @@ namespace IPA.Cores.Basic
             {
                 if (duration <= 0) duration = GlobalMicroBenchmark.DefaultDurationMSecs;
 
-                TUserVariable state = default(TUserVariable);
+                TUserVariable state = default(TUserVariable)!;
 
                 double v1 = 0;
                 double v2 = 0;
@@ -4761,11 +4791,11 @@ namespace IPA.Cores.Basic
 
         readonly CriticalSection LockObj = new CriticalSection();
 
-        Data ShorterData1 = null;
-        Data ShorterData2 = null;
+        Data? ShorterData1 = null;
+        Data? ShorterData2 = null;
 
-        Data LongerData1 = null;
-        Data LongerData2 = null;
+        Data? LongerData1 = null;
+        Data? LongerData2 = null;
 
         public long? Calculate(long tick, double? percentage)
         {
@@ -4801,10 +4831,10 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    tickDelta = ShorterData1.Tick - ShorterData2.Tick;
+                    tickDelta = ShorterData1.Tick - ShorterData2!.Tick;
                     if (tickDelta > 0)
                     {
-                        percentageDelta = ShorterData1.Percentage - ShorterData2.Percentage;
+                        percentageDelta = ShorterData1.Percentage - ShorterData2!.Percentage;
                         if (percentageDelta > 0)
                         {
                             etaFromShorterSample = (long)((double)tickDelta * remainPercentage / (double)percentageDelta);
@@ -4825,7 +4855,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    tickDelta = LongerData1.Tick - LongerData2.Tick;
+                    tickDelta = LongerData1.Tick - LongerData2!.Tick;
                     if (tickDelta > 0)
                     {
                         percentageDelta = LongerData1.Percentage - LongerData2.Percentage;
@@ -4890,7 +4920,7 @@ namespace IPA.Cores.Basic
                 return value == null ? "??" : Str.GetFileSizeStr((long)value);
             }
 
-            string s = value == null ? "??" : (tostr3 ? ((long)value)._ToString3() : value.ToString());
+            string s = value == null ? "??" : (tostr3 ? ((long)value)._ToString3() : value.ToString()._NonNull());
             if (unitString._IsFilled()) s += " " + unitString;
             return s;
         }
@@ -4971,7 +5001,7 @@ namespace IPA.Cores.Basic
 
         public ProgressReportTimingSetting ReportTimingSetting { get; set; }
 
-        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, bool fileSizeStr = false, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null)
         {
             if (reportTimingSetting == null)
             {
@@ -5004,9 +5034,9 @@ namespace IPA.Cores.Basic
 
         readonly EtaCalculator EtaCalc = new EtaCalculator();
 
-        ProgressReport ReportOnStart = null;
-        ProgressReport LastReport = null;
-        ProgressReport ReportOnFinishOrAbort = null;
+        ProgressReport? ReportOnStart = null;
+        ProgressReport? LastReport = null;
+        ProgressReport? ReportOnFinishOrAbort = null;
 
         protected abstract void ReportedImpl(ProgressReport report);
 
@@ -5129,7 +5159,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        ProgressReport LastReportedReport = null;
+        ProgressReport? LastReportedReport = null;
 
         protected virtual bool DetermineToReportOrNot(ProgressReport report)
         {
@@ -5216,11 +5246,11 @@ namespace IPA.Cores.Basic
 
     public class ProgressReporterSetting : ProgressReporterSettingBase
     {
-        public ProgressReportListener Listener { get; set; }
+        public ProgressReportListener? Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
 
-        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true,
-            bool fileSizeStr = false, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true,
+            bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null)
             : base(title, unit, toStr3, showEta, fileSizeStr, reportTimingSetting)
         {
             this.AdditionalOutputs = outputs;
@@ -5268,18 +5298,18 @@ namespace IPA.Cores.Basic
 
     public class ProgressFileProcessingReporter : ProgressReporter
     {
-        public ProgressFileProcessingReporter(object state, ProgressReporterOutputs outputs, ProgressReportListener listener = null,
-            string title = "Processing a file", ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressFileProcessingReporter(object state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
+            string title = "Processing a file", ProgressReportTimingSetting? reportTimingSetting = null)
             : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
     }
 
     public abstract class ProgressReporterFactoryBase
     {
         public ProgressReporterOutputs Outputs { get; set; }
-        public ProgressReportListener Listener { get; set; }
-        public ProgressReportTimingSetting ReportTimingSetting { get; set; }
+        public ProgressReportListener? Listener { get; set; }
+        public ProgressReportTimingSetting? ReportTimingSetting { get; set; }
 
-        public ProgressReporterFactoryBase(ProgressReporterOutputs outputs, ProgressReportListener listener = null, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressReporterFactoryBase(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
         {
             this.Outputs = outputs;
             this.Listener = listener;
@@ -5291,7 +5321,7 @@ namespace IPA.Cores.Basic
 
     public class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
     {
-        public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener listener = null, ProgressReportTimingSetting reportTimingSetting = null)
+        public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
             : base(outputs, listener, reportTimingSetting) { }
 
         public override ProgressReporterBase CreateNewReporter(string title, object state)
@@ -5347,7 +5377,7 @@ namespace IPA.Cores.Basic
         {
             public long Id;
             public int Weight;
-            public Exception Exception;
+            public Exception? Exception;
         }
 
         readonly List<Entry> List = new List<Entry>();
@@ -5362,7 +5392,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Exception GetException()
+        public Exception? GetException()
         {
             lock (LockObj)
             {
@@ -5414,12 +5444,12 @@ namespace IPA.Cores.Basic
         public static FieldReaderWriter GetCachedPrivate(Type type) => _PrivateSingleton.CreateOrGet(type);
         public static FieldReaderWriter GetCachedPrivate<T>() => GetCachedPrivate(typeof(T));
 
-        public object Invoke(object targetObject, string name, params object[] parameters)
+        public object? Invoke(object targetObject, string name, params object?[] parameters)
         {
-            if (parameters == null) parameters = new object[1] { null };
+            if (parameters == null) parameters = new object?[1] { null };
             if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo? info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
 
             switch (info)
@@ -5439,11 +5469,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public object GetValue(object targetObject, string name)
+        public object? GetValue(object targetObject, string name)
         {
             if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false)
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo? info) == false)
                 throw new ArgumentException($"The member \"{name}\" not found.");
 
             switch (info)
@@ -5459,11 +5489,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SetValue(object targetObject, string name, object value)
+        public void SetValue(object targetObject, string name, object? value)
         {
             if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.MetadataTable.TryGetValue(name, out MemberInfo info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
+            if (this.MetadataTable.TryGetValue(name, out MemberInfo? info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
             {
                 if (this.MetadataTable.TryGetValue($"<{name}>k__BackingField", out info) == false)
                 {
@@ -5486,11 +5516,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T CalcDiff<T>(T current, T prev)
+        public T CalcDiff<T>([DisallowNull] T current, [DisallowNull] T prev)
         {
             T ret = (T)Util.NewWithoutConstructor(this.TargetType);
 
-            CalcDiff(ret, current, prev);
+            CalcDiff(ret, current!, prev!);
 
             return ret;
         }
@@ -5499,18 +5529,18 @@ namespace IPA.Cores.Basic
         {
             foreach (string name in this.FieldOrPropertyNamesList)
             {
-                object prevValue = this.GetValue(prev, name);
-                object currentValue = this.GetValue(current, name);
-                object destValue = Util.Subtract(currentValue, prevValue);
+                object prevValue = this.GetValue(prev, name)!;
+                object currentValue = this.GetValue(current, name)!;
+                object destValue = Util.Subtract(currentValue, prevValue)!;
                 this.SetValue(dest, name, destValue);
             }
         }
 
-        public T DivideBy<T>(T target, double by)
+        public T DivideBy<T>([DisallowNull] T target, double by)
         {
             T ret = (T)Util.NewWithoutConstructor(this.TargetType);
 
-            DivideBy(ret, target, by);
+            DivideBy(ret, target!, by);
 
             return ret;
         }
@@ -5519,8 +5549,8 @@ namespace IPA.Cores.Basic
         {
             foreach (string name in this.FieldOrPropertyNamesList)
             {
-                object currentValue = this.GetValue(target, name);
-                object destValue = Util.Divide(currentValue, by);
+                object currentValue = this.GetValue(target, name)!;
+                object destValue = Util.Divide(currentValue, by)!;
                 this.SetValue(dest, name, destValue);
             }
         }
@@ -5529,7 +5559,7 @@ namespace IPA.Cores.Basic
         {
             foreach (string name in this.FieldOrPropertyNamesList)
             {
-                object srcValue = this.GetValue(src, name);
+                object srcValue = this.GetValue(src, name)!;
                 this.SetValue(dest, name, srcValue);
             }
         }
@@ -5545,7 +5575,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public T CreateClone<T>(T targetObject) => (T)CreateClone((object)targetObject);
+        public T CreateClone<T>([DisallowNull] T targetObject) => (T)CreateClone((object)targetObject!);
     }
 
     [Flags]
@@ -5571,11 +5601,11 @@ namespace IPA.Cores.Basic
 
         readonly FieldReaderWriter ReaderWriter;
 
-        readonly Func<T, T, T, Task> ReceiverAsync; // async (snapshot, diff, velocity)
+        readonly Func<T, T, T, Task>? ReceiverAsync; // async (snapshot, diff, velocity)
 
         readonly StatisticsReporterLogTypes LogTypes;
 
-        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, Func<T, T, T, Task> receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs)
+        public StatisticsReporter(int interval, StatisticsReporterLogTypes logTypes, Func<T, T, T, Task>? receiverProc = null, params AsyncEventCallback<T, NonsenseEventType>[] initialListenerProcs)
             : base(default)
         {
             this.Interval = interval;
@@ -5655,7 +5685,7 @@ namespace IPA.Cores.Basic
 
         const string AppStateFieldName = "__AppState__";
 
-        Type BuiltType = null;
+        Type? BuiltType = null;
 
         public InternalOverrideClassTypeBuilder(Type originalType, string typeNameSuffix = "Ex")
         {
@@ -5696,14 +5726,14 @@ namespace IPA.Cores.Basic
 
         class FieldEntry
         {
-            public FieldInfo Field;
-            public object Value;
+            public FieldInfo? Field;
+            public object? Value;
         }
 
         List<FieldEntry> DynamicFieldList = new List<FieldEntry>();
 
         public void AddOverloadMethod(string name, Delegate m, Type retType, params Type[] argsType)
-            => AddOverloadMethod(name, m.GetMethodInfo(), retType, argsType);
+            => AddOverloadMethod(name, m.GetMethodInfo()!, retType, argsType);
 
         public void AddOverloadMethod(string name, MethodInfo methodInfoToCall, Type retType, params Type[] argsType)
         {
@@ -5715,13 +5745,13 @@ namespace IPA.Cores.Basic
 
             DynamicFieldList.Add(new FieldEntry() { Field = fieldForMethodToCall, Value = methodInfoToCall });
 
-            FieldBuilder fieldAsThisPointer = null;
+            FieldBuilder? fieldAsThisPointer = null;
 
             if (methodInfoToCall.IsStatic == false)
             {
-                fieldAsThisPointer = this.TypeBuilder.DefineField($"__method_as_this_for_{Interlocked.Increment(ref FieldIdSeed)}_{name}", methodInfoToCall.DeclaringType, FieldAttributes.Public);
+                fieldAsThisPointer = this.TypeBuilder.DefineField($"__method_as_this_for_{Interlocked.Increment(ref FieldIdSeed)}_{name}", methodInfoToCall.DeclaringType!, FieldAttributes.Public);
 
-                DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = Util.NewWithoutConstructor(methodInfoToCall.DeclaringType) });
+                DynamicFieldList.Add(new FieldEntry() { Field = fieldAsThisPointer, Value = Util.NewWithoutConstructor(methodInfoToCall.DeclaringType!) });
             }
 
             MethodBuilder newMethod = this.TypeBuilder.DefineMethod(name,
@@ -5753,7 +5783,7 @@ namespace IPA.Cores.Basic
             {
                 // Set the dummy instance as the this pointer of the dynamic method to call
                 il.Emit(OpCodes.Ldarg, 0); // to execute Ldfld, the target container object of the field must be loaded onto the stack
-                il.Emit(OpCodes.Ldfld, fieldAsThisPointer);
+                il.Emit(OpCodes.Ldfld, fieldAsThisPointer!);
             }
 
             // create new object[argsType.Length] array
@@ -5792,15 +5822,15 @@ namespace IPA.Cores.Basic
             if (BuiltType == null)
                 BuiltType = this.TypeBuilder.CreateType();
 
-            return BuiltType;
+            return BuiltType!;
         }
 
-        public object CreateInstance(object appState, params object[] parameters)
+        public object? CreateInstance(object appState, params object?[] parameters)
         {
             if (parameters == null)
-                parameters = new object[] { null };
+                parameters = new object?[] { null };
 
-            object ret;
+            object? ret;
 
             try
             {
@@ -5816,17 +5846,17 @@ namespace IPA.Cores.Basic
 
             foreach (var fieldEntry in this.DynamicFieldList)
             {
-                ret._PrivateSet(fieldEntry.Field.Name, fieldEntry.Value);
+                ret!._PrivateSet(fieldEntry.Field!.Name, fieldEntry!.Value!);
             }
 
-            SetAppState(ret, appState);
+            SetAppState(ret!, appState);
 
             return ret;
         }
 
-        public static object GetAppState(object targetObject) => targetObject._PrivateGet(AppStateFieldName);
+        public static object? GetAppState(object targetObject) => targetObject._PrivateGet(AppStateFieldName);
 
-        public static void SetAppState(object targetObject, object state) => targetObject._PrivateSet(AppStateFieldName, state);
+        public static void SetAppState(object targetObject, object? state) => targetObject._PrivateSet(AppStateFieldName, state);
     }
 
     [Flags]
@@ -5891,6 +5921,7 @@ namespace IPA.Cores.Basic
     }
 
     public class ConcurrentHashSet<TKey> : ConcurrentDictionary<TKey, int>
+        where TKey : notnull
     {
         public ConcurrentHashSet() { }
 
@@ -5914,11 +5945,12 @@ namespace IPA.Cores.Basic
     }
 
     public class HashSetDictionary<TKey, TValue> : Dictionary<TKey, HashSet<TValue>>
+        where TKey : notnull
     {
-        readonly IEqualityComparer<TValue> ValueComparer;
+        readonly IEqualityComparer<TValue>? ValueComparer;
         readonly HashSet<TValue> EmptyValueSet;
 
-        public HashSetDictionary(IEqualityComparer<TKey> keyComparer = null, IEqualityComparer<TValue> valueComparer = null) : base(keyComparer)
+        public HashSetDictionary(IEqualityComparer<TKey>? keyComparer = null, IEqualityComparer<TValue>? valueComparer = null) : base(keyComparer)
         {
             this.ValueComparer = valueComparer;
             this.EmptyValueSet = new HashSet<TValue>(this.ValueComparer);
@@ -5926,21 +5958,21 @@ namespace IPA.Cores.Basic
 
         public bool Add(TKey key, TValue value)
         {
-            if (this.TryGetValue(key, out HashSet<TValue> hashSet) == false)
+            if (this.TryGetValue(key, out HashSet<TValue>? hashSet) == false)
             {
                 hashSet = new HashSet<TValue>(this.ValueComparer);
 
                 base[key] = hashSet;
             }
 
-            return hashSet.Add(value);
+            return hashSet!.Add(value);
         }
 
         public new IReadOnlyCollection<TValue> this[TKey key]
         {
             get
             {
-                if (this.TryGetValue(key, out HashSet<TValue> hashSet))
+                if (this.TryGetValue(key, out HashSet<TValue>? hashSet))
                 {
                     return hashSet;
                 }
@@ -6073,6 +6105,7 @@ namespace IPA.Cores.Basic
     }
 
     public class ConcurrentLimiter<TKey> : IConcurrentLimiter
+        where TKey : notnull
     {
         public int MaxConcurrentRequests { get; }
 
@@ -6167,6 +6200,7 @@ namespace IPA.Cores.Basic
     }
 
     public class RateLimiter<TKey> : IRateLimiter
+        where TKey : notnull
     {
         public RateLimiterOptions Options { get; }
 
@@ -6202,7 +6236,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool TryInput(TKey key, out RateLimiterEntry entry, double amount = 1.0, long now = 0)
+        public bool TryInput(TKey key, [NotNullWhen(true)] out RateLimiterEntry? entry, double amount = 1.0, long now = 0)
         {
             // now が供給されていない場合は計測する
             if (now == 0) now = Time.Tick64;
@@ -6234,21 +6268,22 @@ namespace IPA.Cores.Basic
             }
 
             // 取得されたエントリに対して流入操作を実行する
-            return entry.TryInput(now, amount);
+            return entry!.TryInput(now, amount);
         }
 
-        public bool TryInput(object key, out RateLimiterEntry entry, double amount = 1, long now = 0)
+        public bool TryInput(object key, [NotNullWhen(true)] out RateLimiterEntry entry, double amount = 1, long now = 0)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            return TryInput((TKey)key, out entry, amount, now);
+            return TryInput((TKey)key, out entry!, amount, now);
         }
     }
 
     public class ResultAndError<T>
     {
-        readonly T ResultInternal = default;
+        readonly T ResultInternal = default!;
         readonly bool IsErrorInternal = false;
 
+        [MaybeNull]
         public T Value
         {
             get
@@ -6260,7 +6295,7 @@ namespace IPA.Cores.Basic
         public bool IsError => IsErrorInternal;
         public bool IsOk => (!IsError);
 
-        public ResultAndError(T result, bool ok)
+        public ResultAndError([AllowNull] T result, bool ok)
         {
             this.ResultInternal = result;
             this.IsErrorInternal = !ok;
@@ -6278,6 +6313,7 @@ namespace IPA.Cores.Basic
             return new ResultAndError<T>(default, false);
         }
 
+        [return: MaybeNull]
         public static implicit operator T(ResultAndError<T> resultOrException) => resultOrException.Value;
 
         public static implicit operator bool(ResultAndError<T> resultOrException) => resultOrException.IsOk;
@@ -6285,9 +6321,10 @@ namespace IPA.Cores.Basic
 
     public class ResultOrError<T>
     {
-        readonly T ResultInternal = default;
+        readonly T ResultInternal = default!;
         readonly bool IsErrorInternal = false;
 
+        [MaybeNull]
         public T Value
         {
             get
@@ -6300,7 +6337,7 @@ namespace IPA.Cores.Basic
         public bool IsError => IsErrorInternal;
         public bool IsOk => (!IsError);
 
-        public ResultOrError(T result)
+        public ResultOrError([AllowNull] T result)
         {
             this.ResultInternal = result;
             this.IsErrorInternal = false;
@@ -6308,7 +6345,7 @@ namespace IPA.Cores.Basic
 
         public ResultOrError(EnsureError error)
         {
-            this.ResultInternal = default;
+            this.ResultInternal = default!;
             this.IsErrorInternal = true;
         }
 
@@ -6317,7 +6354,7 @@ namespace IPA.Cores.Basic
             if (IsErrorInternal) throw new ApplicationException("ResultOrError: Error was occured.");
         }
 
-        public static implicit operator ResultOrError<T>(T result) => new ResultOrError<T>(result);
+        public static implicit operator ResultOrError<T>([AllowNull] T result) => new ResultOrError<T>(result);
         public static implicit operator ResultOrError<T>(bool boolValue)
         {
             if (boolValue != false) throw new ArgumentException($"{nameof(boolValue)} must be false.");
@@ -6325,6 +6362,7 @@ namespace IPA.Cores.Basic
             return new ResultOrError<T>(EnsureError.Error);
         }
 
+        [return: MaybeNull]
         public static implicit operator T(ResultOrError<T> resultOrException) => resultOrException.Value;
 
         public static implicit operator bool(ResultOrError<T> resultOrException) => resultOrException.IsOk;
@@ -6332,9 +6370,10 @@ namespace IPA.Cores.Basic
 
     public class ResultOrExeption<T>
     {
-        readonly T ResultInternal = default;
-        readonly Exception ExceptionInternal = null;
+        readonly T ResultInternal = default!;
+        readonly Exception ExceptionInternal = null!;
 
+        [MaybeNull]
         public T Value
         {
             get
@@ -6355,7 +6394,7 @@ namespace IPA.Cores.Basic
 
         public bool IsOk => (!IsError);
 
-        public ResultOrExeption(T result)
+        public ResultOrExeption([AllowNull] T result)
         {
             this.ResultInternal = result;
         }
@@ -6375,9 +6414,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static implicit operator ResultOrExeption<T>(T result) => new ResultOrExeption<T>(result);
+        public static implicit operator ResultOrExeption<T>([AllowNull] T result) => new ResultOrExeption<T>(result);
         public static implicit operator ResultOrExeption<T>(Exception ex) => new ResultOrExeption<T>(ex);
 
+        [return: MaybeNull]
         public static implicit operator T(ResultOrExeption<T> resultOrException) => resultOrException.Value;
     }
 

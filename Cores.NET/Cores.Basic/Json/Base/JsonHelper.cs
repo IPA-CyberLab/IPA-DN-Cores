@@ -44,7 +44,7 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class JsonHelper
     {
-        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type type = null)
+        public static string _ObjectToJson(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
             => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
 
         public static string _ObjectToJson<T>(this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
@@ -71,18 +71,18 @@ namespace IPA.Cores.Helper.Basic
         public static string _JsonNormalize(this string s)
             => Json.Normalize(s);
 
-        public static int _ObjectToFile<T>(this T obj, string path, FileSystem fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public static int _ObjectToFile<T>(this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
-        public static T _FileToObject<T>(this string path, FileSystem fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+        public static T _FileToObject<T>(this string path, FileSystem? fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
     }
 
     public static class JsonConsoleHelper
     {
-        public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
+        public static object _PrintAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
         {
             Con.WriteJsonLine(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
             return o;
@@ -90,7 +90,7 @@ namespace IPA.Cores.Helper.Basic
         public static T _PrintAsJson<T>(this T o, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => (T)_PrintAsJson(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T));
 
-        public static object _DebugAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type type = null)
+        public static object _DebugAsJson(this object o, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
         {
             Con.WriteJsonDebug(o, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
             return o;

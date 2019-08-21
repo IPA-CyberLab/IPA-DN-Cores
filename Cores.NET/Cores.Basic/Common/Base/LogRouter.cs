@@ -156,7 +156,7 @@ namespace IPA.Cores.Basic
 
     public class LoggerLogRoute : LogRouteBase
     {
-        Logger Log = null;
+        Logger? Log = null;
 
         public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType, LogInfoOptions infoOptions,
             long? autoDeleteTotalMaxSize = null) : base(kind, minimalPriority)
@@ -175,15 +175,12 @@ namespace IPA.Cores.Basic
 
         public override Task FlushAsync(CancellationToken cancel = default)
         {
-            return Log.FlushAsync(cancel);
+            return Log?.FlushAsync(cancel) ?? Task.CompletedTask;
         }
 
         public override void ReceiveLog(LogRecord record)
         {
-            if (Log != null)
-            {
-                Log.Add(record);
-            }
+            Log?.Add(record);
         }
     }
 
@@ -322,9 +319,9 @@ namespace IPA.Cores.Basic
     {
         public static int UniqueLogProcessId { get; private set; } = -1;
 
-        public static LogRouter Router { get; private set; }
+        public static LogRouter? Router { get; private set; } = null;
 
-        public static BufferedLogRoute BufferedLogRoute { get; private set; } = null;
+        public static BufferedLogRoute? BufferedLogRoute { get; private set; } = null;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -464,17 +461,17 @@ namespace IPA.Cores.Basic
         }
 
         public static Task FlushAsync(CancellationToken cancel = default)
-            => Router?.FlushAsync(cancel);
+            => Router?.FlushAsync(cancel) ?? Task.CompletedTask;
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router?.PostLog(record, kind);
 
-        public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
+        public static void Post(object? obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string? tag = null)
             => Router?.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
-        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string tag = null)
+        public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
-        public static void PostData(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Data, tag: tag);
             if (copyToDebug)
@@ -483,7 +480,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostStat(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostStat(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Stat, tag: tag);
             if (copyToDebug)
@@ -492,7 +489,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostAccessLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostAccessLog(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Access, tag: tag);
             if (copyToDebug)
@@ -501,7 +498,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostSocketLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostSocketLog(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Socket, tag: tag);
             if (copyToDebug)
@@ -512,26 +509,26 @@ namespace IPA.Cores.Basic
 
         class PostedData
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedAccessLog
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedSocketLog
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedStat
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         public static void PutGitIgnoreFileOnLogDirectory() => Util.PutGitIgnoreFileOnDirectory(CoresConfig.LocalLogRouterSettings.LogRootDir.Value);

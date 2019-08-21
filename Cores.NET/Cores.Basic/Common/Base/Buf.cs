@@ -61,16 +61,7 @@ namespace IPA.Cores.Basic
         public long TotalWriteSize { get; private set; } = 0;
         public long TotalReadSize { get; private set; } = 0;
 
-        public Fifo()
-        {
-            InternalInit(0);
-        }
-        public Fifo(int reallocMemSize)
-        {
-            InternalInit(reallocMemSize);
-        }
-
-        void InternalInit(int reallocMemSize)
+        public Fifo(int reallocMemSize = 0)
         {
             if (reallocMemSize == 0)
             {
@@ -95,11 +86,11 @@ namespace IPA.Cores.Basic
         {
             Write(null, size);
         }
-        public void Write(byte[] src, int size)
+        public void Write(byte[]? src, int size)
         {
             Write(src, 0, size);
         }
-        public void Write(byte[] src, int offset, int size)
+        public void Write(byte[]? src, int offset, int size)
         {
             checked
             {
@@ -166,11 +157,11 @@ namespace IPA.Cores.Basic
         {
             return Read(null, size);
         }
-        public int Read(byte[] dst, int size)
+        public int Read(byte[]? dst, int size)
         {
             return Read(dst, 0, size);
         }
-        public int Read(byte[] dst, int offset, int size)
+        public int Read(byte[]? dst, int offset, int size)
         {
             checked
             {
@@ -367,20 +358,11 @@ namespace IPA.Cores.Basic
     // バッファ
     public class Buf
     {
-        
-
         MemoryStream InternalBuffer;
 
         // コンストラクタ
-        public Buf()
-        {
-            InternalInit(new byte[0]);
-        }
+        public Buf() : this(new byte[0]) { }
         public Buf(byte[] data)
-        {
-            InternalInit(data);
-        }
-        void InternalInit(byte[] data)
         {
             InternalBuffer = new MemoryStream();
             Write(data);
@@ -566,11 +548,11 @@ namespace IPA.Cores.Basic
         }
 
         // Unicode 文字列の読み出し
-        public string ReadUniStr()
+        public string? ReadUniStr()
         {
             return ReadUniStr(false);
         }
-        public string ReadUniStr(bool includeNull)
+        public string? ReadUniStr(bool includeNull)
         {
             uint len = ReadInt();
             if (len == 0)
@@ -630,13 +612,13 @@ namespace IPA.Cores.Basic
         }
 
         // 1 行を文字列として読み込み
-        public string ReadNextLineAsString()
+        public string? ReadNextLineAsString()
         {
             return ReadNextLineAsString(Str.Utf8Encoding);
         }
-        public string ReadNextLineAsString(Encoding encoding)
+        public string? ReadNextLineAsString(Encoding encoding)
         {
-            byte[] ret = ReadNextLineAsData();
+            byte[]? ret = ReadNextLineAsData();
             if (ret == null)
             {
                 return null;
@@ -646,7 +628,7 @@ namespace IPA.Cores.Basic
         }
 
         // 1 行をバイト列として読み込み
-        public byte[] ReadNextLineAsData()
+        public byte[]? ReadNextLineAsData()
         {
             if (this.Size <= this.Pos)
             {

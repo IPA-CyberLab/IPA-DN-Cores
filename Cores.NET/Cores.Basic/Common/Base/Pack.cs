@@ -284,9 +284,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        int IComparable.CompareTo(object obj)
+        int IComparable.CompareTo(object? obj)
         {
-            PackElement e = (PackElement)obj;
+            PackElement e = (PackElement)obj!;
 
             return this.name.ToUpper().CompareTo(e.name.ToUpper());
         }

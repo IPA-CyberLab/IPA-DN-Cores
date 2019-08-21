@@ -1107,7 +1107,7 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array!, pin, size);
             return b.AsMemory();
         }
 
@@ -1131,7 +1131,7 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array!, pin, size);
             return b.AsMemory();
         }
 
@@ -1154,7 +1154,7 @@ namespace IPA.Cores.Helper.Basic
             long requiredLen = (long)a.Offset + (long)a.Count + (long)size;
             if (requiredLen > int.MaxValue) throw new OverflowException("size");
 
-            int newLen = a.Array.Length;
+            int newLen = a.Array!.Length;
             while (newLen < requiredLen)
             {
                 newLen = (int)Math.Min(Math.Max((long)newLen, 128) * 2, int.MaxValue);

@@ -151,12 +151,12 @@ namespace IPA.Cores.Basic
 
     public class PCapBuffer : LazyBuffer
     {
-        public PCapBuffer(PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+        public PCapBuffer(PCapFileEmitter? initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(initialEmitter, new LazyBufferOptions(discardMode, bufferSize._DefaultSize(CoresConfig.PCapSettings.DefaultBufferSize)), cancel)
         {
         }
 
-        public void WritePacket(ReadOnlySpan<byte> srcPacketData, long timeStampUsecs, string comment = null)
+        public void WritePacket(ReadOnlySpan<byte> srcPacketData, long timeStampUsecs, string? comment = null)
         {
             PacketSizeSet sizeSet = PacketSizeSets.PcapNgPacket;
             if (comment != null && comment.Length >= 1)
@@ -170,13 +170,13 @@ namespace IPA.Cores.Basic
             WritePacket(ref pkt, timeStampUsecs, comment);
         }
 
-        public void WritePacket(Datagram datagramDiscardable, string comment = null)
+        public void WritePacket(Datagram datagramDiscardable, string? comment = null)
         {
             Packet pkt = datagramDiscardable.ToPacket();
             WritePacket(ref pkt, PCapUtil.ConvertSystemTimeToTimeStampUsec(datagramDiscardable.TimeStamp), comment);
         }
 
-        public void WritePacket(ref Packet pktDiscardable, long timeStampUsecs, string comment = null)
+        public void WritePacket(ref Packet pktDiscardable, long timeStampUsecs, string? comment = null)
         {
             ref Packet pkt = ref pktDiscardable;
 
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
 
         Task MainLoop;
 
-        public PCapPacketRecorder(TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+        public PCapPacketRecorder(TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter? initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(initialEmitter, bufferSize, discardMode, cancel)
         {
             try
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
 
         long[] LastReadTailList;
 
-        public PCapPipePointStreamRecorder(PipePoint targetPoint, TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default) : base(tcpGenOptions, initialEmitter, bufferSize, discardMode, cancel)
+        public PCapPipePointStreamRecorder(PipePoint targetPoint, TcpPseudoPacketGeneratorOptions tcpGenOptions, PCapFileEmitter? initialEmitter = null, int bufferSize = int.MinValue, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default) : base(tcpGenOptions, initialEmitter, bufferSize, discardMode, cancel)
         {
             this.TargetPoint = targetPoint;
 
@@ -368,7 +368,7 @@ namespace IPA.Cores.Basic
 
     public class PCapConnSockRecorder : PCapPipePointStreamRecorder
     {
-        public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
+        public PCapConnSockRecorder(ConnSock targetSock, PCapFileEmitter? initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData, CancellationToken cancel = default)
             : base(targetSock.UpperPoint, GetTcpPseudoPacketGeneratorOptions(targetSock), initialEmitter, bufferSize, discardMode, cancel)
         {
         }

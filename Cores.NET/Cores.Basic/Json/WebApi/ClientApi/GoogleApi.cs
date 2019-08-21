@@ -224,7 +224,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
             }
         }
 
-        public async Task<MessageList[]> GmailListMessagesAsync(string query = null, int maxCount = int.MaxValue, CancellationToken cancel = default)
+        public async Task<MessageList[]> GmailListMessagesAsync(string? query = null, int maxCount = int.MaxValue, CancellationToken cancel = default)
         {
             List<MessageList> o = new List<MessageList>();
 

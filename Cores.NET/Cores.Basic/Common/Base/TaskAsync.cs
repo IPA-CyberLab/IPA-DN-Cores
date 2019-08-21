@@ -898,7 +898,7 @@ namespace IPA.Cores.Basic
         public static void TryCancelNoBlock(CancellationTokenSource cts)
             => cts._TryCancelAsync()._LaissezFaire(true);
 
-        public static async Task TryWaitAsync(Task t, bool noDebugMessage = false)
+        public static async Task TryWaitAsync(Task? t, bool noDebugMessage = false)
         {
             if (t == null) return;
             try
@@ -912,7 +912,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void TryWait(Task t, bool noDebugMessage = false)
+        public static void TryWait(Task? t, bool noDebugMessage = false)
         {
             if (t == null) return;
             try
@@ -1386,10 +1386,10 @@ namespace IPA.Cores.Basic
 
     public interface IAsyncService : IDisposable
     {
-        Task CleanupAsync(Exception ex = null);
-        Task DisposeWithCleanupAsync(Exception ex = null);
-        void Cancel(Exception ex = null);
-        void Dispose(Exception ex = null);
+        Task CleanupAsync(Exception? ex = null);
+        Task DisposeWithCleanupAsync(Exception? ex = null);
+        void Cancel(Exception? ex = null);
+        void Dispose(Exception? ex = null);
     }
 
     public abstract class AsyncService : IAsyncService, IAsyncDisposable

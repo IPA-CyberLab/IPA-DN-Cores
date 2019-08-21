@@ -52,7 +52,7 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class DaemonHelper
     {
-        public static void Start(this Daemon daemon, DaemonStartupMode startupMode, object param = null) => daemon.StartAsync(startupMode, param)._GetResult();
+        public static void Start(this Daemon daemon, DaemonStartupMode startupMode, object? param = null) => daemon.StartAsync(startupMode, param)._GetResult();
         public static void Stop(this Daemon daemon, bool silent = false) => daemon.StopAsync(silent)._GetResult();
     }
 }

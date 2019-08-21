@@ -198,7 +198,7 @@ namespace IPA.Cores.ClientApi.Acme
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
-        public AcmeClientOptions(string directoryUrl = DefaultEntryPointUrl, TcpIpSystem tcpIp = null)
+        public AcmeClientOptions(string directoryUrl = DefaultEntryPointUrl, TcpIpSystem? tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
             this.TcpIp = tcpIp ?? LocalNet;
