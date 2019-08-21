@@ -465,11 +465,16 @@ namespace IPA.Cores.Basic
             DisposeObject = disposeObject;
         }
 
-        public static FileBaseStream CreateFromFileObject(FileBase file, bool disposeObject = false)
+        public static FileBaseStream CreateFromFileObject(FileBase file, bool disposeObject = false, long? initialPosition = 0)
         {
             FileBaseStream ret = Util.NewWithoutConstructor<FileBaseStream>();
 
             ret._InternalInit(file, disposeObject);
+
+            if (initialPosition.HasValue)
+            {
+                ret.Seek(initialPosition.Value, SeekOrigin.Begin);
+            }
 
             return ret;
         }
@@ -1168,7 +1173,7 @@ namespace IPA.Cores.Basic
         public abstract Task CloseAsync();
 
 
-        public FileStream GetStream(bool disposeObject) => FileBaseStream.CreateFromFileObject(this, disposeObject);
+        public FileStream GetStream(bool disposeObject, long? initialPosition = 0) => FileBaseStream.CreateFromFileObject(this, disposeObject, initialPosition);
         public FileStream GetStream() => GetStream(false);
         public RandomAccessHandle GetRandomAccessHandle(bool disposeObject = false) => new RandomAccessHandle(this, disposeObject);
 

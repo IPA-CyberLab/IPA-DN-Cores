@@ -59,8 +59,22 @@ using static IPA.Cores.Globals.Web;
 namespace IPA.Cores.Web
 {
     [AspNetLibFeature(AspNetLibFeatures.LogBrowser)]
+    [Route(Consts.UrlPaths.LogBrowserMvcPath + "/{*path}")]
     public class LogBrowserController : Controller
     {
+        public IActionResult Index([FromServices] LogBrowserImpl logBrowser)
+        {
+            string fullpath = HttpContext.Request._GetRequestPathAndQueryString();
+
+            if (fullpath._TryTrimStartWith(out string path, StringComparison.OrdinalIgnoreCase, Consts.UrlPaths.LogBrowserMvcPath) == false)
+            {
+                return new ContentResult { Content = "Invalid URL", ContentType = "text/plain", StatusCode = 404 };
+            }
+            else
+            {
+                return new ContentResult { Content = "OK", ContentType = "text/plain", StatusCode = 200 };
+            }
+        }
     }
 }
 

@@ -56,6 +56,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
+using System.Text;
 
 namespace IPA.Cores.Basic
 {

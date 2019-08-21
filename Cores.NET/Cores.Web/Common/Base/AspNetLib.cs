@@ -116,6 +116,8 @@ namespace IPA.Cores.Web
 
         public AspNetLibFeatures EnabledFeatures { get; }
 
+        LogBrowserImpl LogBrowser = null;
+
         public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
         {
             this.EnabledFeatures = features | AspNetLibFeatures.Any;
@@ -124,9 +126,20 @@ namespace IPA.Cores.Web
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
             new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)));
 
-
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
         {
+        }
+
+        public void SetupLogBrowser(IServiceCollection services, LogBrowserOptions options)
+        {
+            if (this.EnabledFeatures.Bit(AspNetLibFeatures.LogBrowser) == false)
+                throw new ApplicationException(nameof(AspNetLibFeatures.LogBrowser) + " is not enabled.");
+
+            if (LogBrowser != null) throw new ApplicationException("SetupLogBrowser is already called.");
+
+            LogBrowser = new LogBrowserImpl(options, Consts.UrlPaths.LogBrowserMvcPath);
+
+            services.AddSingleton(this.LogBrowser);
         }
 
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
@@ -167,7 +180,8 @@ namespace IPA.Cores.Web
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            // Here
+
+            LogBrowser._DisposeSafe();
         }
     }
 }

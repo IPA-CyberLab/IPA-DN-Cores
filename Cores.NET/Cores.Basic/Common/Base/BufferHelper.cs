@@ -39,6 +39,7 @@ using System.Buffers.Binary;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -1393,6 +1394,26 @@ namespace IPA.Cores.Helper.Basic
                     );
             }
         }
+
+        static MemoryStream ToMemoryStreamInternal(byte[] data)
+        {
+            if (data == null) data = new byte[0];
+
+            var ms = new MemoryStream(data);
+
+            ms._SeekToBegin();
+
+            return ms;
+        }
+
+        public static MemoryStream _ToMemoryStream(this ReadOnlySpan<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this Span<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this ReadOnlyMemory<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this Memory<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T _AsStruct<T>(this ref byte data) where T : unmanaged

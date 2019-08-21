@@ -2459,8 +2459,9 @@ namespace IPA.Cores.Basic
         }
 
         // URL パスエンコード
-        public static string EncodeUrlPath(string str)
+        public static string EncodeUrlPath(string str, Encoding encoding = null)
         {
+            if (encoding == null) encoding = Str.Utf8Encoding;
             str = str._NonNullTrim();
 
             str = HttpUtility.UrlPathEncode(str);
@@ -2473,11 +2474,12 @@ namespace IPA.Cores.Basic
         }
 
         // URL パスデコード
-        public static string DecodeUrlPath(string str)
+        public static string DecodeUrlPath(string str, Encoding encoding = null)
         {
+            if (encoding == null) encoding = Str.Utf8Encoding;
             str = str._NonNullTrim();
 
-            str = HttpUtility.UrlDecode(str, Str.Utf8Encoding);
+            str = HttpUtility.UrlDecode(str, encoding);
 
             return str;
         }
@@ -5222,6 +5224,30 @@ namespace IPA.Cores.Basic
             return (splitStr.IndexOf(c, StringComparison.OrdinalIgnoreCase) != -1);
         }
 
+        // QueryString をパースする
+        public static QueryStringList ParseQueryString(string src, Encoding encoding = null)
+        {
+            return new QueryStringList(src, encoding);
+        }
+
+        // 文字列から URL と QueryString を分離する
+        public static void SplitUrlAndQueryString(string src, out string url, out string queryString)
+        {
+            src = src._NonNull();
+
+            int i = src.IndexOf('?');
+            if (i == -1)
+            {
+                url = src;
+                queryString = "";
+            }
+            else
+            {
+                url = src.Substring(0, i);
+                queryString = src.Substring(i + 1);
+            }
+        }
+
         // 文字列からキーと値を取得する
         public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr)
         {
@@ -5779,12 +5805,13 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
+        public static void ParseUrl(string urlString, out Uri uri, out QueryStringList queryString, Encoding encoding = null)
         {
-            if (url_string._IsEmpty()) throw new ApplicationException("url_string is empty.");
-            if (url_string.StartsWith("/")) url_string = "http://null" + url_string;
-            uri = new Uri(url_string);
-            query_string = HttpUtility.ParseQueryString(uri.Query._NonNull());
+            if (encoding == null) encoding = Str.Utf8Encoding;
+            if (urlString._IsEmpty()) throw new ApplicationException("url_string is empty.");
+            if (urlString.StartsWith("/")) urlString = "http://null" + urlString;
+            uri = new Uri(urlString);
+            queryString = uri.Query._ParseQueryString(encoding);
         }
 
         public static string NormalizeFqdn(string fqdn)
@@ -6517,5 +6544,97 @@ namespace IPA.Cores.Basic
         }
 
         public override string ToString() => ((bool)this).ToString();
+    }
+
+
+    public class QueryStringList : KeyValueList<string, string>
+    {
+        public QueryStringList() { }
+
+        public QueryStringList(string queryString, Encoding encoding = null)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            queryString = queryString._NonNull();
+
+            // 先頭に ? があれば無視する
+            if (queryString.StartsWith("?")) queryString = queryString.Substring(1);
+
+            // ハッシュ文字 # があればそれ以降は無視する
+            int i = queryString.IndexOf('#');
+            if (i != -1) queryString = queryString.Substring(0, i);
+
+            // & で分離する
+            string[] tokens = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string token in tokens)
+            {
+                // key と value を取得する
+                string key, value;
+
+                i = token.IndexOf('=');
+
+                if (i == -1)
+                {
+                    key = token;
+                    value = "";
+                }
+                else
+                {
+                    key = token.Substring(0, i);
+                    value = token.Substring(i + 1);
+                }
+
+                // key と value を URL デコードする
+                key = Str.DecodeUrl(key, encoding);
+                value = Str.DecodeUrl(value, encoding);
+
+                this.Add(key, value);
+            }
+        }
+
+        public override string ToString()
+            => ToString(null);
+
+        public string ToString(Encoding encoding)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0;i < this.Count;i++)
+            {
+                var kv = this[i];
+                bool isLast = (i == (this.Count - 1));
+
+                if (kv.Key._IsFilled() || kv.Value._IsFilled())
+                {
+                    string key = kv.Key._NonNull();
+                    string value = kv.Value._NonNull();
+
+                    // key と value を URL エンコードする
+                    key = key._EncodeUrlPath(encoding);
+                    value = value._EncodeUrlPath(encoding);
+
+                    if (value._IsEmpty())
+                    {
+                        sb.Append(key);
+                    }
+                    else
+                    {
+                        sb.Append(key);
+                        sb.Append('=');
+                        sb.Append(value);
+                    }
+
+                    if (isLast == false)
+                    {
+                        sb.Append('&');
+                    }
+                }
+            }
+
+            return sb.ToString();
+        }
     }
 }

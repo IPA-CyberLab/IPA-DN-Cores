@@ -531,5 +531,69 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    // 任意の Stream の一部を HTTP 応答するクラス
+    public class HttpResult : IDisposable
+    {
+        public int StatusCode { get; }
+        public string ContentType { get; }
+
+        public Stream Stream { get; }
+        public long Offset { get; }
+        public long? Length { get; }
+
+        public bool DisposeStream { get; }
+
+        public HttpResult(Stream stream, long offset, long? length, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true)
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
+            if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
+
+            contentType = contentType._NullIfEmpty();
+
+            this.Stream = stream;
+            this.Offset = offset;
+            this.Length = length;
+            this.ContentType = contentType;
+            this.StatusCode = statusCode;
+
+            this.DisposeStream = disposeStream;
+        }
+
+        public void Dispose() => Dispose(true);
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.DisposeStream)
+            {
+                this.Stream._DisposeSafe();
+            }
+        }
+    }
+
+    // すでに用意されたメモリ配列を HTTP 応答するクラス
+    public class HttpMemoryResult : HttpResult
+    {
+        public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok)
+            : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode) { }
+    }
+
+    // すでに用意された文字列データを HTTP 応答するクラス
+    public class HttpStringResult : HttpMemoryResult
+    {
+        public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding encoding = null)
+            : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode) { }
+    }
+
+    // 指定されたファイルを HTTP 応答するクラス
+    public class HttpFileResult : HttpResult
+    {
+        public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true)
+            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true) { }
+    }
 }
 

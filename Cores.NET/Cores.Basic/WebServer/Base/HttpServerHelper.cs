@@ -55,6 +55,16 @@ namespace IPA.Cores.Helper.Basic
         public static CancellationToken _GetRequestCancellationToken(this HttpRequest h) => h.HttpContext.RequestAborted;
         public static CancellationToken _GetRequestCancellationToken(this HttpContext h) => h.RequestAborted;
 
+        public static async Task _SendHttpResultAsync(this HttpResponse h, HttpResult result, CancellationToken cancel = default)
+        {
+            if (result.Offset != 0)
+            {
+                result.Stream.Seek(result.Offset, SeekOrigin.Begin);
+            }
+
+            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel);
+        }
+
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
@@ -109,6 +119,21 @@ namespace IPA.Cores.Helper.Basic
                 (count.GetValueOrDefault() < 0 || count.GetValueOrDefault() > fileLength - offset))
             {
                 throw new ArgumentOutOfRangeException(nameof(count), count, string.Empty);
+            }
+        }
+
+        public static string _GetRequestPathAndQueryString(this HttpRequest r)
+        {
+            string path = r.Path.ToString()._NonNull();
+            string qs = r.QueryString.ToString()._NonNull();
+
+            if (qs._IsNullOrZeroLen() == false)
+            {
+                return path + qs;
+            }
+            else
+            {
+                return path;
             }
         }
 

@@ -39,7 +39,7 @@ namespace DaemonCenter
             StartupHelper = new HttpServerStartupHelper(configuration);
 
             // AspNetLib の初期化: 必要な機能のみ ON にすること
-            AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.EasyCookieAuth);
+            AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.EasyCookieAuth | AspNetLibFeatures.LogBrowser);
 
             // 設定データへの参照の保存
             Configuration = configuration;
@@ -63,6 +63,9 @@ namespace DaemonCenter
             EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
             EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
             EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
+
+            // LogBrowesr 機能を設定
+            AspNetLib.SetupLogBrowser(services, new LogBrowserOptions(Env.AppRootDir));
 
             // MVC 機能を追加
             services.AddControllersWithViews()

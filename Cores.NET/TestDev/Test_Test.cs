@@ -289,6 +289,23 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine(">");
+
+                    line._ParseUrl(out Uri uri, out QueryStringList qs);
+
+                    qs._DebugAsJson();
+
+                    Con.WriteDebug(qs.ToString());
+
+                    Con.WriteDebug();
+                }
+                return;
+            }
+
+            if (true)
+            {
                 JsonRpcTest.jsonrpc_client_server_both_test();
                 return;
             }

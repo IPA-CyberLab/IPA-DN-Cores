@@ -321,6 +321,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static string[] _GetLines(this string s) => Str.GetLines(s);
         public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
+        public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
         public static bool _IsLong(this string s) => Str.IsLong(s);
         public static bool _IsInt(this string s) => Str.IsInt(s);
@@ -363,8 +364,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _Normalize(this string str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
         public static string _EncodeUrl(this string str, Encoding e = null) => Str.EncodeUrl(str, e);
         public static string _DecodeUrl(this string str, Encoding e = null) => Str.DecodeUrl(str, e);
-        public static string _EncodeUrlPath(this string str) => Str.EncodeUrlPath(str);
-        public static string _DecodeUrlPath(this string str) => Str.DecodeUrlPath(str);
+        public static string _EncodeUrlPath(this string str, Encoding e = null) => Str.EncodeUrlPath(str, e);
+        public static string _DecodeUrlPath(this string str, Encoding e = null) => Str.DecodeUrlPath(str, e);
         public static string _EncodeHtml(this string str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
         public static string _DecodeHtml(this string str) => Str.DecodeHtml(str);
 
@@ -595,7 +596,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static IPAddressType _GetIPAddressType(this IPAddress ip) => IPUtil.GetIPAddressType(ip);
 
-        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
+        //        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
+        public static void _ParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding encoding = null) => Str.ParseUrl(urlString, out uri, out queryString, encoding);
+        public static QueryStringList _ParseQueryString(this string src, Encoding encoding = null) => Str.ParseQueryString(src, encoding);
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());

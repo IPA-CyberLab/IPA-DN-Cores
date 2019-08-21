@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
                         HttpPortsList = httpPort._SingleList(),
                         HttpsPortsList = httpsPort._SingleList(),
                         DebugKestrelToConsole = false,
-                        UseKestrelWithIPACoreStack = true,
+                        UseKestrelWithIPACoreStack = false,
                         AutomaticRedirectToHttpsIfPossible = false,
                         LocalHostOnly = false,
                         UseGlobalCertVault = false, // Disable Global CertVault
@@ -104,9 +104,9 @@ namespace IPA.Cores.Basic
                         DenyRobots = true, // Deny robots
                     };
 
-                    LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(@"c:\tmp\",
+                        //Env.AppRootDir, 
                         systemTitle: $"{Env.DnsFqdnHostName}",
-                        absolutePathPrefix: "/" + GlobalDaemonStateManager.DaemonSecret,
                         clientIpAcl: (ip) =>
                         {
                             // 接続元 IP アドレスの種類を取得
@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
                         }
                         );
 
-                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
+                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, "/" + GlobalDaemonStateManager.DaemonSecret)));
 
                     GlobalDaemonStateManager.FileBrowserHttpsPortNumber = httpsPort;
                 }
