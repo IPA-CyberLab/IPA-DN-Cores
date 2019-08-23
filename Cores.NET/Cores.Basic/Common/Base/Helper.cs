@@ -359,7 +359,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _StartsWithMulti(this string str, StringComparison comparison, params string[] keys) => Str.StartsWithMulti(str, comparison, keys);
         public static int _FindStringsMulti(this string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundKeyIndex, keys);
         public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
-        public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
+        public static int[]? _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
         public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
         public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
         public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
@@ -602,7 +602,7 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static IPAddress _ToIPAddress(this string s) => IPUtil.StrToIP(s);
+        public static IPAddress? _ToIPAddress(this string s) => IPUtil.StrToIP(s);
 
         public static IPAddress _UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 
@@ -876,7 +876,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static IAsyncResult _AsApm<T>(this Task<T> task,
                                     AsyncCallback callback,
-                                    object state)
+                                    object? state)
         {
             if (task == null)
                 throw new ArgumentNullException("task");
@@ -899,7 +899,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static IAsyncResult _AsApm(this Task task,
                                             AsyncCallback callback,
-                                            object state)
+                                            object? state)
         {
             if (task == null)
                 throw new ArgumentNullException("task");
@@ -1494,7 +1494,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsStrIPv4(this string str) => IPUtil.IsStrIPv4(str);
         public static bool _IsStrIPv6(this string str) => IPUtil.IsStrIPv6(str);
 
-        public static IPAddress _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
+        public static IPAddress? _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
             => IPUtil.StrToIP(str, allowed, noException);
 
         public static int _DataToFile(this ReadOnlyMemory<byte> data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)

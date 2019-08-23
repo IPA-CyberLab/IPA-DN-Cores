@@ -49,6 +49,9 @@ using System.Threading;
 
 #pragma warning disable 0618
 
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning disable CA1401 // P/Invokes should not be visible
+
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
 // The MIT License (MIT)
@@ -199,7 +202,7 @@ namespace IPA.Cores.Basic
                 out uint cbBytesReturned, IntPtr overlapped);
 
             public static async Task<bool> DeviceIoControlAsync(
-                SafeFileHandle fileHandle, EIOControlCode ioControlCode, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer, string pathForReference, CancellationToken cancel = default)
+                SafeFileHandle fileHandle, EIOControlCode ioControlCode, ReadOnlyMemoryBuffer<byte>? inBuffer, MemoryBuffer<byte>? outBuffer, string? pathForReference, CancellationToken cancel = default)
             {
                 bool ret = await Win32ApiUtil.CallOverlappedAsync<bool>(fileHandle,
                     (inPtr, inSize, outPtr, outSize, outReturnedSize, overlapped) =>
@@ -412,7 +415,7 @@ namespace IPA.Cores.Basic
                     IntPtr currentPtr = bufPtr;
                     for (int i = 0; i < entriesread; i++)
                     {
-                        SHARE_INFO_1 shi1 = (SHARE_INFO_1)Marshal.PtrToStructure(currentPtr, typeof(SHARE_INFO_1));
+                        SHARE_INFO_1 shi1 = (SHARE_INFO_1)Marshal.PtrToStructure(currentPtr, typeof(SHARE_INFO_1))!;
                         ShareInfos.Add(shi1);
                         currentPtr += nStructSize;
                     }
@@ -528,7 +531,7 @@ namespace IPA.Cores.Basic
             internal static extern bool OpenProcessToken(SafeProcessHandle ProcessHandle, int DesiredAccess, out SafeTokenHandle TokenHandle);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true, BestFitMapping = false, EntryPoint = "LookupPrivilegeValueW")]
-            internal static extern bool LookupPrivilegeValue([MarshalAs(UnmanagedType.LPTStr)] string lpSystemName, [MarshalAs(UnmanagedType.LPTStr)] string lpName, out LUID lpLuid);
+            internal static extern bool LookupPrivilegeValue([MarshalAs(UnmanagedType.LPTStr)] string? lpSystemName, [MarshalAs(UnmanagedType.LPTStr)] string lpName, out LUID lpLuid);
 
             [DllImport(Libraries.Advapi32, SetLastError = true)]
             internal unsafe static extern bool AdjustTokenPrivileges(
@@ -540,15 +543,15 @@ namespace IPA.Cores.Basic
                 uint* ReturnLength);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static SafeServiceHandle OpenSCManager(string machineName, string databaseName, int access);
+            internal extern static SafeServiceHandle OpenSCManager(string? machineName, string? databaseName, int access);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
             internal extern static IntPtr OpenSCManager2(string machineName, string databaseName, int access);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
             public extern static SafeServiceHandle CreateService(SafeServiceHandle databaseHandle, string serviceName, string displayName, int access, int serviceType,
-                int startType, int errorControl, string binaryPath, string loadOrderGroup, IntPtr pTagId, string dependencies,
-                string servicesStartName, string password);
+                int startType, int errorControl, string binaryPath, string? loadOrderGroup, IntPtr pTagId, string? dependencies,
+                string? servicesStartName, string? password);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
             public static extern bool ChangeServiceConfig2(SafeServiceHandle serviceHandle, uint infoLevel, ref SERVICE_DESCRIPTION serviceDesc);
@@ -1601,7 +1604,7 @@ namespace IPA.Cores.Basic
             // this is only a "pseudo handle" to the current process - no need to close it later
             SafeProcessHandle processHandle = Win32Api.Kernel32.GetCurrentProcess();
 
-            SafeTokenHandle hToken = null;
+            SafeTokenHandle? hToken = null;
 
             try
             {
@@ -1678,7 +1681,7 @@ namespace IPA.Cores.Basic
 
             // don't include inheritable in our bounds check for share
             FileShare tempshare = share & ~FileShare.Inheritable;
-            string badArg = null;
+            string? badArg = null;
             if (mode < FileMode.CreateNew || mode > FileMode.Append)
                 badArg = nameof(mode);
             else if (access < FileAccess.Read || access > FileAccess.ReadWrite)
@@ -1807,8 +1810,10 @@ namespace IPA.Cores.Basic
         internal static Exception GetExceptionForLastWin32Error(string path = "")
             => GetExceptionForWin32Error(Marshal.GetLastWin32Error(), path);
 
-        public static Exception GetExceptionForWin32Error(int errorCode, string argument = "")
+        public static Exception GetExceptionForWin32Error(int errorCode, string? argument = "")
         {
+            argument = argument._NonNull();
+
             List<string> o = new List<string>();
 
             string win32msg = "";

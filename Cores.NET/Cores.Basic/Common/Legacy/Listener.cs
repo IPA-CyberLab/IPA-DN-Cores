@@ -48,79 +48,35 @@ namespace IPA.Cores.Basic.Legacy
     {
         public const int ListenRetryTimeDefault = 2 * 1000;
 
-        int listenRetryTime;
-        public int ListenRetryTime
-        {
-            get { return listenRetryTime; }
-            set { listenRetryTime = value; }
-        }
+        public int ListenRetryTime { get; set; }
         object lockObj;
-        int port;
-        public int Port
-        {
-            get { return port; }
-        }
-        ThreadObj thread;
-        Sock sock;
-        public Sock Sock
-        {
-            get { return sock; }
-        }
+
+        public int Port { get; }
+        ThreadObj? thread;
+
+        public Sock? Sock { get; private set; }
         Event eventObj;
         bool halt;
-        ListenerStatus status;
-        public ListenerStatus Status
-        {
-            get { return status; }
-        }
-        AcceptProc acceptProc;
-        public AcceptProc AcceptProc
-        {
-            get { return acceptProc; }
-        }
-        object acceptParam;
-        public object AcceptParam
-        {
-            get { return acceptParam; }
-        }
-        bool localOnly;
-        public bool LocalOnly
-        {
-            get { return localOnly; }
-        }
-        bool getHostName;
-        public bool GetHostName
-        {
-            get { return getHostName; }
-            set { getHostName = value; }
-        }
 
-        public Listener(int port, AcceptProc acceptProc, object acceptParam)
-        {
-            init(port, acceptProc, acceptParam, false, false);
-        }
-        public Listener(int port, AcceptProc acceptProc, object acceptParam, bool localOnly)
-        {
-            init(port, acceptProc, acceptParam, localOnly, false);
-        }
-        public Listener(int port, AcceptProc acceptProc, object acceptParam, bool localOnly, bool getHostName)
-        {
-            init(port, acceptProc, acceptParam, localOnly, getHostName);
-        }
+        public ListenerStatus Status { get; private set; }
 
-        // 初期化
-        void init(int port, AcceptProc acceptProc, object acceptParam, bool localOnly, bool getHostName)
+        public AcceptProc AcceptProc { get; }
+        public object AcceptParam { get; }
+        public bool LocalOnly { get; }
+        public bool GetHostName { get; set; }
+
+        public Listener(int port, AcceptProc acceptProc, object acceptParam, bool localOnly = false, bool getHostName = false)
         {
             this.lockObj = new object();
-            this.port = port;
-            this.acceptProc = acceptProc;
-            this.acceptParam = acceptParam;
-            this.status = ListenerStatus.Trying;
+            this.Port = port;
+            this.AcceptProc = acceptProc;
+            this.AcceptParam = acceptParam;
+            this.Status = ListenerStatus.Trying;
             this.eventObj = new Event();
             this.halt = false;
-            this.localOnly = localOnly;
-            this.getHostName = getHostName;
-            this.listenRetryTime = ListenRetryTimeDefault;
+            this.LocalOnly = localOnly;
+            this.GetHostName = getHostName;
+            this.ListenRetryTime = ListenRetryTimeDefault;
 
             // スレッドの作成
             ThreadObj thread = new ThreadObj(new ThreadProc(ListenerThread));
@@ -131,7 +87,7 @@ namespace IPA.Cores.Basic.Legacy
         // 停止
         public void Stop()
         {
-            Sock s;
+            Sock? s;
 
             lock (this.lockObj)
             {
@@ -142,7 +98,7 @@ namespace IPA.Cores.Basic.Legacy
 
                 this.halt = true;
 
-                s = this.sock;
+                s = this.Sock;
             }
 
             if (s != null)
@@ -152,7 +108,7 @@ namespace IPA.Cores.Basic.Legacy
 
             this.eventObj.Set();
 
-            this.thread.WaitForEnd();
+            this.thread?.WaitForEnd();
         }
 
         // TCP 受付完了
@@ -162,31 +118,32 @@ namespace IPA.Cores.Basic.Legacy
             t.WaitForInit();
         }
 
-        void tcpAcceptedThread(object param)
+        void tcpAcceptedThread(object? param)
         {
-            Sock s = (Sock)param;
+            Sock s = (Sock)param!;
 
             ThreadObj.NoticeInited();
 
-            this.acceptProc(this, s, this.acceptParam);
+            this.AcceptProc(this, s, this.AcceptParam);
         }
 
         // スレッド
-        public void ListenerThread(object param)
+        public void ListenerThread(object? param)
         {
-            Sock new_sock, s;
+            Sock ?new_sock;
+            Sock s;
             int num_failed;
 
-            this.thread = ThreadObj.GetCurrentThreadObj();
+            this.thread = ThreadObj.GetCurrentThreadObj()!;
 
-            this.status = ListenerStatus.Trying;
+            this.Status = ListenerStatus.Trying;
 
             ThreadObj.NoticeInited();
 
             while (true)
             {
                 bool firstFailed = true;
-                this.status = ListenerStatus.Trying;
+                this.Status = ListenerStatus.Trying;
 
                 // Listen を試みる
                 while (true)
@@ -198,9 +155,9 @@ namespace IPA.Cores.Basic.Legacy
 
                     try
                     {
-                        s = Sock.Listen(this.port, this.localOnly);
+                        s = Sock.Listen(this.Port, this.LocalOnly);
 
-                        this.sock = s;
+                        this.Sock = s;
 
                         break;
                     }
@@ -211,7 +168,7 @@ namespace IPA.Cores.Basic.Legacy
                             firstFailed = false;
                         }
 
-                        this.eventObj.Wait(this.listenRetryTime);
+                        this.eventObj.Wait(this.ListenRetryTime);
 
                         if (this.halt)
                         {
@@ -220,11 +177,11 @@ namespace IPA.Cores.Basic.Legacy
                     }
                 }
 
-                this.status = ListenerStatus.Listening;
+                this.Status = ListenerStatus.Listening;
 
                 if (this.halt)
                 {
-                    this.sock.Disconnect();
+                    this.Sock.Disconnect();
                     break;
                 }
 
@@ -234,7 +191,7 @@ namespace IPA.Cores.Basic.Legacy
                 while (true)
                 {
                     // Accept する
-                    new_sock = this.sock.Accept(this.getHostName);
+                    new_sock = this.Sock.Accept(this.GetHostName);
                     if (new_sock != null)
                     {
                         // 成功
@@ -251,7 +208,7 @@ namespace IPA.Cores.Basic.Legacy
                             }
                         }
 
-                        this.sock.Disconnect();
+                        this.Sock.Disconnect();
                         break;
                     }
                 }

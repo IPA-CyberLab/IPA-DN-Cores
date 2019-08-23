@@ -37,6 +37,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -52,7 +53,7 @@ namespace IPA.Cores.Basic
     public static class AbortedTaskExecuteThreadPrivate
     {
         static object LockObj = new object();
-        static Dictionary<object, Queue<(SendOrPostCallback callback, object args)>> DispatchQueueList = new Dictionary<object, Queue<(SendOrPostCallback, object)>>();
+        static Dictionary<object, Queue<(SendOrPostCallback callback, object? args)>> DispatchQueueList = new Dictionary<object, Queue<(SendOrPostCallback, object?)>>();
         static object dummy_orphants = new object();
         static AutoResetEvent ev = new AutoResetEvent(true);
 
@@ -63,13 +64,13 @@ namespace IPA.Cores.Basic
             t.Start();
         }
 
-        static void ThreadProc(object param)
+        static void ThreadProc(object? param)
         {
             SynchronizationContext.SetSynchronizationContext(new AbortedTaskExecuteThreadSynchronizationContext());
 
             while (true)
             {
-                var actions = new List<(SendOrPostCallback callback, object args)>();
+                var actions = new List<(SendOrPostCallback callback, object? args)>();
 
                 lock (LockObj)
                 {
@@ -101,13 +102,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostAction(object ctx, SendOrPostCallback callback, object arg)
+        public static void PostAction(object ctx, SendOrPostCallback callback, object? arg)
         {
             lock (LockObj)
             {
                 if (DispatchQueueList.ContainsKey(ctx) == false)
                 {
-                    DispatchQueueList.Add(ctx, new Queue<(SendOrPostCallback, object)>());
+                    DispatchQueueList.Add(ctx, new Queue<(SendOrPostCallback, object?)>());
                 }
 
                 DispatchQueueList[ctx].Enqueue((callback, arg));
@@ -144,7 +145,7 @@ namespace IPA.Cores.Basic
 
             public bool IsAllOperationsCompleted => (num_operations_total >= 1 && num_operations == 0);
 
-            public override void Post(SendOrPostCallback d, object state)
+            public override void Post(SendOrPostCallback d, object? state)
             {
                 //Dbg.WriteCurrentThreadId("aborted_call_post");
                 AbortedTaskExecuteThreadPrivate.PostAction(AbortedTaskExecuteThreadPrivate.dummy_orphants, d, state);
@@ -157,9 +158,9 @@ namespace IPA.Cores.Basic
         public ThreadObj ThreadObj { get; }
 
         Func<TIn, Task<TResult>> RootFunction;
-        Task RootTask;
+        Task? RootTask;
 
-        Queue<(SendOrPostCallback callback, object args)> DispatchQueue = new Queue<(SendOrPostCallback callback, object args)>();
+        Queue<(SendOrPostCallback callback, object? args)> DispatchQueue = new Queue<(SendOrPostCallback callback, object? args)>();
         AutoResetEvent DispatchQueueEvent = new AutoResetEvent(false);
 
         public TIn InputParameter { get; }
@@ -168,9 +169,9 @@ namespace IPA.Cores.Basic
         CancellationToken AbortCancel { get; }
 
         object ResultLock = new object();
-        public Exception Error { get; private set; } = null;
+        public Exception? Error { get; private set; } = null;
         public TResult Result => this.GetResult(out _);
-        TResult result = default(TResult);
+        TResult result = default(TResult)!;
         public bool IsCompleted { get; private set; } = false;
         public bool IsAborted { get; private set; } = false;
         public bool HasError => this.Error != null;
@@ -181,7 +182,7 @@ namespace IPA.Cores.Basic
         bool abort_flag = false;
         bool no_more_enqueue = false;
 
-        TaskVmSynchronizationContext sync_ctx;
+        TaskVmSynchronizationContext? syncCtx;
 
         public TaskVm(Func<TIn, Task<TResult>> rootAction, TIn input_parameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
         {
@@ -234,7 +235,10 @@ namespace IPA.Cores.Basic
             return !timeouted;
         }
 
+        [return: MaybeNull]
         public TResult GetResult(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken)) => GetResult(out _, ignoreError, timeout, cancel);
+
+        [return: MaybeNull]
         public TResult GetResult(out bool timeouted, bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
         {
             CompletedEvent.Wait(timeout, cancel);
@@ -242,7 +246,7 @@ namespace IPA.Cores.Basic
             if (this.IsCompleted == false)
             {
                 timeouted = true;
-                return default(TResult);
+                return default(TResult)!;
             }
 
             timeouted = false;
@@ -255,7 +259,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    return default(TResult);
+                    return default(TResult)!;
                 }
             }
 
@@ -264,8 +268,8 @@ namespace IPA.Cores.Basic
 
         void ThreadProc(object param)
         {
-            sync_ctx = new TaskVmSynchronizationContext(this);
-            SynchronizationContext.SetSynchronizationContext(sync_ctx);
+            syncCtx = new TaskVmSynchronizationContext(this);
+            SynchronizationContext.SetSynchronizationContext(syncCtx);
 
             ThreadLocalStorage.CurrentThreadData["taskvm_current_graceful_cancel"] = this.GracefulCancel;
 
@@ -276,7 +280,7 @@ namespace IPA.Cores.Basic
             DispatcherLoop();
         }
 
-        void SetResult(Exception ex = null, TResult result = default(TResult))
+        void SetResult(Exception? ex = null, [AllowNull] TResult result = default(TResult))
         {
             lock (this.ResultLock)
             {
@@ -312,7 +316,7 @@ namespace IPA.Cores.Basic
 
             //Dbg.WriteCurrentThreadId("task_proc: before await");
 
-            TResult ret = default(TResult);
+            TResult ret = default(TResult)!;
 
             try
             {
@@ -342,7 +346,7 @@ namespace IPA.Cores.Basic
 
                 while (true)
                 {
-                    (SendOrPostCallback callback, object args) queuedItem;
+                    (SendOrPostCallback callback, object? args) queuedItem;
 
                     lock (this.DispatchQueue)
                     {
@@ -377,7 +381,7 @@ namespace IPA.Cores.Basic
 
             no_more_enqueue = true;
 
-            List<(SendOrPostCallback callback, object args)> remaining_tasks = new List<(SendOrPostCallback callback, object args)>();
+            List<(SendOrPostCallback callback, object? args)> remainingTasks = new List<(SendOrPostCallback callback, object? args)>();
             lock (this.DispatchQueue)
             {
                 while (true)
@@ -386,11 +390,11 @@ namespace IPA.Cores.Basic
                     {
                         break;
                     }
-                    remaining_tasks.Add(this.DispatchQueue.Dequeue());
+                    remainingTasks.Add(this.DispatchQueue.Dequeue());
                 }
-                foreach (var x in remaining_tasks)
+                foreach (var x in remainingTasks)
                 {
-                    AbortedTaskExecuteThreadPrivate.PostAction(this.sync_ctx, x.callback, x.args);
+                    AbortedTaskExecuteThreadPrivate.PostAction(this.syncCtx!, x.callback, x.args);
                 }
             }
         }
@@ -434,7 +438,7 @@ namespace IPA.Cores.Basic
                 Vm.DispatchQueueEvent.Set();
             }
 
-            public override void Post(SendOrPostCallback d, object state)
+            public override void Post(SendOrPostCallback d, object? state)
             {
                 //Dbg.WriteCurrentThreadId("Post: " + this.Vm.halt);
                 //base.Post(d, state);
@@ -461,7 +465,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public override void Send(SendOrPostCallback d, object state)
+            public override void Send(SendOrPostCallback d, object? state)
             {
                 //Dbg.WriteCurrentThreadId("Send");
                 base.Send(d, state);

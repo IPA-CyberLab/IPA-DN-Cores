@@ -3679,7 +3679,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -3778,7 +3778,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -3840,7 +3840,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -4364,7 +4364,7 @@ namespace IPA.Cores.Basic
                 this.Thread = new ThreadObj(ThreadProc, isBackground: true);
             }
 
-            void ThreadProc(object param)
+            void ThreadProc(object? param)
             {
                 long lastTimeStamp = 0;
 
@@ -4409,14 +4409,15 @@ namespace IPA.Cores.Basic
             }
 
             Once DisposeFlag;
-            public void Dispose()
+            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+
+            protected virtual void Dispose(bool disposing)
             {
-                if (DisposeFlag.IsFirstCall())
-                {
-                    HaltFlag = true;
-                    HaltEvent.Set();
-                    Thread.WaitForEnd();
-                }
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+                HaltFlag = true;
+                HaltEvent.Set();
+                Thread.WaitForEnd();
             }
         }
     }
@@ -5208,7 +5209,7 @@ namespace IPA.Cores.Basic
 
         public void Abort() => Dispose();
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -6461,6 +6462,21 @@ namespace IPA.Cores.Basic
     public static class EmptyEnumerable<T>
     {
         public static IEnumerable<T> Empty { get; } = new List<T>();
+    }
+
+    public class CoresException : ApplicationException
+    {
+        public CoresException()
+        {
+        }
+
+        public CoresException(string? message) : base(message)
+        {
+        }
+
+        public CoresException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
 
     public class None { }

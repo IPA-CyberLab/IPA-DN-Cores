@@ -71,8 +71,8 @@ namespace IPA.Cores.Basic.Legacy
 
     public class Csv
     {
-        List<CsvEntry> entryList;
-        Encoding encoding;
+        List<CsvEntry> entryList = null!;
+        Encoding encoding = null!;
         static Encoding defaultEncoding = Str.ShiftJisEncoding;
 
         public Encoding Encoding
@@ -103,11 +103,7 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        public Csv()
-            : this(defaultEncoding)
-        {
-        }
-        public Csv(Encoding encoding)
+        public Csv(Encoding? encoding = null)
         {
             init(null, encoding);
         }
@@ -126,7 +122,7 @@ namespace IPA.Cores.Basic.Legacy
             byte[] src = data.ByteData;
             int bomSize;
 
-            Encoding enc = Str.CheckBOM(src, out bomSize);
+            Encoding? enc = Str.CheckBOM(src, out bomSize);
 
             if (bomSize >= 1)
             {
@@ -135,12 +131,12 @@ namespace IPA.Cores.Basic.Legacy
 
             init(new Buf(src), enc);
         }
-        public Csv(Buf data, Encoding encoding)
+        public Csv(Buf data, Encoding? encoding)
         {
             init(data, encoding);
         }
 
-        void init(Buf data, Encoding encoding)
+        void init(Buf? data, Encoding? encoding)
         {
             if (encoding == null)
             {
@@ -148,14 +144,14 @@ namespace IPA.Cores.Basic.Legacy
             }
 
             int bomSize = 0;
-            Encoding enc2 = null;
+            Encoding? enc2 = null;
             if (data != null)
             {
                 enc2 = Str.CheckBOM(data.ByteData, out bomSize);
             }
             if (bomSize >= 1)
             {
-                data = new Buf(Util.RemoveStartByteArray(data.ByteData, bomSize));
+                data = new Buf(Util.RemoveStartByteArray(data!.ByteData, bomSize));
             }
             if (enc2 != null)
             {
@@ -172,7 +168,7 @@ namespace IPA.Cores.Basic.Legacy
 
                 while (true)
                 {
-                    string s = sr.ReadLine();
+                    string? s = sr.ReadLine();
 
                     if (s == null)
                     {
@@ -206,7 +202,7 @@ namespace IPA.Cores.Basic.Legacy
 
             Buf b = new Buf();
 
-            byte[] bom = Str.GetBOM(this.Encoding);
+            byte[]? bom = Str.GetBOM(this.Encoding);
 
             if (bom != null)
             {
@@ -258,9 +254,9 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        CsvCompare csvCompareMethod;
+        CsvCompare? csvCompareMethod;
         int csvCompareIndex;
-        Type csvCompareType;
+        Type csvCompareType = null!;
         bool csvCompareReverse;
 
         int sortInternal(CsvEntry e1, CsvEntry e2)
@@ -285,7 +281,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             Sort(null, type);
         }
-        public void Sort(CsvCompare cmp, Type type)
+        public void Sort(CsvCompare? cmp, Type type)
         {
             Sort(cmp, type, false);
         }
@@ -293,7 +289,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             Sort(null, type, reverse);
         }
-        public void Sort(CsvCompare cmp, Type type, bool reverse)
+        public void Sort(CsvCompare? cmp, Type type, bool reverse)
         {
             Sort(cmp, 0, type, reverse);
         }
@@ -301,7 +297,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             Sort(null, index, type);
         }
-        public void Sort(CsvCompare cmp, int index, Type type)
+        public void Sort(CsvCompare? cmp, int index, Type type)
         {
             Sort(cmp, 0, type, false);
         }
@@ -309,7 +305,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             Sort(null, index, type, reverse);
         }
-        public void Sort(CsvCompare cmp, int index, Type type, bool reverse)
+        public void Sort(CsvCompare? cmp, int index, Type type, bool reverse)
         {
             csvCompareMethod = cmp;
             csvCompareIndex = index;
@@ -425,8 +421,8 @@ namespace IPA.Cores.Basic.Legacy
             return ret;
         }
 
-        Type lastType = null;
-        object lastObject = null;
+        Type? lastType = null;
+        object lastObject = null!;
         int lastIndex = -1;
 
         public object Convert(Type type, int index)

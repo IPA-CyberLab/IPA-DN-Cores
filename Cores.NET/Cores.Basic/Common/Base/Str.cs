@@ -1392,12 +1392,10 @@ namespace IPA.Cores.Basic
         }
 
         // 前方から指定文字だけ取得する
-        public static string? GetLeft(string str, int len)
+        public static string GetLeft(string str, int len)
         {
-            if (str == null)
-            {
-                return null;
-            }
+            str = str._NonNull();
+
             if (str.Length > len)
             {
                 return str.Substring(0, len);
@@ -6200,12 +6198,10 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public StrData(string str)
+            public StrData(string? str)
             {
-                if (str == null)
-                {
-                    str = "";
-                }
+                str = str._NonNull();
+
                 StrValue = str;
             }
         }

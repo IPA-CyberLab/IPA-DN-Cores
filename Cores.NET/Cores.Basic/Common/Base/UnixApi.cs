@@ -41,6 +41,10 @@ using static IPA.Cores.Globals.Basic;
 
 #pragma warning disable 0618
 
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning disable CA1401 // P/Invokes should not be visible
+
+
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
 // The MIT License (MIT)
@@ -124,6 +128,7 @@ namespace IPA.Cores.Basic
             S_IROTH = 0x4,
             S_IWOTH = 0x2,
             S_IXOTH = 0x1,
+
         }
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FLock", SetLastError = true)]
@@ -283,7 +288,7 @@ namespace IPA.Cores.Basic
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ReadLink", SetLastError = true)]
         private static extern unsafe int ReadLink(string path, byte[] buffer, int bufferSize);
-        public static string ReadLink(string path)
+        public static string? ReadLink(string path)
         {
             int bufferSize = 256;
             do

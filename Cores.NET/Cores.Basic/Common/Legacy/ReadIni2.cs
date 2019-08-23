@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic.Legacy
                 }
             }
 
-            public static Dictionary<string, List<string>> GetCache(string filename, DateTime lastUpdate)
+            public static Dictionary<string, List<string>>? GetCache(string filename, DateTime lastUpdate)
             {
                 lock (caches)
                 {
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        Dictionary<string, List<string>> datas;
+        Dictionary<string, List<string>>? datas;
         bool updated;
         ulong hash_value;
 
@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             try
             {
-                List<string> list = datas[key.ToUpper()];
+                List<string> list = datas![key.ToUpper()];
 
                 return list.ToArray();
             }
@@ -154,10 +154,10 @@ namespace IPA.Cores.Basic.Legacy
         {
             get
             {
-                string s;
+                string? s;
                 try
                 {
-                    List<string> list = datas[key.ToUpper()];
+                    List<string> list = datas![key.ToUpper()];
 
                     if (index >= 0 && index < list.Count)
                     {
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             List<string> ret = new List<string>();
 
-            foreach (string s in datas.Keys)
+            foreach (string s in datas!.Keys)
             {
                 ret.Add(s);
             }
@@ -198,7 +198,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             init(data, null);
         }
-        void init(byte[] data, string filename)
+        void init(byte[]? data, string? filename)
         {
             updated = false;
 
@@ -208,7 +208,7 @@ namespace IPA.Cores.Basic.Legacy
                 string srcstr;
                 DateTime lastUpdate = new DateTime(0);
 
-                if (filename != null)
+                if (filename._IsFilled())
                 {
                     lastUpdate = IO.GetLastWriteTimeUtc(filename);
 
@@ -221,12 +221,12 @@ namespace IPA.Cores.Basic.Legacy
                     {
                         try
                         {
-                            data = Buf.ReadFromFile(filename).ByteData;
+                            data = Buf.ReadFromFile(filename!).ByteData;
                         }
                         catch
                         {
                             data = new byte[0];
-                            datas = IniCache.GetCache(filename, new DateTime());
+                            datas = IniCache.GetCache(filename!, new DateTime());
                         }
                     }
 

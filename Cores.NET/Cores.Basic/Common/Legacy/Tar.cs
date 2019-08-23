@@ -311,7 +311,7 @@ namespace IPA.Cores.Basic.Legacy
             name = name.Replace('\\', '/');
             if (Str.InStr(name, "/", true))
             {
-                AddDirectory(Path.GetDirectoryName(name), dt, directoryMode);
+                AddDirectory(Path.GetDirectoryName(name)!, dt, directoryMode);
             }
 
             TarHeader h = TarUtil.CreateTarHeader(name, encoding, 0, size, dt, mode);

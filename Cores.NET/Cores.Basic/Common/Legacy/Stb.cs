@@ -42,7 +42,7 @@ namespace IPA.Cores.Basic.Legacy
 {
     public class Stb
     {
-        Dictionary<string, StbEntry> entryList;
+        Dictionary<string, StbEntry> entryList = null!;
 
         public string this[string name]
         {
@@ -78,13 +78,13 @@ namespace IPA.Cores.Basic.Legacy
 
             while (true)
             {
-                string tmp = sr.ReadLine();
+                string? tmp = sr.ReadLine();
                 if (tmp == null)
                 {
                     break;
                 }
 
-                StbEntry t = StbEntry.ParseTableLine(tmp, ref prefix);
+                StbEntry? t = StbEntry.ParseTableLine(tmp, ref prefix);
                 if (t != null)
                 {
                     if (entryList.ContainsKey(t.Name.ToUpper()) == false)
@@ -98,7 +98,7 @@ namespace IPA.Cores.Basic.Legacy
         const string standardStbFileName = "|strtable.stb";
         static string defaultStbFileName = standardStbFileName;
         static object lockObj = new object();
-        static Stb defaultStb = null;
+        static Stb? defaultStb = null;
         public static string DefaultStbFileName
         {
             set
@@ -155,7 +155,7 @@ namespace IPA.Cores.Basic.Legacy
             this.name = name;
             this.str = str;
         }
-        public static StbEntry ParseTableLine(string line, ref string prefix)
+        public static StbEntry? ParseTableLine(string line, ref string prefix)
         {
             int i, len;
             int string_start;

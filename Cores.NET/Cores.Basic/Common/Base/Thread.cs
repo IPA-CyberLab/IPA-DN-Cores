@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
         int threadMode = 0;
 
         static Benchmark th = new Benchmark("num_thread_created", disabled: true);
-        void BackgroundThreadProc(object param)
+        void BackgroundThreadProc(object? param)
         {
             Thread.CurrentThread.IsBackground = true;
             long lastQueueProcTick = 0;
@@ -194,7 +194,7 @@ namespace IPA.Cores.Basic
     public class GlobalLockHandle : IDisposable
     {
         public GlobalLock GlobalLock { get; }
-        Mutant mutant;
+        Mutant? mutant;
 
         internal GlobalLockHandle(GlobalLock g)
         {
@@ -218,8 +218,12 @@ namespace IPA.Cores.Basic
             unlock_main();
         }
 
-        public void Dispose()
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
         {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             unlock_main();
         }
     }
@@ -244,7 +248,7 @@ namespace IPA.Cores.Basic
     public class SingleInstance : IDisposable
     {
         readonly string NameOfMutant;
-        MutantBase Mutant;
+        MutantBase? Mutant;
 
         static readonly CriticalSection LockObj = new CriticalSection();
 
@@ -252,7 +256,7 @@ namespace IPA.Cores.Basic
 
         public static bool IsExistsAndLocked(string name, bool ignoreCase = true)
         {
-            SingleInstance si = TryGet(name, ignoreCase);
+            SingleInstance? si = TryGet(name, ignoreCase);
 
             if (si == null) return true;
 
@@ -261,7 +265,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public static SingleInstance TryGet(string name, bool ignoreCase = true)
+        public static SingleInstance? TryGet(string name, bool ignoreCase = true)
         {
             try
             {
@@ -302,7 +306,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -333,7 +337,7 @@ namespace IPA.Cores.Basic
 
         readonly SingleThreadWorker Worker;
 
-        MutantBase MutantBase;
+        MutantBase? MutantBase;
 
         readonly AsyncLock LockObj = new AsyncLock();
 
@@ -372,7 +376,7 @@ namespace IPA.Cores.Basic
 
                 await Worker.ExecAsync(p =>
                 {
-                    MutantBase.Lock(this.NonBlock);
+                    MutantBase!.Lock(this.NonBlock);
                 }, 0);
 
                 _IsLocked = true;
@@ -386,7 +390,7 @@ namespace IPA.Cores.Basic
             {
                 await Worker.ExecAsync(p =>
                 {
-                    MutantBase.Unlock();
+                    MutantBase!.Unlock();
                 }, 0);
 
                 _IsLocked = false;
@@ -394,7 +398,7 @@ namespace IPA.Cores.Basic
         }
         public void Unlock() => this.UnlockAsync()._GetResult();
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -523,7 +527,7 @@ namespace IPA.Cores.Basic
 
         int LockedCount = 0;
 
-        Mutex CurrentMutexObj = null;
+        Mutex? CurrentMutexObj = null;
 
         readonly static ConcurrentHashSet<object> MutexList = new ConcurrentHashSet<object>();
 
@@ -559,7 +563,7 @@ namespace IPA.Cores.Basic
             if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
             if (LockedCount == 1)
             {
-                MutexList.Remove(CurrentMutexObj);
+                MutexList.Remove(CurrentMutexObj!);
 
                 CurrentMutexObj._DisposeSafe();
                 CurrentMutexObj = null;
@@ -570,7 +574,7 @@ namespace IPA.Cores.Basic
 
     public class MutantWin32Impl : MutantBase
     {
-        Mutex MutexObj;
+        Mutex? MutexObj;
         int LockedCount = 0;
         readonly string InternalName;
 
@@ -589,7 +593,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    if (MutexObj.WaitOne(nonBlock ? 0 : Timeout.Infinite) == false)
+                    if (MutexObj!.WaitOne(nonBlock ? 0 : Timeout.Infinite) == false)
                     {
                         throw new ApplicationException("Cannot obtain the mutex object.");
                     }
@@ -616,7 +620,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    MutexObj.ReleaseMutex();
+                    MutexObj!.ReleaseMutex();
                 }
                 catch (Exception ex)
                 {
@@ -666,7 +670,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -751,7 +755,7 @@ namespace IPA.Cores.Basic
 
                 name = NormalizeName(name);
 
-                SemaphoneArrayItem sem = null;
+                SemaphoneArrayItem? sem = null;
 
                 lock (array)
                 {
@@ -805,7 +809,7 @@ namespace IPA.Cores.Basic
                     Interlocked.Increment(ref NumBusyWorkerThreads);
                     while (true)
                     {
-                        Tuple<Action<object>, object> work = null;
+                        Tuple<Action<object>, object>? work = null;
                         lock (ActionQueue)
                         {
                             if (ActionQueue.Count != 0)
@@ -864,13 +868,13 @@ namespace IPA.Cores.Basic
             ThreadProc ThreadProc;
             int NumWorkerThreads;
             Queue<object> TaskQueue = new Queue<object>();
-            Exception RaisedException = null;
+            Exception? RaisedException = null;
 
-            void WorkerThread(object param)
+            void WorkerThread(object? param)
             {
                 while (true)
                 {
-                    object task = null;
+                    object? task = null;
 
                     // キューから 1 個取得する
                     lock (LockObj)
@@ -953,7 +957,7 @@ namespace IPA.Cores.Basic
 
     public class Event
     {
-        EventWaitHandle EventObj;
+        EventWaitHandle EventObj = null!;
         public const int Infinite = Timeout.Infinite;
 
         public Event()
@@ -1143,11 +1147,11 @@ namespace IPA.Cores.Basic
 
         public static ConcurrentDictionary<string, object> GetCurrentThreadData()
         {
-            ConcurrentDictionary<string, object> t;
+            ConcurrentDictionary<string, object>? t;
 
             try
             {
-                t = (ConcurrentDictionary<string, object>)Thread.GetData(Slot);
+                t = (ConcurrentDictionary<string, object> ?)Thread.GetData(Slot);
             }
             catch
             {
@@ -1165,12 +1169,10 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate void ThreadProc(object userObject);
+    public delegate void ThreadProc(object? userObject);
 
     public class ThreadObj
     {
-
-
         public readonly static RefInt NumCurrentThreads = new RefInt();
 
         static Once Global_DebugReportNumCurrentThreads_Flag;
@@ -1194,11 +1196,11 @@ namespace IPA.Cores.Basic
         EventWaitHandle WaitInitForUser;
         AsyncManualResetEvent WaitInitForUserAsync;
         public Thread Thread { get; }
-        object UserObject;
+        object? UserObject;
         public int Index { get; }
         public string Name { get; }
 
-        public ThreadObj(ThreadProc threadProc, object userObject = null, int stacksize = 0, int index = 0, string name = null, bool isBackground = false)
+        public ThreadObj(ThreadProc threadProc, object? userObject = null, int stacksize = 0, int index = 0, string? name = null, bool isBackground = false)
         {
             if (stacksize == 0)
             {
@@ -1209,7 +1211,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    name = threadProc.Target.ToString() + "." + threadProc.Method.Name + "()";
+                    name = threadProc.Target?.ToString() ?? "(unknown)" + "." + threadProc.Method.Name + "()";
                 }
                 catch
                 {
@@ -1223,7 +1225,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            this.Name = name;
+            this.Name = name ?? "(unknown)";
 
             this.Proc = threadProc;
             this.UserObject = userObject;
@@ -1242,12 +1244,12 @@ namespace IPA.Cores.Basic
             this.Thread.Start(this);
         }
 
-        public static ThreadObj Start(ThreadProc proc, object param = null, bool isBackground = false)
+        public static ThreadObj Start(ThreadProc proc, object? param = null, bool isBackground = false)
         {
             return new ThreadObj(proc, param, isBackground: isBackground);
         }
 
-        public static ThreadObj[] StartMany(int num, ThreadProc proc, object param = null, bool isBackground = false)
+        public static ThreadObj[] StartMany(int num, ThreadProc proc, object? param = null, bool isBackground = false)
         {
             List<ThreadObj> ret = new List<ThreadObj>();
             for (int i = 0; i < num; i++)
@@ -1260,7 +1262,7 @@ namespace IPA.Cores.Basic
 
         public static int DefaultStackSize { get; set; } = 100000;
 
-        void commonThreadProc(object obj)
+        void commonThreadProc(object? obj)
         {
             Thread.SetData(CurrentObjSlot, this);
 
@@ -1277,18 +1279,22 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static ThreadObj Current => GetCurrentThreadObj();
+        public static ThreadObj? Current => GetCurrentThreadObj();
         public static int CurrentThreadId => Thread.CurrentThread.ManagedThreadId;
 
-        public static ThreadObj GetCurrentThreadObj()
+        public static ThreadObj? GetCurrentThreadObj()
         {
-            return (ThreadObj)Thread.GetData(CurrentObjSlot);
+            return (ThreadObj?)Thread.GetData(CurrentObjSlot);
         }
 
         public static void NoticeInited()
         {
-            GetCurrentThreadObj().WaitInitForUser.Set();
-            GetCurrentThreadObj().WaitInitForUserAsync.Set();
+            var threadObj = GetCurrentThreadObj();
+
+            if (threadObj == null) throw new ApplicationException("Not a ThreadObj() managed thread.");
+
+            threadObj.WaitInitForUser.Set();
+            threadObj.WaitInitForUserAsync.Set();
         }
 
         public void WaitForInit()
@@ -1400,7 +1406,7 @@ namespace IPA.Cores.Basic
                 ev.Set();
             }
 
-            static void ThreadProc(object param)
+            static void ThreadProc(object? param)
             {
                 Thread.CurrentThread.Priority = ThreadPriority.Highest;
 

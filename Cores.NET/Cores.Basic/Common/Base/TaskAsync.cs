@@ -712,8 +712,8 @@ namespace IPA.Cores.Basic
             return AsyncPreciseDelay.PreciseDelay(msec);
         }
 
-        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[]? tasks = null, CancellationToken[]? cancels = null, AsyncAutoResetEvent[]? events = null,
-            AsyncManualResetEvent[]? manualEvents = null, int timeout = Timeout.Infinite,
+        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[]? tasks = null, CancellationToken[]? cancels = null, AsyncAutoResetEvent?[]? events = null,
+            AsyncManualResetEvent?[]? manualEvents = null, int timeout = Timeout.Infinite,
             ExceptionWhen exceptions = ExceptionWhen.None, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             LeakChecker.IncrementLeakCounter(leakCounterKind);
@@ -784,7 +784,7 @@ namespace IPA.Cores.Basic
                     regList.Add(reg);
                 }
 
-                foreach (AsyncAutoResetEvent ev in events)
+                foreach (AsyncAutoResetEvent? ev in events)
                 {
                     if (ev != null)
                     {
@@ -793,7 +793,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                foreach (AsyncManualResetEvent ev in manualEvents)
+                foreach (AsyncManualResetEvent? ev in manualEvents)
                 {
                     if (ev != null)
                     {
@@ -1947,7 +1947,7 @@ namespace IPA.Cores.Basic
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
-        public Holder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        public Holder(Action<T> disposeProc, [AllowNull] T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
@@ -2241,7 +2241,7 @@ namespace IPA.Cores.Basic
 
     public class TimeoutDetector : AsyncService
     {
-        Task MainTask;
+        Task? MainTask;
 
         CriticalSection LockObj = new CriticalSection();
 
@@ -2251,19 +2251,19 @@ namespace IPA.Cores.Basic
 
         AsyncAutoResetEvent ev = new AsyncAutoResetEvent();
 
-        AsyncAutoResetEvent eventAuto;
-        AsyncManualResetEvent eventManual;
+        AsyncAutoResetEvent? eventAuto;
+        AsyncManualResetEvent? eventManual;
 
-        public object UserState { get; }
+        public object? UserState { get; }
 
         public bool TimedOut { get; private set; } = false;
 
-        CancelWatcher cancelWatcherToCancel;
+        CancelWatcher? cancelWatcherToCancel;
 
-        TimeoutDetectorCallback Callback;
+        TimeoutDetectorCallback? Callback;
 
-        public TimeoutDetector(int timeout, CancelWatcher watcher = null, AsyncAutoResetEvent eventAuto = null, AsyncManualResetEvent eventManual = null,
-            TimeoutDetectorCallback callback = null, object userState = null)
+        public TimeoutDetector(int timeout, CancelWatcher? watcher = null, AsyncAutoResetEvent? eventAuto = null, AsyncManualResetEvent? eventManual = null,
+            TimeoutDetectorCallback? callback = null, object? userState = null)
         {
             if (timeout == System.Threading.Timeout.Infinite || timeout == int.MaxValue)
             {
@@ -2329,9 +2329,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
-            await MainTask;
+            if (MainTask != null)
+                await MainTask;
         }
     }
 
@@ -2427,7 +2428,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -2437,6 +2438,7 @@ namespace IPA.Cores.Basic
     }
 
     public class GroupManager<TKey, TGroupContext> : IDisposable
+        where TKey: notnull
     {
         public class GroupHandle : Holder<GroupInstance>
         {
@@ -2454,15 +2456,15 @@ namespace IPA.Cores.Basic
 
         public class GroupInstance
         {
-            public TKey Key;
-            public TGroupContext Context;
+            public TKey Key = default!;
+            public TGroupContext Context = default!;
             public int Num;
         }
 
-        public delegate TGroupContext NewGroupContextCallback(TKey key, object userState);
-        public delegate void DeleteGroupContextCallback(TKey key, TGroupContext groupContext, object userState);
+        public delegate TGroupContext NewGroupContextCallback(TKey key, object? userState);
+        public delegate void DeleteGroupContextCallback(TKey key, TGroupContext groupContext, object? userState);
 
-        public object UserState { get; }
+        public object? UserState { get; }
 
         NewGroupContextCallback NewGroupContextProc;
         DeleteGroupContextCallback DeleteGroupContextProc;
@@ -2471,7 +2473,7 @@ namespace IPA.Cores.Basic
 
         CriticalSection LockObj = new CriticalSection();
 
-        public GroupManager(NewGroupContextCallback onNewGroup, DeleteGroupContextCallback onDeleteGroup, object userState = null)
+        public GroupManager(NewGroupContextCallback onNewGroup, DeleteGroupContextCallback onDeleteGroup, object? userState = null)
         {
             NewGroupContextProc = onNewGroup;
             DeleteGroupContextProc = onDeleteGroup;
@@ -2482,7 +2484,7 @@ namespace IPA.Cores.Basic
         {
             lock (LockObj)
             {
-                GroupInstance g = null;
+                GroupInstance? g = null;
                 if (Hash.TryGetValue(key, out g) == false)
                 {
                     var context = NewGroupContextProc(key, UserState);
@@ -2495,7 +2497,7 @@ namespace IPA.Cores.Basic
                     Hash.Add(key, g);
                 }
 
-                Debug.Assert(g.Num >= 0);
+                Debug.Assert(g!.Num >= 0);
                 g.Num++;
 
                 return new GroupHandle(x =>
@@ -2516,7 +2518,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -2539,8 +2541,8 @@ namespace IPA.Cores.Basic
 
     public class DelayAction : AsyncService
     {
-        public Action<object> Action { get; }
-        public object UserState { get; }
+        public Action<object?> Action { get; }
+        public object? UserState { get; }
         public int Timeout { get; }
 
         Task MainTask;
@@ -2548,9 +2550,9 @@ namespace IPA.Cores.Basic
         public bool IsCompleted = false;
         public bool IsCompletedSuccessfully = false;
 
-        public Exception Exception { get; private set; } = null;
+        public Exception? Exception { get; private set; } = null;
 
-        public DelayAction(int timeout, Action<object> action, object userState = null)
+        public DelayAction(int timeout, Action<object?> action, object? userState = null)
         {
             if (timeout < 0 || timeout == int.MaxValue) timeout = System.Threading.Timeout.Infinite;
 
@@ -2599,7 +2601,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             await this.MainTask;
         }
@@ -2634,9 +2636,9 @@ namespace IPA.Cores.Basic
             AsyncReceiveProc = asyncReceiveProc;
         }
 
-        Task<ValueOrClosed<TUserReturnElement>> pushedUserTask = null;
+        Task<ValueOrClosed<TUserReturnElement>>? pushedUserTask = null;
 
-        public async Task<TUserReturnElement[]> Recv(CancellationToken cancel, TUserState state = default(TUserState), int? maxCount = null)
+        public async Task<TUserReturnElement[]?> Recv(CancellationToken cancel, [AllowNull] TUserState state = default(TUserState), int? maxCount = null)
         {
             if (maxCount == null) maxCount = DefaultMaxCount;
             if (maxCount <= 0) maxCount = int.MaxValue;
@@ -2713,9 +2715,9 @@ namespace IPA.Cores.Basic
         {
             static long globalTimestamp;
 
-            public QueueBody Next;
+            public QueueBody? Next;
 
-            public SortedList<long, T> _InternalList = new SortedList<long, T>();
+            public SortedList<long, T>? _InternalList = new SortedList<long, T>();
             public readonly int MaxItems;
 
             public QueueBody(int maxItems)
@@ -2726,7 +2728,7 @@ namespace IPA.Cores.Basic
 
             public void Enqueue(T item, bool distinct = false)
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
                     if (_InternalList.Count > MaxItems) return;
                     if (distinct && _InternalList.ContainsValue(item)) return;
@@ -2735,11 +2737,12 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            [return: MaybeNull]
             public T Dequeue()
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
-                    if (_InternalList.Count == 0) return default(T);
+                    if (_InternalList.Count == 0) return default(T)!;
                     long ts = _InternalList.Keys[0];
                     T ret = _InternalList[ts];
                     _InternalList.Remove(ts);
@@ -2749,7 +2752,7 @@ namespace IPA.Cores.Basic
 
             public T[] ToArray()
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
                     return _InternalList.Values.ToArray();
                 }
@@ -2767,10 +2770,10 @@ namespace IPA.Cores.Basic
                     {
                         QueueBody q3 = new QueueBody(Math.Max(q1.MaxItems, q2.MaxItems));
                         foreach (long ts in q1._InternalList.Keys)
-                            q3._InternalList.Add(ts, q1._InternalList[ts]);
+                            q3._InternalList!.Add(ts, q1._InternalList[ts]);
                         foreach (long ts in q2._InternalList.Keys)
-                            q3._InternalList.Add(ts, q2._InternalList[ts]);
-                        if (q3._InternalList.Count > q3.MaxItems)
+                            q3._InternalList!.Add(ts, q2._InternalList[ts]);
+                        if (q3._InternalList!.Count > q3.MaxItems)
                         {
                             int num = 0;
                             List<long> removeList = new List<long>();
@@ -2879,9 +2882,9 @@ namespace IPA.Cores.Basic
             if (doNotCheckWatchedTasks == false)
                 CheckWatchedTasks();
 
-            Exception throwingException = null;
+            Exception? throwingException = null;
 
-            AggregateException aex = ex as AggregateException;
+            AggregateException? aex = ex as AggregateException;
 
             if (aex != null)
             {
@@ -2924,7 +2927,7 @@ namespace IPA.Cores.Basic
 
         public void ThrowFirstExceptionIfExists()
         {
-            Exception ex = null;
+            Exception? ex = null;
             lock (SharedQueue<Exception>.GlobalLock)
             {
                 if (HasError)
@@ -2943,7 +2946,7 @@ namespace IPA.Cores.Basic
             if (t.IsCompleted)
             {
                 if (t.IsFaulted)
-                    Add(t.Exception);
+                    Add(t.Exception!);
                 else if (t.IsCanceled)
                     Add(new TaskCanceledException());
 
@@ -2984,7 +2987,7 @@ namespace IPA.Cores.Basic
                     if (t.IsCompleted)
                     {
                         if (t.IsFaulted)
-                            expList.Add(t.Exception);
+                            expList.Add(t.Exception!);
                         else if (t.IsCanceled)
                             expList.Add(new TaskCanceledException());
 
@@ -3021,27 +3024,27 @@ namespace IPA.Cores.Basic
 
             public int CompareTo(HierarchyBodyItem other) => this.Position.CompareTo(other.Position);
             public bool Equals(HierarchyBodyItem other) => this.Position.Equals(other.Position);
-            public override bool Equals(object obj) => (obj is HierarchyBodyItem) ? this.Position.Equals(obj as HierarchyBodyItem) : false;
+            public override bool Equals(object? obj) => (obj is HierarchyBodyItem) ? this.Position.Equals(obj as HierarchyBodyItem) : false;
             public override int GetHashCode() => this.Position.GetHashCode();
         }
 
         class HierarchyBody
         {
-            public List<HierarchyBodyItem> _InternalList = new List<HierarchyBodyItem>();
+            public List<HierarchyBodyItem>? _InternalList = new List<HierarchyBodyItem>();
 
-            public HierarchyBody Next = null;
+            public HierarchyBody? Next = null;
 
             public HierarchyBody() { }
 
             public HierarchyBodyItem[] ToArray()
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                     return _InternalList.ToArray();
             }
 
-            public HierarchyBodyItem Join(HierarchyPosition targetPosition, bool joinAsSuperior, T value, HierarchyPosition myPosition)
+            public HierarchyBodyItem Join(HierarchyPosition? targetPosition, bool joinAsSuperior, T value, HierarchyPosition myPosition)
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
                     if (targetPosition == null)
                     {
@@ -3081,7 +3084,7 @@ namespace IPA.Cores.Basic
 
             public void Resign(HierarchyBodyItem me)
             {
-                lock (_InternalList)
+                lock (_InternalList!)
                 {
                     var current = _InternalList;
 
@@ -3115,7 +3118,7 @@ namespace IPA.Cores.Basic
                     lock (superiors._InternalList)
                     {
                         HierarchyBody merged = new HierarchyBody();
-                        merged._InternalList.AddRange(inferiors._InternalList.Concat(superiors._InternalList));
+                        merged._InternalList!.AddRange(inferiors._InternalList.Concat(superiors._InternalList));
 
                         int positionIncrement = 0;
                         merged._InternalList.ForEach(x => x.Position.Set(++positionIncrement));
@@ -3159,7 +3162,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public HierarchyBodyItem Join(HierarchyPosition targetPosition, bool joinAsSuperior, T value, HierarchyPosition myPosition)
+        public HierarchyBodyItem Join(HierarchyPosition? targetPosition, bool joinAsSuperior, T value, HierarchyPosition myPosition)
         {
             Debug.Assert(myPosition.IsInstalled == false);
 
@@ -3225,7 +3228,7 @@ namespace IPA.Cores.Basic
             int ret = Timeout.Infinite;
             if (AutomaticUpdateNow) UpdateNow();
             long now = Now;
-            List<long> deleteList = null;
+            List<long>? deleteList = null;
 
             foreach (long v in List)
             {
@@ -3404,7 +3407,7 @@ namespace IPA.Cores.Basic
         public struct CurrentData
         {
             public int Version;
-            public TData Data;
+            public TData? Data;
         }
 
         public static CurrentData Current
@@ -3418,7 +3421,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static volatile TData CacheData = null;
+        static volatile TData? CacheData = null;
 
         static volatile int NumRead = 0;
 
@@ -3427,13 +3430,13 @@ namespace IPA.Cores.Basic
         static bool CallbackIsRegistered = false;
 
         static CriticalSection LockObj = new CriticalSection();
-        static Task task = null;
+        static Task? task = null;
         static AsyncAutoResetEvent threadSignal = new AsyncAutoResetEvent();
         static bool callbackIsCalled = false;
 
         public static FastEventListenerList<TData, int> EventListener { get; } = new FastEventListenerList<TData, int>();
 
-        static TData TryGetTData()
+        static TData? TryGetTData()
         {
             try
             {
@@ -3463,7 +3466,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static TData GetState()
+        static TData? GetState()
         {
             NumRead++;
 
@@ -3479,7 +3482,7 @@ namespace IPA.Cores.Basic
             else
             {
                 BackgroundStateDataUpdatePolicy updatePolicy = BackgroundStateDataUpdatePolicy.Default;
-                TData data = TryGetTData();
+                TData? data = TryGetTData();
                 if (data != null)
                 {
                     updatePolicy = data.DataUpdatePolicy;
@@ -3522,9 +3525,9 @@ namespace IPA.Cores.Basic
 
         static int nextInterval = 0;
 
-        static async Task MaintainTaskProcAsync(object param)
+        static async Task MaintainTaskProcAsync(object? param)
         {
-            BackgroundStateDataUpdatePolicy policy = (BackgroundStateDataUpdatePolicy)param;
+            BackgroundStateDataUpdatePolicy policy = (BackgroundStateDataUpdatePolicy)param!;
             policy = policy.SafeValue;
 
             LocalTimer tm = new LocalTimer();
@@ -3544,14 +3547,14 @@ namespace IPA.Cores.Basic
             {
                 if (FastTick64.Now >= nextGetDataTick || callbackIsCalled)
                 {
-                    TData data = TryGetTData();
+                    TData? data = TryGetTData();
 
                     nextInterval = Math.Min(nextInterval + policy.InitialPollingInterval, policy.MaxPollingInterval);
                     bool inc = false;
 
                     if (data != null)
                     {
-                        if (data.Equals(CacheData) == false)
+                        if (data.Equals(CacheData!) == false)
                         {
                             nextInterval = policy.InitialPollingInterval;
                             inc = true;
@@ -3571,7 +3574,7 @@ namespace IPA.Cores.Basic
                     if (inc)
                     {
                         InternalVersion++;
-                        EventListener.Fire(CacheData, 0);
+                        EventListener.Fire(CacheData!, 0);
                     }
 
                     nextGetDataTick = tm.AddTimeout(nextInterval);
@@ -3607,10 +3610,10 @@ namespace IPA.Cores.Basic
     {
         Dictionary<string, object> data = new Dictionary<string, object>();
 
-        public object Get(Type type) => Get(type.AssemblyQualifiedName);
-        public void Set(Type type, object obj) => Set(type.AssemblyQualifiedName, obj);
+        public object? Get(Type type) => Get(type.AssemblyQualifiedName!);
+        public void Set(Type type, object? obj) => Set(type.AssemblyQualifiedName!, obj);
 
-        public object Get(string key)
+        public object? Get(string key)
         {
             lock (data)
             {
@@ -3620,7 +3623,7 @@ namespace IPA.Cores.Basic
                     return null;
             }
         }
-        public void Set(string key, object obj)
+        public void Set(string key, object? obj)
         {
             lock (data)
             {
@@ -3647,14 +3650,15 @@ namespace IPA.Cores.Basic
 
     public static class TaskVar
     {
-        internal static AsyncLocal<TaskVarObject> AsyncLocalObj = new AsyncLocal<TaskVarObject>();
+        internal static readonly AsyncLocal<TaskVarObject> AsyncLocalObj = new AsyncLocal<TaskVarObject>();
 
+        [return: MaybeNull]
         public static T Get<T>()
         {
             var v = AsyncLocalObj.Value;
-            if (v == null) return default(T);
+            if (v == null) return default(T)!;
 
-            T ret = (T)v.Get(typeof(T));
+            T ret = (T)v.Get(typeof(T))!;
             return ret;
         }
         public static void Set<T>(T obj)
@@ -3663,20 +3667,20 @@ namespace IPA.Cores.Basic
             AsyncLocalObj.Value.Set(typeof(T), obj);
         }
 
-        public static object Get(string name) => AsyncLocalObj.Value.Get(name);
-        public static void Set(string name, object obj) => AsyncLocalObj.Value.Set(name, obj);
+        public static object? Get(string name) => AsyncLocalObj.Value!.Get(name);
+        public static void Set(string name, object? obj) => AsyncLocalObj.Value!.Set(name, obj);
     }
 
     public class AsyncOneShotTester : AsyncService
     {
-        Task t = null;
+        Task t;
         public AsyncOneShotTester(Func<Task> Proc)
         {
             t = Proc();
             t._TryWaitAsync(false)._LaissezFaire();
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             await t;
         }
@@ -3692,7 +3696,7 @@ namespace IPA.Cores.Basic
             Counter.InternalIncrement();
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -3778,7 +3782,7 @@ namespace IPA.Cores.Basic
             this.CounterHolder = counter.AddRef();
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -3824,7 +3828,7 @@ namespace IPA.Cores.Basic
                 });
             }
 
-            public RefCounterObjectHandle<TObject> TryGetIfAlive()
+            public RefCounterObjectHandle<TObject>? TryGetIfAlive()
             {
                 try
                 {
@@ -3847,7 +3851,7 @@ namespace IPA.Cores.Basic
 
             public Task CloseAsync() => this.Object.CloseAsync();
 
-            public void Dispose() => Dispose(true);
+            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
             Once DisposeFlag;
             protected virtual void Dispose(bool disposing)
             {
@@ -3891,7 +3895,7 @@ namespace IPA.Cores.Basic
                 if (numRetry >= 1)
                     await Task.Yield();
 
-                RefCounterObjectHandle<TObject> ret;
+                RefCounterObjectHandle<TObject>? ret;
 
                 using (await LockAsyncObj.LockWithAwait(cancelOp))
                 {
@@ -3900,7 +3904,7 @@ namespace IPA.Cores.Basic
                     if (this.DisposeFlag.IsSet)
                         throw new ObjectDisposedException($"ObjectPoolBase<T>");
 
-                    if (ObjectList.TryGetValue(key, out ObjectEntry entry) == false)
+                    if (ObjectList.TryGetValue(key, out ObjectEntry? entry) == false)
                     {
                         await Task.Yield();
                         TObject t = await OpenImplAsync(key, param, cancelOp);
@@ -3908,7 +3912,7 @@ namespace IPA.Cores.Basic
                         ObjectList.Add(key, entry);
                     }
 
-                    entry.LastAccessCounterValue = Interlocked.Increment(ref this.AccessCounter);
+                    entry!.LastAccessCounterValue = Interlocked.Increment(ref this.AccessCounter);
 
                     ret = entry.TryGetIfAlive();
                     if (ret == null)
@@ -3931,7 +3935,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task EnumAndCloseHandlesAsync(Func<string, TObject, bool> enumProc, Action afterClosedProc = null, Comparison<TObject> sortProc = null, CancellationToken cancel = default)
+        public async Task EnumAndCloseHandlesAsync(Func<string, TObject, bool> enumProc, Action? afterClosedProc = null, Comparison<TObject>? sortProc = null, CancellationToken cancel = default)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
@@ -4051,7 +4055,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -4076,20 +4080,20 @@ namespace IPA.Cores.Basic
     {
         class Job
         {
-            public Func<object, object> Proc;
-            public object Param;
+            public Func<object?, object?> Proc;
+            public object? Param;
             public AsyncManualResetEvent Completed = new AsyncManualResetEvent();
-            public Exception Error = null;
-            public object Result = null;
+            public Exception? Error = null;
+            public object? Result = null;
 
-            public Job(Func<object, object> proc, object param)
+            public Job(Func<object?, object?> proc, object? param)
             {
                 this.Proc = proc;
                 this.Param = param;
             }
         }
 
-        readonly ThreadObj Thread;
+        readonly ThreadObj? Thread;
         readonly CriticalSection LockObj = new CriticalSection();
         readonly Queue<Job> Queue = new Queue<Job>();
         readonly Event QueueInsertedEvent = new Event(false);
@@ -4134,7 +4138,7 @@ namespace IPA.Cores.Basic
                 return proc(param);
             }
 
-            Job job = new Job((p) => proc((TParam)p), param);
+            Job job = new Job((p) => proc((TParam)p!), param);
 
             lock (this.LockObj)
             {
@@ -4149,13 +4153,13 @@ namespace IPA.Cores.Basic
 
             if (job.Error != null) throw job.Error;
 
-            return (TResult)job.Result;
+            return (TResult)job.Result!;
         }
 
-        public Task ExecAsync<TParam>(Action<TParam> proc, TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
-            => ExecAsync<int, TParam>(p => { proc(p); return 0; }, param, timeout, cancel);
+        public Task ExecAsync<TParam>(Action<TParam> proc, [AllowNull] TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+            => ExecAsync<int, TParam>(p => { proc(p); return 0; }, param, timeout, cancel)!;
 
-        void ThreadProc(object param)
+        void ThreadProc(object? param)
         {
             while (CancalSource.IsCancellationRequested == false)
             {
@@ -4164,7 +4168,7 @@ namespace IPA.Cores.Basic
                     return;
                 }
 
-                Job nextJob = null;
+                Job? nextJob = null;
                 bool wait = false;
 
                 lock (this.LockObj)
@@ -4179,7 +4183,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        object ret = nextJob.Proc(nextJob.Param);
+                        object? ret = nextJob.Proc(nextJob.Param);
 
                         nextJob.Result = ret;
                     }
@@ -4198,7 +4202,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -4208,7 +4212,7 @@ namespace IPA.Cores.Basic
             {
                 CancalSource.Cancel();
                 this.QueueInsertedEvent.Set();
-                this.Thread.WaitForEnd();
+                this.Thread!.WaitForEnd();
             }
 
             Leak._DisposeSafe();

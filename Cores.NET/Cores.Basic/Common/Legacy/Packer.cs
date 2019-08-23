@@ -53,11 +53,7 @@ namespace IPA.Cores.Basic.Legacy
 
     public static class Packer
     {
-        public static byte[] PackDir(PackerFileFormat format, string rootDirPath, string appendPrefixDirName)
-        {
-            return PackDir(format, rootDirPath, appendPrefixDirName, null);
-        }
-        public static byte[] PackDir(PackerFileFormat format, string topDirPath, string appendPrefixDirName, ProgressDelegate proc)
+        public static byte[] PackDir(PackerFileFormat format, string topDirPath, string appendPrefixDirName, ProgressDelegate? proc = null)
         {
             // ディレクトリ列挙
             string[] fileList = Directory.GetFiles(topDirPath, "*", SearchOption.AllDirectories);
@@ -78,11 +74,7 @@ namespace IPA.Cores.Basic.Legacy
             return PackFiles(format, fileList, relativeFileList.ToArray(), proc);
         }
 
-        public static byte[] PackFiles(PackerFileFormat format, string[] srcFileNameList, string[] relativeNameList)
-        {
-            return PackFiles(format, srcFileNameList, relativeNameList, null);
-        }
-        public static byte[] PackFiles(PackerFileFormat format, string[] srcFileNameList, string[] relativeNameList, ProgressDelegate proc)
+        public static byte[] PackFiles(PackerFileFormat format, string[] srcFileNameList, string[] relativeNameList, ProgressDelegate? proc = null)
         {
             if (srcFileNameList.Length != relativeNameList.Length)
             {

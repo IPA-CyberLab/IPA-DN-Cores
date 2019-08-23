@@ -91,14 +91,14 @@ namespace IPA.Cores.Basic
     {
         public new NetAppStubOptions Options => (NetAppStubOptions)base.Options;
 
-        public NetAppStub(PipePoint lower, CancellationToken cancel = default, NetAppStubOptions options = null)
+        public NetAppStub(PipePoint lower, CancellationToken cancel = default, NetAppStubOptions? options = null)
             : base(lower, options ?? new NetAppStubOptions(), cancel)
         {
         }
 
         CriticalSection LockObj = new CriticalSection();
 
-        PipeStream StreamCache = null;
+        PipeStream? StreamCache = null;
 
         public PipeStream GetStream(bool autoFlash = true)
         {
@@ -129,13 +129,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             StreamCache._DisposeSafe();
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             StreamCache._DisposeSafe();
             base.DisposeImpl(ex);
@@ -154,7 +154,7 @@ namespace IPA.Cores.Basic
 
         public new NetProtocolOptionsBase Options => (NetProtocolOptionsBase)base.Options;
 
-        public NetProtocolBase(PipePoint upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetProtocolBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
             : base(options, cancel)
         {
             try
@@ -184,14 +184,14 @@ namespace IPA.Cores.Basic
     {
         public new NetBottomProtocolOptionsBase Options => (NetBottomProtocolOptionsBase)base.Options;
 
-        public NetBottomProtocolStubBase(PipePoint upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetBottomProtocolStubBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
     }
 
     public abstract class NetTcpProtocolOptionsBase : NetBottomProtocolOptionsBase
     {
-        public NetDnsClientStub DnsClient { get; set; }
+        public NetDnsClientStub? DnsClient { get; set; }
     }
 
     public abstract class NetTcpProtocolStubBase : NetBottomProtocolStubBase
@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
 
         public new NetTcpProtocolOptionsBase Options => (NetTcpProtocolOptionsBase)base.Options;
 
-        public NetTcpProtocolStubBase(PipePoint upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetTcpProtocolStubBase(PipePoint? upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
         {
         }
 
@@ -235,7 +235,7 @@ namespace IPA.Cores.Basic
             => ConnectAsync(new IPEndPoint(ip, port), connectTimeout, cancel);
 
         public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout)
-            => await ConnectAsync(await Options.DnsClient.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
+            => await ConnectAsync(await Options.DnsClient!.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
 
         CriticalSection ListenLock = new CriticalSection();
 
@@ -276,19 +276,19 @@ namespace IPA.Cores.Basic
             public TcpDirectionType Direction { get; set; }
             public int LocalPort { get; set; }
             public int RemotePort { get; set; }
-            public IPAddress LocalIPAddress { get; set; }
-            public IPAddress RemoteIPAddress { get; set; }
+            public IPAddress? LocalIPAddress { get; set; }
+            public IPAddress? RemoteIPAddress { get; set; }
             public long NativeHandle { get; set; }
         }
 
         public new NetPalTcpProtocolOptions Options => (NetPalTcpProtocolOptions)base.Options;
 
-        PalSocket ConnectedSocket = null;
-        PipePointSocketWrapper SocketWrapper = null;
+        PalSocket? ConnectedSocket = null;
+        PipePointSocketWrapper? SocketWrapper = null;
 
-        PalSocket ListeningSocket = null;
+        PalSocket? ListeningSocket = null;
 
-        public NetPalTcpProtocolStub(PipePoint upper = null, NetPalTcpProtocolOptions options = null, CancellationToken cancel = default)
+        public NetPalTcpProtocolStub(PipePoint? upper = null, NetPalTcpProtocolOptions? options = null, CancellationToken cancel = default)
             : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel)
         {
         }

@@ -40,6 +40,8 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 namespace IPA.Cores.Basic
 {
     public partial class LogTag
@@ -62,26 +64,26 @@ namespace IPA.Cores.Basic
     public class LogDefIPEndPoints
     {
         public TcpDirectionType Direction = TcpDirectionType.Client;
-        public string LocalIP = null;
+        public string? LocalIP = null;
         public int LocalPort = 0;
-        public string RemoteIP = null;
+        public string? RemoteIP = null;
         public int RemotePort = 0;
     }
 
     public class LogDefSslSession
     {
         public bool IsServerMode;
-        public string SslProtocol;
-        public string CipherAlgorithm;
+        public string? SslProtocol;
+        public string? CipherAlgorithm;
         public int CipherStrength;
-        public string HashAlgorithm;
+        public string? HashAlgorithm;
         public int HashStrength;
-        public string KeyExchangeAlgorithm;
+        public string? KeyExchangeAlgorithm;
         public int KeyExchangeStrength;
-        public string LocalCertificateInfo;
-        public string LocalCertificateHashSHA1;
-        public string RemoteCertificateInfo;
-        public string RemoteCertificateHashSHA1;
+        public string? LocalCertificateInfo;
+        public string? LocalCertificateHashSHA1;
+        public string? RemoteCertificateInfo;
+        public string? RemoteCertificateHashSHA1;
     }
 
     [Flags]
@@ -96,14 +98,14 @@ namespace IPA.Cores.Basic
     {
         public LogDefSocketAction Action;
 
-        public string NetworkSystem;
-        public string SockGuid;
-        public string SockType;
-        public string Direction;
+        public string? NetworkSystem;
+        public string? SockGuid;
+        public string? SockType;
+        public string? Direction;
         public long NativeHandle;
 
-        public string LocalIP;
-        public string RemoteIP;
+        public string? LocalIP;
+        public string? RemoteIP;
         public int? LocalPort;
         public int? RemotePort;
 

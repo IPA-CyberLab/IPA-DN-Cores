@@ -51,26 +51,17 @@ namespace IPA.Cores.Basic.Legacy
 
             class IniCacheEntry
             {
-                DateTime lastUpdate;
-                public DateTime LastUpdate
-                {
-                    get { return lastUpdate; }
-                }
-
-                Dictionary<string, string> datas;
-                public Dictionary<string, string> Datas
-                {
-                    get { return datas; }
-                }
+                public DateTime LastUpdate { get; }
+                public Dictionary<string, string> Datas { get; }
 
                 public IniCacheEntry(DateTime lastUpdate, Dictionary<string, string> datas)
                 {
-                    this.lastUpdate = lastUpdate;
-                    this.datas = datas;
+                    this.LastUpdate = lastUpdate;
+                    this.Datas = datas;
                 }
             }
 
-            public static Dictionary<string, string> GetCache(string filename, DateTime lastUpdate)
+            public static Dictionary<string, string>? GetCache(string filename, DateTime lastUpdate)
             {
                 lock (caches)
                 {
@@ -107,25 +98,18 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        Dictionary<string, string> datas;
-        bool updated;
+        Dictionary<string, string>? datas;
 
-        public bool Updated
-        {
-            get
-            {
-                return updated;
-            }
-        }
+        public bool Updated { get; private set; }
 
         public StrData this[string key]
         {
             get
             {
-                string s;
+                string? s;
                 try
                 {
-                    s = datas[key.ToUpper()];
+                    s = datas![key.ToUpper()];
                 }
                 catch
                 {
@@ -140,7 +124,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             List<string> ret = new List<string>();
 
-            foreach (string s in datas.Keys)
+            foreach (string s in datas!.Keys)
             {
                 ret.Add(s);
             }
@@ -157,9 +141,9 @@ namespace IPA.Cores.Basic.Legacy
         {
             init(data, null);
         }
-        void init(byte[] data, string filename)
+        void init(byte[]? data, string? filename)
         {
-            updated = false;
+            Updated = false;
 
             lock (typeof(ReadIni))
             {
@@ -167,7 +151,7 @@ namespace IPA.Cores.Basic.Legacy
                 string srcstr;
                 DateTime lastUpdate = new DateTime(0);
 
-                if (filename != null)
+                if (filename._IsFilled())
                 {
                     lastUpdate = IO.GetLastWriteTimeUtc(filename);
 
@@ -180,12 +164,12 @@ namespace IPA.Cores.Basic.Legacy
                     {
                         try
                         {
-                            data = Buf.ReadFromFile(filename).ByteData;
+                            data = Buf.ReadFromFile(filename!).ByteData;
                         }
                         catch
                         {
                             data = new byte[0];
-                            datas = IniCache.GetCache(filename, new DateTime());
+                            datas = IniCache.GetCache(filename!, new DateTime());
                         }
                     }
 
@@ -242,7 +226,7 @@ namespace IPA.Cores.Basic.Legacy
                             IniCache.AddCache(filename, lastUpdate, datas);
                         }
 
-                        updated = true;
+                        Updated = true;
                     }
                 }
             }
