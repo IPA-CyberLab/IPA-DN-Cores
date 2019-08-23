@@ -1575,7 +1575,7 @@ namespace IPA.Cores.Basic
         }
         public static byte[] ConvertEncoding(byte[] srcData, Encoding destEncoding, bool appendBom)
         {
-            Encoding srcEncoding = GetEncoding(srcData);
+            Encoding? srcEncoding = GetEncoding(srcData);
             if (srcEncoding == null)
             {
                 srcEncoding = Str.ShiftJisEncoding;
@@ -1605,7 +1605,7 @@ namespace IPA.Cores.Basic
             byte[] data = IO.ReadFile(filename);
             int bomSize = 0;
 
-            Encoding enc = GetEncoding(data, out bomSize);
+            Encoding? enc = GetEncoding(data, out bomSize);
             if (enc == null)
             {
                 enc = Str.Utf8Encoding;
@@ -1647,7 +1647,7 @@ namespace IPA.Cores.Basic
         public static string DecodeStringAutoDetect(ReadOnlySpan<byte> data, out Encoding detectedEncoding)
         {
             int bomSize;
-            detectedEncoding = Str.GetEncoding(data, out bomSize);
+            detectedEncoding = Str.GetEncoding(data, out bomSize)!;
             if (detectedEncoding == null)
                 detectedEncoding = Encoding.UTF8;
 
@@ -1660,7 +1660,8 @@ namespace IPA.Cores.Basic
         public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding)
         {
             int bomSize;
-            detectedEncoding = CheckBOM(data, out bomSize);
+
+            detectedEncoding = CheckBOM(data, out bomSize)!;
             if (detectedEncoding == null)
                 detectedEncoding = defaultEncoding;
 
@@ -1670,12 +1671,12 @@ namespace IPA.Cores.Basic
         }
 
         // テキストファイルのエンコーディングを取得する
-        public static Encoding GetEncoding(ReadOnlySpan<byte> data)
+        public static Encoding? GetEncoding(ReadOnlySpan<byte> data)
         {
             int i;
             return GetEncoding(data, out i);
         }
-        public static Encoding GetEncoding(ReadOnlySpan<byte> data, out int bomSize)
+        public static Encoding? GetEncoding(ReadOnlySpan<byte> data, out int bomSize)
         {
             const byte bESC = 0x1B;
             const byte bAT = 0x40;
@@ -2434,7 +2435,6 @@ namespace IPA.Cores.Basic
 
         public static string GetHostNameFromFqdn(string fqdn)
         {
-            if (fqdn == null) return null;
             if (fqdn._IsEmpty()) return "";
             int[] dots = fqdn._FindStringIndexes(".", true);
             if (dots.Length == 0)
@@ -2446,7 +2446,6 @@ namespace IPA.Cores.Basic
 
         public static string GetDomainFromFqdn(string fqdn)
         {
-            if (fqdn == null) return null;
             if (fqdn._IsEmpty()) return "";
             int[] dots = fqdn._FindStringIndexes(".", true);
             if (dots.Length == 0)
@@ -3196,7 +3195,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列が出現する位置のリストを取得
-        public static int[] FindStringIndexes(string str, string keyword, bool caseSensitive = false)
+        public static int[]? FindStringIndexes(string str, string keyword, bool caseSensitive = false)
         {
             List<int> ret = new List<int>();
 
@@ -3241,11 +3240,11 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の置換
-        public static string ReplaceStr(string? str, string oldKeyword, string newKeyword, bool caseSensitive = false)
+        public static string ReplaceStr(string str, string oldKeyword, string newKeyword, bool caseSensitive = false)
         {
-            if (str == null)
+            if (str._IsNullOrZeroLen())
             {
-                return null;
+                return "";
             }
 
             if (str.Length == 0)
@@ -3345,7 +3344,7 @@ namespace IPA.Cores.Basic
             // 引数チェック
             if (fmt == null)
             {
-                return null;
+                return "";
             }
 
             len = fmt.Length;
@@ -3474,7 +3473,7 @@ namespace IPA.Cores.Basic
         }
 
         // パスワードプロンプト
-        public static string PasswordPrompt()
+        public static string? PasswordPrompt()
         {
             Queue<char> ret = new Queue<char>();
             bool escape = false;
@@ -3740,10 +3739,10 @@ namespace IPA.Cores.Basic
 
             foreach (object obj in objs)
             {
-                string str = (obj == null ? "" : obj.ToString());
+                string? str = (obj == null ? "" : obj.ToString());
                 if (Str.IsEmptyStr(str) == false)
                 {
-                    tmp.Add(str);
+                    tmp.Add(str!);
                 }
             }
 
@@ -4035,7 +4034,7 @@ namespace IPA.Cores.Basic
         }
         public static object ParseEnum(object value, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
-            return ParseEnum(value.ToString(), defaultValue, exactOnly, noMatchError);
+            return ParseEnum(value.ToString()!, defaultValue, exactOnly, noMatchError);
         }
         public static object ParseEnum(string str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
@@ -4064,9 +4063,9 @@ namespace IPA.Cores.Basic
             return d;
         });
 
-        public static object? StrToEnum(string? str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
+        public static object StrToEnum(string? str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
-            if (str._IsNullOrZeroLen()) return null;
+            if (str._IsNullOrZeroLen()) return defaultValue;
 
             Type type = defaultValue.GetType();
             if (EnumCacheCaseSensitive[type].TryGetValue(str, out object? ret))
@@ -4081,12 +4080,14 @@ namespace IPA.Cores.Basic
             {
                 if (Enum.TryParse(type, str, out object? ret3))
                 {
+                    if (ret3 == null) return defaultValue;
+
                     return ret3;
                 }
             }
             if (noMatchError)
                 throw new ArgumentException($"The string \"{str}\' doesn't match to any items of the type \"{type.Name}\".");
-            return null;
+            return defaultValue;
         }
 
         // 文字列を bool に変換する
@@ -4513,7 +4514,7 @@ namespace IPA.Cores.Basic
                     "月",
                     "日",
                 };
-            str = str.Trim();
+            str = str._NonNullTrim();
             Str.NormalizeString(ref str, true, true, false, false);
 
             string[] youbi =
@@ -4962,7 +4963,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                str = str.Trim();
+                str = str._NonNullTrim();
                 if (str.Length == 0)
                 {
                     return false;
@@ -5124,7 +5125,7 @@ namespace IPA.Cores.Basic
             StringReader sr = new StringReader(str);
             while (true)
             {
-                string s = sr.ReadLine();
+                string? s = sr.ReadLine();
                 if (s == null)
                 {
                     break;
@@ -5408,7 +5409,7 @@ namespace IPA.Cores.Basic
         // 最後の改行を削除する
         public static string RemoveLastCrlf(string str)
         {
-            if (str == null) return null;
+            if (str == null) return "";
             if (str.Length >= 1 && str[str.Length - 1] == 10)
                 str = str.Substring(0, str.Length - 1);
             if (str.Length >= 1 && str[str.Length - 1] == 13)
@@ -5427,7 +5428,7 @@ namespace IPA.Cores.Basic
         [return: NotNullIfNotNull("str")]
         public static string NormalizeCrlf(string str, byte[] crlfData)
         {
-            if (str == null) return null;
+            if (str == null) return "";
             byte[] srcData = Str.Utf8Encoding.GetBytes(str);
             Memory<byte> destData = NormalizeCrlf(srcData, crlfData);
             return Str.Utf8Encoding.GetString(destData.Span);
@@ -5907,7 +5908,7 @@ namespace IPA.Cores.Basic
 
         public static string StripCommentFromLine(string srcLine, IEnumerable<string>? commentStartStrList = null)
         {
-            if (srcLine == null) return null;
+            if (srcLine == null) return "";
             if (commentStartStrList == null) commentStartStrList = Consts.Strings.CommentStartString;
 
             int minStart = int.MaxValue;
@@ -6039,7 +6040,7 @@ namespace IPA.Cores.Basic
             this.AllowWildcard = allowWildcard;
 
             this.SearchTopWithCacheSingleton = new Singleton<string, T>(
-                x => this.SearchTop(x),
+                x => this.SearchTop(x)!,
                 StrComparer.IgnoreCaseComparer);
         }
 
@@ -6079,19 +6080,19 @@ namespace IPA.Cores.Basic
             return ret.OrderByDescending(x => x.MatchPoint).ThenBy(x => x.Key, StrComparer.Get(comparison)).ThenBy(x => x.Index);
         }
 
-        public T SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        public T? SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
         {
             AmbiguousSearchResult<T> x = this.Search(key, comparison).FirstOrDefault();
 
             if (x == null)
             {
-                return default;
+                return default!;
             }
 
             return x.Value;
         }
 
-        public T SearchTopWithCache(string key)
+        public T? SearchTopWithCache(string key)
         {
             return SearchTopWithCacheSingleton[key];
         }
@@ -6101,7 +6102,7 @@ namespace IPA.Cores.Basic
     {
         public class XmlCheckObjectInternal
         {
-            public string Str = null;
+            public string? Str = null;
         }
 
         // 文字列トークン操作
@@ -6212,7 +6213,7 @@ namespace IPA.Cores.Basic
 
     public class StrClass
     {
-        public string Value { get; } = null;
+        public string Value { get; } = "";
 
         public StrClass() { }
 
@@ -6303,15 +6304,16 @@ namespace IPA.Cores.Basic
     public readonly struct IgnoreCase
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public IgnoreCase(string value)
+        public IgnoreCase(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is IgnoreCase target)
@@ -6324,7 +6326,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6347,31 +6349,32 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(IgnoreCase s)
+        public static implicit operator string?(IgnoreCase s)
         {
             return s.Value;
         }
 
-        public static implicit operator IgnoreCase(string s)
+        public static implicit operator IgnoreCase(string? s)
         {
             return new IgnoreCase(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct Trim
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public Trim(string value)
+        public Trim(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is Trim target)
@@ -6384,7 +6387,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6407,31 +6410,32 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(Trim s)
+        public static implicit operator string?(Trim s)
         {
             return s.Value;
         }
 
-        public static implicit operator Trim(string s)
+        public static implicit operator Trim(string? s)
         {
             return new Trim(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct IgnoreCaseTrim
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public IgnoreCaseTrim(string value)
+        public IgnoreCaseTrim(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is IgnoreCaseTrim target)
@@ -6444,7 +6448,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6467,17 +6471,17 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(IgnoreCaseTrim s)
+        public static implicit operator string?(IgnoreCaseTrim s)
         {
             return s.Value;
         }
 
-        public static implicit operator IgnoreCaseTrim(string s)
+        public static implicit operator IgnoreCaseTrim(string? s)
         {
             return new IgnoreCaseTrim(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct IsEmpty
@@ -6529,7 +6533,7 @@ namespace IPA.Cores.Basic
     {
         public QueryStringList() { }
 
-        public QueryStringList(string queryString, Encoding encoding = null)
+        public QueryStringList(string queryString, Encoding? encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 
@@ -6574,7 +6578,7 @@ namespace IPA.Cores.Basic
         public override string ToString()
             => ToString(null);
 
-        public string ToString(Encoding encoding)
+        public string ToString(Encoding? encoding)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 

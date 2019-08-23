@@ -39,6 +39,7 @@ using System.Reflection;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -54,9 +55,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class AsyncLock : IDisposable
+    public sealed class AsyncLock : IDisposable
     {
-        public class LockHolder : IDisposable
+        public sealed class LockHolder : IDisposable
         {
             AsyncLock Parent;
             public LockHolder(AsyncLock parent)
@@ -74,7 +75,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        SemaphoreSlim Semaphone = new SemaphoreSlim(1, 1);
+        SemaphoreSlim? Semaphone = new SemaphoreSlim(1, 1);
         Once DisposeFlag;
 
         public async Task<LockHolder> LockWithAwait(CancellationToken cancel = default)
@@ -90,9 +91,9 @@ namespace IPA.Cores.Basic
             return new LockHolder(this);
         }
 
-        public Task _LockAsync(CancellationToken cancel = default) => Semaphone.WaitAsync(cancel);
-        public void _Lock(CancellationToken cancel = default) => Semaphone.Wait(cancel);
-        public void Unlock() => Semaphone.Release();
+        public Task _LockAsync(CancellationToken cancel = default) => Semaphone!.WaitAsync(cancel);
+        public void _Lock(CancellationToken cancel = default) => Semaphone!.Wait(cancel);
+        public void Unlock() => Semaphone!.Release();
 
         public void Dispose()
         {
@@ -145,7 +146,7 @@ namespace IPA.Cores.Basic
                 Interlocked.Increment(ref NumBusyWorkerThreads);
                 while (true)
                 {
-                    AsyncManualResetEvent tcs = null;
+                    AsyncManualResetEvent? tcs = null;
                     lock (QueuedManualResetEvents)
                     {
                         if (QueuedManualResetEvents.Count != 0)
@@ -288,7 +289,7 @@ namespace IPA.Cores.Basic
 
             long targetTime = Tick + (long)msec;
 
-            AsyncManualResetEvent tc = null;
+            AsyncManualResetEvent? tc = null;
 
             bool setEvent = false;
 
@@ -357,14 +358,14 @@ namespace IPA.Cores.Basic
 
 
 
-        public static async Task StartSyncTaskAsync(Action<object> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartSyncTaskAsync(Action<object?> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<object, T> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartSyncTaskAsync<T>(Func<object?, T> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        public static async Task StartAsyncTaskAsync(Func<object, Task> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartAsyncTaskAsync(Func<object?, Task> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<object, Task<T>> action, object param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<object?, Task<T>> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
         public static void DoSync(Action action) { action(); }
@@ -498,7 +499,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task<TResult> DoAsyncWithTimeout<TResult>(Func<CancellationToken, Task<TResult>> mainProc, Action cancelProc = null, int timeout = Timeout.Infinite, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
+        public static async Task<TResult> DoAsyncWithTimeout<TResult>(Func<CancellationToken, Task<TResult>> mainProc, Action? cancelProc = null, int timeout = Timeout.Infinite, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout < 0) timeout = Timeout.Infinite;
             if (timeout == 0) throw new TimeoutException("timeout == 0");
@@ -508,8 +509,8 @@ namespace IPA.Cores.Basic
 
             List<Task> waitTasks = new List<Task>();
             List<IDisposable> disposes = new List<IDisposable>();
-            Task timeoutTask = null;
-            CancellationTokenSource timeoutCancelSources = null;
+            Task? timeoutTask = null;
+            CancellationTokenSource? timeoutCancelSources = null;
             CancellationTokenSource cancelLocal = new CancellationTokenSource();
 
             if (timeout != Timeout.Infinite)
@@ -604,40 +605,55 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static readonly Type TimerQueueType = Type.GetType("System.Threading.TimerQueue");
-        static readonly FieldReaderWriter TimerQueueReaderWriter = new FieldReaderWriter(TimerQueueType, true);
+        static readonly Type? TimerQueueType = Type.GetType("System.Threading.TimerQueue");
+        static readonly FieldReaderWriter? TimerQueueReaderWriter = TimerQueueType != null ? new FieldReaderWriter(TimerQueueType, true) : null;
 
-        static readonly Type TimerQueueTimerType = Type.GetType("System.Threading.TimerQueueTimer");
-        static readonly FieldInfo[] TimerQueueTimersFieldList = TimerQueueReaderWriter.MetadataTable.Values.OfType<FieldInfo>().Where(x => x.FieldType == TimerQueueTimerType).ToArray();
+        static readonly Type? TimerQueueTimerType = Type.GetType("System.Threading.TimerQueueTimer");
+        static readonly FieldInfo[]? TimerQueueTimersFieldList = TimerQueueReaderWriter != null ? TimerQueueReaderWriter.MetadataTable.Values.OfType<FieldInfo>().Where(x => x.FieldType == TimerQueueTimerType).ToArray() : null;
 
         static bool FailedFlag_GetScheduledTimersCount = false;
 
-        static readonly FieldInfo TimerQueueTimer_mNext_FieldInfo = TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic);
+        static readonly FieldInfo? TimerQueueTimer_mNext_FieldInfo = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic) : null;
 
         public static int GetScheduledTimersCount()
         {
             if (FailedFlag_GetScheduledTimersCount) return -1;
 
+            if (TimerQueueType == null || TimerQueueTimersFieldList == null || TimerQueueTimer_mNext_FieldInfo == null)
+            {
+                FailedFlag_GetScheduledTimersCount = true;
+                return -1;
+            }
+
             try
             {
                 int num = 0;
 
-                Array timerQueueInstanceList = (Array)TimerQueueType.GetProperty("Instances", BindingFlags.Static | BindingFlags.Public).GetValue(null);
+                Array? timerQueueInstanceList = (Array?)TimerQueueType.GetProperty("Instances", BindingFlags.Static | BindingFlags.Public)?.GetValue(null);
 
-                foreach (object timerQueueInstance in timerQueueInstanceList)
+                if (timerQueueInstanceList == null)
                 {
-                    foreach (FieldInfo timerField in TimerQueueTimersFieldList)
-                    {
-                        object timer = timerField.GetValue(timerQueueInstance);
+                    FailedFlag_GetScheduledTimersCount = true;
+                    return -1;
+                }
 
-                        if (timer != null)
+                foreach (object? timerQueueInstance in timerQueueInstanceList)
+                {
+                    if (timerQueueInstance != null)
+                    {
+                        foreach (FieldInfo timerField in TimerQueueTimersFieldList)
                         {
-                            lock (timerQueueInstance)
+                            object? timer = timerField.GetValue(timerQueueInstance);
+
+                            if (timer != null)
                             {
-                                while (timer != null)
+                                lock (timerQueueInstance)
                                 {
-                                    timer = TimerQueueTimer_mNext_FieldInfo.GetValue(timer);
-                                    num++;
+                                    while (timer != null)
+                                    {
+                                        timer = TimerQueueTimer_mNext_FieldInfo.GetValue(timer);
+                                        num++;
+                                    }
                                 }
                             }
                         }
@@ -657,15 +673,31 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                Type t1 = Type.GetType("System.Threading.ThreadPoolGlobals");
-                FieldInfo f1 = t1.GetField("workQueue");
-                object o = f1.GetValue(null);
-                Type t2 = o.GetType();
-                FieldInfo f2 = t2.GetField("workItems", BindingFlags.Instance | BindingFlags.NonPublic);
-                object o2 = f2.GetValue(o);
-                Type t3 = o2.GetType();
-                PropertyInfo f3 = t3.GetProperty("Count");
-                int ret = (int)f3.GetValue(o2);
+                Type? t1 = Type.GetType("System.Threading.ThreadPoolGlobals");
+                if (t1 == null) return 0;
+
+                FieldInfo? f1 = t1.GetField("workQueue");
+                if (f1 == null) return 0;
+
+                object? o = f1.GetValue(null);
+                if (o == null) return 0;
+
+                Type? t2 = o.GetType();
+                if (t2 == null) return 0;
+
+                FieldInfo? f2 = t2.GetField("workItems", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (f2 == null) return 0;
+
+                object? o2 = f2.GetValue(o);
+                if (o2 == null) return 0;
+
+                Type? t3 = o2.GetType();
+                if (t3 == null) return 0;
+
+                PropertyInfo? f3 = t3.GetProperty("Count");
+                if (f3 == null) return 0;
+
+                int ret = (int)(f3.GetValue(o2) ?? 0);
 
                 return ret;
             }
@@ -680,8 +712,8 @@ namespace IPA.Cores.Basic
             return AsyncPreciseDelay.PreciseDelay(msec);
         }
 
-        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[] tasks = null, CancellationToken[] cancels = null, AsyncAutoResetEvent[] events = null,
-            AsyncManualResetEvent[] manualEvents = null, int timeout = Timeout.Infinite,
+        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[]? tasks = null, CancellationToken[]? cancels = null, AsyncAutoResetEvent[]? events = null,
+            AsyncManualResetEvent[]? manualEvents = null, int timeout = Timeout.Infinite,
             ExceptionWhen exceptions = ExceptionWhen.None, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             LeakChecker.IncrementLeakCounter(leakCounterKind);
@@ -771,7 +803,7 @@ namespace IPA.Cores.Basic
 
                 CancellationTokenSource delayCancel = new CancellationTokenSource();
 
-                Task timeoutTask = null;
+                Task? timeoutTask = null;
                 bool timedOut = false;
 
                 if (timeout >= 1)
@@ -869,7 +901,7 @@ namespace IPA.Cores.Basic
 
         public static TaskVm<TResult, TIn> GetCurrentTaskVm<TResult, TIn>()
         {
-            TaskVm<TResult, TIn>.TaskVmSynchronizationContext ctx = (TaskVm<TResult, TIn>.TaskVmSynchronizationContext)SynchronizationContext.Current;
+            TaskVm<TResult, TIn>.TaskVmSynchronizationContext ctx = (TaskVm<TResult, TIn>.TaskVmSynchronizationContext)SynchronizationContext.Current!;
 
             return ctx.Vm;
         }
@@ -1094,7 +1126,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                await eachProc((T)obj, combinedCancel);
+                                await eachProc((T)obj!, combinedCancel);
                             }
                             catch
                             {
@@ -1130,16 +1162,16 @@ namespace IPA.Cores.Basic
 
     public class AsyncCallbackList
     {
-        List<(Action<object> action, object state)> HardCallbackList = new List<(Action<object> action, object state)>();
-        List<(Action<object> action, object state)> SoftCallbackList = new List<(Action<object> action, object state)>();
+        List<(Action<object?> action, object? state)> HardCallbackList = new List<(Action<object?> action, object? state)>();
+        List<(Action<object?> action, object? state)> SoftCallbackList = new List<(Action<object?> action, object? state)>();
 
-        public void AddHardCallback(Action<object> action, object state = null)
+        public void AddHardCallback(Action<object?> action, object? state = null)
         {
             lock (HardCallbackList)
                 HardCallbackList.Add((action, state));
         }
 
-        public void AddSoftCallback(Action<object> action, object state = null)
+        public void AddSoftCallback(Action<object?> action, object? state = null)
         {
             lock (SoftCallbackList)
                 SoftCallbackList.Add((action, state));
@@ -1147,7 +1179,7 @@ namespace IPA.Cores.Basic
 
         public void Invoke()
         {
-            (Action<object> action, object state)[] arrayCopy;
+            (Action<object?> action, object? state)[] arrayCopy;
 
             if (HardCallbackList.Count >= 1)
             {
@@ -1259,7 +1291,7 @@ namespace IPA.Cores.Basic
 
         public void Set(bool softly = false)
         {
-            AsyncManualResetEvent ev = null;
+            AsyncManualResetEvent? ev = null;
             lock (lockobj)
             {
                 if (eventQueue.Count >= 1)
@@ -1286,7 +1318,7 @@ namespace IPA.Cores.Basic
     public class AsyncManualResetEvent
     {
         object lockobj = new object();
-        volatile TaskCompletionSource<bool> tcs;
+        volatile TaskCompletionSource<bool> tcs = null!;
         bool isSet = false;
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
@@ -1392,7 +1424,9 @@ namespace IPA.Cores.Basic
         void Dispose(Exception? ex = null);
     }
 
+#pragma warning disable CA1063 // Implement IDisposable Correctly
     public abstract class AsyncService : IAsyncService, IAsyncDisposable
+#pragma warning restore CA1063 // Implement IDisposable Correctly
     {
         static long IdSeed = 0;
 
@@ -1413,10 +1447,10 @@ namespace IPA.Cores.Basic
         public long AsyncServiceId { get; }
         public string AsyncServiceObjectName { get; }
 
-        public AsyncService(CancellationToken cancel = default)
+        protected AsyncService(CancellationToken cancel = default)
         {
             this.AsyncServiceId = Interlocked.Increment(ref IdSeed);
-            this.AsyncServiceObjectName = this.ToString();
+            this.AsyncServiceObjectName = this.ToString() ?? "null";
 
             this.CancelWatcher = new CancelWatcher(cancel);
 
@@ -1473,7 +1507,7 @@ namespace IPA.Cores.Basic
                 return IndirectDisposeList.ToArray();
         }
 
-        void CancelDisposeLinks(Exception ex)
+        void CancelDisposeLinks(Exception? ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
@@ -1484,7 +1518,7 @@ namespace IPA.Cores.Basic
                 TaskUtil.StartSyncTaskAsync(() => obj._CancelSafe(ex))._LaissezFaire();
         }
 
-        async Task CleanupDisposeLinksAsync(Exception ex)
+        async Task CleanupDisposeLinksAsync(Exception? ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
@@ -1495,7 +1529,7 @@ namespace IPA.Cores.Basic
                 TaskUtil.StartAsyncTaskAsync(() => obj._CleanupSafeAsync(ex))._LaissezFaire();
         }
 
-        void DisposeLinks(Exception ex)
+        void DisposeLinks(Exception? ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
@@ -1511,7 +1545,7 @@ namespace IPA.Cores.Basic
         {
             using (EnterCriticalCounter())
             {
-                AsyncLock.LockHolder lockHolder = null;
+                AsyncLock.LockHolder? lockHolder = null;
 
                 if (obtainLock)
                     lockHolder = await CriticalProcessAsyncLock.LockWithAwait(cancel);
@@ -1536,7 +1570,7 @@ namespace IPA.Cores.Basic
         {
             using (EnterCriticalCounter())
             {
-                AsyncLock.LockHolder lockHolder = null;
+                AsyncLock.LockHolder? lockHolder = null;
 
                 if (obtainLock)
                     lockHolder = await CriticalProcessAsyncLock.LockWithAwait(cancel);
@@ -1592,7 +1626,7 @@ namespace IPA.Cores.Basic
         Exception CancelReason = new OperationCanceledException();
 
         Once Canceled;
-        public void Cancel(Exception ex = null)
+        public void Cancel(Exception? ex = null)
         {
             if (Canceled.IsFirstCall() == false) return;
 
@@ -1604,11 +1638,11 @@ namespace IPA.Cores.Basic
             CancelInternalMain();
         }
 
-        protected virtual void CancelImpl(Exception ex) { }
-        protected virtual Task CleanupImplAsync(Exception ex) => Task.CompletedTask;
-        protected virtual void DisposeImpl(Exception ex) { }
+        protected virtual void CancelImpl(Exception? ex) { }
+        protected virtual Task CleanupImplAsync(Exception? ex) => Task.CompletedTask;
+        protected virtual void DisposeImpl(Exception? ex) { }
 
-        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object userState)
+        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object? userState)
             => CancelInternalMain();
 
         Once CanceledInternal;
@@ -1629,7 +1663,7 @@ namespace IPA.Cores.Basic
                     Dbg.WriteLine("CancelInternal exception: " + ex._GetSingleException().ToString());
                 }
 
-                Action[] procList = null;
+                Action[]? procList = null;
 
                 lock (LockObj)
                 {
@@ -1650,7 +1684,7 @@ namespace IPA.Cores.Basic
 
         Once Cleanuped;
         public bool IsCleanuped => Cleanuped.IsSet;
-        public async Task CleanupAsync(Exception ex = null)
+        public async Task CleanupAsync(Exception? ex = null)
         {
             IsCanceledPrivateFlag = true;
 
@@ -1669,8 +1703,10 @@ namespace IPA.Cores.Basic
 
         Once Disposed;
         public bool IsDisposed => Disposed.IsSet;
+#pragma warning disable CA1063 // Implement IDisposable Correctly
         public void Dispose() => Dispose(null);
-        public void Dispose(Exception ex)
+#pragma warning restore CA1063 // Implement IDisposable Correctly
+        public void Dispose(Exception? ex)
         {
             IsCanceledPrivateFlag = true;
 
@@ -1689,7 +1725,7 @@ namespace IPA.Cores.Basic
                     Dbg.WriteLine("Dispose exception: " + ex2._GetSingleException().ToString());
                 }
 
-                Action[] procList = null;
+                Action[]? procList = null;
 
                 lock (LockObj)
                 {
@@ -1710,7 +1746,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task DisposeWithCleanupAsync(Exception ex = null)
+        public async Task DisposeWithCleanupAsync(Exception? ex = null)
         {
             this._CancelSafe(ex);
             await this._CleanupSafeAsync(ex);
@@ -1720,7 +1756,7 @@ namespace IPA.Cores.Basic
         // 非同期 Dispose
         public ValueTask DisposeAsync() => DisposeAsync(null);
 
-        public async ValueTask DisposeAsync(Exception ex)
+        public async ValueTask DisposeAsync(Exception? ex)
         {
             // まず非同期 Cleanup をする
             try
@@ -1739,15 +1775,15 @@ namespace IPA.Cores.Basic
 
     public abstract class AsyncServiceWithMainLoop : AsyncService
     {
-        IHolder Leak = null;
+        IHolder? Leak = null;
 
         public AsyncServiceWithMainLoop(CancellationToken cancel = default) : base(cancel)
         {
         }
 
-        Task MainLoopTask = null;
+        Task? MainLoopTask = null;
 
-        public Task MainLoopToWaitComplete { get; private set; } = null;
+        public Task? MainLoopToWaitComplete { get; private set; } = null;
 
         Once once;
 
@@ -1759,7 +1795,7 @@ namespace IPA.Cores.Basic
             if (once.IsFirstCall() == false)
                 throw new Exception("StartMainLoop is already called.");
 
-            MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o), this.GrandCancel, leakCheck: !noLeakCheck);
+            MainLoopTask = TaskUtil.StartAsyncTaskAsync(o => mainLoopProc((CancellationToken)o!), this.GrandCancel, leakCheck: !noLeakCheck);
 
             if (noLeakCheck == false)
                 Leak = LeakChecker.Enter(LeakCounterKind.AsyncServiceWithMainLoop);
@@ -1769,7 +1805,7 @@ namespace IPA.Cores.Basic
             return MainLoopTask; // For reference. Not needed for most of all applications.
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
@@ -1804,9 +1840,9 @@ namespace IPA.Cores.Basic
 
         SortedDictionary<int, T> Hash;
 
-        volatile T[] InternalFastList;
+        volatile T[]? InternalFastList;
 
-        public T[] GetListFast() => InternalFastList;
+        public T[]? GetListFast() => InternalFastList;
 
         public int Add(T value)
         {
@@ -1850,7 +1886,7 @@ namespace IPA.Cores.Basic
     public struct ValueHolder : IHolder
     {
         Action DisposeProc;
-        IHolder Leak;
+        IHolder? Leak;
         LeakCounterKind LeakKind;
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
@@ -1906,7 +1942,7 @@ namespace IPA.Cores.Basic
     {
         public T Value { get; }
         Action<T> DisposeProc;
-        IHolder Leak = null;
+        IHolder? Leak = null;
         LeakCounterKind LeakKind;
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
@@ -1929,7 +1965,7 @@ namespace IPA.Cores.Basic
         }
 
         Once DisposeFlag;
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         protected virtual void Dispose(bool disposing)
         {
             if (disposing && DisposeFlag.IsFirstCall())
@@ -1953,13 +1989,13 @@ namespace IPA.Cores.Basic
     public struct ValueHolder<T> : IHolder
     {
         public T Value { get; }
-        Action<T> DisposeProc;
-        IHolder Leak;
+        Action<T>? DisposeProc;
+        IHolder? Leak;
         LeakCounterKind LeakKind;
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
-        public ValueHolder(Action<T> disposeProc, T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        public ValueHolder(Action<T>? disposeProc, [AllowNull] T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.Value = value;
             this.DisposeProc = disposeProc;
@@ -2002,14 +2038,14 @@ namespace IPA.Cores.Basic
 
     public interface IHolder : IDisposable { }
 
-    public delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
+    public delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState);
 
     public class FastEvent<TCaller, TEventType>
     {
         public FastEventCallback<TCaller, TEventType> Proc { get; }
-        public object UserState { get; }
+        public object? UserState { get; }
 
-        public FastEvent(FastEventCallback<TCaller, TEventType> proc, object userState)
+        public FastEvent(FastEventCallback<TCaller, TEventType> proc, object? userState)
         {
             this.Proc = proc;
             this.UserState = userState;
@@ -2036,7 +2072,7 @@ namespace IPA.Cores.Basic
         FastReadList<FastEvent<TCaller, TEventType>> ListenerList;
         FastReadList<AsyncAutoResetEvent> AsyncEventList;
 
-        public int RegisterCallback(FastEventCallback<TCaller, TEventType> proc, object userState = null)
+        public int RegisterCallback(FastEventCallback<TCaller, TEventType> proc, object? userState = null)
         {
             if (proc == null) return 0;
             return ListenerList.Add(new FastEvent<TCaller, TEventType>(proc, userState));
@@ -2047,7 +2083,7 @@ namespace IPA.Cores.Basic
             return ListenerList.Delete(id);
         }
 
-        public ValueHolder<int> RegisterCallbackWithUsing(FastEventCallback<TCaller, TEventType> proc, object userState = null)
+        public ValueHolder<int> RegisterCallbackWithUsing(FastEventCallback<TCaller, TEventType> proc, object? userState = null)
             => new ValueHolder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
 
         public int RegisterAsyncEvent(AsyncAutoResetEvent ev)
@@ -2083,14 +2119,14 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object userState);
+    public delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState);
 
     public class AsyncEvent<TCaller, TEventType>
     {
         public AsyncEventCallback<TCaller, TEventType> Proc { get; }
-        public object UserState { get; }
+        public object? UserState { get; }
 
-        public AsyncEvent(AsyncEventCallback<TCaller, TEventType> proc, object userState)
+        public AsyncEvent(AsyncEventCallback<TCaller, TEventType> proc, object? userState)
         {
             this.Proc = proc;
             this.UserState = userState;
@@ -2111,7 +2147,7 @@ namespace IPA.Cores.Basic
         FastReadList<AsyncEvent<TCaller, TEventType>> ListenerList;
         FastReadList<AsyncAutoResetEvent> AsyncEventList;
 
-        public int RegisterCallback(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
+        public int RegisterCallback(AsyncEventCallback<TCaller, TEventType> proc, object? userState = null)
         {
             if (proc == null) return 0;
             return ListenerList.Add(new AsyncEvent<TCaller, TEventType>(proc, userState));
@@ -2122,7 +2158,7 @@ namespace IPA.Cores.Basic
             return ListenerList.Delete(id);
         }
 
-        public ValueHolder<int> RegisterCallbackWithUsing(AsyncEventCallback<TCaller, TEventType> proc, object userState = null)
+        public ValueHolder<int> RegisterCallbackWithUsing(AsyncEventCallback<TCaller, TEventType> proc, object? userState = null)
             => new ValueHolder<int>(id => UnregisterCallback(id), RegisterCallback(proc, userState));
 
         public int RegisterAsyncEvent(AsyncAutoResetEvent ev)
@@ -2186,7 +2222,7 @@ namespace IPA.Cores.Basic
                 this.GrandCancelTokenSource._TryCancel();
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

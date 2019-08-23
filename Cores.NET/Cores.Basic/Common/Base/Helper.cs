@@ -287,7 +287,7 @@ namespace IPA.Cores.Helper.Basic
         public static DateTime _ToDate(this string? str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
         public static DateTime _ToTime(this string? s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToTime(s, toUtc, emptyToZeroDateTime);
         public static DateTime _ToDateTime(this string? s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDateTime(s, toUtc, emptyToZeroDateTime);
-        public static object? _ToEnum(this string? s, object defaultValue, bool exactOnly = false) => Str.StrToEnum(s, defaultValue, exactOnly);
+        public static object _ToEnum(this string? s, object defaultValue, bool exactOnly = false) => Str.StrToEnum(s, defaultValue, exactOnly);
         public static int _ToInt(this string? s) => Str.StrToInt(s);
         public static long _ToLong(this string? s) => Str.StrToLong(s);
         public static uint _ToUInt(this string? s) => Str.StrToUInt(s);
@@ -378,7 +378,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _DecodeCEscape(this string s) => Str.DecodeCEscape(s);
         public static int _GetWidth(this string? s) => Str.GetStrWidth(s);
         public static bool _IsAllUpperStr(this string? s) => Str.IsAllUpperStr(s);
-        public static string _ReplaceStr(this string? str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
+        public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
         public static bool _CheckStrLen(this string? str, int len) => Str.CheckStrLen(str, len);
         public static bool _CheckMailAddress(this string? str) => Str.CheckMailAddress(str);
         public static bool _IsSafeAsFileName(this string str, bool pathCharsAreNotGood = false) => Str.IsSafe(str, pathCharsAreNotGood);
@@ -1069,7 +1069,7 @@ namespace IPA.Cores.Helper.Basic
             return ex;
         }
 
-        public static void _ReThrow(this Exception exception)
+        public static void _ReThrow(this Exception? exception)
         {
             if (exception == null) throw exception!;
             ExceptionDispatchInfo.Capture(exception._GetSingleException()).Throw();
@@ -1098,7 +1098,7 @@ namespace IPA.Cores.Helper.Basic
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
 
-        public static bool _IsNullOrZeroLen(this string? str) => string.IsNullOrEmpty(str);
+        public static bool _IsNullOrZeroLen([NotNullWhen(false)] this string? str) => string.IsNullOrEmpty(str);
 
         public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
