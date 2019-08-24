@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic.Legacy
         public bool IsUser { get; private set; } = false;
         public string SvcName { get; private set; } = "";
         public string Msid { get; private set; } = "";
-        public string Pcid { get; private set; }
+        public string? Pcid { get; private set; }
         public int MachineId { get; private set; }
         public DateTime CreateDate { get; private set; }
         public DateTime UpdateDate { get; private set; }
@@ -91,14 +91,14 @@ namespace IPA.Cores.Basic.Legacy
             isGate = true;
         }
 
-        Pack requestPack;
-        Cert requestCert;
+        Pack? requestPack;
+        Cert? requestCert;
 
-        Pack responsePack;
-        Cert responseCert;
-        Rsa responseKey;
+        Pack? responsePack;
+        Cert? responseCert;
+        Rsa? responseKey;
 
-        public Pack RequestPack
+        public Pack? RequestPack
         {
             get
             {
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        public Cert RequestCert
+        public Cert? RequestCert
         {
             get
             {
@@ -114,16 +114,9 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        public WpcClient(string ip)
-        {
-            init(ip);
-        }
-        public WpcClient(HttpListenerRequest httpListenerRequest)
-        {
-            init(httpListenerRequest.RemoteEndPoint.Address.ToString());
-        }
+        public WpcClient(HttpListenerRequest httpListenerRequest) : this(httpListenerRequest.RemoteEndPoint.Address.ToString()) { }
 
-        void init(string ip)
+        public WpcClient(string ip)
         {
             IpAddress = ip;
             HostName = "";
@@ -148,7 +141,7 @@ namespace IPA.Cores.Basic.Legacy
 
         public void ParseRequest(string requestStr)
         {
-            WpcPacket packet = WpcPacket.ParsePacket(requestStr);
+            WpcPacket? packet = WpcPacket.ParsePacket(requestStr);
             if (packet == null)
             {
                 // パケットが不正である
@@ -169,7 +162,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             get
             {
-                return WpcPacket.GeneratePacket(responsePack, responseCert, responseKey);
+                return WpcPacket.GeneratePacket(responsePack._NullCheck(), responseCert._NullCheck(), responseKey._NullCheck());
             }
         }
     }
@@ -229,7 +222,7 @@ namespace IPA.Cores.Basic.Legacy
             return o;
         }
 
-        public static WpcEntry FindEntry(List<WpcEntry> entryList, string entryName)
+        public static WpcEntry? FindEntry(List<WpcEntry> entryList, string entryName)
         {
             byte[] entryNameByte = GenerateEntryName(entryName);
             foreach (WpcEntry e in entryList)
@@ -291,8 +284,8 @@ namespace IPA.Cores.Basic.Legacy
     {
         public Pack Pack { get; }
         public byte[] Hash { get; }
-        public Cert Cert { get; }
-        public byte[] Sign { get; }
+        public Cert? Cert { get; }
+        public byte[]? Sign { get; }
 
         public bool IsSigned
         {
@@ -302,11 +295,7 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        private WpcPacket(Pack pack, byte[] hash)
-            : this(pack, hash, null, null)
-        {
-        }
-        private WpcPacket(Pack pack, byte[] hash, Cert cert, byte[] sign)
+        private WpcPacket(Pack pack, byte[] hash, Cert? cert = null, byte[]? sign = null)
         {
             this.Pack = pack;
             this.Hash = hash;
@@ -314,11 +303,7 @@ namespace IPA.Cores.Basic.Legacy
             this.Sign = sign;
         }
 
-        public static string GeneratePacket(Pack pack)
-        {
-            return GeneratePacket(pack, null, null);
-        }
-        public static string GeneratePacket(Pack pack, Cert cert, Rsa key)
+        public static string GeneratePacket(Pack pack, Cert? cert = null, Rsa? key = null)
         {
             Buf b = new Buf();
 
@@ -337,11 +322,11 @@ namespace IPA.Cores.Basic.Legacy
             return Str.AsciiEncoding.GetString(b.ByteData);
         }
 
-        public static WpcPacket ParsePacket(string recvStr)
+        public static WpcPacket? ParsePacket(string recvStr)
         {
             List<WpcEntry> o = WpcEntry.ParseDataEntry(recvStr);
 
-            WpcEntry e;
+            WpcEntry? e;
 
             try
             {
@@ -349,7 +334,7 @@ namespace IPA.Cores.Basic.Legacy
                 if (e != null)
                 {
                     byte[] hash = Secure.HashSHA1(e.Data);
-                    Pack pack = null;
+                    Pack? pack = null;
 
                     pack = Pack.CreateFromBuf(new Buf(e.Data));
 

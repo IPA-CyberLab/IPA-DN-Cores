@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_SECURITY
 
+#nullable disable
+
 using System;
 using System.IO;
 using System.Text;

@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
         public const int DefaultMaxDepth = 12;
         public JsonSerializerSettings JsonSettings { get; }
 
-        public RichJsonHiveSerializerOptions(JsonSerializerSettings settings = null)
+        public RichJsonHiveSerializerOptions(JsonSerializerSettings? settings = null)
         {
             if (settings == null)
             {
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
     {
         public new RichJsonHiveSerializerOptions Options => (RichJsonHiveSerializerOptions)base.Options;
 
-        public RichJsonHiveSerializer(RichJsonHiveSerializerOptions options = null) : base(options ?? new RichJsonHiveSerializerOptions()) { }
+        public RichJsonHiveSerializer(RichJsonHiveSerializerOptions? options = null) : base(options ?? new RichJsonHiveSerializerOptions()) { }
 
         protected override Memory<byte> SerializeImpl<T>(T obj)
         {
@@ -111,7 +111,7 @@ namespace IPA.Cores.Basic
 
         readonly Func<CancellationToken, Task<T>> UpdateProcAsync;
 
-        T CachedData = null;
+        T? CachedData = null;
         DateTime CachedTimeStamp;
         AsyncLock AsyncLock = new AsyncLock();
         CriticalSection Lock = new CriticalSection();
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
                 {
                     await this.HiveKv.AccessDataAsync(false, (d) =>
                     {
-                        T data = d.Get<T>("CachedData");
+                        T? data = d.Get<T>("CachedData");
                         DateTime dt = d.Get<DateTime>("CachedTimeStamp");
 
                         if (data != null && dt.Ticks != 0)
@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                T latestData = null;
+                T? latestData = null;
 
                 try
                 {

@@ -911,23 +911,23 @@ namespace IPA.Cores.Basic
             await Task.Run(() => cts.Cancel(throwOnFirstException));
         }
 
-        public static async Task TryCancelAsync(CancellationTokenSource cts)
+        public static async Task TryCancelAsync(CancellationTokenSource? cts)
         {
             await Task.Run(() => TryCancel(cts));
         }
 
-        public static void TryCancel(CancellationTokenSource cts)
+        public static void TryCancel(CancellationTokenSource? cts)
         {
             try
             {
-                cts.Cancel();
+                cts?.Cancel();
             }
             catch
             {
             }
         }
 
-        public static void TryCancelNoBlock(CancellationTokenSource cts)
+        public static void TryCancelNoBlock(CancellationTokenSource? cts)
             => cts._TryCancelAsync()._LaissezFaire(true);
 
         public static async Task TryWaitAsync(Task? t, bool noDebugMessage = false)

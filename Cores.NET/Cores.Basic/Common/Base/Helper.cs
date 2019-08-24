@@ -546,10 +546,10 @@ namespace IPA.Cores.Helper.Basic
         public static long _SeekToBegin(this Stream s) => s.Seek(0, SeekOrigin.Begin);
         public static long _SeekToEnd(this Stream s) => s.Seek(0, SeekOrigin.End);
 
-        public static void _TryCancelNoBlock(this CancellationTokenSource cts) => TaskUtil.TryCancelNoBlock(cts);
-        public static void _TryCancel(this CancellationTokenSource cts) => TaskUtil.TryCancel(cts);
+        public static void _TryCancelNoBlock(this CancellationTokenSource? cts) => TaskUtil.TryCancelNoBlock(cts);
+        public static void _TryCancel(this CancellationTokenSource? cts) => TaskUtil.TryCancel(cts);
         public static async Task _CancelAsync(this CancellationTokenSource cts, bool throwOnFirstException = false) => await TaskUtil.CancelAsync(cts, throwOnFirstException);
-        public static async Task _TryCancelAsync(this CancellationTokenSource cts) => await TaskUtil.TryCancelAsync(cts);
+        public static async Task _TryCancelAsync(this CancellationTokenSource? cts) => await TaskUtil.TryCancelAsync(cts);
 
         public static void _TryWait(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
         public static Task _TryWaitAsync(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
@@ -1267,7 +1267,7 @@ namespace IPA.Cores.Helper.Basic
         public static void _GetResult(this ValueTask task) => task.GetAwaiter().GetResult();
 
 
-        public static T _TryGetResult<T>(this Task<T> task, bool noDebugMessage = false)
+        public static T _TryGetResult<T>(this Task<T>? task, bool noDebugMessage = false)
         {
             if (task == null) return default!;
             try
@@ -1286,7 +1286,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static void _TryGetResult(this Task task, bool noDebugMessage = false)
+        public static void _TryGetResult(this Task? task, bool noDebugMessage = false)
         {
             if (task == null) return;
             try

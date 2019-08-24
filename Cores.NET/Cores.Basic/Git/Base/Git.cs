@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
 {
     public static partial class GitUtil
     {
-        public static void Clone(string destDir, string srcUrl, CloneOptions options = null)
+        public static void Clone(string destDir, string srcUrl, CloneOptions? options = null)
         {
             if (options == null) options = new CloneOptions()
             {
@@ -125,10 +125,12 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                if (queue.TryDequeue(out Commit current) == false)
+                if (queue.TryDequeue(out Commit? current) == false)
                 {
                     break;
                 }
+
+                current._IsNotNull();
 
                 foreach (Commit next in current.Parents)
                 {
@@ -500,7 +502,7 @@ namespace IPA.Cores.Basic
         public GitRef[] EnumRef(CancellationToken cancel = default)
             => EnumRefAsync(cancel)._GetResult();
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
