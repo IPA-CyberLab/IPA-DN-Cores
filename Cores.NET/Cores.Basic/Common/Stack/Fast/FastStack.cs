@@ -871,7 +871,6 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        ex._Debug();
                         LastError = ex;
 
                         if (_InternalSelfCancelToken.IsCancellationRequested == false)
