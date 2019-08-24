@@ -54,39 +54,39 @@ namespace IPA.Cores.Basic
 
     public class MsLogData
     {
-        public string Category;
-        public string TranscationId;
+        public string? Category;
+        public string? TranscationId;
         public int EventId;
-        public string Message;
-        public object Data;
+        public string? Message;
+        public object? Data;
     }
 
     public class WebServerLogData
     {
-        public string ConnectionId;
-        public string LocalIP;
-        public string RemoteIP;
+        public string? ConnectionId;
+        public string? LocalIP;
+        public string? RemoteIP;
         public int LocalPort;
         public int RemotePort;
 
-        public string Url;
-        public string Protocol;
-        public string Host;
-        public string Method;
-        public string Path;
-        public string QueryString;
-        public string UserAgent;
+        public string? Url;
+        public string? Protocol;
+        public string? Host;
+        public string? Method;
+        public string? Path;
+        public string? QueryString;
+        public string? UserAgent;
 
-        public string AuthUserName;
-        public string AuthType;
+        public string? AuthUserName;
+        public string? AuthType;
 
         public bool? BasicAuthResult;
-        public string BasicAuthUserName;
+        public string? BasicAuthUserName;
 
         public int ResponseCode;
         public int ProcessTimeMsecs;
 
-        public string Exception;
+        public string? Exception;
     }
 }
 

@@ -49,6 +49,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -180,9 +181,9 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this ReadOnlySpan<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string _GetHexString(this Memory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
-        public static byte[] _GetHexBytes(this string str) => Str.HexToByte(str);
+        public static byte[] _GetHexBytes(this string? str) => Str.HexToByte(str);
 
-        public static string _NormalizeHexString(this string src, bool lowerCase = false, string padding = "") => Str.NormalizeHexString(src, lowerCase, padding);
+        public static string _NormalizeHexString(this string? src, bool lowerCase = false, string padding = "") => Str.NormalizeHexString(src, lowerCase, padding);
 
         public static bool _ToBool(this bool b) => b;
         public static bool _ToBool(this sbyte i) => (i != 0);
@@ -255,7 +256,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _SetNonNegative(this ref byte i) => i = (byte)(i >= 0 ? i : 0);
         public static void _SetNonNegative(this ref ushort i) => i = (ushort)(i >= 0 ? i : 0);
-        public static void _SetNonNegative(this ref uint i) => i =(uint)(i >= 0 ? i : 0);
+        public static void _SetNonNegative(this ref uint i) => i = (uint)(i >= 0 ? i : 0);
         public static void _SetNonNegative(this ref ulong i) => i = (ulong)(i >= 0 ? i : 0);
 
         public static void _SetMin(this ref sbyte i, sbyte target) => i = Math.Min(i, target);
@@ -281,46 +282,47 @@ namespace IPA.Cores.Helper.Basic
 
 
 
-        public static bool _ToBool(this string str) => Str.StrToBool(str);
-        public static byte[] _ToByte(this string str) => Str.StrToByte(str);
-        public static DateTime _ToDate(this string str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
-        public static DateTime _ToTime(this string s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToTime(s, toUtc, emptyToZeroDateTime);
-        public static DateTime _ToDateTime(this string s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDateTime(s, toUtc, emptyToZeroDateTime);
-        public static object _ToEnum(this string s, object defaultValue, bool exactOnly = false) => Str.StrToEnum(s, defaultValue, exactOnly);
-        public static int _ToInt(this string s) => Str.StrToInt(s);
-        public static long _ToLong(this string s) => Str.StrToLong(s);
-        public static uint _ToUInt(this string s) => Str.StrToUInt(s);
-        public static ulong _ToULong(this string s) => Str.StrToULong(s);
-        public static double _ToDouble(this string s) => Str.StrToDouble(s);
-        public static decimal _ToDecimal(this string s) => Str.StrToDecimal(s);
-        public static bool _IsSame(this string s, string t, bool ignoreCase = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignoreCase ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
-        public static bool _IsSame(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : string.Equals(s, t, comparison)));
-        public static bool _IsSamei(this string s, string t) => _IsSame(s, t, true);
-        public static bool _IsSameiIgnoreUnderscores(this string s, string t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "")._IsSamei(t.Replace("_", "")))));
-        public static int _Cmp(this string s, string t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
-        public static int _Cmp(this string s, string t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
-        public static int _Cmpi(this string s, string t, bool ignoreCase = false) => _Cmp(s, t, true);
+        public static bool _ToBool(this string? str) => Str.StrToBool(str);
+        public static byte[] _ToByte(this string? str) => Str.StrToByte(str);
+        public static DateTime _ToDate(this string? str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
+        public static DateTime _ToTime(this string? s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToTime(s, toUtc, emptyToZeroDateTime);
+        public static DateTime _ToDateTime(this string? s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDateTime(s, toUtc, emptyToZeroDateTime);
+        public static object _ToEnum(this string? s, object defaultValue, bool exactOnly = false) => Str.StrToEnum(s, defaultValue, exactOnly);
+        public static int _ToInt(this string? s) => Str.StrToInt(s);
+        public static long _ToLong(this string? s) => Str.StrToLong(s);
+        public static uint _ToUInt(this string? s) => Str.StrToUInt(s);
+        public static ulong _ToULong(this string? s) => Str.StrToULong(s);
+        public static double _ToDouble(this string? s) => Str.StrToDouble(s);
+        public static decimal _ToDecimal(this string? s) => Str.StrToDecimal(s);
+        public static bool _IsSame(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignoreCase ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
+        public static bool _IsSame(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : string.Equals(s, t, comparison)));
+        public static bool _IsSamei(this string? s, string? t) => _IsSame(s, t, true);
+        public static bool _IsSameiIgnoreUnderscores(this string? s, string? t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "")._IsSamei(t.Replace("_", "")))));
+        public static int _Cmp(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
+        public static int _Cmp(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
+        public static int _Cmpi(this string? s, string? t, bool ignoreCase = false) => _Cmp(s, t, true);
 
-        public static int _CmpTrim(this string s, string t, StringComparison comparison = StringComparison.Ordinal)
+        public static int _CmpTrim(this string? s, string? t, StringComparison comparison = StringComparison.Ordinal)
         {
             s = s._NonNullTrim();
             t = t._NonNullTrim();
 
             return string.Compare(s, t, comparison);
         }
-        public static int _CmpTrimi(this string s, string t) => _CmpTrim(s, t, StringComparison.OrdinalIgnoreCase);
+        public static int _CmpTrimi(this string? s, string? t) => _CmpTrim(s, t, StringComparison.OrdinalIgnoreCase);
 
-        public static bool _IsSameTrim(this string s, string t, StringComparison comparison = StringComparison.Ordinal)
+        public static bool _IsSameTrim(this string? s, string? t, StringComparison comparison = StringComparison.Ordinal)
         {
             s = s._NonNullTrim();
             t = t._NonNullTrim();
 
             return string.Equals(s, t, comparison);
         }
-        public static bool _IsSameTrimi(this string s, string t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
+        public static bool _IsSameTrimi(this string? s, string? t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
 
         public static string[] _GetLines(this string s) => Str.GetLines(s);
         public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
+        public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
         public static bool _IsLong(this string s) => Str.IsLong(s);
         public static bool _IsInt(this string s) => Str.IsInt(s);
@@ -338,63 +340,63 @@ namespace IPA.Cores.Helper.Basic
         public static string _Debug(this string s) { Dbg.WriteLine(s); return s; }
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
-        public static string _TrimCrlf(this string s) => Str.TrimCrlf(s);
+        public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
         public static string _TrimStartWith(this string s, string key, bool caseSensitive = false) { Str.TrimStartWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
-        public static string _NonNull(this string s) { if (s == null) return ""; else return s; }
-        public static string _NonNullTrim(this string s) { if (s == null) return ""; else return s.Trim(); }
-        public static string _NonNullTrimSe(this string s) { return Str.NormalizeStrSoftEther(s._NonNullTrim(), true); }
-        public static string _TrimNonNull(this string s) => s._NonNullTrim();
+        public static string _NonNull(this string? s) { if (s == null) return ""; else return s; }
+        public static string _NonNullTrim(this string? s) { if (s == null) return ""; else return s.Trim(); }
+        public static string _NonNullTrimSe(this string? s) { return Str.NormalizeStrSoftEther(s._NonNullTrim(), true); }
+        public static string _TrimNonNull(this string? s) => s._NonNullTrim();
         public static bool _TryTrimStartWith(this string srcStr, out string outStr, StringComparison comparison, params string[] keys) => Str.TryTrimStartWith(srcStr, out outStr, comparison, keys);
-        public static string _NoSpace(this string s, string replaceWith = "_") => s._NonNull()._ReplaceStr(" ", replaceWith, false);
-        public static string _NormalizeSoftEther(this string s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
+        public static string _NoSpace(this string? s, string replaceWith = "_") => s._NonNull()._ReplaceStr(" ", replaceWith, false);
+        public static string _NormalizeSoftEther(this string? s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
         public static string[] _DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
         public static bool _IsSuitableEncodingForString(this string s, Encoding encoding) => Str.IsSuitableEncodingForString(s, encoding);
         public static bool _IsStringNumOrAlpha(this string s) => Str.IsStringNumOrAlpha(s);
         public static string _GetLeft(this string str, int len) => Str.GetLeft(str, len);
         public static string[] _SplitStringForSearch(this string str) => Str.SplitStringForSearch(str);
-        public static void _WriteTextFile(this string s, string filename, Encoding encoding = null, bool writeBom = false) { if (encoding == null) encoding = Str.Utf8Encoding; Str.WriteTextFile(filename, s, encoding, writeBom); }
+        public static void _WriteTextFile(this string s, string filename, Encoding? encoding = null, bool writeBom = false) { if (encoding == null) encoding = Str.Utf8Encoding; Str.WriteTextFile(filename, s, encoding, writeBom); }
         public static bool _StartsWithMulti(this string str, StringComparison comparison, params string[] keys) => Str.StartsWithMulti(str, comparison, keys);
         public static int _FindStringsMulti(this string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundKeyIndex, keys);
         public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
         public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
-        public static string _StripCommentFromLine(this string str, IEnumerable<string> commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
+        public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
         public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
-        public static string _Normalize(this string str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
-        public static string _EncodeUrl(this string str, Encoding e = null) => Str.EncodeUrl(str, e);
-        public static string _DecodeUrl(this string str, Encoding e = null) => Str.DecodeUrl(str, e);
-        public static string _EncodeUrlPath(this string str) => Str.EncodeUrlPath(str);
-        public static string _DecodeUrlPath(this string str) => Str.DecodeUrlPath(str);
-        public static string _EncodeHtml(this string str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
-        public static string _DecodeHtml(this string str) => Str.DecodeHtml(str);
+        public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
+        public static string _EncodeUrl(this string? str, Encoding? e = null) => Str.EncodeUrl(str, e);
+        public static string _DecodeUrl(this string? str, Encoding? e = null) => Str.DecodeUrl(str, e);
+        public static string _EncodeUrlPath(this string? str, Encoding? e = null) => Str.EncodeUrlPath(str, e);
+        public static string _DecodeUrlPath(this string? str, Encoding? e = null) => Str.DecodeUrlPath(str, e);
+        public static string _EncodeHtml(this string? str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
+        public static string _DecodeHtml(this string? str) => Str.DecodeHtml(str);
 
-        public static string _EncodeEasy(this string str) => Str.EncodeEasy(str);
-        public static string _DecodeEasy(this string str) => Str.DecodeEasy(str);
+        public static string _EncodeEasy(this string? str) => Str.EncodeEasy(str);
+        public static string _DecodeEasy(this string? str) => Str.DecodeEasy(str);
 
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _EncodeCEscape(this string s) => Str.EncodeCEscape(s);
         public static string _DecodeCEscape(this string s) => Str.DecodeCEscape(s);
-        public static int _GetWidth(this string s) => Str.GetStrWidth(s);
-        public static bool _IsAllUpperStr(this string s) => Str.IsAllUpperStr(s);
+        public static int _GetWidth(this string? s) => Str.GetStrWidth(s);
+        public static bool _IsAllUpperStr(this string? s) => Str.IsAllUpperStr(s);
         public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
-        public static bool _CheckStrLen(this string str, int len) => Str.CheckStrLen(str, len);
-        public static bool _CheckMailAddress(this string str) => Str.CheckMailAddress(str);
+        public static bool _CheckStrLen(this string? str, int len) => Str.CheckStrLen(str, len);
+        public static bool _CheckMailAddress(this string? str) => Str.CheckMailAddress(str);
         public static bool _IsSafeAsFileName(this string str, bool pathCharsAreNotGood = false) => Str.IsSafe(str, pathCharsAreNotGood);
         public static string _MakeSafePath(this string str) => Str.MakeSafePathName(str);
         public static string _MakeSafeFileName(this string str) => Str.MakeSafeFileName(str);
-        public static string _TruncStr(this string str, int len) => Str.TruncStr(str, len);
-        public static string _TruncStrEx(this string str, int len, string appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
-        public static string _NullIfEmpty(this string str) => Str.IsFilledStr(str) ? str : null;
+        public static string _TruncStr(this string? str, int len) => Str.TruncStr(str, len);
+        public static string _TruncStrEx(this string? str, int len, string? appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
+        public static string? _NullIfEmpty(this string? str) => Str.IsFilledStr(str) ? str : null;
         public static T _NullIfEmpty<T>(this T obj) => Util.IsFilled(obj) ? obj : default;
-        public static byte[] _HashSHA256(this string str) => Str.HashStrSHA256(str);
+        public static byte[] _HashSHA256(this string? str) => Str.HashStrSHA256(str);
         public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);
         public static string _CombinePath(this string str, string p1, string p2) => Path.Combine(str, p1, p2);
         public static string _CombinePath(this string str, string p1, string p2, string p3) => Path.Combine(str, p1, p2, p3);
         //public static string _NormalizePath(this string str) => BasicFile.NormalizePath(str);
         //public static string _InnerFilePath(this string str) => BasicFile.InnerFilePath(str);
         //public static string _RemoteLastEnMark(this string str) => BasicFile.RemoteLastEnMark(str);
-        public static string _GetDirectoryName(this string str) => Path.GetDirectoryName(str);
-        public static string _GetFileName(this string str) => Path.GetFileName(str);
+        public static string? _GetDirectoryName(this string? str) => Path.GetDirectoryName(str);
+        public static string? _GetFileName(this string? str) => Path.GetFileName(str);
         public static bool _IsExtensionMatch(this string str, string extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
         public static bool _IsExtensionMatch(this string str, IEnumerable<string> extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
         public static string _ReplaceStrWithReplaceClass(this string str, object replaceClass, bool caseSensitive = false) => Str.ReplaceStrWithReplaceClass(str, replaceClass, caseSensitive);
@@ -403,16 +405,18 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _LinesToStr(this IEnumerable<string> lines) => Str.LinesToStr(lines);
         public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
-        public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false) => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
-        public static string _Combine(this IEnumerable<string> t, string sepstr) => Str.CombineStringArray(t, sepstr);
+        public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
+            => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
+        public static string _Combine(this IEnumerable<string?> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
 
-        public static string _MakeAsciiOneLinePrintableStr(this string src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
+        public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
         public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
         public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
         public static bool _IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
         //public static bool _IsSafeAndPrintable(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(c, crlIsOk, html_tag_ng);
 
+        [return: NotNullIfNotNull("str")]
         public static string _NormalizeCrlf(this string str, CrlfStyle style) => Str.NormalizeCrlf(str, style);
 
         //public static byte[] NormalizeCrlfWindows(this Span<byte> s) => Str.NormalizeCrlfWindows(s);
@@ -463,49 +467,51 @@ namespace IPA.Cores.Helper.Basic
         //public static void _SaveToFile(this byte[] data, string filename, int offset = 0, int size = 0, bool doNothingIfSameContents = false)
         //    => BasicFile.SaveFile(filename, data, offset, (size == 0 ? data.Length - offset : size), doNothingIfSameContents);
 
-        public static void _DebugObject(this object o) => Dbg.DebugObject(o);
-        public static void _PrintObject(this object o) => Dbg.PrintObject(o);
-        public static string _GetObjectDump(this object o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type type = null)
+        public static void _DebugObject(this object? o) => Dbg.DebugObject(o);
+        public static void _PrintObject(this object? o) => Dbg.PrintObject(o);
+        public static string _GetObjectDump(this object? o, string? instanceBaseName = "", string? separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
             => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible, type);
-        public static string _Old_ObjectToXmlPublic(this object o, Type t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
-        public static T _CloneDeep<T>(this T o) => (T)Util.CloneObject_UsingBinary(o);
+        public static string _Old_ObjectToXmlPublic(this object o, Type? t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
+
+        [return: NotNullIfNotNull("o")]
+        public static T? _CloneDeep<T>(this T? o) where T : class => (T?)Util.CloneObject_UsingBinary(o);
         public static byte[] _ObjectToBinary(this object o) => Util.ObjectToBinary(o);
         public static object _BinaryToObject(this ReadOnlySpan<byte> b) => Util.BinaryToObject(b);
         public static object _BinaryToObject(this Span<byte> b) => Util.BinaryToObject(b);
         public static object _BinaryToObject(this byte[] b) => Util.BinaryToObject(b);
 
-        public static void _ObjectToXml(this object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, dst, settings);
-        public static byte[] _ObjectToXml(this object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings);
-        public static object _XmlToObject(this MemoryBuffer<byte> src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src, type, settings);
-        public static T _XmlToObject<T>(this MemoryBuffer<byte> src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src, settings);
-        public static object _XmlToObject(this byte[] src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src, type, settings);
-        public static T _XmlToObject<T>(this byte[] src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src, settings);
+        public static void _ObjectToXml(this object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, dst, settings);
+        public static byte[] _ObjectToXml(this object obj, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, settings);
+        public static object _XmlToObject(this MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
+        public static T _XmlToObject<T>(this MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
+        public static object _XmlToObject(this byte[] src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
+        public static T _XmlToObject<T>(this byte[] src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
 
-        public static string _ObjectToXmlStr(this object obj, DataContractSerializerSettings settings = null) => Str.ObjectToXmlStr(obj, settings);
-        public static object _XmlStrToObject(this string src, Type type, DataContractSerializerSettings settings = null) => Str.XmlStrToObject(src, type, settings);
-        public static T _XmlStrToObject<T>(this string src, DataContractSerializerSettings settings = null) => Str.XmlStrToObject<T>(src, settings);
+        public static string _ObjectToXmlStr(this object obj, DataContractSerializerSettings? settings = null) => Str.ObjectToXmlStr(obj, settings);
+        public static object _XmlStrToObject(this string src, Type type, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject(src, type, settings);
+        public static T _XmlStrToObject<T>(this string src, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject<T>(src, settings);
 
-        public static void _ObjectToRuntimeJson(this object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, dst, settings);
-        public static byte[] _ObjectToRuntimeJson(this object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings);
-        public static object _RuntimeJsonToObject(this MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src, type, settings);
-        public static T _RuntimeJsonToObject<T>(this MemoryBuffer<byte> src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
-        public static object _RuntimeJsonToObject(this byte[] src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src, type, settings);
-        public static T _RuntimeJsonToObject<T>(this byte[] src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+        public static void _ObjectToRuntimeJson(this object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, dst, settings);
+        public static byte[] _ObjectToRuntimeJson(this object obj, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, settings);
+        public static object _RuntimeJsonToObject(this MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T _RuntimeJsonToObject<T>(this MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+        public static object _RuntimeJsonToObject(this byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T _RuntimeJsonToObject<T>(this byte[] src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
 
-        public static string _ObjectToRuntimeJsonStr(this object obj, DataContractJsonSerializerSettings settings = null) => Str.ObjectToRuntimeJsonStr(obj, settings);
-        public static object _RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
-        public static T _RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
+        public static string _ObjectToRuntimeJsonStr(this object obj, DataContractJsonSerializerSettings? settings = null) => Str.ObjectToRuntimeJsonStr(obj, settings);
+        public static object _RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
+        public static T _RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
 
-        public static T _Print<T>(this T o) => (T)o._Print(typeof(T));
+        public static T _Print<T>(this T o) => (T)o._Print(typeof(T))!;
 
-        public static object _Print(this object o, Type type)
+        public static object? _Print(this object? o, Type type)
         {
             if (o is Exception ex) o = o.ToString();
 
             Con.WriteLine(o, type);
             return o;
         }
-        public static object _Debug(this object o)
+        public static object? _Debug(this object? o)
         {
             if (o is Exception ex) o = o.ToString();
 
@@ -540,18 +546,21 @@ namespace IPA.Cores.Helper.Basic
         public static long _SeekToBegin(this Stream s) => s.Seek(0, SeekOrigin.Begin);
         public static long _SeekToEnd(this Stream s) => s.Seek(0, SeekOrigin.End);
 
-        public static void _TryCancelNoBlock(this CancellationTokenSource cts) => TaskUtil.TryCancelNoBlock(cts);
-        public static void _TryCancel(this CancellationTokenSource cts) => TaskUtil.TryCancel(cts);
+        public static void _TryCancelNoBlock(this CancellationTokenSource? cts) => TaskUtil.TryCancelNoBlock(cts);
+        public static void _TryCancel(this CancellationTokenSource? cts) => TaskUtil.TryCancel(cts);
         public static async Task _CancelAsync(this CancellationTokenSource cts, bool throwOnFirstException = false) => await TaskUtil.CancelAsync(cts, throwOnFirstException);
-        public static async Task _TryCancelAsync(this CancellationTokenSource cts) => await TaskUtil.TryCancelAsync(cts);
+        public static async Task _TryCancelAsync(this CancellationTokenSource? cts) => await TaskUtil.TryCancelAsync(cts);
 
-        public static void _TryWait(this Task t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
-        public static Task _TryWaitAsync(this Task t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
+        public static void _TryWait(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
+        public static Task _TryWaitAsync(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
 
         public static T[] _ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 
-        public static T _GetFirstOrNull<T>(this List<T> list) => (list == null ? default(T) : (list.Count == 0 ? default(T) : list[0]));
-        public static T _GetFirstOrNull<T>(this T[] list) => (list == null ? default(T) : (list.Length == 0 ? default(T) : list[0]));
+        public static T? _GetFirstOrNull<T>(this List<T> list) where T : class => (list == null ? null : (list.Count == 0 ? null : list[0]));
+        public static T? _GetFirstOrNull<T>(this T[] list) where T: class => (list == null ? null : (list.Length == 0 ? null : list[0]));
+
+        public static T _GetFirstOrDefault<T>(this List<T> list) where T : struct => (list == null ? default(T) : (list.Count == 0 ? default(T) : list[0]));
+        public static T _GetFirstOrDefault<T>(this T[] list) where T : struct => (list == null ? default(T) : (list.Length == 0 ? default(T) : list[0]));
 
         public static void _AddStringsByLines(this ISet<string> iset, string strings)
         {
@@ -568,12 +577,14 @@ namespace IPA.Cores.Helper.Basic
 
         public static T _Old_ClonePublic<T>(this T o)
         {
-            byte[] data = Util.ObjectToXml_PublicLegacy(o);
+            byte[] data = Util.ObjectToXml_PublicLegacy(o!);
 
-            return (T)Util.XmlToObject_PublicLegacy(data, o.GetType());
+            return (T)Util.XmlToObject_PublicLegacy(data, o!.GetType())!;
         }
 
-        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key) where TValue : new()
+        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key)
+            where TValue : new()
+            where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = new TValue();
@@ -581,7 +592,9 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc) where TValue : new()
+        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
+            where TValue : new()
+            where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = newProc();
@@ -589,13 +602,15 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static IPAddress _ToIPAddress(this string s) => IPUtil.StrToIP(s);
+        public static IPAddress? _ToIPAddress(this string s) => IPUtil.StrToIP(s);
 
         public static IPAddress _UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 
         public static IPAddressType _GetIPAddressType(this IPAddress ip) => IPUtil.GetIPAddressType(ip);
 
-        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
+        //        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
+        public static void _ParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null) => Str.ParseUrl(urlString, out uri, out queryString, encoding);
+        public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
@@ -613,6 +628,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static string _GetStr<T>(this IDictionary<string, T> d, string key, string defaultStr = "")
+            where T: notnull
         {
             try
             {
@@ -621,7 +637,7 @@ namespace IPA.Cores.Helper.Basic
                 object o = d[key];
                 if (o == null) return defaultStr;
                 if (o is string) return (string)o;
-                return o.ToString();
+                return o.ToString()._NonNull();
             }
             catch { return defaultStr; }
         }
@@ -639,7 +655,7 @@ namespace IPA.Cores.Helper.Basic
                 return defaultStr;
             }
 
-            string ret = value.ToString();
+            string? ret = value.ToString();
 
             if (ret._IsEmpty())
             {
@@ -651,7 +667,7 @@ namespace IPA.Cores.Helper.Basic
                 ret = ret._NonNullTrim();
             }
 
-            return ret;
+            return ret!;
         }
 
         public static bool _IsNullable(this Type t) => Nullable.GetUnderlyingType(t) != null;
@@ -805,7 +821,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static void _DisposeSafe(this IAsyncService obj, Exception ex = null)
+        public static void _DisposeSafe(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
@@ -814,7 +830,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static void _DisposeSafe(this IDisposable obj)
+        public static void _DisposeSafe(this IDisposable? obj)
         {
             try
             {
@@ -823,7 +839,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static void _CancelSafe(this IAsyncService obj, Exception ex = null)
+        public static void _CancelSafe(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
@@ -832,7 +848,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static Task _DisposeWithCleanupSafeAsync(this IAsyncService obj, Exception ex = null)
+        public static Task _DisposeWithCleanupSafeAsync(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
@@ -845,7 +861,7 @@ namespace IPA.Cores.Helper.Basic
             return Task.CompletedTask;
         }
 
-        public static Task _CleanupSafeAsync(this IAsyncService obj, Exception ex = null)
+        public static Task _CleanupSafeAsync(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
@@ -860,7 +876,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static IAsyncResult _AsApm<T>(this Task<T> task,
                                     AsyncCallback callback,
-                                    object state)
+                                    object? state)
         {
             if (task == null)
                 throw new ArgumentNullException("task");
@@ -869,7 +885,7 @@ namespace IPA.Cores.Helper.Basic
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)
-                    tcs.TrySetException(t.Exception.InnerExceptions);
+                    tcs.TrySetException(t.Exception!.InnerExceptions);
                 else if (t.IsCanceled)
                     tcs.TrySetCanceled();
                 else
@@ -883,7 +899,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static IAsyncResult _AsApm(this Task task,
                                             AsyncCallback callback,
-                                            object state)
+                                            object? state)
         {
             if (task == null)
                 throw new ArgumentNullException("task");
@@ -892,7 +908,7 @@ namespace IPA.Cores.Helper.Basic
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)
-                    tcs.TrySetException(t.Exception.InnerExceptions);
+                    tcs.TrySetException(t.Exception!.InnerExceptions);
                 else if (t.IsCanceled)
                     tcs.TrySetCanceled();
                 else
@@ -925,7 +941,7 @@ namespace IPA.Cores.Helper.Basic
         public static void _ThrowIfErrorOrCanceled(this Task task)
         {
             if (task == null) return;
-            if (task.IsFaulted) task.Exception._ReThrow();
+            if (task.IsFaulted) task.Exception!._ReThrow();
             if (task.IsCanceled) throw new TaskCanceledException();
         }
 
@@ -967,7 +983,7 @@ namespace IPA.Cores.Helper.Basic
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
 
-        public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
+        public static T _ParseEnum<T>(this string? str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
@@ -1038,7 +1054,8 @@ namespace IPA.Cores.Helper.Basic
         public static int GetMaxEnumValueSInt32<T>(this T sampleValue) where T : unmanaged, Enum
             => Util.GetMaxEnumValueSInt32<T>();
 
-        public static Exception _GetSingleException(this Exception ex)
+        [return: NotNullIfNotNull("ex")]
+        public static Exception? _GetSingleException(this Exception? ex)
         {
             if (ex == null) return null;
 
@@ -1052,9 +1069,9 @@ namespace IPA.Cores.Helper.Basic
             return ex;
         }
 
-        public static void _ReThrow(this Exception exception)
+        public static void _ReThrow(this Exception? exception)
         {
-            if (exception == null) throw exception;
+            if (exception == null) throw exception!;
             ExceptionDispatchInfo.Capture(exception._GetSingleException()).Throw();
         }
 
@@ -1081,33 +1098,72 @@ namespace IPA.Cores.Helper.Basic
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
 
-        public static bool _IsNullOrZeroLen(this string str) => string.IsNullOrEmpty(str);
+        public static bool _IsNullOrZeroLen([NotNullWhen(false)] this string? str) => string.IsNullOrEmpty(str);
 
-        public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
-        public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
+        public static bool _IsNullOrZeroLen<T>([NotNullWhen(false)] this T[]? array) => !(array != null && array.Length != 0);
 
-        public static bool _IsEmpty(this string str) => Str.IsEmptyStr(str);
-        public static bool _IsFilled(this string str) => Str.IsFilledStr(str);
+        public static bool _IsEmpty<T>([NotNullWhen(false)] this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
+        public static bool _IsFilled<T>([NotNullWhen(true)] this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
+
+        public static bool _IsEmpty([NotNullWhen(false)] this string? str) => Str.IsEmptyStr(str);
+        public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
 
         public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
         public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);
 
-        public static string _FilledOrDefault(this string str, string defaultValue = default) => (str._IsFilled() ? str : defaultValue);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [return: NotNullIfNotNull("defaultValue")]
+        public static string? _FilledOrDefault(this string? str, string? defaultValue = null) => (str._IsFilled() ? str : defaultValue);
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [return: NotNullIfNotNull("defaultValue")]
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
-        public static T _FilledOrException<T>(this T obj, Exception exception = null, bool zeroValueIsEmpty = true)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [return: NotNull]
+        public static T _FilledOrException<T>(this T obj, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
             if (obj._IsFilled(zeroValueIsEmpty))
                 return obj;
 
-            throw exception ?? new NotImplementedException();
+            throw exception ?? new CoresEmptyException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static string _FilledOrException(this string? str, Exception? exception = null, bool zeroValueIsEmpty = true)
+        {
+            if (str._IsFilled(zeroValueIsEmpty))
+                return str;
+
+            throw exception ?? new CoresEmptyException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T _NullCheck<T>([NotNull] this T? obj, Exception? ex = null)
+            where T: class
+        {
+            if (obj == null)
+            {
+                if (ex == null) ex = new NullReferenceException();
+                throw ex;
+            }
+
+            return obj;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T _MarkNotNull<T>([NotNull] this T? obj)
+            where T : class
+        {
+            Debug.Assert(obj != null);
+            return obj!;
         }
 
         public static T _DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);
         public static void _DbEnforceNonNull(this object obj) => Util.DbEnforceNonNull(obj);
         public static T _DbEnforceNonNullSelf<T>(this T obj)
         {
-            obj._DbEnforceNonNull();
+            obj!._DbEnforceNonNull();
             return obj;
         }
 
@@ -1129,7 +1185,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static DateTimeOffset _AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt._OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
 
-        public static async Task _LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static async Task _LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (noCheck)
             {
@@ -1143,7 +1199,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task<T> _LeakCheck<T>(this Task<T> t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string caller = null)
+        public static async Task<T> _LeakCheck<T>(this Task<T> t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (noCheck)
             {
@@ -1191,15 +1247,19 @@ namespace IPA.Cores.Helper.Basic
             return false;
         }
 
-        public static bool _IsAnonymousType<T>(this T instance) => _IsAnonymousType(instance.GetType());
+        public static bool _IsAnonymousType<T>(this T instance) => _IsAnonymousType(instance!.GetType());
 
-        public static void _PostData(this object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void _PostData(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostData(obj, tag, copyToDebug, priority);
 
-        public static void _PostAccessLog(this object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void _PostAccessLog(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
 
-        public static void _DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
+        public static void _DoForEach<T>(this IEnumerable<T> list, Action<T> action)
+        {
+            list._NullCheck();
+            list.ToList().ForEach(action);
+        }
 
 
         public static T _GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
@@ -1211,9 +1271,9 @@ namespace IPA.Cores.Helper.Basic
         public static void _GetResult(this ValueTask task) => task.GetAwaiter().GetResult();
 
 
-        public static T _TryGetResult<T>(this Task<T> task, bool noDebugMessage = false)
+        public static T _TryGetResult<T>(this Task<T>? task, bool noDebugMessage = false)
         {
-            if (task == null) return default;
+            if (task == null) return default!;
             try
             {
                 return _GetResult(task);
@@ -1226,11 +1286,11 @@ namespace IPA.Cores.Helper.Basic
                     Con.WriteDebug(ex);
                 }
 
-                return default;
+                return default!;
             }
         }
 
-        public static void _TryGetResult(this Task task, bool noDebugMessage = false)
+        public static void _TryGetResult(this Task? task, bool noDebugMessage = false)
         {
             if (task == null) return;
             try
@@ -1249,7 +1309,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static T _TryGetResult<T>(this ValueTask<T> task, bool noDebugMessage = false)
         {
-            if (task == default) return default;
+            if (task == default) return default!;
             try
             {
                 return _GetResult(task);
@@ -1262,7 +1322,7 @@ namespace IPA.Cores.Helper.Basic
                     Con.WriteDebug(ex);
                 }
 
-                return default;
+                return default!;
             }
         }
 
@@ -1283,8 +1343,8 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncGet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
-        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncSet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.SetProperty);
+        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncGet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty)!;
+        readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncSet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.SetProperty)!;
 
         public static bool _IsAsync(this SafeFileHandle handle)
         {
@@ -1326,13 +1386,13 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static object _PrivateGet(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).GetValue(obj, name);
-        public static object _PrivateGet<T>(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(typeof(T)).GetValue(obj, name);
+        public static object? _PrivateGet(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).GetValue(obj, name);
+        public static object? _PrivateGet<T>(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(typeof(T)).GetValue(obj, name);
 
-        public static void _PrivateSet(this object obj, string name, object value) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).SetValue(obj, name, value);
-        public static void _PrivateSet<T>(this object obj, string name, object value) => FieldReaderWriter.GetCachedPrivate(typeof(T)).SetValue(obj, name, value);
+        public static void _PrivateSet(this object obj, string name, object? value) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).SetValue(obj, name, value);
+        public static void _PrivateSet<T>(this object obj, string name, object? value) => FieldReaderWriter.GetCachedPrivate(typeof(T)).SetValue(obj, name, value);
 
-        public static object _PrivateInvoke(this object obj, string name, params object[] parameters) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).Invoke(obj, name, parameters);
+        public static object? _PrivateInvoke(this object obj, string name, params object[] parameters) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).Invoke(obj, name, parameters);
 
         public static bool _IsSubClassOfOrSame(this Type deriverClass, Type baseClass) => deriverClass == baseClass || deriverClass.IsSubclassOf(baseClass);
 
@@ -1476,16 +1536,16 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsStrIPv4(this string str) => IPUtil.IsStrIPv4(str);
         public static bool _IsStrIPv6(this string str) => IPUtil.IsStrIPv6(str);
 
-        public static IPAddress _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
+        public static IPAddress? _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
             => IPUtil.StrToIP(str, allowed, noException);
 
-        public static int _DataToFile(this ReadOnlyMemory<byte> data, string path, FileSystem fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        public static int _DataToFile(this ReadOnlyMemory<byte> data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => (fs ?? Lfs).WriteDataToFile(path, data, flags, doNotOverwrite, cancel);
 
-        public static Memory<byte> _FileToData(this string path, FileSystem fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public static Memory<byte> _FileToData(this string path, FileSystem? fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => (fs ?? Lfs).ReadDataFromFile(path, maxSize, flags, cancel);
 
-        public static bool _SetSingle<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey> comparer = null)
+        public static bool _SetSingle<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey>? comparer = null)
         {
             if (comparer == null) comparer = EqualityComparer<TKey>.Default;
 
@@ -1522,7 +1582,7 @@ namespace IPA.Cores.Helper.Basic
             return numMatch >= 1;
         }
 
-        public static bool _RemoveAll<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey> comparer = null)
+        public static bool _RemoveAll<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, TValue value, IEqualityComparer<TKey>? comparer = null)
         {
             if (comparer == null) comparer = EqualityComparer<TKey>.Default;
 
@@ -1548,14 +1608,14 @@ namespace IPA.Cores.Helper.Basic
         }
 
 
-        public static bool _HasKey<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey> comparer = null)
+        public static bool _HasKey<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey>? comparer = null)
         {
             if (comparer == null) comparer = EqualityComparer<TKey>.Default;
 
             return target.Where(x => comparer.Equals(x.Key, key)).Any();
         }
 
-        public static bool _TryGetFirstValue<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, out TValue value, IEqualityComparer<TKey> comparer = null)
+        public static bool _TryGetFirstValue<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, [NotNullWhen(true)] out TValue value, IEqualityComparer<TKey>? comparer = null)
         {
             if (comparer == null) comparer = EqualityComparer<TKey>.Default;
 
@@ -1563,7 +1623,7 @@ namespace IPA.Cores.Helper.Basic
 
             if (tmp.Any() == false)
             {
-                value = default;
+                value = default!;
                 return false;
             }
             else
@@ -1573,14 +1633,14 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static TValue _GetFirstValueOrDefault<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey> comparer = null)
+        public static TValue _GetFirstValueOrDefault<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey>? comparer = null)
         {
             if (_TryGetFirstValue(target, key, out TValue ret, comparer))
             {
                 return ret;
             }
 
-            return default;
+            return default!;
         }
     }
 }

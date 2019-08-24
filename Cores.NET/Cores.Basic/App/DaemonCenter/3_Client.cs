@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_JSON && CORES_BASIC_DAEMON
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -68,21 +70,21 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     [Serializable]
     public class ClientSettings : IValidatable
     {
-        public string ServerUrl;
-        public string ServerCertSha;
+        public string? ServerUrl;
+        public string? ServerCertSha;
 
-        public string AppId;
-        public string HostName;
-        public string HostGuid;
-        public string DaemonName;
+        public string? AppId;
+        public string? HostName;
+        public string? HostGuid;
+        public string? DaemonName;
 
         public void Validate()
         {
-            if ((IsEmpty)ServerUrl) throw new ArgumentNullException(nameof(ServerUrl));
-            if ((IsEmpty)AppId) throw new ArgumentNullException(nameof(AppId));
-            if ((IsEmpty)HostName) throw new ArgumentNullException(nameof(HostName));
-            if ((IsEmpty)HostGuid) throw new ArgumentNullException(nameof(HostGuid));
-            if ((IsEmpty)DaemonName) throw new ArgumentNullException(nameof(DaemonName));
+            if (ServerUrl._IsEmpty()) throw new ArgumentNullException(nameof(ServerUrl));
+            if (AppId._IsEmpty()) throw new ArgumentNullException(nameof(AppId));
+            if (HostName._IsEmpty()) throw new ArgumentNullException(nameof(HostName));
+            if (HostGuid._IsEmpty()) throw new ArgumentNullException(nameof(HostGuid));
+            if (DaemonName._IsEmpty()) throw new ArgumentNullException(nameof(DaemonName));
         }
     }
 
@@ -90,8 +92,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     [Serializable]
     public class ClientVariables
     {
-        public string CurrentCommitId;
-        public string CurrentInstanceArguments;
+        public string? CurrentCommitId;
+        public string? CurrentInstanceArguments;
         public StatFlag StatFlag;
         public PauseFlag PauseFlag;
     }
@@ -113,7 +115,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         readonly RestartCallback RestartCb;
 
-        public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions webOptions = null, CancellationToken cancel = default) : base(cancel)
+        public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions? webOptions = null, CancellationToken cancel = default) : base(cancel)
         {
             settings.Validate();
 
@@ -124,7 +126,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             // Web オプションを設定する
             if (webOptions == null) webOptions = new WebApiOptions();
 
-            if ((IsEmpty)settings.ServerCertSha)
+            if (settings.ServerCertSha._IsEmpty())
             {
                 webOptions.Settings.SslAcceptAnyCerts = true;
             }
@@ -139,7 +141,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             webOptions.Settings.UseProxy = false;
 
             // RPC Client を作成する
-            this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl, webOptions);
+            this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl._NullCheck(), webOptions);
 
             // RPC インターフェイスを作成する
             this.Rpc = this.RpcClient.GenerateRpcInterface<IRpc>();
@@ -240,7 +242,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             runtimeStat.Refresh();
 
-            string[] globalIpList = null;
+            string[]? globalIpList = null;
 
             try
             {
@@ -296,13 +298,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 try
                 {
                     // FQDN を DNS 解決する
-                    string fqdn = req.Stat.TcpIpHostData.FqdnHostName;
+                    string? fqdn = req.Stat.TcpIpHostData.FqdnHostName;
 
-                    DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
-                    if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                    if (fqdn._IsFilled())
                     {
-                        // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
-                        hostname = fqdn;
+                        DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
+                        if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                        {
+                            // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
+                            hostname = fqdn;
+                        }
                     }
                 }
                 catch { }
@@ -330,7 +335,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 }
             }
 
-            if ((IsFilled)res.NextCommitId || (IsFilled)res.NextInstanceArguments || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
+            if (res.NextCommitId._IsFilled() || res.NextInstanceArguments._IsFilled() || res.NextPauseFlag != PauseFlag.None || res.RebootRequested)
             {
                 // 再起動が要求された
                 this.RestartCb(res);
@@ -342,7 +347,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             return res.NextKeepAliveMsec;
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

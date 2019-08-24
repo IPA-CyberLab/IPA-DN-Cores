@@ -101,9 +101,9 @@ namespace DaemonCenter.Controllers
             instanceList = instanceList.OrderBy(x => x.HostName);
 
             // フィルタの実施
-            if (filterMode == 1) instanceList = instanceList.Where(x => x.IsActive(app.Settings, DateTimeOffset.Now));
+            if (filterMode == 1) instanceList = instanceList.Where(x => x.IsActive(app.Settings!, DateTimeOffset.Now));
 
-            if (filterMode == 2) instanceList = instanceList.Where(x => !x.IsActive(app.Settings, DateTimeOffset.Now));
+            if (filterMode == 2) instanceList = instanceList.Where(x => !x.IsActive(app.Settings!, DateTimeOffset.Now));
 
             DualData<App, List<Instance>> data = new DualData<App, List<Instance>>(appId, app, appId, instanceList.ToList(), ModelMode.Edit);
 
@@ -137,7 +137,7 @@ namespace DaemonCenter.Controllers
 
             foreach (Instance inst in filtered.Data2)
             {
-                w.WriteLine($"# {inst.HostName} - {inst.LastStat.DaemonName}");
+                w.WriteLine($"# {inst.HostName} - {inst.LastStat!.DaemonName}");
                 w.WriteLine($"{inst.GetId(app)},{inst.LastStat.InstanceArguments}");
                 w.WriteLine();
             }

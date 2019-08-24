@@ -49,7 +49,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class EnvInfoSnapshot
     {
-        public EnvInfoSnapshot() { }
+        public EnvInfoSnapshot() { } // 消さないこと
 
         public EnvInfoSnapshot(string headerText)
         {
@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
         // 注意: すべて通常の public 変数とすること (読み取り専用にしないこと)
 
-        public string HeaderText;
+        public string HeaderText = "";
         public DateTimeOffset TimeStamp = DateTime.Now;
         public DateTimeOffset BootTime = Env.BootTime;
         public string MachineName = Env.MachineName;
@@ -104,18 +104,18 @@ namespace IPA.Cores.Basic
         static public Version FrameworkVersion { get; }
         public static bool IsNET4OrGreater => (FrameworkVersion.Major >= 4);
         static public string HomeDir { get; }
-        static public string UnixMutantDir { get; }
+        static public string UnixMutantDir { get; } = "";
         static public string AppRealProcessExeFileName { get; }
         static public string AppExecutableExeOrDllFileName { get; }
         static public string BuildConfigurationName { get; }
         static public string AppExecutableExeOrDllFileDir { get; }
         static public string AppRootDir { get; }
         static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
-        static public string Win32_WindowsDir { get; }
+        static public string Win32_WindowsDir { get; } = "";
         static public string Win32_SystemDir { get; }
         static public string TempDir { get; }
         static public string Win32_WinTempDir { get; }
-        static public string Win32_WindowsDrive { get; }
+        static public string Win32_WindowsDrive { get; } = "";
         static public string Win32_ProgramFilesDir { get; }
         static public string Win32_PersonalStartMenuDir { get; }
         static public string Win32_PersonalProgramsDir { get; }
@@ -128,7 +128,6 @@ namespace IPA.Cores.Basic
         static public string UserNameEx { get; }
         static public string MachineName { get; }
         public static string CommandLine { get; }
-        public static StrToken CommandLineList { get; }
         public static OperatingSystem OsInfo { get; }
         public static bool IsWindows { get; }
         public static bool IsUnix => !IsWindows;
@@ -151,7 +150,7 @@ namespace IPA.Cores.Basic
         public static PathParser LocalPathParser => PathParser.Local;
         public static bool IsCoresLibraryDebugBuild { get; }
         public static bool IsHostedByDotNetProcess { get; }
-        public static string DotNetHostProcessExeName { get; }
+        public static string DotNetHostProcessExeName { get; } = "";
         public static int NumCpus { get; }
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
@@ -183,7 +182,7 @@ namespace IPA.Cores.Basic
 
             ExeAssembly = Assembly.GetExecutingAssembly();
             var asmName = ExeAssembly.GetName();
-            ExeAssemblySimpleName = asmName.Name;
+            ExeAssemblySimpleName = asmName.Name ?? throw new ArgumentNullException();
             ExeAssemblyFullName = asmName.FullName;
 
             FrameworkVersion = Environment.Version;
@@ -236,7 +235,7 @@ namespace IPA.Cores.Basic
 
                 if (IsUnix)
                 {
-                    string dotNetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+                    string? dotNetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
 
                     if (dotNetRoot._IsFilled())
                     {
@@ -300,7 +299,7 @@ namespace IPA.Cores.Basic
                             AppRootDir = tmp;
                             break;
                         }
-                        tmp = Path.GetDirectoryName(tmp);
+                        tmp = Path.GetDirectoryName(tmp)!;
                     }
                     catch
                     {
@@ -341,7 +340,7 @@ namespace IPA.Cores.Basic
             {
                 // Windows
                 Win32_SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
-                Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir));
+                Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir)!);
                 TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
                 Win32_WinTempDir = IO.RemoveLastEnMark(Path.Combine(Win32_WindowsDir, "Temp"));
                 IO.MakeDir(Win32_WinTempDir);
@@ -464,15 +463,15 @@ namespace IPA.Cores.Basic
 
         static string GetBuildConfigurationNameInternal()
         {
-            Assembly mainAssembly = Assembly.GetEntryAssembly();
+            Assembly mainAssembly = Assembly.GetEntryAssembly()!;
             return (string)mainAssembly.CustomAttributes.Where(x => x.AttributeType == typeof(AssemblyConfigurationAttribute))
                 .First()
-                .ConstructorArguments[0].Value;
+                .ConstructorArguments[0].Value!;
         }
 
         static string GetAppExeOrDllImageFilePathInternal()
         {
-            Assembly mainAssembly = Assembly.GetEntryAssembly();
+            Assembly mainAssembly = Assembly.GetEntryAssembly()!;
             Module[] modules = mainAssembly.GetModules();
             return modules[0].FullyQualifiedName;
         }
@@ -508,13 +507,13 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
-        static string _MyLocalTempDir;
+        static string _MyLocalTempDir = "";
 
-        public static string AppLocalDir { get; private set; }
-        public static string AppRootLocalTempDirRoot_Internal { get; private set; }
-        public static string MyGlobalTempDir { get; private set; }
+        public static string AppLocalDir { get; private set; } = "";
+        public static string AppRootLocalTempDirRoot_Internal { get; private set; } = "";
+        public static string MyGlobalTempDir { get; private set; } = "";
 
-        static string LocalDir;
+        static string LocalDir = "";
 
         static void InitModule()
         {
@@ -528,7 +527,7 @@ namespace IPA.Cores.Basic
 
             AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
 
-            _MyLocalTempDir = null;
+            _MyLocalTempDir = "";
 
             // Global app temp dir
             if (MyGlobalTempDir == null)

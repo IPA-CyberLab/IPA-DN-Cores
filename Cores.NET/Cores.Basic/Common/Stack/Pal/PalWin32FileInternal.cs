@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -151,7 +152,8 @@ namespace IPA.Cores.Basic
         /// away from paths during normalization, but if we see such a path at this point it should be
         /// normalized and has retained the final characters. (Typically from one of the *Info classes)
         /// </summary>
-        internal static string EnsureExtendedPrefixIfNeeded(string path)
+        [return: NotNullIfNotNull("path")]
+        internal static string? EnsureExtendedPrefixIfNeeded(string? path)
         {
             if (path != null && (path.Length >= MaxShortPath || EndsWithPeriodOrSpace(path)))
             {
@@ -168,7 +170,8 @@ namespace IPA.Cores.Basic
         /// Adds the extended path prefix (\\?\) if not already a device path, IF the path is not relative,
         /// AND the path is more than 259 characters. (> MAX_PATH + null)
         /// </summary>
-        internal static string EnsureExtendedPrefixOverMaxPath(string path)
+        [return: NotNullIfNotNull("path")]
+        internal static string? EnsureExtendedPrefixOverMaxPath(string? path)
         {
             if (path != null && path.Length >= MaxShortPath)
             {

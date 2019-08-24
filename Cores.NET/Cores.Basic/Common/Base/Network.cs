@@ -38,6 +38,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -57,11 +58,11 @@ namespace IPA.Cores.Basic
         }
 
         // ソケットイベント
-        public class SockEvent : IDisposable
+        public sealed class SockEvent : IDisposable
         {
-            Event Win32Event;
+            Event Win32Event = null!;
 
-            internal List<Sock> UnixSockList;
+            internal List<Sock> UnixSockList = null!;
             IntPtr UnixPipeRead, UnixPipeWrite;
             int UnixCurrentPipeData;
 
@@ -125,7 +126,7 @@ namespace IPA.Cores.Basic
                             return;
                         }
 
-                        Sock.WSAEventSelect(sock.Socket.Handle, Win32Event.Handle, 35);
+                        Sock.WSAEventSelect(sock.Socket!.Handle, Win32Event.Handle, 35);
                         sock.Socket.Blocking = false;
 
                         sock.SockEvent = this;
@@ -151,7 +152,7 @@ namespace IPA.Cores.Basic
                         UnixSockList.Add(sock);
                     }
 
-                    sock.Socket.Blocking = false;
+                    sock.Socket!.Blocking = false;
 
                     sock.SockEvent = this;
 
@@ -229,7 +230,7 @@ namespace IPA.Cores.Basic
         // ソケットセット
         public class SockSet
         {
-            List<Sock> List;
+            List<Sock> List = null!;
 
             public const int MaxSocketNum = 60;
 
@@ -258,27 +259,15 @@ namespace IPA.Cores.Basic
                 List = new List<Sock>();
             }
 
-            public void Poll()
-            {
-                Poll(Timeout.Infinite);
-            }
-            public void Poll(int timeout)
-            {
-                Poll(timeout, null);
-            }
-            public void Poll(Event e1)
-            {
-                Poll(Timeout.Infinite, e1);
-            }
-            public void Poll(int timeout, Event e1)
+            public void Poll(int timeout = Timeout.Infinite, Event? e1 = null)
             {
                 Poll(timeout, e1, null);
             }
-            public void Poll(Event e1, Event e2)
+            public void Poll(Event? e1, Event? e2)
             {
                 Poll(Timeout.Infinite, e1, e2);
             }
-            public void Poll(int timeout, Event e1, Event e2)
+            public void Poll(int timeout, Event? e1, Event? e2)
             {
                 try
                 {
@@ -506,32 +495,21 @@ namespace IPA.Cores.Basic
         }
 
         // IPv6 射影アドレスを IPv4 アドレスに変換
-        public static IPAddress UnmapIPv6AddressToIPv4Address(IPAddress addr)
+        [return: NotNullIfNotNull("addr")]
+        public static IPAddress? UnmapIPv6AddressToIPv4Address(IPAddress addr)
         {
-            if (IsIPv4MappedIPv6Address(addr, out IPAddress ret))
-                return ret;
+            if (addr == null) return null;
+
+            if (addr.IsIPv4MappedToIPv6)
+            {
+                return addr.MapToIPv4();
+            }
 
             return addr;
         }
 
-        // IPv6 射影アドレスかどうか取得
-        public static bool IsIPv4MappedIPv6Address(IPAddress addr) => IsIPv4MappedIPv6Address(addr, out _);
-        public static bool IsIPv4MappedIPv6Address(IPAddress addr, out IPAddress ipv4_ret)
-        {
-            ipv4_ret = default;
-            if (IsIPv6(addr) == false) return false;
-            byte[] b = addr.GetAddressBytes();
-            if (b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0 && b[8] == 0 && b[9] == 0 &&
-                b[10] == 0xff && b[11] == 0xff)
-            {
-                ipv4_ret = new IPAddress(b.AsSpan(12, 4));
-                return true;
-            }
-            return false;
-        }
-
         // 文字列を IP アドレスに変換
-        public static IPAddress StrToIP(string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
+        public static IPAddress? StrToIP(string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
         {
             if (noExceptionAndReturnNull == false)
             {
@@ -631,14 +609,16 @@ namespace IPA.Cores.Basic
         }
 
         // 指定された IP アドレスが IPv4 かどうか検査
-        public static bool IsIPv4(IPAddress ip)
+        public static bool IsIPv4([NotNullWhen(true)] IPAddress? ip)
         {
+            if (ip == null) return false;
             return (ip.AddressFamily == AddressFamily.InterNetwork);
         }
 
         // 指定された IP アドレスが IPv6 かどうか検査
-        public static bool IsIPv6(IPAddress ip)
+        public static bool IsIPv6([NotNullWhen(true)] IPAddress? ip)
         {
+            if (ip == null) return false;
             return (ip.AddressFamily == AddressFamily.InterNetworkV6);
         }
 
@@ -708,14 +688,14 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                IPAddress ip = StrToIP(str);
+                IPAddress? ip = StrToIP(str);
                 if (IsIPv4(ip) == false)
                 {
                     throw new ArgumentException("str is not IPv4 address.");
                 }
                 else
                 {
-                    return ip;
+                    return ip!;
                 }
             }
         }
@@ -743,14 +723,14 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                IPAddress ip = StrToIP(str);
+                IPAddress? ip = StrToIP(str);
                 if (IsIPv6(ip) == false)
                 {
                     throw new ArgumentException("str is not IPv6 address.");
                 }
                 else
                 {
-                    return ip;
+                    return ip!;
                 }
             }
         }
@@ -780,7 +760,7 @@ namespace IPA.Cores.Basic
         public static void ParseIPAndMask(string str, out IPAddress ip, out IPAddress mask)
         {
             string ipstr, subnetstr;
-            IPAddress ip2, mask2;
+            IPAddress? ip2, mask2;
 
             string[] tokens = str.Split('/');
             if (tokens.Length != 2)
@@ -827,14 +807,14 @@ namespace IPA.Cores.Basic
                         ip = ip2;
                         mask = IntToSubnetMask6(i);
                     }
-                    else if (i <= 32)
+                    else if (IsIPv4(ip2) && i <= 32)
                     {
                         ip = ip2;
                         mask = IntToSubnetMask4(i);
                     }
                     else
                     {
-                        throw new ArgumentException("mask is invalid.");
+                        throw new ArgumentException("ip or mask is invalid.");
                     }
                 }
             }
@@ -1214,8 +1194,11 @@ namespace IPA.Cores.Basic
         {
             return CompareIPAddress(StrToIP(a), StrToIP(b));
         }
-        public static bool CompareIPAddress(IPAddress a, IPAddress b)
+        public static bool CompareIPAddress(IPAddress? a, IPAddress? b)
         {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+
             if (a.AddressFamily != b.AddressFamily)
             {
                 return false;
@@ -1229,8 +1212,12 @@ namespace IPA.Cores.Basic
         {
             return CompareIPAddressRetInt(StrToIP(a), StrToIP(b));
         }
-        public static int CompareIPAddressRetInt(IPAddress a, IPAddress b)
+        public static int CompareIPAddressRetInt(IPAddress? a, IPAddress? b)
         {
+            if (a == null && b == null) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+
             if (a.AddressFamily != b.AddressFamily)
             {
                 return a.AddressFamily.CompareTo(b.AddressFamily);
@@ -1337,7 +1324,7 @@ namespace IPA.Cores.Basic
 
         // IP アドレスの種類を取得する
         public static IPAddressType GetIPAddressType(string ipStr) => GetIPAddressType(IPUtil.StrToIP(ipStr));
-        public static IPAddressType GetIPAddressType(IPAddress ip)
+        public static IPAddressType GetIPAddressType(IPAddress? ip)
         {
             if (IsIPv4(ip)) return GetIPv4AddressType(ip);
             if (IsIPv6(ip)) return GetIPv6AddressType(ip);
@@ -1731,11 +1718,11 @@ namespace IPA.Cores.Basic
         // EUI-64 から MAC アドレスを取得する
         public static byte[] GetMacAddressFromEui64Address(string addr)
         {
-            return GetMacAddressFromEui64Address(StrToIP(addr));
+            return GetMacAddressFromEui64Address(StrToIP(addr)!);
         }
-        public static byte[] GetMacAddressFromEui64Address(IPAddress addr)
+        public static byte[] GetMacAddressFromEui64Address(IPAddress? addr)
         {
-            if (addr.AddressFamily != AddressFamily.InterNetworkV6)
+            if (addr == null || addr.AddressFamily != AddressFamily.InterNetworkV6)
             {
                 throw new ApplicationException("Not IPv6 address");
             }
@@ -1775,10 +1762,11 @@ namespace IPA.Cores.Basic
 
             return false;
         }
-        public static bool IsIPv6AddressEui64ForMac(IPAddress addr, byte[] mac)
+        public static bool IsIPv6AddressEui64ForMac(IPAddress? addr, byte[] mac)
         {
             try
             {
+                if (addr == null) return false;
                 return CompareMacAddress(mac, GetMacAddressFromEui64Address(addr));
             }
             catch
@@ -1819,7 +1807,7 @@ namespace IPA.Cores.Basic
             internal object lockObj;
             internal object disconnectLockObj;
             internal object sslLockObj;
-            public Socket Socket { get; private set; }
+            public Socket? Socket { get; private set; }
             public SockType Type { get; private set; }
             public bool Connected { get; private set; }
             public bool ServerMode { get; private set; }
@@ -1828,9 +1816,9 @@ namespace IPA.Cores.Basic
             public bool SecureMode { get; private set; }
             public bool ListenMode { get; private set; }
             bool cancelAccept;
-            public IPAddress RemoteIP { get; private set; }
-            public IPAddress LocalIP { get; private set; }
-            public string RemoteHostName { get; private set; }
+            public IPAddress? RemoteIP { get; private set; }
+            public IPAddress? LocalIP { get; private set; }
+            public string? RemoteHostName { get; private set; }
             public int RemotePort { get; private set; }
             public int LocalPort { get; private set; }
             public long SendSize { get; private set; }
@@ -1845,11 +1833,11 @@ namespace IPA.Cores.Basic
             internal bool writeBlocked;
             internal bool disconnecting;
             public bool UDPBroadcastMode { get; private set; }
-            public object Param { get; set; }
+            public object? Param { get; set; }
 
-            internal Event hEvent;
+            internal Event? hEvent;
 
-            public SockEvent SockEvent = null;
+            public SockEvent? SockEvent = null;
 
             public IntPtr Fd = new IntPtr(-1);
 
@@ -1868,7 +1856,7 @@ namespace IPA.Cores.Basic
             }
 
             // UDP 受信
-            public byte[] RecvFrom(out IPEndPoint src, int size)
+            public byte[]? RecvFrom(out IPEndPoint? src, int size)
             {
                 byte[] data = new byte[size];
                 int ret;
@@ -1890,15 +1878,15 @@ namespace IPA.Cores.Basic
                     return null;
                 }
             }
-            public int RecvFrom(out IPEndPoint src, byte[] data)
+            public int RecvFrom(out IPEndPoint? src, byte[] data)
             {
                 return RecvFrom(out src, data, data.Length);
             }
-            public int RecvFrom(out IPEndPoint src, byte[] data, int size)
+            public int RecvFrom(out IPEndPoint? src, byte[] data, int size)
             {
                 return RecvFrom(out src, data, 0, size);
             }
-            public int RecvFrom(out IPEndPoint src, byte[] data, int offset, int size)
+            public int RecvFrom(out IPEndPoint? src, byte[] data, int offset, int size)
             {
                 Socket s;
                 src = null;
@@ -2108,13 +2096,9 @@ namespace IPA.Cores.Basic
             }
 
             // Pack の受信
-            public Pack RecvPack()
+            public Pack? RecvPack(int maxSize = 0)
             {
-                return RecvPack(0);
-            }
-            public Pack RecvPack(int maxSize)
-            {
-                byte[] sizeData = RecvAll(Util.SizeOfInt32);
+                byte[]? sizeData = RecvAll(Util.SizeOfInt32);
                 if (sizeData == null)
                 {
                     return null;
@@ -2127,7 +2111,7 @@ namespace IPA.Cores.Basic
                     return null;
                 }
 
-                byte[] data = RecvAll(size);
+                byte[]? data = RecvAll(size);
                 if (data == null)
                 {
                     return null;
@@ -2164,7 +2148,7 @@ namespace IPA.Cores.Basic
                     this.hEvent = new Event();
 
                     // 関連付け
-                    WSAEventSelect((IntPtr)this.Socket.Handle, this.hEvent.Handle, 35);
+                    WSAEventSelect((IntPtr)this.Socket!.Handle, this.hEvent.Handle, 35);
                     this.Socket.Blocking = false;
 
                     this.asyncMode = true;
@@ -2175,7 +2159,7 @@ namespace IPA.Cores.Basic
             }
 
             // TCP すべて受信
-            public byte[] RecvAll(int size)
+            public byte[]? RecvAll(int size)
             {
                 byte[] data = new byte[size];
                 bool ret = RecvAll(data);
@@ -2229,7 +2213,7 @@ namespace IPA.Cores.Basic
             }
 
             // TCP 受信
-            public byte[] Recv(int size)
+            public byte[]? Recv(int size)
             {
                 byte[] data = new byte[size];
                 int ret = Recv(data);
@@ -2413,7 +2397,7 @@ namespace IPA.Cores.Basic
             }
 
             // TCP 接続受諾
-            public Sock Accept(bool getHostName = false)
+            public Sock? Accept(bool getHostName = false)
             {
                 if (this.ListenMode == false || this.Type != SockType.Tcp || this.ServerMode == false)
                 {
@@ -2424,7 +2408,7 @@ namespace IPA.Cores.Basic
                     return null;
                 }
 
-                Socket s = this.Socket;
+                Socket? s = this.Socket;
                 if (s == null)
                 {
                     return null;
@@ -2464,11 +2448,11 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
-                            ret.RemoteHostName = Domain.GetHostName(ret.RemoteIP, TimeoutGetHostname)[0];
+                            ret.RemoteHostName = Domain.GetHostName(ret.RemoteIP!, TimeoutGetHostname)[0];
                         }
                         catch
                         {
-                            ret.RemoteHostName = ret.RemoteIP.ToString();
+                            ret.RemoteHostName = ret.RemoteIP!.ToString();
                         }
                     }
 
@@ -2532,11 +2516,11 @@ namespace IPA.Cores.Basic
 
                 if (use46 == false)
                 {
-                    ip = Domain.GetIP(hostName, noDnsCache)[0];
+                    ip = Domain.GetIP(hostName, noDnsCache)![0];
                 }
                 else
                 {
-                    ip = Domain.GetIP46(hostName, noDnsCache)[0];
+                    ip = Domain.GetIP46(hostName, noDnsCache)![0];
                 }
 
                 IPEndPoint endPoint = new IPEndPoint(ip, port);
@@ -2740,7 +2724,7 @@ namespace IPA.Cores.Basic
                             timeout = TimeoutInfinite;
                         }
 
-                        this.Socket.SendTimeout = this.Socket.ReceiveTimeout = timeout;
+                        this.Socket!.SendTimeout = this.Socket.ReceiveTimeout = timeout;
                         this.timeOut = timeout;
                     }
                 }
@@ -2777,14 +2761,14 @@ namespace IPA.Cores.Basic
                         if (this.Type == SockType.Tcp)
                         {
                             // リモートホストの情報を取得
-                            IPEndPoint ep1 = (IPEndPoint)this.Socket.RemoteEndPoint;
+                            IPEndPoint ep1 = (IPEndPoint)this.Socket!.RemoteEndPoint;
 
                             this.RemotePort = ep1.Port;
                             this.RemoteIP = ep1.Address;
                         }
 
                         // ローカルホストの情報を取得
-                        IPEndPoint ep2 = (IPEndPoint)this.Socket.LocalEndPoint;
+                        IPEndPoint ep2 = (IPEndPoint)this.Socket!.LocalEndPoint;
 
                         this.LocalPort = ep2.Port;
                         this.LocalIP = ep2.Address;
@@ -2835,50 +2819,30 @@ namespace IPA.Cores.Basic
         // Ping 応答
         public class SendPingReply
         {
-            private TimeSpan rttTimeSpan;
-            public TimeSpan RttTimeSpan
-            {
-                get { return rttTimeSpan; }
-            }
+            public TimeSpan RttTimeSpan { get; }
 
-            private double rttDouble;
-            public double RttDouble
-            {
-                get { return rttDouble; }
-            }
+            public double RttDouble { get; }
 
-            private IPStatus status;
-            internal IPStatus Status
-            {
-                get { return status; }
-            }
+            internal IPStatus Status { get; }
 
-            private bool ok;
-            public bool Ok
-            {
-                get { return ok; }
-            }
+            public bool Ok { get; }
 
-            object userObject;
-            public object UserObject
-            {
-                get { return userObject; }
-            }
+            public object? UserObject { get; }
 
-            internal SendPingReply(IPStatus status, TimeSpan span, object userObject)
+            internal SendPingReply(IPStatus status, TimeSpan span, object? userObject)
             {
-                this.status = status;
-                this.userObject = userObject;
+                this.Status = status;
+                this.UserObject = userObject;
 
-                if (this.status == IPStatus.Success)
+                if (this.Status == IPStatus.Success)
                 {
-                    this.rttTimeSpan = span;
-                    this.rttDouble = span.Ticks / 10000000.0;
-                    ok = true;
+                    this.RttTimeSpan = span;
+                    this.RttDouble = span.Ticks / 10000000.0;
+                    Ok = true;
                 }
                 else
                 {
-                    ok = false;
+                    Ok = false;
                 }
             }
         }
@@ -2905,19 +2869,19 @@ namespace IPA.Cores.Basic
             {
                 return Send(target, null, timeout);
             }
-            public static SendPingReply Send(string target, byte[] data)
+            public static SendPingReply Send(string target, byte[]? data)
             {
                 return Send(target, data, 0);
             }
-            public static SendPingReply Send(string target, byte[] data, int timeout)
+            public static SendPingReply Send(string target, byte[]? data, int timeout)
             {
-                return Send(Domain.GetIP46(target, true)[0], data, timeout);
+                return Send(Domain.GetIP46(target, true)![0], data, timeout);
             }
-            public static SendPingReply Send(IPAddress target, byte[] data)
+            public static SendPingReply Send(IPAddress target, byte[]? data)
             {
                 return Send(target, data, 0);
             }
-            public static SendPingReply Send(IPAddress target, byte[] data, int timeout)
+            public static SendPingReply Send(IPAddress target, byte[]? data, int timeout)
             {
                 try
                 {
@@ -2962,8 +2926,8 @@ namespace IPA.Cores.Basic
 
             class GetHostNameData
             {
-                public string[] HostName;
-                public IPAddress IP;
+                public string[]? HostName;
+                public IPAddress? IP;
                 public bool NoCache;
             }
 
@@ -3003,11 +2967,11 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
-            static void getHostNameThreadProc(object param)
+            static void getHostNameThreadProc(object? param)
             {
-                GetHostNameData d = (GetHostNameData)param;
+                GetHostNameData d = (GetHostNameData)param!;
 
-                string[] hostname = Domain.GetHostName(d.IP, d.NoCache);
+                string[]? hostname = Domain.GetHostName(d.IP!, d.NoCache);
 
                 lock (d)
                 {
@@ -3016,11 +2980,7 @@ namespace IPA.Cores.Basic
             }
 
             // 逆引き
-            public static string[] GetHostName(IPAddress ip)
-            {
-                return GetHostName(ip, false);
-            }
-            public static string[] GetHostName(IPAddress ip, bool noCache)
+            public static string[]? GetHostName(IPAddress ip, bool noCache = false)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork && ip.GetAddressBytes()[0] == 127)
                 {
@@ -3079,17 +3039,13 @@ namespace IPA.Cores.Basic
             }
 
             // 正引き (IPv6 も)
-            public static IPAddress[] GetIP46(string hostName)
-            {
-                return GetIP46(hostName, false);
-            }
-            public static IPAddress[] GetIP46(string hostName, bool noCache)
+            public static IPAddress[]? GetIP46(string hostName, bool noCache = false)
             {
                 hostName = NormalizeHostName(hostName);
 
                 if (IsIPAddress(hostName))
                 {
-                    return new IPAddress[1] { StrToIP(hostName) };
+                    return new IPAddress[1] { StrToIP(hostName)! };
                 }
 
                 if (Str.StrCmpi(hostName, "localhost"))
@@ -3131,17 +3087,13 @@ namespace IPA.Cores.Basic
             }
 
             // 正引き
-            public static IPAddress[] GetIP(string hostName)
-            {
-                return GetIP(hostName, false);
-            }
-            public static IPAddress[] GetIP(string hostName, bool noCache)
+            public static IPAddress[]? GetIP(string hostName, bool noCache = false)
             {
                 hostName = NormalizeHostName(hostName);
 
                 if (IsIPAddress(hostName))
                 {
-                    return new IPAddress[1] { StrToIP(hostName) };
+                    return new IPAddress[1] { StrToIP(hostName)! };
                 }
 
                 if (Str.StrCmpi(hostName, "localhost"))
@@ -3215,7 +3167,7 @@ namespace IPA.Cores.Basic
             }
 
             // 文字列を IP アドレスに変換する
-            public static IPAddress StrToIP(string str)
+            public static IPAddress? StrToIP(string str)
             {
                 str = NormalizeHostName(str);
 
@@ -3258,10 +3210,10 @@ namespace IPA.Cores.Basic
         int MaxRecvFifoSize;
         public int MaxRecvUdpQueueSize { get; }
 
-        Task RecvLoopTask = null;
-        Task SendLoopTask = null;
+        Task RecvLoopTask;
+        Task SendLoopTask;
 
-        AsyncBulkReceiver<Datagram, int> UdpBulkReader;
+        AsyncBulkReceiver<Datagram, int>? UdpBulkReader = null;
 
         public NonBlockSocket(PalSocket s, CancellationToken cancel = default, int tmpBufferSize = 65536, int maxRecvBufferSize = 65536, int maxRecvUdpQueueSize = 4096)
         {
@@ -3345,7 +3297,13 @@ namespace IPA.Cores.Basic
                 {
                     while (cancel.IsCancellationRequested == false)
                     {
-                        Datagram[] recvPackets = await UdpBulkReader.Recv(cancel);
+                        Datagram[]? recvPackets = await UdpBulkReader!.Recv(cancel);
+
+                        if (recvPackets == null)
+                        {
+                            // Disconnected
+                            throw new DisconnectedException();
+                        }
 
                         bool fullQueue = false;
                         bool pktReceived = false;
@@ -3400,7 +3358,7 @@ namespace IPA.Cores.Basic
                 {
                     while (cancel.IsCancellationRequested == false)
                     {
-                        byte[] sendData = null;
+                        byte[]? sendData = null;
 
                         while (cancel.IsCancellationRequested == false)
                         {
@@ -3445,7 +3403,7 @@ namespace IPA.Cores.Basic
                 {
                     while (cancel.IsCancellationRequested == false)
                     {
-                        Datagram pkt = null;
+                        Datagram? pkt = null;
 
                         while (cancel.IsCancellationRequested == false)
                         {
@@ -3466,7 +3424,7 @@ namespace IPA.Cores.Basic
                                 events: new AsyncAutoResetEvent[] { EventSendNow });
                         }
 
-                        int r = await Sock.SendToAsync(pkt.Data._AsSegment(), pkt.IPEndPoint);
+                        int r = await Sock.SendToAsync(pkt!.Data._AsSegment(), pkt.IPEndPoint!);
                         if (r <= 0) break;
 
                         EventSendReady.Set();
@@ -3489,12 +3447,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Datagram RecvFromNonBlock()
+        public Datagram? RecvFromNonBlock()
         {
             if (IsDisconnected) return null;
             lock (RecvUdpQueue)
             {
-                if (RecvUdpQueue.TryDequeue(out Datagram ret))
+                if (RecvUdpQueue.TryDequeue(out Datagram? ret))
                 {
                     return ret;
                 }
@@ -3502,7 +3460,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

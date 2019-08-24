@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
         public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel)._GetResult();
 
-        public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
         {
             checked
             {
@@ -148,7 +148,7 @@ namespace IPA.Cores.Basic
                 return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel);
             }
         }
-        public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
         public async Task AppendDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
@@ -168,7 +168,7 @@ namespace IPA.Cores.Basic
         public void AppendDataToFile(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => AppendDataToFileAsync(path, srcMemory, flags, cancel)._GetResult();
 
-        public async Task<T> ReadAndParseDataFileAsync<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>> serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public async Task<T> ReadAndParseDataFileAsync<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>>? serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
             if (parseProc == null || createProc == null) throw new ArgumentNullException();
 
@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public T ReadAndParseDataFile<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>> serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public T ReadAndParseDataFile<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>>? serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadAndParseDataFileAsync(path, readParseFlags, parseProc, createProc, serializeProc, maxSize, flags, cancel)._GetResult();
 
         public async Task<int> ReadDataFromFileAsync(string path, Memory<byte> destMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
         public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
-        public async Task<string> ReadStringFromFileAsync(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public async Task<string> ReadStringFromFileAsync(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
         {
             Memory<byte> data = await ReadDataFromFileAsync(path, maxSize, flags, cancel);
 
@@ -269,18 +269,24 @@ namespace IPA.Cores.Basic
 
             return str;
         }
-        public string ReadStringFromFile(string path, Encoding encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public string ReadStringFromFile(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => ReadStringFromFileAsync(path, encoding, maxSize, flags, oneLine, cancel)._GetResult();
 
         class FindSingleFileData
         {
             public string FullPath;
             public double MatchRate;
+
+            public FindSingleFileData(string fullPath, double matchRate)
+            {
+                FullPath = fullPath;
+                MatchRate = matchRate;
+            }
         }
 
-        public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => await ReadStringFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), encoding, maxSize, flags, oneLine, cancel);
-        public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, oneLine, cancel)._GetResult();
 
         public async Task<Memory<byte>> EasyReadDataAsync(string partOfFileName, bool exact = false, string rootDir = "/", int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
@@ -301,7 +307,7 @@ namespace IPA.Cores.Basic
             bool partOfFileNameContainsDirName = partOfFileName.IndexOf(PathParser.Mac.DirectorySeparator) != -1;
 
             DirectoryWalker walk = new DirectoryWalker(this, EnumDirectoryFlags.NoGetPhysicalSize);
-            string exactFile = null;
+            string? exactFile = null;
 
             int numExactMatch = 0;
 
@@ -333,11 +339,11 @@ namespace IPA.Cores.Basic
                             {
                                 int replacedLen = fullPathTmp._ReplaceStr(partOfFileName, "").Length;
                                 int matchLen = originalLen - replacedLen;
-                                FindSingleFileData d = new FindSingleFileData()
-                                {
-                                    FullPath = file.FullPath,
-                                    MatchRate = (double)matchLen / (double)originalLen,
-                                };
+                                FindSingleFileData d = new FindSingleFileData
+                                (
+                                    fullPath: file.FullPath,
+                                    matchRate: (double)matchLen / (double)originalLen
+                                );
                                 candidates.Add(d);
                             }
                         }
@@ -387,8 +393,8 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        Singleton<string, EasyFileAccess> EasyFileAccessSingleton;
-        Singleton<string, string> EasyAccessFileNameCache;
+        Singleton<string, EasyFileAccess>? EasyFileAccessSingleton;
+        Singleton<string, string>? EasyAccessFileNameCache;
         void InitEasyFileAccessSingleton()
         {
             EasyFileAccessSingleton = new Singleton<string, EasyFileAccess>(filePath => new EasyFileAccess(this, filePath));
@@ -416,6 +422,9 @@ namespace IPA.Cores.Basic
 
         public virtual EasyFileAccess GetEasyAccess(string name)
         {
+            if (EasyAccessFileNameCache == null || EasyFileAccessSingleton == null)
+                throw new CoresException("Easy access is not initialized.");
+
             string fullPath = EasyAccessFileNameCache[name];
 
             return this.EasyFileAccessSingleton[fullPath];
@@ -453,9 +462,9 @@ namespace IPA.Cores.Basic
 
         async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
             Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
-            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callbackForDirectoryAgain,
-            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler,
-            bool recursive, CancellationToken opCancel, FileSystemEntity dirEntity)
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler,
+            bool recursive, CancellationToken opCancel, FileSystemEntity? dirEntity = null)
         {
             opCancel.ThrowIfCancellationRequested();
 
@@ -467,11 +476,14 @@ namespace IPA.Cores.Basic
             {
                 isRootDir = true;
 
-                dirEntity = new FileSystemEntity()
-                {
-                    FullPath = directoryFullPath,
-                    Name = this.FileSystem.PathParser.GetFileName(directoryFullPath),
-                };
+                dirEntity = new FileSystemEntity(
+                    fullPath: directoryFullPath,
+                    name: this.FileSystem.PathParser.GetFileName(directoryFullPath),
+                    attributes: FileAttributes.Directory,
+                    creationTime: default,
+                    lastWriteTime: default,
+                    lastAccessTime: default
+                );
             }
 
             DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(isRootDir, directoryFullPath, directoryRelativePath, dirEntity);
@@ -536,17 +548,17 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 
             rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel: cancel);
 
-            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel, null);
+            return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel);
         }
 
 #pragma warning disable CS1998
-        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, bool> exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public bool WalkDirectory(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, bool>? callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, bool>? exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
             => WalkDirectoryAsync(rootDirectory,
                 async (dirInfo, entity, c) => { return callback(dirInfo, entity, c); },
                 async (dirInfo, entity, c) => { return (callbackForDirectoryAgain != null) ? callbackForDirectoryAgain(dirInfo, entity, c) : true; },
@@ -607,7 +619,7 @@ namespace IPA.Cores.Basic
         public static implicit operator string(EasyFileAccess access) => access.String;
         public static implicit operator ReadOnlyMemory<byte>(EasyFileAccess access) => access.Binary;
         public static implicit operator ReadOnlySpan<byte>(EasyFileAccess access) => access.Binary.Span;
-        public static implicit operator byte[] (EasyFileAccess access) => access.Binary.ToArray();
+        public static implicit operator byte[](EasyFileAccess access) => access.Binary.ToArray();
     }
 
     public abstract class FileObjectRandomAccessWrapperBase : FileObject
@@ -671,7 +683,7 @@ namespace IPA.Cores.Basic
         public FileFlags Flags { get; }
         public PathParser PathParser => this.FileSystem.PathParser;
 
-        public FileSystemPath(string pathString, FileSystem fileSystem = null, FileFlags flags = FileFlags.None)
+        public FileSystemPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None)
         {
             if (pathString == null || pathString == "") throw new ArgumentNullException("pathString");
 
@@ -694,7 +706,7 @@ namespace IPA.Cores.Basic
 
     public class DirectoryPath : FileSystemPath
     {
-        public DirectoryPath(string pathString, FileSystem fileSystem = null, FileFlags flags = FileFlags.None) : base(pathString, fileSystem, flags)
+        public DirectoryPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None) : base(pathString, fileSystem, flags)
         {
         }
 
@@ -816,7 +828,7 @@ namespace IPA.Cores.Basic
         public FilePath(ResourceFileSystem resFs, string partOfPath, bool exact = false, string rootDir = "/", FileFlags operationFlags = FileFlags.None, CancellationToken cancel = default)
             : this((resFs ?? Res.Cores).EasyFindSingleFile(partOfPath, exact, rootDir, cancel), (resFs ?? Res.Cores)) { }
 
-        public FilePath(string pathString, FileSystem fileSystem = null, FileFlags flags = FileFlags.None)
+        public FilePath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None)
              : base(pathString, fileSystem, flags)
         {
             this.EasyAccessSingleton = new Singleton<EasyFileAccess>(() => new EasyFileAccess(this.FileSystem, this.PathString));
@@ -891,10 +903,10 @@ namespace IPA.Cores.Basic
         public int WriteDataToFile(ReadOnlyMemory<byte> data, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => WriteDataToFileAsync(data, additionalFlags, doNotOverwrite, cancel)._GetResult();
 
-        public Task<int> WriteStringToFileAsync(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        public Task<int> WriteStringToFileAsync(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => this.FileSystem.WriteStringToFileAsync(this.PathString, srcString, this.Flags | additionalFlags, doNotOverwrite, encoding, writeBom, cancel);
 
-        public int WriteStringToFile(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        public int WriteStringToFile(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(srcString, additionalFlags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
         public Task AppendDataToFileAsync(Memory<byte> srcMemory, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
@@ -915,16 +927,16 @@ namespace IPA.Cores.Basic
         public Memory<byte> ReadDataFromFile(int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(maxSize, additionalFlags, cancel)._GetResult();
 
-        public Task<string> ReadStringFromFileAsync(Encoding encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public Task<string> ReadStringFromFileAsync(Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => this.FileSystem.ReadStringFromFileAsync(this.PathString, encoding, maxSize, this.Flags | additionalFlags, oneLine, cancel);
 
-        public string ReadStringFromFile(Encoding encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        public string ReadStringFromFile(Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => ReadStringFromFileAsync(encoding, maxSize, additionalFlags, oneLine, cancel)._GetResult();
 
-        public Task<T> ReadAndParseDataFileAsync<T>(ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>> serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public Task<T> ReadAndParseDataFileAsync<T>(ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>>? serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => this.FileSystem.ReadAndParseDataFileAsync(this.PathString, readParseFlags, parseProc, createProc, serializeProc, maxSize, flags, cancel);
 
-        public T ReadAndParseDataFile<T>(ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>> serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public T ReadAndParseDataFile<T>(ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>>? serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadAndParseDataFileAsync(readParseFlags, parseProc, createProc, serializeProc, maxSize, flags, cancel)._GetResult();
 
         public string GetFileNameWithoutExtension(bool longExtension = false) => this.PathParser.GetFileNameWithoutExtension(this.PathString, longExtension);

@@ -71,6 +71,7 @@ namespace IPA.Cores.Web
         None = 0,
         Any = 1,
         EasyCookieAuth = 2,
+        LogBrowser = 4,
     }
     
     // [AspNetLibFeature] 属性の実装
@@ -111,9 +112,11 @@ namespace IPA.Cores.Web
         public readonly Assembly ThisAssembly = typeof(AspNetLib).Assembly;
 
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb);
+        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)._NullCheck();
 
         public AspNetLibFeatures EnabledFeatures { get; }
+
+        LogBrowser? LogBrowser = null;
 
         public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
         {
@@ -123,9 +126,20 @@ namespace IPA.Cores.Web
         public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
             new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)));
 
-
         public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
         {
+        }
+
+        public void SetupLogBrowser(IServiceCollection services, LogBrowserOptions options)
+        {
+            if (this.EnabledFeatures.Bit(AspNetLibFeatures.LogBrowser) == false)
+                throw new ApplicationException(nameof(AspNetLibFeatures.LogBrowser) + " is not enabled.");
+
+            if (LogBrowser != null) throw new ApplicationException("SetupLogBrowser is already called.");
+
+            LogBrowser = new LogBrowser(options, Consts.UrlPaths.LogBrowserMvcPath);
+
+            services.AddSingleton(this.LogBrowser);
         }
 
         public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
@@ -161,12 +175,13 @@ namespace IPA.Cores.Web
             return mvc;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            // Here
+
+            LogBrowser._DisposeSafe();
         }
     }
 }

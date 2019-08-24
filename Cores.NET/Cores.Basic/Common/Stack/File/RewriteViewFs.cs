@@ -155,7 +155,7 @@ namespace IPA.Cores.Basic
             return physicalPath;
         }
 
-        public string MapPathPhysicalToVirtual(string physicalPath)
+        public string MapPathPhysicalToVirtual(string? physicalPath)
         {
             if (physicalPath._IsEmpty()) return "";
 

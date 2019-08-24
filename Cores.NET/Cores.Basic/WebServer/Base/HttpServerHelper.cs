@@ -55,7 +55,21 @@ namespace IPA.Cores.Helper.Basic
         public static CancellationToken _GetRequestCancellationToken(this HttpRequest h) => h.HttpContext.RequestAborted;
         public static CancellationToken _GetRequestCancellationToken(this HttpContext h) => h.RequestAborted;
 
-        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+#if CORES_BASIC_WEBAPP
+        public static CancellationToken _GetRequestCancellationToken(this Microsoft.AspNetCore.Mvc.Controller c) => c.HttpContext._GetRequestCancellationToken();
+#endif
+
+        public static async Task _SendHttpResultAsync(this HttpResponse h, HttpResult result, CancellationToken cancel = default)
+        {
+            if (result.Offset != 0)
+            {
+                result.Stream.Seek(result.Offset, SeekOrigin.Begin);
+            }
+
+            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel);
+        }
+
+        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             byte[] ret_data = encoding.GetBytes(body);
@@ -65,7 +79,7 @@ namespace IPA.Cores.Helper.Basic
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
-        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 
@@ -87,7 +101,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
         {
             h.ContentType = contentsType;
             h.ContentLength = count;
@@ -112,6 +126,21 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static string _GetRequestPathAndQueryString(this HttpRequest r)
+        {
+            string path = r.Path.ToString()._NonNull();
+            string qs = r.QueryString.ToString()._NonNull();
+
+            if (qs._IsNullOrZeroLen() == false)
+            {
+                return path + qs;
+            }
+            else
+            {
+                return path;
+            }
+        }
+
         public static string _GetQueryStringFirst(this HttpRequest r, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
             => _GetQueryStringFirst(r.Query, key, defaultStr, comparison, autoTrim);
 
@@ -126,7 +155,7 @@ namespace IPA.Cores.Helper.Basic
 
             StringValues values = matchList.First().Value;
 
-            string ret = values.Where(x => (autoTrim ? x._IsFilled() : x != null)).FirstOrDefault();
+            string? ret = values.Where(x => (autoTrim ? x._IsFilled() : x != null)).FirstOrDefault();
 
             if (ret._IsEmpty())
             {

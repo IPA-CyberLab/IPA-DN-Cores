@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
 
     public class CopyDirectoryStatus
     {
-        public object State { get; set; }
+        public object? State { get; set; }
         public long StartTick { get; set; }
         public long EndTick { get; set; }
         public long SpentTime => EndTick - StartTick;
@@ -151,11 +151,11 @@ namespace IPA.Cores.Basic
         public ProgressCallback ProgressCallbackProc { get; }
 
         public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileFlags copyFileFlags = FileFlags.None,
-            FileMetadataCopier dirMetadataCopier = null, FileMetadataCopier fileMetadataCopier = null,
+            FileMetadataCopier? dirMetadataCopier = null, FileMetadataCopier? fileMetadataCopier = null,
             int bufferSize = 0, int ignoreReadErrorSectorSize = 0,
-            ProgressReporterFactoryBase entireReporterFactory = null, ProgressReporterFactoryBase fileReporterFactory = null,
-            ProgressCallback progressCallback = null,
-            ExceptionCallback exceptionCallback = null)
+            ProgressReporterFactoryBase? entireReporterFactory = null, ProgressReporterFactoryBase? fileReporterFactory = null,
+            ProgressCallback? progressCallback = null,
+            ExceptionCallback? exceptionCallback = null)
         {
             if (dirMetadataCopier == null) dirMetadataCopier = CopyDirectoryParams.DefaultDirectoryMetadataCopier;
             if (fileMetadataCopier == null) fileMetadataCopier = CopyFileParams.DefaultFileMetadataCopier;
@@ -207,9 +207,9 @@ namespace IPA.Cores.Basic
         public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console);
         public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
 
-        public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
+        public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
             bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
-            ProgressReporterFactoryBase reporterFactory = null)
+            ProgressReporterFactoryBase? reporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
             if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
@@ -230,31 +230,31 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
-        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams param = null, object state = null, CancellationToken cancel = default, FileSystem destFileSystem = null, RefBool readErrorIgnored = null)
+        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null)
         {
             if (destFileSystem == null) destFileSystem = this;
 
             await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored);
         }
-        public void CopyFile(string srcPath, string destPath, CopyFileParams param = null, object state = null, CancellationToken cancel = default, FileSystem destFileSystem = null, RefBool readErrorIgnored = null)
+        public void CopyFile(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null)
             => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored)._GetResult();
 
-        public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem destFileSystem = null,
-            CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
+        public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem? destFileSystem = null,
+            CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
         {
             if (destFileSystem == null) destFileSystem = this;
 
             return await FileUtil.CopyDirAsync(this, srcPath, destFileSystem, destPath, param, state, statusObject, cancel);
         }
-        public CopyDirectoryStatus CopyDir(string srcPath, string destPath, FileSystem destFileSystem = null,
-            CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
+        public CopyDirectoryStatus CopyDir(string srcPath, string destPath, FileSystem? destFileSystem = null,
+            CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
             => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel)._GetResult();
     }
 
     public static partial class FileUtil
     {
         public static async Task<CopyDirectoryStatus> CopyDirAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyDirectoryParams param = null, object state = null, CopyDirectoryStatus statusObject = null, CancellationToken cancel = default)
+            CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
         {
             CopyDirectoryStatus status = statusObject ?? new CopyDirectoryStatus();
             status.Clear();
@@ -445,7 +445,7 @@ namespace IPA.Cores.Basic
         }
 
         public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+            CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
         {
             if (readErrorIgnored == null)
                 readErrorIgnored = new RefBool(false);
@@ -520,14 +520,14 @@ namespace IPA.Cores.Basic
             }
         }
         public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+            CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
             => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored)._GetResult();
 
 
-        public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+        public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
             => CopyFileAsync(src.FileSystem, src.PathString, dest.FileSystem, dest.PathString, param, state, cancel, readErrorIgnored);
 
-        public static void CopyFile(FilePath src, FilePath dest, CopyFileParams param = null, object state = null, CancellationToken cancel = default, RefBool readErrorIgnored = null)
+        public static void CopyFile(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
             => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored)._GetResult();
 
         static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored)
@@ -614,7 +614,7 @@ namespace IPA.Cores.Basic
                     {
                         using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
                         {
-                            Task lastWriteTask = null;
+                            Task? lastWriteTask = null;
                             int number = 0;
                             int writeSize = 0;
 

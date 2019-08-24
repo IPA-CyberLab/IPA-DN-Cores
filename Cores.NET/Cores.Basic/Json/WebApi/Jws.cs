@@ -40,6 +40,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 
 using Newtonsoft.Json;
 
@@ -53,22 +54,22 @@ namespace IPA.Cores.Basic
     public class JwsPacket
     {
         [JsonProperty("protected")]
-        public string Protected;
+        public string? Protected;
 
-        public string payload;
+        public string? payload;
 
-        public string signature;
+        public string? signature;
     }
 
     public class JwsKey
     {
         // Members must be lexicographic order (https://tools.ietf.org/html/rfc7638#section-3)
-        public string crv;
-        public string e;
-        public string kty;
-        public string n;
-        public string x;
-        public string y;
+        public string? crv;
+        public string? e;
+        public string? kty;
+        public string? n;
+        public string? x;
+        public string? y;
 
         public byte[] CalcThumbprint()
         {
@@ -80,11 +81,11 @@ namespace IPA.Cores.Basic
 
     public class JwsProtected
     {
-        public string alg;
-        public JwsKey jwk;
-        public string nonce;
-        public string url;
-        public string kid;
+        public string? alg;
+        public JwsKey? jwk;
+        public string? nonce;
+        public string? url;
+        public string? kid;
     }
 
     public static class JwsUtil
@@ -141,7 +142,7 @@ namespace IPA.Cores.Basic
             return jwk;
         }
 
-        public static JwsPacket Encapsulate(PrivKey key, string kid, string nonce, string url, object payload)
+        public static JwsPacket Encapsulate(PrivKey key, string? kid, string nonce, string url, object? payload)
         {
             JwsKey jwk = CreateJwsKey(key.PublicKey, out string algName, out string signerName);
 
@@ -172,7 +173,7 @@ namespace IPA.Cores.Basic
 
     public partial class WebApi
     {
-        public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string kid, string nonce, string url, object payload, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+        public virtual async Task<WebRet> RequestWithJwsObject(WebMethods method, PrivKey privKey, string? kid, string nonce, string url, object? payload, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
             JwsPacket reqPacket = JwsUtil.Encapsulate(privKey, kid, nonce, url, payload);
 

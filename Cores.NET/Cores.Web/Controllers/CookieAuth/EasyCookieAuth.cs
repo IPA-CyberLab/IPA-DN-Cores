@@ -67,7 +67,7 @@ namespace IPA.Cores.Web
 
         public static readonly Copenhagen<string> LoginFormMessage = "Please log in.";
 
-        public static Func<string, string, Task<bool>> AuthenticationPasswordValidator = null;
+        public static Func<string, string, Task<bool>>? AuthenticationPasswordValidator = null;
 
         public static void ConfigureServices(IServiceCollection services, bool allowHttp)
         {
@@ -85,11 +85,11 @@ namespace IPA.Cores.Web
 
     public class EasyCookieAuthModel
     {
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public string ReturnUrl { get; set; }
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public string? ReturnUrl { get; set; }
 
-        public string ErrorStr { get; set; }
+        public string? ErrorStr { get; set; }
     }
 
     [AspNetLibFeature(AspNetLibFeatures.EasyCookieAuth)]

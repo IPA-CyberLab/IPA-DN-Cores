@@ -47,8 +47,12 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable 0618
+
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning disable CA1401 // P/Invokes should not be visible
 
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
@@ -82,7 +86,7 @@ namespace IPA.Cores.Basic
     {
         static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
-        public static bool IsUncServerRootPath(string path, out string normalizedPath)
+        public static bool IsUncServerRootPath(string path, [NotNullWhen(true)] out string? normalizedPath)
         {
             normalizedPath = null;
 
@@ -313,10 +317,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void ThrowLastWin32Error(string argument = null)
+        public static void ThrowLastWin32Error(string? argument = null)
             => ThrowWin32Error(null, argument);
 
-        public static Exception ThrowWin32Error(int? errorCode = null, string argument = null)
+        public static Exception ThrowWin32Error(int? errorCode = null, string? argument = null)
         {
             var exception = GetWin32ErrorException(errorCode, argument);
             throw exception;
@@ -325,7 +329,7 @@ namespace IPA.Cores.Basic
 #pragma warning restore CS0162
         }
 
-        public static Exception GetWin32ErrorException(int? errorCode = null, string argument = null)
+        public static Exception GetWin32ErrorException(int? errorCode = null, string? argument = null)
             => PalWin32FileStream.GetExceptionForWin32Error(errorCode ?? Marshal.GetLastWin32Error(), argument);
 
 
@@ -388,7 +392,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task SetCompressionFlagAsync(SafeFileHandle handle, bool compressionEnabled, string pathForReference = null, CancellationToken cancel = default)
+        public static async Task SetCompressionFlagAsync(SafeFileHandle handle, bool compressionEnabled, string? pathForReference = null, CancellationToken cancel = default)
         {
             if (Env.IsWindows == false) return;
 
@@ -400,7 +404,7 @@ namespace IPA.Cores.Basic
             await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetCompression, bufferIn, bufferOut, pathForReference, cancel);
         }
 
-        public static List<Tuple<string, long>> EnumAlternateStreams(string path, long maxSize, int maxNum)
+        public static List<Tuple<string, long>>? EnumAlternateStreams(string path, long maxSize, int maxNum)
         {
             if (Env.IsWindows == false) return null;
 
@@ -410,7 +414,7 @@ namespace IPA.Cores.Basic
                 );
         }
 
-        public static List<Tuple<string, long>> EnumAlternateStreamsInternal_UseNtDllApi(string path, long maxSize, int maxNum, bool backupMode = false)
+        public static List<Tuple<string, long>>? EnumAlternateStreamsInternal_UseNtDllApi(string path, long maxSize, int maxNum, bool backupMode = false)
         {
             if (Env.IsWindows == false) return null;
 
@@ -437,7 +441,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static List<Tuple<string, long>> EnumAlternateStreamsInternal_UseFindFirstApi(string path, long maxSize, int maxNum)
+        public static List<Tuple<string, long>>? EnumAlternateStreamsInternal_UseFindFirstApi(string path, long maxSize, int maxNum)
         {
             if (Env.IsWindows == false) return null;
 
@@ -503,16 +507,16 @@ namespace IPA.Cores.Basic
         {
             public CriticalSection LockObj = new CriticalSection();
 
-            public ReadOnlyMemoryBuffer<byte> InBuffer = null;
+            public ReadOnlyMemoryBuffer<byte>? InBuffer = null;
             public ValueHolder InBufferPinHolder;
 
-            public MemoryBuffer<byte> OutBuffer = null;
+            public MemoryBuffer<byte>? OutBuffer = null;
             public ValueHolder OutBufferPinHolder;
 
-            public Overlapped Overlapped = null;
+            public Overlapped? Overlapped = null;
             public NativeOverlapped* NativeOverlapped = null;
 
-            public Win32CallOverlappedCompleteProc<TResult> UserCompleteProc;
+            public Win32CallOverlappedCompleteProc<TResult>? UserCompleteProc;
 
             public CancellationTokenRegistration CancelRegistration;
 
@@ -527,7 +531,7 @@ namespace IPA.Cores.Basic
 
             Once CompletedFlag;
 
-            public void Completed(Exception exception, int errorCode, int returnedBytes)
+            public void Completed(Exception? exception, int errorCode, int returnedBytes)
             {
                 if (CompletedFlag.IsFirstCall() == false)
                 {
@@ -542,10 +546,10 @@ namespace IPA.Cores.Basic
 
                     if (returnedBytes >= 0)
                     {
-                        OutBuffer.Seek(returnedBytes, SeekOrigin.Begin);
+                        OutBuffer!.Seek(returnedBytes, SeekOrigin.Begin);
                     }
 
-                    TResult ret = this.UserCompleteProc(errorCode, returnedBytes);
+                    TResult ret = this.UserCompleteProc!(errorCode, returnedBytes);
 
                     CompletionSource.SetResult(ret);
                 }
@@ -593,7 +597,7 @@ namespace IPA.Cores.Basic
         }
 
         public static unsafe Task<TResult> CallOverlappedAsync<TResult>(SafeFileHandle handle,
-            Win32CallOverlappedMainProc mainProc, Win32CallOverlappedCompleteProc<TResult> completeProc, ReadOnlyMemoryBuffer<byte> inBuffer, MemoryBuffer<byte> outBuffer,
+            Win32CallOverlappedMainProc mainProc, Win32CallOverlappedCompleteProc<TResult> completeProc, ReadOnlyMemoryBuffer<byte>? inBuffer, MemoryBuffer<byte>? outBuffer,
             CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();

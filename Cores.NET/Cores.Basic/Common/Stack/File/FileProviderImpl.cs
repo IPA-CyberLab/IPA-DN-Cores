@@ -60,11 +60,11 @@ namespace IPA.Cores.Basic
         public bool Exists { get; }
         public bool IsDirectory { get; }
         public long Length { get; }
-        public string PhysicalPath { get; }
-        public string Name { get; }
+        public string PhysicalPath { get; } = null!;
+        public string Name { get; } = null!;
         public DateTimeOffset LastModified { get; }
 
-        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FileSystemBasedProvider provider, string fullPath, bool exists, bool isDirectroy, long length, string physicalPath, string name, DateTimeOffset lastModified)
+        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FileSystemBasedProvider provider, string fullPath, bool exists, bool isDirectroy, long length, string? physicalPath, string? name, DateTimeOffset lastModified)
         {
             this.Provider = provider;
             this.FullPath = fullPath;
@@ -80,8 +80,8 @@ namespace IPA.Cores.Basic
                     this.Length = length;
                 }
 
-                this.PhysicalPath = physicalPath;
-                this.Name = name;
+                this.PhysicalPath = physicalPath._NullCheck();
+                this.Name = name._NullCheck();
                 this.LastModified = lastModified;
             }
         }
@@ -113,7 +113,7 @@ namespace IPA.Cores.Basic
     {
         public bool Exists { get; } = false;
 
-        IEnumerable<IFileInfo> List = null;
+        IEnumerable<IFileInfo> List;
 
         public FsBasedFileProviderDirectoryContentsImpl()
         {
@@ -230,8 +230,8 @@ namespace IPA.Cores.Basic
             bool exists = false;
             bool isDirectroy = default;
             long length = default;
-            string physicalPath = default;
-            string name = default;
+            string? physicalPath = null;
+            string? name = null;
             DateTimeOffset lastModified = default;
 
             if (FileSystem.IsFileExists(subpath))
@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
             return this.ProviderForWatch.Watch(filter);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

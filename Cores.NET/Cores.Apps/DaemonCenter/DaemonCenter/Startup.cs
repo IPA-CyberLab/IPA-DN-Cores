@@ -24,6 +24,7 @@ using static IPA.Cores.Globals.Codes;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Routing;
 
 namespace DaemonCenter
 {
@@ -38,7 +39,7 @@ namespace DaemonCenter
             StartupHelper = new HttpServerStartupHelper(configuration);
 
             // AspNetLib の初期化: 必要な機能のみ ON にすること
-            AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.EasyCookieAuth);
+            AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.EasyCookieAuth | AspNetLibFeatures.LogBrowser);
 
             // 設定データへの参照の保存
             Configuration = configuration;
@@ -62,6 +63,9 @@ namespace DaemonCenter
             EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
             EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
             EasyCookieAuth.ConfigureServices(services, !StartupHelper.ServerOptions.AutomaticRedirectToHttpsIfPossible);
+
+            // LogBrowesr 機能を設定
+            AspNetLib.SetupLogBrowser(services, new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), "DaemonCenter Server 本体ログブラウザ"));
 
             // MVC 機能を追加
             services.AddControllersWithViews()
@@ -114,6 +118,14 @@ namespace DaemonCenter
             app.UseAuthentication();
             app.UseAuthorization();
 
+            //// LogBrowser を実装
+            //LogBrowserImpl impl = new LogBrowserImpl(new LogBrowserHttpServerOptions(Env.AppRootDir, absolutePathPrefix: "/log"));
+
+            //RouteBuilder rb = new RouteBuilder(app);
+            //rb.MapGet(impl.AbsolutePathPrefix + "/{*path}", impl.GetRequestHandler);
+            //IRouter router = rb.Build();
+            //app.UseRouter(router);
+
             // ルートマップを定義
             app.UseEndpoints(endpoints =>
             {
@@ -129,6 +141,8 @@ namespace DaemonCenter
 
                 AspNetLib._DisposeSafe();
                 StartupHelper._DisposeSafe();
+
+                //impl._DisposeSafe();
             });
         }
     }

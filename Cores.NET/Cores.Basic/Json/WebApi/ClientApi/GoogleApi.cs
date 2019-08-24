@@ -75,10 +75,10 @@ namespace IPA.Cores.ClientApi.GoogleApi
     {
         public string ClientId { get; }
         public string ClientSecret { get; }
-        public string RefreshTokenStr { get; }
-        string AccessTokenStr;
+        public string? RefreshTokenStr { get; }
+        string? AccessTokenStr;
 
-        public GoogleApi(string clientId, string clientSecret, string refreshToken = "") : base()
+        public GoogleApi(string clientId, string clientSecret, string? refreshToken = "") : base()
         {
             this.ClientId = clientId;
             this.ClientSecret = clientSecret;
@@ -86,7 +86,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
             this.Json_MaxDepth = 128;
         }
 
-        protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)
+        protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
         {
             HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
 
@@ -114,52 +114,52 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
         public class AccessToken
         {
-            public string access_token;
-            public string token_type;
-            public string refresh_token;
+            public string? access_token;
+            public string? token_type;
+            public string? refresh_token;
             public int expires_in;
         }
 
         public class MessageList
         {
-            public string id;
-            public string threadId;
+            public string? id;
+            public string? threadId;
         }
 
         public class MessageListResponse
         {
-            public MessageList[] messages;
+            public MessageList?[]? messages;
 
-            public string nextPageToken;
+            public string? nextPageToken;
             public long resultSizeEstimate;
         }
 
         public class Header
         {
-            public string name;
-            public string value;
+            public string? name;
+            public string? value;
         }
 
         public class Payload
         {
-            public Header[] headers;
+            public Header?[]? headers;
         }
 
         public class Message
         {
-            public string id;
-            public string threadId;
-            public Payload payload;
-            public string snippet;
+            public string? id;
+            public string? threadId;
+            public Payload? payload;
+            public string? snippet;
             public long internalDate;
 
-            public string GetFrom() => this.payload?.headers.Where(x => x.name._IsSamei("from")).Select(x => x.value).FirstOrDefault() ?? "";
-            public string GetSubject() => this.payload?.headers.Where(x => x.name._IsSamei("subject")).Select(x => x.value).FirstOrDefault() ?? "";
+            public string GetFrom() => this.payload?.headers.Where(x => x != null && x.name._IsSamei("from")).Select(x => x!.value).FirstOrDefault() ?? "";
+            public string GetSubject() => this.payload?.headers.Where(x => x != null && x.name._IsSamei("subject")).Select(x => x!.value).FirstOrDefault() ?? "";
         }
 
         public class GmailProfile
         {
-            public string emailAddress;
+            public string? emailAddress;
             public int messagesTotal;
             public int threadsTotal;
             public ulong historyId;
@@ -177,7 +177,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
             //ret.NormalizedJsonStr._Debug();
 
-            AccessToken a = ret.Deserialize<AccessToken>(true);
+            AccessToken a = ret.Deserialize<AccessToken>(true)!;
 
             if (a.access_token._IsEmpty()) throw new ApplicationException("access_token is empty.");
             if (a.refresh_token._IsEmpty()) throw new ApplicationException("refresh_token is empty.");
@@ -194,7 +194,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
                 ("refresh_token", this.RefreshTokenStr),
                 ("grant_type", "refresh_token"));
 
-            AccessToken a = ret.Deserialize<AccessToken>(true);
+            AccessToken a = ret.Deserialize<AccessToken>(true)!;
 
             return a;
         }
@@ -224,11 +224,11 @@ namespace IPA.Cores.ClientApi.GoogleApi
             }
         }
 
-        public async Task<MessageList[]> GmailListMessagesAsync(string query = null, int maxCount = int.MaxValue, CancellationToken cancel = default)
+        public async Task<MessageList[]> GmailListMessagesAsync(string? query = null, int maxCount = int.MaxValue, CancellationToken cancel = default)
         {
             List<MessageList> o = new List<MessageList>();
 
-            string nextPage = null;
+            string? nextPage = null;
 
             do
             {
@@ -238,13 +238,16 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
                 //ret.Data._GetString_UTF8()._JsonNormalizeAndPrint();
 
-                MessageListResponse response = ret.Deserialize<MessageListResponse>();
+                MessageListResponse response = ret.Deserialize<MessageListResponse>()!;
 
                 if (response.messages != null)
                 {
                     foreach (var msg in response.messages)
                     {
-                        o.Add(msg);
+                        if (msg != null)
+                        {
+                            o.Add(msg);
+                        }
                     }
                 }
 
@@ -266,7 +269,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
             WebRet ret = await SimpleQueryAsync(WebMethods.GET, $"https://www.googleapis.com/gmail/v1/users/me/messages/{id._EncodeUrl()}", cancel);
 
-            Message msg = ret.Deserialize<Message>();
+            Message msg = ret.Deserialize<Message>()!;
 
             return msg;
         }
@@ -277,7 +280,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
             WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://www.googleapis.com/gmail/v1/users/me/profile", cancel);
 
-            GmailProfile profile = ret.Deserialize<GmailProfile>();
+            GmailProfile profile = ret.Deserialize<GmailProfile>()!;
 
             return profile;
         }

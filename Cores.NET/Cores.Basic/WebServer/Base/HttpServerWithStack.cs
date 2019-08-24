@@ -175,14 +175,14 @@ namespace IPA.Cores.Basic
                     tickEnd = Time.Tick64;
                 }
 
-                Exception exception = HttpExceptionLoggerMiddleware.GetSavedExceptionFromContext(context);
+                Exception? exception = HttpExceptionLoggerMiddleware.GetSavedExceptionFromContext(context);
 
                 int processTime = (int)(tickEnd - tickStart);
 
                 HttpRequest req = context.Request;
                 ConnectionInfo conn = context.Connection;
-                string username = null;
-                string authtype = null;
+                string? username = null;
+                string? authtype = null;
 
                 if (context.User?.Identity?.IsAuthenticated ?? false)
                 {
@@ -195,8 +195,8 @@ namespace IPA.Cores.Basic
                 WebServerLogData log = new WebServerLogData()
                 {
                     ConnectionId = conn.Id,
-                    LocalIP = conn.LocalIpAddress.ToString(),
-                    RemoteIP = conn.RemoteIpAddress.ToString(),
+                    LocalIP = conn.LocalIpAddress._UnmapIPv4().ToString(),
+                    RemoteIP = conn.RemoteIpAddress._UnmapIPv4().ToString(),
                     LocalPort = conn.LocalPort,
                     RemotePort = conn.RemotePort,
 
@@ -218,7 +218,7 @@ namespace IPA.Cores.Basic
                 log.AuthUserName = log.AuthUserName._NullIfEmpty();
                 log.QueryString = log.QueryString._NullIfEmpty();
 
-                if (context.Items.TryGetValue(BasicAuthMiddleware.BasicAuthResultItemName, out object basicAuthResultObj))
+                if (context.Items.TryGetValue(BasicAuthMiddleware.BasicAuthResultItemName, out object? basicAuthResultObj))
                 {
                     if (basicAuthResultObj is ResultAndError<string> basicAuthRet)
                     {

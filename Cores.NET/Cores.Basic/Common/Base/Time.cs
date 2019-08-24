@@ -105,7 +105,7 @@ namespace IPA.Cores.Basic
             InitCompletedEvent.Wait();
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

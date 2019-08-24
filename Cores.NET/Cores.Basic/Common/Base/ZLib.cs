@@ -44,6 +44,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * and contributors of zlib.
 */
 
+#nullable disable
+
 using System;
 
 using IPA.Cores.Basic;

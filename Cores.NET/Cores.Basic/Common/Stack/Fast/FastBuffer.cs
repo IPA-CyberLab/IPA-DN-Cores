@@ -84,8 +84,8 @@ namespace IPA.Cores.Basic
         bool IsReadyToRead(int size = 1);
         bool IsEventsEnabled { get; }
 
-        AsyncAutoResetEvent EventWriteReady { get; }
-        AsyncAutoResetEvent EventReadReady { get; }
+        AsyncAutoResetEvent? EventWriteReady { get; }
+        AsyncAutoResetEvent? EventReadReady { get; }
 
         FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
 
@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
     {
         static readonly int PollingTimeout = CoresConfig.PipeConfig.PollingTimeout;
 
-        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public static async Task WaitForReadyToWriteAsync(this IFastBufferState writer, CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             LocalTimer timer = new LocalTimer();
 
@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },
-                    events: new AsyncAutoResetEvent[] { writer.EventWriteReady, cancelEvent },
+                    events: new AsyncAutoResetEvent?[] { writer.EventWriteReady, cancelEvent },
                     timeout: timer.GetNextInterval()
                     );
             }
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             sizeToRead = Math.Max(sizeToRead, 1);
 
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },
-                    events: new AsyncAutoResetEvent[] { reader.EventReadReady, cancelEvent },
+                    events: new AsyncAutoResetEvent?[] { reader.EventReadReady, cancelEvent },
                     timeout: timer.GetNextInterval()
                     );
             }
@@ -244,8 +244,8 @@ namespace IPA.Cores.Basic
         Once internalDisconnectedFlag;
         public bool IsDisconnected { get => internalDisconnectedFlag.IsSet; }
 
-        public AsyncAutoResetEvent EventWriteReady { get; } = null;
-        public AsyncAutoResetEvent EventReadReady { get; } = null;
+        public AsyncAutoResetEvent? EventWriteReady { get; } = null;
+        public AsyncAutoResetEvent? EventReadReady { get; } = null;
 
         public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastStreamBufferThreshold;
 
@@ -303,8 +303,8 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
                 }
-                EventReadReady.Set();
-                EventWriteReady.Set();
+                EventReadReady?.Set();
+                EventWriteReady?.Set();
 
                 EventListeners.Fire(this, FastBufferCallbackEventType.Disconnected);
             }
@@ -333,7 +333,7 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventWriteReady.Set();
+                    EventWriteReady?.Set();
                 }
             }
         }
@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
                 }
                 if (setFlag)
                 {
-                    EventReadReady.Set(softly);
+                    EventReadReady?.Set(softly);
                 }
             }
 
@@ -462,7 +462,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        FastLinkedListNode<ReadOnlyMemory<T>> GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
+        FastLinkedListNode<ReadOnlyMemory<T>>? GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
         {
             checked
             {
@@ -495,7 +495,7 @@ namespace IPA.Cores.Basic
                     return last;
                 }
                 long currentPin = PinHead;
-                FastLinkedListNode<ReadOnlyMemory<T>> node = List.First;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = List.First;
                 while (node != null)
                 {
                     if (pin >= currentPin && pin < (currentPin + node.Value.Length))
@@ -521,7 +521,9 @@ namespace IPA.Cores.Basic
             {
                 if (pinStart > pinEnd) throw new ArgumentOutOfRangeException("pinStart > pinEnd");
 
-                firstNode = GetNodeWithPin(pinStart, out firstNodeOffsetInSegment, out firstNodePin);
+                firstNode = GetNodeWithPin(pinStart, out firstNodeOffsetInSegment, out firstNodePin)!;
+
+                Debug.Assert(firstNode != null);
 
                 if (pinEnd > PinTail)
                 {
@@ -529,7 +531,7 @@ namespace IPA.Cores.Basic
                     pinEnd = PinTail;
                 }
 
-                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = firstNode;
                 long currentPin = pinStart - firstNodeOffsetInSegment;
                 nodeCounts = 0;
                 while (true)
@@ -798,7 +800,7 @@ namespace IPA.Cores.Basic
 
                 long oldLen = Length;
 
-                FastLinkedListNode<ReadOnlyMemory<T>> node = List.First;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = List.First;
                 List<ReadOnlyMemory<T>> ret = new List<ReadOnlyMemory<T>>();
                 while (true)
                 {
@@ -898,7 +900,7 @@ namespace IPA.Cores.Basic
                     long otherOldLen = other.Length;
                     var chainFirst = this.List.First;
                     var chainLast = this.List.Last;
-                    other.List.AddLast(this.List.First, this.List.Last, this.List.Count);
+                    other.List.AddLast(this.List.First!, this.List.Last!, this.List.Count);
                     this.List.Clear();
                     this.PinHead = this.PinTail;
                     other.PinTail += length;
@@ -955,10 +957,10 @@ namespace IPA.Cores.Basic
 
                 FastBufferSegment<ReadOnlyMemory<T>>[] ret = new FastBufferSegment<ReadOnlyMemory<T>>[nodeCounts];
 
-                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
-                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
+                FastLinkedListNode<ReadOnlyMemory<T>>? prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>>? nextNode = lastNode.Next;
 
-                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = firstNode;
                 int count = 0;
                 long currentOffset = 0;
 
@@ -1050,10 +1052,10 @@ namespace IPA.Cores.Basic
                     {
                         var nodeToDelete = node;
 
-                        Debug.Assert(node.Next != null);
+                        Debug.Assert(node!.Next != null);
                         node = node.Next;
 
-                        List.Remove(nodeToDelete);
+                        List.Remove(nodeToDelete!);
                     }
 
                     if (lastNode.Value.Length == 0)
@@ -1115,11 +1117,11 @@ namespace IPA.Cores.Basic
                     return newMemory2.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment);
                 }
 
-                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
-                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
+                FastLinkedListNode<ReadOnlyMemory<T>>? prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>>? nextNode = lastNode.Next;
 
                 Memory<T> newMemory = new T[lastNodePin + lastNode.Value.Length - firstNodePin];
-                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = firstNode;
                 int currentWritePointer = 0;
 
                 while (true)
@@ -1193,11 +1195,11 @@ namespace IPA.Cores.Basic
                 if (firstNode == lastNode)
                     return firstNode.Value.Slice(firstNodeOffsetInSegment, lastNodeOffsetInSegment - firstNodeOffsetInSegment);
 
-                FastLinkedListNode<ReadOnlyMemory<T>> prevNode = firstNode.Previous;
-                FastLinkedListNode<ReadOnlyMemory<T>> nextNode = lastNode.Next;
+                FastLinkedListNode<ReadOnlyMemory<T>>? prevNode = firstNode.Previous;
+                FastLinkedListNode<ReadOnlyMemory<T>>? nextNode = lastNode.Next;
 
                 Memory<T> newMemory = new T[lastNodePin + lastNode.Value.Length - firstNodePin];
-                FastLinkedListNode<ReadOnlyMemory<T>> node = firstNode;
+                FastLinkedListNode<ReadOnlyMemory<T>>? node = firstNode;
                 int currentWritePointer = 0;
 
                 while (true)
@@ -1280,8 +1282,8 @@ namespace IPA.Cores.Basic
 
         public bool IsEventsEnabled { get; }
 
-        public AsyncAutoResetEvent EventWriteReady { get; } = null;
-        public AsyncAutoResetEvent EventReadReady { get; } = null;
+        public AsyncAutoResetEvent? EventWriteReady { get; } = null;
+        public AsyncAutoResetEvent? EventReadReady { get; } = null;
 
         Once internalDisconnectedFlag;
         public bool IsDisconnected { get => internalDisconnectedFlag.IsSet; }
@@ -1340,8 +1342,8 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
                 }
-                EventReadReady.Set();
-                EventWriteReady.Set();
+                EventReadReady?.Set();
+                EventWriteReady?.Set();
 
                 EventListeners.Fire(this, FastBufferCallbackEventType.Disconnected);
             }
@@ -1370,7 +1372,7 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventWriteReady.Set();
+                    EventWriteReady?.Set();
                 }
             }
         }
@@ -1395,7 +1397,7 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventReadReady.Set(softly);
+                    EventReadReady?.Set(softly);
                 }
             }
             if (checkDisconnect)

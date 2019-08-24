@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
         public TcpIpSystem TcpIp { get; }
 
-        public TcpServerOptions(TcpIpSystem tcpIp, params IPEndPoint[] endPoints)
+        public TcpServerOptions(TcpIpSystem? tcpIp, params IPEndPoint[] endPoints)
         {
             this.TcpIp = tcpIp ?? LocalNet;
             this.EndPoints = endPoints.ToList();
@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
             await TcpAcceptedImplAsync(listener, newSock);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
 
-        public SslServerOptions(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIp, endPoints)
+        public SslServerOptions(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIp, endPoints)
         {
             this.SslServerAuthenticationOptions = sslAuthOptions;
         }

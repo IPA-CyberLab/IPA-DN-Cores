@@ -54,14 +54,14 @@ namespace IPA.TestDev
         {
         }
 
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object param)
+        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
         {
             Con.WriteLine("TestDaemon: Starting...");
             await Task.Delay(500);
             Con.WriteLine("TestDaemon: Started.");
         }
 
-        protected override async Task StopImplAsync(object param)
+        protected override async Task StopImplAsync(object? param)
         {
             Con.WriteLine("TestDaemon: Stopping...");
             await Task.Delay(3000);
@@ -90,7 +90,7 @@ wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
         static int DaemonTest(ConsoleService c, string cmdName, string str)
         {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest());
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest(), new DaemonSettings   ());
         }
     }
 }

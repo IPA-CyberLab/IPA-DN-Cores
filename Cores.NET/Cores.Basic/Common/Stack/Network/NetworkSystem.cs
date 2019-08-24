@@ -121,9 +121,9 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => this.Param?.Name ?? "NetworkSystemBase";
 
-        protected override void CancelImpl(Exception ex) { }
+        protected override void CancelImpl(Exception? ex) { }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             NetSock[] openedSockets;
 
@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex) { }
+        protected override void DisposeImpl(Exception? ex) { }
     }
 }
 

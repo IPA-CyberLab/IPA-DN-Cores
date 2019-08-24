@@ -211,6 +211,8 @@ namespace IPA.Cores.Basic
         public static partial class UrlPaths
         {
             public const string Robots = "/robots.txt";
+
+            public const string LogBrowserMvcPath = "/LogBrowser";
         }
 
         public static partial class OAuthScopes
@@ -231,6 +233,24 @@ namespace IPA.Cores.Basic
             public const string Slack_User = "Slack_as_Per_User_Token";
 
             public const string Slack_Old = "Slack";
+        }
+
+        public static partial class HttpStatusCodes
+        {
+            public const int Continue = 100;
+            public const int Ok = 200;
+            public const int MovedPermanently = 301;
+            public const int Found = 302;
+            public const int NotModified = 304;
+            public const int TemporaryRedirect = 307;
+            public const int BadRequest = 100;
+            public const int Unauthorized = 401;
+            public const int Forbidden = 403;
+            public const int NotFound = 404;
+            public const int MethodNotAllowed = 405;
+            public const int InternalServerError = 500;
+            public const int NotImplemented = 501;
+            public const int ServiceUnavailable = 503;
         }
 
         public static partial class HttpProtocolSchemes

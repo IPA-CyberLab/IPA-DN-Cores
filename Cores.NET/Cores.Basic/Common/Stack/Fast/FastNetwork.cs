@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic
     {
         SharedHierarchy<LayerInfoBase> Hierarchy = new SharedHierarchy<LayerInfoBase>();
 
-        public void Install(LayerInfoBase info, LayerInfoBase targetLayer, bool joinAsSuperior)
+        public void Install(LayerInfoBase info, LayerInfoBase? targetLayer, bool joinAsSuperior)
         {
             Debug.Assert(info.IsInstalled == false); Debug.Assert(info._InternalHierarchyBodyItem == null); Debug.Assert(info._InternalLayerStack == null);
 
@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
         {
             var items = Hierarchy.ItemsWithPositionsReadOnly;
 
-            return items.Select(x => x.Value as T).Where(x => x != null).ToArray();
+            return items.Select(x => x.Value as T).Where(x => x != null).ToArray()!;
         }
 
         public T GetValue<T>(int index = 0) where T : class
@@ -113,22 +113,22 @@ namespace IPA.Cores.Basic
     public interface ILayerInfoSsl
     {
         bool IsServerMode { get; }
-        string SslProtocol { get; }
-        string CipherAlgorithm { get; }
+        string? SslProtocol { get; }
+        string? CipherAlgorithm { get; }
         int CipherStrength { get; }
-        string HashAlgorithm { get; }
+        string? HashAlgorithm { get; }
         int HashStrength { get; }
-        string KeyExchangeAlgorithm { get; }
+        string? KeyExchangeAlgorithm { get; }
         int KeyExchangeStrength { get; }
-        PalX509Certificate LocalCertificate { get; }
-        PalX509Certificate RemoteCertificate { get; }
+        PalX509Certificate? LocalCertificate { get; }
+        PalX509Certificate? RemoteCertificate { get; }
     }
 
     public interface ILayerInfoIpEndPoint
     {
         long NativeHandle { get; }
-        IPAddress LocalIPAddress { get; }
-        IPAddress RemoteIPAddress { get; }
+        IPAddress? LocalIPAddress { get; }
+        IPAddress? RemoteIPAddress { get; }
     }
 
     [Flags]
@@ -149,10 +149,10 @@ namespace IPA.Cores.Basic
     public abstract class LayerInfoBase
     {
         public HierarchyPosition Position { get; } = new HierarchyPosition();
-        internal SharedHierarchy<LayerInfoBase>.HierarchyBodyItem _InternalHierarchyBodyItem = null;
-        internal LayerInfo _InternalLayerStack = null;
+        internal SharedHierarchy<LayerInfoBase>.HierarchyBodyItem? _InternalHierarchyBodyItem = null;
+        internal LayerInfo? _InternalLayerStack = null;
 
-        public NetStackBase ProtocolStack { get; private set; } = null;
+        public NetStackBase? ProtocolStack { get; private set; } = null;
 
         public bool IsInstalled => Position.IsInstalled;
 
@@ -160,7 +160,7 @@ namespace IPA.Cores.Basic
             => info.Install(this, targetLayer, joinAsSuperior);
 
         public void Uninstall()
-            => _InternalLayerStack.Uninstall(this);
+            => _InternalLayerStack?.Uninstall(this);
 
         internal void _InternalSetProtocolStack(NetStackBase protocolStack)
             => ProtocolStack = protocolStack;
@@ -242,12 +242,12 @@ namespace IPA.Cores.Basic
 
         CriticalSection LayerInfoLock = new CriticalSection();
 
-        public LayerInfoBase LayerInfo_A_LowerSide { get; private set; } = null;
-        public LayerInfoBase LayerInfo_B_UpperSide { get; private set; } = null;
+        public LayerInfoBase? LayerInfo_A_LowerSide { get; private set; } = null;
+        public LayerInfoBase? LayerInfo_B_UpperSide { get; private set; } = null;
 
         public class InstalledLayerHolder : Holder<LayerInfoBase>
         {
-            internal InstalledLayerHolder(Action<LayerInfoBase> disposeProc, LayerInfoBase userData = null) : base(disposeProc, userData) { }
+            internal InstalledLayerHolder(Action<LayerInfoBase> disposeProc, LayerInfoBase? userData = null) : base(disposeProc, userData) { }
         }
 
         internal InstalledLayerHolder _InternalInstallLayerInfo(PipePointSide side, LayerInfoBase info, bool uninstallOnDispose)
@@ -298,7 +298,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             if (ex != null)
             {
@@ -327,7 +327,7 @@ namespace IPA.Cores.Basic
             OnDisconnectedEvent.Set(true);
         }
 
-        protected override Task CleanupImplAsync(Exception ex)
+        protected override Task CleanupImplAsync(Exception? ex)
             => Task.CompletedTask;
 
         public void CheckDisconnected()
@@ -355,7 +355,7 @@ namespace IPA.Cores.Basic
         B_UpperSide,
     }
 
-    public class PipePoint : IAsyncService
+    public sealed class PipePoint : IAsyncService
     {
         public DuplexPipe Pipe { get; }
 
@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
         public FastDatagramBuffer DatagramWriter { get; }
         public FastDatagramBuffer DatagramReader { get; }
 
-        public PipePoint CounterPart { get; private set; }
+        public PipePoint? CounterPart { get; private set; }
 
         public AsyncManualResetEvent OnDisconnectedEvent { get => Pipe.OnDisconnectedEvent; }
 
@@ -403,9 +403,9 @@ namespace IPA.Cores.Basic
             => this.CounterPart = p;
 
         internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
-        internal AttachHandle _InternalCurrentAttachHandle = null;
+        internal AttachHandle? _InternalCurrentAttachHandle = null;
 
-        public AttachHandle Attach(AttachDirection attachDirection, object userState = null) => new AttachHandle(this, attachDirection, userState);
+        public AttachHandle Attach(AttachDirection attachDirection, object? userState = null) => new AttachHandle(this, attachDirection, userState);
 
         internal PipeStream _InternalGetStream(bool autoFlush = true)
             => new PipeStream(this, autoFlush);
@@ -415,27 +415,27 @@ namespace IPA.Cores.Basic
 
         public void CheckCanceled() => Pipe.CheckDisconnected();
 
-        public void Cancel(Exception ex = null) { this.Pipe.Cancel(ex); }
+        public void Cancel(Exception? ex = null) { this.Pipe.Cancel(ex); }
 
-        public Task CleanupAsync(Exception ex = null) => this.Pipe.CleanupAsync(ex);
+        public Task CleanupAsync(Exception? ex = null) => this.Pipe.CleanupAsync(ex);
 
         public void Dispose() => this.Pipe.Dispose();
-        public void Dispose(Exception ex = null) => this.Pipe.Dispose(ex);
-        public Task DisposeWithCleanupAsync(Exception ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
+        public void Dispose(Exception? ex = null) => this.Pipe.Dispose(ex);
+        public Task DisposeWithCleanupAsync(Exception? ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
     }
 
     public class AttachHandle : AsyncService
     {
         public PipePoint PipePoint { get; }
-        public object UserState { get; }
+        public object? UserState { get; }
         public AttachDirection Direction { get; }
 
-        DuplexPipe.InstalledLayerHolder InstalledLayerHolder = null;
+        DuplexPipe.InstalledLayerHolder? InstalledLayerHolder = null;
 
         IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
-        public AttachHandle(PipePoint end, AttachDirection attachDirection, object userState = null) : base()
+        public AttachHandle(PipePoint end, AttachDirection attachDirection, object? userState = null) : base()
         {
             try
             {
@@ -485,7 +485,7 @@ namespace IPA.Cores.Basic
         }
 
         int receiveTimeoutProcId = 0;
-        TimeoutDetector receiveTimeoutDetector = null;
+        TimeoutDetector? receiveTimeoutDetector = null;
 
         public void SetStreamTimeout(int recvTimeout = Timeout.Infinite, int sendTimeout = Timeout.Infinite)
         {
@@ -533,7 +533,7 @@ namespace IPA.Cores.Basic
         }
 
         int sendTimeoutProcId = 0;
-        TimeoutDetector sendTimeoutDetector = null;
+        TimeoutDetector? sendTimeoutDetector = null;
 
         public void SetStreamSendTimeout(int timeout = Timeout.Infinite)
         {
@@ -579,7 +579,7 @@ namespace IPA.Cores.Basic
         public PipeStream GetStream(bool autoFlush = true)
             => PipePoint._InternalGetStream(autoFlush);
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             lock (LockObj)
             {
@@ -599,9 +599,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task CleanupImplAsync(Exception ex) => Task.CompletedTask;
+        protected override Task CleanupImplAsync(Exception? ex) => Task.CompletedTask;
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             Leak._DisposeSafe();
 
@@ -638,7 +638,7 @@ namespace IPA.Cores.Basic
             Point.DatagramReader.CheckDisconnected();
         }
 
-        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public Task WaitReadyToSendAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -647,7 +647,7 @@ namespace IPA.Cores.Basic
             return Point.StreamWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException, cancelEvent);
         }
 
-        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public Task WaitReadyToReceiveAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -830,7 +830,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt totalRecvSize = null, int maxSize = int.MaxValue)
+        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastReceiveAsync(CancellationToken cancel = default, RefInt? totalRecvSize = null, int maxSize = int.MaxValue)
         {
             try
             {
@@ -858,7 +858,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastPeekAsync(int maxSize = int.MaxValue, CancellationToken cancel = default, RefInt totalRecvSize = null, bool all = false)
+        public async Task<IReadOnlyList<ReadOnlyMemory<byte>>> FastPeekAsync(int maxSize = int.MaxValue, CancellationToken cancel = default, RefInt? totalRecvSize = null, bool all = false)
         {
             LABEL_RETRY:
             CheckDisconnect();
@@ -924,7 +924,7 @@ namespace IPA.Cores.Basic
         #endregion
 
         #region Datagram
-        public Task WaitReadyToSendToAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public Task WaitReadyToSendToAsync(CancellationToken cancel, int timeout, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -933,7 +933,7 @@ namespace IPA.Cores.Basic
             return Point.DatagramWriter.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException, cancelEvent);
         }
 
-        public Task WaitReadyToReceiveFromAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent cancelEvent = null)
+        public Task WaitReadyToReceiveFromAsync(CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -1023,7 +1023,7 @@ namespace IPA.Cores.Basic
 
             PalSocketReceiveFromResult ret = new PalSocketReceiveFromResult();
             ret.ReceivedBytes = datagram.Data.Length;
-            ret.RemoteEndPoint = datagram.EndPoint;
+            ret.RemoteEndPoint = datagram.EndPoint!;
             return ret;
         }
 
@@ -1031,7 +1031,7 @@ namespace IPA.Cores.Basic
         {
             PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel)._GetResult();
 
-            remoteEndPoint = r.RemoteEndPoint;
+            remoteEndPoint = r.RemoteEndPoint!;
 
             return r.ReceivedBytes;
         }
@@ -1106,12 +1106,13 @@ namespace IPA.Cores.Basic
             AddEvent(obj.EventWriteReady);
         }
 
-        public void AddEvent(AsyncAutoResetEvent ev) => AddEvents(new AsyncAutoResetEvent[] { ev });
-        public void AddEvents(params AsyncAutoResetEvent[] events)
+        public void AddEvent(AsyncAutoResetEvent? ev) => AddEvents(new AsyncAutoResetEvent?[] { ev });
+        public void AddEvents(params AsyncAutoResetEvent?[] events)
         {
             foreach (var ev in events)
-                if (WaitEventList.Contains(ev) == false)
-                    WaitEventList.Add(ev);
+                if (ev != null)
+                    if (WaitEventList.Contains(ev) == false)
+                        WaitEventList.Add(ev);
         }
 
         public void AddCancel(CancellationToken c) => AddCancels(new CancellationToken[] { c });
@@ -1263,7 +1264,7 @@ namespace IPA.Cores.Basic
                         while (stateChanged);
 
                         await TaskUtil.WaitObjectsAsync(
-                            events: new AsyncAutoResetEvent[] { reader.EventReadReady },
+                            events: new AsyncAutoResetEvent?[] { reader.EventReadReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
                             timeout: PollingTimeout
                             );
@@ -1311,7 +1312,7 @@ namespace IPA.Cores.Basic
                         while (stateChanged);
 
                         await TaskUtil.WaitObjectsAsync(
-                            events: new AsyncAutoResetEvent[] { writer.EventWriteReady },
+                            events: new AsyncAutoResetEvent?[] { writer.EventWriteReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
                             timeout: PollingTimeout
                             );
@@ -1354,7 +1355,7 @@ namespace IPA.Cores.Basic
                         while (stateChanged);
 
                         await TaskUtil.WaitObjectsAsync(
-                            events: new AsyncAutoResetEvent[] { reader.EventReadReady },
+                            events: new AsyncAutoResetEvent?[] { reader.EventReadReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
                             timeout: PollingTimeout
                             );
@@ -1402,7 +1403,7 @@ namespace IPA.Cores.Basic
                         while (stateChanged);
 
                         await TaskUtil.WaitObjectsAsync(
-                            events: new AsyncAutoResetEvent[] { writer.EventWriteReady },
+                            events: new AsyncAutoResetEvent?[] { writer.EventWriteReady },
                             cancels: new CancellationToken[] { CancelWatcher.CancelToken },
                             timeout: PollingTimeout
                             );
@@ -1481,7 +1482,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            ReadOnlyMemory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.Recv(cancel, this);
 
             if (recvList == null)
             {
@@ -1510,7 +1511,7 @@ namespace IPA.Cores.Basic
                     foreach (Datagram data in sendList)
                     {
                         cancel.ThrowIfCancellationRequested();
-                        await Socket.SendToAsync(data.Data._AsSegment(), data.EndPoint);
+                        await Socket.SendToAsync(data.Data._AsSegment(), data.EndPoint!);
                     }
                     return 0;
                 },
@@ -1535,21 +1536,28 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Datagram) == false) throw new NotSupportedException();
 
-            Datagram[] pkts = await DatagramBulkReceiver.Recv(cancel, this);
+            Datagram[]? pkts = await DatagramBulkReceiver.Recv(cancel, this);
+
+            if (pkts == null)
+            {
+                // disconnected
+                fifo.Disconnect();
+                return;
+            }
 
             fifo.EnqueueAllWithLock(pkts);
 
             fifo.CompleteWrite();
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             Socket._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             Socket._DisposeSafe();
 
@@ -1628,7 +1636,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            ReadOnlyMemory<byte>[] recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.Recv(cancel, this);
 
             if (recvList == null)
             {
@@ -1649,14 +1657,14 @@ namespace IPA.Cores.Basic
             => throw new NotSupportedException();
 
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             Stream._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             Stream._DisposeSafe();
 
@@ -1729,7 +1737,7 @@ namespace IPA.Cores.Basic
         protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
 
         Once DisconnectFlag;
-        void InternalDisconnect(Exception ex)
+        void InternalDisconnect(Exception? ex)
         {
             if (DisconnectFlag.IsFirstCall())
             {
@@ -1740,14 +1748,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             InternalDisconnect(ex);
 
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             InternalDisconnect(ex);
 
@@ -1806,14 +1814,14 @@ namespace IPA.Cores.Basic
         public sealed override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default)._GetResult();
         public sealed override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default)._GetResult();
 
-        public sealed override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        public sealed override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
-        public sealed override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        public sealed override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
         public sealed override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
         public sealed override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
 
-        public sealed override bool Equals(object obj) => object.Equals(this, obj);
+        public sealed override bool Equals(object? obj) => object.Equals(this, obj);
         public sealed override int GetHashCode() => 0;
         public override string ToString() => "StreamImplBase";
         public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
@@ -1956,7 +1964,7 @@ namespace IPA.Cores.Basic
             this.NumPipes = this.PipePointList.Count;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -1995,7 +2003,7 @@ namespace IPA.Cores.Basic
             for (int i = 0; i < numPipes; i++)
             {
                 PipePoint pe_A = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, grandCancel, null, this.MaxQueueLength);
-                PipePoint pe_B = pe_A.CounterPart;
+                PipePoint pe_B = pe_A.CounterPart!;
 
                 List_A.Add(pe_A);
                 List_B.Add(pe_B);
@@ -2005,7 +2013,7 @@ namespace IPA.Cores.Basic
             this.B = new DatagramExchangePoint(EnsureInternal.Yes, this, PipePointSide.B_UpperSide, List_B);
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

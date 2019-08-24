@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
         public uint To;
         public string Registry = "";
         public uint Assigned = 0;
-        public string Country2, Country3 = "", CountryFull;
+        public string Country2 = "", Country3 = "", CountryFull = "";
 
         public int CompareTo(FullRouteIPInfoEntry other)
         {
@@ -100,9 +100,9 @@ namespace IPA.Cores.Basic
                     byte[] data = GZipUtil.Decompress(rawData);
 
                     Csv csv = new Csv(new Buf(data));
-                    foreach (CsvEntry ce in csv.Items)
+                    foreach (CsvEntry? ce in csv.Items)
                     {
-                        if (ce.Count >= 7)
+                        if (ce != null && ce.Count >= 7)
                         {
                             FullRouteIPInfoEntry e = new FullRouteIPInfoEntry();
 
@@ -241,7 +241,7 @@ namespace IPA.Cores.Basic
         public const string Url = "http://files.open.ad.jp/ip-database/gzip/mapping_ipv4_to_country.csv.gz";
         public static readonly string CacheFileName;
         static readonly GlobalLock cache_file_global_lock = new GlobalLock("ipinfo_cache_file");
-        static FullRouteIPInfoCache cache = null;
+        static FullRouteIPInfoCache? cache = null;
         static object lockObj = new object();
 
         static FullRouteIPInfo()
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
             CacheFileName = Path.Combine(Env.TempDir, "ipinfo_cache2.dat");
         }
 
-        public static string[] GetCountryCodes()
+        public static string[]? GetCountryCodes()
         {
             lock (lockObj)
             {
@@ -305,22 +305,24 @@ namespace IPA.Cores.Basic
 
         static Cache<uint, FullRouteIPInfoEntry> hit_cache = new Cache<uint, FullRouteIPInfoEntry>(new TimeSpan(24, 0, 0), CacheType.UpdateExpiresWhenAccess);
 
-        public static FullRouteIPInfoEntry Search(string ipStr)
+        public static FullRouteIPInfoEntry? Search(string ipStr)
         {
             try
             {
-                return Search(IPUtil.StrToIP(ipStr));
+                var ip = IPUtil.StrToIP(ipStr);
+                if (ip == null) return null;
+                return Search(ip);
             }
             catch
             {
                 return null;
             }
         }
-        public static FullRouteIPInfoEntry Search(IPAddress ip)
+        public static FullRouteIPInfoEntry? Search(IPAddress ip)
         {
             uint ip32 = Util.Endian(IPUtil.IPToUINT(ip));
 
-            FullRouteIPInfoEntry e;
+            FullRouteIPInfoEntry? e;
             //e = hit_cache[ip32];
             //if (e == null)
             {
@@ -336,7 +338,7 @@ namespace IPA.Cores.Basic
             return e;
         }
 
-        public static FullRouteIPInfoEntry SearchFast(uint ip32)
+        public static FullRouteIPInfoEntry? SearchFast(uint ip32)
         {
             try
             {
@@ -347,7 +349,7 @@ namespace IPA.Cores.Basic
             }
             try
             {
-                FullRouteIPInfoCache c = cache;
+                FullRouteIPInfoCache? c = cache;
 
                 if (c != null)
                 {
@@ -404,7 +406,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public static FullRouteIPInfoEntry SearchWithoutHitCache(uint ip32)
+        public static FullRouteIPInfoEntry? SearchWithoutHitCache(uint ip32)
         {
 
             try
@@ -418,7 +420,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                FullRouteIPInfoCache current_cache = cache;
+                FullRouteIPInfoCache? current_cache = cache;
 
                 if (current_cache != null)
                 {

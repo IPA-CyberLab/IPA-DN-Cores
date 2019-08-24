@@ -35,6 +35,8 @@
 
 #if CORES_BASIC_JSON
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -80,7 +82,7 @@ namespace IPA.Cores.Basic
 
         ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
 
-        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem tcpIp = null)
+        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -164,11 +166,13 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
 
                 // キューから 1 つ取ります
-                if (Queue.TryDequeue(out SslCertCollectorItem e) == false)
+                if (Queue.TryDequeue(out SslCertCollectorItem? e) == false)
                 {
                     // もう ありません
                     return;
                 }
+
+                e._MarkNotNull();
 
                 foreach (int port in Consts.Ports.PotentialHttpsPorts)
                 {
@@ -202,7 +206,7 @@ namespace IPA.Cores.Basic
                 using (SslSock ssl = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(e.SniHostName, true)))
                 {
                     ILayerInfoSsl sslInfo = ssl.Info.Ssl;
-                    PalX509Certificate cert = sslInfo.RemoteCertificate;
+                    PalX509Certificate cert = sslInfo.RemoteCertificate!;
 
                     Certificate cert2 = cert.PkiCertificate;
 
@@ -229,17 +233,17 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class SslCertCollectorItem
     {
-        public string FriendName;
-        public string SniHostName;
-        public string IpAddress;
+        public string? FriendName;
+        public string? SniHostName;
+        public string? IpAddress;
         public int Port;
 
-        public string CertHashSha1;
+        public string? CertHashSha1;
         public DateTime CertNotBefore;
         public DateTime CertNotAfter;
-        public string CertIssuer;
-        public string CertSubject;
-        public string CertFqdnList;
+        public string? CertIssuer;
+        public string? CertSubject;
+        public string? CertFqdnList;
     }
 
     // 2. FQDN の一覧を入力して FQDN、IP アドレス、ポート番号のペアの一覧を出力する
@@ -252,7 +256,7 @@ namespace IPA.Cores.Basic
 
         ConcurrentBag<SniHostnameIpAddressPair> ResultList = new ConcurrentBag<SniHostnameIpAddressPair>();
 
-        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem tcpIp = null)
+        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -295,11 +299,13 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
 
                 // キューから 1 つ取ります
-                if (FqdnQueue.TryDequeue(out string fqdn) == false)
+                if (FqdnQueue.TryDequeue(out string? fqdn) == false)
                 {
                     // もう ありません
                     return;
                 }
+
+                fqdn._MarkNotNull();
 
                 for (int i = 0; i < 3; i++)
                 {
@@ -326,7 +332,7 @@ namespace IPA.Cores.Basic
             addressList._DoForEach(addr =>
             {
                 $"{fqdn} => {addr}"._Print();
-                ResultList.Add(new SniHostnameIpAddressPair { SniHostName = fqdn, IpAddress = addr.ToString() });
+                ResultList.Add(new SniHostnameIpAddressPair(sniHostName: fqdn, ipAddress: addr.ToString()));
             });
         }
     }
@@ -335,14 +341,20 @@ namespace IPA.Cores.Basic
     {
         const StringComparison Comparison = StringComparison.OrdinalIgnoreCase;
 
-        public string SniHostName;
-        public string IpAddress;
+        public string SniHostName { get; }
+        public string IpAddress { get; }
+
+        public SniHostnameIpAddressPair(string sniHostName, string ipAddress)
+        {
+            SniHostName = sniHostName;
+            IpAddress = ipAddress;
+        }
 
         public override int GetHashCode()
             => System.HashCode.Combine(SniHostName.GetHashCode(Comparison), IpAddress.GetHashCode(Comparison));
 
-        public override bool Equals(object obj)
-            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj).IpAddress, Comparison);
+        public override bool Equals(object? obj)
+            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj!).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj!).IpAddress, Comparison);
     }
 
     // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
@@ -352,7 +364,7 @@ namespace IPA.Cores.Basic
 
         public IReadOnlyCollection<string> FqdnSet => FqdnSetInternal;
 
-        public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding encoding = null)
+        public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding? encoding = null)
         {
             encoding = encoding ?? Str.Utf8Encoding;
 

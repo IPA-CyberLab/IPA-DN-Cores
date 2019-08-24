@@ -59,10 +59,10 @@ namespace IPA.Cores.Basic
         public TcpIpSystem TcpIp;
         WebApi Web;
 
-        public GetMyIpClient(TcpIpSystem tcpIp = null)
+        public GetMyIpClient(TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
-            this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout }, tcpIp));
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout }, this.TcpIp));
         }
 
         public async Task<IPAddress> GetMyIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
@@ -74,9 +74,9 @@ namespace IPA.Cores.Basic
             else
                 url = Consts.Urls.GetMyIpUrl_IPv6;
 
-            Exception error = null;
+            Exception? error = null;
 
-            IPAddress ret = null;
+            IPAddress? ret = null;
 
             for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
             {
@@ -104,13 +104,13 @@ namespace IPA.Cores.Basic
 
             if (ret == null)
             {
-                throw error;
+                throw error!;
             }
 
             return ret;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

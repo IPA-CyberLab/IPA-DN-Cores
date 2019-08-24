@@ -229,16 +229,16 @@ namespace IPA.TestDev
         public bool Equals(TestSt5 other)
         {
             return
-                this.v1.Equals(other.v1) &&
+                this.v1.Equals(other!.v1) &&
                 this.v2.Equals(other.v2) &&
                 this.v3.Equals(other.v3) &&
                 this.v4.Equals(other.v4) &&
                 this.IntValue.Equals(other.IntValue);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            return Equals((TestSt5)obj);
+            return Equals((TestSt5)obj!);
         }
 
         public override int GetHashCode()

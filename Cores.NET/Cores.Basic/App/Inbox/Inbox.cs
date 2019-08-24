@@ -63,15 +63,15 @@ namespace IPA.Cores.Basic
 
     public class InboxMessage
     {
-        public string Id;
-        public string Service;
-        public string ServiceImage;
-        public string Group;
-        public string FromImage;
+        public string? Id;
+        public string? Service;
+        public string? ServiceImage;
+        public string? Group;
+        public string? FromImage;
 
-        private string from;
-        private string subject;
-        private string body;
+        private string? from;
+        private string? subject;
+        private string? body;
 
         public DateTimeOffset Timestamp;
         public DateTimeOffset? FirstSeen;
@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
         public string Subject { get => Safe(subject, CoresConfig.InboxSettings.MaxSubjectLen); set => subject = value; }
         public string Body { get => Safe(body, CoresConfig.InboxSettings.MaxBodyLen); set => body = value; }
 
-        static string Safe(string src, int maxLen)
+        static string Safe(string? src, int maxLen)
         {
             src = src._NonNullTrim();
 
@@ -133,7 +133,7 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<string, DateTimeOffset> FirstSeenTable = new Dictionary<string, DateTimeOffset>();
 
-        public Inbox(InboxOptions options = null)
+        public Inbox(InboxOptions? options = null)
         {
             try
             {
@@ -162,7 +162,7 @@ namespace IPA.Cores.Basic
             
             foreach (InboxAdapter a in adaptersList)
             {
-                InboxMessageBox box = a.MessageBox;
+                InboxMessageBox? box = a.MessageBox;
 
                 if (a.InitialLoading) isInitialLoading = true;
 
@@ -172,25 +172,28 @@ namespace IPA.Cores.Basic
                     {
                         foreach (InboxMessage m in box.MessageList)
                         {
-                            if (m.FirstSeen == null)
+                            if (m.Id._IsFilled())
                             {
-                                m.FirstSeen = m.Timestamp;
-
-                                if (FirstSeenTable.ContainsKey(m.Id) == false)
+                                if (m.FirstSeen == null)
                                 {
-                                    if (box.IsFirst == false)
+                                    m.FirstSeen = m.Timestamp;
+
+                                    if (FirstSeenTable.ContainsKey(m.Id) == false)
                                     {
-                                        m.FirstSeen = now;
+                                        if (box.IsFirst == false)
+                                        {
+                                            m.FirstSeen = now;
+                                        }
+                                        FirstSeenTable[m.Id] = m.FirstSeen.Value;
                                     }
-                                    FirstSeenTable[m.Id] = m.FirstSeen.Value;
+                                    else
+                                    {
+                                        m.FirstSeen = FirstSeenTable[m.Id];
+                                    }
                                 }
-                                else
-                                {
-                                    m.FirstSeen = FirstSeenTable[m.Id];
-                                }
-                            }
 
-                            msgList.Add(m);
+                                msgList.Add(m);
+                            }
                         }
                     }
                 }
@@ -257,7 +260,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -322,13 +325,13 @@ namespace IPA.Cores.Basic
 
     public class InboxAdapterUserCredential
     {
-        public string AccessToken;
+        public string? AccessToken;
     }
 
     public class InboxAdapterAppCredential
     {
-        public string ClientId;
-        public string ClientSecret;
+        public string? ClientId;
+        public string? ClientSecret;
     }
 
     public sealed class InboxOptions
@@ -338,7 +341,7 @@ namespace IPA.Cores.Basic
         public int MaxMessagesTotal { get; }
         public bool RecordRealtimeTextLog { get; }
 
-        public InboxOptions(TcpIpSystem tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize, bool recordRealtimeTextLog = false)
+        public InboxOptions(TcpIpSystem? tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize, bool recordRealtimeTextLog = false)
         {
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -356,22 +359,22 @@ namespace IPA.Cores.Basic
 
         public InboxOptions AdapterOptions { get; }
         public InboxAdapterAppCredential AppCredential { get; }
-        public InboxAdapterUserCredential UserCredential { get; protected set; }
+        public InboxAdapterUserCredential? UserCredential { get; protected set; }
 
-        public abstract string AccountInfoStr { get; }
+        public abstract string? AccountInfoStr { get; }
         public abstract bool IsStarted { get; }
 
         public bool InitialLoading { get; protected set; } = false;
 
-        public InboxMessageBox MessageBox { get; private set; }
+        public InboxMessageBox? MessageBox { get; private set; }
 
-        public Exception LastError { get; private set; }
+        public Exception? LastError { get; private set; }
 
         public string Guid { get; }
 
         public abstract string AuthStartGetUrl(string redirectUrl, string state = "");
 
-        public InboxAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions)
+        public InboxAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions? adapterOptions)
         {
             this.Guid = guid;
             this.Inbox = inbox;
@@ -424,7 +427,7 @@ namespace IPA.Cores.Basic
 
         protected void ClearLastError() => SetLastError(null);
 
-        protected void SetLastError(Exception ex)
+        protected void SetLastError(Exception? ex)
         {
             this.LastError = ex;
         }

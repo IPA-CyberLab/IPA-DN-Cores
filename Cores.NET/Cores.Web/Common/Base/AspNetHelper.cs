@@ -65,7 +65,7 @@ namespace IPA.Cores.Helper.Web
         }
 
         // JSON.NET を用いた JSON 応答の生成
-        public static IActionResult _AspNetJsonResult(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type type = null)
+        public static IActionResult _AspNetJsonResult(this object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
         {
             string jsonStr = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
 
@@ -79,6 +79,33 @@ namespace IPA.Cores.Helper.Web
 
         public static IMvcBuilder ConfigureMvcWithAspNetLib(this IMvcBuilder mvc, AspNetLib lib)
             => lib.ConfigureAspNetLibMvc(mvc);
+
+        public static HttpActionResult GetHttpActionResult(this HttpResult h)
+            => new HttpActionResult(h);
+    }
+}
+
+namespace IPA.Cores.Web
+{
+    // HttpResult を元にして ASP.NET MVC の IActionResult インスタンスを生成するクラス
+    public class HttpActionResult : IActionResult
+    {
+        public HttpResult HttpResult { get; }
+
+        public HttpActionResult(HttpResult httpResult)
+        {
+            if (httpResult == null) throw new ArgumentNullException(nameof(httpResult));
+
+            this.HttpResult = httpResult;
+        }
+
+        public async Task ExecuteResultAsync(ActionContext context)
+        {
+            using (this.HttpResult)
+            {
+                await context.HttpContext.Response._SendHttpResultAsync(this.HttpResult, context.HttpContext._GetRequestCancellationToken());
+            }
+        }
     }
 }
 

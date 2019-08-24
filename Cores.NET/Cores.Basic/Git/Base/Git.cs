@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
 {
     public static partial class GitUtil
     {
-        public static void Clone(string destDir, string srcUrl, CloneOptions options = null)
+        public static void Clone(string destDir, string srcUrl, CloneOptions? options = null)
         {
             if (options == null) options = new CloneOptions()
             {
@@ -125,10 +125,12 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                if (queue.TryDequeue(out Commit current) == false)
+                if (queue.TryDequeue(out Commit? current) == false)
                 {
                     break;
                 }
+
+                current._MarkNotNull();
 
                 foreach (Commit next in current.Parents)
                 {
@@ -175,15 +177,14 @@ namespace IPA.Cores.Basic
 
             var curLastCommit = GetLastCommitForObject(dirPath);
 
-            FileSystemEntity cur = new FileSystemEntity()
-            {
-                FullPath = dirPath,
-                Name = ".",
-                Attributes = FileAttributes.Directory,
-                CreationTime = curLastCommit.Author.When,
-                LastWriteTime = curLastCommit.Author.When,
-                LastAccessTime = curLastCommit.Author.When,
-            };
+            FileSystemEntity cur = new FileSystemEntity(
+                fullPath : dirPath,
+                name: ".",
+                attributes: FileAttributes.Directory,
+                creationTime: curLastCommit.Author.When,
+                lastWriteTime: curLastCommit.Author.When,
+                lastAccessTime: curLastCommit.Author.When
+                );
 
             ret.Add(cur);
 
@@ -196,31 +197,29 @@ namespace IPA.Cores.Basic
                 if (item.TargetType == TreeEntryTargetType.Tree)
                 {
                     Tree subTree = (Tree)item.Target;
-                    FileSystemEntity e = new FileSystemEntity()
-                    {
-                        FullPath = fullPath,
-                        Name = item.Name,
-                        Attributes = FileAttributes.Directory,
-                        CreationTime = lastCommit.Author.When,
-                        LastWriteTime = lastCommit.Author.When,
-                        LastAccessTime = lastCommit.Author.When,
-                    };
+                    FileSystemEntity e = new FileSystemEntity(
+                        fullPath : fullPath,
+                        name : item.Name,
+                        attributes : FileAttributes.Directory,
+                        creationTime : lastCommit.Author.When,
+                        lastWriteTime : lastCommit.Author.When,
+                        lastAccessTime : lastCommit.Author.When
+                    );
                     ret.Add(e);
                 }
                 else if (item.TargetType == TreeEntryTargetType.Blob)
                 {
                     Blob blob = (Blob)item.Target;
-                    FileSystemEntity e = new FileSystemEntity()
-                    {
-                        FullPath = fullPath,
-                        Name = item.Name,
-                        Attributes = FileAttributes.Normal,
-                        Size = blob.Size,
-                        PhysicalSize = blob.Size,
-                        CreationTime = lastCommit.Author.When,
-                        LastWriteTime = lastCommit.Author.When,
-                        LastAccessTime = lastCommit.Author.When,
-                    };
+                    FileSystemEntity e = new FileSystemEntity(
+                        fullPath : fullPath,
+                        name : item.Name,
+                        attributes : FileAttributes.Normal,
+                        size : blob.Size,
+                        physicalSize : blob.Size,
+                        creationTime : lastCommit.Author.When,
+                        lastWriteTime : lastCommit.Author.When,
+                        lastAccessTime : lastCommit.Author.When
+                    );
                     ret.Add(e);
                 }
             }
@@ -503,7 +502,7 @@ namespace IPA.Cores.Basic
         public GitRef[] EnumRef(CancellationToken cancel = default)
             => EnumRefAsync(cancel)._GetResult();
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

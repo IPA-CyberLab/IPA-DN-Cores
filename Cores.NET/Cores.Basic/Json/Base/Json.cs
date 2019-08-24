@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_JSON
 
+using System.Diagnostics.CodeAnalysis;
+
 using System;
 using System.Threading.Tasks;
 using System.Collections;
@@ -60,7 +62,7 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
-        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type type = null)
+        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type? type = null)
         {
             foreach (var item in itemArray)
             {
@@ -94,7 +96,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string Serialize(object obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type type = null)
+        public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
         {
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
@@ -120,10 +122,11 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        [return: MaybeNull]
         public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
-            => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url);
+            => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url)!;
 
-        public static object Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+        public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
         {
             if (base64url)
             {
@@ -140,41 +143,43 @@ namespace IPA.Cores.Basic
             return JsonConvert.DeserializeObject(str, type, setting);
         }
 
-        public static T ConvertObject<T>(object src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
-            => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling);
+        [return: MaybeNull]
+        public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+            => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling)!;
 
-        public static object ConvertObject(object src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+        public static object? ConvertObject(object? src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
         {
             string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
             return Deserialize(str, destType, maxDepth: maxDepth);
         }
 
-        public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T, bool> itemReadCallback,
-            Func<string, Exception, bool> parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T?, bool> itemReadCallback,
+            Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            where T: class
         {
             while (true)
             {
-                string line = await txt.ReadLineAsync();
+                string? line = await txt.ReadLineAsync();
                 if (line == null)
                 {
                     return true;
                 }
                 if (line._IsFilled())
                 {
-                    object obj = null;
+                    object? obj = null;
                     try
                     {
-                        obj = (object)Deserialize<T>(line, includeNull, maxDepth);
+                        obj = (object ?)Deserialize<T>(line, includeNull, maxDepth);
                     }
                     catch (Exception ex)
                     {
-                        if (parseErrorCallback(line, ex) == false)
+                        if (parseErrorCallback != null && parseErrorCallback(line, ex) == false)
                         {
                             return false;
                         }
                     }
 
-                    if (itemReadCallback((T)obj) == false)
+                    if (itemReadCallback((T?)obj) == false)
                     {
                         return false;
                     }
@@ -189,9 +194,9 @@ namespace IPA.Cores.Basic
             return o.ToString();
         }
 
-        public static dynamic DeserializeDynamic(string str)
+        public static dynamic? DeserializeDynamic(string str)
         {
-            dynamic ret = JObject.Parse(str);
+            dynamic? ret = JObject.Parse(str);
             return ret;
         }
 
@@ -209,7 +214,7 @@ namespace IPA.Cores.Basic
 
         public static string Normalize(string str)
         {
-            dynamic d = DeserializeDynamic(str);
+            dynamic? d = DeserializeDynamic(str);
 
             return SerializeDynamic(d);
         }
@@ -217,7 +222,7 @@ namespace IPA.Cores.Basic
 
     public static partial class Dbg
     {
-        static partial void InternalConvertToJsonStringIfPossible(ref string ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
+        static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
         {
             ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
         }

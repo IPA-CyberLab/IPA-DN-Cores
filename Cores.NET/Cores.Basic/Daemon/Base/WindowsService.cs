@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
         readonly WindowsServiceObject WinSvcObj;
 
         public int TelnetLogWatcherPort { get; }
-        TelnetLocalLogWatcher TelnetWatcher;
+        TelnetLocalLogWatcher? TelnetWatcher;
 
         public WindowsService(string name, Action onStart, Action onStop, int telnetLogWatcherPort)
         {

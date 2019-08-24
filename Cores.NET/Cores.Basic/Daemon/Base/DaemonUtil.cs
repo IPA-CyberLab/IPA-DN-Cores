@@ -104,9 +104,9 @@ namespace IPA.Cores.Basic
                         DenyRobots = true, // Deny robots
                     };
 
-                    LogBrowserHttpServerOptions browserOptions = new LogBrowserHttpServerOptions(Env.AppRootDir, 
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(
+                        Env.AppRootDir, 
                         systemTitle: $"{Env.DnsFqdnHostName}",
-                        urlSecret: GlobalDaemonStateManager.DaemonSecret,
                         clientIpAcl: (ip) =>
                         {
                             // 接続元 IP アドレスの種類を取得
@@ -127,7 +127,7 @@ namespace IPA.Cores.Basic
                         }
                         );
 
-                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, browserOptions));
+                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, "/" + GlobalDaemonStateManager.DaemonSecret)));
 
                     GlobalDaemonStateManager.FileBrowserHttpsPortNumber = httpsPort;
                 }
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

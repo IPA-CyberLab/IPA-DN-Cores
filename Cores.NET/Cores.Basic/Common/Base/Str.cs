@@ -49,6 +49,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace IPA.Cores.Basic
 {
@@ -87,7 +88,7 @@ namespace IPA.Cores.Basic
                 StringReader r = new StringReader(fromString);
                 while (true)
                 {
-                    string line = r.ReadLine();
+                    string? line = r.ReadLine();
                     if (line == null)
                     {
                         break;
@@ -213,9 +214,9 @@ namespace IPA.Cores.Basic
         // シリアライズされたエラー文字列
         public class SerializedError
         {
-            public string Code;
-            public string Language;
-            public string ErrorMsg;
+            public string Code = null!;
+            public string Language = null!;
+            public string ErrorMsg = null!;
         }
     }
 
@@ -439,7 +440,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        tmp = param.ToString();
+                        tmp = param.ToString()._NonNull();
                     }
                     break;
             }
@@ -657,7 +658,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ExtendedStrComparer : IEqualityComparer<string>, IComparer<string>
+    public class ExtendedStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public StringComparison Comparison { get; }
 
@@ -666,25 +667,25 @@ namespace IPA.Cores.Basic
             this.Comparison = comparison;
         }
 
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
         {
             return x._CmpTrim(y, this.Comparison);
         }
 
-        public bool Equals(string x, string y)
+        public bool Equals(string? x, string? y)
         {
             return x._IsSameTrim(y, this.Comparison);
         }
 
-        public int GetHashCode(string obj)
+        public int GetHashCode(string? obj)
         {
             return obj._NonNullTrim().GetHashCode(this.Comparison);
         }
     }
 
-    public class IpAddressStrComparer : IEqualityComparer<string>, IComparer<string>
+    public class IpAddressStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
         {
             x = x._NonNullTrim();
             y = y._NonNullTrim();
@@ -710,7 +711,7 @@ namespace IPA.Cores.Basic
             return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
         }
 
-        public bool Equals(string x, string y)
+        public bool Equals(string? x, string? y)
         {
             x = x._NonNullTrim();
             y = y._NonNullTrim();
@@ -728,7 +729,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public int GetHashCode(string obj)
+        public int GetHashCode(string? obj)
         {
             obj = obj._NonNullTrim();
 
@@ -743,7 +744,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class StrComparer : IEqualityComparer<string>, IComparer<string>
+    public class StrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
@@ -795,14 +796,14 @@ namespace IPA.Cores.Basic
             this.Comparison = comparison;
         }
 
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
             => string.Compare(x, y, this.Comparison);
 
-        public bool Equals(string x, string y)
-            => x.Equals(y, this.Comparison);
+        public bool Equals(string? x, string? y)
+            => string.Equals(x, y, this.Comparison);
 
-        public int GetHashCode(string obj)
-            => obj.GetHashCode(this.Comparison);
+        public int GetHashCode(string? obj)
+            => obj?.GetHashCode(this.Comparison) ?? 0;
     }
 
     public delegate bool RemoveStringFunction(string str);
@@ -878,7 +879,7 @@ namespace IPA.Cores.Basic
             GB2312Encoding = Encoding.GetEncoding("gb2312");
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
-            BomUtf8 = Str.GetBOM(Str.Utf8Encoding);
+            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
         }
 
         internal static readonly char[] standardSplitChars =
@@ -898,7 +899,7 @@ namespace IPA.Cores.Basic
         static ulong LastNewIdMSecs = 0;
 
         // 16 進数文字列を正規化
-        public static string NormalizeHexString(string src, bool lowerCase = false, string padding = "")
+        public static string NormalizeHexString(string? src, bool lowerCase = false, string padding = "")
         {
             src = src._NonNullTrimSe();
             byte[] data = src._GetHexBytes();
@@ -1036,7 +1037,7 @@ namespace IPA.Cores.Basic
         }
 
         // ID 文字列を短縮する
-        public static string GetShortId(string fullId)
+        public static string? GetShortId(string fullId)
         {
             Str.NormalizeString(ref fullId);
             fullId = fullId.ToUpper();
@@ -1079,18 +1080,15 @@ namespace IPA.Cores.Basic
         //public static string BinaryString
 
         // 文字列をソフトイーサ表記規則に正規化する
-        public static string NormalizeStrSoftEther(string str)
-        {
-            return NormalizeStrSoftEther(str, false);
-        }
-        public static string NormalizeStrSoftEther(string str, bool trim)
+        public static string NormalizeStrSoftEther(string? str, bool trim = false)
         {
             bool b = false;
+            str = str._NonNull();
             StringReader sr = new StringReader(str);
             StringWriter sw = new StringWriter();
             while (true)
             {
-                string line = sr.ReadLine();
+                string? line = sr.ReadLine();
                 if (line == null)
                 {
                     break;
@@ -1259,8 +1257,10 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列を Git Commit ID として正規化する
-        public static string NormalizeGitCommitId(string src)
+        public static string NormalizeGitCommitId(string? src)
         {
+            if (src._IsEmpty()) return "";
+
             if (TryNormalizeGitCommitId(src, out string dst))
             {
                 return dst;
@@ -1268,7 +1268,7 @@ namespace IPA.Cores.Basic
 
             return "";
         }
-        public static bool TryNormalizeGitCommitId(string src, out string dst)
+        public static bool TryNormalizeGitCommitId(string? src, out string dst)
         {
             dst = "";
 
@@ -1378,7 +1378,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                string line = r.ReadLine();
+                string? line = r.ReadLine();
                 if (line == null)
                 {
                     break;
@@ -1396,10 +1396,8 @@ namespace IPA.Cores.Basic
         // 前方から指定文字だけ取得する
         public static string GetLeft(string str, int len)
         {
-            if (str == null)
-            {
-                return null;
-            }
+            str = str._NonNull();
+
             if (str.Length > len)
             {
                 return str.Substring(0, len);
@@ -1481,12 +1479,12 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したデータに BOM が付いているかどうか判別する
-        public static Encoding CheckBOM(ReadOnlySpan<byte> data)
+        public static Encoding? CheckBOM(ReadOnlySpan<byte> data)
         {
             int i;
             return CheckBOM(data, out i);
         }
-        public static Encoding CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
+        public static Encoding? CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
             try
@@ -1560,7 +1558,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public static byte[] GetBOM(Encoding encoding)
+        public static byte[]? GetBOM(Encoding encoding)
         {
             var span = GetBOMSpan(encoding);
 
@@ -1577,7 +1575,7 @@ namespace IPA.Cores.Basic
         }
         public static byte[] ConvertEncoding(byte[] srcData, Encoding destEncoding, bool appendBom)
         {
-            Encoding srcEncoding = GetEncoding(srcData);
+            Encoding? srcEncoding = GetEncoding(srcData);
             if (srcEncoding == null)
             {
                 srcEncoding = Str.ShiftJisEncoding;
@@ -1591,7 +1589,7 @@ namespace IPA.Cores.Basic
 
             string str = srcEncoding.GetString(srcData);
 
-            byte[] b1 = null;
+            byte[]? b1 = null;
             if (appendBom)
             {
                 b1 = GetBOM(destEncoding);
@@ -1607,7 +1605,7 @@ namespace IPA.Cores.Basic
             byte[] data = IO.ReadFile(filename);
             int bomSize = 0;
 
-            Encoding enc = GetEncoding(data, out bomSize);
+            Encoding? enc = GetEncoding(data, out bomSize);
             if (enc == null)
             {
                 enc = Str.Utf8Encoding;
@@ -1633,7 +1631,7 @@ namespace IPA.Cores.Basic
         public static void WriteTextFile(string filename, string contents, Encoding encoding, bool writeBom)
         {
             Buf buf = new Buf();
-            byte[] bom = GetBOM(encoding);
+            byte[]? bom = GetBOM(encoding);
             if (writeBom && bom != null && bom.Length >= 1)
             {
                 buf.Write(bom);
@@ -1649,7 +1647,7 @@ namespace IPA.Cores.Basic
         public static string DecodeStringAutoDetect(ReadOnlySpan<byte> data, out Encoding detectedEncoding)
         {
             int bomSize;
-            detectedEncoding = Str.GetEncoding(data, out bomSize);
+            detectedEncoding = Str.GetEncoding(data, out bomSize)!;
             if (detectedEncoding == null)
                 detectedEncoding = Encoding.UTF8;
 
@@ -1662,7 +1660,8 @@ namespace IPA.Cores.Basic
         public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding)
         {
             int bomSize;
-            detectedEncoding = CheckBOM(data, out bomSize);
+
+            detectedEncoding = CheckBOM(data, out bomSize)!;
             if (detectedEncoding == null)
                 detectedEncoding = defaultEncoding;
 
@@ -1672,12 +1671,12 @@ namespace IPA.Cores.Basic
         }
 
         // テキストファイルのエンコーディングを取得する
-        public static Encoding GetEncoding(ReadOnlySpan<byte> data)
+        public static Encoding? GetEncoding(ReadOnlySpan<byte> data)
         {
             int i;
             return GetEncoding(data, out i);
         }
-        public static Encoding GetEncoding(ReadOnlySpan<byte> data, out int bomSize)
+        public static Encoding? GetEncoding(ReadOnlySpan<byte> data, out int bomSize)
         {
             const byte bESC = 0x1B;
             const byte bAT = 0x40;
@@ -1698,7 +1697,7 @@ namespace IPA.Cores.Basic
             int utf8 = 0;
             byte b1, b2;
 
-            Encoding bomEncoding = CheckBOM(data, out bomSize);
+            Encoding? bomEncoding = CheckBOM(data, out bomSize);
             if (bomEncoding != null)
             {
                 return bomEncoding;
@@ -2169,7 +2168,7 @@ namespace IPA.Cores.Basic
         }
 
         // 空白の除去
-        public static void RemoveSpaceChar(ref string str)
+        public static void RemoveSpaceChar([AllowNull] ref string str)
         {
             if (Str.IsEmptyStr(str))
             {
@@ -2193,11 +2192,11 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を正規化する
-        public static void NormalizeStringStandard(ref string str)
+        public static void NormalizeStringStandard([AllowNull] ref string str)
         {
             NormalizeString(ref str, true, true, false, true);
         }
-        public static void NormalizeString(ref string str, bool space, bool toHankaku, bool toZenkaku, bool toZenkakuKana)
+        public static void NormalizeString([AllowNull] ref string str, bool space, bool toHankaku, bool toZenkaku, bool toZenkakuKana)
         {
             NormalizeString(ref str);
 
@@ -2223,7 +2222,7 @@ namespace IPA.Cores.Basic
         }
 
         // スペースを正規化する
-        public static string NormalizeSpace(string str)
+        public static string NormalizeSpace(string? str)
         {
             NormalizeString(ref str);
             char[] sps =
@@ -2436,7 +2435,6 @@ namespace IPA.Cores.Basic
 
         public static string GetHostNameFromFqdn(string fqdn)
         {
-            if (fqdn == null) return null;
             if (fqdn._IsEmpty()) return "";
             int[] dots = fqdn._FindStringIndexes(".", true);
             if (dots.Length == 0)
@@ -2448,7 +2446,6 @@ namespace IPA.Cores.Basic
 
         public static string GetDomainFromFqdn(string fqdn)
         {
-            if (fqdn == null) return null;
             if (fqdn._IsEmpty()) return "";
             int[] dots = fqdn._FindStringIndexes(".", true);
             if (dots.Length == 0)
@@ -2459,8 +2456,9 @@ namespace IPA.Cores.Basic
         }
 
         // URL パスエンコード
-        public static string EncodeUrlPath(string str)
+        public static string EncodeUrlPath(string? str, Encoding? encoding = null)
         {
+            if (encoding == null) encoding = Str.Utf8Encoding;
             str = str._NonNullTrim();
 
             str = HttpUtility.UrlPathEncode(str);
@@ -2473,17 +2471,18 @@ namespace IPA.Cores.Basic
         }
 
         // URL パスデコード
-        public static string DecodeUrlPath(string str)
+        public static string DecodeUrlPath(string? str, Encoding? encoding = null)
         {
+            if (encoding == null) encoding = Str.Utf8Encoding;
             str = str._NonNullTrim();
 
-            str = HttpUtility.UrlDecode(str, Str.Utf8Encoding);
+            str = HttpUtility.UrlDecode(str, encoding);
 
             return str;
         }
 
         // URL エンコード
-        public static string EncodeUrl(string str, Encoding encoding = null)
+        public static string EncodeUrl(string? str, Encoding? encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
@@ -2491,7 +2490,7 @@ namespace IPA.Cores.Basic
         }
 
         // URL デコード
-        public static string DecodeUrl(string str, Encoding encoding = null)
+        public static string DecodeUrl(string? str, Encoding? encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
@@ -2499,7 +2498,7 @@ namespace IPA.Cores.Basic
         }
 
         // HTML デコード
-        public static string DecodeHtml(string str, bool normalizeMultiSpaces = false)
+        public static string DecodeHtml(string? str, bool normalizeMultiSpaces = false)
         {
             str = str._NonNull();
 
@@ -2521,7 +2520,7 @@ namespace IPA.Cores.Basic
         }
 
         // HTML エンコード
-        public static string EncodeHtml(string str, bool forceAllSpaceToTag = false)
+        public static string EncodeHtml(string? str, bool forceAllSpaceToTag = false)
         {
             str = str._NonNull();
 
@@ -2696,8 +2695,9 @@ namespace IPA.Cores.Basic
         }
 
         // Ascii 文字として 1 行で表示可能な文字列に変換する
-        public static string MakeAsciiOneLinePrintableStr(string src, char alternativeChar = ' ')
+        public static string MakeAsciiOneLinePrintableStr(string? src, char alternativeChar = ' ')
         {
+            src = src._NonNull();
             StringBuilder sb = new StringBuilder();
             foreach (char c in src)
             {
@@ -2934,10 +2934,12 @@ namespace IPA.Cores.Basic
         }
 
         // 横幅を取得
-        public static int GetStrWidth(string str)
+        public static int GetStrWidth(string? str)
         {
+            if (str._IsNullOrZeroLen()) return 0;
+
             int ret = 0;
-            foreach (char c in str)
+            foreach (char c in str!)
             {
                 if (c <= 255)
                 {
@@ -2952,13 +2954,13 @@ namespace IPA.Cores.Basic
         }
 
         // 末尾の \r \n を削除
-        public static string TrimCrlf(string str)
+        public static string TrimCrlf(string? str)
         {
             return str._NonNull().TrimEnd('\r', '\n');
         }
 
         // 指定した文字列がすべて大文字かどうかチェックする
-        public static bool IsAllUpperStr(string str)
+        public static bool IsAllUpperStr(string? str)
         {
             int i, len;
             // 引数チェック
@@ -3165,11 +3167,11 @@ namespace IPA.Cores.Basic
             MemberInfo[] members = t.GetMembers(BindingFlags.Instance | BindingFlags.Public);
             foreach (MemberInfo member in members)
             {
-                FieldInfo fi = member as FieldInfo;
-                PropertyInfo pi = member as PropertyInfo;
+                FieldInfo? fi = member as FieldInfo;
+                PropertyInfo? pi = member as PropertyInfo;
 
-                string from = null;
-                string to = null;
+                string? from = null;
+                string? to = null;
 
                 if (fi != null)
                 {
@@ -3197,11 +3199,11 @@ namespace IPA.Cores.Basic
         {
             List<int> ret = new List<int>();
 
+            str = str._NonNull();
+
+            if (keyword._IsNullOrZeroLen()) return new int[0];
+
             int len_string, len_keyword;
-            if (str == null || keyword == null)
-            {
-                return null;
-            }
 
             int i, j, num;
 
@@ -3240,9 +3242,9 @@ namespace IPA.Cores.Basic
         // 文字列の置換
         public static string ReplaceStr(string str, string oldKeyword, string newKeyword, bool caseSensitive = false)
         {
-            if (str == null)
+            if (str._IsNullOrZeroLen())
             {
-                return null;
+                return "";
             }
 
             if (str.Length == 0)
@@ -3342,7 +3344,7 @@ namespace IPA.Cores.Basic
             // 引数チェック
             if (fmt == null)
             {
-                return null;
+                return "";
             }
 
             len = fmt.Length;
@@ -3450,7 +3452,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を正規化する
-        public static void NormalizeString(ref string str)
+        public static void NormalizeString([AllowNull] ref string str)
         {
             if (str == null)
             {
@@ -3460,7 +3462,7 @@ namespace IPA.Cores.Basic
             str = str.Trim();
         }
 
-        public static string NormalizeString(string str)
+        public static string NormalizeString(string? str)
         {
             if (str == null)
             {
@@ -3471,7 +3473,7 @@ namespace IPA.Cores.Basic
         }
 
         // パスワードプロンプト
-        public static string PasswordPrompt()
+        public static string? PasswordPrompt()
         {
             Queue<char> ret = new Queue<char>();
             bool escape = false;
@@ -3521,7 +3523,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の長さをチェックする
-        public static bool CheckStrLen(string str, int maxLen)
+        public static bool CheckStrLen(string? str, int maxLen)
         {
             if (str == null)
             {
@@ -3716,13 +3718,15 @@ namespace IPA.Cores.Basic
         }
 
         // 複数の文字列を結合する
-        public static string CombineStringArray(string sepstr, params string[] strs)
+        public static string CombineStringArray(string sepstr, params string?[]? strs)
         {
+            if (strs == null) return "";
+
             List<string> tmp = new List<string>();
 
-            foreach (string str in strs)
+            foreach (string? str in strs)
             {
-                if (Str.IsEmptyStr(str) == false)
+                if (str._IsFilled())
                 {
                     tmp.Add(str);
                 }
@@ -3737,23 +3741,25 @@ namespace IPA.Cores.Basic
 
             foreach (object obj in objs)
             {
-                string str = (obj == null ? "" : obj.ToString());
+                string? str = (obj == null ? "" : obj.ToString());
                 if (Str.IsEmptyStr(str) == false)
                 {
-                    tmp.Add(str);
+                    tmp.Add(str!);
                 }
             }
 
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
 
-        public static string CombineStringArray(IEnumerable<string> strList, string sepstr = "", bool removeEmpty = false)
+        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false)
         {
+            sepstr = sepstr._NonNull();
+
             StringBuilder b = new StringBuilder();
 
             int num = 0;
 
-            foreach (string s in strList)
+            foreach (string? s in strList)
             {
                 if (removeEmpty == false || s._IsFilled())
                 {
@@ -3762,7 +3768,8 @@ namespace IPA.Cores.Basic
                         b.Append(sepstr);
                     }
 
-                    b.Append(s);
+                    if (s != null) b.Append(s);
+
                     num++;
                 }
             }
@@ -3771,7 +3778,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の最大長を指定してそこまで切り取る
-        public static string TruncStr(string str, int len)
+        public static string TruncStr(string? str, int len)
         {
             if (str == null)
             {
@@ -3788,7 +3795,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の最大長を指定してそこまで切り取る
-        public static string TruncStrEx(string str, int len, string appendCode = "...")
+        public static string TruncStrEx(string? str, int len, string? appendCode = "...")
         {
             if (str == null)
             {
@@ -3879,8 +3886,9 @@ namespace IPA.Cores.Basic
             b.SeekToBegin();
             return b.ReadInt64();
         }
-        public static byte[] HashStrSHA256(string str)
+        public static byte[] HashStrSHA256(string? str)
         {
+            str = str._NonNull();
             return Secure.HashSHA256(Encoding.UTF8.GetBytes(str));
         }
 
@@ -4023,13 +4031,13 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
+        public static T ParseEnum<T>(string? str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return (T)StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
         public static object ParseEnum(object value, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
-            return ParseEnum(value.ToString(), defaultValue, exactOnly, noMatchError);
+            return ParseEnum(value.ToString()!, defaultValue, exactOnly, noMatchError);
         }
         public static object ParseEnum(string str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
@@ -4058,21 +4066,25 @@ namespace IPA.Cores.Basic
             return d;
         });
 
-        public static object StrToEnum(string str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
+        public static object StrToEnum(string? str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {
+            if (str._IsNullOrZeroLen()) return defaultValue;
+
             Type type = defaultValue.GetType();
-            if (EnumCacheCaseSensitive[type].TryGetValue(str, out object ret))
+            if (EnumCacheCaseSensitive[type].TryGetValue(str, out object? ret))
             {
                 return ret;
             }
-            if (EnumCacheCaseIgnore[type].TryGetValue(str, out object ret2))
+            if (EnumCacheCaseIgnore[type].TryGetValue(str, out object? ret2))
             {
                 return ret2;
             }
             if (exactOnly == false)
             {
-                if (Enum.TryParse(type, str, out object ret3))
+                if (Enum.TryParse(type, str, out object? ret3))
                 {
+                    if (ret3 == null) return defaultValue;
+
                     return ret3;
                 }
             }
@@ -4082,9 +4094,9 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を bool に変換する
-        public static bool StrToBool(string s)
+        public static bool StrToBool(string? s)
         {
-            if (s == null)
+            if (s._IsNullOrZeroLen())
             {
                 return false;
             }
@@ -4110,7 +4122,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を double に変換する
-        public static double StrToDouble(string str)
+        public static double StrToDouble(string? str)
         {
             try
             {
@@ -4130,7 +4142,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を decimal に変換する
-        public static decimal StrToDecimal(string str)
+        public static decimal StrToDecimal(string? str)
         {
             try
             {
@@ -4150,7 +4162,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を int 型に変換する
-        public static int StrToInt(string str)
+        public static int StrToInt(string? str)
         {
             try
             {
@@ -4169,7 +4181,7 @@ namespace IPA.Cores.Basic
                 return 0;
             }
         }
-        public static uint StrToUInt(string str)
+        public static uint StrToUInt(string? str)
         {
             try
             {
@@ -4190,7 +4202,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を long 型に変換する
-        public static long StrToLong(string str)
+        public static long StrToLong(string? str)
         {
             try
             {
@@ -4209,7 +4221,7 @@ namespace IPA.Cores.Basic
                 return 0;
             }
         }
-        public static ulong StrToULong(string str)
+        public static ulong StrToULong(string? str)
         {
             try
             {
@@ -4243,7 +4255,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToDateTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
+        public static DateTime StrToDateTime(string? str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
             if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
             DateTime ret = new DateTime(0);
@@ -4334,7 +4346,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToTime(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
+        public static DateTime StrToTime(string? str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
             if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
 
@@ -4491,7 +4503,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public static DateTime StrToDate(string str, bool toUtc = false, bool emptyToZeroDateTime = false)
+        public static DateTime StrToDate(string? str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
             if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
 
@@ -4505,7 +4517,7 @@ namespace IPA.Cores.Basic
                     "月",
                     "日",
                 };
-            str = str.Trim();
+            str = str._NonNullTrim();
             Str.NormalizeString(ref str, true, true, false, false);
 
             string[] youbi =
@@ -4930,7 +4942,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列をバイトに変換
-        public static byte[] StrToByte(string str)
+        public static byte[] StrToByte(string? str)
         {
             Str.NormalizeString(ref str, true, true, false, false);
             return Base64Decode(Safe64ToBase64(str));
@@ -4950,11 +4962,11 @@ namespace IPA.Cores.Basic
 
 
         // メールアドレスをチェックする
-        public static bool CheckMailAddress(string str)
+        public static bool CheckMailAddress(string? str)
         {
             try
             {
-                str = str.Trim();
+                str = str._NonNullTrim();
                 if (str.Length == 0)
                 {
                     return false;
@@ -4989,43 +5001,25 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を大文字・小文字を区別せずに比較
-        public static bool StrCmpi(string s1, string s2)
+        public static bool StrCmpi(string? s1, string? s2)
         {
-            try
-            {
-                if (s1.Equals(s2, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
 
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
+            return string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase);
         }
 
         // 文字列を大文字・小文字を区別して比較
-        public static bool StrCmp(string s1, string s2)
+        public static bool StrCmp(string? s1, string? s2)
         {
-            try
-            {
-                if (s1 == s2)
-                {
-                    return true;
-                }
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
 
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
+            return string.Equals(s1, s2, StringComparison.Ordinal);
         }
 
         // 簡易エンコードを実施
-        public static string EncodeEasy(string str)
+        public static string EncodeEasy(string? str)
         {
             try
             {
@@ -5039,7 +5033,7 @@ namespace IPA.Cores.Basic
         }
 
         // 簡易デコードを実施
-        public static string DecodeEasy(string str)
+        public static string DecodeEasy(string? str)
         {
             try
             {
@@ -5093,15 +5087,17 @@ namespace IPA.Cores.Basic
         }
 
         // 16 進数文字列をバイト列に変換
-        public static byte[] HexToByte(string str)
+        public static byte[] HexToByte(string? str)
         {
             try
             {
+                if (str._IsNullOrZeroLen()) return new byte[0];
+
                 List<byte> o = new List<byte>();
                 string tmp = "";
                 int i, len;
 
-                str = str.ToUpper().Trim();
+                str = str!.ToUpper().Trim();
                 len = str.Length;
 
                 for (i = 0; i < len; i++)
@@ -5142,7 +5138,7 @@ namespace IPA.Cores.Basic
             StringReader sr = new StringReader(str);
             while (true)
             {
-                string s = sr.ReadLine();
+                string? s = sr.ReadLine();
                 if (s == null)
                 {
                     break;
@@ -5205,11 +5201,11 @@ namespace IPA.Cores.Basic
             return "";
         }
         // 空かどうか調べる
-        public static bool IsEmptyStr(string s)
+        public static bool IsEmptyStr([NotNullWhen(false)] string? s)
         {
             return string.IsNullOrWhiteSpace(s);
         }
-        public static bool IsFilledStr(string str)
+        public static bool IsFilledStr([NotNullWhen(true)] string? str)
         {
             return !IsEmptyStr(str);
         }
@@ -5220,6 +5216,30 @@ namespace IPA.Cores.Basic
             splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
 
             return (splitStr.IndexOf(c, StringComparison.OrdinalIgnoreCase) != -1);
+        }
+
+        // QueryString をパースする
+        public static QueryStringList ParseQueryString(string src, Encoding? encoding = null)
+        {
+            return new QueryStringList(src, encoding);
+        }
+
+        // 文字列から URL と QueryString を分離する
+        public static void SplitUrlAndQueryString(string src, out string url, out string queryString)
+        {
+            src = src._NonNull();
+
+            int i = src.IndexOf('?');
+            if (i == -1)
+            {
+                url = src;
+                queryString = "";
+            }
+            else
+            {
+                url = src.Substring(0, i);
+                queryString = src.Substring(i + 1);
+            }
         }
 
         // 文字列からキーと値を取得する
@@ -5320,7 +5340,7 @@ namespace IPA.Cores.Basic
         }
 
         // double かどうか取得
-        public static bool IsDouble(string str)
+        public static bool IsDouble(string? str)
         {
             double v;
             Str.NormalizeString(ref str, true, true, false, false);
@@ -5329,7 +5349,7 @@ namespace IPA.Cores.Basic
         }
 
         // long かどうか取得
-        public static bool IsLong(string str)
+        public static bool IsLong(string? str)
         {
             long v;
             Str.RemoveSpaceChar(ref str);
@@ -5339,7 +5359,7 @@ namespace IPA.Cores.Basic
         }
 
         // int かどうか取得
-        public static bool IsInt(string str)
+        public static bool IsInt(string? str)
         {
             int v;
             Str.RemoveSpaceChar(ref str);
@@ -5349,9 +5369,9 @@ namespace IPA.Cores.Basic
         }
 
         // 数値かどうか取得
-        public static bool IsNumber(string str)
+        public static bool IsNumber(string? str)
         {
-            str = str.Trim();
+            str = str._NonNullTrim();
             Str.RemoveSpaceChar(ref str);
             Str.NormalizeString(ref str, true, true, false, false);
             str = str.Replace(",", "");
@@ -5383,11 +5403,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列が含まれているかどうかチェック
-        public static bool InStr(string str, string keyword)
-        {
-            return InStr(str, keyword, false);
-        }
-        public static bool InStr(string str, string keyword, bool caseSensitive)
+        public static bool InStr(string str, string keyword, bool caseSensitive = false)
         {
             if (str.IndexOf(keyword, (caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)) == -1)
             {
@@ -5404,9 +5420,9 @@ namespace IPA.Cores.Basic
         }
 
         // 最後の改行を削除する
-        public static string RemoveLastCrlf(string str)
+        public static string RemoveLastCrlf(string? str)
         {
-            if (str == null) return null;
+            if (str == null) return "";
             if (str.Length >= 1 && str[str.Length - 1] == 10)
                 str = str.Substring(0, str.Length - 1);
             if (str.Length >= 1 && str[str.Length - 1] == 13)
@@ -5415,21 +5431,23 @@ namespace IPA.Cores.Basic
         }
 
         // 改行コードを正規化する
-        public static string NormalizeCrlf(string str, CrlfStyle style)
+        [return: NotNullIfNotNull("str")]
+        public static string? NormalizeCrlf(string str, CrlfStyle style)
         {
             if (str == null) return null;
             if (style == CrlfStyle.NoChange) return str;
             return NormalizeCrlf(str, Str.GetNewLineBytes(style));
         }
+        [return: NotNullIfNotNull("str")]
         public static string NormalizeCrlf(string str, byte[] crlfData)
         {
+            if (str == null) return "";
             byte[] srcData = Str.Utf8Encoding.GetBytes(str);
             Memory<byte> destData = NormalizeCrlf(srcData, crlfData);
             return Str.Utf8Encoding.GetString(destData.Span);
         }
         public static Memory<byte> NormalizeCrlf(ReadOnlySpan<byte> srcData, CrlfStyle style)
         {
-            if (srcData == null) return null;
             if (style == CrlfStyle.NoChange) return srcData.ToArray();
             return NormalizeCrlf(srcData, Str.GetNewLineBytes(style));
         }
@@ -5740,13 +5758,13 @@ namespace IPA.Cores.Basic
             return xs.Deserialize(ms);
         }
 
-        public static string ObjectToXmlStr(object obj, DataContractSerializerSettings settings = null) => Util.ObjectToXml(obj, settings)._GetString_UTF8();
-        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings settings = null) => Util.XmlToObject(src._GetBytes_UTF8(), type, settings);
-        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings settings = null) => Util.XmlToObject<T>(src._GetBytes_UTF8(), settings);
+        public static string ObjectToXmlStr(object obj, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, settings)._GetString_UTF8();
+        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src._GetBytes_UTF8(), type, settings);
+        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src._GetBytes_UTF8(), settings);
 
-        public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings settings = null) => Util.ObjectToRuntimeJson(obj, settings)._GetString_UTF8();
-        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
-        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
+        public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, settings)._GetString_UTF8();
+        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
+        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
 
         public static string BuildHttpUrl(string protocol, string host, int port, string localPath)
         {
@@ -5779,12 +5797,13 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
-        public static void ParseUrl(string url_string, out Uri uri, out NameValueCollection query_string)
+        public static void ParseUrl(string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null)
         {
-            if (url_string._IsEmpty()) throw new ApplicationException("url_string is empty.");
-            if (url_string.StartsWith("/")) url_string = "http://null" + url_string;
-            uri = new Uri(url_string);
-            query_string = HttpUtility.ParseQueryString(uri.Query._NonNull());
+            if (encoding == null) encoding = Str.Utf8Encoding;
+            if (urlString._IsEmpty()) throw new ApplicationException("url_string is empty.");
+            if (urlString.StartsWith("/")) urlString = "http://null" + urlString;
+            uri = new Uri(urlString);
+            queryString = uri.Query._ParseQueryString(encoding);
         }
 
         public static string NormalizeFqdn(string fqdn)
@@ -5900,9 +5919,9 @@ namespace IPA.Cores.Basic
             return 0;
         }
 
-        public static string StripCommentFromLine(string srcLine, IEnumerable<string> commentStartStrList = null)
+        public static string StripCommentFromLine(string srcLine, IEnumerable<string>? commentStartStrList = null)
         {
-            if (srcLine == null) return null;
+            if (srcLine == null) return "";
             if (commentStartStrList == null) commentStartStrList = Consts.Strings.CommentStartString;
 
             int minStart = int.MaxValue;
@@ -6034,7 +6053,7 @@ namespace IPA.Cores.Basic
             this.AllowWildcard = allowWildcard;
 
             this.SearchTopWithCacheSingleton = new Singleton<string, T>(
-                x => this.SearchTop(x),
+                x => this.SearchTop(x)!,
                 StrComparer.IgnoreCaseComparer);
         }
 
@@ -6074,19 +6093,19 @@ namespace IPA.Cores.Basic
             return ret.OrderByDescending(x => x.MatchPoint).ThenBy(x => x.Key, StrComparer.Get(comparison)).ThenBy(x => x.Index);
         }
 
-        public T SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        public T? SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
         {
-            AmbiguousSearchResult<T> x = this.Search(key, comparison).FirstOrDefault();
+            AmbiguousSearchResult<T>? x = this.Search(key, comparison).FirstOrDefault();
 
             if (x == null)
             {
-                return default;
+                return default!;
             }
 
             return x.Value;
         }
 
-        public T SearchTopWithCache(string key)
+        public T? SearchTopWithCache(string key)
         {
             return SearchTopWithCacheSingleton[key];
         }
@@ -6096,7 +6115,7 @@ namespace IPA.Cores.Basic
     {
         public class XmlCheckObjectInternal
         {
-            public string Str = null;
+            public string? Str = null;
         }
 
         // 文字列トークン操作
@@ -6194,12 +6213,10 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public StrData(string str)
+            public StrData(string? str)
             {
-                if (str == null)
-                {
-                    str = "";
-                }
+                str = str._NonNull();
+
                 StrValue = str;
             }
         }
@@ -6207,7 +6224,7 @@ namespace IPA.Cores.Basic
 
     public class StrClass
     {
-        public string Value { get; } = null;
+        public string Value { get; } = "";
 
         public StrClass() { }
 
@@ -6298,15 +6315,16 @@ namespace IPA.Cores.Basic
     public readonly struct IgnoreCase
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public IgnoreCase(string value)
+        public IgnoreCase(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is IgnoreCase target)
@@ -6319,7 +6337,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6342,31 +6360,32 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(IgnoreCase s)
+        public static implicit operator string?(IgnoreCase s)
         {
             return s.Value;
         }
 
-        public static implicit operator IgnoreCase(string s)
+        public static implicit operator IgnoreCase(string? s)
         {
             return new IgnoreCase(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct Trim
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public Trim(string value)
+        public Trim(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is Trim target)
@@ -6379,7 +6398,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6402,31 +6421,32 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(Trim s)
+        public static implicit operator string?(Trim s)
         {
             return s.Value;
         }
 
-        public static implicit operator Trim(string s)
+        public static implicit operator Trim(string? s)
         {
             return new Trim(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct IgnoreCaseTrim
     {
         // Thanks to the great idea: https://stackoverflow.com/questions/631233/is-there-a-c-sharp-case-insensitive-equals-operator
-        readonly string Value;
+        readonly string? Value;
 
-        public IgnoreCaseTrim(string value)
+        public IgnoreCaseTrim(string? value)
         {
             this.Value = value;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj is IgnoreCaseTrim target)
@@ -6439,7 +6459,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                string s2 = obj.ToString();
+                string? s2 = obj.ToString();
                 return this == s2;
             }
         }
@@ -6462,24 +6482,24 @@ namespace IPA.Cores.Basic
             return !(a == b);
         }
 
-        public static implicit operator string(IgnoreCaseTrim s)
+        public static implicit operator string?(IgnoreCaseTrim s)
         {
             return s.Value;
         }
 
-        public static implicit operator IgnoreCaseTrim(string s)
+        public static implicit operator IgnoreCaseTrim(string? s)
         {
             return new IgnoreCaseTrim(s);
         }
 
-        public override string ToString() => this.Value;
+        public override string? ToString() => this.Value;
     }
 
     public readonly struct IsEmpty
     {
-        readonly string Target;
+        readonly string? Target;
 
-        public IsEmpty(string target)
+        public IsEmpty(string? target)
         {
             this.Target = target;
         }
@@ -6489,7 +6509,7 @@ namespace IPA.Cores.Basic
             return t.Target._IsEmpty();
         }
 
-        public static implicit operator IsEmpty(string target)
+        public static implicit operator IsEmpty(string? target)
         {
             return new IsEmpty(target);
         }
@@ -6499,9 +6519,9 @@ namespace IPA.Cores.Basic
 
     public readonly struct IsFilled
     {
-        readonly string Target;
+        readonly string? Target;
 
-        public IsFilled(string target)
+        public IsFilled(string? target)
         {
             this.Target = target;
         }
@@ -6511,11 +6531,103 @@ namespace IPA.Cores.Basic
             return t.Target._IsFilled();
         }
 
-        public static implicit operator IsFilled(string target)
+        public static implicit operator IsFilled(string? target)
         {
             return new IsFilled(target);
         }
 
         public override string ToString() => ((bool)this).ToString();
+    }
+
+
+    public class QueryStringList : KeyValueList<string, string>
+    {
+        public QueryStringList() { }
+
+        public QueryStringList(string queryString, Encoding? encoding = null)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            queryString = queryString._NonNull();
+
+            // 先頭に ? があれば無視する
+            if (queryString.StartsWith("?")) queryString = queryString.Substring(1);
+
+            // ハッシュ文字 # があればそれ以降は無視する
+            int i = queryString.IndexOf('#');
+            if (i != -1) queryString = queryString.Substring(0, i);
+
+            // & で分離する
+            string[] tokens = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string token in tokens)
+            {
+                // key と value を取得する
+                string key, value;
+
+                i = token.IndexOf('=');
+
+                if (i == -1)
+                {
+                    key = token;
+                    value = "";
+                }
+                else
+                {
+                    key = token.Substring(0, i);
+                    value = token.Substring(i + 1);
+                }
+
+                // key と value を URL デコードする
+                key = Str.DecodeUrl(key, encoding);
+                value = Str.DecodeUrl(value, encoding);
+
+                this.Add(key, value);
+            }
+        }
+
+        public override string ToString()
+            => ToString(null);
+
+        public string ToString(Encoding? encoding)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0;i < this.Count;i++)
+            {
+                var kv = this[i];
+                bool isLast = (i == (this.Count - 1));
+
+                if (kv.Key._IsFilled() || kv.Value._IsFilled())
+                {
+                    string key = kv.Key._NonNull();
+                    string value = kv.Value._NonNull();
+
+                    // key と value を URL エンコードする
+                    key = key._EncodeUrlPath(encoding);
+                    value = value._EncodeUrlPath(encoding);
+
+                    if (value._IsEmpty())
+                    {
+                        sb.Append(key);
+                    }
+                    else
+                    {
+                        sb.Append(key);
+                        sb.Append('=');
+                        sb.Append(value);
+                    }
+
+                    if (isLast == false)
+                    {
+                        sb.Append('&');
+                    }
+                }
+            }
+
+            return sb.ToString();
+        }
     }
 }

@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
 
         public bool Authenticate(string username, string password)
         {
-            if (UsernameAndPassword.TryGetValue(username, out string pw))
+            if (UsernameAndPassword.TryGetValue(username, out string? pw))
             {
                 if (password == pw)
                 {
@@ -131,23 +131,23 @@ namespace IPA.Cores.Basic
         public IConfiguration Configuration { get; }
         public HttpServerOptions ServerOptions { get; }
         public HttpServerStartupConfig StartupConfig { get; }
-        public object Param { get; }
+        public object? Param { get; }
         public CancellationToken CancelToken { get; }
 
         public bool IsDevelopmentMode { get; private set; }
 
         readonly List<IFileProvider> StaticFileProviderList = new List<IFileProvider>();
 
-        public Func<string, string, Task<bool>> SimpleBasicAuthenticationPasswordValidator { get; set; } = null;
+        public Func<string, string, Task<bool>>? SimpleBasicAuthenticationPasswordValidator { get; set; } = null;
 
         public HttpServerStartupHelper(IConfiguration configuration)
         {
             this.Configuration = configuration;
 
             this.Param = GlobalObjectExchange.Withdraw(this.Configuration["coreutil_param_token"]);
-            this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"]);
+            this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"])!;
 
-            this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>();
+            this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>()!;
             this.StartupConfig = new HttpServerStartupConfig();
 
             if (this.ServerOptions.DisableHiveBasedSetting == false)
@@ -167,9 +167,9 @@ namespace IPA.Cores.Basic
 
                                 Hive.LocalAppSettingsEx[this.ServerOptions.HiveName].AccessData(false, k2 =>
                                 {
-                                    HttpServerSimpleBasicAuthDatabase db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
+                                    HttpServerSimpleBasicAuthDatabase? db = k2.Get<HttpServerSimpleBasicAuthDatabase>("SimpleBasicAuthDatabase");
 
-                                    ok = db.Authenticate(username, password);
+                                    ok = db?.Authenticate(username, password) ?? false;
                                 });
 
                                 await Task.CompletedTask;
@@ -368,7 +368,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                AcmeAccount currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
+                AcmeAccount? currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
                 string retStr;
 
                 if (currentAccount == null)
@@ -391,7 +391,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -414,7 +414,7 @@ namespace IPA.Cores.Basic
 
         public HttpServerOptions ServerOptions => Helper.ServerOptions;
         public HttpServerStartupConfig StartupConfig => Helper.StartupConfig;
-        public object Param => Helper.Param;
+        public object? Param => Helper.Param;
         public CancellationToken CancelToken => Helper.CancelToken;
 
         protected abstract void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime);
@@ -478,7 +478,7 @@ namespace IPA.Cores.Basic
         public bool UseGlobalCertVault { get; set; } = true;
 
         [JsonIgnore]
-        public CertificateStore GlobalCertVaultDefauleCert { get; set; } = null;
+        public CertificateStore? GlobalCertVaultDefauleCert { get; set; } = null;
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
@@ -486,14 +486,14 @@ namespace IPA.Cores.Basic
         public bool HasHttpPort80 => this.HttpPortsList.Where(x => x == 80).Any();
 
         [JsonIgnore]
-        public CertSelectorCallback ServerCertSelector { get; set; } = null;
+        public CertSelectorCallback? ServerCertSelector { get; set; } = null;
 
         [JsonIgnore]
-        public TcpIpSystem TcpIp { get; set; } = null;
+        public TcpIpSystem? TcpIp { get; set; } = null;
 
-        public IWebHostBuilder GetWebHostBuilder<TStartup>(object sslCertSelectorParam = null) where TStartup : class
+        public IWebHostBuilder GetWebHostBuilder<TStartup>(object? sslCertSelectorParam = null) where TStartup : class
         {
-            IWebHostBuilder baseWebHost = null;
+            IWebHostBuilder? baseWebHost = null;
 
             if (this.UseKestrelWithIPACoreStack)
             {
@@ -526,11 +526,11 @@ namespace IPA.Cores.Basic
                 .UseStartup<TStartup>();
         }
 
-        public void ConfigureKestrelServerOptions(KestrelServerOptions opt, object sslCertSelectorParam)
+        public void ConfigureKestrelServerOptions(KestrelServerOptions opt, object? sslCertSelectorParam)
         {
             opt.AddServerHeader = !this.HideKestrelServerHeader;
 
-            KestrelServerWithStackOptions withStackOpt = opt as KestrelServerWithStackOptions;
+            KestrelServerWithStackOptions withStackOpt = (KestrelServerWithStackOptions)opt;
 
             if (this.LocalHostOnly)
             {
@@ -601,10 +601,10 @@ namespace IPA.Cores.Basic
         readonly HttpServerOptions Options;
         readonly Task HostTask;
 
-        readonly string ParamToken;
-        readonly string CancelToken;
+        readonly string? ParamToken;
+        readonly string? CancelToken;
 
-        public HttpServer(HttpServerOptions options, object param = null, CancellationToken cancel = default) : base(cancel)
+        public HttpServer(HttpServerOptions options, object? param = null, CancellationToken cancel = default) : base(cancel)
         {
             try
             {
@@ -679,7 +679,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             await HostTask;
 

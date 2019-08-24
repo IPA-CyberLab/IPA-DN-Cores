@@ -65,12 +65,12 @@ namespace IPA.Cores.Basic
             set { version = value; }
         }
 
-        public string Username = null;
-        public string Password = null;
+        public string Username = "";
+        public string Password = "";
 
         public int SmtpPort = 25;
 
-        public SendMailVersion DefaultVersion = SendMailVersion.Ver2_With_NetMail;
+        public const SendMailVersion DefaultVersion = SendMailVersion.Ver2_With_NetMail;
 
         public static readonly string DefaultMailer = Env.FrameworkInfoString;
         public static readonly string DefaultMimeOLE = "Produced By " + Env.FrameworkInfoString;
@@ -120,22 +120,7 @@ namespace IPA.Cores.Basic
             set { encoding = value; }
         }
 
-        public SendMail(string smtpServer)
-        {
-            init(smtpServer, DefaultVersion, null, null);
-        }
-
-        public SendMail(string smtpServer, SendMailVersion version)
-        {
-            init(smtpServer, version, null, null);
-        }
-
-        public SendMail(string smtpServer, SendMailVersion version, string username, string password)
-        {
-            init(smtpServer, version, username, password);
-        }
-
-        void init(string smtpServer, SendMailVersion version, string username, string password)
+        public SendMail(string smtpServer, SendMailVersion version = DefaultVersion, string username = "", string password = "")
         {
             this.smtpServer = smtpServer;
             this.version = version;

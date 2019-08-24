@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
 
             foreach (SourceCodePathAndMarkerFileName srcInfo in sourceInfoList)
             {
-                DirectoryPath root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
+                DirectoryPath? root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
                 if (root != null)
                 {
                     srcRootList.Add(root);
@@ -83,8 +83,10 @@ namespace IPA.Cores.Basic
             this.SourceRootList = srcRootList;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            obj._NullCheck();
+
             AssemblyWithSourceInfo other = (AssemblyWithSourceInfo)obj;
 
             if (this.Assembly.Equals(other.Assembly) == false) return false;
@@ -117,7 +119,7 @@ namespace IPA.Cores.Basic
 
     public class ResourceFileSystem : FileProviderBasedFileSystem
     {
-        static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton;
+        static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -134,7 +136,7 @@ namespace IPA.Cores.Basic
         {
             Singleton._DisposeSafe();
 
-            Singleton = null;
+            Singleton = null!;
         }
 
         public ResourceFileSystem(AssemblyWithSourceInfo assemblyInfo) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assemblyInfo.Assembly)))

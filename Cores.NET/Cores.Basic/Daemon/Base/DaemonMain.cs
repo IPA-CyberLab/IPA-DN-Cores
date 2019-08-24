@@ -55,10 +55,10 @@ namespace IPA.Cores.Basic
     {
         public static class DaemonMain
         {
-            static Func<Daemon> GetDaemonProc = null;
-            static DaemonSettings DefaultDaemonSettings = null;
+            static Func<Daemon> GetDaemonProc = null!;
+            static DaemonSettings DefaultDaemonSettings = null!;
 
-            public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc, DaemonSettings defaultDaemonSettings = null)
+            public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc, DaemonSettings? defaultDaemonSettings = null)
             {
                 DaemonMain.DefaultDaemonSettings = defaultDaemonSettings ?? new DaemonSettings();
 

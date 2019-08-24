@@ -39,6 +39,7 @@ using System.Buffers.Binary;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -1106,7 +1107,7 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array!, pin, size);
             return b.AsMemory();
         }
 
@@ -1130,7 +1131,7 @@ namespace IPA.Cores.Helper.Basic
                 throw new ArgumentOutOfRangeException("(a.Offset + a.Count) < (pin + size)");
             }
 
-            ArraySegment<T> b = new ArraySegment<T>(a.Array, pin, size);
+            ArraySegment<T> b = new ArraySegment<T>(a.Array!, pin, size);
             return b.AsMemory();
         }
 
@@ -1153,7 +1154,7 @@ namespace IPA.Cores.Helper.Basic
             long requiredLen = (long)a.Offset + (long)a.Count + (long)size;
             if (requiredLen > int.MaxValue) throw new OverflowException("size");
 
-            int newLen = a.Array.Length;
+            int newLen = a.Array!.Length;
             while (newLen < requiredLen)
             {
                 newLen = (int)Math.Min(Math.Max((long)newLen, 128) * 2, int.MaxValue);
@@ -1393,6 +1394,26 @@ namespace IPA.Cores.Helper.Basic
                     );
             }
         }
+
+        static MemoryStream ToMemoryStreamInternal(byte[] data)
+        {
+            if (data == null) data = new byte[0];
+
+            var ms = new MemoryStream(data);
+
+            ms._SeekToBegin();
+
+            return ms;
+        }
+
+        public static MemoryStream _ToMemoryStream(this ReadOnlySpan<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this Span<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this ReadOnlyMemory<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
+        public static MemoryStream _ToMemoryStream(this Memory<byte> span)
+            => ToMemoryStreamInternal(span.ToArray());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T _AsStruct<T>(this ref byte data) where T : unmanaged

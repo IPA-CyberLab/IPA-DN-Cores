@@ -51,9 +51,14 @@ namespace IPA.Cores.Basic
     /// </summary>
     public class RadixNode
     {
-        public RadixNode() { }
+        // Serializable にするために残すこと
+        public RadixNode()
+        {
+            this.Label = null!;
+            this.SubNodes = null!;
+        }
 
-        public RadixNode(RadixNode parent)
+        public RadixNode(RadixNode? parent)
         {
             Label = new byte[0];
             SubNodes = new List<RadixNode>();
@@ -61,7 +66,7 @@ namespace IPA.Cores.Basic
             this.Parent = parent;
         }
 
-        public RadixNode(RadixNode parent, byte[] l)
+        public RadixNode(RadixNode? parent, byte[] l)
         {
             Label = l;
             SubNodes = new List<RadixNode>();
@@ -70,17 +75,17 @@ namespace IPA.Cores.Basic
         }
         public byte[] Label;
         public List<RadixNode> SubNodes;
-        public RadixNode Parent;
-        public object Object;
+        public RadixNode? Parent;
+        public object? Object;
 
-        public RadixNode TraverseParentNonNull()
+        public RadixNode? TraverseParentNonNull()
         {
             if (this.Object != null)
             {
                 return this;
             }
 
-            RadixNode n = this.Parent;
+            RadixNode? n = this.Parent;
 
             while (true)
             {
@@ -98,7 +103,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (this.Object != null) this.Object.ToString();
             return base.ToString();
@@ -131,7 +136,7 @@ namespace IPA.Cores.Basic
         /// insert a word into the tree
         /// </summary>
         /// <param name="word"></param>
-        public RadixNode Insert(byte[] word)
+        public RadixNode? Insert(byte[] word)
         {
             return InsertRec(word, Root);
         }
@@ -145,9 +150,9 @@ namespace IPA.Cores.Basic
         /// </summary>
         /// <param name="wordPart">the part of the word that is to be inserted that is not already included in any of the tree's nodes</param>
         /// <param name="curNode">the node currently traversed</param>
-        private RadixNode InsertRec(byte[] wordPart, RadixNode curNode)
+        private RadixNode? InsertRec(byte[] wordPart, RadixNode curNode)
         {
-            RadixNode ret = null;
+            RadixNode? ret = null;
 
             //get the number of characters that the word part that is to be inserted and the current node's label have
             //in common starting from the first position of both strings
@@ -264,7 +269,7 @@ namespace IPA.Cores.Basic
             return matches;
         }
 
-        public RadixNode Lookup(byte[] word)
+        public RadixNode? Lookup(byte[] word)
         {
             return LookupRec(word, 0, Root);
         }
@@ -275,14 +280,14 @@ namespace IPA.Cores.Basic
         /// <param name="wordPart"></param>
         /// <param name="curNode"></param>
         /// <returns></returns>
-        private RadixNode LookupRec(byte[] word, int pos, RadixNode curNode)
+        private RadixNode? LookupRec(byte[] word, int pos, RadixNode curNode)
         {
             int matches = MatchingConsecutiveCharacters(word, pos, curNode);
 
             if ((matches == 0) || (curNode == Root) ||
                 ((matches > 0) && (matches < (word.Length - pos)) && (matches >= curNode.Label.Length)))
             {
-                RadixNode ret = null;
+                RadixNode? ret = null;
                 int new_pos = pos + matches;
                 foreach (RadixNode child in curNode.SubNodes)
                 {
@@ -341,9 +346,15 @@ namespace IPA.Cores.Basic
     /// </summary>
     public class RadixNode<T> where T : class
     {
-        public RadixNode() { }
+        // Serializable にするため消さないこと
+        public RadixNode()
+        {
+            this.Label = null!;
+            this.SubNodes = null!;
+            this.Parent = null!;
+        }
 
-        public RadixNode(RadixNode<T> parent)
+        public RadixNode(RadixNode<T>? parent)
         {
             Label = new byte[0];
             SubNodes = new List<RadixNode<T>>();
@@ -351,7 +362,7 @@ namespace IPA.Cores.Basic
             this.Parent = parent;
         }
 
-        public RadixNode(RadixNode<T> parent, byte[] l)
+        public RadixNode(RadixNode<T>? parent, byte[] l)
         {
             Label = l;
             SubNodes = new List<RadixNode<T>>();
@@ -360,17 +371,17 @@ namespace IPA.Cores.Basic
         }
         public byte[] Label;
         public List<RadixNode<T>> SubNodes;
-        public RadixNode<T> Parent;
-        public T Object;
+        public RadixNode<T>? Parent;
+        public T? Object;
 
-        public RadixNode<T> TraverseParentNonNull()
+        public RadixNode<T>? TraverseParentNonNull()
         {
             if (this.Object != null)
             {
                 return this;
             }
 
-            RadixNode<T> n = this.Parent;
+            RadixNode<T>? n = this.Parent;
 
             while (true)
             {
@@ -388,7 +399,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (this.Object != null) this.Object.ToString();
             return base.ToString();
@@ -422,7 +433,7 @@ namespace IPA.Cores.Basic
         /// insert a word into the tree
         /// </summary>
         /// <param name="word"></param>
-        public RadixNode<T> Insert(byte[] word)
+        public RadixNode<T>? Insert(byte[] word)
         {
             return InsertRec(word, Root);
         }
@@ -436,9 +447,9 @@ namespace IPA.Cores.Basic
         /// </summary>
         /// <param name="wordPart">the part of the word that is to be inserted that is not already included in any of the tree's nodes</param>
         /// <param name="curNode">the node currently traversed</param>
-        private RadixNode<T> InsertRec(byte[] wordPart, RadixNode<T> curNode)
+        private RadixNode<T>? InsertRec(byte[] wordPart, RadixNode<T> curNode)
         {
-            RadixNode<T> ret = null;
+            RadixNode<T>? ret = null;
 
             //get the number of characters that the word part that is to be inserted and the current node's label have
             //in common starting from the first position of both strings
@@ -555,7 +566,7 @@ namespace IPA.Cores.Basic
             return matches;
         }
 
-        public RadixNode<T> Lookup(byte[] word)
+        public RadixNode<T>? Lookup(byte[] word)
         {
             return LookupRec(word, 0, Root);
         }
@@ -566,14 +577,14 @@ namespace IPA.Cores.Basic
         /// <param name="wordPart"></param>
         /// <param name="curNode"></param>
         /// <returns></returns>
-        private RadixNode<T> LookupRec(byte[] word, int pos, RadixNode<T> curNode)
+        private RadixNode<T>? LookupRec(byte[] word, int pos, RadixNode<T> curNode)
         {
             int matches = MatchingConsecutiveCharacters(word, pos, curNode);
 
             if ((matches == 0) || (curNode == Root) ||
                 ((matches > 0) && (matches < (word.Length - pos)) && (matches >= curNode.Label.Length)))
             {
-                RadixNode<T> ret = null;
+                RadixNode<T>? ret = null;
                 int new_pos = pos + matches;
                 foreach (RadixNode<T> child in curNode.SubNodes)
                 {

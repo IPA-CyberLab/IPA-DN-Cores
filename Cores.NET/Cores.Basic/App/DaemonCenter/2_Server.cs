@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             this.JsonRpcServer.RegisterRoutesToHttpServer(appBuilder, path);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     Settings = settings,
                 };
 
-                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings.AppName == settings.AppName).Any())
+                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings!.AppName == settings.AppName).Any())
                 {
                     throw new ApplicationException($"アプリケーション名 '{app.Settings.AppName}' が重複しています。");
                 }
@@ -188,9 +188,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             {
                 App app = Db.AppList[appId];
 
-                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings.AppName == settings.AppName).Any())
+                if (Db.AppList.Values.Where(x => x != app && (IgnoreCaseTrim)x.Settings!.AppName == settings.AppName).Any())
                 {
-                    throw new ApplicationException($"アプリケーション名 '{app.Settings.AppName}' が重複しています。");
+                    throw new ApplicationException($"アプリケーション名 '{app.Settings!.AppName}' が重複しています。");
                 }
 
                 // デフォルト設定を保存
@@ -301,16 +301,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             {
                 DateTimeOffset now = DateTimeOffset.Now;
 
-                App app = Db.AppList[req.AppId];
+                App app = Db.AppList[req.AppId._NullCheck()];
 
                 ResponseMsg ret = new ResponseMsg();
 
                 // 応答メッセージの準備を開始
                 // 次回の KeepAlive 間隔を指定
-                ret.NextKeepAliveMsec = app.Settings.KeepAliveIntervalSecs * 1000;
+                ret.NextKeepAliveMsec = app.Settings!.KeepAliveIntervalSecs * 1000;
 
                 // インスタンスを検索
-                Instance inst = app.InstanceList.Where(x => x.IsMatchForHost(app.Settings.InstanceKeyType, req.HostName, req.Guid)).SingleOrDefault();
+                Instance? inst = app.InstanceList.Where(x => x.IsMatchForHost(app.Settings.InstanceKeyType, req.HostName!, req.Guid!)).SingleOrDefault();
 
                 if (inst == null)
                 {
@@ -350,10 +350,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 // AcceptableIpList の生成
                 HashSet<string> acceptableIpList = new HashSet<string>(StrComparer.IpAddressStrComparer);
                 acceptableIpList.Add(this.ClientInfo.RemoteIP);
-                req.Stat.GlobalIpList._DoForEach(x => acceptableIpList.Add(x));
+                req.Stat!.GlobalIpList!._DoForEach(x => acceptableIpList.Add(x));
                 req.Stat.AcceptableIpList = acceptableIpList.ToArray();
 
-                if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId)
+                if (req.Stat.CommitId._IsFilled() && inst.NextCommitId._IsFilled())
                 {
                     if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
                     {
@@ -384,7 +384,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     inst.NextInstanceArguments = "";
                 }
 
-                if (inst.NextPauseFlag != PauseFlag.None && inst.LastStat.PauseFlag != PauseFlag.None)
+                if (inst.NextPauseFlag != PauseFlag.None && inst.LastStat!.PauseFlag != PauseFlag.None)
                 {
                     if (inst.NextPauseFlag != inst.LastStat.PauseFlag)
                     {
@@ -412,7 +412,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     inst.RequestOsReboot = false;
                 }
 
-                if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.LastStat.CommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
+                if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.LastStat!.CommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
                 {
                     // Commit Id が変化したことを記録
                     inst.LastCommitIdChanged = now;

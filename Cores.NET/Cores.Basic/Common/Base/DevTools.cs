@@ -48,7 +48,7 @@ namespace IPA.Cores.Basic
 {
     public static partial class DevTools
     {
-        public static void WriteToFile(string path, string bodyString, Encoding encoding = null, bool writeBom = false, bool noDebug = false)
+        public static void WriteToFile(string path, string bodyString, Encoding? encoding = null, bool writeBom = false, bool noDebug = false)
         {
             bodyString = bodyString._NonNull();
             bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.LocalPlatform);

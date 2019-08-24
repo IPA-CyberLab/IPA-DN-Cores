@@ -42,9 +42,9 @@ namespace IPA.Cores.Basic.Legacy
     public class FileLogger
     {
         CriticalSection LockObj = new CriticalSection();
-        string logDir;
+        string? logDir;
         string lastFileName;
-        IO fs;
+        IO? fs;
         public bool Flush = false;
 
         public FileLogger(string logDir)
@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             lock (LockObj)
             {
-                return IO.CombinePath(logDir, generateFileName(dt));
+                return IO.CombinePath(logDir!, generateFileName(dt));
             }
         }
 

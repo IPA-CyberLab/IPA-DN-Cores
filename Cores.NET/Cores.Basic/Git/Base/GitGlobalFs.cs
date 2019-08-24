@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_GIT
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -40,6 +42,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -61,13 +64,13 @@ namespace IPA.Cores.Basic
     public class GitGlobalFsRepository
     {
         [DataMember]
-        public string Url;
+        public string? Url;
 
         [DataMember]
-        public string LocalWorkDir;
+        public string? LocalWorkDir;
 
         [NonSerialized]
-        public GitRepository Repository;
+        public GitRepository? Repository;
     }
 
 
@@ -91,18 +94,18 @@ namespace IPA.Cores.Basic
 
         public const string HiveDataName = "RepositoryList";
 
-        static Singleton<Hive> HiveSingleton;
+        static Singleton<Hive> HiveSingleton = null!;
         static Hive Hive => HiveSingleton;
 
-        static Singleton<HiveData<GitGlobalFsState>> DataSingleton;
+        static Singleton<HiveData<GitGlobalFsState>> DataSingleton = null!;
         static HiveData<GitGlobalFsState> Data => DataSingleton;
 
-        static Singleton<string, GitFileSystem> FileSystemSingleton;
+        static Singleton<string, GitFileSystem> FileSystemSingleton = null!;
 
         static readonly CriticalSection RepositoryUpdateLock = new CriticalSection();
 
-        static Task UpdateMainLoopTask = null;
-        static CancellationTokenSource UpdateMainLoopTaskCancel = null;
+        static Task? UpdateMainLoopTask = null;
+        static CancellationTokenSource? UpdateMainLoopTaskCancel = null;
 
         static void InitModule()
         {
@@ -127,7 +130,7 @@ namespace IPA.Cores.Basic
             StopUpdateLoop();
 
             FileSystemSingleton._DisposeSafe();
-            FileSystemSingleton = null;
+            FileSystemSingleton = null!;
 
             if (DataSingleton.IsCreated)
             {
@@ -141,10 +144,10 @@ namespace IPA.Cores.Basic
             }
 
             DataSingleton._DisposeSafe();
-            DataSingleton = null;
+            DataSingleton = null!;
 
             HiveSingleton._DisposeSafe();
-            HiveSingleton = null;
+            HiveSingleton = null!;
         }
 
         static void StartUpdateLoop()
@@ -166,7 +169,7 @@ namespace IPA.Cores.Basic
 
         static async Task UpdateRepositoryMainLoopAsync()
         {
-            while (UpdateMainLoopTaskCancel.IsCancellationRequested == false)
+            while (UpdateMainLoopTaskCancel!.IsCancellationRequested == false)
             {
                 UpdateAllRepository(UpdateMainLoopTaskCancel.Token);
 
@@ -199,7 +202,7 @@ namespace IPA.Cores.Basic
 
             lock (Data.DataLock)
             {
-                GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                GitGlobalFsRepository? repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                 if (repoData == null || repoData.Repository == null)
                     throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
@@ -222,7 +225,7 @@ namespace IPA.Cores.Basic
             else
             {
                 GitRepository repository = GetRepository(repoUrl);
-                GitRef reference = repository.EnumRef().Where(x => x.Name._IsSamei(commitIdOrRefName)).SingleOrDefault();
+                GitRef? reference = repository.EnumRef().Where(x => x.Name._IsSamei(commitIdOrRefName)).SingleOrDefault();
                 if (reference == null)
                 {
                     throw new ArgumentException($"The reference name \"{commitIdOrRefName}\" not found.");
@@ -245,7 +248,7 @@ namespace IPA.Cores.Basic
 
                 lock (Data.DataLock)
                 {
-                    GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                    GitGlobalFsRepository? repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                     L_RETRY:
 
@@ -281,7 +284,7 @@ namespace IPA.Cores.Basic
 
                         if (repoData.Repository == null)
                         {
-                            string dirName = repoData.LocalWorkDir;
+                            string dirName = repoData.LocalWorkDir._NullCheck();
                             string dirFullPath = Lfs.PathParser.Combine(RepoDir, dirName);
 
                             try
@@ -314,13 +317,13 @@ namespace IPA.Cores.Basic
         {
             Module.CheckInitalized();
 
-            List<string> urlList;
+            List<string?> urlList;
             lock (Data.DataLock)
             {
                 urlList = Data.ManagedData.RepositoryList.Select(x => x.Url).ToList();
             }
 
-            foreach (string url in urlList)
+            foreach (string? url in urlList)
             {
                 Module.CheckInitalized();
 
@@ -328,7 +331,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    UpdateRepository(url);
+                    if (url != null) UpdateRepository(url);
                 }
                 catch { }
             }
@@ -340,7 +343,7 @@ namespace IPA.Cores.Basic
 
             lock (RepositoryUpdateLock)
             {
-                GitGlobalFsRepository repoData;
+                GitGlobalFsRepository? repoData;
                 lock (Data.DataLock)
                 {
                     repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
@@ -350,7 +353,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    repoData.Repository.Fetch(repoData.Url);
+                    repoData.Repository.Fetch(repoData.Url!);
                 }
                 catch (Exception ex)
                 {

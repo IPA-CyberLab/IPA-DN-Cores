@@ -97,7 +97,7 @@ namespace IPA.Cores.Basic
             return new SpanBuffer<byte>(baseMemory.Span);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -395,7 +395,7 @@ namespace IPA.Cores.Basic
             return new ReadOnlySpanBuffer<byte>(baseMemory.Span);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref readonly T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -536,7 +536,7 @@ namespace IPA.Cores.Basic
             return new FastMemoryBuffer<byte>(baseMemory);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -870,7 +870,7 @@ namespace IPA.Cores.Basic
             return new FastReadOnlyMemoryBuffer<byte>(baseMemory);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref readonly T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -1236,7 +1236,7 @@ namespace IPA.Cores.Basic
             LeakCounterKind.PinnedMemory);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -1616,7 +1616,7 @@ namespace IPA.Cores.Basic
             LeakCounterKind.PinnedMemory);
         }
 
-        static T dummyRefValue = default;
+        static T dummyRefValue = default!;
         public ref readonly T GetRefForFixedPtr(int position = 0)
         {
             var span = this.Span.Slice(position);
@@ -1846,7 +1846,7 @@ namespace IPA.Cores.Basic
 
         public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
-        public HugeMemoryBuffer(HugeMemoryBufferOptions options = null, Memory<T> initialContents = default)
+        public HugeMemoryBuffer(HugeMemoryBufferOptions? options = null, Memory<T> initialContents = default)
         {
             checked
             {
@@ -1916,7 +1916,7 @@ namespace IPA.Cores.Basic
             checked
             {
                 long segIndex = seg.AbsolutePosition / this.Options.SegmentSize;
-                if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T> segment))
+                if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T>? segment))
                 {
                     if (segment.Length < (seg.InSegmentOffset + seg.Size))
                         segment.SetLength((int)(seg.InSegmentOffset + seg.Size));
@@ -1947,7 +1947,7 @@ namespace IPA.Cores.Basic
 
                     Debug.Assert(destSpan.Length >= 1);
 
-                    destSpan.Fill(default);
+                    destSpan.Fill(default!);
                 }
 
                 this.Length = Math.Max(this.Length, start + length);
@@ -1991,7 +1991,7 @@ namespace IPA.Cores.Basic
                 foreach (DividedSegment seg in segList.SegmentList)
                 {
                     long segIndex = seg.AbsolutePosition / this.Options.SegmentSize;
-                    if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T> segment))
+                    if (this.Segments.TryGetValue(segIndex, out MemoryBuffer<T>? segment))
                     {
                         if (seg.InSegmentOffset >= segment.Length)
                         {
@@ -2239,7 +2239,7 @@ namespace IPA.Cores.Basic
                             this.Segments.Remove(index);
 
                         // shrink the last segment if necessary
-                        if (this.Segments.TryGetValue(lastSegInfo.SegmentIndex, out MemoryBuffer<T> lastSegment))
+                        if (this.Segments.TryGetValue(lastSegInfo.SegmentIndex, out MemoryBuffer<T>? lastSegment))
                         {
                             if (lastSegment.Length > lastSegInfo.Size)
                             {
@@ -3363,35 +3363,35 @@ namespace IPA.Cores.Basic
 
                 lookUp0 = Unsafe.Add(ref first, index);
                 lookUp1 = Unsafe.Add(ref second, index);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 1);
                 lookUp1 = Unsafe.Add(ref second, index + 1);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 2);
                 lookUp1 = Unsafe.Add(ref second, index + 2);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 3);
                 lookUp1 = Unsafe.Add(ref second, index + 3);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 4);
                 lookUp1 = Unsafe.Add(ref second, index + 4);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 5);
                 lookUp1 = Unsafe.Add(ref second, index + 5);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 6);
                 lookUp1 = Unsafe.Add(ref second, index + 6);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 7);
                 lookUp1 = Unsafe.Add(ref second, index + 7);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
 
                 index += 8;
@@ -3403,19 +3403,19 @@ namespace IPA.Cores.Basic
 
                 lookUp0 = Unsafe.Add(ref first, index);
                 lookUp1 = Unsafe.Add(ref second, index);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 1);
                 lookUp1 = Unsafe.Add(ref second, index + 1);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 2);
                 lookUp1 = Unsafe.Add(ref second, index + 2);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 lookUp0 = Unsafe.Add(ref first, index + 3);
                 lookUp1 = Unsafe.Add(ref second, index + 3);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
 
                 index += 4;
@@ -3425,7 +3425,7 @@ namespace IPA.Cores.Basic
             {
                 lookUp0 = Unsafe.Add(ref first, index);
                 lookUp1 = Unsafe.Add(ref second, index);
-                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1 is null))
+                if (!(lookUp0?.Equals(lookUp1) ?? (object)lookUp1! is null))
                     goto NotEqual;
                 index += 1;
                 length--;
@@ -3450,7 +3450,7 @@ namespace IPA.Cores.Basic
             for (int i = 0; i < minLength; i++)
             {
                 T lookUp = Unsafe.Add(ref second, i);
-                int result = (Unsafe.Add(ref first, i)?.CompareTo(lookUp) ?? (((object)lookUp is null) ? 0 : -1));
+                int result = (Unsafe.Add(ref first, i)?.CompareTo(lookUp) ?? (((object)lookUp! is null) ? 0 : -1));
                 if (result != 0)
                     return result;
             }
@@ -3486,9 +3486,9 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            return Equals((BitStructKey<TStruct>)obj);
+            return Equals((BitStructKey<TStruct>)obj!);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -3498,7 +3498,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override string ToString()
+        public override string? ToString()
         {
             return this.Value.ToString();
         }

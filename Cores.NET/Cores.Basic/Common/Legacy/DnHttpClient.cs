@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic.Legacy
                 StringBuilder sb = new StringBuilder();
                 bool b = false;
 
-                foreach (string name in nv.Keys)
+                foreach (string? name in nv.Keys)
                 {
                     string value = nv[name];
 
@@ -96,9 +96,9 @@ namespace IPA.Cores.Basic.Legacy
 
         public bool NoCookie = false;
         public bool Http1_1 = false;
-        public string UserAgent = null;
+        public string? UserAgent = null;
 
-        public string ProxyHostname = null;
+        public string? ProxyHostname = null;
         public int ProxyPort = 0;
 
         TimeSpan timeout = new TimeSpan(0, 0, 15);
@@ -179,15 +179,15 @@ namespace IPA.Cores.Basic.Legacy
         {
             return Post(uri, postData, postEncoding, null);
         }
-        public Buf Post(Uri uri, DnHttpPostData postData, Encoding postEncoding, string referer)
+        public Buf Post(Uri uri, DnHttpPostData postData, Encoding postEncoding, string? referer)
         {
             return Post(uri, postData.GetData(postEncoding).ByteData, referer);
         }
-        public Buf Post(Uri uri, byte[] postData, string referer)
+        public Buf Post(Uri uri, byte[] postData, string? referer)
         {
             return Post(uri, postData, referer, Consts.MimeTypes.FormUrlEncoded);
         }
-        public Buf Post(Uri uri, byte[] postData, string referer, string content_type)
+        public Buf Post(Uri uri, byte[] postData, string? referer, string content_type)
         {
             HttpWebRequest r = (HttpWebRequest)HttpWebRequest.Create(uri);
 

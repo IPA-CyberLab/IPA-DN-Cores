@@ -104,11 +104,11 @@ namespace IPA.Cores.Basic
         static bool Inited = false;
         static readonly CriticalSection InitLockObj = new CriticalSection();
 
-        public static IReadOnlyList<string> Args { get; private set; }
-        public static CoresLibOptions Options { get; private set; }
+        public static IReadOnlyList<string> Args { get; private set; } = null!;
+        public static CoresLibOptions Options { get; private set; } = null!;
 
-        public static string AppName { get; private set; }
-        public static string AppNameFnSafe { get; private set; }
+        public static string AppName { get; private set; } = null!;
+        public static string AppNameFnSafe { get; private set; } = null!;
         public static CoresMode Mode { get; private set; }
 
         public static readonly string CoresLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
@@ -157,8 +157,8 @@ namespace IPA.Cores.Basic
 
                 Inited = false;
 
-                CoresLib.Args = null;
-                CoresLib.Options = null;
+                CoresLib.Args = null!;
+                CoresLib.Options = null!;
 
                 return ret;
             }

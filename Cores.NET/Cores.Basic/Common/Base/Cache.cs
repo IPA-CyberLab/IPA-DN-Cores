@@ -46,6 +46,7 @@ namespace IPA.Cores.Basic
     }
 
     public class Cache<TKey, TValue>
+        where TKey: notnull
     {
         class Entry
         {
@@ -79,7 +80,7 @@ namespace IPA.Cores.Basic
 
             public override int GetHashCode() => Key.GetHashCode();
 
-            public override string ToString() => Key.ToString() + "," + _value.ToString();
+            public override string ToString() => Key.ToString() + "," + _value?.ToString() ?? "";
         }
 
         public static readonly TimeSpan DefaultExpireSpan = new TimeSpan(0, 5, 0);
@@ -89,24 +90,11 @@ namespace IPA.Cores.Basic
         Dictionary<TKey, Entry> list;
         CriticalSection LockObj;
 
-        public Cache()
+        public Cache(TimeSpan expireSpan = default, CacheType type = DefaultCacheType)
         {
-            InternalInit(DefaultExpireSpan, DefaultCacheType);
-        }
-        public Cache(CacheType type)
-        {
-            InternalInit(DefaultExpireSpan, type);
-        }
-        public Cache(TimeSpan expireSpan)
-        {
-            InternalInit(expireSpan, DefaultCacheType);
-        }
-        public Cache(TimeSpan expireSpan, CacheType type)
-        {
-            InternalInit(expireSpan, type);
-        }
-        void InternalInit(TimeSpan expireSpan, CacheType type)
-        {
+            if (expireSpan == default)
+                expireSpan = DefaultExpireSpan;
+
             this.ExpireSpan = expireSpan;
             this.Type = type;
 
@@ -159,7 +147,7 @@ namespace IPA.Cores.Basic
 
                     if (list.ContainsKey(key) == false)
                     {
-                        return default(TValue);
+                        return default(TValue)!;
                     }
 
                     return list[key].Value;

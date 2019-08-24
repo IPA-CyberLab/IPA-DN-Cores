@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -146,7 +148,7 @@ namespace IPA.Cores.Basic
         private bool PortEvaluated = false;
         private int? HttpsPort;
         private readonly int StatusCode;
-        private readonly IServerAddressesFeature _serverAddressesFeature;
+        private readonly IServerAddressesFeature? _serverAddressesFeature;
         readonly EnforceHttpsOptions Options;
 
         public EnforceHttpsMiddleware(RequestDelegate next, IOptions<EnforceHttpsOptions> options, IConfiguration config, ILoggerFactory loggerFactory)

@@ -62,7 +62,7 @@ namespace IPA.Cores.Web
         public string SiteName { get; set; } = "WebSite";
 
         // タイトル文字列
-        string TitleInternal;
+        string? TitleInternal;
 
         // タイトル文字列の取得と設定
         public virtual string Title
@@ -77,7 +77,7 @@ namespace IPA.Cores.Web
         // フルタイトル文字列の取得 (派生クラスで挙動変更可能)
         protected virtual string GenerateFullTitleImpl()
         {
-            if ((IsFilled)this.Title)
+            if (this.Title._IsFilled())
             {
                 return $"{this.Title._NonNullTrim()} - {SiteName._NonNullTrim()}";
             }

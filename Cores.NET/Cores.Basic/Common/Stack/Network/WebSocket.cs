@@ -90,7 +90,7 @@ namespace IPA.Cores.Basic
         readonly Queue<ReadOnlyMemory<byte>> PongQueue = new Queue<ReadOnlyMemory<byte>>();
         
 
-        public NetWebSocketProtocolStack(PipePoint lower, PipePoint upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default) : base(lower, upper, options, cancel)
+        public NetWebSocketProtocolStack(PipePoint lower, PipePoint? upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default) : base(lower, upper, options, cancel)
         {
             this.LowerStream = this.LowerAttach.GetStream();
             this.UpperStream = this.UpperAttach.GetStream();
@@ -98,8 +98,8 @@ namespace IPA.Cores.Basic
 
         Once Started;
 
-        Task SendTask;
-        Task RecvTask;
+        Task? SendTask;
+        Task? RecvTask;
 
         public async Task StartWebSocketClientAsync(string uri, CancellationToken cancel = default)
         {
@@ -484,17 +484,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             base.CancelImpl(ex);
         }
 
-        protected override Task CleanupImplAsync(Exception ex)
+        protected override Task CleanupImplAsync(Exception? ex)
         {
             return base.CleanupImplAsync(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -514,7 +514,7 @@ namespace IPA.Cores.Basic
         public WebSocketOptions WebSocketOptions { get; }
         public PalSslClientAuthenticationOptions SslOptions { get; }
 
-        public WebSocketConnectOptions(WebSocketOptions wsOptions = null, PalSslClientAuthenticationOptions sslOptions = null, TcpIpSystem tcpIp = null)
+        public WebSocketConnectOptions(WebSocketOptions? wsOptions = null, PalSslClientAuthenticationOptions? sslOptions = null, TcpIpSystem? tcpIp = null)
         {
             this.TcpIp = tcpIp ?? LocalNet;
             this.WebSocketOptions = wsOptions ?? new WebSocketOptions();
@@ -534,14 +534,14 @@ namespace IPA.Cores.Basic
     {
         protected new NetWebSocketProtocolStack Stack => (NetWebSocketProtocolStack)base.Stack;
 
-        public WebSocket(ConnSock lowerSock, WebSocketOptions options = null) : base(new NetWebSocketProtocolStack(lowerSock.UpperPoint, null, options._FilledOrDefault(new WebSocketOptions())))
+        public WebSocket(ConnSock lowerSock, WebSocketOptions? options = null) : base(new NetWebSocketProtocolStack(lowerSock.UpperPoint, null, options._FilledOrDefault(new WebSocketOptions())))
         {
         }
 
         public async Task StartWebSocketClientAsync(string uri, CancellationToken cancel = default)
             => await Stack.StartWebSocketClientAsync(uri, cancel);
 
-        public static async Task<WebSocket> ConnectAsync(string uri, WebSocketConnectOptions options = null, CancellationToken cancel = default)
+        public static async Task<WebSocket> ConnectAsync(string uri, WebSocketConnectOptions? options = null, CancellationToken cancel = default)
         {
             if (options == null) options = new WebSocketConnectOptions();
 

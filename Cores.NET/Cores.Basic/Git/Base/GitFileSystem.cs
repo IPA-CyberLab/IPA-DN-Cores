@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
         public GitRepository Repository { get; }
         public string CommitId { get; }
 
-        public GitFileSystemParams(GitRepository repository, string commitId = null)
+        public GitFileSystemParams(GitRepository repository, string? commitId = null)
             : base(PathParser.GetInstance(FileSystemStyle.Linux), FileSystemMode.ReadOnly)
         {
             this.Repository = repository;

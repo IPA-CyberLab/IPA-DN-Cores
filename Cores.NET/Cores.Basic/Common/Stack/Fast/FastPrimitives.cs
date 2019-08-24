@@ -66,11 +66,11 @@ namespace IPA.Cores.Basic
 
         public Memory<byte> Data => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
 
-        public EndPoint EndPoint;
+        public EndPoint? EndPoint;
         public DatagramFlag Flag;
         public long TimeStamp;
 
-        public IPEndPoint IPEndPoint { get => (IPEndPoint)EndPoint; set => EndPoint = value; }
+        public IPEndPoint? IPEndPoint { get => (IPEndPoint ?)EndPoint; set => EndPoint = value; }
 
         // For UDP
         public Datagram(Memory<byte> data, EndPoint udpEndPoint, DatagramFlag flag = 0)
@@ -106,14 +106,14 @@ namespace IPA.Cores.Basic
 
     public class FastLinkedListNode<T>
     {
-        public T Value;
-        public FastLinkedListNode<T> Next, Previous;
+        public T Value = default!;
+        public FastLinkedListNode<T>? Next, Previous;
     }
 
     public class FastLinkedList<T>
     {
         public int Count;
-        public FastLinkedListNode<T> First, Last;
+        public FastLinkedListNode<T>? First, Last;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
@@ -325,7 +325,7 @@ namespace IPA.Cores.Basic
                 Debug.Assert(Last != node);
                 Debug.Assert(First == node);
 
-                node.Next.Previous = null;
+                node.Next!.Previous = null;
                 First = node.Next;
 
                 Count--;
@@ -366,13 +366,13 @@ namespace IPA.Cores.Basic
     public class ByteLinkedListNode
     {
         public Memory<byte> Value;
-        public ByteLinkedListNode Next, Previous;
+        public ByteLinkedListNode? Next, Previous;
     }
 
     public class ByteLinkedList
     {
         public int Count;
-        public ByteLinkedListNode First, Last;
+        public ByteLinkedListNode? First, Last;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
@@ -584,7 +584,7 @@ namespace IPA.Cores.Basic
                 Debug.Assert(Last != node);
                 Debug.Assert(First == node);
 
-                node.Next.Previous = null;
+                node.Next!.Previous = null;
                 First = node.Next;
 
                 Count--;

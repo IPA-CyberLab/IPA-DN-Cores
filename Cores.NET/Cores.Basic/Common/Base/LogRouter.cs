@@ -87,6 +87,8 @@ namespace IPA.Cores.Basic
             {
                 foreach (var pipe in this.SubscribersList)
                 {
+                    pipe.CounterPart._NullCheck();
+
                     lock (pipe.CounterPart.StreamWriter.LockObj)
                     {
                         if (pipe.CounterPart.StreamWriter.NonStopWriteWithLock(buf.Memory, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
@@ -105,6 +107,8 @@ namespace IPA.Cores.Basic
             bufferSize = Math.Max(bufferSize ?? this.BufferSize, 1);
 
             PipePoint mySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
+
+            mySide.CounterPart._MarkNotNull();
 
             mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
 
@@ -156,7 +160,7 @@ namespace IPA.Cores.Basic
 
     public class LoggerLogRoute : LogRouteBase
     {
-        Logger Log = null;
+        Logger? Log = null;
 
         public LoggerLogRoute(string kind, LogPriority minimalPriority, string prefix, string dir, LogSwitchType switchType, LogInfoOptions infoOptions,
             long? autoDeleteTotalMaxSize = null) : base(kind, minimalPriority)
@@ -175,15 +179,12 @@ namespace IPA.Cores.Basic
 
         public override Task FlushAsync(CancellationToken cancel = default)
         {
-            return Log.FlushAsync(cancel);
+            return Log?.FlushAsync(cancel) ?? Task.CompletedTask;
         }
 
         public override void ReceiveLog(LogRecord record)
         {
-            if (Log != null)
-            {
-                Log.Add(record);
-            }
+            Log?.Add(record);
         }
     }
 
@@ -199,7 +200,7 @@ namespace IPA.Cores.Basic
             SetKind(kind);
         }
 
-        public void SetKind(string kind)
+        public void SetKind(string? kind)
         {
             kind = kind._NonNullTrim();
 
@@ -224,7 +225,7 @@ namespace IPA.Cores.Basic
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
@@ -233,7 +234,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
@@ -242,7 +243,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex) { }
+        protected override void DisposeImpl(Exception? ex) { }
 
         public T InstallLogRoute<T>(T route) where T: LogRouteBase
         {
@@ -322,9 +323,9 @@ namespace IPA.Cores.Basic
     {
         public static int UniqueLogProcessId { get; private set; } = -1;
 
-        public static LogRouter Router { get; private set; }
+        public static LogRouter Router { get; private set; } = null!;
 
-        public static BufferedLogRoute BufferedLogRoute { get; private set; } = null;
+        public static BufferedLogRoute BufferedLogRoute { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -339,7 +340,7 @@ namespace IPA.Cores.Basic
                 string libName = CoresLib.Mode == CoresMode.Application ? "" : CoresLib.AppName;
                 string uniqueName = $"UlogName_{Env.AppRootDir}_{CoresLib.Mode}_{libName}_{uid}";
 
-                SingleInstance instance = SingleInstance.TryGet(uniqueName, true);
+                SingleInstance? instance = SingleInstance.TryGet(uniqueName, true);
                 if (instance != null)
                 {
                     // Suppress GC
@@ -458,23 +459,23 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             Router._DisposeSafe(new CoresLibraryShutdowningException());
-            Router = null;
+            Router = null!;
 
-            BufferedLogRoute = null;
+            BufferedLogRoute = null!;
         }
 
         public static Task FlushAsync(CancellationToken cancel = default)
-            => Router?.FlushAsync(cancel);
+            => Router?.FlushAsync(cancel) ?? Task.CompletedTask;
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router?.PostLog(record, kind);
 
-        public static void Post(object obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string tag = null)
+        public static void Post(object? obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string? tag = null)
             => Router?.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
-        public static void PrintConsole(object obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string tag = null)
+        public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
-        public static void PostData(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Data, tag: tag);
             if (copyToDebug)
@@ -483,7 +484,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostStat(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostStat(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Stat, tag: tag);
             if (copyToDebug)
@@ -492,7 +493,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostAccessLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostAccessLog(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Access, tag: tag);
             if (copyToDebug)
@@ -501,7 +502,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostSocketLog(object obj, string tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static void PostSocketLog(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
             Post(obj, priority, kind: LogKind.Socket, tag: tag);
             if (copyToDebug)
@@ -512,26 +513,26 @@ namespace IPA.Cores.Basic
 
         class PostedData
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedAccessLog
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedSocketLog
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         class PostedStat
         {
-            public string Tag;
-            public object Data;
+            public string? Tag;
+            public object? Data;
         }
 
         public static void PutGitIgnoreFileOnLogDirectory() => Util.PutGitIgnoreFileOnDirectory(CoresConfig.LocalLogRouterSettings.LogRootDir.Value);

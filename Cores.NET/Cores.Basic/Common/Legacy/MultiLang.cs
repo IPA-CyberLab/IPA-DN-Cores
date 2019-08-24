@@ -87,10 +87,10 @@ namespace IPA.Cores.Basic.Legacy
 
             if (no_alternative == false)
             {
-                string at = GetAlternativeTitleFromHtml(src);
+                string? at = GetAlternativeTitleFromHtml(src);
                 if (Str.IsEmptyStr(at) == false)
                 {
-                    return at;
+                    return at!;
                 }
             }
 
@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic.Legacy
         }
 
         // 指定された HTML のタイトルを取得する
-        public static string GetAlternativeTitleFromHtml(string src)
+        public static string? GetAlternativeTitleFromHtml(string src)
         {
             string tmp;
             string upper;
@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic.Legacy
         }
 
         // ディレクトリ名から Default.aspx などを取得する
-        public static string GetDefaultDocumentIfExists(string dir)
+        public static string? GetDefaultDocumentIfExists(string dir)
         {
             string[] targets =
                 {

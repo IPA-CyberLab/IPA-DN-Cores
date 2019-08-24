@@ -46,7 +46,7 @@ namespace IPA.Cores.Basic
 {
     public class AmbiguousMasterData<T> : AmbiguousSearch<T> where T: class
     {
-        public AmbiguousMasterData(string body, Func<string, T> parser, bool allowWildcard = false) : base(allowWildcard)
+        public AmbiguousMasterData(string body, Func<string, T?> parser, bool allowWildcard = false) : base(allowWildcard)
         {
             string[] lines = body._GetLines();
 
@@ -60,9 +60,9 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
-                            T t = parser(value);
+                            T? t = parser(value);
 
-                            if (t != default)
+                            if (t != null)
                             {
                                 this.Add(key, t);
                             }
@@ -108,7 +108,10 @@ namespace IPA.Cores.Basic
 
             // Extension search
             ret = MimeToFasIcon.SearchTopWithCache(ExtensionToMime.Get(extensionOrMimeType));
-            return ret;
+            if (ret != null) return ret;
+
+            // Last resort
+            return new Tuple<string, string>("fas", "fa-file-download");
         }
 
         public class MimeList
@@ -146,7 +149,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var extInfo in extToMime)
                 {
-                    string mime = extInfo.Value.OrderBy(x => mimeToExt[x].Count).FirstOrDefault();
+                    string? mime = extInfo.Value.OrderBy(x => mimeToExt[x].Count).FirstOrDefault();
                     if (mime._IsFilled())
                     {
                         this.ExtToMimeDictionary.Add(extInfo.Key, mime);
@@ -161,7 +164,7 @@ namespace IPA.Cores.Basic
                     ext = ext.Substring(1);
                 }
 
-                if (ExtToMimeDictionary.TryGetValue(ext, out string ret))
+                if (ExtToMimeDictionary.TryGetValue(ext, out string? ret))
                 {
                     return ret;
                 }

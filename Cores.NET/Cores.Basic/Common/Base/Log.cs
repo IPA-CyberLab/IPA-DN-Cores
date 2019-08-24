@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -97,12 +99,12 @@ namespace IPA.Cores.Basic
         public bool WithTag = false;
         public bool WithTypeName = false;
 
-        public string NewLineForString = "\r\n";
-        public string ObjectPrintSeparator = ", ";
+        public string? NewLineForString = "\r\n";
+        public string? ObjectPrintSeparator = ", ";
 
-        public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
-        public string AppName = Env.ExeAssemblySimpleName;
-        public string Kind = "";
+        public string? MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
+        public string? AppName = Env.ExeAssemblySimpleName;
+        public string? Kind = "";
 
         public bool WriteAsJsonFormat = false;
 
@@ -129,14 +131,14 @@ namespace IPA.Cores.Basic
     public class LogJsonData
     {
         public DateTimeOffset? TimeStamp;
-        public string Guid;
-        public string MachineName;
-        public string AppName;
-        public string Kind;
-        public string Priority;
-        public string Tag;
-        public string TypeName;
-        public object Data;
+        public string? Guid;
+        public string? MachineName;
+        public string? AppName;
+        public string? Kind;
+        public string? Priority;
+        public string? Tag;
+        public string? TypeName;
+        public object? Data;
 
         static readonly PathParser WinParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
@@ -174,18 +176,18 @@ namespace IPA.Cores.Basic
         public static readonly byte[] CrLfByte = "\r\n"._GetBytes_Ascii();
 
         public DateTimeOffset TimeStamp { get; }
-        public object Data { get; }
+        public object? Data { get; }
         public LogPriority Priority { get; }
         public LogFlags Flags { get; }
-        public string Tag { get; }
+        public string? Tag { get; }
         public string Guid { get; }
 
-        public LogRecord(object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null) : this(0, data, priority, flags, tag) { }
+        public LogRecord(object? data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string? tag = null) : this(0, data, priority, flags, tag) { }
 
-        public LogRecord(long tick, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
+        public LogRecord(long tick, object? data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string? tag = null)
             : this(tick == 0 ? ((data as ILogRecordTimeStamp)?.TimeStamp ?? DateTimeOffset.Now) : Time.Tick64ToDateTimeOffsetLocal(tick), data, priority, flags, tag) { }
 
-        public LogRecord(DateTimeOffset dateTime, object data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string tag = null)
+        public LogRecord(DateTimeOffset dateTime, object? data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string? tag = null)
         {
             this.TimeStamp = dateTime;
             this.Data = data;
@@ -199,7 +201,7 @@ namespace IPA.Cores.Basic
 
         public string ConsolePrintableString => GetTextFromData(this.Data, ConsolePrintOptions);
 
-        public static string GetTextFromData(object data, LogInfoOptions opt)
+        public static string GetTextFromData(object? data, LogInfoOptions opt)
         {
             if (data == null) return "null";
             if (data is string str) return str;
@@ -209,7 +211,7 @@ namespace IPA.Cores.Basic
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
         {
-            if (opt.NewLineForString.IndexOf("\n") == -1)
+            if ((opt.NewLineForString?.IndexOf("\n") ?? -1) == -1)
                 paddingLenForNextLines = 0;
 
             string pad = Str.MakeCharArray(' ', paddingLenForNextLines);
@@ -286,7 +288,7 @@ namespace IPA.Cores.Basic
                 }
 
                 // Additional strings
-                List<string> additionalList = new List<string>();
+                List<string?> additionalList = new List<string?>();
 
                 if (opt.WithGuid)
                     additionalList.Add(this.Guid);
@@ -356,14 +358,14 @@ namespace IPA.Cores.Basic
         long CurrentFilePointer = 0;
         int CurrentLogNumber = 0;
         bool LogNumberIncremented = false;
-        string LastCachedStr = null;
+        string? LastCachedStr = null;
 
         public bool KeepFileHandleWhenIdle { get; set; }
 
         public bool NoFlush { get; set; } = false;
 
-        Task LogTask = null;
-        OldFileEraser Eraser = null;
+        Task? LogTask = null;
+        OldFileEraser? Eraser = null;
 
         public Logger(string dir, string kind, string prefix, int uniqueProcessId, LogSwitchType switchType, LogInfoOptions infoOptions,
             long maxLogSize = 0, string extension = DefaultExtension,
@@ -397,19 +399,19 @@ namespace IPA.Cores.Basic
             LogTask = LogThreadAsync()._LeakCheck();
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             this.Eraser._CancelSafe(ex);
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             await this.Eraser._CleanupSafeAsync(ex);
 
-            await LogTask;
+            await LogTask._TryWaitAsync();
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             this.Eraser._DisposeSafe(ex);
         }
@@ -423,7 +425,7 @@ namespace IPA.Cores.Basic
 
         async Task LogThreadAsync()
         {
-            IO io = null;
+            IO? io = null;
             MemoryBuffer<byte> b = new MemoryBuffer<byte>();
             string currentFileName = "";
             string currentLogFileDateName = "";
@@ -434,7 +436,7 @@ namespace IPA.Cores.Basic
             {
                 await Task.Yield();
 
-                LogRecord rec = null;
+                LogRecord? rec = null;
                 long s = FastTick64.Now;
 
                 while (true)
@@ -543,15 +545,15 @@ namespace IPA.Cores.Basic
                             {
                                 string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
-                                string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
+                                string? candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
 
                                 if (candidateFileNameStartStr._IsFilled())
                                 {
-                                    string maxFileName = existingFiles.Select(x => x._GetFileName()).OrderByDescending(x => x).Where(x => x._InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
+                                    string? maxFileName = existingFiles.Select(x => x._GetFileName()!).OrderByDescending(x => x).Where(x => x._InStr("~") && x.StartsWith(candidateFileNameStartStr, StringComparison.OrdinalIgnoreCase)).Select(x => Path.GetFileNameWithoutExtension(x)).FirstOrDefault();
 
                                     if (maxFileName._IsFilled())
                                     {
-                                        string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
+                                        string? existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
                                         if (existingFileNumberStr._IsFilled())
                                         {
                                             existingMaxLogNumber = existingFileNumberStr._ToInt();

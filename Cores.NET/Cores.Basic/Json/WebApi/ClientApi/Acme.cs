@@ -80,11 +80,11 @@ namespace IPA.Cores.ClientApi.Acme
 {
     public class AcmeEntryPoints : IValidatable
     {
-        public string keyChange;
-        public string newAccount;
-        public string newNonce;
-        public string newOrder;
-        public string revokeCert;
+        public string? keyChange;
+        public string? newAccount;
+        public string? newNonce;
+        public string? newOrder;
+        public string? revokeCert;
 
         public void Validate()
         {
@@ -102,7 +102,7 @@ namespace IPA.Cores.ClientApi.Acme
     public class AcmeCreateAccountPayload
     {
         public bool termsOfServiceAgreed;
-        public string[] contact;
+        public string?[]? contact;
     }
 
     [Flags]
@@ -116,7 +116,7 @@ namespace IPA.Cores.ClientApi.Acme
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeOrderIdType type;
 
-        public string value;
+        public string? value;
     }
 
     [Flags]
@@ -153,20 +153,20 @@ namespace IPA.Cores.ClientApi.Acme
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeOrderStatus? status;
-        public AcmeOrderIdEntity[] identifiers;
-        public string[] authorizations;
-        public string finalize;
-        public string certificate;
+        public AcmeOrderIdEntity?[]? identifiers;
+        public string[]? authorizations;
+        public string? finalize;
+        public string? certificate;
     }
 
     public class AcmeChallengeElement
     {
-        public string type;
-        public string url;
-        public string token;
+        public string? type;
+        public string? url;
+        public string? token;
         public AcmeChallengeStatus status;
-        public object error;
-        public object validationRecord;
+        public object? error;
+        public object? validationRecord;
     }
 
     public class AcmeAuthzPayload
@@ -174,13 +174,13 @@ namespace IPA.Cores.ClientApi.Acme
         [JsonConverter(typeof(StringEnumConverter))]
         public AcmeAuthzStatus? status;
         public DateTime? expires;
-        public AcmeOrderIdEntity[] identifiers;
-        public AcmeChallengeElement[] challenges;
+        public AcmeOrderIdEntity?[]? identifiers;
+        public AcmeChallengeElement?[]? challenges;
     }
 
     public class AcmeFinalizePayload
     {
-        public string csr;
+        public string? csr;
     }
 
     public static class AcmeWellKnownServiceUrls
@@ -198,7 +198,7 @@ namespace IPA.Cores.ClientApi.Acme
 
         PersistentLocalCache<AcmeEntryPoints> DirectoryWebContentsCache;
 
-        public AcmeClientOptions(string directoryUrl = DefaultEntryPointUrl, TcpIpSystem tcpIp = null)
+        public AcmeClientOptions(string directoryUrl = DefaultEntryPointUrl, TcpIpSystem? tcpIp = null)
         {
             DirectoryUrl = directoryUrl;
             this.TcpIp = tcpIp ?? LocalNet;
@@ -212,7 +212,7 @@ namespace IPA.Cores.ClientApi.Acme
                     {
                         WebRet ret = await api.SimpleQueryAsync(WebMethods.GET, this.DirectoryUrl, cancel);
 
-                        return ret.Deserialize<AcmeEntryPoints>(true);
+                        return ret.Deserialize<AcmeEntryPoints>(true)._NullCheck();
                     }
                 });
         }
@@ -229,7 +229,7 @@ namespace IPA.Cores.ClientApi.Acme
         public AcmeAccount Account => Order.Account;
 
         public string Url;
-        public AcmeAuthzPayload Info { get; private set; }
+        public AcmeAuthzPayload? Info { get; private set; }
 
         public AcmeAuthz(AcmeOrder order, string url)
         {
@@ -246,10 +246,7 @@ namespace IPA.Cores.ClientApi.Acme
 
         public async Task ProcessAuthAsync(CancellationToken cancel = default)
         {
-            AcmeChallengeElement httpChallenge = this.Info.challenges.Where(x => x.type == "http-01").First();
-
-            string url = httpChallenge.url;
-            string token = httpChallenge.token;
+            AcmeChallengeElement httpChallenge = this.Info!.challenges.Where(x => x?.type == "http-01").First()!;
 
             if (httpChallenge.status == AcmeChallengeStatus.valid) return;
 
@@ -257,7 +254,7 @@ namespace IPA.Cores.ClientApi.Acme
 
             try
             {
-                var ret = await this.Account.RequestAsync<None>(WebMethods.POST, httpChallenge.url, new object(), cancel);
+                var ret = await this.Account.RequestAsync<None>(WebMethods.POST, httpChallenge.url._NullCheck(), new object(), cancel);
             }
             catch { }
         }
@@ -266,16 +263,19 @@ namespace IPA.Cores.ClientApi.Acme
         {
             StringWriter w = new StringWriter();
 
-            foreach (AcmeChallengeElement c in this.Info.challenges)
+            foreach (AcmeChallengeElement? c in this.Info!.challenges!)
             {
-                if (c.error != null)
+                if (c != null)
                 {
-                    w.WriteLine(c.error._ObjectToJson());
-                }
+                    if (c.error != null)
+                    {
+                        w.WriteLine(c.error._ObjectToJson());
+                    }
 
-                if (c.validationRecord != null)
-                {
-                    w.WriteLine(c.validationRecord._ObjectToJson());
+                    if (c.validationRecord != null)
+                    {
+                        w.WriteLine(c.validationRecord._ObjectToJson());
+                    }
                 }
             }
 
@@ -290,7 +290,7 @@ namespace IPA.Cores.ClientApi.Acme
         public string Url { get; }
         public AcmeOrderPayload Info { get; private set; }
 
-        public IReadOnlyList<AcmeAuthz> AuthzList { get; private set; }
+        public IReadOnlyList<AcmeAuthz>? AuthzList { get; private set; }
 
         public AcmeOrder(AcmeAccount account, string url, AcmeOrderPayload info)
         {
@@ -307,7 +307,7 @@ namespace IPA.Cores.ClientApi.Acme
 
             List<AcmeAuthz> authzList = new List<AcmeAuthz>();
 
-            foreach (string authUrl in Info.authorizations)
+            foreach (string authUrl in Info!.authorizations!)
             {
                 AcmeAuthz a = new AcmeAuthz(this, authUrl);
 
@@ -325,7 +325,7 @@ namespace IPA.Cores.ClientApi.Acme
 
             int numRetry = 0;
 
-            Con.WriteDebug($"ACME: Trying to process the authorization for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' ...");
+            Con.WriteDebug($"ACME: Trying to process the authorization for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' ...");
 
             while (true)
             {
@@ -342,30 +342,33 @@ namespace IPA.Cores.ClientApi.Acme
                 if (this.Info.status != AcmeOrderStatus.pending)
                 {
                     // Completed
-                    Con.WriteDebug($"ACME: Completed authorization for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}'.");
+                    Con.WriteDebug($"ACME: Completed authorization for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
                     return;
                 }
 
                 cancel.ThrowIfCancellationRequested();
 
-                foreach (var auth in this.AuthzList)
+                foreach (AcmeAuthz? auth in this.AuthzList!)
                 {
-                    if (auth.Info.status.Value.EqualsAny(AcmeAuthzStatus.deactivated, AcmeAuthzStatus.expired, AcmeAuthzStatus.invalid, AcmeAuthzStatus.revoked))
+                    if (auth != null)
                     {
-                        if (auth.Info.status.Value == AcmeAuthzStatus.invalid)
+                        if (auth.Info!.status!.Value.EqualsAny(AcmeAuthzStatus.deactivated, AcmeAuthzStatus.expired, AcmeAuthzStatus.invalid, AcmeAuthzStatus.revoked))
                         {
-                            throw new ApplicationException($"Auth failed. Details: \"{auth.GetChallengeErrors()._OneLine(" ")}\"");
-                        }
-                        else
-                        {
-                            throw new ApplicationException($"auth.Info.status is {auth.Info.status.Value}");
+                            if (auth.Info.status.Value == AcmeAuthzStatus.invalid)
+                            {
+                                throw new ApplicationException($"Auth failed. Details: \"{auth.GetChallengeErrors()._OneLine(" ")}\"");
+                            }
+                            else
+                            {
+                                throw new ApplicationException($"auth.Info.status is {auth.Info.status.Value}");
+                            }
                         }
                     }
                 }
 
                 foreach (var auth in this.AuthzList)
                 {
-                    if (auth.Info.status.Value == AcmeAuthzStatus.pending)
+                    if (auth.Info!.status!.Value == AcmeAuthzStatus.pending)
                     {
                         await auth.ProcessAuthAsync(cancel);
                     }
@@ -412,19 +415,19 @@ namespace IPA.Cores.ClientApi.Acme
                 else if (this.Info.status == AcmeOrderStatus.ready)
                 {
                     // Create a CSR
-                    Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, this.Info.identifiers[0].value));
+                    Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, this.Info.identifiers![0]!.value));
 
                     AcmeFinalizePayload payload = new AcmeFinalizePayload
                     {
                         csr = csr.ExportDer()._Base64UrlEncode(),
                     };
 
-                    Con.WriteDebug($"ACME: Trying to finalize the order for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' ...");
+                    Con.WriteDebug($"ACME: Trying to finalize the order for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' ...");
 
                     // Send finalize request
                     try
                     {
-                        var ret = await this.Account.RequestAsync<None>(WebMethods.POST, this.Info.finalize, payload, cancel);
+                        var ret = await this.Account.RequestAsync<None>(WebMethods.POST, this.Info.finalize!, payload, cancel);
                     }
                     catch { }
 
@@ -458,14 +461,14 @@ namespace IPA.Cores.ClientApi.Acme
                 }
                 else if (this.Info.status == AcmeOrderStatus.valid)
                 {
-                    Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}' is completed. Downloading...");
+                    Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' is completed. Downloading...");
 
                     // Completed. Download the certificate
-                    byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate, cancel);
+                    byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate!, cancel);
 
                     CertificateStore store = new CertificateStore(certificateBody, certPrivateKey);
 
-                    Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers.Select(x => x.value)._Combine(", ")}'.");
+                    Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
 
                     return store;
                 }
@@ -507,7 +510,7 @@ namespace IPA.Cores.ClientApi.Acme
                 identifiers = o.ToArray(),
             };
 
-            WebUserRet<AcmeOrderPayload> ret = await RequestAsync<AcmeOrderPayload>(WebMethods.POST, (await Options.GetEntryPointsAsync(cancel)).newOrder, request, cancel);
+            WebUserRet<AcmeOrderPayload> ret = await RequestAsync<AcmeOrderPayload>(WebMethods.POST, (await Options.GetEntryPointsAsync(cancel)).newOrder!, request, cancel);
 
             string accountUrl = ret.System.Headers.GetValues("Location").Single();
 
@@ -522,7 +525,7 @@ namespace IPA.Cores.ClientApi.Acme
         public async Task<AcmeOrder> NewOrderAsync(string dnsName, CancellationToken cancel = default)
             => await NewOrderAsync(dnsName._SingleArray(), cancel);
 
-        public Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, string url, object request, CancellationToken cancel = default)
+        public Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, string url, object? request, CancellationToken cancel = default)
         {
             return this.Client.RequestAsync<TResponse>(method, this.PrivKey, this.AccountUrl, url, request, cancel);
         }
@@ -555,7 +558,7 @@ namespace IPA.Cores.ClientApi.Acme
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
-            WebRet response = await Web.SimpleQueryAsync(WebMethods.HEAD, url.newNonce, cancel);
+            WebRet response = await Web.SimpleQueryAsync(WebMethods.HEAD, url.newNonce!, cancel);
 
             string ret = response.Headers.GetValues("Replay-Nonce").Single();
 
@@ -571,7 +574,7 @@ namespace IPA.Cores.ClientApi.Acme
             return ret.Data;
         }
 
-        public async Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, PrivKey key, string kid, string url, object request, CancellationToken cancel = default)
+        public async Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, PrivKey key, string? kid, string url, object? request, CancellationToken cancel = default)
         {
             string nonce = await GetNonceAsync(cancel);
 
@@ -597,7 +600,7 @@ namespace IPA.Cores.ClientApi.Acme
                 termsOfServiceAgreed = true,
             };
 
-            WebUserRet<object> ret = await this.RequestAsync<object>(WebMethods.POST, key, null, url.newAccount, req, cancel);
+            WebUserRet<object> ret = await this.RequestAsync<object>(WebMethods.POST, key, null, url.newAccount!, req, cancel);
 
             string accountUrl = ret.System.Headers.GetValues("Location").Single();
 
@@ -606,7 +609,7 @@ namespace IPA.Cores.ClientApi.Acme
             return new AcmeAccount(EnsureInternal.Yes, this, key, accountUrl);
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

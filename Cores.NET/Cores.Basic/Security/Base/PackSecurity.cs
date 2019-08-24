@@ -49,13 +49,13 @@ namespace IPA.Cores.Basic
         {
             AddData(name, cert.ByteData, index);
         }
-        public Cert GetCert(string name)
+        public Cert? GetCert(string name)
         {
             return GetCert(name, 0);
         }
-        public Cert GetCert(string name, uint index)
+        public Cert? GetCert(string name, uint index)
         {
-            byte[] data = GetData(name, index);
+            byte[]? data = GetData(name, index);
             if (data == null)
             {
                 return null;

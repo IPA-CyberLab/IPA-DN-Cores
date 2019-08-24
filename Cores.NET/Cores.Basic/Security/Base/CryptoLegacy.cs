@@ -55,8 +55,8 @@ namespace IPA.Cores.Basic
         // Rsa アルゴリズム
         public class Rsa
         {
-            byte[] data;
-            Cert cert;
+            byte[]? data;
+            Cert? cert;
             static object lockObj = new object();
 
             public Rsa(byte[] data)
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
                 lock (lockObj)
                 {
                     byte[] ret;
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         ret = rsa.SignData(data);
                     }
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
                 lock (lockObj)
                 {
                     byte[] ret;
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         ret = rsa.SignHash(hash);
                     }
@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
                 lock (lockObj)
                 {
                     bool ret;
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         ret = rsa.VerifyData(data, sign);
                     }
@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
                 lock (lockObj)
                 {
                     bool ret;
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         ret = rsa.VerifyHash(hash, sign);
                     }
@@ -144,7 +144,7 @@ namespace IPA.Cores.Basic
             {
                 lock (lockObj)
                 {
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         return rsa.Encrypt(data);
                     }
@@ -155,7 +155,7 @@ namespace IPA.Cores.Basic
             {
                 lock (lockObj)
                 {
-                    using (RsaInner rsa = new RsaInner(this.data, this.cert))
+                    using (RsaInner rsa = new RsaInner(this.data!, this.cert!))
                     {
                         return rsa.Decrypt(data);
                     }
@@ -164,9 +164,9 @@ namespace IPA.Cores.Basic
         }
 
         // Rsa アルゴリズム (内部)
-        public class RsaInner : IDisposable
+        public sealed class RsaInner : IDisposable
         {
-            AsymmetricKeyParameter key;
+            AsymmetricKeyParameter key = null!;
 
             public RsaInner(byte[] data, Cert cert)
             {
@@ -277,7 +277,7 @@ namespace IPA.Cores.Basic
         // 証明書
         public class Cert
         {
-            X509Certificate x509;
+            X509Certificate x509 = null!;
             static TimeSpan deleteOldCertSpan = new TimeSpan(0, 0, 30);
             static object lockObj = new Object();
 

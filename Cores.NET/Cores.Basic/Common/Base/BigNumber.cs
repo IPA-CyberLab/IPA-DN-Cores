@@ -130,7 +130,6 @@
 //
 //************************************************************************************
 
-
 using System;
 
 namespace IPA.Cores.Basic
@@ -168,7 +167,7 @@ namespace IPA.Cores.Basic
     1901, 1907, 1913, 1931, 1933, 1949, 1951, 1973, 1979, 1987, 1993, 1997, 1999 };
 
 
-        private uint[] data = null;             // stores bytes from the Big Integer
+        private uint[] data = null!;             // stores bytes from the Big Integer
         public int dataLength;                 // number of actual chars used
 
 
@@ -969,9 +968,9 @@ namespace IPA.Cores.Basic
         }
 
 
-        public override bool Equals(object o)
+        public override bool Equals(object? o)
         {
-            BigNumber bi = (BigNumber)o;
+            BigNumber bi = (BigNumber)o!;
 
             if (this.dataLength != bi.dataLength)
                 return false;

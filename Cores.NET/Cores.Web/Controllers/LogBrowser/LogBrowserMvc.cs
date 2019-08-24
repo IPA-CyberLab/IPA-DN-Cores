@@ -1,6 +1,6 @@
 ﻿// IPA Cores.NET
 // 
-// Copyright (c) 2018- IPA CyberLab.
+// Copyright (c) 2018-2019 IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
 // Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
 // All Rights Reserved.
@@ -30,38 +30,57 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_BASIC_JSON
-
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Reflection;
-using Newtonsoft.Json;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
+
+namespace IPA.Cores.Web
 {
-    public partial class LogTag
+    [Authorize]
+    [AspNetLibFeature(AspNetLibFeatures.LogBrowser)]
+    [Route(Consts.UrlPaths.LogBrowserMvcPath + "/{*path}")]
+    public class LogBrowserController : Controller
     {
-        public const string JsonRpcRequestProcessor = "JsonRpcRequestProcessor";
-    }
+        public async Task<IActionResult> Index([FromServices] LogBrowser logBrowser)
+        {
+            string fullpath = Request._GetRequestPathAndQueryString();
 
-    public class LogDefJsonRpc : ILogRecordTimeStamp
-    {
-        [JsonIgnore]
-        public DateTimeOffset TimeStamp => ConnectedDateTime;
+            if (fullpath._TryTrimStartWith(out string path, StringComparison.OrdinalIgnoreCase, Consts.UrlPaths.LogBrowserMvcPath) == false)
+            {
+                return new ContentResult { Content = "Invalid URL", ContentType = "text/plain", StatusCode = 404 };
+            }
+            else
+            {
+                HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.LocalIpAddress._UnmapIPv4(),
+                    Request._GetRequestPathAndQueryString(),
+                    this._GetRequestCancellationToken());
 
-        public DateTimeOffset ConnectedDateTime;
-        public LogDefIPEndPoints? EndPoints;
-        public string? RpcMethodName;
-        public bool RpcResultOk;
-        public JsonRpcError? RpcError;
+                return result.GetHttpActionResult();
+            }
+        }
     }
 }
-
-#endif // CORES_BASIC_JSON
 

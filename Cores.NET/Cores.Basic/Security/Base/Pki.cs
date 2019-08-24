@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
 
             public char[] GetPassword() => this.Password.ToCharArray();
 
-            public static IPasswordFinder Get(string password)
+            public static IPasswordFinder? Get(string password)
             {
                 if (password._IsNullOrZeroLen())
                     return null;
@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
         public Certificate PrimaryCertificate => PrimaryContainer.CertificateList.First();
         public PrivKey PrimaryPrivateKey => PrimaryContainer.PrivateKey;
 
-        public CertificateStore(ReadOnlySpan<byte> chainedCertData, ReadOnlySpan<byte> privateKey, string password = null)
+        public CertificateStore(ReadOnlySpan<byte> chainedCertData, ReadOnlySpan<byte> privateKey, string? password = null)
             : this(chainedCertData, new PrivKey(privateKey, password)) { }
 
         public CertificateStore(ReadOnlySpan<byte> chainedCertData, PrivKey privateKey)
@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
         public CertificateStore(Certificate singleCert, PrivKey privateKey)
             : this(singleCert._SingleList(), privateKey) { }
 
-        public CertificateStore(ReadOnlySpan<byte> pkcs12, string password = null)
+        public CertificateStore(ReadOnlySpan<byte> pkcs12, string? password = null)
         {
             password = password._NonNull();
 
@@ -175,55 +175,58 @@ namespace IPA.Cores.Basic
 
                 Pkcs12Store p12 = new Pkcs12Store(ms, password.ToCharArray());
 
-                foreach (object aliasObject in p12.Aliases)
+                foreach (object? aliasObject in p12.Aliases)
                 {
-                    string alias = (string)aliasObject;
-
-                    if (alias._IsNullOrZeroLen() == false)
+                    if (aliasObject != null)
                     {
-                        AsymmetricKeyParameter privateKeyParam = null;
+                        string alias = (string)aliasObject;
 
-                        AsymmetricKeyEntry key = p12.GetKey(alias);
-                        if (key != null)
+                        if (alias._IsNullOrZeroLen() == false)
                         {
-                            if (key.Key.IsPrivate == false)
+                            AsymmetricKeyParameter? privateKeyParam = null;
+
+                            AsymmetricKeyEntry? key = p12.GetKey(alias);
+                            if (key != null)
                             {
-                                throw new ApplicationException("Key.IsPrivate == false");
+                                if (key.Key.IsPrivate == false)
+                                {
+                                    throw new ApplicationException("Key.IsPrivate == false");
+                                }
+
+                                privateKeyParam = key.Key;
                             }
 
-                            privateKeyParam = key.Key;
-                        }
+                            X509CertificateEntry[] certs = p12.GetCertificateChain(alias);
 
-                        X509CertificateEntry[] certs = p12.GetCertificateChain(alias);
+                            List<Certificate> certList = new List<Certificate>();
 
-                        List<Certificate> certList = new List<Certificate>();
-
-                        if (certs != null)
-                        {
-                            foreach (X509CertificateEntry cert in certs)
+                            if (certs != null)
                             {
-                                Certificate certObj = new Certificate(cert.Certificate);
+                                foreach (X509CertificateEntry cert in certs)
+                                {
+                                    Certificate certObj = new Certificate(cert.Certificate);
 
-                                certList.Add(certObj);
-                            }
-                        }
-
-                        if (certList.Count >= 1)
-                        {
-                            PrivKey privateKey = null;
-
-                            if (privateKeyParam != null)
-                            {
-                                privateKey = new PrivKey(new AsymmetricCipherKeyPair(certList[0].PublicKey.PublicKeyData, privateKeyParam));
-                            }
-                            else
-                            {
-                                throw new ApplicationException("No private key found.");
+                                    certList.Add(certObj);
+                                }
                             }
 
-                            CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
+                            if (certList.Count >= 1)
+                            {
+                                PrivKey? privateKey = null;
 
-                            this.InternalContainers.Add(alias, container);
+                                if (privateKeyParam != null)
+                                {
+                                    privateKey = new PrivKey(new AsymmetricCipherKeyPair(certList[0].PublicKey.PublicKeyData, privateKeyParam));
+                                }
+                                else
+                                {
+                                    throw new ApplicationException("No private key found.");
+                                }
+
+                                CertificateStoreContainer container = new CertificateStoreContainer(alias, certList.ToArray(), privateKey);
+
+                                this.InternalContainers.Add(alias, container);
+                            }
                         }
                     }
                 }
@@ -237,16 +240,16 @@ namespace IPA.Cores.Basic
             InitFields();
         }
 
-        Singleton<PalX509Certificate> X509CertificateSingleton;
+        Singleton<PalX509Certificate> X509CertificateSingleton = null!;
 
-        public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
-        public string DigestSHA1Str { get; private set; }
+        public ReadOnlyMemory<byte>? DigestSHA1Data { get; private set; }
+        public string? DigestSHA1Str { get; private set; }
 
-        public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; }
-        public string DigestSHA256Str { get; private set; }
+        public ReadOnlyMemory<byte>? DigestSHA256Data { get; private set; }
+        public string? DigestSHA256Str { get; private set; }
 
-        public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; }
-        public string DigestSHA512Str { get; private set; }
+        public ReadOnlyMemory<byte>? DigestSHA512Data { get; private set; }
+        public string? DigestSHA512Str { get; private set; }
 
         void InitFields()
         {
@@ -293,7 +296,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public ReadOnlyMemory<byte> ExportPkcs12(string password = null)
+        public ReadOnlyMemory<byte> ExportPkcs12(string? password = null)
         {
             password = password._NonNull();
 
@@ -307,7 +310,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void ExportChainedPem(out ReadOnlyMemory<byte> certFile, out ReadOnlyMemory<byte> privateKeyFile, string password = null)
+        public void ExportChainedPem(out ReadOnlyMemory<byte> certFile, out ReadOnlyMemory<byte> privateKeyFile, string? password = null)
         {
             certFile = this.PrimaryContainer.CertificateList.ExportChainedCertificates();
 
@@ -324,7 +327,7 @@ namespace IPA.Cores.Basic
         public RsaKeyParameters RsaParameters => (RsaPrivateCrtKeyParameters)PrivateKeyData.Private;
         public ECPrivateKeyParameters EcdsaParameters => (ECPrivateKeyParameters)PrivateKeyData.Private;
 
-        public PubKey PublicKey { get; private set; }
+        public PubKey PublicKey { get; private set; } = null!;
 
         public int BitsSize { get; private set; }
 
@@ -335,11 +338,11 @@ namespace IPA.Cores.Basic
             InitFields();
         }
 
-        public PrivKey(ReadOnlySpan<byte> import, string password = null)
+        public PrivKey(ReadOnlySpan<byte> import, string? password = null)
         {
             using (StringReader r = new StringReader(import._GetString_UTF8()))
             {
-                PemReader pem = new PemReader(r, Internal.SimplePasswordFinder.Get(password));
+                PemReader pem = new PemReader(r, Internal.SimplePasswordFinder.Get(password!));
 
                 object obj = pem.ReadObject();
 
@@ -385,7 +388,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public ReadOnlyMemory<byte> Export(string password = null)
+        public ReadOnlyMemory<byte> Export(string? password = null)
         {
             using (StringWriter w = new StringWriter())
             {
@@ -519,7 +522,9 @@ namespace IPA.Cores.Basic
         public PkiShaSize ShaSize;
         public PkiAlgorithm Algorithm;
 
-        public CertificateOptions(PkiAlgorithm algorithm, string cn = null, string o = null, string ou = null, string c = null, string st = null, string l = null, string e = null, Memory<byte> serial = default, DateTimeOffset? expires = null, string[] subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256)
+        public CertificateOptions(PkiAlgorithm algorithm, string? cn = null, string? o = null, string? ou = null, string? c = null,
+            string? st = null, string? l = null, string? e = null,
+            Memory<byte> serial = default, DateTimeOffset? expires = null, string[]? subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256)
         {
             this.Algorithm = algorithm;
             this.CN = cn._NonNullTrim();
@@ -614,7 +619,7 @@ namespace IPA.Cores.Basic
     public class CertificateHostName
     {
         public string HostName { get; }
-        public string WildcardEndWith { get; }
+        public string? WildcardEndWith { get; }
         public CertificateHostnameType Type { get; }
 
         public CertificateHostName(string hostName)
@@ -659,16 +664,16 @@ namespace IPA.Cores.Basic
     {
         public X509Certificate CertData { get; }
 
-        public PubKey PublicKey { get; private set; }
+        public PubKey PublicKey { get; private set; } = null!;
 
-        public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; }
-        public string DigestSHA1Str { get; private set; }
+        public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; } = null!;
+        public string DigestSHA1Str { get; private set; } = null!;
 
-        public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; }
-        public string DigestSHA256Str { get; private set; }
+        public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; } = null!;
+        public string DigestSHA256Str { get; private set; } = null!;
 
-        public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; }
-        public string DigestSHA512Str { get; private set; }
+        public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; } = null!;
+        public string DigestSHA512Str { get; private set; } = null!;
 
         public IList<CertificateHostName> HostNameList => HostNameListInternal;
 
@@ -791,20 +796,23 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    foreach (List<object> altName in altNamesList)
+                    foreach (List<object>? altName in altNamesList)
                     {
-                        try
+                        if (altName != null)
                         {
-                            int type = (int)altName[0];
-
-                            if (type == GeneralName.DnsName)
+                            try
                             {
-                                string value = (string)altName[1];
+                                int type = (int)altName[0];
 
-                                dnsNames.Add(value.ToLower());
+                                if (type == GeneralName.DnsName)
+                                {
+                                    string value = (string)altName[1];
+
+                                    dnsNames.Add(value.ToLower());
+                                }
                             }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
                 catch { }
@@ -818,11 +826,14 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        DerObjectIdentifier key = (DerObjectIdentifier)subjectKeyList[i];
-                        string value = (string)subjectValuesList[i];
-                        if (key.Equals(X509Name.CN))
+                        DerObjectIdentifier? key = (DerObjectIdentifier ?)subjectKeyList[i];
+                        string ? value = (string ?)subjectValuesList[i];
+                        if (key != null && value != null)
                         {
-                            dnsNames.Add(value.ToLower());
+                            if (key.Equals(X509Name.CN))
+                            {
+                                dnsNames.Add(value.ToLower());
+                            }
                         }
                     }
                     catch { }
@@ -1097,8 +1108,8 @@ namespace IPA.Cores.Basic
 
     public partial class PalX509Certificate
     {
-        Singleton<Certificate> PkiCertificateSingleton;
-        Singleton<CertificateStore> PkiCertificateStoreSingleton;
+        Singleton<Certificate> PkiCertificateSingleton = null!;
+        Singleton<CertificateStore> PkiCertificateStoreSingleton = null!;
 
         public Certificate PkiCertificate => PkiCertificateSingleton;
         public CertificateStore PkiCertificateStore => PkiCertificateStoreSingleton;

@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic.Legacy
             initCrc32();
         }
 
-        static uint[] table;
+        static uint[] table = null!;
         const int crcTableSize = 256;
 
         static void initCrc32()
@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic.Legacy
 
         class File
         {
-            public string Name;
+            public string? Name;
             public long Size;
             public DateTime DateTime;
             public FileAttributes Attributes;
@@ -184,9 +184,9 @@ namespace IPA.Cores.Basic.Legacy
             public long CompressSize;
             public uint Crc32;
             public uint HeaderPos;
-            public Encoding Encoding;
+            public Encoding? Encoding;
             public bool Compress;
-            public Basic.Internal.ZStream ZStream;
+            public Basic.Internal.ZStream? ZStream;
 
             public void WriteZipDataHeader(ref ZipDataHeader h, bool writeSizes)
             {
@@ -219,7 +219,7 @@ namespace IPA.Cores.Basic.Legacy
                     h.Crc32 = this.Crc32;
                 }
 
-                h.FileNameLen = (ushort)this.Encoding.GetByteCount(this.Name);
+                h.FileNameLen = (ushort)this.Encoding!.GetByteCount(this.Name!);
                 h.ExtraLen = 0;
             }
 
@@ -257,7 +257,7 @@ namespace IPA.Cores.Basic.Legacy
             fileList = new List<File>();
         }
 
-        File currentFile = null;
+        File? currentFile = null;
 
         public void AddFileSimple(string name, DateTime dt, FileAttributes attribute, byte[] data)
         {
@@ -311,7 +311,7 @@ namespace IPA.Cores.Basic.Legacy
 
         public long AddFileData(byte[] data, int pos, int len)
         {
-            long totalSize = currentFile.CurrentSize + len;
+            long totalSize = currentFile!.CurrentSize + len;
 
             if (totalSize > currentFile.Size)
             {
@@ -324,7 +324,7 @@ namespace IPA.Cores.Basic.Legacy
             }
             else
             {
-                Basic.Internal.ZStream zs = currentFile.ZStream;
+                Basic.Internal.ZStream zs = currentFile.ZStream!;
 
                 byte[] srcData = Util.ExtractByteArray(data, pos, len);
                 byte[] dstData = new byte[srcData.Length * 2 + 100];
@@ -373,7 +373,7 @@ namespace IPA.Cores.Basic.Legacy
         void addFileFooter()
         {
             ZipDataFooter f = new ZipDataFooter();
-            currentFile.WriteZipDataFooter(ref f);
+            currentFile!.WriteZipDataFooter(ref f);
             fifo.Write(Util.StructToByte(f));
         }
 
@@ -410,7 +410,7 @@ namespace IPA.Cores.Basic.Legacy
                 d.HeaderPos = f.HeaderPos;
 
                 fifo.Write(Util.StructToByte(d));
-                fifo.Write(this.Encoding.GetBytes(f.Name));
+                fifo.Write(this.Encoding.GetBytes(f.Name!));
             }
             long posEnd = fifo.TotalWriteSize;
 

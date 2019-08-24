@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
                 if (taskList.Count == 0)
                 {
                     // Error
-                    throw this.ExceptionList.GetException();
+                    throw this.ExceptionList.GetException()!;
                 }
 
                 await TaskUtil.WaitObjectsAsync(taskList.ToArray(), exceptions: ExceptionWhen.None);
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
 
     public class SslSock : MiddleConnSock
     {
-        public LogDefSslSession SslSessionInfo { get; private set; }
+        public LogDefSslSession? SslSessionInfo { get; private set; }
 
         protected new NetSslProtocolStack Stack => (NetSslProtocolStack)base.Stack;
 
@@ -318,7 +318,7 @@ namespace IPA.Cores.Basic
         {
             if (newSocket == null) return false;
 
-            SocketEntry sockEntry = null;
+            SocketEntry? sockEntry = null;
 
             lock (Lock)
             {
@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
         {
             LABEL_RETRY:
 
-            SocketEntry sockEntry = null;
+            SocketEntry? sockEntry = null;
 
             while (true)
             {

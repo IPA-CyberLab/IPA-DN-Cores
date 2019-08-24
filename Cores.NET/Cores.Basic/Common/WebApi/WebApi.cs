@@ -50,6 +50,8 @@ using IPA.Cores.Basic.HttpClientCore;
 using System.Security.Cryptography;
 using System.Linq;
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 namespace IPA.Cores.Basic
 {
     public static partial class CoresConfig
@@ -102,10 +104,10 @@ namespace IPA.Cores.Basic
         public string Url { get; }
         public CancellationToken Cancel { get; }
         public string UploadContentType { get; }
-        public Stream UploadStream { get; }
+        public Stream? UploadStream { get; }
 
         public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
-            string uploadContentType = Consts.MimeTypes.OctetStream, Stream uploadStream = null)
+            string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null)
         {
             this.Method = method;
             this.Url = url;
@@ -114,7 +116,7 @@ namespace IPA.Cores.Basic
             this.UploadStream = uploadStream;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -136,7 +138,7 @@ namespace IPA.Cores.Basic
             this.HttpResponseMessage = response;
             this.DownloadContent = response.Content;
 
-            this.DownloadContentType = this.DownloadContent.Headers.ContentType?.MediaType._NonNullTrim();
+            this.DownloadContentType = (this.DownloadContent.Headers.ContentType?.MediaType)._NonNullTrim();
 
             if (this.DownloadContent.TryComputeLength(out long length))
                 this.DownloadContentLength = length;
@@ -146,7 +148,7 @@ namespace IPA.Cores.Basic
             DownloadStream = downloadStream;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -173,7 +175,7 @@ namespace IPA.Cores.Basic
         public byte[] Data { get; }
         public string MediaType { get; }
         public string CharSet { get; }
-        public Encoding DefaultEncoding { get; } = null;
+        public Encoding DefaultEncoding { get; } = null!;
         public WebApi Api { get; }
         public HttpResponseHeaders Headers { get; }
 
@@ -259,7 +261,7 @@ namespace IPA.Cores.Basic
         public WebApiSettings Settings { get; }
         public TcpIpSystem TcpIp { get; }
 
-        public WebApiOptions(WebApiSettings settings = null, TcpIpSystem tcpIp = null)
+        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null)
         {
             if (settings == null) settings = new WebApiSettings();
             if (tcpIp == null) tcpIp = LocalNet;
@@ -288,7 +290,7 @@ namespace IPA.Cores.Basic
 
         public bool DebugPrintResponse => this.Settings.DebugPrintResponse;
 
-        public WebApi(WebApiOptions options = null)
+        public WebApi(WebApiOptions? options = null)
         {
             if (options == null) options = new WebApiOptions();
 
@@ -306,17 +308,17 @@ namespace IPA.Cores.Basic
             this.TimeoutMsecs = this.Settings.Timeout;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
             this.Client._DisposeSafe();
-            this.Client = null;
+            this.Client = null!;
         }
 
 
-        public string BuildQueryString(params (string name, string value)[] queryList)
+        public string BuildQueryString(params (string name, string? value)[]? queryList)
         {
             StringWriter w = new StringWriter();
             int count = 0;
@@ -358,7 +360,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[] queryList)
+        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
         {
             string qs = "";
 
@@ -439,7 +441,7 @@ namespace IPA.Cores.Basic
             throw new HttpRequestException(errStr);
         }
 
-        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string value)[] queryList)
+        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);
@@ -463,7 +465,7 @@ namespace IPA.Cores.Basic
         public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
-            HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url, null);
+            HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
 
             r.Content = new ByteArrayContent(postData);
             r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
@@ -484,7 +486,7 @@ namespace IPA.Cores.Basic
 
             if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
-            HttpRequestMessage r = CreateWebRequest(method, url, null);
+            HttpRequestMessage r = CreateWebRequest(method, url);
 
             byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 
@@ -530,6 +532,70 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+    }
+
+    // 任意の Stream の一部を HTTP 応答するクラス
+    public class HttpResult : IDisposable
+    {
+        public int StatusCode { get; }
+        public string? ContentType { get; }
+
+        public Stream Stream { get; }
+        public long Offset { get; }
+        public long? Length { get; }
+
+        public bool DisposeStream { get; }
+
+        public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true)
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
+            if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
+
+            contentType = contentType._NullIfEmpty();
+
+            this.Stream = stream;
+            this.Offset = offset;
+            this.Length = length;
+            this.ContentType = contentType;
+            this.StatusCode = statusCode;
+
+            this.DisposeStream = disposeStream;
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.DisposeStream)
+            {
+                this.Stream._DisposeSafe();
+            }
+        }
+    }
+
+    // すでに用意されたメモリ配列を HTTP 応答するクラス
+    public class HttpMemoryResult : HttpResult
+    {
+        public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok)
+            : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode) { }
+    }
+
+    // すでに用意された文字列データを HTTP 応答するクラス
+    public class HttpStringResult : HttpMemoryResult
+    {
+        public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null)
+            : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode) { }
+    }
+
+    // 指定されたファイルを HTTP 応答するクラス
+    public class HttpFileResult : HttpResult
+    {
+        public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true)
+            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true) { }
     }
 }
 

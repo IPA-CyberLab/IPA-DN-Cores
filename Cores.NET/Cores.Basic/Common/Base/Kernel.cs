@@ -97,19 +97,10 @@ namespace IPA.Cores.Basic
 
         // 環境変数文字列の取得
         public static string GetEnvStr(string name)
-        {
-            string ret = Environment.GetEnvironmentVariable(name);
-
-            if (ret == null)
-            {
-                ret = "";
-            }
-
-            return ret;
-        }
+            => Environment.GetEnvironmentVariable(name)._NonNull();
 
         // 現在のプロセスを強制終了する
-        static public void SelfKill(string msg = null)
+        static public void SelfKill(string msg = "")
         {
             if (msg._IsFilled()) msg._Print();
             System.Diagnostics.Process.GetCurrentProcess().Kill();
@@ -218,14 +209,14 @@ namespace IPA.Cores.Basic
             string stdout = "", stderr = "";
             int exitcode = -1;
             int timeout;
-            Event timeout_thread_event = null;
+            Event? timeout_thread_event = null;
             Process proc;
             bool finished = false;
             bool killed = false;
 
-            void timeout_thread(object param)
+            void timeout_thread(object? param)
             {
-                this.timeout_thread_event.Wait(this.timeout);
+                this.timeout_thread_event!.Wait(this.timeout);
 
                 if (finished == false)
                 {
@@ -263,7 +254,7 @@ namespace IPA.Cores.Basic
                     RedirectStandardInput = !Str.IsEmptyStr(input),
                 };
 
-                ThreadObj t = null;
+                ThreadObj? t = null;
 
                 using (Process p = Process.Start(info))
                 {
