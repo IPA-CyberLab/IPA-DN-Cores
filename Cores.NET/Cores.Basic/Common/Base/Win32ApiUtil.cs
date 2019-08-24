@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
     {
         static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
-        public static bool IsUncServerRootPath(string path, [MaybeNullWhen(false)] out string? normalizedPath)
+        public static bool IsUncServerRootPath(string path, [NotNullWhen(true)] out string? normalizedPath)
         {
             normalizedPath = null;
 

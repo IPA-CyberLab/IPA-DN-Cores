@@ -38,12 +38,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 #pragma warning disable CS0649
+#pragma warning disable CA2235 // Mark all non-serializable fields
 
 namespace IPA.Cores.Basic
 {
@@ -102,7 +104,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileSecurityOwner : IEmptyChecker
     {
-        public string Win32OwnerSddl;
+        public string? Win32OwnerSddl;
 
         public bool IsThisEmpty() => Win32OwnerSddl._IsEmpty();
     }
@@ -110,7 +112,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileSecurityGroup : IEmptyChecker
     {
-        public string Win32GroupSddl;
+        public string? Win32GroupSddl;
 
         public bool IsThisEmpty() => Win32GroupSddl._IsEmpty();
     }
@@ -118,7 +120,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileSecurityAcl : IEmptyChecker
     {
-        public string Win32AclSddl;
+        public string? Win32AclSddl;
 
         public bool IsThisEmpty() => Win32AclSddl._IsEmpty();
     }
@@ -126,7 +128,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileSecurityAudit : IEmptyChecker
     {
-        public string Win32AuditSddl;
+        public string? Win32AuditSddl;
 
         public bool IsThisEmpty() => Win32AuditSddl._IsEmpty();
     }
@@ -134,10 +136,10 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileSecurityMetadata : IEmptyChecker
     {
-        public FileSecurityOwner Owner;
-        public FileSecurityGroup Group;
-        public FileSecurityAcl Acl;
-        public FileSecurityAudit Audit;
+        public FileSecurityOwner? Owner;
+        public FileSecurityGroup? Group;
+        public FileSecurityAcl? Acl;
+        public FileSecurityAudit? Audit;
 
         public bool IsThisEmpty() => Owner._IsEmpty() && Group._IsEmpty() && Acl._IsEmpty() && Audit._IsEmpty();
 
@@ -169,8 +171,8 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileAlternateStreamItemMetadata : IEmptyChecker
     {
-        public string Name;
-        public byte[] Data;
+        public string? Name;
+        public byte[]? Data;
 
         public bool IsThisEmpty() => Name._IsEmpty() || Data._IsEmpty();
     }
@@ -178,7 +180,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileAlternateStreamMetadata : IEmptyChecker
     {
-        public FileAlternateStreamItemMetadata[] Items;
+        public FileAlternateStreamItemMetadata[]? Items;
 
         public bool IsThisEmpty() => (Items == null);
     }
@@ -186,17 +188,17 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class FileAuthorMetadata : IEmptyChecker
     {
-        public string CommitId;
+        public string? CommitId;
 
-        public string AuthorEmail;
-        public string AuthorName;
+        public string? AuthorEmail;
+        public string? AuthorName;
         public DateTimeOffset AuthorTimeStamp;
 
-        public string CommitterEmail;
-        public string CommitterName;
+        public string? CommitterEmail;
+        public string? CommitterName;
         public DateTimeOffset CommitterTimeStamp;
 
-        public string Message;
+        public string? Message;
 
         public bool IsThisEmpty() => (CommitId._IsEmpty() && AuthorName._IsEmpty() && CommitterName._IsEmpty() && Message._IsEmpty());
     }
@@ -215,19 +217,19 @@ namespace IPA.Cores.Basic
         public DateTimeOffset? LastWriteTime;
         public DateTimeOffset? LastAccessTime;
 
-        public FileSecurityMetadata Security;
+        public FileSecurityMetadata? Security;
 
-        public FileAlternateStreamMetadata AlternateStream;
+        public FileAlternateStreamMetadata? AlternateStream;
 
         public FileSpecialOperationFlags SpecialOperationFlags;
 
-        public FileAuthorMetadata Author;
+        public FileAuthorMetadata? Author;
 
         public FileMetadata() { }
 
         public FileMetadata(bool isDirectory = false, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
-            FileSecurityMetadata securityData = null, FileAlternateStreamMetadata alternateStream = null, FileAuthorMetadata author = null,
+            FileSecurityMetadata? securityData = null, FileAlternateStreamMetadata? alternateStream = null, FileAuthorMetadata? author = null,
             long size = 0, long? physicalSize = null)
         {
             this.IsDirectory = isDirectory;
@@ -339,17 +341,16 @@ namespace IPA.Cores.Basic
 
         public FileSystemEntity ToFileSystemEntity(PathParser parser, string fullPath)
         {
-            FileSystemEntity ret = new FileSystemEntity
-            {
-                Attributes = this.Attributes ?? default,
-                CreationTime = this.CreationTime ?? Util.ZeroDateTimeOffsetValue,
-                LastAccessTime = this.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
-                LastWriteTime = this.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
-                FullPath = fullPath,
-                Name = "..",
-                PhysicalSize = this.PhysicalSize,
-                Size = this.Size,
-            };
+            FileSystemEntity ret = new FileSystemEntity(
+                attributes: this.Attributes ?? default,
+                creationTime: this.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                lastAccessTime: this.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
+                lastWriteTime: this.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                fullPath: fullPath,
+                name: "..",
+                physicalSize: this.PhysicalSize,
+                size: this.Size
+                );
 
             return ret;
         }
@@ -365,7 +366,9 @@ namespace IPA.Cores.Basic
             this.Mode = mode;
             this.OptimizedMetadataGetFlags = CalcOptimizedMetadataGetFlags(this.Mode);
         }
-        public virtual FileMetadata Copy(FileMetadata src)
+
+        [return: NotNullIfNotNull("src")]
+        public virtual FileMetadata? Copy(FileMetadata? src)
         {
             if (src == null) return null;
             return src.Clone(this.Mode);
@@ -454,10 +457,10 @@ namespace IPA.Cores.Basic
 
     public class FileBaseStream : FileStream
     {
-        FileBase File;
+        FileBase File = null!;
         bool DisposeObject = false;
 
-        private FileBaseStream() : base((SafeFileHandle)null, FileAccess.Read) { }
+        private FileBaseStream() : base((SafeFileHandle)null!, FileAccess.Read) { }
 
         private void _InternalInit(FileBase obj, bool disposeObject)
         {
@@ -511,7 +514,7 @@ namespace IPA.Cores.Basic
         public override string Name => File.FileParams.Path;
 #endif
 
-        public override SafeFileHandle SafeFileHandle => null;
+        public override SafeFileHandle SafeFileHandle => null!;
 
         public override void Flush() => File.FlushAsync()._GetResult();
         public override async Task FlushAsync(CancellationToken cancellationToken = default)
@@ -545,16 +548,16 @@ namespace IPA.Cores.Basic
 
         public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None)._GetResult();
 
-        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
 
-        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
             => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
 
         public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
         public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
 
-        public override bool Equals(object obj) => object.Equals(this, obj);
+        public override bool Equals(object? obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
         public override string ToString() => this.File.ToString();
         public override object InitializeLifetimeService() => base.InitializeLifetimeService();
@@ -731,7 +734,7 @@ namespace IPA.Cores.Basic
             this.InternalPosition = 0;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -876,7 +879,7 @@ namespace IPA.Cores.Basic
         public readonly AsyncLock TargetLock;
         public readonly IRandomAccess<T> Target;
 
-        Exception LastError = null;
+        Exception? LastError = null;
 
         public ConcurrentRandomAccess(IRandomAccess<T> target)
         {
@@ -886,7 +889,7 @@ namespace IPA.Cores.Basic
 
         public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -1067,7 +1070,7 @@ namespace IPA.Cores.Basic
 
     public class RandomAccessHandle : IRandomAccess<byte>, IDisposable
     {
-        readonly RefCounterObjectHandle<FileBase> Ref;
+        readonly RefCounterObjectHandle<FileBase>? Ref;
         readonly FileBase File;
         bool DisposeFile = false;
 
@@ -1086,7 +1089,7 @@ namespace IPA.Cores.Basic
             this.File = this.Ref.Object;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -1138,7 +1141,7 @@ namespace IPA.Cores.Basic
         public FileParameters FileParams { get; }
         public virtual string FinalPhysicalPath => throw new NotImplementedException();
         public abstract bool IsOpened { get; }
-        public abstract Exception LastError { get; protected set; }
+        public abstract Exception? LastError { get; protected set; }
         public FastEventListenerList<FileBase, FileObjectEventType> EventListeners { get; }
             = new FastEventListenerList<FileBase, FileObjectEventType>();
 
@@ -1217,7 +1220,7 @@ namespace IPA.Cores.Basic
         public abstract Task FlushAsync(CancellationToken cancel = default);
         public void Close() => Dispose();
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

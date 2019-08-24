@@ -833,15 +833,15 @@ namespace IPA.Cores.Basic
                     var entities = await thisDirObject.EnumEntitiesAsync(flags, cancel);
                     List<FileSystemEntity> ret = new List<FileSystemEntity>();
 
-                    FileSystemEntity thisDir = new FileSystemEntity()
-                    {
-                        FullPath = ctx.NormalizedPath,
-                        Name = ".",
-                        Attributes = thisDirObject.Attributes,
-                        CreationTime = thisDirObject.CreationTime,
-                        LastWriteTime = thisDirObject.LastWriteTime,
-                        LastAccessTime = thisDirObject.LastAccessTime,
-                    };
+                    FileSystemEntity thisDir = new FileSystemEntity(
+                        fullPath: ctx.NormalizedPath,
+                        name: ".",
+                        attributes: thisDirObject.Attributes,
+                        creationTime: thisDirObject.CreationTime,
+                        lastWriteTime: thisDirObject.LastWriteTime,
+                        lastAccessTime: thisDirObject.LastAccessTime
+                        );
+
                     ret.Add(thisDir);
 
                     foreach (var entity in entities)
@@ -849,31 +849,31 @@ namespace IPA.Cores.Basic
                         if (entity is VfsDirectory dirObject)
                         {
                             FileMetadata meta = await dirObject.GetMetadataAsync(cancel);
-                            FileSystemEntity dir = new FileSystemEntity()
-                            {
-                                FullPath = PathParser.Combine(ctx.NormalizedPath, entity.Name),
-                                Name = entity.Name,
-                                Attributes = meta.Attributes ?? FileAttributes.Directory,
-                                CreationTime = meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
-                                LastWriteTime = meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
-                                LastAccessTime = meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
-                            };
+
+                            FileSystemEntity dir = new FileSystemEntity(
+                                fullPath: PathParser.Combine(ctx.NormalizedPath, entity.Name),
+                                name: entity.Name,
+                                attributes: meta.Attributes ?? FileAttributes.Directory,
+                                creationTime: meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastWriteTime: meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastAccessTime: meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
+                                );
+
                             ret.Add(dir);
                         }
                         else if (entity is VfsFile fileObject)
                         {
                             FileMetadata meta = await fileObject.GetMetadataAsync(cancel);
-                            FileSystemEntity file = new FileSystemEntity()
-                            {
-                                FullPath = PathParser.Combine(ctx.NormalizedPath, entity.Name),
-                                Name = entity.Name,
-                                Size = meta.Size,
-                                PhysicalSize = meta.PhysicalSize,
-                                Attributes = meta.Attributes ?? FileAttributes.Directory,
-                                CreationTime = meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
-                                LastWriteTime = meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
-                                LastAccessTime = meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
-                            };
+                            FileSystemEntity file = new FileSystemEntity(
+                                fullPath : PathParser.Combine(ctx.NormalizedPath, entity.Name),
+                                name : entity.Name,
+                                size : meta.Size,
+                                physicalSize : meta.PhysicalSize,
+                                attributes : meta.Attributes ?? FileAttributes.Directory,
+                                creationTime :meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastWriteTime : meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastAccessTime : meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
+                            );
                             ret.Add(file);
                         }
                     }

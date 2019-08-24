@@ -113,12 +113,12 @@ namespace IPA.Cores.Basic
     public interface ILayerInfoSsl
     {
         bool IsServerMode { get; }
-        string SslProtocol { get; }
-        string CipherAlgorithm { get; }
+        string? SslProtocol { get; }
+        string? CipherAlgorithm { get; }
         int CipherStrength { get; }
-        string HashAlgorithm { get; }
+        string? HashAlgorithm { get; }
         int HashStrength { get; }
-        string KeyExchangeAlgorithm { get; }
+        string? KeyExchangeAlgorithm { get; }
         int KeyExchangeStrength { get; }
         PalX509Certificate? LocalCertificate { get; }
         PalX509Certificate? RemoteCertificate { get; }

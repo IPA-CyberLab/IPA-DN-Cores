@@ -354,6 +354,8 @@ namespace IPA.Cores.Basic
 
         protected override async Task<NetTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default)
         {
+            if (ListeningSocket == null) throw new CoresException("This protocol stack is not a listening socket.");
+
             PalSocket newSocket = await ListeningSocket.AcceptAsync();
             try
             {
@@ -370,7 +372,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             this.ConnectedSocket._DisposeSafe();
             this.ListeningSocket._DisposeSafe();
@@ -378,7 +380,7 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             this.ConnectedSocket._DisposeSafe();
             this.ListeningSocket._DisposeSafe();
@@ -389,7 +391,7 @@ namespace IPA.Cores.Basic
 
     public abstract class NetSock : AsyncService
     {
-        NetAppStub AppStub = null;
+        NetAppStub? AppStub = null;
 
         public NetProtocolBase Stack { get; }
         public DuplexPipe Pipe { get; }
@@ -404,8 +406,13 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                if (Stack._InternalUpper.CounterPart == null)
+                    throw new CoresException("Stack._InternalUpper.CounterPart == null");
+
+                PipePoint counterPart = Stack._InternalUpper.CounterPart;
+
                 Stack = AddDirectDisposeLink(protocolStack);
-                UpperPoint = AddDirectDisposeLink(Stack._InternalUpper.CounterPart);
+                UpperPoint = AddDirectDisposeLink(counterPart);
                 Pipe = AddDirectDisposeLink(UpperPoint.Pipe);
 
                 this.Pipe.OnDisconnected.Add(() =>
@@ -490,7 +497,7 @@ namespace IPA.Cores.Basic
             };
         }
 
-        public PCapConnSockRecorder StartPCapRecorder(PCapFileEmitter initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData)
+        public PCapConnSockRecorder StartPCapRecorder(PCapFileEmitter? initialEmitter = null, int bufferSize = DefaultSize, FastStreamNonStopWriteMode discardMode = FastStreamNonStopWriteMode.DiscardExistingData)
         {
             var ret = new PCapConnSockRecorder(this, initialEmitter, bufferSize, discardMode);
 
@@ -525,7 +532,7 @@ namespace IPA.Cores.Basic
 
     public class NetPalDnsClient : NetDnsClientStub
     {
-        public static NetPalDnsClient Shared { get; private set; }
+        public static NetPalDnsClient Shared { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -537,7 +544,7 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             Shared._DisposeSafe();
-            Shared = null;
+            Shared = null!;
         }
 
 
@@ -611,23 +618,23 @@ namespace IPA.Cores.Basic
         public class LayerInfo : LayerInfoBase, ILayerInfoSsl
         {
             public bool IsServerMode { get; internal set; }
-            public string SslProtocol { get; internal set; }
-            public string CipherAlgorithm { get; internal set; }
+            public string? SslProtocol { get; internal set; }
+            public string? CipherAlgorithm { get; internal set; }
             public int CipherStrength { get; internal set; }
-            public string HashAlgorithm { get; internal set; }
+            public string? HashAlgorithm { get; internal set; }
             public int HashStrength { get; internal set; }
-            public string KeyExchangeAlgorithm { get; internal set; }
+            public string? KeyExchangeAlgorithm { get; internal set; }
             public int KeyExchangeStrength { get; internal set; }
-            public PalX509Certificate LocalCertificate { get; internal set; }
-            public PalX509Certificate RemoteCertificate { get; internal set; }
+            public PalX509Certificate? LocalCertificate { get; internal set; }
+            public PalX509Certificate? RemoteCertificate { get; internal set; }
         }
 
         public NetSslProtocolStack(PipePoint lower, PipePoint upper, NetSslProtocolOptions options,
             CancellationToken cancel = default) : base(lower, upper, options ?? new NetSslProtocolOptions(), cancel) { }
 
-        PipeStream LowerStream = null;
-        PalSslStream SslStream = null;
-        PipePointStreamWrapper Wrapper = null;
+        PipeStream? LowerStream = null;
+        PalSslStream? SslStream = null;
+        PipePointStreamWrapper? Wrapper = null;
 
         public async Task SslStartServerAsync(PalSslServerAuthenticationOptions sslServerAuthOption, CancellationToken cancel = default)
         {
@@ -737,7 +744,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             this.SslStream._DisposeSafe();
             this.LowerStream._DisposeSafe();
@@ -745,7 +752,7 @@ namespace IPA.Cores.Basic
             base.CancelImpl(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             this.SslStream._DisposeSafe();
             this.LowerStream._DisposeSafe();
@@ -776,7 +783,7 @@ namespace IPA.Cores.Basic
         public int Port { get; }
 
         public ListenStatus Status { get; internal set; }
-        public Exception LastError { get; internal set; }
+        public Exception? LastError { get; internal set; }
 
         internal Task _InternalTask { get; }
 
@@ -931,7 +938,7 @@ namespace IPA.Cores.Basic
 
         internal protected abstract NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
 
-        public NetTcpListenerPort Add(int port, IPVersion? ipVer = null, IPAddress addr = null)
+        public NetTcpListenerPort Add(int port, IPVersion? ipVer = null, IPAddress? addr = null)
         {
             if (addr == null)
                 addr = ((ipVer ?? IPVersion.IPv4) == IPVersion.IPv4) ? IPAddress.Any : IPAddress.IPv6Any;
@@ -961,7 +968,7 @@ namespace IPA.Cores.Basic
 
         public async Task<bool> DeleteAsync(NetTcpListenerPort listener)
         {
-            NetTcpListenerPort s;
+            NetTcpListenerPort? s;
             lock (LockObj)
             {
                 string hashKey = NetTcpListenerPort.MakeHashKey(listener.IPVersion, listener.IPAddress, listener.Port);
@@ -974,9 +981,9 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        NetTcpListenerPort Search(string hashKey)
+        NetTcpListenerPort? Search(string hashKey)
         {
-            if (List.TryGetValue(hashKey, out NetTcpListenerPort ret) == false)
+            if (List.TryGetValue(hashKey, out NetTcpListenerPort? ret) == false)
                 return null;
             return ret;
         }
@@ -1037,11 +1044,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             List<NetTcpListenerPort> o = new List<NetTcpListenerPort>();
             lock (LockObj)
@@ -1081,7 +1088,7 @@ namespace IPA.Cores.Basic
             Debug.Assert(CurrentConnections == 0);
         }
 
-        protected override void DisposeImpl(Exception ex) { }
+        protected override void DisposeImpl(Exception? ex) { }
     }
 
     public class NetPalTcpListener : NetTcpListener

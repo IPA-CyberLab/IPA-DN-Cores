@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
     {
         protected ViewFileSystem ViewFileSystem { get; }
         FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
-        public FileObject UnderlayFile { get; private set; }
+        public FileObject UnderlayFile { get; private set; } = null!;
 
         public override string FinalPhysicalPath => UnderlayFile.FinalPhysicalPath;
 

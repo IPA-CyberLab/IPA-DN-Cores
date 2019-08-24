@@ -55,7 +55,7 @@ namespace IPA.Cores.Basic
 {
     public partial class LocalFileSystem
     {
-        public DirectoryPath DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
+        public DirectoryPath? DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
         {
             IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
 

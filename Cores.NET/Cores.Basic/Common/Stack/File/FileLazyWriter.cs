@@ -92,7 +92,7 @@ namespace IPA.Cores.Basic
     {
         public new LazyBufferFileEmitterOptions Options => (LazyBufferFileEmitterOptions)base.Options;
 
-        FileObject file = null;
+        FileObject? file = null;
 
         public LazyBufferFileEmitter(LazyBufferFileEmitterOptions options) : base(options) { }
 
@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    await file.WriteAsync(data, cancel);
+                    await file!.WriteAsync(data, cancel);
                 }
                 catch (Exception ex)
                 {
@@ -145,7 +145,7 @@ namespace IPA.Cores.Basic
         public override Task FlushAsync(CancellationToken cancel = default)
         {
             if (IsClosed) return Task.CompletedTask;
-            return file.FlushAsync(cancel);
+            return file!.FlushAsync(cancel);
         }
 
         bool IsClosed = false;
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
     {
         public LazyBufferOptions Options { get; }
 
-        LazyBufferEmitterBase Emitter;
+        LazyBufferEmitterBase? Emitter;
 
         PipePoint Reader;
         PipePoint Writer;
@@ -208,7 +208,7 @@ namespace IPA.Cores.Basic
 
             this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, this.GrandCancel, Options.BufferSize);
 
-            this.Writer = this.Reader.CounterPart;
+            this.Writer = this.Reader.CounterPart._NullCheck();
 
             if (initialEmitter != null)
             {
@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
 
                 while (true)
                 {
-                    await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, this.Emitter.Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
+                    await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, this.Emitter!.Options.Delay, () => this.Reader.StreamReader.IsReadyToRead(), cancel);
 
                     IReadOnlyList<ReadOnlyMemory<byte>> dataToWrite = DequeueAll(out long totalSize, this.Emitter.Options.DefragmentWriteBlockSize);
                     if (totalSize == 0)
@@ -310,13 +310,13 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    await Emitter.CloseAsync();
+                    await Emitter!.CloseAsync();
                 }
                 catch { }
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

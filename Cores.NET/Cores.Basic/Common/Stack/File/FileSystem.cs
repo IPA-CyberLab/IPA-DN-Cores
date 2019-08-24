@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
     {
         public FileSystem FileSystem { get; }
         public sealed override bool IsOpened => !this.ClosedFlag.IsSet;
-        public sealed override Exception LastError { get; protected set; } = null;
+        public sealed override Exception? LastError { get; protected set; } = null;
 
         public int MicroOperationSize { get; set; } = CoresConfig.FileSystemSettings.DefaultMicroOperationSize.Value;
 
@@ -639,6 +639,19 @@ namespace IPA.Cores.Basic
 
     public class FileSystemEntity
     {
+        public FileSystemEntity(string fullPath, string name, FileAttributes attributes, DateTimeOffset creationTime, DateTimeOffset lastWriteTime, DateTimeOffset lastAccessTime, long size = 0, long physicalSize = 0, string? symbolicLinkTarget = null)
+        {
+            FullPath = fullPath;
+            Name = name;
+            Size = size;
+            PhysicalSize = physicalSize;
+            SymbolicLinkTarget = symbolicLinkTarget;
+            Attributes = attributes;
+            CreationTime = creationTime;
+            LastWriteTime = lastWriteTime;
+            LastAccessTime = lastAccessTime;
+        }
+
         public string FullPath { get; set; }
         public string Name { get; set; }
         public bool IsDirectory => Attributes.Bit(FileAttributes.Directory);
@@ -649,7 +662,7 @@ namespace IPA.Cores.Basic
         public bool IsCurrentOrParentDirectory => IsCurrentDirectory | IsParentDirectory;
         public long Size { get; set; }
         public long PhysicalSize { get; set; }
-        public string SymbolicLinkTarget { get; set; }
+        public string? SymbolicLinkTarget { get; set; }
         public FileAttributes Attributes { get; set; }
         public DateTimeOffset CreationTime { get; set; }
         public DateTimeOffset LastWriteTime { get; set; }
@@ -1073,7 +1086,7 @@ namespace IPA.Cores.Basic
 
         public bool IsRootDirectory(string path)
         {
-            if (path == null) return false;
+            if (path._IsNullOrZeroLen()) throw new CoresEmptyException(nameof(path));
 
             SepareteDirectoryAndFileName(path, out string dirPath, out string fileName);
 
@@ -1082,14 +1095,14 @@ namespace IPA.Cores.Basic
 
         public string GetDirectoryName(string path)
         {
-            if (path == null) return null;
+            if (path._IsNullOrZeroLen()) throw new CoresEmptyException(nameof(path));
             SepareteDirectoryAndFileName(path, out string dirPath, out _);
             return dirPath;
         }
 
         public string GetFileName(string path)
         {
-            if (path == null) return null;
+            if (path._IsNullOrZeroLen()) throw new CoresEmptyException(nameof(path));
             SepareteDirectoryAndFileName(path, out _, out string fileName);
             return fileName;
         }
@@ -1150,7 +1163,7 @@ namespace IPA.Cores.Basic
             => Combine(path1, path2, false);
         public string Combine(string path1, string path2, bool path2NeverAbsolutePath = false)
         {
-            if (path1 == null && path2 == null) return null;
+            if (path1._IsNullOrZeroLen() && path2._IsNullOrZeroLen()) throw new CoresEmptyException("path1 == empty && path2 == empty");
 
             path1 = path1._NonNull();
             path2 = path2._NonNull();
@@ -1193,7 +1206,7 @@ namespace IPA.Cores.Basic
 
         public string Combine(params string[] pathList)
         {
-            if (pathList == null || pathList.Length == 0) return null;
+            if (pathList._IsNullOrZeroLen()) throw new CoresEmptyException("pathList is empty");
             if (pathList.Length == 1) return pathList[0];
 
             string path1 = pathList[0];
@@ -1210,7 +1223,7 @@ namespace IPA.Cores.Basic
 
         public string GetFileNameWithoutExtension(string path, bool longExtension = false)
         {
-            if (path == null) return null;
+            if (path == null) throw new ArgumentNullException(nameof(path));
             if (path._IsEmpty()) return "";
             path = GetFileName(path);
             int[] dots = path._FindStringIndexes(".", true);
@@ -1224,7 +1237,7 @@ namespace IPA.Cores.Basic
         // 拡張子を取得する (. を含む)
         public string GetExtension(string path, bool longExtension = false)
         {
-            if (path == null) return null;
+            if (path == null) throw new ArgumentNullException(nameof(path));
             if (path._IsEmpty()) return "";
             path = GetFileName(path);
             int[] dots = path._FindStringIndexes(".", true);
@@ -1524,7 +1537,7 @@ namespace IPA.Cores.Basic
         public Singleton<FileSystemObjectPool> ObjectPoolForRead { get; }
         public Singleton<FileSystemObjectPool> ObjectPoolForWrite { get; }
 
-        public LargeFileSystem LargeFileSystem { get; }
+        public LargeFileSystem? LargeFileSystem { get; }
 
         public FileSystem(FileSystemParams param) : base()
         {
@@ -1570,9 +1583,9 @@ namespace IPA.Cores.Basic
         public RandomAccessHandle GetRandomAccessHandle(string fileName, bool writeMode, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel)._GetResult();
 
-        protected override void CancelImpl(Exception ex) { }
+        protected override void CancelImpl(Exception? ex) { }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             FileBase[] fileHandles;
 
@@ -1588,7 +1601,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             ObjectPoolForRead._DisposeSafe();
             ObjectPoolForWrite._DisposeSafe();
@@ -1636,7 +1649,7 @@ namespace IPA.Cores.Basic
 
             string cacheKey = PathParser.Combine(elements);
 
-            if (CaseCorrectionCache.TryGetValue(cacheKey, out string cachedValue))
+            if (CaseCorrectionCache.TryGetValue(cacheKey, out string? cachedValue))
             {
                 return cachedValue;
             }
@@ -1650,7 +1663,7 @@ namespace IPA.Cores.Basic
                 bool isThisElementDirectory = forDirectory || (i != (elements.Length - 1));
 
                 string originalFullPath = PathParser.Combine(currentFullPath, element);
-                string element2 = null;
+                string? element2 = null;
 
                 try
                 {
@@ -1754,14 +1767,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void FileEventListenerCallback(FileBase obj, FileObjectEventType eventType, object userState)
+        void FileEventListenerCallback(FileBase obj, FileObjectEventType eventType, object? userState)
         {
             switch (eventType)
             {
                 case FileObjectEventType.Closed:
                     lock (LockObj)
                     {
-                        OpenedHandleList.Remove(obj as FileObject);
+                        OpenedHandleList.Remove((FileObject)obj);
                     }
                     break;
             }
@@ -2107,7 +2120,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public FileSystemEventWatcher CreateFileSystemEventWatcher(string root, string filter = "**/*", object state = null, bool enforcePolling = false, int? pollingInterval = null)
+        public FileSystemEventWatcher CreateFileSystemEventWatcher(string root, string filter = "**/*", object? state = null, bool enforcePolling = false, int? pollingInterval = null)
         {
             DisposableFileProvider p = this._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
 
@@ -2143,7 +2156,7 @@ namespace IPA.Cores.Basic
         public IDirectoryContents GetDirectoryContents(string subpath) => Provider.GetDirectoryContents(subpath);
         public IFileInfo GetFileInfo(string subpath) => Provider.GetFileInfo(subpath);
         public IChangeToken Watch(string filter) => Provider.Watch(filter);
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -2165,21 +2178,21 @@ namespace IPA.Cores.Basic
     {
         readonly DisposableFileProvider Provider;
         public string Filter { get; }
-        public object State { get; }
+        public object? State { get; }
         public bool EnforcePolling { get; }
         public bool IsPollingMode { get; private set; }
         public int PollingInterval { get; }
 
-        IChangeToken ChangeToken = null;
-        IDisposable CallbackDisposable = null;
+        IChangeToken ChangeToken = null!;
+        IDisposable? CallbackDisposable = null;
 
-        Task CurrentPollingTask = null;
+        Task? CurrentPollingTask = null;
 
         readonly CriticalSection LockObj = new CriticalSection();
 
         public FastEventListenerList<FileSystemEventWatcher, NonsenseEventType> EventListeners { get; } = new FastEventListenerList<FileSystemEventWatcher, NonsenseEventType>();
 
-        public FileSystemEventWatcher(DisposableFileProvider provider, string filter = "**/*", object state = null, bool enforcePolling = false, int? pollingInterval = null)
+        public FileSystemEventWatcher(DisposableFileProvider provider, string filter = "**/*", object? state = null, bool enforcePolling = false, int? pollingInterval = null)
         {
             this.Provider = provider;
             this.Filter = filter;
@@ -2213,7 +2226,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void Poll(object internalState)
+        void Poll(object? internalState)
         {
             lock (LockObj)
             {
@@ -2274,7 +2287,7 @@ namespace IPA.Cores.Basic
             Poll(null);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

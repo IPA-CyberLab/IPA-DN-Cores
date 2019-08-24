@@ -430,7 +430,7 @@ namespace IPA.Cores.Basic
                 else
                 {
                     // Normal write
-                    for (int i = 0;i < cursorList.Count;i++)
+                    for (int i = 0; i < cursorList.Count; i++)
                     {
                         Cursor cursor = cursorList[i];
                         bool isPastFile = (i != cursorList.Count - 1);
@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
                 sortedRelatedFiles.Reverse();
 
                 Dictionary<string, FileSystemEntity> parsedFileDictionaly = new Dictionary<string, FileSystemEntity>(PathParser.PathStringComparer);
-                
+
                 var normalFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) == -1);
                 var normalFileHashSet = new HashSet<string>(normalFiles.Select(x => x.Name), PathParser.PathStringComparer);
 
@@ -792,17 +792,17 @@ namespace IPA.Cores.Basic
 
                         if (parsedFileDictionaly.ContainsKey(parsed.LogicalFileName) == false)
                         {
-                            var newFileEntity = new FileSystemEntity()
-                            {
-                                FullPath = parsed.LogicalFilePath,
-                                Name = PathParser.GetFileName(parsed.LogicalFileName),
-                                Size = f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
-                                PhysicalSize = f.PhysicalSize,
-                                Attributes = f.Attributes,
-                                CreationTime = f.CreationTime,
-                                LastWriteTime = f.LastWriteTime,
-                                LastAccessTime = f.LastAccessTime,
-                            };
+                            FileSystemEntity newFileEntity = new FileSystemEntity(
+                                fullPath: parsed.LogicalFilePath,
+                                name: PathParser.GetFileName(parsed.LogicalFileName),
+                                size: f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
+                                physicalSize: f.PhysicalSize,
+                                attributes: f.Attributes,
+                                creationTime: f.CreationTime,
+                                lastWriteTime: f.LastWriteTime,
+                                lastAccessTime: f.LastAccessTime
+                                );
+
                             parsedFileDictionaly.Add(parsed.LogicalFileName, newFileEntity);
                         }
                         else

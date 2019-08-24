@@ -1475,9 +1475,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public T AddDirectDisposeLink<T>(T service) where T : IAsyncService
+        [return: NotNullIfNotNull("service")]
+        public T? AddDirectDisposeLink<T>(T? service) where T : class, IAsyncService
         {
-            if (service != default)
+            if (service != null)
             {
                 lock (DirectDisposeList)
                     DirectDisposeList.Add(service);
@@ -1485,9 +1486,10 @@ namespace IPA.Cores.Basic
             return service;
         }
 
-        public T AddIndirectDisposeLink<T>(T service) where T : IAsyncService
+        [return: NotNullIfNotNull("service")]
+        public T? AddIndirectDisposeLink<T>(T? service) where T : class, IAsyncService
         {
-            if (service != default)
+            if (service != null)
             {
                 lock (IndirectDisposeList)
                     IndirectDisposeList.Add(service);
@@ -3709,7 +3711,7 @@ namespace IPA.Cores.Basic
     public interface IAsyncClosable : IDisposable
     {
         Task CloseAsync();
-        Exception LastError { get; }
+        Exception? LastError { get; }
     }
 
     public enum RefCounterEventType

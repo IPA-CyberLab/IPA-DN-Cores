@@ -66,11 +66,11 @@ namespace IPA.Cores.Basic
         public const long Win32MaxAlternateStreamSize = 65536;
         public const int Win32MaxAlternateStreamNum = 16;
 
-        public static LocalFileSystem Local { get; private set; }
+        public static LocalFileSystem Local { get; private set; } = null!;
 
-        public static Utf8BomFileSystem LocalUtf8 { get; private set; }
+        public static Utf8BomFileSystem LocalUtf8 { get; private set; } = null!;
 
-        public static ChrootFileSystem AppRoot { get; private set; }
+        public static ChrootFileSystem AppRoot { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -88,13 +88,13 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             AppRoot._DisposeSafe();
-            AppRoot = null;
+            AppRoot = null!;
 
             LocalUtf8._DisposeSafe();
-            LocalUtf8 = null;
+            LocalUtf8 = null!;
 
             Local._DisposeSafe();
-            Local = null;
+            Local = null!;
         }
 
 
@@ -115,30 +115,32 @@ namespace IPA.Cores.Basic
             DateTimeOffset now = DateTimeOffset.Now;
 
             // root directory
-            FileSystemEntity root = new FileSystemEntity()
-            {
-                Name = ".",
-                FullPath = normalizedUncPath,
-                Size = 0,
-                Attributes = FileAttributes.Directory,
-                CreationTime = now,
-                LastWriteTime = now,
-                LastAccessTime = now,
-            };
+            FileSystemEntity root = new FileSystemEntity(
+                name: ".",
+                fullPath: normalizedUncPath,
+                size: 0,
+                physicalSize: 0,
+                attributes: FileAttributes.Directory,
+                creationTime: now,
+                lastWriteTime: now,
+                lastAccessTime: now
+                );
+
             ret.Add(root);
 
             foreach (string shareName in shareNameList)
             {
-                FileSystemEntity entity = new FileSystemEntity()
-                {
-                    Name = shareName,
-                    FullPath = normalizedUncPath + @"\" + shareName,
-                    Size = 0,
-                    Attributes = FileAttributes.Directory,
-                    CreationTime = now,
-                    LastWriteTime = now,
-                    LastAccessTime = now,
-                };
+                FileSystemEntity entity = new FileSystemEntity(
+                    name: shareName,
+                    fullPath: normalizedUncPath + @"\" + shareName,
+                    size: 0,
+                    physicalSize: 0,
+                    attributes: FileAttributes.Directory,
+                    creationTime: now,
+                    lastWriteTime: now,
+                    lastAccessTime: now
+                    );
+
                 ret.Add(entity);
             }
 
@@ -147,7 +149,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
         {
-            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(directoryPath, out string normalizedUncPath))
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(directoryPath, out string? normalizedUncPath))
                 return Win32EnumUncPathSpecialDirectory(normalizedUncPath, flags, cancel).ToArray();
 
             DirectoryInfo di = new DirectoryInfo(directoryPath);
@@ -218,7 +220,7 @@ namespace IPA.Cores.Basic
 
         protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
         {
-            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string normalizedUncPath))
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string? normalizedUncPath))
             {
                 // UNC server root path
                 try
@@ -233,16 +235,15 @@ namespace IPA.Cores.Basic
 
         static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
         {
-            FileSystemEntity ret = new FileSystemEntity()
-            {
-                Name = info.Name,
-                FullPath = info.FullName,
-                Size = info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
-                Attributes = info.Attributes,
-                CreationTime = info.CreationTime._AsDateTimeOffset(true),
-                LastWriteTime = info.LastWriteTime._AsDateTimeOffset(true),
-                LastAccessTime = info.LastAccessTime._AsDateTimeOffset(true),
-            };
+            FileSystemEntity ret = new FileSystemEntity(
+                name : info.Name,
+                fullPath : info.FullName,
+                size : info.Attributes.Bit(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length,
+                attributes : info.Attributes,
+                creationTime : info.CreationTime._AsDateTimeOffset(true),
+                lastWriteTime : info.LastWriteTime._AsDateTimeOffset(true),
+                lastAccessTime : info.LastAccessTime._AsDateTimeOffset(true)
+            );
 
             ret.PhysicalSize = ret.Size;
 
@@ -351,7 +352,7 @@ namespace IPA.Cores.Basic
                 info.Attributes = attr;
         }
 
-        string ReadSymbolicLinkTarget(string linkPath)
+        string? ReadSymbolicLinkTarget(string linkPath)
         {
             if (Env.IsUnix)
             {
@@ -360,11 +361,11 @@ namespace IPA.Cores.Basic
             else
             {
                 // Currently this will return error in Windows
-                return "";
+                return null;
             }
         }
 
-        string Win32GetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, AccessControlSections section)
+        string? Win32GetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, AccessControlSections section)
         {
             if (Env.IsWindows == false) return null;
             try
@@ -380,7 +381,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void Win32SetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, string sddl, AccessControlSections section)
+        void Win32SetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, string? sddl, AccessControlSections section)
         {
             if (Env.IsWindows == false) return;
             if (sddl._IsEmpty()) return;
@@ -432,23 +433,26 @@ namespace IPA.Cores.Basic
                     throw new FileException(path, "Win32EnumAlternateStreamsInternal() failed.");
 
                 // Copy streams
-                foreach (var d in data.Items)
+                if (data.Items != null)
                 {
-                    if (d._IsFilled())
+                    foreach (var d in data.Items)
                     {
-                        if (d.Name._IsEmpty() == false)
+                        if (d._IsFilled())
                         {
-                            if (d.Name.IndexOfAny(PathParser.PossibleDirectorySeparators) == -1)
+                            if (d.Name._IsFilled())
                             {
-                                string fullpath = path + d.Name;
+                                if (d.Name.IndexOfAny(PathParser.PossibleDirectorySeparators) == -1)
+                                {
+                                    string fullpath = path + d.Name;
 
-                                try
-                                {
-                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.None, cancel: cancel);
-                                }
-                                catch
-                                {
-                                    await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.BackupMode, cancel: cancel);
+                                    try
+                                    {
+                                        await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.None, cancel: cancel);
+                                    }
+                                    catch
+                                    {
+                                        await this.WriteDataToFileAsync(fullpath, d.Data, FileFlags.BackupMode, cancel: cancel);
+                                    }
                                 }
                             }
                         }
@@ -482,7 +486,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<FileAlternateStreamMetadata> GetFileAlternateStreamMetadataAsync(string path, CancellationToken cancel = default)
+        async Task<FileAlternateStreamMetadata?> GetFileAlternateStreamMetadataAsync(string path, CancellationToken cancel = default)
         {
             FileAlternateStreamMetadata ret = new FileAlternateStreamMetadata();
 
@@ -534,7 +538,7 @@ namespace IPA.Cores.Basic
         FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
         {
             FileSecurityMetadata ret = new FileSecurityMetadata();
-            string sddl;
+            string? sddl;
 
             if (Env.IsWindows)
             {
@@ -621,7 +625,7 @@ namespace IPA.Cores.Basic
             // Try to open to retrieve the actual physical file
             if (flags.Bit(FileMetadataGetFlags.NoPreciseFileSize) == false)
             {
-                FileObject f = null;
+                FileObject? f = null;
                 try
                 {
                     f = await LocalFileObject.CreateFileAsync(this, new FileParameters(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileFlags.None), cancel);
@@ -704,7 +708,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string normalizedUncPath))
+            if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string? normalizedUncPath))
             {
                 // UNC server root path
                 DateTimeOffset now = DateTimeOffset.Now;
@@ -823,12 +827,12 @@ namespace IPA.Cores.Basic
 
     public class LocalFileObject : FileObject
     {
-        string _PhysicalFinalPath = null;
+        string? _PhysicalFinalPath = null;
         public override string FinalPhysicalPath => _PhysicalFinalPath._FilledOrException();
 
         protected LocalFileObject(FileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams) { }
 
-        protected FileStream BaseStream;
+        protected FileStream BaseStream = null!;
         long CurrentPosition;
         bool UseAsyncMode = false;
 
@@ -973,7 +977,7 @@ namespace IPA.Cores.Basic
             catch
             {
                 BaseStream._DisposeSafe();
-                BaseStream = null;
+                BaseStream = null!;
                 throw;
             }
         }
@@ -994,7 +998,7 @@ namespace IPA.Cores.Basic
         protected override async Task CloseImplAsync()
         {
             BaseStream._DisposeSafe();
-            BaseStream = null;
+            BaseStream = null!;
         }
 
         protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)

@@ -359,7 +359,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _StartsWithMulti(this string str, StringComparison comparison, params string[] keys) => Str.StartsWithMulti(str, comparison, keys);
         public static int _FindStringsMulti(this string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundKeyIndex, keys);
         public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
-        public static int[]? _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
+        public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
         public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
         public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
         public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
@@ -1100,8 +1100,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _IsNullOrZeroLen([NotNullWhen(false)] this string? str) => string.IsNullOrEmpty(str);
 
-        public static bool _IsEmpty<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
-        public static bool _IsFilled<T>(this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
+        public static bool _IsNullOrZeroLen<T>([NotNullWhen(false)] this T[]? array) => (array != null && array.Length != 0);
+
+        public static bool _IsEmpty<T>([NotNullWhen(false)] this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
+        public static bool _IsFilled<T>([NotNullWhen(true)] this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
         public static bool _IsEmpty([NotNullWhen(false)] this string? str) => Str.IsEmptyStr(str);
         public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
@@ -1113,12 +1115,33 @@ namespace IPA.Cores.Helper.Basic
         public static string? _FilledOrDefault(this string? str, string? defaultValue = null) => (str._IsFilled() ? str : defaultValue);
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
+        [return: NotNull]
         public static T _FilledOrException<T>(this T obj, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
             if (obj._IsFilled(zeroValueIsEmpty))
                 return obj;
 
-            throw exception ?? new NotImplementedException();
+            throw exception ?? new CoresEmptyException();
+        }
+
+        public static string _FilledOrException(this string? str, Exception? exception = null, bool zeroValueIsEmpty = true)
+        {
+            if (str._IsFilled(zeroValueIsEmpty))
+                return str;
+
+            throw exception ?? new CoresEmptyException();
+        }
+
+        public static T _NullCheck<T>([NotNull] this T? obj, Exception? ex = null)
+            where T: class
+        {
+            if (obj == null)
+            {
+                if (ex == null) ex = new NullReferenceException();
+                throw ex;
+            }
+
+            return obj;
         }
 
         public static T _DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);

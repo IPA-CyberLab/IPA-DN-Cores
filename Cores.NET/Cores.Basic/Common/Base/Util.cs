@@ -1106,7 +1106,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定されたオブジェクトが Null、0 または空データであるかどうか判別する
-        public static bool IsEmpty<T>(T data, bool zeroValueIsEmpty = false)
+        public static bool IsEmpty<T>([NotNullWhen(false)] T data, bool zeroValueIsEmpty = false)
         {
             if (data == default) return true;
 
@@ -1156,7 +1156,7 @@ namespace IPA.Cores.Basic
 
             return false;
         }
-        public static bool IsFilled<T>(T data, bool zeroValueIsEmpty = false) => !IsEmpty(data, zeroValueIsEmpty);
+        public static bool IsFilled<T>([NotNullWhen(true)] T data, bool zeroValueIsEmpty = false) => !IsEmpty(data, zeroValueIsEmpty);
 
         // DateTime がゼロかどうか検査する
         public static bool IsZero(DateTime dt)
@@ -5020,7 +5020,7 @@ namespace IPA.Cores.Basic
 
     public class NullProgressReporter : ProgressReporterBase
     {
-        public NullProgressReporter(object state) : base(new ProgressReporterSettingBase(), state) { }
+        public NullProgressReporter(object? state) : base(new ProgressReporterSettingBase(), state) { }
 
         public override void ReportProgress(ProgressData data) { }
 
@@ -5043,9 +5043,9 @@ namespace IPA.Cores.Basic
 
         public ProgressReporterSettingBase Setting { get; }
 
-        public object State { get; }
+        public object? State { get; }
 
-        public ProgressReporterBase(ProgressReporterSettingBase setting, object state)
+        public ProgressReporterBase(ProgressReporterSettingBase setting, object? state)
         {
             this.Setting = setting;
             this.State = state;
@@ -5262,7 +5262,7 @@ namespace IPA.Cores.Basic
     {
         public ProgressReporterSetting MySetting => (ProgressReporterSetting)this.Setting;
 
-        public ProgressReporter(ProgressReporterSetting setting, object state) : base(setting, state)
+        public ProgressReporter(ProgressReporterSetting setting, object? state) : base(setting, state)
         {
         }
 
@@ -5299,7 +5299,7 @@ namespace IPA.Cores.Basic
 
     public class ProgressFileProcessingReporter : ProgressReporter
     {
-        public ProgressFileProcessingReporter(object state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
+        public ProgressFileProcessingReporter(object? state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
             string title = "Processing a file", ProgressReportTimingSetting? reportTimingSetting = null)
             : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
     }
@@ -5317,7 +5317,7 @@ namespace IPA.Cores.Basic
             this.ReportTimingSetting = reportTimingSetting;
         }
 
-        public abstract ProgressReporterBase CreateNewReporter(string title, object state);
+        public abstract ProgressReporterBase CreateNewReporter(string title, object? state);
     }
 
     public class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
@@ -5325,7 +5325,7 @@ namespace IPA.Cores.Basic
         public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
             : base(outputs, listener, reportTimingSetting) { }
 
-        public override ProgressReporterBase CreateNewReporter(string title, object state)
+        public override ProgressReporterBase CreateNewReporter(string title, object? state)
         {
             return new ProgressFileProcessingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
         }
@@ -5336,7 +5336,7 @@ namespace IPA.Cores.Basic
         public NullReporterFactory()
             : base(ProgressReporterOutputs.None, null, null) { }
 
-        public override ProgressReporterBase CreateNewReporter(string title, object state)
+        public override ProgressReporterBase CreateNewReporter(string title, object? state)
         {
             return new NullProgressReporter(state);
         }
@@ -6475,6 +6475,25 @@ namespace IPA.Cores.Basic
         }
 
         public CoresException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
+    }
+
+    public class CoresEmptyException : ArgumentNullException
+    {
+        public CoresEmptyException()
+        {
+        }
+
+        public CoresEmptyException(string? paramName) : base(paramName)
+        {
+        }
+
+        public CoresEmptyException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
+
+        public CoresEmptyException(string? paramName, string? message) : base(paramName, message)
         {
         }
     }

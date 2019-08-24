@@ -3193,15 +3193,15 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列が出現する位置のリストを取得
-        public static int[]? FindStringIndexes(string str, string keyword, bool caseSensitive = false)
+        public static int[] FindStringIndexes(string str, string keyword, bool caseSensitive = false)
         {
             List<int> ret = new List<int>();
 
+            str = str._NonNull();
+
+            if (keyword._IsNullOrZeroLen()) return new int[0];
+
             int len_string, len_keyword;
-            if (str == null || keyword == null)
-            {
-                return null;
-            }
 
             int i, j, num;
 
