@@ -514,24 +514,36 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 指定された FQDN に DNS 正引きを行ない、このホストが有している可能性があるグローバル IP アドレスと一致するものがあるかどうか確認する
         async Task<bool> CheckFqdnHasIpAddressOfThisLocalHostAsync(string fqdn, CancellationToken cancel)
         {
             cancel.ThrowIfCancellationRequested();
+
+            // DNS クエリを出してみる
             DnsResponse dnsResults = await TaskUtil.RetryAsync((c) => this.TcpIp.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, DnsQueryOptions.Default, CoresConfig.CertVaultSettings.DnsTimeout), c),
                 retryInterval: CoresConfig.CertVaultSettings.DnsTryInterval, tryCount: CoresConfig.CertVaultSettings.DnsTryCount);
 
             //Con.WriteLine(dnsResults.IPAddressList.Select(x => x.ToString())._Combine(","));
 
+            if (dnsResults.IPAddressList.Where(ip => ip._GetIPAddressType().Bit(IPAddressType.GlobalIp) == false).Any())
+            {
+                // 応答された DNS 応答の IP アドレスに 1 つでも非グローバル IP アドレスが含まれている場合は、false を返すものとする。
+                return false;
+            }
+
+            // このホストが有している可能性があるグローバル IP アドレスの一覧の取得
             HashSet<IPAddress> globalIpList = await this.TcpIp.GetLocalHostPossibleIpAddressListAsync(cancel);
 
             foreach (IPAddress ip in dnsResults.IPAddressList)
             {
                 if (globalIpList.Contains(ip))
                 {
+                    // 一致するものがあった
                     return true;
                 }
             }
 
+            // 一致するものがなかった
             return false;
         }
 
