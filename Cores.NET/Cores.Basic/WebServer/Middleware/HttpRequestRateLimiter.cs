@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         }
 
         // Factory メソッド
-        public static IHttpRequestRateLimiterHashKey CreateFromHttpContext<TKey>(HttpContext context, HttpRequestRateLimiterOptions<TKey> options) where TKey : IHttpRequestRateLimiterHashKey
+        public static IHttpRequestRateLimiterHashKey? CreateFromHttpContext<TKey>(HttpContext context, HttpRequestRateLimiterOptions<TKey> options) where TKey : IHttpRequestRateLimiterHashKey
         {
             // Src IP の処理
             IPAddress srcIp = context.Connection.RemoteIpAddress._UnmapIPv4();
@@ -179,7 +179,7 @@ namespace IPA.Cores.Basic
         public async Task Invoke(HttpContext context)
         {
             // context をもとに hashkey を生成
-            IHttpRequestRateLimiterHashKey hashKey = HttpRequestRateLimiterHashKeys.CreateFromHttpContext<TKey>(context, Options);
+            IHttpRequestRateLimiterHashKey? hashKey = HttpRequestRateLimiterHashKeys.CreateFromHttpContext<TKey>(context, Options);
 
             if (hashKey == null)
             {

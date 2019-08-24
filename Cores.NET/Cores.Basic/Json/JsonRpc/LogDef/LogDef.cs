@@ -56,10 +56,10 @@ namespace IPA.Cores.Basic
         public DateTimeOffset TimeStamp => ConnectedDateTime;
 
         public DateTimeOffset ConnectedDateTime;
-        public LogDefIPEndPoints EndPoints;
-        public string RpcMethodName;
+        public LogDefIPEndPoints? EndPoints;
+        public string? RpcMethodName;
         public bool RpcResultOk;
-        public JsonRpcError RpcError;
+        public JsonRpcError? RpcError;
     }
 }
 

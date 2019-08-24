@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
 {
     public class JsonRpcHttpServer : JsonRpcServer
     {
-        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig cfg = null) : base(api, cfg) { }
+        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
 
         public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
@@ -146,7 +146,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 JsonRpcException json_ex;
-                if (ex is JsonRpcException) json_ex = ex as JsonRpcException;
+                if (ex is JsonRpcException) json_ex = (JsonRpcException)ex;
                 else json_ex = new JsonRpcException(new JsonRpcError(1234, ex._GetSingleException().Message, ex.ToString()));
 
                 ret_str = new JsonRpcResponseError()

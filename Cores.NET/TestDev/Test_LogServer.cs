@@ -94,7 +94,7 @@ wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
         static int LogServerDaemon(ConsoleService c, string cmdName, string str)
         {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon());
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon(), new DaemonSettings());
         }
 
     }

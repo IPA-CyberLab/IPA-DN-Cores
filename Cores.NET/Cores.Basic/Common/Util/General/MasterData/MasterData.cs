@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
                 body: CoresRes["MasterData/MimeLookup/MimeList.txt"].String
                 ));
 
-        public static Tuple<string, string>? GetFasIconFromExtension(string extensionOrMimeType)
+        public static Tuple<string, string> GetFasIconFromExtension(string extensionOrMimeType)
         {
             // Mime type search
             var ret = MimeToFasIcon.SearchTopWithCache(extensionOrMimeType);
@@ -108,7 +108,10 @@ namespace IPA.Cores.Basic
 
             // Extension search
             ret = MimeToFasIcon.SearchTopWithCache(ExtensionToMime.Get(extensionOrMimeType));
-            return ret;
+            if (ret != null) return ret;
+
+            // Last resort
+            return new Tuple<string, string>("fas", "fa-file-download");
         }
 
         public class MimeList

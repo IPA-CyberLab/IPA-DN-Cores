@@ -91,10 +91,10 @@ namespace IPA.Cores.Basic
     {
         public CertVault Vault { get; }
 
-        public DirectoryPath DirName { get; }
-        public FileSystem FileSystem => DirName.FileSystem;
+        public DirectoryPath? DirName { get; }
+        public FileSystem? FileSystem => DirName?.FileSystem;
 
-        public CertificateStore Store { get; }
+        public CertificateStore? Store { get; }
         public CertVaultCertType CertType { get; }
 
         public CertVaultCertificate(CertVault vault, CertificateStore store, CertVaultCertType certType)
@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
-            CertificateStore store = null;
+            CertificateStore? store = null;
 
             this.CertType = certType;
             this.DirName = dirName;
@@ -141,18 +141,18 @@ namespace IPA.Cores.Basic
 
                 if (passwordfile != null)
                 {
-                    password = FileSystem.ReadStringFromFile(passwordfile, oneLine: true);
+                    password = FileSystem!.ReadStringFromFile(passwordfile, oneLine: true);
 
                     if (password._IsEmpty()) password = null;
                 }
 
                 if (p12file != null)
                 {
-                    store = new CertificateStore(FileSystem.ReadDataFromFile(p12file).Span, password);
+                    store = new CertificateStore(FileSystem!.ReadDataFromFile(p12file).Span, password);
                 }
                 else if (certfile != null && keyfile != null)
                 {
-                    store = new CertificateStore(FileSystem.ReadDataFromFile(certfile).Span, FileSystem.ReadDataFromFile(keyfile).Span, password);
+                    store = new CertificateStore(FileSystem!.ReadDataFromFile(certfile).Span, FileSystem.ReadDataFromFile(keyfile).Span, password);
                 }
                 else
                 {
@@ -166,7 +166,7 @@ namespace IPA.Cores.Basic
 
                 if (fileName.IsFileExists())
                 {
-                    store = new CertificateStore(fileName.ReadDataFromFile().Span, this.Vault.AcmeCertKey);
+                    store = new CertificateStore(fileName.ReadDataFromFile().Span, this.Vault.AcmeCertKey!);
                 }
                 else
                 {
@@ -174,9 +174,9 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            Certificate test = store?.PrimaryContainer.CertificateList[0];
+            Certificate? test = store?.PrimaryContainer.CertificateList[0];
 
-            if (test != null)
+            if (test != null && store != null)
             {
                 if (test.PublicKey.Equals(store.PrimaryContainer.PrivateKey.PublicKey) == false)
                 {
@@ -199,9 +199,9 @@ namespace IPA.Cores.Basic
         public bool UseAcme;
         public bool NonAcmeEnableAutoGenerateSubjectNameCert;
 
-        public string AcmeContactEmail;
-        public string AcmeServiceDirectoryUrl;
-        public string[] AcmeAllowedFqdnList;
+        public string? AcmeContactEmail;
+        public string? AcmeServiceDirectoryUrl;
+        public string[]? AcmeAllowedFqdnList;
         public bool AcmeEnableFqdnIpCheck;
 
         public CertVaultSettings()
@@ -249,14 +249,14 @@ namespace IPA.Cores.Basic
 
         public FilePath SettingsFilePath { get; }
         public FilePath AcmeAccountKeyFilePath { get; }
-        public PrivKey AcmeAccountKey { get; private set; }
+        public PrivKey? AcmeAccountKey { get; private set; }
 
         public FilePath AcmeCertKeyFilePath { get; }
-        public PrivKey AcmeCertKey { get; private set; }
+        public PrivKey? AcmeCertKey { get; private set; }
 
         public bool IsGlobalCertVault { get; }
 
-        IReadOnlyList<CertVaultCertificate> InternalCertList;
+        IReadOnlyList<CertVaultCertificate> InternalCertList = null!;
 
         readonly CriticalSection LockObj = new CriticalSection();
 
@@ -266,11 +266,11 @@ namespace IPA.Cores.Basic
 
         List<string> AcmeQueue = new List<string>();
 
-        CertVaultSettings Settings = null;
+        CertVaultSettings Settings = null!;
 
         readonly CertVaultSettings DefaultSettings;
 
-        readonly CertificateStore DefaultCertificate;
+        readonly CertificateStore? DefaultCertificate;
 
         CertificateStore AutoGeneratingRootCA;
 
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
 
         readonly SyncCache<string, CertificateStore> CertificateSelectorCache_NoAcme;
 
-        public CertVault(DirectoryPath baseDir, CertVaultSettings defaultSettings = null, CertificateStore defaultCertificate = null, TcpIpSystem tcpIp = null, bool isGlobalVault = false)
+        public CertVault(DirectoryPath baseDir, CertVaultSettings? defaultSettings = null, CertificateStore? defaultCertificate = null, TcpIpSystem? tcpIp = null, bool isGlobalVault = false)
         {
             try
             {
@@ -352,7 +352,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                   Reload();
+                    Reload();
 
                     if (this.Settings.UseAcme)
                     {
@@ -410,8 +410,8 @@ namespace IPA.Cores.Basic
         {
             IReadOnlyList<CertVaultCertificate> list = this.InternalCertList;
 
-            AcmeClient client = null;
-            AcmeAccount account = null;
+            AcmeClient? client = null;
+            AcmeAccount? account = null;
 
             try
             {
@@ -421,9 +421,9 @@ namespace IPA.Cores.Basic
                     {
                         if (cert.Store != null)
                         {
-                            string certHostName = cert.DirName.GetThisDirectoryName();
+                            string certHostName = cert.DirName!.GetThisDirectoryName();
 
-                            if (AcmeExpiresUpdateFailedList.Get().Contains(certHostName) == false)
+                            if (AcmeExpiresUpdateFailedList.Get()!.Contains(certHostName) == false)
                             {
                                 try
                                 {
@@ -433,8 +433,8 @@ namespace IPA.Cores.Basic
                                     {
                                         if (account == null)
                                         {
-                                            client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl, this.TcpIp));
-                                            account = await client.LoginAccountAsync(this.AcmeAccountKey, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
+                                            client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl!, this.TcpIp));
+                                            account = await client.LoginAccountAsync(this.AcmeAccountKey!, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
                                         }
 
                                         try
@@ -443,7 +443,7 @@ namespace IPA.Cores.Basic
                                         }
                                         catch (Exception ex)
                                         {
-                                            AcmeExpiresUpdateFailedList.Get().Add(certHostName);
+                                            AcmeExpiresUpdateFailedList.Get()!.Add(certHostName);
                                             ex._Debug();
                                         }
                                     }
@@ -472,11 +472,14 @@ namespace IPA.Cores.Basic
             {
                 var hosts = this.Settings.AcmeAllowedFqdnList;
 
-                foreach (string host in hosts)
+                if (hosts != null)
                 {
-                    CertificateHostName hn = new CertificateHostName(host);
+                    foreach (string host in hosts)
+                    {
+                        CertificateHostName hn = new CertificateHostName(host);
 
-                    if (hn.IsMatchForHost(hostname)) return true;
+                        if (hn.IsMatchForHost(hostname)) return true;
+                    }
                 }
             }
             catch { }
@@ -494,9 +497,9 @@ namespace IPA.Cores.Basic
                 AcmeQueue = new List<string>();
             }
 
-            using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl, this.TcpIp)))
+            using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl!, this.TcpIp)))
             {
-                AcmeAccount account = await client.LoginAccountAsync(this.AcmeAccountKey, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
+                AcmeAccount account = await client.LoginAccountAsync(this.AcmeAccountKey!, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
 
                 foreach (string fqdn in queue)
                 {
@@ -549,7 +552,7 @@ namespace IPA.Cores.Basic
 
             FilePath crtFileName = dir.Combine(dir.GetThisDirectoryName() + Consts.Extensions.Certificate_Acme);
 
-            Certificate currentCert = null;
+            Certificate? currentCert = null;
             if (crtFileName.IsFileExists(cancel))
             {
                 try
@@ -581,7 +584,7 @@ namespace IPA.Cores.Basic
                 GlobalCertVault.SetAcmeAccountForChallengeResponse(account);
             }
 
-            CertificateStore store = await order.FinalizeAsync(this.AcmeCertKey, cancel);
+            CertificateStore store = await order.FinalizeAsync(this.AcmeCertKey!, cancel);
 
             IsAcmeCertUpdated = true;
 
@@ -605,7 +608,7 @@ namespace IPA.Cores.Basic
                 data =>
                 {
                     var ret = data._GetString_UTF8()._JsonToObject<CertVaultSettings>();
-                    ret.Normalize();
+                    ret!.Normalize();
                     return ret;
                 },
                 () =>
@@ -667,7 +670,7 @@ namespace IPA.Cores.Basic
             // Initialize the DefaultCert
             FilePath defaultCertPath = this.StaticDir.Combine(Consts.FileNames.CertVault_DefaultCert);
 
-            CertificateStore defaultCert = null;
+            CertificateStore? defaultCert = null;
 
             if (this.DefaultCertificate != null)
             {
@@ -754,8 +757,14 @@ namespace IPA.Cores.Basic
 
         class MatchResult
         {
-            public CertVaultCertificate VaultCert;
-            public CertificateHostnameType MatchType;
+            public CertVaultCertificate VaultCert { get; }
+            public CertificateHostnameType MatchType { get; }
+
+            public MatchResult(CertVaultCertificate vaultCert, CertificateHostnameType matchType)
+            {
+                VaultCert = vaultCert;
+                MatchType = matchType;
+            }
         }
 
         public CertificateStore SelectBestFitCertificate(string hostname, out CertificateHostnameType matchType, bool disableAcme = false)
@@ -780,11 +789,10 @@ namespace IPA.Cores.Basic
                         {
                             if (cert.CertType == CertVaultCertType.DefaultCert) mt = CertificateHostnameType.DefaultCert;
 
-                            MatchResult r = new MatchResult
-                            {
-                                MatchType = mt,
-                                VaultCert = cert,
-                            };
+                            MatchResult r = new MatchResult(
+                                matchType: mt,
+                                vaultCert: cert
+                                );
 
                             candidates.Add(r);
                         }
@@ -879,18 +887,18 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            return selected.VaultCert.Store;
+            return selected.VaultCert.Store!;
         }
 
         public CertificateStore CertificateStoreSelector(string sniHostname, bool disableAcme)
         {
             if (disableAcme == false)
             {
-                return CertificateSelectorCache[sniHostname];
+                return CertificateSelectorCache[sniHostname]!;
             }
             else
             {
-                return CertificateSelectorCache_NoAcme[sniHostname];
+                return CertificateSelectorCache_NoAcme[sniHostname]!;
             }
         }
 
@@ -902,9 +910,9 @@ namespace IPA.Cores.Basic
 
             CertificateStore store = CertificateStoreSelector(sniHostname, disableAcme);
 
-            string sha1 = store.DigestSHA1Str;
+            string sha1 = store.DigestSHA1Str!;
 
-            PalX509Certificate ret = X509CertificateCache[sha1];
+            PalX509Certificate? ret = X509CertificateCache[sha1];
             if (ret == null)
             {
                 ret = store.GetX509Certificate();
@@ -918,16 +926,17 @@ namespace IPA.Cores.Basic
             return (X509Certificate2)X509CertificateSelector(sniHostname, true).NativeCertificate;
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             base.CancelImpl(ex);
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                await this.MainLoopToWaitComplete;
+                if(MainLoopToWaitComplete != null)
+                    await this.MainLoopToWaitComplete;
             }
             finally
             {
@@ -935,7 +944,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -951,13 +960,13 @@ namespace IPA.Cores.Basic
     {
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
-        static CertificateStore DefaultCertificate = null;
+        static CertificateStore? DefaultCertificate = null;
 
-        static Singleton<CertVault> Singleton = null;
+        static Singleton<CertVault> Singleton = null!;
 
-        public static DirectoryPath BaseDir { get; private set; } = null;
+        public static DirectoryPath BaseDir { get; private set; } = null!;
 
-        static AcmeAccount AcmeAccountForChallengeResponse = null;
+        static AcmeAccount? AcmeAccountForChallengeResponse = null;
 
         static void InitModule()
         {
@@ -991,14 +1000,14 @@ namespace IPA.Cores.Basic
             DefaultCertificate = cert;
         }
 
-        public static AcmeAccount GetAcmeAccountForChallengeResponse() => AcmeAccountForChallengeResponse;
+        public static AcmeAccount? GetAcmeAccountForChallengeResponse() => AcmeAccountForChallengeResponse;
 
         static void FreeModule()
         {
             Singleton._DisposeSafe();
-            Singleton = null;
+            Singleton = null!;
 
-            BaseDir = null;
+            BaseDir = null!;
             AcmeAccountForChallengeResponse = null;
             DefaultCertificate = null;
         }

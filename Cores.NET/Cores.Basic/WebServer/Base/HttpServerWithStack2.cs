@@ -62,6 +62,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -108,7 +109,7 @@ namespace IPA.Cores.Basic
             this.Server = server;
         }
 
-        NetTcpListener Listener = null;
+        NetTcpListener? Listener = null;
 
         public Task BindAsync()
         {
@@ -151,7 +152,7 @@ namespace IPA.Cores.Basic
                 // In ASP.NET Core 2.2 or higher, Dispatcher.OnConnection() will return Task.
                 // Otherwise, Dispatcher.OnConnection() will return void.
                 // Then we need to use the reflection to call the OnConnection() method indirectly.
-                Task middlewareTask = Dispatcher._PrivateInvoke("OnConnection", connection) as Task;
+                Task? middlewareTask = Dispatcher._PrivateInvoke("OnConnection", connection) as Task;
 
                 // Wait for transport to end
                 await connection.StartAsync();
@@ -192,7 +193,7 @@ namespace IPA.Cores.Basic
                 using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application))
                 {
                     // Now wait for complete
-                    await wrapper.MainLoopToWaitComplete;
+                    await wrapper.MainLoopToWaitComplete!;
                 }
             }
             catch (Exception ex)
@@ -204,7 +205,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -232,7 +233,7 @@ namespace IPA.Cores.Basic
         readonly IApplicationLifetime AppLifeTime;
         readonly SocketsTrace Trace;
 
-        public KestrelServerWithStack Server { get; private set; }
+        public KestrelServerWithStack? Server { get; private set; }
 
         public KestrelStackTransportFactory(
             IOptions<SocketTransportOptions> options,
@@ -265,7 +266,7 @@ namespace IPA.Cores.Basic
             if (dispatcher == null)
                 throw new ArgumentNullException(nameof(dispatcher));
 
-            return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
+            return new KestrelStackTransport(this.Server._NullCheck(), endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
         }
 
         public void SetServer(KestrelServerWithStack server)

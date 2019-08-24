@@ -130,9 +130,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static Exception GetSavedExceptionFromContext(HttpContext context)
+        public static Exception? GetSavedExceptionFromContext(HttpContext context)
         {
-            if (context.Items.TryGetValue(SavedExceptionItemkey, out object ex))
+            if (context.Items.TryGetValue(SavedExceptionItemkey, out object? ex))
             {
                 return ex as Exception;
             }

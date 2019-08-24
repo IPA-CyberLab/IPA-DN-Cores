@@ -101,7 +101,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
         {
             h.ContentType = contentsType;
             h.ContentLength = count;

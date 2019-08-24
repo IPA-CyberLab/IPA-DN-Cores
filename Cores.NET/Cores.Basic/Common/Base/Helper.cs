@@ -1100,7 +1100,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _IsNullOrZeroLen([NotNullWhen(false)] this string? str) => string.IsNullOrEmpty(str);
 
-        public static bool _IsNullOrZeroLen<T>([NotNullWhen(false)] this T[]? array) => (array != null && array.Length != 0);
+        public static bool _IsNullOrZeroLen<T>([NotNullWhen(false)] this T[]? array) => !(array != null && array.Length != 0);
 
         public static bool _IsEmpty<T>([NotNullWhen(false)] this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
         public static bool _IsFilled<T>([NotNullWhen(true)] this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);

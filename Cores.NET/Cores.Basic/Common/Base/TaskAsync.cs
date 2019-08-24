@@ -3663,7 +3663,7 @@ namespace IPA.Cores.Basic
             T ret = (T)v.Get(typeof(T))!;
             return ret;
         }
-        public static void Set<T>(T obj)
+        public static void Set<T>([AllowNull] T obj)
         {
             if (AsyncLocalObj.Value == null) AsyncLocalObj.Value = new TaskVarObject();
             AsyncLocalObj.Value.Set(typeof(T), obj);

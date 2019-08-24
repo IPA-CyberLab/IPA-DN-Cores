@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
             long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
-            Func<IPAddress, bool> clientIpAcl = null)
+            Func<IPAddress, bool>? clientIpAcl = null)
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
@@ -319,7 +319,7 @@ namespace IPA.Cores.Basic
             return body;
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -335,9 +335,9 @@ namespace IPA.Cores.Basic
     // LogBrowser 用の新しい Kestrel 専用サーバーを立てるためのスタートアップクラス
     public class LogBrowserHttpServerBuilder : HttpServerStartupBase
     {
-        public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param;
+        public LogBrowserHttpServerOptions Options => (LogBrowserHttpServerOptions)this.Param!;
 
-        public LogBrowser Impl = null;
+        public LogBrowser? Impl = null;
 
         public static HttpServer<LogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
             => new HttpServer<LogBrowserHttpServerBuilder>(httpCfg, options, cancel);

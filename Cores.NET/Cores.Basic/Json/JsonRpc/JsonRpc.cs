@@ -63,23 +63,23 @@ namespace IPA.Cores.Basic
             : base($"Code={err.Code}, Message={err.Message._NonNull()}" +
                   (err == null || err.Data == null ? "" : $", Data={err.Data._ObjectToJson(compact: true)}"))
         {
-            this.RpcError = err;
+            this.RpcError = err!;
         }
     }
 
     public class JsonRpcRequest
     {
         [JsonProperty("jsonrpc")]
-        public string Version { get; set; } = "2.0";
+        public string? Version { get; set; } = "2.0";
 
         [JsonProperty("method")]
-        public string Method { get; set; } = "";
+        public string? Method { get; set; } = "";
 
         [JsonProperty("params")]
-        public object Params { get; set; } = null;
+        public object? Params { get; set; } = null;
 
         [JsonProperty("id")]
-        public string Id { get; set; } = null;
+        public string? Id { get; set; } = null;
 
         public JsonRpcRequest() { }
 
@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
         where TResult : class
     {
         [JsonIgnore]
-        public TResult ResultData
+        public TResult? ResultData
         {
             get => Result == null ? null : base.Result._ConvertJsonObject<TResult>();
             set => Result = value;
@@ -105,34 +105,34 @@ namespace IPA.Cores.Basic
     public class JsonRpcResponseOk : JsonRpcResponse
     {
         [JsonIgnore]
-        public override JsonRpcError Error { get => null; set { } }
+        public override JsonRpcError? Error { get => null; set { } }
 
         [JsonProperty("result", NullValueHandling = NullValueHandling.Include)]
-        public override object Result { get; set; } = null;
+        public override object? Result { get; set; } = null;
     }
 
     public class JsonRpcResponseError : JsonRpcResponse
     {
         [JsonIgnore]
-        public override object Result { get => null; set { } }
+        public override object? Result { get => null; set { } }
 
         [JsonProperty("error", NullValueHandling = NullValueHandling.Include)]
-        public override JsonRpcError Error { get; set; } = null;
+        public override JsonRpcError? Error { get; set; } = null;
     }
 
     public class JsonRpcResponse
     {
         [JsonProperty("jsonrpc")]
-        public virtual string Version { get; set; } = "2.0";
+        public virtual string? Version { get; set; } = "2.0";
 
         [JsonProperty("result")]
-        public virtual object Result { get; set; } = null;
+        public virtual object? Result { get; set; } = null;
 
         [JsonProperty("error")]
-        public virtual JsonRpcError Error { get; set; } = null;
+        public virtual JsonRpcError? Error { get; set; } = null;
 
         [JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
-        public virtual string Id { get; set; } = null;
+        public virtual string? Id { get; set; } = null;
 
         [JsonIgnore]
         public virtual bool IsError => this.Error != null;
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
 
         public virtual void ThrowIfError()
         {
-            if (this.IsError) throw new JsonRpcException(this.Error);
+            if (this.IsError) throw new JsonRpcException(this.Error!);
         }
 
         public override string ToString()
@@ -154,7 +154,7 @@ namespace IPA.Cores.Basic
     public class JsonRpcError
     {
         public JsonRpcError() { }
-        public JsonRpcError(int code, string message, object data = null)
+        public JsonRpcError(int code, string message, object? data = null)
         {
             this.Code = code;
             this.Message = message._NonNull();
@@ -166,10 +166,10 @@ namespace IPA.Cores.Basic
         public int Code { get; set; } = 0;
 
         [JsonProperty("message")]
-        public string Message { get; set; } = null;
+        public string? Message { get; set; } = null;
 
         [JsonProperty("data")]
-        public object Data { get; set; } = null;
+        public object? Data { get; set; } = null;
     }
 
     public class RpcInterfaceAttribute : Attribute { }
@@ -181,13 +181,13 @@ namespace IPA.Cores.Basic
         public ParameterInfo[] ParametersByIndex { get; }
         public ParameterInfo ReturnParameter { get; }
         public bool IsTask { get; }
-        public Type TaskType { get; }
+        public Type? TaskType { get; }
         public bool IsGenericTask { get; }
-        public Type GeneticTaskType { get; }
+        public Type? GeneticTaskType { get; }
 
         public RpcMethodInfo(Type targetClass, string methodName)
         {
-            MethodInfo methodInfo = targetClass.GetMethod(methodName);
+            MethodInfo? methodInfo = targetClass.GetMethod(methodName);
             if (methodInfo == null)
             {
                 throw new JsonRpcException(new JsonRpcError(-32601, "Method not found"));
@@ -224,9 +224,9 @@ namespace IPA.Cores.Basic
             this.ParametersByIndex = methodInfo.GetParameters();
         }
 
-        public async Task<object> InvokeMethod(object targetInstance, string methodName, JObject param)
+        public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param)
         {
-            object[] inParams = new object[this.ParametersByIndex.Length];
+            object?[] inParams = new object[this.ParametersByIndex.Length];
             if (this.ParametersByIndex.Length == 1 && this.ParametersByIndex[0].ParameterType == typeof(System.Object))
             {
                 inParams = new object[1] { param };
@@ -244,13 +244,13 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            object retobj = this.Method.Invoke(targetInstance, inParams);
+            object? retobj = this.Method.Invoke(targetInstance, inParams);
 
             if (this.IsTask == false)
-                return Task.FromResult<object>(retobj);
+                return Task.FromResult<object>(retobj!);
             else
             {
-                Type t = retobj.GetType();
+                Type t = retobj!.GetType();
                 Task task = (Task)retobj;
 
                 //Dbg.WhereThread();
@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
                 //Dbg.WhereThread();
 
                 var propertyMethodInfo = t.GetProperty("Result");
-                object retvalue = propertyMethodInfo.GetValue(retobj);
+                object? retvalue = propertyMethodInfo!.GetValue(retobj);
 
                 return retvalue;
             }
@@ -279,9 +279,9 @@ namespace IPA.Cores.Basic
         protected JsonRpcClientInfo ClientInfo { get => TaskVar<JsonRpcClientInfo>.Value; }
 
         Dictionary<string, RpcMethodInfo> MethodInfoCache = new Dictionary<string, RpcMethodInfo>();
-        public RpcMethodInfo GetMethodInfo(string methodName)
+        public RpcMethodInfo? GetMethodInfo(string methodName)
         {
-            RpcMethodInfo m = null;
+            RpcMethodInfo? m = null;
             lock (MethodInfoCache)
             {
                 if (MethodInfoCache.ContainsKey(methodName) == false)
@@ -304,15 +304,15 @@ namespace IPA.Cores.Basic
             return mi;
         }
 
-        public Task<object> InvokeMethod(string methodName, JObject param, RpcMethodInfo methodInfo = null)
+        public Task<object?> InvokeMethod(string methodName, JObject param, RpcMethodInfo? methodInfo = null)
         {
             if (methodInfo == null) methodInfo = GetMethodInfo(methodName);
-            return methodInfo.InvokeMethod(this, methodName, param);
+            return methodInfo!.InvokeMethod(this, methodName, param);
         }
 
         protected Type GetRpcInterface()
         {
-            Type ret = null;
+            Type? ret = null;
             Type t = this.GetType();
             var ints = t.GetTypeInfo().GetInterfaces();
             int num = 0;
@@ -324,16 +324,16 @@ namespace IPA.Cores.Basic
                 }
             if (num == 0) throw new ApplicationException($"The class '{t.Name}' has no interface with the RpcInterface attribute.");
             if (num >= 2) throw new ApplicationException($"The class '{t.Name}' has two or mode interfaces with the RpcInterface attribute.");
-            return ret;
+            return ret!;
         }
 
-        public virtual object StartCall(JsonRpcClientInfo clientInfo) { return null; }
+        public virtual object? StartCall(JsonRpcClientInfo clientInfo) { return null; }
 
-        public virtual async Task<object> StartCallAsync(JsonRpcClientInfo clientInfo, object param) => await Task.FromResult<object>(null);
+        public virtual async Task<object?> StartCallAsync(JsonRpcClientInfo clientInfo, object? param) => await Task.FromResult<object?>(null);
 
-        public virtual void FinishCall(object param) { }
+        public virtual void FinishCall(object? param) { }
 
-        public virtual Task FinishCallAsync(object param) => Task.CompletedTask;
+        public virtual Task FinishCallAsync(object? param) => Task.CompletedTask;
     }
 
     public abstract class JsonRpcServer
@@ -342,7 +342,7 @@ namespace IPA.Cores.Basic
         public JsonRpcServerConfig Config { get; }
         public CancellationToken CancelToken { get => this.Api.GrandCancel; }
 
-        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig cfg = null)
+        public JsonRpcServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null)
         {
             this.Api = api;
             this.Config = cfg ?? new JsonRpcServerConfig();
@@ -353,7 +353,7 @@ namespace IPA.Cores.Basic
             try
             {
                 this.CancelToken.ThrowIfCancellationRequested();
-                RpcMethodInfo method = this.Api.GetMethodInfo(req.Method);
+                RpcMethodInfo? method = this.Api.GetMethodInfo(req.Method!);
                 JObject inObj;
 
                 if (req.Params is JObject)
@@ -367,8 +367,8 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    object retObj = await this.Api.InvokeMethod(req.Method, inObj, method);
-                    if (method.IsGenericTask == false)
+                    object? retObj = await this.Api.InvokeMethod(req.Method!, inObj, method);
+                    if (method!.IsGenericTask == false)
                     {
                         retObj = null;
                     }
@@ -381,7 +381,7 @@ namespace IPA.Cores.Basic
                 }
                 catch (System.Reflection.TargetInvocationException ex)
                 {
-                    throw ex.InnerException;
+                    throw ex.InnerException!;
                 }
             }
             catch (JsonRpcException ex)
@@ -414,12 +414,12 @@ namespace IPA.Cores.Basic
                 if (inStr.StartsWith("{"))
                 {
                     is_single = true;
-                    JsonRpcRequest r = inStr._JsonToObject<JsonRpcRequest>();
+                    JsonRpcRequest r = inStr._JsonToObject<JsonRpcRequest>()!;
                     requestList.Add(r);
                 }
                 else
                 {
-                    JsonRpcRequest[] rr = inStr._JsonToObject<JsonRpcRequest[]>();
+                    JsonRpcRequest[] rr = inStr._JsonToObject<JsonRpcRequest[]>()!;
                     requestList = new List<JsonRpcRequest>(rr);
                 }
             }
@@ -433,10 +433,10 @@ namespace IPA.Cores.Basic
             TaskVar.Set<JsonRpcClientInfo>(clientInfo);
             try
             {
-                object param1 = this.Api.StartCall(clientInfo);
+                object? param1 = this.Api.StartCall(clientInfo);
                 try
                 {
-                    object param2 = await this.Api.StartCallAsync(clientInfo, param1);
+                    object? param2 = await this.Api.StartCallAsync(clientInfo, param1);
                     try
                     {
                         foreach (JsonRpcRequest req in requestList)
@@ -468,7 +468,7 @@ namespace IPA.Cores.Basic
                             catch (Exception ex)
                             {
                                 JsonRpcException jsonException;
-                                if (ex is JsonRpcException) jsonException = ex as JsonRpcException;
+                                if (ex is JsonRpcException) jsonException = (JsonRpcException)ex;
                                 else jsonException = new JsonRpcException(new JsonRpcError(-32603, ex._GetSingleException().Message, ex.ToString()));
                                 JsonRpcResponseError res = new JsonRpcResponseError()
                                 {
@@ -541,7 +541,7 @@ namespace IPA.Cores.Basic
 
         public JsonRpcResponse ST_CallAdd(string method, object param, Type resultType)
         {
-            JsonRpcResponse ret = (JsonRpcResponse)Activator.CreateInstance(typeof(JsonRpcResponse<>).MakeGenericType(resultType));
+            JsonRpcResponse ret = (JsonRpcResponse)Activator.CreateInstance(typeof(JsonRpcResponse<>).MakeGenericType(resultType))!;
 
             var add_item = (new JsonRpcRequest(method, param, Str.NewGuid()), ret, resultType);
 
@@ -564,7 +564,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var o in this.StCallQueue)
                 {
-                    requestsTable.Add(o.request.Id, (o.request, o.response, o.responseDataType));
+                    requestsTable.Add(o.request.Id!, (o.request, o.response, o.responseDataType));
                     requests.Add(o.request);
                 }
 
@@ -590,12 +590,12 @@ namespace IPA.Cores.Basic
 
                 if (isSingle)
                 {
-                    JsonRpcResponse r = ret._JsonToObject<JsonRpcResponse>();
+                    JsonRpcResponse r = ret._JsonToObject<JsonRpcResponse>()!;
                     retList.Add(r);
                 }
                 else
                 {
-                    JsonRpcResponse[] r = ret._JsonToObject<JsonRpcResponse[]>();
+                    JsonRpcResponse[] r = ret._JsonToObject<JsonRpcResponse[]>()!;
                     retList = new List<JsonRpcResponse>(r);
                 }
 
@@ -666,10 +666,10 @@ namespace IPA.Cores.Basic
 
         class MT_QueueItem
         {
-            public string Method;
-            public object Param;
-            public Type ResultType;
-            public JsonRpcResponse Response;
+            public string? Method;
+            public object? Param;
+            public Type? ResultType;
+            public JsonRpcResponse? Response;
         }
 
         CriticalSection LockMtQueue = new CriticalSection();
@@ -685,7 +685,7 @@ namespace IPA.Cores.Basic
                 foreach (var q in items)
                 {
                     var item = q.UserItem;
-                    item.Response = ST_CallAdd(item.Method, item.Param, item.ResultType);
+                    item.Response = ST_CallAdd(item.Method!, item.Param!, item.ResultType!);
                 }
 
                 ST_CallAll(false)._GetResult();
@@ -696,7 +696,7 @@ namespace IPA.Cores.Basic
                 foreach (var q in items)
                 {
                     var item = q.UserItem;
-                    item.Response.Error = new JsonRpcError(-1, ex._GetSingleException().ToString());
+                    item.Response!.Error = new JsonRpcError(-1, ex._GetSingleException().ToString());
                 }
             }
             finally
@@ -724,7 +724,7 @@ namespace IPA.Cores.Basic
 
             await b.CompletedEvent.WaitAsync();
 
-            return (JsonRpcResponse<TResponse>)q.Response;
+            return (JsonRpcResponse<TResponse>)q.Response!;
         }
 
         public abstract Task<string> SendRequestAndGetResponseImplAsync(string req, CancellationToken cancel = default);
@@ -757,7 +757,7 @@ namespace IPA.Cores.Basic
                 //ret.Wait();
 
                 //Dbg.WhereThread(v.Method.Name);
-                Task<object> ret = GetResponseObjectAsync(callRet);
+                Task<object?> ret = GetResponseObjectAsync(callRet);
 
                 var returnType = invocation.Method.ReturnType;
 
@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            async Task<object> GetResponseObjectAsync(Task<JsonRpcResponse<object>> o)
+            async Task<object?> GetResponseObjectAsync(Task<JsonRpcResponse<object>> o)
             {
                 //Dbg.WhereThread();
                 await o;
@@ -816,7 +816,7 @@ namespace IPA.Cores.Basic
         public override int TimeoutMsecs { get => WebApi.TimeoutMsecs; set => WebApi.TimeoutMsecs = value; }
         public override void AddHeader(string name, string value) => WebApi.AddHeader(name, value);
 
-        public JsonRpcHttpClient(string apiUrl, WebApiOptions webApiOptions = null)
+        public JsonRpcHttpClient(string apiUrl, WebApiOptions? webApiOptions = null)
         {
             this.ApiBaseUrl = apiUrl;
             this.WebApi = new WebApi(webApiOptions);
@@ -848,10 +848,10 @@ namespace IPA.Cores.Basic
 
                 using (var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(uri.Host, uri.Port, connectTimeout: Consts.Timeouts.Rapid, dnsTimeout: Consts.Timeouts.Rapid)))
                 {
-                    LastLocalIp = sock.EndPointInfo.LocalIP;
+                    LastLocalIp = sock.EndPointInfo.LocalIP._NonNull();
                     LastLocalPort = sock.EndPointInfo.LocalPort;
 
-                    LastRemoteIp = sock.EndPointInfo.RemoteIP;
+                    LastRemoteIp = sock.EndPointInfo.RemoteIP._NonNull();
                     LastRemotePort = sock.EndPointInfo.RemotePort;
                 }
             }
@@ -859,14 +859,13 @@ namespace IPA.Cores.Basic
             { }
         }
 
-        Once DisposedFlag;
-        public void Dispose()
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
         {
-            if (DisposedFlag.IsFirstCall())
-            {
-                this.WebApi.Dispose();
-                this.WebApi = null;
-            }
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            this.WebApi.Dispose();
+            this.WebApi = null!;
         }
     }
 
@@ -874,7 +873,7 @@ namespace IPA.Cores.Basic
         where TRpcInterface : class
     {
         public TRpcInterface Call { get; }
-        public JsonRpcHttpClient(string apiUrl, WebApiOptions webApiOptions = null) : base(apiUrl, webApiOptions)
+        public JsonRpcHttpClient(string apiUrl, WebApiOptions? webApiOptions = null) : base(apiUrl, webApiOptions)
         {
             this.Call = this.GenerateRpcInterface<TRpcInterface>();
         }
@@ -889,9 +888,9 @@ namespace IPA.Cores.Basic
         public DateTimeOffset ConnectedDateTime { get; }
         public SortedDictionary<string, string> Headers { get; }
         public JsonRpcServer RpcServer { get; }
-        public object Param1 { get; set; }
-        public object Param2 { get; set; }
-        public object Param3 { get; set; }
+        public object? Param1 { get; set; }
+        public object? Param2 { get; set; }
+        public object? Param3 { get; set; }
 
         public JsonRpcClientInfo(JsonRpcServer rpcServer, string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string> headers)
         {

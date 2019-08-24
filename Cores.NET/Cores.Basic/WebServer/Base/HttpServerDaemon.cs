@@ -48,7 +48,7 @@ namespace IPA.Cores.Helper.Basic
     {
         public HttpServerOptions HttpOptions { get; }
 
-        AsyncService HttpServerInstance = null;
+        AsyncService? HttpServerInstance = null;
 
         public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions)
             : base(new DaemonOptions(name, friendlyName, true))
@@ -56,7 +56,7 @@ namespace IPA.Cores.Helper.Basic
             this.HttpOptions = httpOptions;
         }
 
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object param)
+        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
         {
             Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
 
@@ -67,13 +67,15 @@ namespace IPA.Cores.Helper.Basic
             Con.WriteLine($"{this.Options.FriendlyName}: Started.");
         }
 
-        protected override async Task StopImplAsync(object param)
+        protected override async Task StopImplAsync(object? param)
         {
             Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
 
-            await HttpServerInstance.DisposeWithCleanupAsync(new OperationCanceledException("The daemon is shutting down."));
+            await HttpServerInstance!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon is shutting down."));
 
             Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
+
+            HttpServerInstance = null;
         }
     }
 }

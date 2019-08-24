@@ -1206,7 +1206,8 @@ namespace IPA.Cores.Basic
 
         public string Combine(params string[] pathList)
         {
-            if (pathList._IsNullOrZeroLen()) throw new CoresEmptyException("pathList is empty");
+            if (pathList._IsNullOrZeroLen())
+                throw new CoresEmptyException(nameof(pathList));
             if (pathList.Length == 1) return pathList[0];
 
             string path1 = pathList[0];

@@ -54,13 +54,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class MsLogger : ILogger, IDisposable
+    public sealed class MsLogger : ILogger, IDisposable
     {
         public MsLoggerProvider Provider { get; }
         public string CategoryName { get; }
         public string CategoryNameShort { get; }
 
-        string CurrentTransactionId = null;
+        string? CurrentTransactionId = null;
 
         public MsLogger(MsLoggerProvider provider, string categoryName)
         {
@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            string msg = null;
+            string? msg = null;
             try
             {
                 msg = formatter(state, exception);
@@ -118,14 +118,14 @@ namespace IPA.Cores.Basic
 
         public IDisposable BeginScope<TState>(TState state)
         {
-            string transactionId = state.ToString();
+            string transactionId = state?.ToString() ?? "";
             return new TransactionScope(this, transactionId);
         }
 
         public void Dispose() { }
     }
 
-    public class MsLoggerProvider : ILoggerProvider
+    public sealed class MsLoggerProvider : ILoggerProvider
     {
         public LogPriority Priority { get; }
         public LogFlags Flags { get; }

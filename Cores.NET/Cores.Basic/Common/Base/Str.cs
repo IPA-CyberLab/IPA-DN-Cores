@@ -4998,11 +4998,21 @@ namespace IPA.Cores.Basic
 
         // 文字列を大文字・小文字を区別せずに比較
         public static bool StrCmpi(string? s1, string? s2)
-            => s1._IsSamei(s2);
+        {
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
+
+            return string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase);
+        }
 
         // 文字列を大文字・小文字を区別して比較
         public static bool StrCmp(string? s1, string? s2)
-            => s1._IsSame(s2);
+        {
+            if (s1 == null && s2 == null) return true;
+            if (s1 == null || s2 == null) return false;
+
+            return string.Equals(s1, s2, StringComparison.Ordinal);
+        }
 
         // 簡易エンコードを実施
         public static string EncodeEasy(string? str)

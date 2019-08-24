@@ -289,6 +289,19 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                object? obj = null;
+
+                string jstr = obj._ObjectToJson();
+
+                jstr._Print();
+
+                object obj2 = ""._JsonToObject<object>()!;
+
+                return;
+            }
+
+            if (true)
+            {
                 while (true)
                 {
                     string line = Con.ReadLine(">");

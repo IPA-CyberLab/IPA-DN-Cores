@@ -90,7 +90,7 @@ wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
         static int DaemonTest(ConsoleService c, string cmdName, string str)
         {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest());
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest(), new DaemonSettings   ());
         }
     }
 }

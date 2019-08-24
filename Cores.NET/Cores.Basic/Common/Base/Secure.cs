@@ -696,5 +696,5 @@ namespace IPA.Cores.Basic
     }
 
     // 証明書関係
-    public delegate X509Certificate2 CertSelectorCallback(object param, string sniHostname);
+    public delegate X509Certificate2 CertSelectorCallback(object? param, string sniHostname);
 }

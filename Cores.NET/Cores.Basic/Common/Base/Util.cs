@@ -4245,35 +4245,38 @@ namespace IPA.Cores.Basic
 
     public static class GlobalObjectExchange
     {
-        static Dictionary<string, object> table = new Dictionary<string, object>();
+        static Dictionary<string, object?> table = new Dictionary<string, object?>();
 
-        public static bool TryWithdraw(string token, [NotNullWhen(true)] out object? ret)
+        public static bool TryWithdraw(string? token, out object? ret)
         {
+            if (token._IsEmpty())
+            {
+                ret = null;
+                return false;
+            }
+
             lock (table)
             {
-                if (table.TryGetValue(token, out ret) == false)
+                if (table.TryGetValue(token!, out ret) == false)
                 {
                     return false;
                 }
-                if (ret == null) return false;
 
                 return true;
             }
         }
 
-        public static object Withdraw(string token)
+        public static object? Withdraw(string? token)
         {
             if (TryWithdraw(token, out object? ret) == false)
             {
                 throw new ApplicationException("invalid token");
             }
-            return ret!;
+            return ret;
         }
 
-        public static string Deposit(object o)
+        public static string Deposit(object? o)
         {
-            if (o == null) throw new ArgumentNullException(nameof(o));
-
             string id = Str.NewGuid();
             lock (table) table.Add(id, o);
             return id;

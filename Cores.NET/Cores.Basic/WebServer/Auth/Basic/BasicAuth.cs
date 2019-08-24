@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
 
     public class BasicAuthSettings
     {
-        public Func<string, string, Task<bool>> PasswordValidatorAsync = (user, pass) => Task.FromResult(false);
+        public Func<string, string, Task<bool>>? PasswordValidatorAsync = (user, pass) => Task.FromResult(false);
         public string Realm = "Basic Authentication";
     }
 
@@ -147,7 +147,12 @@ namespace IPA.Cores.Basic
             if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":") == false) return false;
 
             // ユーザー認証を実施
-            bool ok = await Settings.PasswordValidatorAsync(username, password);
+            bool ok = false;
+
+            if (Settings.PasswordValidatorAsync != null)
+            {
+                ok = await Settings.PasswordValidatorAsync(username, password);
+            }
 
             return new ResultAndError<string>(username, ok);
         }
