@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void WriteLine(string str)
+        public static void WriteLine(string? str)
         {
             str = Str.RemoveLastCrlf(str);
             if (cs != null)
@@ -2381,7 +2381,7 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(prompt, noConsole: true);
             writeOutFile(prompt, false);
 
-            string tmp = Str.PasswordPrompt();
+            string? tmp = Str.PasswordPrompt();
             if (tmp != null)
             {
                 writeOutFile("********", true);

@@ -266,7 +266,7 @@ namespace IPA.Cores.Basic
             return this.result;
         }
 
-        void ThreadProc(object param)
+        void ThreadProc(object? param)
         {
             syncCtx = new TaskVmSynchronizationContext(this);
             SynchronizationContext.SetSynchronizationContext(syncCtx);

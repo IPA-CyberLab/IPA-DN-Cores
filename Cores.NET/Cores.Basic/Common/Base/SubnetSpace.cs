@@ -44,11 +44,11 @@ namespace IPA.Cores.Basic
 {
     public class SubnetSpaceSubnet<T> where T: class
     {
-        public IPAddr Address;
+        public IPAddr? Address = null!;
         public int SubnetLength;
-        public List<T> DataList;
+        public List<T>? DataList = null!;
 
-        public T GetDataFirst() => this.DataList._GetFirstOrNull();
+        public T? GetDataFirst() => this.DataList?._GetFirstOrNull();
 
         internal List<(int sortKey, T data)> TmpSortList = new List<(int sortKey, T data)>();
 
@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
 
         public SubnetSpaceSubnet(IPAddr address, int subnetLen, T data) : this(address, subnetLen, new T[] { data }.ToList()) { }
 
-        public SubnetSpaceSubnet(IPAddr address, int subnetLen, List<T> dataList = null)
+        public SubnetSpaceSubnet(IPAddr address, int subnetLen, List<T>? dataList = null)
         {
             this.Address = address;
             this.SubnetLength = subnetLen;
@@ -99,6 +99,8 @@ namespace IPA.Cores.Basic
 
         public ulong CalcNumIPs()
         {
+            if (Address == null) return 0;
+
             if (Address.AddressFamily == AddressFamily.InterNetwork)
             {
                 return (ulong)(1UL << (32 - this.SubnetLength));
@@ -114,25 +116,28 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override string ToString() => this.Address.ToString() + "/" + this.SubnetLength.ToString();
+        public override string ToString() => this.Address!.ToString() + "/" + this.SubnetLength.ToString();
 
         public override int GetHashCode() => hash_code;
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            SubnetSpaceSubnet<T> other = obj as SubnetSpaceSubnet<T>;
+            SubnetSpaceSubnet<T>? other = obj as SubnetSpaceSubnet<T>;
             if (other == null) return false;
+            if (this.Address == null) return false;
+            if (other.Address == null) return false;
             return this.Address.Equals(other.Address) && (this.SubnetLength == other.SubnetLength);
         }
 
         public string GetBinaryString()
-            => this.Address.GetBinaryString().Substring(0, this.SubnetLength);
+            => this.Address!.GetBinaryString().Substring(0, this.SubnetLength);
 
         public byte[] GetBinaryBytes()
-            => Util.CopyByte(this.Address.GetBinaryBytes(), 0, this.SubnetLength);
+            => Util.CopyByte(this.Address!.GetBinaryBytes(), 0, this.SubnetLength);
 
         public bool Contains(IPAddr target)
         {
+            if (this.Address == null) return false;
             if (this.Address.AddressFamily != target.AddressFamily) return false;
 
             string target_str = target.GetBinaryString();
@@ -150,7 +155,7 @@ namespace IPA.Cores.Basic
     public class SubnetSpace<T> where T : class
     {
         public AddressFamily AddressFamily;
-        public RadixTrie<SubnetSpaceSubnet<T>> Trie;
+        public RadixTrie<SubnetSpaceSubnet<T>>? Trie;
         bool IsReadOnly = false;
 
         public SubnetSpace()
@@ -224,9 +229,12 @@ namespace IPA.Cores.Basic
 
             foreach (var subnet in subnetsList)
             {
-                var node = trie.Insert(subnet.GetBinaryBytes());
+                RadixNode<SubnetSpaceSubnet<T>>? node = trie.Insert(subnet.GetBinaryBytes());
 
-                node.Object = subnet;
+                if (node != null)
+                {
+                    node.Object = subnet;
+                }
             }
 
             this.Trie = trie;
@@ -235,14 +243,14 @@ namespace IPA.Cores.Basic
         }
 
         // 検索をする
-        public SubnetSpaceSubnet<T> Lookup(IPAddress address)
+        public SubnetSpaceSubnet<T>? Lookup(IPAddress address)
         {
             if (address.AddressFamily != this.AddressFamily)
             {
                 throw new ApplicationException("addr.AddressFamily != this.AddressFamily");
             }
 
-            RadixTrie<SubnetSpaceSubnet<T>> trie = this.Trie;
+            RadixTrie<SubnetSpaceSubnet<T>>? trie = this.Trie;
 
             if (trie == null)
             {
@@ -250,7 +258,7 @@ namespace IPA.Cores.Basic
             }
 
             byte[] key = IPAddr.FromAddress(address).GetBinaryBytes();
-            RadixNode<SubnetSpaceSubnet<T>> n = trie.Lookup(key);
+            RadixNode<SubnetSpaceSubnet<T>>? n = trie.Lookup(key);
             if (n == null)
             {
                 return null;

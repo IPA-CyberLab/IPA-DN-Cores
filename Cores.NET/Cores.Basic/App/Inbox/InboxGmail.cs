@@ -60,14 +60,14 @@ namespace IPA.Cores.Basic
     {
         public override string AdapterName => Consts.InboxProviderNames.Gmail;
 
-        string currentAccountInfoStr = null;
+        string? currentAccountInfoStr = null;
 
-        public override string AccountInfoStr => currentAccountInfoStr;
+        public override string? AccountInfoStr => currentAccountInfoStr;
         public override bool IsStarted => this.Started.IsSet;
 
-        GoogleApi Api;
+        GoogleApi? Api;
 
-        public InboxGmailAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
+        public InboxGmailAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions? adapterOptions = null)
             : base(guid, inbox, appCredential, adapterOptions)
         {
         }
@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
             {
                 this.UserCredential = credential;
 
-                this.Api = new GoogleApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret, this.UserCredential.AccessToken);
+                this.Api = new GoogleApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), this.UserCredential.AccessToken);
             }
             else
             {
@@ -90,17 +90,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             base.CancelImpl(ex);
         }
 
-        protected override Task CleanupImplAsync(Exception ex)
+        protected override Task CleanupImplAsync(Exception? ex)
         {
             return base.CleanupImplAsync(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -114,7 +114,7 @@ namespace IPA.Cores.Basic
 
         public override string AuthStartGetUrl(string redirectUrl, string state = "")
         {
-            using (GoogleApi tmpApi = new GoogleApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
+            using (GoogleApi tmpApi = new GoogleApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
             {
                 return tmpApi.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Google_Gmail, redirectUrl, state);
             }
@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default)
         {
-            using (GoogleApi tmpApi = new GoogleApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
+            using (GoogleApi tmpApi = new GoogleApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
             {
                 GoogleApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, redirectUrl, cancel);
 
@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        GoogleApi.GmailProfile currentProfile = null;
+        GoogleApi.GmailProfile? currentProfile = null;
 
         protected override async Task MainLoopImplAsync(CancellationToken cancel)
         {
@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                profile = await Api.GmailGetProfileAsync(cancel);
+                profile = await Api!.GmailGetProfileAsync(cancel);
 
                 ClearLastError();
             }
@@ -186,26 +186,31 @@ namespace IPA.Cores.Basic
 
         async Task<InboxMessageBox> ReloadInternalAsync(CancellationToken cancel)
         {
-            GoogleApi.MessageList[] list = await Api.GmailListMessagesAsync("is:unread label:inbox", this.Inbox.Options.MaxMessagesPerAdapter, cancel);
+            GoogleApi.MessageList[] list = await Api!.GmailListMessagesAsync("is:unread label:inbox", this.Inbox.Options.MaxMessagesPerAdapter, cancel);
 
             List<GoogleApi.Message> msgList = new List<GoogleApi.Message>();
 
             foreach (GoogleApi.MessageList message in list)
             {
-                try
+                if (message.id._IsFilled())
                 {
-                    if (MessageCache.TryGetValue(message.id, out GoogleApi.Message m) == false)
+                    try
                     {
-                        m = await Api.GmailGetMessageAsync(message.id, cancel);
+                        if (MessageCache.TryGetValue(message.id, out GoogleApi.Message? m) == false)
+                        {
+                            m = await Api.GmailGetMessageAsync(message.id, cancel);
 
-                        MessageCache[message.id] = m;
+                            MessageCache[message.id] = m;
+                        }
+
+                        m._MarkNotNull();
+
+                        msgList.Add(m);
                     }
-
-                    msgList.Add(m);
-                }
-                catch (Exception ex)
-                {
-                    ex._Debug();
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
                 }
             }
 
@@ -233,7 +238,7 @@ namespace IPA.Cores.Basic
                     FromImage = Consts.CdnUrls.GmailIcon,
                     Group = "",
                     Id = this.Guid + "_" + msg.id,
-                    Service = currentProfile.emailAddress,
+                    Service = currentProfile!.emailAddress,
                     ServiceImage = Consts.CdnUrls.GmailIcon,
                     Subject = msg.GetSubject()._DecodeHtml(),
                     Body = msg.snippet._DecodeHtml(),

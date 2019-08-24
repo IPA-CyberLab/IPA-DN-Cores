@@ -968,9 +968,9 @@ namespace IPA.Cores.Basic
         }
 
 
-        public override bool Equals(object o)
+        public override bool Equals(object? o)
         {
-            BigNumber bi = (BigNumber)o;
+            BigNumber bi = (BigNumber)o!;
 
             if (this.dataLength != bi.dataLength)
                 return false;

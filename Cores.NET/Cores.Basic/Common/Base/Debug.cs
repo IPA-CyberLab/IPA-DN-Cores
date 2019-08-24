@@ -451,8 +451,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectDump(object? obj, string instanceBaseName, string separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
+        public static string GetObjectDump(object? obj, string? instanceBaseName = "", string? separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
         {
+            separatorStr = separatorStr._NonNull();
+
             if (obj is Exception ex)
             {
                 obj = new ExceptionWrapper(ex);
@@ -515,7 +517,7 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static DebugVars GetVarsFromClass(Type? t, string separatorStr, bool hideEmpty, string instanceBaseName, object? obj, ImmutableHashSet<object>? duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type? t, string separatorStr, bool hideEmpty, string? instanceBaseName, object? obj, ImmutableHashSet<object>? duplicateCheck = null)
         {
             if (obj == null || IsPrimitiveType(t) || t.IsArray)
             {
@@ -854,7 +856,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public class Benchmark : IDisposable
+        public sealed class Benchmark : IDisposable
         {
             public int Interval { get; }
             public long IncrementMe = 0;
@@ -875,7 +877,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            void thread_proc(object param)
+            void thread_proc(object? param)
             {
                 System.Threading.Thread.CurrentThread.IsBackground = true;
                 try
@@ -1033,7 +1035,7 @@ namespace IPA.Cores.Basic
                 Dbg.WriteLine(s);
             }
 
-            void main_thread(object param)
+            void main_thread(object? param)
             {
                 Thread.CurrentThread.Priority = ThreadPriority.Highest;
                 Thread.CurrentThread.IsBackground = true;
@@ -1050,7 +1052,6 @@ namespace IPA.Cores.Basic
         public class IntervalReporter : IDisposable
         {
             public int Interval { get; }
-            Once d;
             ThreadObj? thread;
             ManualResetEventSlim halt_event = new ManualResetEventSlim();
             bool halt_flag = false;
@@ -1072,7 +1073,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            void thread_proc(object param)
+            void thread_proc(object? param)
             {
                 Thread.CurrentThread.IsBackground = true;
                 IntervalManager m = new IntervalManager(this.Interval);
@@ -1108,14 +1109,14 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public void Dispose()
+            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+            Once DisposeFlag;
+            protected virtual void Dispose(bool disposing)
             {
-                if (d.IsFirstCall())
-                {
-                    halt_flag = true;
-                    halt_event.Set();
-                    this.thread?.WaitForEnd();
-                }
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                halt_flag = true;
+                halt_event.Set();
+                this.thread?.WaitForEnd();
             }
 
             static OldSingleton<IntervalReporter> thread_pool_stat_reporter;

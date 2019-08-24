@@ -39,6 +39,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -48,8 +49,8 @@ namespace IPA.Cores.Basic
 {
     public partial class WebRet
     {
-        dynamic jsonDynamic = null;
-        public dynamic JsonDynamic
+        dynamic? jsonDynamic = null;
+        public dynamic? JsonDynamic
         {
             get
             {
@@ -59,6 +60,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [return: MaybeNull]
         public T Deserialize<T>(bool checkError = false)
         {
             T ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
@@ -84,13 +86,13 @@ namespace IPA.Cores.Basic
         public bool Json_IncludeNull { get; set; } = false;
         public bool Json_EscapeHtml { get; set; } = false;
 
-        public string JsonSerialize(object obj, Type type = null)
+        public string JsonSerialize(object? obj, Type? type = null)
             => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth, type: type);
 
-        public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object jsonObject, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+        public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object? jsonObject, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
             => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
 
-        public virtual async Task<WebRet> RequestWithJsonDynamicAsync(WebMethods method, string url, dynamic jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+        public virtual async Task<WebRet> RequestWithJsonDynamicAsync(WebMethods method, string url, dynamic? jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
             => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
     }
 }

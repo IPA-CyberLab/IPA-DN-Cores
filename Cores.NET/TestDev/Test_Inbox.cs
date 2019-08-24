@@ -110,16 +110,19 @@ namespace IPA.TestDev
 
                     foreach (var msg in list)
                     {
-                        var m = await api.GmailGetMessageAsync(msg.id);
+                        if (msg.id._IsFilled())
+                        {
+                            var m = await api.GmailGetMessageAsync(msg.id);
 
-                        //m._DebugAsJson();
+                            //m._DebugAsJson();
 
-                        Con.WriteLine("----------------------------");
+                            Con.WriteLine("----------------------------");
 
-                        Con.WriteLine($"date: " + m.internalDate._ToDateTimeOfGoogle());
-                        Con.WriteLine($"subject: " + m.GetSubject());
-                        Con.WriteLine($"from: " + m.GetFrom());
-                        Con.WriteLine($"body: " + m.snippet);
+                            Con.WriteLine($"date: " + m.internalDate._ToDateTimeOfGoogle());
+                            Con.WriteLine($"subject: " + m.GetSubject());
+                            Con.WriteLine($"from: " + m.GetFrom());
+                            Con.WriteLine($"body: " + m.snippet);
+                        }
                     }
                 }
             }

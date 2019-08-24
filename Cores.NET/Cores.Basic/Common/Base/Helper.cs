@@ -469,7 +469,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _DebugObject(this object? o) => Dbg.DebugObject(o);
         public static void _PrintObject(this object? o) => Dbg.PrintObject(o);
-        public static string _GetObjectDump(this object? o, string instanceBaseName = "", string separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
+        public static string _GetObjectDump(this object? o, string? instanceBaseName = "", string? separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
             => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible, type);
         public static string _Old_ObjectToXmlPublic(this object o, Type? t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
 
@@ -983,7 +983,7 @@ namespace IPA.Cores.Helper.Basic
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
 
-        public static T _ParseEnum<T>(this string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
+        public static T _ParseEnum<T>(this string? str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
@@ -1152,7 +1152,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T _IsNotNull<T>([NotNull] this T? obj)
+        public static T _MarkNotNull<T>([NotNull] this T? obj)
             where T : class
         {
             Debug.Assert(obj != null);

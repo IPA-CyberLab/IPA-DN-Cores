@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -143,7 +144,7 @@ namespace IPA.Cores.Basic
             {
                 bool newFille = false;
 
-                var lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
+                LargeFileSystem.ParsedPath? lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
                 if (lastFileParsed == null)
                 {
@@ -314,7 +315,7 @@ namespace IPA.Cores.Basic
                 {
                     bool isLast = (cursor == cursorList.Last());
 
-                    RandomAccessHandle handle = null;
+                    RandomAccessHandle? handle = null;
 
                     try
                     {
@@ -353,7 +354,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        Cursor lastWriteCursor = null;
+        Cursor? lastWriteCursor = null;
 
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
@@ -528,7 +529,7 @@ namespace IPA.Cores.Basic
 
         public FileSystem UnderlayFileSystem { get; }
 
-        public LargeFileSystemParams(FileSystem underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string splitStr = null, FileSystemMode mode = FileSystemMode.Default)
+        public LargeFileSystemParams(FileSystem underlayFileSystem, long maxSingleFileSize = -1, long logicalMaxSize = -1, string? splitStr = null, FileSystemMode mode = FileSystemMode.Default)
             : base(underlayFileSystem.PathParser, mode)
         {
             checked
@@ -565,12 +566,12 @@ namespace IPA.Cores.Basic
             public string PhysicalFilePath { get; }
             public string LogicalFilePath { get; }
 
-            string _PhysicalFileNameCache = null;
-            string _LogicalFileName = null;
+            string? _PhysicalFileNameCache = null;
+            string? _LogicalFileName = null;
             public string PhysicalFileName => _PhysicalFileNameCache ?? (_PhysicalFileNameCache = LargeFileSystem.PathParser.GetFileName(this.PhysicalFilePath));
             public string LogicalFileName => _LogicalFileName ?? (_LogicalFileName = LargeFileSystem.PathParser.GetFileName(this.LogicalFilePath));
 
-            public FileSystemEntity PhysicalEntity { get; }
+            public FileSystemEntity? PhysicalEntity { get; }
 
             readonly LargeFileSystem LargeFileSystem;
 
@@ -607,7 +608,7 @@ namespace IPA.Cores.Basic
                 this.PhysicalFilePath = GeneratePhysicalPath();
             }
 
-            public ParsedPath(LargeFileSystem fs, string physicalFilePath, FileSystemEntity physicalEntity = null)
+            public ParsedPath(LargeFileSystem fs, string physicalFilePath, FileSystemEntity? physicalEntity = null)
             {
                 this.LargeFileSystem = fs;
 
@@ -667,8 +668,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static LargeFileSystem Local { get; private set; }
-        public static LargeFileSystem LocalUtf8 { get; private set; }
+        public static LargeFileSystem Local { get; private set; } = null!;
+        public static LargeFileSystem LocalUtf8 { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -682,10 +683,10 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             LocalUtf8._DisposeSafe();
-            LocalUtf8 = null;
+            LocalUtf8 = null!;
 
             Local._DisposeSafe();
-            Local = null;
+            Local = null!;
         }
 
 
@@ -837,8 +838,7 @@ namespace IPA.Cores.Basic
         protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
             => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive);
 
-
-        public bool TryParseOriginalPath(string physicalPath, out ParsedPath parsed)
+        public bool TryParseOriginalPath(string physicalPath, [NotNullWhen(true)] out ParsedPath? parsed)
         {
             try
             {
@@ -900,10 +900,10 @@ namespace IPA.Cores.Basic
                     long currentFileSize = lastFileParsed.FileNumber * Params.MaxSinglePhysicalFileSize + sizeOfLastFile;
 
                     ret.Size = currentFileSize;
-                    ret.PhysicalSize = physicalFiles.Sum(x => x.PhysicalEntity.PhysicalSize);
-                    ret.CreationTime = physicalFiles.Min(x => x.PhysicalEntity.CreationTime);
-                    ret.LastWriteTime = physicalFiles.Max(x => x.PhysicalEntity.LastWriteTime);
-                    ret.LastAccessTime = physicalFiles.Max(x => x.PhysicalEntity.LastAccessTime);
+                    ret.PhysicalSize = physicalFiles.Sum(x => x.PhysicalEntity!.PhysicalSize);
+                    ret.CreationTime = physicalFiles.Min(x => x.PhysicalEntity!.CreationTime);
+                    ret.LastWriteTime = physicalFiles.Max(x => x.PhysicalEntity!.LastWriteTime);
+                    ret.LastAccessTime = physicalFiles.Max(x => x.PhysicalEntity!.LastAccessTime);
 
                     return ret;
                 }
@@ -994,7 +994,7 @@ namespace IPA.Cores.Basic
                 throw new IOException($"The file '{path}' not found.");
             }
 
-            Exception exception = null;
+            Exception? exception = null;
 
             foreach (var file in physicalFiles.OrderBy(x => x.PhysicalFilePath, PathParser.PathStringComparer))
             {

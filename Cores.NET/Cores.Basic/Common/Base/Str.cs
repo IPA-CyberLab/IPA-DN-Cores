@@ -658,7 +658,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ExtendedStrComparer : IEqualityComparer<string>, IComparer<string>
+    public class ExtendedStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public StringComparison Comparison { get; }
 
@@ -667,25 +667,25 @@ namespace IPA.Cores.Basic
             this.Comparison = comparison;
         }
 
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
         {
             return x._CmpTrim(y, this.Comparison);
         }
 
-        public bool Equals(string x, string y)
+        public bool Equals(string? x, string? y)
         {
             return x._IsSameTrim(y, this.Comparison);
         }
 
-        public int GetHashCode(string obj)
+        public int GetHashCode(string? obj)
         {
             return obj._NonNullTrim().GetHashCode(this.Comparison);
         }
     }
 
-    public class IpAddressStrComparer : IEqualityComparer<string>, IComparer<string>
+    public class IpAddressStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
         {
             x = x._NonNullTrim();
             y = y._NonNullTrim();
@@ -711,7 +711,7 @@ namespace IPA.Cores.Basic
             return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
         }
 
-        public bool Equals(string x, string y)
+        public bool Equals(string? x, string? y)
         {
             x = x._NonNullTrim();
             y = y._NonNullTrim();
@@ -729,7 +729,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public int GetHashCode(string obj)
+        public int GetHashCode(string? obj)
         {
             obj = obj._NonNullTrim();
 
@@ -744,7 +744,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class StrComparer : IEqualityComparer<string>, IComparer<string>
+    public class StrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
@@ -796,14 +796,14 @@ namespace IPA.Cores.Basic
             this.Comparison = comparison;
         }
 
-        public int Compare(string x, string y)
+        public int Compare(string? x, string? y)
             => string.Compare(x, y, this.Comparison);
 
-        public bool Equals(string x, string y)
-            => x.Equals(y, this.Comparison);
+        public bool Equals(string? x, string? y)
+            => string.Equals(x, y, this.Comparison);
 
-        public int GetHashCode(string obj)
-            => obj.GetHashCode(this.Comparison);
+        public int GetHashCode(string? obj)
+            => obj?.GetHashCode(this.Comparison) ?? 0;
     }
 
     public delegate bool RemoveStringFunction(string str);
@@ -1257,8 +1257,10 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字列を Git Commit ID として正規化する
-        public static string NormalizeGitCommitId(string src)
+        public static string NormalizeGitCommitId(string? src)
         {
+            if (src._IsEmpty()) return "";
+
             if (TryNormalizeGitCommitId(src, out string dst))
             {
                 return dst;
@@ -1266,7 +1268,7 @@ namespace IPA.Cores.Basic
 
             return "";
         }
-        public static bool TryNormalizeGitCommitId(string src, out string dst)
+        public static bool TryNormalizeGitCommitId(string? src, out string dst)
         {
             dst = "";
 
@@ -3716,13 +3718,15 @@ namespace IPA.Cores.Basic
         }
 
         // 複数の文字列を結合する
-        public static string CombineStringArray(string sepstr, params string[] strs)
+        public static string CombineStringArray(string sepstr, params string?[]? strs)
         {
+            if (strs == null) return "";
+
             List<string> tmp = new List<string>();
 
-            foreach (string str in strs)
+            foreach (string? str in strs)
             {
-                if (Str.IsEmptyStr(str) == false)
+                if (str._IsFilled())
                 {
                     tmp.Add(str);
                 }
@@ -4027,7 +4031,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を Enum に変換する
-        public static T ParseEnum<T>(string str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
+        public static T ParseEnum<T>(string? str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return (T)StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
@@ -5416,7 +5420,7 @@ namespace IPA.Cores.Basic
         }
 
         // 最後の改行を削除する
-        public static string RemoveLastCrlf(string str)
+        public static string RemoveLastCrlf(string? str)
         {
             if (str == null) return "";
             if (str.Length >= 1 && str[str.Length - 1] == 10)

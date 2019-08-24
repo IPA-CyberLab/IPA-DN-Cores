@@ -304,7 +304,7 @@ namespace IPA.Cores.Basic
 
         void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object? state)
         {
-            state._IsNotNull();
+            state._MarkNotNull();
 
             Direction direction = (Direction)state;
             FastStreamBuffer target = (FastStreamBuffer)caller;

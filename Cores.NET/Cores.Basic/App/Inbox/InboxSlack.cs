@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
     {
         public override string AdapterName => Consts.InboxProviderNames.Slack_User;
 
-        public InboxSlackPerUserAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null) : base(guid, inbox, appCredential, adapterOptions)
+        public InboxSlackPerUserAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions? adapterOptions = null) : base(guid, inbox, appCredential, adapterOptions)
         {
         }
 
@@ -96,15 +96,15 @@ namespace IPA.Cores.Basic
     {
         public override string AdapterName => Consts.InboxProviderNames.Slack_App;
 
-        string currentAccountInfoStr = null;
+        string? currentAccountInfoStr = null;
 
-        public override string AccountInfoStr => currentAccountInfoStr;
+        public override string? AccountInfoStr => currentAccountInfoStr;
         public override bool IsStarted => this.Started.IsSet;
 
 
-        protected SlackApi Api;
+        protected SlackApi? Api;
 
-        public InboxSlackPerAppAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions adapterOptions = null)
+        public InboxSlackPerAppAdapter(string guid, Inbox inbox, InboxAdapterAppCredential appCredential, InboxOptions? adapterOptions = null)
             : base(guid, inbox, appCredential, adapterOptions)
         {
         }
@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
             {
                 this.UserCredential = credential;
 
-                this.Api = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret, this.UserCredential.AccessToken);
+                this.Api = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), this.UserCredential.AccessToken);
             }
             else
             {
@@ -127,17 +127,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             base.CancelImpl(ex);
         }
 
-        protected override Task CleanupImplAsync(Exception ex)
+        protected override Task CleanupImplAsync(Exception? ex)
         {
             return base.CleanupImplAsync(ex);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
 
         public override string AuthStartGetUrl(string redirectUrl, string state = "")
         {
-            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
             {
                 return tmpApi.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Slack_Client, redirectUrl, state);
             }
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default)
         {
-            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId, this.AppCredential.ClientSecret))
+            using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
             {
                 SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, redirectUrl, cancel);
 
@@ -167,10 +167,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        SlackApi.User[] UserList;
-        SlackApi.Channel[] ConversationList;
-        SlackApi.Team TeamInfo;
-        string[] MutedChannelList;
+        SlackApi.User[]? UserList;
+        SlackApi.Channel[]? ConversationList;
+        SlackApi.Team? TeamInfo;
+        string[]? MutedChannelList;
         Dictionary<string, SlackApi.Message[]> MessageListPerConversation = new Dictionary<string, SlackApi.Message[]>(StrComparer.IgnoreCaseComparer);
 
         readonly AsyncAutoResetEvent UpdateChannelsEvent = new AsyncAutoResetEvent();
@@ -185,7 +185,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    using (WebSocket ws = await Api.RealtimeConnectAsync(cancel))
+                    using (WebSocket ws = await Api!.RealtimeConnectAsync(cancel))
                     {
                         using (PipeStream st = ws.GetStream())
                         {
@@ -197,13 +197,13 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    dynamic json = recvData._GetString_UTF8()._JsonToDynamic();
+                                    dynamic json = recvData._GetString_UTF8()._JsonToDynamic()!;
 
                                     string realtimeStr = Json.SerializeDynamic(json);
 
                                     new { Workspace = this.AccountInfoStr, DataJson = realtimeStr }._PostData("slack_realtime_log");
 
-                                    string channel = json.channel;
+                                    string channel = json!.channel;
                                     string type = json.type;
 
                                     if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
@@ -251,7 +251,7 @@ namespace IPA.Cores.Basic
             try
             {
                 bool all = true;
-                string[] targetChannelIdList = null;
+                string[]? targetChannelIdList = null;
 
                 while (true)
                 {
@@ -322,12 +322,12 @@ namespace IPA.Cores.Basic
 
         int numReload = 0;
 
-        async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string> targetChannelIDs, CancellationToken cancel)
+        async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string>? targetChannelIDs, CancellationToken cancel)
         {
             List<InboxMessage> msgList = new List<InboxMessage>();
 
             // Team info
-            this.TeamInfo = await Api.GetTeamInfoAsync(cancel);
+            this.TeamInfo = await Api!.GetTeamInfoAsync(cancel);
 
             currentAccountInfoStr = this.TeamInfo.name;
 
@@ -349,90 +349,91 @@ namespace IPA.Cores.Basic
             // Enum messages
             foreach (var conv in ConversationList)
             {
-                bool reload = false;
-
-                if (conv.IsTarget())
+                if (conv.id._IsFilled())
                 {
-                    if (all)
+                    bool reload = false;
+
+                    if (conv.IsTarget())
                     {
-                        reload = true;
-                    }
-                    else
-                    {
-                        if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
+                        if (all)
                         {
                             reload = true;
                         }
-                    }
-
-                    if (MutedChannelList != null && MutedChannelList.Where(x => x._IsSamei(conv.id)).Any())
-                    {
-                        reload = false;
-                    }
-                }
-
-                if (reload)
-                {
-                    // Get the conversation info
-                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
-
-                    // Get unread messages
-                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
-
-                    MessageListPerConversation[conv.id] = messages;
-                }
-
-                if (conv.IsTarget())
-                {
-                    SlackApi.Message[] messages;
-
-                    if (MessageListPerConversation.TryGetValue(conv.id, out messages))
-                    {
-                        foreach (SlackApi.Message message in messages)
+                        else
                         {
-                            var user = GetUser(message.user);
-
-                            string group_name = "";
-
-                            if (conv.is_channel)
+                            if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
                             {
-                                group_name = "#" + conv.name_normalized;
+                                reload = true;
                             }
-                            else if (conv.is_im)
+                        }
+
+                        if (MutedChannelList != null && MutedChannelList.Where(x => x._IsSamei(conv.id)).Any())
+                        {
+                            reload = false;
+                        }
+                    }
+
+                    if (reload)
+                    {
+                        // Get the conversation info
+                        SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
+
+                        // Get unread messages
+                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
+
+                        MessageListPerConversation[conv.id] = messages;
+                    }
+
+                    if (conv.IsTarget())
+                    {
+                        if (MessageListPerConversation.TryGetValue(conv.id, out SlackApi.Message[]? messages))
+                        {
+                            foreach (SlackApi.Message message in messages)
                             {
-                                group_name = "@" + GetUser(conv.user)?.profile?.real_name ?? "unknown";
+                                var user = GetUser(message.user);
+
+                                string group_name = "";
+
+                                if (conv.is_channel)
+                                {
+                                    group_name = "#" + conv.name_normalized;
+                                }
+                                else if (conv.is_im)
+                                {
+                                    group_name = "@" + GetUser(conv.user)?.profile?.real_name ?? "unknown";
+                                }
+                                else
+                                {
+                                    group_name = "@" + conv.name_normalized;
+                                }
+
+                                InboxMessage m = new InboxMessage
+                                {
+                                    Id = this.Guid + "_" + message.ts.ToString(),
+
+                                    Service = TeamInfo.name._DecodeHtml(),
+                                    FromImage = TeamInfo.icon?.image_132 ?? "",
+
+                                    From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
+                                    ServiceImage = user?.profile?.image_512 ?? "",
+
+                                    Group = group_name._DecodeHtml(),
+
+                                    Body = message.text._DecodeHtml(),
+                                    Timestamp = message.ts._ToDateTimeOfSlack(),
+                                };
+
+                                m.Subject = this.TeamInfo.name._DecodeHtml();
+
+                                m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
+
+                                if (message.upload)
+                                {
+                                    m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
+                                }
+
+                                msgList.Add(m);
                             }
-                            else
-                            {
-                                group_name = "@" + conv.name_normalized;
-                            }
-
-                            InboxMessage m = new InboxMessage
-                            {
-                                Id = this.Guid + "_" + message.ts.ToString(),
-
-                                Service = TeamInfo.name._DecodeHtml(),
-                                FromImage = TeamInfo.icon?.image_132 ?? "",
-
-                                From = (user?.profile?.real_name ?? "Unknown User")._DecodeHtml(),
-                                ServiceImage = user?.profile?.image_512 ?? "",
-
-                                Group = group_name._DecodeHtml(),
-
-                                Body = message.text._DecodeHtml(),
-                                Timestamp = message.ts._ToDateTimeOfSlack(),
-                            };
-
-                            m.Subject = this.TeamInfo.name._DecodeHtml();
-
-                            m.Body = m.Body._SlackExpandBodyUsername(this.UserList);
-
-                            if (message.upload)
-                            {
-                                m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
-                            }
-
-                            msgList.Add(m);
                         }
                     }
                 }
@@ -455,8 +456,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        SlackApi.User GetUser(string userId)
+        SlackApi.User? GetUser(string? userId)
         {
+            if (userId._IsEmpty()) return null;
             SlackApi.User? user = this.UserList.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
             return user;
         }

@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
             bool finished = false;
             bool killed = false;
 
-            void timeout_thread(object param)
+            void timeout_thread(object? param)
             {
                 this.timeout_thread_event!.Wait(this.timeout);
 

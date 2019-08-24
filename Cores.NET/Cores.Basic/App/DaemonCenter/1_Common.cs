@@ -101,7 +101,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     {
         [Display(Name = "アプリケーション名")]
         [Required]
-        public string AppName { get; set; }
+        public string? AppName { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
         [Display(Name = "インスタンス識別方法")]
@@ -114,10 +114,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public int DeadIntervalSecs { get; set; }
 
         [Display(Name = "デフォルトのコミット ID")]
-        public string DefaultCommitId { get; set; }
+        public string? DefaultCommitId { get; set; }
 
         [Display(Name = "デフォルトのインスタンス引数")]
-        public string DefaultInstanceArgument { get; set; }
+        public string? DefaultInstanceArgument { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
         [Display(Name = "デフォルトの稼働状態")]
@@ -144,7 +144,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             this.DefaultInstanceArgument = this.DefaultInstanceArgument._NonNullTrim();
         }
 
-        public override string ToString() => this.AppName;
+        public override string? ToString() => this.AppName;
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             => this._Validate(validationContext);
@@ -152,13 +152,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class App
     {
-        public AppSettings Settings;
+        public AppSettings? Settings;
 
         public List<Instance> InstanceList = new List<Instance>();
 
         // Active な (または Dead な) インスタンス一覧を取得
         public IEnumerable<Instance> GetActiveInstances(DateTimeOffset now, bool active)
-            => this.InstanceList.Where(x => (x.IsActive(this.Settings, now) == active));
+            => this.InstanceList.Where(x => (x.IsActive(this.Settings!, now) == active));
 
         // ID を指定することによるインスタンスの取得
         public Instance GetInstanceById(string id)
@@ -208,15 +208,15 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class InstanceStat
     {
-        public string DaemonName;
-        public string CommitId;
-        public string InstanceArguments;
-        public CoresRuntimeStat RuntimeStat;
-        public EnvInfoSnapshot EnvInfo;
-        public TcpIpHostDataJsonSafe TcpIpHostData;
-        public string[] GlobalIpList;
-        public string[] AcceptableIpList;
-        public string DaemonSecret;
+        public string? DaemonName;
+        public string? CommitId;
+        public string? InstanceArguments;
+        public CoresRuntimeStat? RuntimeStat;
+        public EnvInfoSnapshot? EnvInfo;
+        public TcpIpHostDataJsonSafe? TcpIpHostData;
+        public string[]? GlobalIpList;
+        public string[]? AcceptableIpList;
+        public string? DaemonSecret;
 
         [JsonConverter(typeof(StringEnumConverter))]
         public StatFlag StatFlag;
@@ -231,11 +231,11 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             StringWriter w = new StringWriter();
 
             string osInfo = "Windows";
-            if (this.EnvInfo.IsUnix) osInfo = "Linux";
-            if (this.EnvInfo.IsMac) osInfo = "Mac";
+            if (this.EnvInfo!.IsUnix) osInfo = "Linux";
+            if (this.EnvInfo!.IsMac) osInfo = "Mac";
 
             w.WriteLine($"OS: {osInfo}");
-            w.WriteLine($"CPU: {RuntimeStat.Cpu}%");
+            w.WriteLine($"CPU: {RuntimeStat!.Cpu}%");
             w.WriteLine($"Mem: {Str.GetFileSizeStr(RuntimeStat.Mem * 1024)}");
             w.WriteLine($"Objs: {RuntimeStat.Obj._ToString3()}");
             w.WriteLine($"MetaStat: {this.MetaStatusDictionary.Count}");
@@ -246,9 +246,9 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class Instance
     {
-        public string SrcIpAddress;
-        public string HostName;
-        public string Guid;
+        public string? SrcIpAddress;
+        public string? HostName;
+        public string? Guid;
 
         public DateTimeOffset FirstAlive;
         public DateTimeOffset LastAlive;
@@ -258,13 +258,13 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         public bool RequestOsReboot;
         public bool RequestReboot;
         public int NumAlive;
-        public string NextCommitId;
-        public string NextInstanceArguments;
+        public string? NextCommitId;
+        public string? NextInstanceArguments;
 
         [JsonConverter(typeof(StringEnumConverter))]
         public PauseFlag NextPauseFlag;
 
-        public InstanceStat LastStat;
+        public InstanceStat? LastStat;
 
         public bool IsRestarting;
 
@@ -283,10 +283,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         public string GetId(App app)
         {
-            if (app.Settings.InstanceKeyType == InstanceKeyType.Guid)
-                return this.Guid;
+            if (app.Settings!.InstanceKeyType == InstanceKeyType.Guid)
+                return this.Guid._NullCheck();
             else
-                return this.HostName;
+                return this.HostName._NullCheck();
         }
 
         // Web フォーム用
@@ -326,18 +326,18 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
     public class RequestMsg
     {
-        public string AppId;
-        public string HostName;
-        public string Guid;
-        public InstanceStat Stat;
+        public string? AppId;
+        public string? HostName;
+        public string? Guid;
+        public InstanceStat? Stat;
     }
 
     public class ResponseMsg : INormalizable
     {
         public int NextKeepAliveMsec;
 
-        public string NextCommitId;
-        public string NextInstanceArguments;
+        public string? NextCommitId;
+        public string? NextInstanceArguments;
 
         public bool RebootRequested;
         public bool OsRebootRequested;

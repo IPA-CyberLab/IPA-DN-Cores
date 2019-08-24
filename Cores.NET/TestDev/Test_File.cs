@@ -410,7 +410,7 @@ namespace IPA.TestDev
                 Lfs.DeleteFile(standardApi);
                 LLfsUtf8.DeleteFile(largeFn);
 
-                MemoryBuffer<byte> ram = new MemoryBuffer<byte>();
+                MemoryBuffer<byte>? ram = new MemoryBuffer<byte>();
 
                 for (int i = 0; i < 3; i++)
                 {

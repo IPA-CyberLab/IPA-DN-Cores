@@ -318,7 +318,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        public string BuildQueryString(params (string name, string value)[]? queryList)
+        public string BuildQueryString(params (string name, string? value)[]? queryList)
         {
             StringWriter w = new StringWriter();
             int count = 0;
@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string value)[]? queryList)
+        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
         {
             string qs = "";
 
@@ -441,7 +441,7 @@ namespace IPA.Cores.Basic
             throw new HttpRequestException(errStr);
         }
 
-        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string value)[] queryList)
+        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
             HttpRequestMessage r = CreateWebRequest(method, url, queryList);

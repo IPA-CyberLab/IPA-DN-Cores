@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            nextName._IsNotNull();
+            nextName._MarkNotNull();
 
             try
             {
@@ -375,7 +375,7 @@ namespace IPA.Cores.Basic
                     return new VfsNotFoundException(name, $"The object \"{name}\" not found on the directory.");
                 }
 
-                entity._IsNotNull();
+                entity._MarkNotNull();
 
                 entity.AddHandleRef();
 
@@ -689,7 +689,7 @@ namespace IPA.Cores.Basic
                         if (ctx.RemainingPathElements.TryDequeue(out string? nextDirName) == false)
                             return;
 
-                        nextDirName._IsNotNull();
+                        nextDirName._MarkNotNull();
 
                         var newDirectory = new VfsRamDirectory(this, nextDirName);
                         try

@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
                     break;
                 }
 
-                current._IsNotNull();
+                current._MarkNotNull();
 
                 foreach (Commit next in current.Parents)
                 {

@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -97,12 +99,12 @@ namespace IPA.Cores.Basic
         public bool WithTag = false;
         public bool WithTypeName = false;
 
-        public string NewLineForString = "\r\n";
-        public string ObjectPrintSeparator = ", ";
+        public string? NewLineForString = "\r\n";
+        public string? ObjectPrintSeparator = ", ";
 
-        public string MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
-        public string AppName = Env.ExeAssemblySimpleName;
-        public string Kind = "";
+        public string? MachineName = Str.GetSimpleHostnameFromFqdn(Env.MachineName);
+        public string? AppName = Env.ExeAssemblySimpleName;
+        public string? Kind = "";
 
         public bool WriteAsJsonFormat = false;
 
@@ -209,7 +211,7 @@ namespace IPA.Cores.Basic
 
         public static string GetMultilineText(string src, LogInfoOptions opt, int paddingLenForNextLines = 1)
         {
-            if (opt.NewLineForString.IndexOf("\n") == -1)
+            if ((opt.NewLineForString?.IndexOf("\n") ?? -1) == -1)
                 paddingLenForNextLines = 0;
 
             string pad = Str.MakeCharArray(' ', paddingLenForNextLines);
@@ -286,7 +288,7 @@ namespace IPA.Cores.Basic
                 }
 
                 // Additional strings
-                List<string> additionalList = new List<string>();
+                List<string?> additionalList = new List<string?>();
 
                 if (opt.WithGuid)
                     additionalList.Add(this.Guid);

@@ -66,11 +66,11 @@ namespace IPA.Cores.Basic
     {
         readonly HiveData<HiveKeyValue> Settings = Hive.LocalAppSettingsEx["LogServerApp"];
 
-        LogServer LogServer = null;
+        LogServer? LogServer = null;
 
-        CertVault CertVault = null;
+        CertVault? CertVault = null;
 
-        HttpServer<LogBrowserHttpServerBuilder> LogBrowserHttpServer = null;
+        HttpServer<LogBrowserHttpServerBuilder>? LogBrowserHttpServer = null;
 
         public LogServerApp()
         {
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

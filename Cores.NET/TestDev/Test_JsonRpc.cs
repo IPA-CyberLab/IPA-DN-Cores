@@ -108,7 +108,7 @@ namespace IPA.TestDev
 
     class rpc_t
     {
-        public string Str1;
+        public string? Str1;
         public int Int1;
     }
 
@@ -184,22 +184,22 @@ namespace IPA.TestDev
             return Str.CombineStringArray(p, ",");
         }
 
-        public override object StartCall(JsonRpcClientInfo client_info)
+        public override object? StartCall(JsonRpcClientInfo client_info)
         {
             return null;
         }
 
-        public override async Task<object> StartCallAsync(JsonRpcClientInfo client_info, object param)
+        public override async Task<object?> StartCallAsync(JsonRpcClientInfo client_info, object? param)
         {
             return null;
         }
 
-        public override void FinishCall(object param)
+        public override void FinishCall(object? param)
         {
             Util.DoNothing();
         }
 
-        public override Task FinishCallAsync(object param)
+        public override Task FinishCallAsync(object? param)
         {
             return Task.CompletedTask;
         }
@@ -208,6 +208,6 @@ namespace IPA.TestDev
 
     class rpctmp1
     {
-        public rpc_t a;
+        public rpc_t? a;
     }
 }

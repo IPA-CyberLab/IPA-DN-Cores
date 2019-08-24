@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
                 this.DomainName = data.DomainName;
                 this.IsIPv4Supported = data.IsIPv4Supported;
                 this.IsIPv6Supported = data.IsIPv6Supported;
-                this.IPAddressList = data.IPAddressList;
+                this.IPAddressList = data.IPAddressList ?? new List<IPAddress>();
             }
         }
 

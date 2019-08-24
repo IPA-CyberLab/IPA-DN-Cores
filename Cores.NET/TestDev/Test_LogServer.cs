@@ -54,7 +54,7 @@ namespace IPA.TestDev
         {
         }
 
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object param)
+        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
         {
             Con.WriteLine("LogServerDaemon: Starting...");
 
@@ -63,7 +63,7 @@ namespace IPA.TestDev
             Con.WriteLine("LogServerDaemon: Started.");
         }
 
-        protected override async Task StopImplAsync(object param)
+        protected override async Task StopImplAsync(object? param)
         {
             Con.WriteLine("LogServerDaemon: Stopping...");
 

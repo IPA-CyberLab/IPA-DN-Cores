@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
 
         public JsonRpcHttpServerBuilder(IConfiguration configuration) : base(configuration)
         {
-            (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param;
+            (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param!;
 
             JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg);
         }

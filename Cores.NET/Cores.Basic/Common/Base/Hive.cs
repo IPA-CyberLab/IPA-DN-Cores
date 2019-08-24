@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -639,7 +641,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             // Flush all managed hives
             try
@@ -652,7 +654,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

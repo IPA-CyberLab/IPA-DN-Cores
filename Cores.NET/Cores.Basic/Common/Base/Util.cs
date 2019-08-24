@@ -1915,22 +1915,26 @@ namespace IPA.Cores.Basic
         // オブジェクトから XML とスキーマを生成
         public static XmlAndXsd GenerateXmlAndXsd(object obj)
         {
-            XmlAndXsd ret = new XmlAndXsd();
             Type type = obj.GetType();
 
-            ret.XsdFileName = Str.MakeSafeFileName(type.Name + ".xsd");
-            ret.XsdData = GetXmlSchemaFromType_PublicLegacy(type);
+            string xsdFileName = Str.MakeSafeFileName(type.Name + ".xsd");
+            byte[] xsdData = GetXmlSchemaFromType_PublicLegacy(type);
 
-            ret.XmlFileName = Str.MakeSafeFileName(type.Name + ".xml");
+            string xmlFileName = Str.MakeSafeFileName(type.Name + ".xml");
             string str = Util.ObjectToXmlString_PublicLegacy(obj);
             str = str.Replace(
                 "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"",
                 "xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xsi:noNamespaceSchemaLocation=\""
-                + ret.XsdFileName
+                + xsdFileName
                 + "\"");
-            ret.XmlData = Str.Utf8Encoding.GetBytes(str);
+            byte[] xmlData = Str.Utf8Encoding.GetBytes(str);
 
-            return ret;
+            return new XmlAndXsd(
+                xmlFileName: xmlFileName,
+                xmlData: xmlData,
+                xsdFileName: xsdFileName,
+                xsdData: xsdData
+                );
         }
 
         // 何でも登録するリスト
@@ -3360,10 +3364,18 @@ namespace IPA.Cores.Basic
 
     public class XmlAndXsd
     {
-        public byte[]? XmlData;
-        public byte[]? XsdData;
-        public string? XmlFileName;
-        public string? XsdFileName;
+        public byte[] XmlData;
+        public byte[] XsdData;
+        public string XmlFileName;
+        public string XsdFileName;
+
+        public XmlAndXsd(string xmlFileName, byte[] xmlData, string xsdFileName, byte[] xsdData)
+        {
+            XmlFileName = xmlFileName;
+            XmlData = xmlData;
+            XsdFileName = xsdFileName;
+            XsdData = xsdData;
+        }
     }
 
     // 1 度しか実行しない処理を実行しやすくするための構造体

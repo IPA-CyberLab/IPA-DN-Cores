@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
 
             PipePoint mySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
 
-            mySide.CounterPart._IsNotNull();
+            mySide.CounterPart._MarkNotNull();
 
             mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
 

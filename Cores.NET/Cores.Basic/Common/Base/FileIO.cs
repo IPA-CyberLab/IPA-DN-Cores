@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA1063 // Implement IDisposable Correctly
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -165,7 +167,7 @@ namespace IPA.Cores.Basic
                     continue;
                 }
 
-                SingleInstance si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true);
+                SingleInstance? si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true);
                 if (si != null)
                 {
                     // Add the SingleInstance object to the blackhole so that it will not be the target of GC.
@@ -796,6 +798,7 @@ namespace IPA.Cores.Basic
                 hamBuf = null;
             }
 
+
             // デストラクタ
             ~IO()
             {
@@ -882,7 +885,7 @@ namespace IPA.Cores.Basic
                 byte[] data = IO.ReadFile(fileName);
 
                 int bomSize;
-                Encoding enc = Str.GetEncoding(data, out bomSize);
+                Encoding? enc = Str.GetEncoding(data, out bomSize);
                 if (enc == null)
                 {
                     enc = Encoding.Default;

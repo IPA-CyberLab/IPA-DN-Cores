@@ -309,7 +309,9 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                return Search(IPUtil.StrToIP(ipStr));
+                var ip = IPUtil.StrToIP(ipStr);
+                if (ip == null) return null;
+                return Search(ip);
             }
             catch
             {

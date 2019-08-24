@@ -58,7 +58,7 @@ namespace IPA.Cores.Basic
         }
 
         // ソケットイベント
-        public class SockEvent : IDisposable
+        public sealed class SockEvent : IDisposable
         {
             Event Win32Event = null!;
 
@@ -2967,9 +2967,9 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
-            static void getHostNameThreadProc(object param)
+            static void getHostNameThreadProc(object? param)
             {
-                GetHostNameData d = (GetHostNameData)param;
+                GetHostNameData d = (GetHostNameData)param!;
 
                 string[]? hostname = Domain.GetHostName(d.IP!, d.NoCache);
 
@@ -3297,7 +3297,13 @@ namespace IPA.Cores.Basic
                 {
                     while (cancel.IsCancellationRequested == false)
                     {
-                        Datagram[] recvPackets = await UdpBulkReader!.Recv(cancel);
+                        Datagram[]? recvPackets = await UdpBulkReader!.Recv(cancel);
+
+                        if (recvPackets == null)
+                        {
+                            // Disconnected
+                            throw new DisconnectedException();
+                        }
 
                         bool fullQueue = false;
                         bool pktReceived = false;
@@ -3418,7 +3424,7 @@ namespace IPA.Cores.Basic
                                 events: new AsyncAutoResetEvent[] { EventSendNow });
                         }
 
-                        int r = await Sock.SendToAsync(pkt!.Data._AsSegment(), pkt.IPEndPoint);
+                        int r = await Sock.SendToAsync(pkt!.Data._AsSegment(), pkt.IPEndPoint!);
                         if (r <= 0) break;
 
                         EventSendReady.Set();
@@ -3454,7 +3460,7 @@ namespace IPA.Cores.Basic
             return null;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

@@ -498,7 +498,7 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions() { }
 
-        public PalSslServerAuthenticationOptions(PalX509Certificate serverCertificate, bool allowAnyClientCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc, params string[] clientCertSHAList)
+        public PalSslServerAuthenticationOptions(PalX509Certificate serverCertificate, bool allowAnyClientCert, PalSslValidateRemoteCertificateCallback? validateRemoteCertificateProc, params string[] clientCertSHAList)
         {
             this.AllowAnyClientCert = allowAnyClientCert;
             this.ValidateRemoteCertificateProc = validateRemoteCertificateProc;
@@ -543,7 +543,7 @@ namespace IPA.Cores.Basic
 
             if (this.ServerCertificateSelectionProc != null)
             {
-                object param = this.ServerCertificateSelectionProcParam._IsNotNull();
+                object param = this.ServerCertificateSelectionProcParam._MarkNotNull();
                 ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
                 {
                     PalX509Certificate cert = this.ServerCertificateSelectionProc(param, sniHostName);

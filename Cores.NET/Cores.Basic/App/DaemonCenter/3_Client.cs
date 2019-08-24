@@ -92,8 +92,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     [Serializable]
     public class ClientVariables
     {
-        public string CurrentCommitId;
-        public string CurrentInstanceArguments;
+        public string? CurrentCommitId;
+        public string? CurrentInstanceArguments;
         public StatFlag StatFlag;
         public PauseFlag PauseFlag;
     }
@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             webOptions.Settings.UseProxy = false;
 
             // RPC Client を作成する
-            this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl, webOptions);
+            this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl._NullCheck(), webOptions);
 
             // RPC インターフェイスを作成する
             this.Rpc = this.RpcClient.GenerateRpcInterface<IRpc>();
@@ -242,7 +242,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             runtimeStat.Refresh();
 
-            string[] globalIpList = null;
+            string[]? globalIpList = null;
 
             try
             {
@@ -298,13 +298,16 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 try
                 {
                     // FQDN を DNS 解決する
-                    string fqdn = req.Stat.TcpIpHostData.FqdnHostName;
+                    string? fqdn = req.Stat.TcpIpHostData.FqdnHostName;
 
-                    DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
-                    if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                    if (fqdn._IsFilled())
                     {
-                        // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
-                        hostname = fqdn;
+                        DnsResponse dnsReply = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, timeout: Consts.Timeouts.Rapid), cancel);
+                        if (dnsReply.IPAddressList.Where(x => x == ip).Any())
+                        {
+                            // DNS 解決に成功し、同一の IP アドレスを指していることが分かったので URL には FQDN を埋め込む
+                            hostname = fqdn;
+                        }
                     }
                 }
                 catch { }
@@ -344,7 +347,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             return res.NextKeepAliveMsec;
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

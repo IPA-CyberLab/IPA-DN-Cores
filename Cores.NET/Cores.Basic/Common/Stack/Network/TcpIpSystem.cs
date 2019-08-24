@@ -180,7 +180,7 @@ namespace IPA.Cores.Basic
 
     public class TcpListenParam
     {
-        public NetTcpListenerAcceptedProcCallback AcceptCallback { get; }
+        public NetTcpListenerAcceptedProcCallback? AcceptCallback { get; }
         public IReadOnlyList<IPEndPoint> EndPointsList { get; }
 
         static IPEndPoint[] PortsToEndPoints(int[] ports)
@@ -196,16 +196,16 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public TcpListenParam(NetTcpListenerAcceptedProcCallback acceptCallback, params int[] ports)
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, params int[] ports)
             : this(acceptCallback, PortsToEndPoints(ports)) { }
 
-        public TcpListenParam(NetTcpListenerAcceptedProcCallback acceptCallback, params IPEndPoint[] endPoints)
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, params IPEndPoint[] endPoints)
         {
             this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
         }
 
-        public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback acceptCallback, IPEndPoint endPoint)
+        public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint)
         {
             List<IPEndPoint> ret = new List<IPEndPoint>();
 
@@ -395,7 +395,7 @@ namespace IPA.Cores.Basic
                 acceptQueueUtil = new GenericAcceptQueueUtil<ConnSock>();
             }
 
-            acceptQueueUtil._IsNotNull();
+            acceptQueueUtil._MarkNotNull();
 
             try
             {

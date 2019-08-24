@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMin.Value;
         public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.LogProtocolSettings.DefaultRetryIntervalMax.Value;
 
-        public LogClientOptions(TcpIpSystem tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = Consts.Ports.LogServerDefaultServicePort)
+        public LogClientOptions(TcpIpSystem? tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = Consts.Ports.LogServerDefaultServicePort)
         {
             this.ServerHostname = serverHostname._NonNullTrim();
             this.ServerPort = serverPort;
@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
             this.Options = options;
 
             this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, default, this.Options.ClientMaxBufferSize);
-            this.Writer = this.Reader.CounterPart;
+            this.Writer = this.Reader.CounterPart!;
 
             this.MainProcTask = this.StartMainLoop(MainLoopAsync);
         }
@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

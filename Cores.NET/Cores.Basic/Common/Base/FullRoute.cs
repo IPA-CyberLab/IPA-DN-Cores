@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
 
         public IPv4Addr(string str)
         {
-            IPAddress a = IPUtil.StrToIP(str);
+            IPAddress a = IPUtil.StrToIP(str)!;
 
             if (a.AddressFamily != AddressFamily.InterNetwork)
             {
@@ -411,7 +411,7 @@ namespace IPA.Cores.Basic
 
         public IPv6Addr(string str)
         {
-            IPAddress a = IPUtil.StrToIP(str);
+            IPAddress a = IPUtil.StrToIP(str)!;
 
             if (a.AddressFamily != AddressFamily.InterNetworkV6)
             {
@@ -1114,7 +1114,7 @@ namespace IPA.Cores.Basic
         {
             FullRouteCountryList ret = new FullRouteCountryList();
 
-            string[] cclist = FullRouteIPInfo.GetCountryCodes();
+            string[] cclist = FullRouteIPInfo.GetCountryCodes()!;
 
             foreach (string cc in cclist)
             {
@@ -1457,7 +1457,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void loop_thread(object param)
+        void loop_thread(object? param)
         {
             while (halt_flag == false)
             {
@@ -2449,7 +2449,7 @@ namespace IPA.Cores.Basic
             this.Trie = new RadixTrie();
             foreach (FullRouteEntry e in tmp)
             {
-                RadixNode n = Trie.Insert(e.GetBinaryBytes());
+                RadixNode n = Trie.Insert(e.GetBinaryBytes())!;
 
                 n.Object = e;
             }
@@ -2466,7 +2466,7 @@ namespace IPA.Cores.Basic
 
             byte[] key = addr.GetBinaryBytes();
 
-            RadixNode n = this.Trie!.Lookup(key);
+            RadixNode? n = this.Trie!.Lookup(key);
             if (n == null)
             {
                 return null;
@@ -2478,7 +2478,7 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
-            FullRouteEntry ret = (FullRouteEntry)n.Object;
+            FullRouteEntry? ret = (FullRouteEntry?)n.Object;
             if (ret == null)
             {
                 return null;

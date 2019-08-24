@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.IO;
 using System.IO.Enumeration;
@@ -78,7 +80,7 @@ namespace IPA.TestDev
         [DataMember]
         public int A;
         [DataMember]
-        public string B;
+        public string? B;
         [DataMember]
         public int C;
     }
@@ -98,8 +100,8 @@ namespace IPA.TestDev
 
     class TestHiveData1
     {
-        public string Str;
-        public string Date;
+        public string? Str;
+        public string? Date;
         public List<string> StrList = new List<string>();
     }
 
@@ -111,7 +113,7 @@ namespace IPA.TestDev
 
     class AcmeTestHttpServerBuilder : HttpServerStartupBase
     {
-        public static AcmeAccount AcmeAccount;
+        public static AcmeAccount? AcmeAccount;
 
         public AcmeTestHttpServerBuilder(IConfiguration configuration) : base(configuration)
         {
@@ -121,7 +123,7 @@ namespace IPA.TestDev
         {
             try
             {
-                AcmeAccount currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
+                AcmeAccount? currentAccount = GlobalCertVault.GetAcmeAccountForChallengeResponse();
                 string retStr;
 
                 if (currentAccount == null)
@@ -228,7 +230,7 @@ namespace IPA.TestDev
         }
 
 
-        volatile static List<object> __gc_test_list = null;
+        volatile static List<object>? __gc_test_list = null;
 
         public static void Test_GcDelay()
         {
@@ -937,7 +939,7 @@ namespace IPA.TestDev
                 {
                     while (true)
                     {
-                        string fqdn = Con.ReadLine(">");
+                        string? fqdn = Con.ReadLine(">");
 
                         if (fqdn._IsEmpty())
                             break;
@@ -969,10 +971,10 @@ namespace IPA.TestDev
             using (var httpServer = new HttpServer<AcmeTestHttpServerBuilder>(httpServerOpt))
             {
                 string keyFileName = @"c:\tmp\190615_acme\account.key";
-                PrivKey key = null;
+                PrivKey? key = null;
 
                 string certKeyFileName = @"c:\tmp\190615_acme\cert.key";
-                PrivKey certKey = null;
+                PrivKey? certKey = null;
 
                 try
                 {

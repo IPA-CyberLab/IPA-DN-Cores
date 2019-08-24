@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
+        public LogServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
             : base(tcpIp, sslAuthOptions, IPUtil.GenerateListeningEndPointsList(false, ports))
         {
         }
@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
     public class LogServerReceivedData
     {
         public ReadOnlyMemory<byte> BinaryData;
-        public LogJsonData JsonData;
+        public LogJsonData? JsonData;
 
         static readonly StrComparer LocalStrComparer = Lfs.PathParser.PathStringComparer;
 
@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
                         {
                             var list = standardLogQueue.GetList();
                             standardLogQueue.Clear();
-                            await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, list);
+                            await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), list);
                         }
 
                         LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP, standardLogQueue.GetList());
+                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), standardLogQueue.GetList());
                 }
             }
         }
@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
                         JsonData = str._JsonToObject<LogJsonData>(),
                     };
 
-                    d.JsonData.NormalizeReceivedLog(srcHostName);
+                    d.JsonData!.NormalizeReceivedLog(srcHostName);
 
                     list.Add(d);
                 }
@@ -220,7 +220,7 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions> setDestinationProc, TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
+        public LogServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
             : base(tcpIp, sslAuthOptions, ports)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
@@ -250,7 +250,7 @@ namespace IPA.Cores.Basic
             FileSystem fs = options.DestFileSystem;
             PathParser parser = fs.PathParser;
             string root = options.DestRootDirName;
-            LogPriority priority = data.JsonData.Priority._ParseEnum(LogPriority.None);
+            LogPriority priority = data.JsonData!.Priority._ParseEnum(LogPriority.None);
             LogJsonData d = data.JsonData;
 
             if (d.Kind._IsSamei(LogKind.Default))

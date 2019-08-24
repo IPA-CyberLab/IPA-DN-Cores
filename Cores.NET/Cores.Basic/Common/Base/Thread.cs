@@ -1279,19 +1279,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static ThreadObj? Current => GetCurrentThreadObj();
+        public static ThreadObj Current => GetCurrentThreadObj();
         public static int CurrentThreadId => Thread.CurrentThread.ManagedThreadId;
 
-        public static ThreadObj? GetCurrentThreadObj()
+        public static ThreadObj GetCurrentThreadObj()
         {
-            return (ThreadObj?)Thread.GetData(CurrentObjSlot);
+            object? data = Thread.GetData(CurrentObjSlot);
+            if (data == null) throw new ApplicationException("Not a ThreadObj() managed thread.");
+
+            return (ThreadObj)data;
         }
 
         public static void NoticeInited()
         {
-            var threadObj = GetCurrentThreadObj();
-
-            if (threadObj == null) throw new ApplicationException("Not a ThreadObj() managed thread.");
+            ThreadObj threadObj = GetCurrentThreadObj();
 
             threadObj.WaitInitForUser.Set();
             threadObj.WaitInitForUserAsync.Set();

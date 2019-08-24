@@ -279,7 +279,7 @@ namespace IPA.TestDev
                 {
                     while (true)
                     {
-                        string recv = await r.ReadLineAsync();
+                        string? recv = await r.ReadLineAsync();
                         if (recv == null)
                             return;
 
@@ -314,7 +314,7 @@ namespace IPA.TestDev
 
                         await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
 
-                        string dst = await r.ReadLineAsync();
+                        string? dst = await r.ReadLineAsync();
 
                         //Con.WriteLine(dst);
 
@@ -350,7 +350,7 @@ namespace IPA.TestDev
 
                             await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
 
-                            string dst = await r.ReadLineAsync();
+                            string? dst = await r.ReadLineAsync();
 
                             //Con.WriteLine(dst);
 
@@ -460,7 +460,7 @@ namespace IPA.TestDev
 
             using (var tcp = LocalNet.ConnectIPv4v6Dual(new TcpConnectParam(hostname, 443, connectTimeout: 5 * 1000)))
             {
-                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress.AddressFamily.ToString()._Print();
+                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress!.AddressFamily.ToString()._Print();
 
                 using (SslSock ssl = new SslSock(tcp))
                 {
@@ -485,7 +485,7 @@ namespace IPA.TestDev
 
                     while (true)
                     {
-                        string s = r.ReadLine();
+                        string? s = r.ReadLine();
                         if (s == null)
                         {
                             break;
@@ -563,7 +563,7 @@ namespace IPA.TestDev
 
                                 while (true)
                                 {
-                                    string line = await r.ReadLineAsync();
+                                    string? line = await r.ReadLineAsync();
 
                                     if (line._IsEmpty())
                                     {
@@ -629,7 +629,7 @@ Content-Length: {totalSize}
 
                             while (true)
                             {
-                                string line = await r.ReadLineAsync();
+                                string? line = await r.ReadLineAsync();
 
                                 if (line._IsEmpty())
                                 {
@@ -695,7 +695,7 @@ Content-Length: {totalSize}
 
                         TaskUtil.StartAsyncTaskAsync(async (obj) =>
                         {
-                            using (ConnSock s = (ConnSock)obj)
+                            using (ConnSock s = (ConnSock)obj!)
                             {
                                 var stream = s.GetStream();
                                 StreamWriter w = new StreamWriter(stream);
@@ -744,7 +744,7 @@ Content-Length: {totalSize}
 
                     while (true)
                     {
-                        string s = r.ReadLine();
+                        string? s = r.ReadLine();
                         if (s == null)
                         {
                             break;
@@ -776,7 +776,7 @@ Content-Length: {totalSize}
 
                     while (true)
                     {
-                        string s = r.ReadLine();
+                        string? s = r.ReadLine();
                         if (s == null)
                         {
                             break;
