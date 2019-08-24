@@ -1829,7 +1829,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAccess<T>
+    public sealed class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAccess<T>
     {
         public readonly HugeMemoryBufferOptions Options;
 
