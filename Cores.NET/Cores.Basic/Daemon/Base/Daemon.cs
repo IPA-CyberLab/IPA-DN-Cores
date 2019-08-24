@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => $"\"{Options.Name}\" ({Options.FriendlyName})";
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         protected virtual void Dispose(bool disposing)
         {
             StopAsync(true)._TryGetResult();

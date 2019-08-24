@@ -1732,7 +1732,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public void Dispose() => Dispose(true);
+            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
             Once DisposeFlag;
             protected virtual void Dispose(bool disposing)
             {
