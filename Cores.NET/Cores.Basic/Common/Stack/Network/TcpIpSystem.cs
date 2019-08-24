@@ -395,8 +395,6 @@ namespace IPA.Cores.Basic
                 acceptQueueUtil = new GenericAcceptQueueUtil<ConnSock>();
             }
 
-            acceptQueueUtil._MarkNotNull();
-
             try
             {
                 using (EnterCriticalCounter())
@@ -416,7 +414,7 @@ namespace IPA.Cores.Basic
                         else
                         {
                             // GenericAcceptQueueUtil ユーティリティでキューに登録する
-                            await acceptQueueUtil.InjectAndWaitAsync(sock);
+                            await acceptQueueUtil!.InjectAndWaitAsync(sock);
                         }
                     });
 

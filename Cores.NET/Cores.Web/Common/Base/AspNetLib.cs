@@ -112,11 +112,11 @@ namespace IPA.Cores.Web
         public readonly Assembly ThisAssembly = typeof(AspNetLib).Assembly;
 
         static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb);
+        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)._NullCheck();
 
         public AspNetLibFeatures EnabledFeatures { get; }
 
-        LogBrowser LogBrowser = null;
+        LogBrowser? LogBrowser = null;
 
         public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
         {
@@ -175,7 +175,7 @@ namespace IPA.Cores.Web
             return mvc;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {

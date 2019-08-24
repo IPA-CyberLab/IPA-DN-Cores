@@ -6,6 +6,7 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

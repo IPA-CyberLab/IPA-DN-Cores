@@ -61,6 +61,7 @@ using Microsoft.Extensions.Options;
 //using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -97,7 +98,7 @@ namespace IPA.Cores.Basic
             this._options = options;
         }
 
-        NetTcpListener Listener = null;
+        NetTcpListener? Listener = null;
 
         public void Bind()
         {
@@ -109,6 +110,9 @@ namespace IPA.Cores.Basic
 
         public async ValueTask<ConnectionContext> AcceptAsync(CancellationToken cancellationToken = default)
         {
+            if (this.Listener == null)
+                throw new ApplicationException("Listener is not bound yet.");
+
             ConnSock sock = await this.Listener.AcceptNextSocketFromQueueUtilAsync(cancellationToken);
 
             var connection = new KestrelStackConnection(sock);
@@ -142,9 +146,9 @@ namespace IPA.Cores.Basic
         // then the list of `features` in the generated code project MUST also be updated.
         // See also: tools/CodeGenerator/TransportConnectionFeatureCollection.cs
 
-        MemoryPool<byte> IMemoryPoolFeature.MemoryPool => MemoryPool;
+        MemoryPool<byte>? IMemoryPoolFeature.MemoryPool => MemoryPool;
 
-        IDuplexPipe IConnectionTransportFeature.Transport
+        IDuplexPipe? IConnectionTransportFeature.Transport
         {
             get => Transport;
             set => Transport = value;
@@ -174,15 +178,15 @@ namespace IPA.Cores.Basic
         private static readonly Type IMemoryPoolFeatureType = typeof(IMemoryPoolFeature);
         private static readonly Type IConnectionLifetimeFeatureType = typeof(IConnectionLifetimeFeature);
 
-        private object _currentIConnectionIdFeature;
-        private object _currentIConnectionTransportFeature;
-        private object _currentIConnectionItemsFeature;
-        private object _currentIMemoryPoolFeature;
-        private object _currentIConnectionLifetimeFeature;
+        private object _currentIConnectionIdFeature = null!;
+        private object _currentIConnectionTransportFeature = null!;
+        private object _currentIConnectionItemsFeature = null!;
+        private object _currentIMemoryPoolFeature = null!;
+        private object _currentIConnectionLifetimeFeature = null!;
 
         private int _featureRevision;
 
-        private List<KeyValuePair<Type, object>> MaybeExtra;
+        private List<KeyValuePair<Type, object>>? MaybeExtra;
 
         private void FastReset()
         {
@@ -202,7 +206,7 @@ namespace IPA.Cores.Basic
             _featureRevision++;
         }
 
-        private object ExtraFeatureGet(Type key)
+        private object? ExtraFeatureGet(Type key)
         {
             if (MaybeExtra == null)
             {
@@ -243,9 +247,10 @@ namespace IPA.Cores.Basic
 
         object IFeatureCollection.this[Type key]
         {
+            [return: MaybeNull]
             get
             {
-                object feature = null;
+                object? feature = null;
                 if (key == IConnectionIdFeatureType)
                 {
                     feature = _currentIConnectionIdFeature;
@@ -271,7 +276,7 @@ namespace IPA.Cores.Basic
                     feature = ExtraFeatureGet(key);
                 }
 
-                return feature;
+                return feature!;
             }
 
             set
@@ -305,9 +310,10 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [return: MaybeNull]
         TFeature IFeatureCollection.Get<TFeature>()
         {
-            TFeature feature = default;
+            TFeature feature = default!;
             if (typeof(TFeature) == typeof(IConnectionIdFeature))
             {
                 feature = (TFeature)_currentIConnectionIdFeature;
@@ -330,7 +336,7 @@ namespace IPA.Cores.Basic
             }
             else if (MaybeExtra != null)
             {
-                feature = (TFeature)(ExtraFeatureGet(typeof(TFeature)));
+                feature = (TFeature)(ExtraFeatureGet(typeof(TFeature)))!;
             }
 
             return feature;
@@ -405,16 +411,16 @@ namespace IPA.Cores.Basic
     // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.cs
     public abstract partial class TransportConnection : ConnectionContext
     {
-        private IDictionary<object, object> _items;
-        private string _connectionId;
+        private IDictionary<object, object>? _items;
+        private string? _connectionId;
 
         public TransportConnection()
         {
             FastReset();
         }
 
-        public override EndPoint LocalEndPoint { get; set; }
-        public override EndPoint RemoteEndPoint { get; set; }
+        public override EndPoint? LocalEndPoint { get; set; }
+        public override EndPoint? RemoteEndPoint { get; set; }
 
         public override string ConnectionId
         {
@@ -435,11 +441,11 @@ namespace IPA.Cores.Basic
 
         public override IFeatureCollection Features => this;
 
-        public virtual MemoryPool<byte> MemoryPool { get; }
+        public virtual MemoryPool<byte>? MemoryPool { get; }
 
-        public override IDuplexPipe Transport { get; set; }
+        public override IDuplexPipe? Transport { get; set; }
 
-        public IDuplexPipe Application { get; set; }
+        public IDuplexPipe? Application { get; set; }
 
         public override IDictionary<object, object> Items
         {
@@ -464,7 +470,7 @@ namespace IPA.Cores.Basic
         // sufficient to abort the connection if there is backpressure.
         public override void Abort(ConnectionAbortedException abortReason)
         {
-            Application.Input.CancelPendingRead();
+            Application!.Input.CancelPendingRead();
         }
     }
 
@@ -472,7 +478,7 @@ namespace IPA.Cores.Basic
     public class KestrelStackConnection : TransportConnection
     {
         readonly ConnSock Sock;
-        Task _processingTask;
+        Task? _processingTask;
 
         public override MemoryPool<byte> MemoryPool { get; }
 
@@ -506,10 +512,10 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application))
+                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application!))
                 {
                     // Now wait for complete
-                    await wrapper.MainLoopToWaitComplete;
+                    await wrapper.MainLoopToWaitComplete!;
                 }
             }
             catch (Exception ex)
@@ -524,7 +530,7 @@ namespace IPA.Cores.Basic
         // Only called after connection middleware is complete which means the ConnectionClosed token has fired.
         public override async ValueTask DisposeAsync()
         {
-            Transport.Input.Complete();
+            Transport!.Input.Complete();
             Transport.Output.Complete();
 
             if (_processingTask != null)
@@ -554,7 +560,7 @@ namespace IPA.Cores.Basic
         //readonly IApplicationLifetime AppLifeTime;
         //readonly SocketsTrace Trace;
 
-        public KestrelServerWithStack Server { get; private set; }
+        public KestrelServerWithStack? Server { get; private set; }
 
         public KestrelStackTransportFactory(
             IOptions<SocketTransportOptions> options,
@@ -589,7 +595,7 @@ namespace IPA.Cores.Basic
 
             //return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
 
-            var transport = new KestrelStackConnectionListener(this.Server, endpoint, Options);
+            var transport = new KestrelStackConnectionListener(this.Server!, endpoint, Options);
             transport.Bind();
             return new ValueTask<IConnectionListener>(transport);
         }

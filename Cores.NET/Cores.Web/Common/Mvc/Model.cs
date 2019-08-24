@@ -67,18 +67,18 @@ namespace IPA.Cores.Web
         where TData2 : new()
     {
         public TData2 Data2 { get; set; }
-        public string Id2 { get; set; }
+        public string? Id2 { get; set; }
 
         public DualData() : base()
         {
             this.Data2 = new TData2();
         }
 
-        public DualData(string id1, TData1 data1, string id2, TData2 data2, ModelMode mode) : base(id1, data1, mode)
+        public DualData(string id1, TData1 data1, string? id2, TData2 data2, ModelMode mode) : base(id1, data1, mode)
         {
             if (mode != ModelMode.Add)
             {
-                if ((IsEmpty)id2)
+                if (id2._IsEmpty())
                 {
                     throw new ArgumentNullException(nameof(id2));
                 }
@@ -87,7 +87,7 @@ namespace IPA.Cores.Web
             }
             else
             {
-                if ((IsFilled)id2)
+                if (id2._IsFilled())
                 {
                     throw new ArgumentOutOfRangeException($"{nameof(id2)} is specified.");
                 }
@@ -110,7 +110,7 @@ namespace IPA.Cores.Web
     public class SingleData<TData> where TData : new()
     {
         public TData Data { get; set; }
-        public string Id { get; set; }
+        public string? Id { get; set; }
         public ModelMode Mode { get; set; }
 
         public SingleData()
@@ -122,11 +122,11 @@ namespace IPA.Cores.Web
             NormalizeImpl();
         }
 
-        public SingleData(string id, TData data, ModelMode mode)
+        public SingleData(string? id, TData data, ModelMode mode)
         {
             if (mode != ModelMode.Add)
             {
-                if ((IsEmpty)id)
+                if (id._IsEmpty())
                 {
                     throw new ArgumentNullException(nameof(id));
                 }
@@ -166,13 +166,13 @@ namespace IPA.Cores.Web
                     return "追加";
 
                 case ModelMode.Edit:
-                    if ((IsFilled)this.Data.ToString())
+                    if ((this.Data?.ToString())._IsFilled())
                         return $"「{this.Data.ToString()}」の編集";
                     else
                         return $"編集";
 
                 case ModelMode.Delete:
-                    return $"「{this.Data.ToString()}」の削除";
+                    return $"「{this.Data?.ToString()}」の削除";
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(Mode));

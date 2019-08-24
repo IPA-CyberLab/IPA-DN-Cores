@@ -406,12 +406,12 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                if (Stack._InternalUpper.CounterPart == null)
+                if (protocolStack._InternalUpper.CounterPart == null)
                     throw new CoresException("Stack._InternalUpper.CounterPart == null");
 
-                PipePoint counterPart = Stack._InternalUpper.CounterPart;
-
                 Stack = AddDirectDisposeLink(protocolStack);
+
+                PipePoint counterPart = protocolStack._InternalUpper.CounterPart;
                 UpperPoint = AddDirectDisposeLink(counterPart);
                 Pipe = AddDirectDisposeLink(UpperPoint.Pipe);
 
@@ -871,6 +871,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
+                        ex._Debug();
                         LastError = ex;
 
                         if (_InternalSelfCancelToken.IsCancellationRequested == false)

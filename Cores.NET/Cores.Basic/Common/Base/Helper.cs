@@ -1255,7 +1255,11 @@ namespace IPA.Cores.Helper.Basic
         public static void _PostAccessLog(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
 
-        public static void _DoForEach<T>(this IEnumerable<T> list, Action<T> action) => list.ToList().ForEach(action);
+        public static void _DoForEach<T>(this IEnumerable<T> list, Action<T> action)
+        {
+            list._NullCheck();
+            list.ToList().ForEach(action);
+        }
 
 
         public static T _GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
