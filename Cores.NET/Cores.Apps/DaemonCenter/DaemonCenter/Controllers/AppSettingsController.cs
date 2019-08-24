@@ -87,7 +87,7 @@ namespace DaemonCenter.Controllers
         [HttpGet]
         public IActionResult Edit([FromRoute] string id)
         {
-            AppSettings appSettings = Server.AppGet(id).Settings;
+            AppSettings appSettings = Server.AppGet(id).Settings!;
 
             SingleData<AppSettings> model = new SingleData<AppSettings>(id, appSettings, ModelMode.Edit);
 
