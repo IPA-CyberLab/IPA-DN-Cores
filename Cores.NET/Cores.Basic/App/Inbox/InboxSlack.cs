@@ -457,7 +457,7 @@ namespace IPA.Cores.Basic
 
         SlackApi.User GetUser(string userId)
         {
-            SlackApi.User user = this.UserList.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
+            SlackApi.User? user = this.UserList.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
             return user;
         }
     }

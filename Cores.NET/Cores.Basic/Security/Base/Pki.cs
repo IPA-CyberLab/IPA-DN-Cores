@@ -1097,8 +1097,8 @@ namespace IPA.Cores.Basic
 
     public partial class PalX509Certificate
     {
-        Singleton<Certificate> PkiCertificateSingleton;
-        Singleton<CertificateStore> PkiCertificateStoreSingleton;
+        Singleton<Certificate> PkiCertificateSingleton = null!;
+        Singleton<CertificateStore> PkiCertificateStoreSingleton = null!;
 
         public Certificate PkiCertificate => PkiCertificateSingleton;
         public CertificateStore PkiCertificateStore => PkiCertificateStoreSingleton;

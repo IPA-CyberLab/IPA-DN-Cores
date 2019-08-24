@@ -310,7 +310,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 ret.NextKeepAliveMsec = app.Settings.KeepAliveIntervalSecs * 1000;
 
                 // インスタンスを検索
-                Instance inst = app.InstanceList.Where(x => x.IsMatchForHost(app.Settings.InstanceKeyType, req.HostName, req.Guid)).SingleOrDefault();
+                Instance? inst = app.InstanceList.Where(x => x.IsMatchForHost(app.Settings.InstanceKeyType, req.HostName, req.Guid)).SingleOrDefault();
 
                 if (inst == null)
                 {
@@ -353,7 +353,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 req.Stat.GlobalIpList._DoForEach(x => acceptableIpList.Add(x));
                 req.Stat.AcceptableIpList = acceptableIpList.ToArray();
 
-                if ((IsFilled)req.Stat.CommitId && (IsFilled)inst.NextCommitId)
+                if (req.Stat.CommitId._IsFilled() && inst.NextCommitId._IsFilled())
                 {
                     if ((IgnoreCaseTrim)Str.NormalizeGitCommitId(inst.NextCommitId) != Str.NormalizeGitCommitId(req.Stat.CommitId))
                     {

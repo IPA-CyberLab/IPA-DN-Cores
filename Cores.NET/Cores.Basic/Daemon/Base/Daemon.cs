@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_DAEMON
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.IO;
 using System.Threading;
@@ -40,6 +42,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.ServiceProcess;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -125,11 +128,11 @@ namespace IPA.Cores.Basic
 
         AsyncLock AsyncLock = new AsyncLock();
 
-        SingleInstance SingleInstance = null;
+        SingleInstance? SingleInstance = null;
 
-        IHolder Leak;
+        IHolder? Leak;
 
-        object Param = null;
+        object? Param = null;
 
         public Daemon(DaemonOptions options)
         {
@@ -138,8 +141,8 @@ namespace IPA.Cores.Basic
             this.StatusChangedEvent = new FastEventListenerList<Daemon, DaemonStatus>();
         }
 
-        protected abstract Task StartImplAsync(DaemonStartupMode startupMode, object param);
-        protected abstract Task StopImplAsync(object param);
+        protected abstract Task StartImplAsync(DaemonStartupMode startupMode, object? param);
+        protected abstract Task StopImplAsync(object? param);
 
         public bool IsInstanceRunning()
         {
@@ -154,7 +157,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task StartAsync(DaemonStartupMode startupMode, object param = null)
+        public async Task StartAsync(DaemonStartupMode startupMode, object? param = null)
         {
             await Task.Yield();
             using (await AsyncLock.LockWithAwait())
@@ -323,7 +326,7 @@ namespace IPA.Cores.Basic
             this.DaemonCenterAppId = this.DaemonCenterAppId._NonNullTrim();
 
             // 新しいシークレットを作成する
-            if ((IsEmpty)this.DaemonSecret) this.DaemonSecret = Str.GenRandPassword(32);
+            if (this.DaemonSecret._IsEmpty()) this.DaemonSecret = Str.GenRandPassword(32);
 
             // 新しい GUID を作成する
             if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
@@ -347,12 +350,12 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override Task StartImplAsync(DaemonStartupMode startupMode, object param)
+        protected override Task StartImplAsync(DaemonStartupMode startupMode, object? param)
         {
             return Task.CompletedTask;
         }
 
-        protected override Task StopImplAsync(object param)
+        protected override Task StopImplAsync(object? param)
         {
             return Task.CompletedTask;
         }
@@ -362,7 +365,7 @@ namespace IPA.Cores.Basic
     public sealed class DaemonHost
     {
         public Daemon Daemon { get; }
-        public object Param { get; }
+        public object? Param { get; }
         public DaemonSettings DefaultDaemonSettings { get; }
 
         readonly HiveData<DaemonSettings> SettingsHive;
@@ -378,9 +381,9 @@ namespace IPA.Cores.Basic
             Env.IsWindows == false &&
             Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
 
-        IService CurrentRunningService = null;
+        IService? CurrentRunningService = null;
 
-        public DaemonHost(Daemon daemon, DaemonSettings defaultDaemonSettings, object param = null)
+        public DaemonHost(Daemon daemon, DaemonSettings defaultDaemonSettings, object? param = null)
         {
             this.DefaultDaemonSettings = (defaultDaemonSettings ?? throw new ArgumentNullException(nameof(defaultDaemonSettings)))._CloneDeep();
             this.Param = param;
@@ -403,11 +406,11 @@ namespace IPA.Cores.Basic
         Once StartedOnce;
 
         // テスト動作させる
-        public void TestRun(bool stopDebugHost = false, string appId = null)
+        public void TestRun(bool stopDebugHost = false, string? appId = null)
         {
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
 
-            if (stopDebugHost && (IsFilled)appId)
+            if (stopDebugHost && appId._IsFilled())
             {
                 try
                 {
@@ -419,7 +422,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            TelnetLocalLogWatcher telnetWatcher = null;
+            TelnetLocalLogWatcher? telnetWatcher = null;
 
             if (this.Settings.DaemonTelnetLogWatcherPort != 0)
             {
@@ -717,7 +720,7 @@ namespace IPA.Cores.Basic
 
     public class DaemonCmdLineTool
     {
-        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon, DaemonSettings defaultDaemonSettings = null)
+        public static int EntryPoint(ConsoleService c, string cmdName, string str, Daemon daemon, DaemonSettings defaultDaemonSettings)
         {
             ConsoleParam[] args =
             {
@@ -806,7 +809,7 @@ namespace IPA.Cores.Basic
                                 });
 
                                 // すでに以前の定義ファイルが存在しているか?
-                                string currentFileBody = null;
+                                string? currentFileBody = null;
                                 try
                                 {
                                     currentFileBody = Lfs.ReadStringFromFile(defFileName);
@@ -959,7 +962,7 @@ namespace IPA.Cores.Basic
                                     {
                                         cts.Token.ThrowIfCancellationRequested();
 
-                                        string line = await p.StandardOutput.ReadLineAsync();
+                                        string? line = await p.StandardOutput.ReadLineAsync();
                                         if (line == null)
                                             throw new ApplicationException("StandardOutput is disconnected.");
 
@@ -978,12 +981,12 @@ namespace IPA.Cores.Basic
                                     {
                                         cts.Token.ThrowIfCancellationRequested();
 
-                                        string line = await p.StandardError.ReadLineAsync();
-
-                                        stdErr.WriteLine(line);
+                                        string? line = await p.StandardError.ReadLineAsync();
 
                                         if (line == null)
                                             throw new ApplicationException("StandardError is disconnected.");
+
+                                        stdErr.WriteLine(line);
                                     }
                                 }, leakCheck: false);
 

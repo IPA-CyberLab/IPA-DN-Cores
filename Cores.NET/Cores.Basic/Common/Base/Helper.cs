@@ -407,7 +407,7 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
             => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
-        public static string _Combine(this IEnumerable<string> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
+        public static string _Combine(this IEnumerable<string?> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
 
         public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
@@ -1111,10 +1111,15 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
         public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [return: NotNullIfNotNull("defaultValue")]
         public static string? _FilledOrDefault(this string? str, string? defaultValue = null) => (str._IsFilled() ? str : defaultValue);
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [return: NotNullIfNotNull("defaultValue")]
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [return: NotNull]
         public static T _FilledOrException<T>(this T obj, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
@@ -1124,6 +1129,7 @@ namespace IPA.Cores.Helper.Basic
             throw exception ?? new CoresEmptyException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string _FilledOrException(this string? str, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
             if (str._IsFilled(zeroValueIsEmpty))
@@ -1132,6 +1138,7 @@ namespace IPA.Cores.Helper.Basic
             throw exception ?? new CoresEmptyException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _NullCheck<T>([NotNull] this T? obj, Exception? ex = null)
             where T: class
         {
@@ -1142,6 +1149,14 @@ namespace IPA.Cores.Helper.Basic
             }
 
             return obj;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T _IsNotNull<T>([NotNull] this T? obj)
+            where T : class
+        {
+            Debug.Assert(obj != null);
+            return obj!;
         }
 
         public static T _DbOverwriteValues<T>(this T baseData, T overwriteData) where T : new() => Util.DbOverwriteValues(baseData, overwriteData);

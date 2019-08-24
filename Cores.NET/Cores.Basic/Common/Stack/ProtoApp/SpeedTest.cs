@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
         int TimeSpan;
         ulong SessionId;
         CancellationToken Cancel;
-        ExceptionQueue ExceptionQueue;
+        ExceptionQueue? ExceptionQueue;
         AsyncManualResetEvent ClientStartEvent;
         TcpIpSystem System;
 
@@ -277,7 +277,7 @@ namespace IPA.Cores.Basic
 
         Once Once;
 
-        public async Task<Result> RunClientAsync()
+        public async Task<Result?> RunClientAsync()
         {
             if (Once.IsFirstCall() == false)
                 throw new ApplicationException("You cannot reuse the object.");
@@ -502,7 +502,7 @@ namespace IPA.Cores.Basic
                     }
                     catch (Exception ex)
                     {
-                        ExceptionQueue.Add(ex);
+                        ExceptionQueue!.Add(ex);
                         throw;
                     }
                 }

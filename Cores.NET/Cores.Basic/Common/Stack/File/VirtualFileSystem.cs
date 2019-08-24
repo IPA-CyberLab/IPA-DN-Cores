@@ -66,11 +66,11 @@ namespace IPA.Cores.Basic
         readonly RefInt HandleRef = new RefInt();
         protected readonly CriticalSection LockObj = new CriticalSection();
 
-        public virtual string Name { get; protected set; }
-        public virtual FileAttributes Attributes { get; protected set; }
-        public virtual DateTimeOffset CreationTime { get; protected set; }
-        public virtual DateTimeOffset LastWriteTime { get; protected set; }
-        public virtual DateTimeOffset LastAccessTime { get; protected set; }
+        public abstract string Name { get; protected set; }
+        public abstract FileAttributes Attributes { get; protected set; }
+        public abstract DateTimeOffset CreationTime { get; protected set; }
+        public abstract DateTimeOffset LastWriteTime { get; protected set; }
+        public abstract DateTimeOffset LastAccessTime { get; protected set; }
 
         public virtual Task<FileMetadata> GetMetadataAsync(CancellationToken cancel = default) => throw new NotSupportedException();
         public virtual Task SetMetadataAsync(FileMetadata metadata, CancellationToken cancel = default) => throw new NotSupportedException();
@@ -170,9 +170,8 @@ namespace IPA.Cores.Basic
         {
         }
 
-        public virtual string FullPath { get; protected set; }
-        public virtual long Size { get; protected set; }
-        public virtual long PhysicalSize { get; protected set; }
+        public abstract long Size { get; protected set; }
+        public abstract long PhysicalSize { get; protected set; }
 
         public abstract Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default);
 
@@ -209,12 +208,14 @@ namespace IPA.Cores.Basic
 
         public virtual async Task ParseAsync(VfsPathParserContext ctx, CancellationToken cancel = default)
         {
-            if (ctx.RemainingPathElements.TryPeek(out string nextName) == false)
+            if (ctx.RemainingPathElements.TryPeek(out string? nextName) == false)
             {
                 // This is the final entity
                 ctx.Exception = null;
                 return;
             }
+
+            nextName._IsNotNull();
 
             try
             {
@@ -289,6 +290,12 @@ namespace IPA.Cores.Basic
         readonly Dictionary<string, VfsEntity> EntityTable;
         readonly AsyncLock AsyncLock = new AsyncLock();
 
+        public override string Name { get; protected set; }
+        public override FileAttributes Attributes { get; protected set; }
+        public override DateTimeOffset CreationTime { get; protected set; }
+        public override DateTimeOffset LastWriteTime { get; protected set; }
+        public override DateTimeOffset LastAccessTime { get; protected set; }
+
         public VfsRamDirectory(VirtualFileSystem fileSystem, string name, bool isRoot = false) : base(fileSystem)
         {
             if (isRoot)
@@ -362,11 +369,13 @@ namespace IPA.Cores.Basic
         {
             using (await AsyncLock.LockWithAwait(cancel))
             {
-                if (this.EntityTable.TryGetValue(name, out VfsEntity entity) == false)
+                if (this.EntityTable.TryGetValue(name, out VfsEntity? entity) == false)
                 {
                     // エラー
                     return new VfsNotFoundException(name, $"The object \"{name}\" not found on the directory.");
                 }
+
+                entity._IsNotNull();
 
                 entity.AddHandleRef();
 
@@ -436,6 +445,12 @@ namespace IPA.Cores.Basic
 
     public abstract class VfsRandomAccessFile : VfsFile
     {
+        public override string Name { get; protected set; }
+        public override FileAttributes Attributes { get; protected set; }
+        public override DateTimeOffset CreationTime { get; protected set; }
+        public override DateTimeOffset LastWriteTime { get; protected set; }
+        public override DateTimeOffset LastAccessTime { get; protected set; }
+
         public class FileImpl : FileObjectRandomAccessWrapperBase
         {
             readonly VfsRandomAccessFile File;
@@ -589,8 +604,8 @@ namespace IPA.Cores.Basic
         public readonly List<VfsEntity> EntityStack = new List<VfsEntity>();
         public readonly List<string> NormalizedPathStack = new List<string>();
         public string NormalizedPath => Parser.BuildAbsolutePathStringFromElements(NormalizedPathStack);
-        public Exception Exception = null;
-        public VfsEntity LastEntity => EntityStack.LastOrDefault();
+        public Exception? Exception = null;
+        public VfsEntity? LastEntity => EntityStack.LastOrDefault();
 
         public void AddToEntityStack(VfsEntity entity)
         {
@@ -599,7 +614,7 @@ namespace IPA.Cores.Basic
             NormalizedPathStack.Add(entity.Name);
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
         protected virtual void Dispose(bool disposing)
         {
@@ -667,12 +682,14 @@ namespace IPA.Cores.Basic
 
                 if (ctx.Exception is VfsNotFoundException && ctx.RemainingPathElements.Count >= 1 && ctx.LastEntity is VfsDirectory)
                 {
-                    var lastDir = ctx.LastEntity as VfsDirectory;
+                    var lastDir = (VfsDirectory)ctx.LastEntity;
 
                     while (true)
                     {
-                        if (ctx.RemainingPathElements.TryDequeue(out string nextDirName) == false)
+                        if (ctx.RemainingPathElements.TryDequeue(out string? nextDirName) == false)
                             return;
+
+                        nextDirName._IsNotNull();
 
                         var newDirectory = new VfsRamDirectory(this, nextDirName);
                         try
@@ -733,7 +750,7 @@ namespace IPA.Cores.Basic
                 if (ctx.Exception is VfsNotFoundException && ctx.RemainingPathElements.Count == 1 && ctx.LastEntity is VfsDirectory && option.Mode != FileMode.Open)
                 {
                     // Create new RAM file
-                    var lastDir = ctx.LastEntity as VfsDirectory;
+                    VfsDirectory lastDir = (VfsDirectory)ctx.LastEntity;
 
                     string fileName = ctx.RemainingPathElements.Peek();
 
@@ -780,7 +797,7 @@ namespace IPA.Cores.Basic
 
                     Debug.Assert(ctx.EntityStack.Count >= 2);
                     Debug.Assert(ctx.EntityStack.Last() == dir);
-                    VfsDirectory parentDir = ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory;
+                    VfsDirectory parentDir = (ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory)!;
                     Debug.Assert(parentDir != null);
 
                     dir.ReleaseHandleRef();
@@ -806,7 +823,7 @@ namespace IPA.Cores.Basic
                 {
                     Debug.Assert(ctx.EntityStack.Count >= 2);
                     Debug.Assert(ctx.EntityStack.Last() == file);
-                    VfsDirectory parentDir = ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory;
+                    VfsDirectory parentDir = (ctx.EntityStack[ctx.EntityStack.Count - 2] as VfsDirectory)!;
                     Debug.Assert(parentDir != null);
 
                     file.ReleaseHandleRef();
@@ -865,14 +882,14 @@ namespace IPA.Cores.Basic
                         {
                             FileMetadata meta = await fileObject.GetMetadataAsync(cancel);
                             FileSystemEntity file = new FileSystemEntity(
-                                fullPath : PathParser.Combine(ctx.NormalizedPath, entity.Name),
-                                name : entity.Name,
-                                size : meta.Size,
-                                physicalSize : meta.PhysicalSize,
-                                attributes : meta.Attributes ?? FileAttributes.Directory,
-                                creationTime :meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
-                                lastWriteTime : meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
-                                lastAccessTime : meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
+                                fullPath: PathParser.Combine(ctx.NormalizedPath, entity.Name),
+                                name: entity.Name,
+                                size: meta.Size,
+                                physicalSize: meta.PhysicalSize,
+                                attributes: meta.Attributes ?? FileAttributes.Directory,
+                                creationTime: meta.CreationTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastWriteTime: meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
+                                lastAccessTime: meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
                             );
                             ret.Add(file);
                         }

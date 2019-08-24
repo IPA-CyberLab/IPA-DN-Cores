@@ -272,7 +272,7 @@ namespace IPA.TestDev
 
             for (DateTime dt = start; dt <= end; dt = dt.AddDays(7))
             {
-                GitCommit commit = commitLogs.Where(x => x.TimeStamp < dt).OrderByDescending(x => x.TimeStamp).FirstOrDefault();
+                GitCommit? commit = commitLogs.Where(x => x.TimeStamp < dt).OrderByDescending(x => x.TimeStamp).FirstOrDefault();
 
                 if (commit != null)
                 {

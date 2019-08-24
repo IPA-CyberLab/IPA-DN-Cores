@@ -155,7 +155,7 @@ namespace IPA.Cores.Helper.Basic
 
             StringValues values = matchList.First().Value;
 
-            string ret = values.Where(x => (autoTrim ? x._IsFilled() : x != null)).FirstOrDefault();
+            string? ret = values.Where(x => (autoTrim ? x._IsFilled() : x != null)).FirstOrDefault();
 
             if (ret._IsEmpty())
             {

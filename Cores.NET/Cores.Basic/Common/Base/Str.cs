@@ -3747,7 +3747,7 @@ namespace IPA.Cores.Basic
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
 
-        public static string CombineStringArray(IEnumerable<string> strList, string? sepstr = "", bool removeEmpty = false)
+        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false)
         {
             sepstr = sepstr._NonNull();
 
@@ -3755,7 +3755,7 @@ namespace IPA.Cores.Basic
 
             int num = 0;
 
-            foreach (string s in strList)
+            foreach (string? s in strList)
             {
                 if (removeEmpty == false || s._IsFilled())
                 {
@@ -3764,7 +3764,8 @@ namespace IPA.Cores.Basic
                         b.Append(sepstr);
                     }
 
-                    b.Append(s);
+                    if (s != null) b.Append(s);
+
                     num++;
                 }
             }
@@ -6080,7 +6081,7 @@ namespace IPA.Cores.Basic
 
         public T? SearchTop(string key, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
         {
-            AmbiguousSearchResult<T> x = this.Search(key, comparison).FirstOrDefault();
+            AmbiguousSearchResult<T>? x = this.Search(key, comparison).FirstOrDefault();
 
             if (x == null)
             {
@@ -6482,9 +6483,9 @@ namespace IPA.Cores.Basic
 
     public readonly struct IsEmpty
     {
-        readonly string Target;
+        readonly string? Target;
 
-        public IsEmpty(string target)
+        public IsEmpty(string? target)
         {
             this.Target = target;
         }
@@ -6494,7 +6495,7 @@ namespace IPA.Cores.Basic
             return t.Target._IsEmpty();
         }
 
-        public static implicit operator IsEmpty(string target)
+        public static implicit operator IsEmpty(string? target)
         {
             return new IsEmpty(target);
         }
@@ -6504,9 +6505,9 @@ namespace IPA.Cores.Basic
 
     public readonly struct IsFilled
     {
-        readonly string Target;
+        readonly string? Target;
 
-        public IsFilled(string target)
+        public IsFilled(string? target)
         {
             this.Target = target;
         }
@@ -6516,7 +6517,7 @@ namespace IPA.Cores.Basic
             return t.Target._IsFilled();
         }
 
-        public static implicit operator IsFilled(string target)
+        public static implicit operator IsFilled(string? target)
         {
             return new IsFilled(target);
         }

@@ -87,6 +87,8 @@ namespace IPA.Cores.Basic
             {
                 foreach (var pipe in this.SubscribersList)
                 {
+                    pipe.CounterPart._NullCheck();
+
                     lock (pipe.CounterPart.StreamWriter.LockObj)
                     {
                         if (pipe.CounterPart.StreamWriter.NonStopWriteWithLock(buf.Memory, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
@@ -105,6 +107,8 @@ namespace IPA.Cores.Basic
             bufferSize = Math.Max(bufferSize ?? this.BufferSize, 1);
 
             PipePoint mySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancelForNewPipe, bufferSize.Value);
+
+            mySide.CounterPart._IsNotNull();
 
             mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
 
@@ -196,7 +200,7 @@ namespace IPA.Cores.Basic
             SetKind(kind);
         }
 
-        public void SetKind(string kind)
+        public void SetKind(string? kind)
         {
             kind = kind._NonNullTrim();
 
@@ -221,7 +225,7 @@ namespace IPA.Cores.Basic
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
@@ -230,7 +234,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
@@ -239,7 +243,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception ex) { }
+        protected override void DisposeImpl(Exception? ex) { }
 
         public T InstallLogRoute<T>(T route) where T: LogRouteBase
         {
@@ -319,9 +323,9 @@ namespace IPA.Cores.Basic
     {
         public static int UniqueLogProcessId { get; private set; } = -1;
 
-        public static LogRouter? Router { get; private set; } = null;
+        public static LogRouter Router { get; private set; } = null!;
 
-        public static BufferedLogRoute? BufferedLogRoute { get; private set; } = null;
+        public static BufferedLogRoute BufferedLogRoute { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -336,7 +340,7 @@ namespace IPA.Cores.Basic
                 string libName = CoresLib.Mode == CoresMode.Application ? "" : CoresLib.AppName;
                 string uniqueName = $"UlogName_{Env.AppRootDir}_{CoresLib.Mode}_{libName}_{uid}";
 
-                SingleInstance instance = SingleInstance.TryGet(uniqueName, true);
+                SingleInstance? instance = SingleInstance.TryGet(uniqueName, true);
                 if (instance != null)
                 {
                     // Suppress GC
@@ -455,9 +459,9 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             Router._DisposeSafe(new CoresLibraryShutdowningException());
-            Router = null;
+            Router = null!;
 
-            BufferedLogRoute = null;
+            BufferedLogRoute = null!;
         }
 
         public static Task FlushAsync(CancellationToken cancel = default)

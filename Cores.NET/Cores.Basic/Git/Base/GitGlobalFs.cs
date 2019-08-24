@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic
 
             lock (Data.DataLock)
             {
-                GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                GitGlobalFsRepository? repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                 if (repoData == null || repoData.Repository == null)
                     throw new ApplicationException($"The repository \"{repoUrl}\" is not found by the registered list with StartRepository().");
@@ -222,7 +222,7 @@ namespace IPA.Cores.Basic
             else
             {
                 GitRepository repository = GetRepository(repoUrl);
-                GitRef reference = repository.EnumRef().Where(x => x.Name._IsSamei(commitIdOrRefName)).SingleOrDefault();
+                GitRef? reference = repository.EnumRef().Where(x => x.Name._IsSamei(commitIdOrRefName)).SingleOrDefault();
                 if (reference == null)
                 {
                     throw new ArgumentException($"The reference name \"{commitIdOrRefName}\" not found.");
@@ -245,7 +245,7 @@ namespace IPA.Cores.Basic
 
                 lock (Data.DataLock)
                 {
-                    GitGlobalFsRepository repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
+                    GitGlobalFsRepository? repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();
 
                     L_RETRY:
 
@@ -340,7 +340,7 @@ namespace IPA.Cores.Basic
 
             lock (RepositoryUpdateLock)
             {
-                GitGlobalFsRepository repoData;
+                GitGlobalFsRepository? repoData;
                 lock (Data.DataLock)
                 {
                     repoData = Data.ManagedData.RepositoryList.Where(x => x.Url._IsSamei(repoUrl)).SingleOrDefault();

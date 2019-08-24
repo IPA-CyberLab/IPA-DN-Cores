@@ -589,7 +589,7 @@ namespace IPA.Cores.Basic
 
         public new NetMiddleProtocolOptionsBase Options => (NetMiddleProtocolOptionsBase)base.Options;
 
-        public NetMiddleProtocolStackBase(PipePoint lower, PipePoint upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetMiddleProtocolStackBase(PipePoint lower, PipePoint? upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
             : base(upper, options, cancel)
         {
             try
@@ -629,7 +629,7 @@ namespace IPA.Cores.Basic
             public PalX509Certificate? RemoteCertificate { get; internal set; }
         }
 
-        public NetSslProtocolStack(PipePoint lower, PipePoint upper, NetSslProtocolOptions options,
+        public NetSslProtocolStack(PipePoint lower, PipePoint? upper, NetSslProtocolOptions? options,
             CancellationToken cancel = default) : base(lower, upper, options ?? new NetSslProtocolOptions(), cancel) { }
 
         PipeStream? LowerStream = null;

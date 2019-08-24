@@ -179,7 +179,7 @@ namespace IPA.Cores.Basic
         public readonly L7Type Type;
 
         [FieldOffset(8)]
-        public readonly L2TPPacketParsed L2TPPacketParsed;
+        public readonly L2TPPacketParsed? L2TPPacketParsed;
 
         [FieldOffset(16)]
         public readonly PacketSpan<GenericHeader> Generic;
@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
 
         public PacketParseOption ParseOption { get; private set; }
 
-        public string ErrorStr { get; private set; }
+        public string? ErrorStr { get; private set; }
         public bool IsOk => ErrorStr == null;
         public bool IsError => !IsOk;
 
@@ -246,9 +246,9 @@ namespace IPA.Cores.Basic
 
         public PacketInfo Info;
 
-        public PacketParsed InnerPacket { get; private set; }
+        public PacketParsed? InnerPacket { get; private set; }
 
-        public PacketParsed(ref Packet pkt, int startPin = DefaultSize, PacketParseOption options = null, int maxPacketSize = DefaultSize, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
+        public PacketParsed(ref Packet pkt, int startPin = DefaultSize, PacketParseOption? options = null, int maxPacketSize = DefaultSize, PacketParseMode mode = PacketParseMode.Layer2, EthernetProtocolId layer3ProtocolId = EthernetProtocolId.Unknown)
         {
             this.ParseOption = options ?? DefaultOption;
             maxPacketSize = maxPacketSize._DefaultSize(pkt.Length);
@@ -268,7 +268,7 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void SetError(string err, [CallerMemberName] string caller = null)
+        void SetError(string err, [CallerMemberName] string? caller = null)
         {
             caller = caller._NonNullTrim();
             err = err._NonNullTrim();

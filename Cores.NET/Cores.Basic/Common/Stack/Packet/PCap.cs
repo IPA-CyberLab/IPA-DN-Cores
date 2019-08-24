@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
             base.RegisterEmitter(emitter);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {
@@ -302,8 +302,10 @@ namespace IPA.Cores.Basic
 
         Once FinishedOrReset;
 
-        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object state)
+        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object? state)
         {
+            state._IsNotNull();
+
             Direction direction = (Direction)state;
             FastStreamBuffer target = (FastStreamBuffer)caller;
 
@@ -350,7 +352,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception ex)
+        protected override void CancelImpl(Exception? ex)
         {
             try
             {
@@ -436,7 +438,7 @@ namespace IPA.Cores.Basic
             return ref ret;
         }
 
-        public unsafe static PacketSpan<PCapEnhancedPacketBlock> _PCapEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string comment)
+        public unsafe static PacketSpan<PCapEnhancedPacketBlock> _PCapEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string? comment)
         {
             int packetDataSize = pkt.Length;
 

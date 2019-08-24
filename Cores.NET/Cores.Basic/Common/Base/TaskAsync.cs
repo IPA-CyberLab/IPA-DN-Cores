@@ -2925,7 +2925,7 @@ namespace IPA.Cores.Basic
             return this.Queue.ItemsReadOnly;
         }
         public Exception[] Exceptions => GetExceptions();
-        public Exception FirstException => Exceptions.FirstOrDefault();
+        public Exception? FirstException => Exceptions.FirstOrDefault();
 
         public void ThrowFirstExceptionIfExists()
         {

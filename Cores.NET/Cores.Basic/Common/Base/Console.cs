@@ -1651,7 +1651,7 @@ namespace IPA.Cores.Basic
         }
 
         // コマンドリストをパースする
-        public ConsoleParamValueList? ParseCommandList(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
+        public ConsoleParamValueList ParseCommandList(string cmdName, string command, ConsoleParam[] param, bool noErrorOnUnknownArg = false)
         {
             ConsoleParamValueList? ret = ParseCommandLineInternalMain(cmdName, command, param, noErrorOnUnknownArg);
 

@@ -543,7 +543,7 @@ namespace IPA.Cores.Basic
                             {
                                 string[] existingFiles = Directory.GetFiles(IO.InnerFilePath(this.DirName), "*" + this.Extension, SearchOption.TopDirectoryOnly);
 
-                                string candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
+                                string? candidateFileNameStartStr = Path.GetFileNameWithoutExtension(fileName).Split("~").FirstOrDefault();
 
                                 if (candidateFileNameStartStr._IsFilled())
                                 {
@@ -551,7 +551,7 @@ namespace IPA.Cores.Basic
 
                                     if (maxFileName._IsFilled())
                                     {
-                                        string existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
+                                        string? existingFileNumberStr = maxFileName.Split("~").LastOrDefault();
                                         if (existingFileNumberStr._IsFilled())
                                         {
                                             existingMaxLogNumber = existingFileNumberStr._ToInt();

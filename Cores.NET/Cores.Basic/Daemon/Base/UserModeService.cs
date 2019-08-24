@@ -32,6 +32,8 @@
 
 #if CORES_BASIC_DAEMON
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,7 +70,7 @@ namespace IPA.Cores.Basic
             public long Pid;
 
             [DataMember]
-            public string EventName;
+            public string? EventName;
 
             [DataMember]
             public int LocalLogWatchPort;
@@ -96,10 +98,10 @@ namespace IPA.Cores.Basic
         readonly HiveData<UserModeServicePidData> HiveData;
         readonly Event StoppedEvent = new Event(true);
 
-        SingleInstance SingleInstance;
+        SingleInstance? SingleInstance;
 
         public int TelnetLogWatcherPort { get; }
-        TelnetLocalLogWatcher TelnetWatcher;
+        TelnetLocalLogWatcher? TelnetWatcher;
 
         public UserModeService(string name, Action onStart, Action onStop, int telnetLogWatcherPort)
         {
@@ -124,8 +126,8 @@ namespace IPA.Cores.Basic
 
             try
             {
-                string eventName = null;
-                EventWaitHandle eventHandle = null;
+                string? eventName = null;
+                EventWaitHandle? eventHandle = null;
 
                 if (Env.IsUnix)
                 {
@@ -383,7 +385,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    if (ManualResetEvent.TryOpenExisting(HiveData.ManagedData.EventName, out EventWaitHandle eventHandle))
+                    if (ManualResetEvent.TryOpenExisting(HiveData.ManagedData.EventName!, out EventWaitHandle? eventHandle))
                     {
                         try
                         {

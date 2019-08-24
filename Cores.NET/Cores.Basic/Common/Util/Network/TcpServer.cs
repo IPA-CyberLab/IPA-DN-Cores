@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
             await TcpAcceptedImplAsync(listener, newSock);
         }
 
-        protected override void DisposeImpl(Exception ex)
+        protected override void DisposeImpl(Exception? ex)
         {
             try
             {

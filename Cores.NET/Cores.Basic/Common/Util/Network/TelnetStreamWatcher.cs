@@ -45,6 +45,8 @@ using static IPA.Cores.Globals.Basic;
 using System.IO;
 using System.Runtime.Serialization;
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 namespace IPA.Cores.Basic
 {
     public class TelnetStreamWatcherOptions
@@ -53,7 +55,7 @@ namespace IPA.Cores.Basic
         public Func<IPAddress, bool> IPAccessFilter { get; }
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
 
-        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem tcpIp, params IPEndPoint[] endPoints)
+        public TelnetStreamWatcherOptions(Func<IPAddress, bool> ipAccessFilter, TcpIpSystem? tcpIp, params IPEndPoint[] endPoints)
         {
             if (ipAccessFilter == null) ipAccessFilter = new Func<IPAddress, bool>((address) => true);
             if (tcpIp == null) tcpIp = LocalNet;
@@ -87,7 +89,7 @@ namespace IPA.Cores.Basic
 
                     using (var destStream = sock.GetStream())
                     {
-                        if (Options.IPAccessFilter(sock.Info.Ip.RemoteIPAddress) == false)
+                        if (sock.Info.Ip.RemoteIPAddress == null || Options.IPAccessFilter(sock.Info.Ip.RemoteIPAddress) == false)
                         {
                             Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Access denied: {sock.EndPointInfo._GetObjectDump()}");
 
@@ -132,7 +134,7 @@ namespace IPA.Cores.Basic
     public class TelnetLocalLogWatcherConfig : INormalizable
     {
         [DataMember]
-        public string Filters;
+        public string? Filters;
 
         public void Normalize()
         {
@@ -143,8 +145,8 @@ namespace IPA.Cores.Basic
     public class TelnetLocalLogWatcher : TelnetStreamWatcherBase
     {
         public readonly static StaticModule Module = new StaticModule(InitModule, FreeModule);
-        static Singleton<HiveData<TelnetLocalLogWatcherConfig>> _ConfigSingleton;
-        static HiveData<TelnetLocalLogWatcherConfig> Config => _ConfigSingleton;
+        static Singleton<HiveData<TelnetLocalLogWatcherConfig>> _ConfigSingleton = null!;
+        static HiveData<TelnetLocalLogWatcherConfig> Config => _ConfigSingleton = null!;
 
         static void InitModule()
         {
@@ -162,7 +164,7 @@ namespace IPA.Cores.Basic
         static void FreeModule()
         {
             _ConfigSingleton._DisposeSafe();
-            _ConfigSingleton = null;
+            _ConfigSingleton = null!;
         }
 
         public TelnetLocalLogWatcher(TelnetStreamWatcherOptions options) : base(options)

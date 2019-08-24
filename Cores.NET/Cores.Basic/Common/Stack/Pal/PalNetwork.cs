@@ -80,14 +80,14 @@ namespace IPA.Cores.Basic
             InitFields();
         }
 
-        public PalX509Certificate(ReadOnlySpan<byte> pkcs12Data, string password = null)
+        public PalX509Certificate(ReadOnlySpan<byte> pkcs12Data, string? password = null)
         {
             NativeCertificate = Secure.LoadPkcs12(pkcs12Data.ToArray(), password);
 
             InitFields();
         }
 
-        public PalX509Certificate(FilePath filePath, string password = null)
+        public PalX509Certificate(FilePath filePath, string? password = null)
             : this(filePath.EasyAccess.Binary.Span, password) { }
 
         public void InitFields()
@@ -103,7 +103,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public ReadOnlyMemory<byte> ExportCertificateAndKeyAsP12(string password = null)
+        public ReadOnlyMemory<byte> ExportCertificateAndKeyAsP12(string? password = null)
         {
             password = password._NonNull();
 
@@ -322,7 +322,7 @@ namespace IPA.Cores.Basic
         }
 
         Once DisposeFlag;
-        public void Dispose() => Dispose(true);
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         protected virtual void Dispose(bool disposing)
         {
             if (DisposeFlag.IsFirstCall() && disposing)
@@ -401,7 +401,7 @@ namespace IPA.Cores.Basic
     public class PalStream : StreamImplBase
     {
         protected Stream NativeStream;
-        protected NetworkStream NativeNetworkStream;
+        protected NetworkStream? NativeNetworkStream;
 
         public bool IsNetworkStream => (NativeNetworkStream != null);
 
@@ -445,10 +445,10 @@ namespace IPA.Cores.Basic
     {
         public PalSslClientAuthenticationOptions() { }
 
-        public PalSslClientAuthenticationOptions(bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
+        public PalSslClientAuthenticationOptions(bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback? validateRemoteCertificateProc = null, params string[] serverCertSHA1List)
             : this(null, allowAnyServerCert, validateRemoteCertificateProc, serverCertSHA1List) { }
 
-        public PalSslClientAuthenticationOptions(string targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback validateRemoteCertificateProc = null, params string[] serverCertSHAList)
+        public PalSslClientAuthenticationOptions(string? targetHost, bool allowAnyServerCert, PalSslValidateRemoteCertificateCallback? validateRemoteCertificateProc = null, params string[] serverCertSHAList)
         {
             this.TargetHost = targetHost;
             this.AllowAnyServerCert = allowAnyServerCert;
@@ -456,14 +456,14 @@ namespace IPA.Cores.Basic
             this.ServerCertSHAList = serverCertSHAList;
         }
 
-        public string TargetHost { get; set; }
-        public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
+        public string? TargetHost { get; set; }
+        public PalSslValidateRemoteCertificateCallback? ValidateRemoteCertificateProc { get; set; }
         public string[] ServerCertSHAList { get; set; } = new string[0];
         public bool AllowAnyServerCert { get; set; } = false;
 
         public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
-        public PalX509Certificate ClientCertificate { get; set; }
+        public PalX509Certificate? ClientCertificate { get; set; }
 
         public SslClientAuthenticationOptions GetNativeOptions()
         {
@@ -506,16 +506,16 @@ namespace IPA.Cores.Basic
             this.ServerCertificate = serverCertificate;
         }
 
-        public PalSslValidateRemoteCertificateCallback ValidateRemoteCertificateProc { get; set; }
+        public PalSslValidateRemoteCertificateCallback? ValidateRemoteCertificateProc { get; set; }
         public string[] ClientCertSHAList { get; set; } = new string[0];
         public bool AllowAnyClientCert { get; set; } = true;
 
-        public PalSslCertificateSelectionCallback ServerCertificateSelectionProc { get; set; }
-        public object ServerCertificateSelectionProcParam { get; set; }
+        public PalSslCertificateSelectionCallback? ServerCertificateSelectionProc { get; set; }
+        public object? ServerCertificateSelectionProcParam { get; set; }
 
         public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
-        public PalX509Certificate ServerCertificate { get; set; }
+        public PalX509Certificate? ServerCertificate { get; set; }
 
         public SslServerAuthenticationOptions GetNativeOptions()
         {
@@ -543,7 +543,7 @@ namespace IPA.Cores.Basic
 
             if (this.ServerCertificateSelectionProc != null)
             {
-                object param = this.ServerCertificateSelectionProcParam;
+                object param = this.ServerCertificateSelectionProcParam._IsNotNull();
                 ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
                 {
                     PalX509Certificate cert = this.ServerCertificateSelectionProc(param, sniHostName);
@@ -591,8 +591,8 @@ namespace IPA.Cores.Basic
         public int HashStrength => Ssl.HashStrength;
         public string KeyExchangeAlgorithm => Ssl.KeyExchangeAlgorithm.ToString();
         public int KeyExchangeStrength => Ssl.KeyExchangeStrength;
-        public PalX509Certificate LocalCertificate => Ssl.LocalCertificate == null ? null : new PalX509Certificate(Ssl.LocalCertificate);
-        public PalX509Certificate RemoteCertificate => Ssl.RemoteCertificate == null ? null : new PalX509Certificate(Ssl.RemoteCertificate);
+        public PalX509Certificate? LocalCertificate => Ssl.LocalCertificate == null ? null : new PalX509Certificate(Ssl.LocalCertificate);
+        public PalX509Certificate? RemoteCertificate => Ssl.RemoteCertificate == null ? null : new PalX509Certificate(Ssl.RemoteCertificate);
 
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
@@ -627,7 +627,7 @@ namespace IPA.Cores.Basic
         public string FqdnHostName => HostName + (string.IsNullOrEmpty(DomainName) ? "" : "." + DomainName);
         public bool IsIPv4Supported;
         public bool IsIPv6Supported;
-        public IReadOnlyList<IPAddress> IPAddressList = null;
+        public IReadOnlyList<IPAddress>? IPAddressList = null;
 
         public static bool IsUnix { get; } = (Environment.OSVersion.Platform != PlatformID.Win32NT);
 
@@ -731,12 +731,15 @@ namespace IPA.Cores.Basic
             get
             {
                 FastMemoryBuffer<byte> ret = new FastMemoryBuffer<byte>();
-                foreach (IPAddress addr in IPAddressList)
+                if (IPAddressList != null)
                 {
-                    ret.WriteSInt32((int)addr.AddressFamily);
-                    ret.Write(addr.GetAddressBytes());
-                    if (addr.AddressFamily == AddressFamily.InterNetworkV6)
-                        ret.WriteSInt64(addr.ScopeId);
+                    foreach (IPAddress addr in IPAddressList)
+                    {
+                        ret.WriteSInt32((int)addr.AddressFamily);
+                        ret.Write(addr.GetAddressBytes());
+                        if (addr.AddressFamily == AddressFamily.InterNetworkV6)
+                            ret.WriteSInt64(addr.ScopeId);
+                    }
                 }
                 return ret;
             }
@@ -744,7 +747,7 @@ namespace IPA.Cores.Basic
 
         public override bool Equals(BackgroundStateDataBase otherArg)
         {
-            PalHostNetInfo other = otherArg as PalHostNetInfo;
+            PalHostNetInfo other = (PalHostNetInfo)otherArg;
             if (string.Equals(this.HostName, other.HostName) == false) return false;
             if (string.Equals(this.DomainName, other.DomainName) == false) return false;
             if (this.IsIPv4Supported != other.IsIPv4Supported) return false;
@@ -753,7 +756,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        Action callMeCache = null;
+        Action? callMeCache = null;
 
         public override void RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(Action callMe)
         {
@@ -765,14 +768,14 @@ namespace IPA.Cores.Basic
 
         private void NetworkChange_NetworkAddressChanged(object sender, EventArgs e)
         {
-            callMeCache();
+            if (callMeCache != null) callMeCache();
 
             NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged;
         }
 
         private void NetworkChange_NetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
         {
-            callMeCache();
+            if (callMeCache != null) callMeCache();
 
             NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
         }
@@ -784,7 +787,7 @@ namespace IPA.Cores.Basic
                 using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.IP, TcpDirectionType.Client))
                 {
                     sock.Connect(dest, 65530);
-                    IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
+                    IPEndPoint ep = (IPEndPoint)sock.LocalEndPoint.Value;
                     return ep.Address;
                 }
             }
@@ -793,7 +796,7 @@ namespace IPA.Cores.Basic
             using (PalSocket sock = new PalSocket(dest.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Unknown))
             {
                 sock.Connect(dest, 65531);
-                IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
+                IPEndPoint ep = (IPEndPoint)sock.LocalEndPoint.Value;
                 return ep.Address;
             }
         }
@@ -813,7 +816,7 @@ namespace IPA.Cores.Basic
                     var hostent = await PalDns.GetHostEntryAsync("www.msftncsi.com");
                     var addr = hostent.AddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork).First();
                     await sock.ConnectAsync(addr, 443);
-                    IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
+                    IPEndPoint ep = (IPEndPoint)sock.LocalEndPoint.Value;
                     return ep.Address;
                 }
             }
@@ -826,7 +829,7 @@ namespace IPA.Cores.Basic
                     var hostent = await PalDns.GetHostEntryAsync("www.msftncsi.com");
                     var addr = hostent.AddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork).First();
                     await sock.ConnectAsync(addr, 80);
-                    IPEndPoint ep = sock.LocalEndPoint.Value as IPEndPoint;
+                    IPEndPoint ep = (IPEndPoint)sock.LocalEndPoint.Value;
                     return ep.Address;
                 }
             }
@@ -834,7 +837,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                return BackgroundState<PalHostNetInfo>.Current.Data.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+                return BackgroundState<PalHostNetInfo>.Current.Data!.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork)
                     .Where(x => IPAddress.IsLoopback(x) == false).Where(x => x != IPAddress.Any).First();
             }
             catch { }

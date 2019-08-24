@@ -54,10 +54,17 @@ namespace IPA.Cores.Basic
     {
         class HostInfo : TcpIpSystemHostInfo
         {
+            public override int InfoVersion { get; protected set; }
+            public override string HostName { get; protected set; }
+            public override string DomainName { get; protected set; }
+            public override bool IsIPv4Supported { get; protected set; }
+            public override bool IsIPv6Supported { get; protected set; }
+            public override IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
+
             public HostInfo()
             {
                 var current = BackgroundState<PalHostNetInfo>.Current;
-                var data = current.Data;
+                var data = current.Data._NullCheck();
 
                 this.InfoVersion = current.Version;
                 this.HostName = data.HostName;
@@ -68,7 +75,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static LocalTcpIpSystem Local { get; private set; }
+        public static LocalTcpIpSystem Local { get; private set; } = null!;
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
@@ -80,7 +87,7 @@ namespace IPA.Cores.Basic
         static void ModuleFree()
         {
             Local._DisposeSafe();
-            Local = null;
+            Local = null!;
         }
 
 

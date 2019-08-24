@@ -331,7 +331,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             {
                 if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    string retryAfter = res.Headers.GetValues("Retry-After").FirstOrDefault();
+                    string? retryAfter = res.Headers.GetValues("Retry-After").FirstOrDefault();
                     if (retryAfter._IsFilled())
                     {
                         num_retry++;

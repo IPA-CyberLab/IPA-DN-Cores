@@ -70,8 +70,8 @@ namespace IPA.Cores.Basic
             public bool Equals(SingleIPAddress other)
                 => this.IPAddress.Equals(other.IPAddress);
 
-            public override bool Equals(object obj)
-                => Equals((SingleIPAddress)obj);
+            public override bool Equals(object? obj)
+                => Equals((SingleIPAddress)obj._NullCheck());
 
             public override int GetHashCode()
                 => this.HashCode;

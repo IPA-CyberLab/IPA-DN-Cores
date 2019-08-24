@@ -47,6 +47,7 @@ using Microsoft.Extensions.Logging;
 using Dapper;
 using Dapper.Contrib;
 using Dapper.Contrib.Extensions;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -68,7 +69,7 @@ namespace IPA.Cores.Basic
         public DapperColumn(string name) { this.Name = name; }
     }
 
-    public class DbConsoleDebugPrinterProvider : ILoggerProvider
+    public sealed class DbConsoleDebugPrinterProvider : ILoggerProvider
     {
         Ref<bool> EnableConsoleLogger;
 
@@ -90,7 +91,7 @@ namespace IPA.Cores.Basic
             this.EnableConsoleLogger = enableConsoleLogger;
         }
 
-        public IDisposable BeginScope<TState>(TState state) => null;
+        public IDisposable? BeginScope<TState>(TState state) => null;
         public bool IsEnabled(LogLevel logLevel)
         {
             if (EnableConsoleLogger == false) return false;
@@ -157,7 +158,7 @@ namespace IPA.Cores.Basic
             this.Object = value;
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return this.Object.ToString();
         }
@@ -194,7 +195,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString()
         {
-            string[] strs = new string[this.ValueList.Length];
+            string?[] strs = new string[this.ValueList.Length];
             int i;
             for (i = 0; i < this.ValueList.Length; i++)
             {
@@ -208,14 +209,14 @@ namespace IPA.Cores.Basic
     // データ
     public class Data : IEnumerable
     {
-        public Row[] RowList { get; private set; }
-        public string[] FieldList { get; private set; }
+        public Row[]? RowList { get; private set; } = null;
+        public string[]? FieldList { get; private set; } = null;
 
         public Data() { }
 
         public Data(Database db)
         {
-            DbDataReader r = db.DataReader;
+            DbDataReader r = db.DataReader._NullCheck();
 
             int i;
             int num = r.FieldCount;
@@ -247,7 +248,7 @@ namespace IPA.Cores.Basic
 
         public async Task ReadFromDbAsync(Database db)
         {
-            DbDataReader r = db.DataReader;
+            DbDataReader r = db.DataReader._NullCheck();
 
             int i;
             int num = r.FieldCount;
@@ -279,10 +280,12 @@ namespace IPA.Cores.Basic
 
         public IEnumerator GetEnumerator()
         {
-            int i;
-            for (i = 0; i < this.RowList.Length; i++)
+            if (this.RowList != null)
             {
-                yield return this.RowList[i];
+                for (int i = 0; i < this.RowList.Length; i++)
+                {
+                    yield return this.RowList[i];
+                }
             }
         }
     }
@@ -311,7 +314,7 @@ namespace IPA.Cores.Basic
             if (db != null)
             {
                 db.Cancel();
-                db = null;
+                db = null!;
             }
         }
     }
@@ -330,16 +333,16 @@ namespace IPA.Cores.Basic
     }
 
     // データベースアクセス
-    public class Database : IDisposable
+    public sealed class Database : IDisposable
     {
         static Database()
         {
             Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
         }
 
-        public DbConnection Connection { get; private set; } = null;
-        public DbTransaction Transaction { get; private set; } = null;
-        public DbDataReader DataReader { get; private set; } = null;
+        public DbConnection Connection { get; private set; }
+        public DbTransaction? Transaction { get; private set; } = null;
+        public DbDataReader? DataReader { get; private set; } = null;
         public bool IsOpened { get; private set; } = false;
 
         public const int DefaultCommandTimeoutSecs = 60;
@@ -382,7 +385,7 @@ namespace IPA.Cores.Basic
         {
             EnsureOpen();
 
-            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction))
+            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
             {
                 bc.BulkCopyTimeout = CommandTimeoutSecs;
                 bc.DestinationTableName = tableName;
@@ -394,7 +397,7 @@ namespace IPA.Cores.Basic
         {
             await EnsureOpenAsync();
 
-            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction))
+            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
             {
                 bc.BulkCopyTimeout = CommandTimeoutSecs;
                 bc.DestinationTableName = tableName;
@@ -425,7 +428,7 @@ namespace IPA.Cores.Basic
 
         static CriticalSection DapperTypeMapLock = new CriticalSection();
         static HashSet<Type> DapperInstalledTypes = new HashSet<Type>();
-        static void EnsureDapperTypeMapping(Type t)
+        static void EnsureDapperTypeMapping(Type? t)
         {
             if (t == null) return;
             lock (DapperTypeMapLock)
@@ -460,7 +463,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object param, Type type = null)
+        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null)
         {
             await EnsureOpenAsync();
 
@@ -492,26 +495,26 @@ namespace IPA.Cores.Basic
             return t;
         }
 
-        public async Task<IEnumerable<T>> QueryAsync<T>(string commandStr, object param = null)
+        public async Task<IEnumerable<T>> QueryAsync<T>(string commandStr, object? param = null)
             => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
 
-        public async Task<int> ExecuteAsync(string commandStr, object param = null)
+        public async Task<int> ExecuteAsync(string commandStr, object? param = null)
             => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
 
-        public async Task<T> ExecuteScalarAsync<T>(string commandStr, object param = null)
+        public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
             => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
 
-        public IEnumerable<T> Query<T>(string commandStr, object param = null)
+        public IEnumerable<T> Query<T>(string commandStr, object? param = null)
             => QueryAsync<T>(commandStr, param)._GetResult();
 
-        public int Execute(string commandStr, object param = null)
+        public int Execute(string commandStr, object? param = null)
             => ExecuteAsync(commandStr, param)._GetResult();
 
-        public T ExecuteScalar<T>(string commandStr, object param = null)
+        public T ExecuteScalar<T>(string commandStr, object? param = null)
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
 
-        public async Task<T> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
+        public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
         {
             await EnsureOpenAsync();
             EnsureDapperTypeMapping(typeof(T));
@@ -584,7 +587,7 @@ namespace IPA.Cores.Basic
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
             => EasyDeleteAsync(data, throwErrorIfNotFound)._GetResult();
 
-        public async Task<dynamic> EasyFindIdAsync<T>(string selectStr, object selectParam) where T: class
+        public async Task<dynamic?> EasyFindIdAsync<T>(string selectStr, object selectParam) where T : class
         {
             var list = await QueryAsync<T>(selectStr, selectParam);
             var entity = list.SingleOrDefault();
@@ -598,12 +601,12 @@ namespace IPA.Cores.Basic
             return keyProperty.GetValue(entity);
         }
 
-        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object selectParam, T newEntity = null) where T: class
+        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object selectParam, T? newEntity = null) where T : class
         {
             if (newEntity == null)
                 newEntity = (T)selectParam;
 
-            dynamic id = await EasyFindIdAsync<T>(selectStr, selectParam);
+            dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
 
             if (id == null)
             {
@@ -633,9 +636,9 @@ namespace IPA.Cores.Basic
             return await EasyGetAsync<T>(id, true);
         }
 
-        public async Task<T> EasyFindAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = true) where T : class
+        public async Task<T?> EasyFindAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = true) where T : class
         {
-            dynamic id = await EasyFindIdAsync<T>(selectStr, selectParam);
+            dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
 
             if (id == null)
             {
@@ -693,6 +696,8 @@ namespace IPA.Cores.Basic
         {
             get
             {
+                DataReader._NullCheck();
+
                 object o = DataReader[name];
 
                 return new DatabaseValue(o);
@@ -828,7 +833,9 @@ namespace IPA.Cores.Basic
             if (Transaction != null)
                 cmd.Transaction = Transaction;
 
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
             cmd.CommandText = b.ToString();
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
             cmd.CommandTimeout = this.CommandTimeoutSecs;
 
             return cmd;
@@ -837,16 +844,6 @@ namespace IPA.Cores.Basic
         // オブジェクトを SQL パラメータに変換
         DbParameter buildParameter(DbCommand cmd, string name, object o)
         {
-            Type t = null;
-
-            try
-            {
-                t = o.GetType();
-            }
-            catch
-            {
-            }
-
             if (o == null)
             {
                 DbParameter p = cmd.CreateParameter();
@@ -854,7 +851,10 @@ namespace IPA.Cores.Basic
                 p.Value = DBNull.Value;
                 return p;
             }
-            else if (t == typeof(System.String))
+
+            Type t = o.GetType();
+
+            if (t == typeof(System.String))
             {
                 string s = (string)o;
                 DbParameter p = cmd.CreateParameter();
@@ -952,7 +952,7 @@ namespace IPA.Cores.Basic
                 IsOpened = false;
                 Connection.Close();
                 Connection.Dispose();
-                Connection = null;
+                Connection = null!;
             }
         }
 
@@ -965,7 +965,7 @@ namespace IPA.Cores.Basic
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
         public void Tran(TransactionalTask task) => Tran(IsolationLevel.Serializable, null, task);
         public void Tran(IsolationLevel iso, TransactionalTask task) => Tran(iso, null, task);
-        public void Tran(IsolationLevel iso, DeadlockRetryConfig retryConfig, TransactionalTask task)
+        public void Tran(IsolationLevel iso, DeadlockRetryConfig? retryConfig, TransactionalTask task)
         {
             EnsureOpen();
             if (retryConfig == null)
@@ -1019,7 +1019,7 @@ namespace IPA.Cores.Basic
 
         public Task TranAsync(TransactionalTaskAsync task) => TranAsync(IsolationLevel.Serializable, null, task);
         public Task TranAsync(IsolationLevel iso, TransactionalTaskAsync task) => TranAsync(iso, null, task);
-        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig retryConfig, TransactionalTaskAsync task)
+        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task)
         {
             await EnsureOpenAsync();
             if (retryConfig == null)

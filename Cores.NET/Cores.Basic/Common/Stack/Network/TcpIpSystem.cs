@@ -63,11 +63,11 @@ namespace IPA.Cores.Basic
     {
         public IPAddress DestIp { get; private set; }
         public int DestPort { get; private set; }
-        public IPAddress SrcIp { get; }
+        public IPAddress? SrcIp { get; }
         public int SrcPort { get; }
 
         public bool NeedToSolveDestHostname { get; private set; }
-        public string DestHostname { get; }
+        public string? DestHostname { get; }
         public int DnsTimeout { get; }
 
         public AddressFamily AddressFamily => DestIp.AddressFamily;
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
             this.DnsTimeout = dnsTimeout;
         }
 
-        public NetworkConnectParam(IPAddress destIp, int destPort, IPAddress srcIp = null, int srcPort = 0)
+        public NetworkConnectParam(IPAddress destIp, int destPort, IPAddress? srcIp = null, int srcPort = 0)
         {
             if (destIp == null) throw new ArgumentNullException("destIp");
             if (CheckAddressFamily(destIp) == false) throw new ArgumentOutOfRangeException("destIp.AddressFamily");
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
         {
             if (this.NeedToSolveDestHostname == false) return;
 
-            IPAddress ip = await system.GetIpAsync(this.DestHostname, this.AddressFamily, this.DnsTimeout, cancel);
+            IPAddress ip = await system.GetIpAsync(this.DestHostname!, this.AddressFamily, this.DnsTimeout, cancel);
             this.DestIp = ip;
             this.NeedToSolveDestHostname = false;
         }
@@ -153,7 +153,7 @@ namespace IPA.Cores.Basic
     {
         public int ConnectTimeout { get; }
 
-        public TcpConnectParam(IPAddress destIp, int destPort, IPAddress srcIp = null, int srcPort = 0, int connectTimeout = -1)
+        public TcpConnectParam(IPAddress destIp, int destPort, IPAddress? srcIp = null, int srcPort = 0, int connectTimeout = -1)
             : base(destIp, destPort, srcIp, srcPort)
         {
             if (connectTimeout <= 0) connectTimeout = CoresConfig.TcpIpStackDefaultSettings.ConnectTimeout;
@@ -281,12 +281,12 @@ namespace IPA.Cores.Basic
     // 注: DaemonCenter で利用しているためいじらないこと
     public class TcpIpHostDataJsonSafe
     {
-        public string HostName;
-        public string DomainName;
-        public string FqdnHostName;
+        public string? HostName;
+        public string? DomainName;
+        public string? FqdnHostName;
         public bool IsIPv4Supported;
         public bool IsIPv6Supported;
-        public string[] IPAddressList;
+        public string[]? IPAddressList;
 
         public TcpIpHostDataJsonSafe() { }
 
@@ -305,13 +305,13 @@ namespace IPA.Cores.Basic
 
     public abstract class TcpIpSystemHostInfo
     {
-        public virtual int InfoVersion { get; protected set; }
-        public virtual string HostName { get; protected set; }
-        public virtual string DomainName { get; protected set; }
-        public virtual string FqdnHostName => HostName + (string.IsNullOrEmpty(DomainName) ? "" : "." + DomainName);
-        public virtual bool IsIPv4Supported { get; protected set; }
-        public virtual bool IsIPv6Supported { get; protected set; }
-        public virtual IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
+        public abstract int InfoVersion { get; protected set; }
+        public abstract string HostName { get; protected set; }
+        public abstract string DomainName { get; protected set; }
+        public string FqdnHostName => HostName + (string.IsNullOrEmpty(DomainName) ? "" : "." + DomainName);
+        public abstract bool IsIPv4Supported { get; protected set; }
+        public abstract bool IsIPv6Supported { get; protected set; }
+        public abstract IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
     }
 
     public class TcpIpSystemParam : NetworkSystemParam
@@ -337,7 +337,8 @@ namespace IPA.Cores.Basic
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param)
         {
-            LocalHostPossibleGlobalIpAddressListCache = new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError,
+            LocalHostPossibleGlobalIpAddressListCache =
+                new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError,
                 GetLocalHostPossibleGlobalIpAddressListMainAsync);
         }
 
@@ -388,11 +389,13 @@ namespace IPA.Cores.Basic
             var hostInfo = GetHostInfo();
 
             // ユーザーが Callback を指定していないので GenericAcceptQueueUtil キューユーティリティを初期化する
-            GenericAcceptQueueUtil<ConnSock> acceptQueueUtil = null;
+            GenericAcceptQueueUtil<ConnSock>? acceptQueueUtil = null;
             if (param.AcceptCallback == null)
             {
                 acceptQueueUtil = new GenericAcceptQueueUtil<ConnSock>();
             }
+
+            acceptQueueUtil._IsNotNull();
 
             try
             {
@@ -465,7 +468,7 @@ namespace IPA.Cores.Basic
         public DnsResponse QueryDns(DnsQueryParamBase param, CancellationToken cancel = default)
             => QueryDnsAsync(param, cancel)._GetResult();
 
-        async Task<HashSet<IPAddress>> GetLocalHostPossibleGlobalIpAddressListMainAsync(CancellationToken cancel)
+        async Task<HashSet<IPAddress>?> GetLocalHostPossibleGlobalIpAddressListMainAsync(CancellationToken cancel)
         {
             HashSet<IPAddress> ret = new HashSet<IPAddress>();
 
@@ -508,8 +511,12 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public Task<HashSet<IPAddress>> GetLocalHostPossibleIpAddressListAsync(CancellationToken cancel = default)
-            => LocalHostPossibleGlobalIpAddressListCache.GetAsync(cancel);
+        public async Task<HashSet<IPAddress>> GetLocalHostPossibleIpAddressListAsync(CancellationToken cancel = default)
+        {
+            HashSet<IPAddress>? ret = await LocalHostPossibleGlobalIpAddressListCache.GetAsync(cancel);
+
+            return ret ?? new HashSet<IPAddress>();
+        }
     }
 }
 
