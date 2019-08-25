@@ -203,6 +203,66 @@ namespace IPA.TestDev
         }
 
 
+        public class GitCommitInfo
+        {
+            public string CommitId;
+            public DateTimeOffset TimeStamp;
+            public string Description;
+        }
+
+        public static bool GetGitCommitInfo(string gitRootDir, string commitId)
+        {
+            gitRootDir = PP.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(gitRootDir);
+            commitId._FilledOrException();
+
+            ProcessStartInfo info = new ProcessStartInfo()
+            {
+                FileName = "git",
+                Arguments = "status",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                RedirectStandardInput = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Env.AppRootDir,
+            };
+
+            Con.WriteError("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
+
+            try
+            {
+                using (Process p = Process.Start(info))
+                {
+                    string err1 = p.StandardError.ReadToEnd();
+                    string err2 = p.StandardError.ReadToEnd();
+                    p.WaitForExit(10000);
+                    try
+                    {
+                        p.Kill();
+                    }
+                    catch { }
+                    if (p.ExitCode == 0)
+                    {
+                        Con.WriteError("Git is supported.");
+                        return true;
+                    }
+                    else
+                    {
+                        Con.WriteError($"Git command error code: {p.ExitCode}");
+                        Con.WriteError($"Git result:\n{err1}\n{err2}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"Git command execution error: {ex.Message}");
+            }
+
+            Con.WriteError("Git is not supported.");
+
+            return false;
+        }
+
         static void Test_DaemonCenterClient()
         {
             TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
