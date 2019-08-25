@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic.Legacy
             h.ID1 = 0x1f;
             h.ID2 = 0x8b;
             h.FLG = 0;
-            h.MTIME = Util.DateTimeToUnixTime(DateTime.Now.ToUniversalTime());
+            h.MTIME = (uint)Util.DateTimeToUnixTime(DateTime.Now.ToUniversalTime());
             h.XFL = 0;
             h.OS = 3;
             h.CM = 8;

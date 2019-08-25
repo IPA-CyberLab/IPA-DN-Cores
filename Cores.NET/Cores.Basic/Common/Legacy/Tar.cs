@@ -162,7 +162,7 @@ namespace IPA.Cores.Basic.Legacy
 
         public void SetMTime(DateTime dt)
         {
-            uint t = Util.DateTimeToUnixTime(dt.ToUniversalTime());
+            uint t = (uint)Util.DateTimeToUnixTime(dt.ToUniversalTime());
 
             StrToByteArray(this.MTime, Str.AppendZeroToNumString(Convert.ToString(t, 8), 11));
         }

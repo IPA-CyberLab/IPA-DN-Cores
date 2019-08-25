@@ -1488,7 +1488,7 @@ namespace IPA.Cores.Basic
         }
 
         // UNIX 時間を DateTime に変換
-        public static DateTime UnixTimeToDateTime(uint t)
+        public static DateTime UnixTimeToDateTime(ulong t)
         {
             return new DateTime(1970, 1, 1).AddSeconds(t);
         }
@@ -1499,7 +1499,7 @@ namespace IPA.Cores.Basic
         }
 
         // DateTime を UNIX 時間に変換
-        public static uint DateTimeToUnixTime(DateTime dt)
+        public static long DateTimeToUnixTime(DateTime dt)
         {
             TimeSpan ts = dt - new DateTime(1970, 1, 1);
             if (ts.Ticks < 0)
@@ -1507,7 +1507,7 @@ namespace IPA.Cores.Basic
                 throw new InvalidDataException("dt");
             }
 
-            return (uint)ts.TotalSeconds;
+            return (long)ts.TotalSeconds;
         }
         public static decimal DateTimeToUnixTimeDecimal(DateTime dt)
         {

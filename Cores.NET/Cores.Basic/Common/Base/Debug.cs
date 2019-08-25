@@ -363,13 +363,14 @@ namespace IPA.Cores.Basic
                 using (Process p = Process.Start(info))
                 {
                     string err1 = p.StandardError.ReadToEnd();
-                    string err2 = p.StandardError.ReadToEnd();
+                    string err2 = p.StandardOutput.ReadToEnd();
                     p.WaitForExit(10000);
                     try
                     {
                         p.Kill();
                     }
                     catch { }
+
                     if (p.ExitCode == 0)
                     {
                         Con.WriteError("Git is supported.");
@@ -395,6 +396,27 @@ namespace IPA.Cores.Basic
 
         static string? CurrentGitCommitIdCache = null;
         static string? CurrentGitRootDirCache = null;
+        static DbgGitCommitInfo? CurrentGitCommitInfoCache = null;
+
+        public static DbgGitCommitInfo? GetCurrentGitCommitInfo()
+        {
+            if (CurrentGitCommitInfoCache == null)
+            {
+                try
+                {
+                    string currentCommitId = GetCurrentGitCommitId();
+                    string? currentGitRootDir = CurrentGitRootDirCache;
+
+                    if (currentGitRootDir._IsFilled())
+                    {
+                        CurrentGitCommitInfoCache = GetGitCommitInfo(currentGitRootDir, currentCommitId);
+                    }
+                }
+                catch { }
+            }
+
+            return CurrentGitCommitInfoCache;
+        }
 
         public static string GetCurrentGitCommitId()
         {
@@ -454,6 +476,79 @@ namespace IPA.Cores.Basic
                 if (tmpPath._IsSamei(parentPath)) return "";
 
                 tmpPath = parentPath;
+            }
+        }
+
+        // 指定されたディレクトリとコミット ID (の一部でも可) を入力すると Git コミット情報を返す関数
+        public static DbgGitCommitInfo GetGitCommitInfo(string gitRootDir, string commitId)
+        {
+            gitRootDir = PP.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(gitRootDir);
+            commitId._FilledOrException();
+            commitId = commitId._NormalizeHexString();
+
+            ProcessStartInfo info = new ProcessStartInfo()
+            {
+                FileName = "git",
+                Arguments = $"--no-pager log -n 1 --pretty=format:%H,%at,%s {commitId}",
+                UseShellExecute = false,
+                RedirectStandardInput = false,
+                CreateNoWindow = true,
+                WorkingDirectory = gitRootDir,
+
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardErrorEncoding = Str.Utf8Encoding,
+                StandardOutputEncoding = Str.Utf8Encoding,
+            };
+
+            using Process p = Process.Start(info);
+
+            string err1 = p.StandardError.ReadToEnd();
+            string err2 = p.StandardOutput.ReadToEnd();
+
+            p.WaitForExit(30000);
+
+            try
+            {
+                p.Kill();
+            }
+            catch { }
+
+            if (p.ExitCode == 0)
+            {
+                // 結果をパース
+                string? firstLine = err2._GetLines().Where(s => s._IsFilled()).FirstOrDefault();
+
+                if (firstLine._IsFilled())
+                {
+                    if (firstLine._GetKeyAndValue(out string commitIdStr, out string others, ","))
+                    {
+                        if (others._GetKeyAndValue(out string unixTimeStr, out string descriptionStr, ","))
+                        {
+                            // commit ID のチェック
+                            if (Str.TryNormalizeGitCommitId(commitIdStr, out commitIdStr))
+                            {
+                                // UNIX 時刻のチェック
+                                DateTimeOffset dt = Util.UnixTimeToDateTime(unixTimeStr._ToULong())._AsDateTimeOffset(true);
+
+                                descriptionStr = descriptionStr._NonNullTrim();
+
+                                // パース完了
+                                return new DbgGitCommitInfo(commitId: commitIdStr,
+                                                         timeStamp: dt,
+                                                         description: descriptionStr);
+                            }
+                        }
+                    }
+                }
+
+                // パース失敗
+                throw new CoresException($"Git command result parse error. Result: {err1}\n{err2}");
+            }
+            else
+            {
+                // エラー
+                throw new CoresException($"Git command error. Result: {err1}\n{err2}");
             }
         }
 
@@ -1519,6 +1614,20 @@ namespace IPA.Cores.Basic
                 }
             }
             return w.ToString();
+        }
+    }
+
+    public class DbgGitCommitInfo
+    {
+        public string CommitId { get; }
+        public DateTimeOffset TimeStamp { get; }
+        public string Description { get; }
+
+        public DbgGitCommitInfo(string commitId, DateTimeOffset timeStamp, string description)
+        {
+            CommitId = commitId;
+            TimeStamp = timeStamp;
+            Description = description;
         }
     }
 
