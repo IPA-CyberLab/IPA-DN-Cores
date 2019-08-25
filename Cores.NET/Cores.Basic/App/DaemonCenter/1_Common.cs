@@ -210,6 +210,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     {
         public string? DaemonName;
         public string? CommitId;
+        public DbgGitCommitInfo? CommitInfo;
         public string? InstanceArguments;
         public CoresRuntimeStat? RuntimeStat;
         public EnvInfoSnapshot? EnvInfo;

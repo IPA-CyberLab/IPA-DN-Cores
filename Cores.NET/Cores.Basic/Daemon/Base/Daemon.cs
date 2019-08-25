@@ -549,6 +549,7 @@ namespace IPA.Cores.Basic
             ClientVariables vars = new ClientVariables
             {
                 CurrentCommitId = Dbg.GetCurrentGitCommitId(),
+                CurrentCommitInfo = Dbg.GetCurrentGitCommitInfo(),
                 StatFlag = StatFlag.OnGit,
                 CurrentInstanceArguments = Settings.DaemonStartupArgument,
                 PauseFlag = Settings.DaemonPauseFlag,

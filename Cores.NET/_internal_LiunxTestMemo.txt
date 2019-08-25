@@ -8,15 +8,15 @@ git clone --recursive git@github.com:IPA-CyberLab/IPA-DN-Cores.git
 
 
 ■ 2 回目以降
-cd ~/IPA-DN-Cores/Cores.NET/TestDev/ && (cd ../../ && git submodule update --recursive --remote && git pull) && dotnet run
+cd ~/IPA-DN-Cores/Cores.NET/TestDev/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
 
 
 ■ Web サーバーテスト
-cd ~/IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && (cd ../../ && git submodule update --recursive --remote && git pull) && dotnet run
+cd ~/IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
 
 
 ■ どのディレクトリからでも呼べる更新コマンド
-(cd ~/IPA-DN-Cores/ && git submodule update --recursive --remote && git pull)
+(cd ~/IPA-DN-Cores/ && git pull origin master && git submodule update --init --recursive)
 
 
 ======== 簡易コピー ========

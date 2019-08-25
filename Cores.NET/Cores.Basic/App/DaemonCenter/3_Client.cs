@@ -93,6 +93,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     public class ClientVariables
     {
         public string? CurrentCommitId;
+        public DbgGitCommitInfo? CurrentCommitInfo;
         public string? CurrentInstanceArguments;
         public StatFlag StatFlag;
         public PauseFlag PauseFlag;
@@ -254,6 +255,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             {
                 DaemonName = this.Settings.DaemonName,
                 CommitId = this.Variables.CurrentCommitId,
+                CommitInfo = this.Variables.CurrentCommitInfo,
                 InstanceArguments = this.Variables.CurrentInstanceArguments,
                 RuntimeStat = runtimeStat,
                 EnvInfo = new EnvInfoSnapshot(),
