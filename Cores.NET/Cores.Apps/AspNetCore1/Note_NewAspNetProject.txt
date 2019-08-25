@@ -83,11 +83,11 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
-    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe stop $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Dev.Tools\CompiledBin\DebugHost.exe stop $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
-    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Tools\CompiledBin\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)..\..\..\..\Cores.NET\Dev.Tools\CompiledBin\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <ItemGroup>
@@ -119,11 +119,11 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
-    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe stop $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Tools\\CompiledBin\\DebugHost.exe stop $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(BuildingInsideVisualStudio)' == 'true'">
-    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
+    <Exec Command="$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Tools\\CompiledBin\\DebugHost.exe start $(ProjectName) dotnet exec $(TargetPath) Daemon Test" />
   </Target>
 
   <ItemGroup>
@@ -141,7 +141,7 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   "profiles": {
     "DebugHost Run": {
       "commandName": "Executable",
-      "executablePath": "$(ProjectDir)..\\..\\..\\..\\Cores.NET\\\\Tools\\\\CompiledBin\\\\DebugHost.exe",
+      "executablePath": "$(ProjectDir)..\\..\\..\\..\\Cores.NET\\\\Dev.Tools\\\\CompiledBin\\\\DebugHost.exe",
       "commandLineArgs": "restart $(ProjectName) dotnet exec $(TargetPath) Daemon Test",
       "workingDirectory": ".\\"
     },
@@ -160,7 +160,7 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   "profiles": {
     "DebugHost Run": {
       "commandName": "Executable",
-      "executablePath": "$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Tools\\CompiledBin\\DebugHost.exe",
+      "executablePath": "$(ProjectDir)\\..\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Tools\\CompiledBin\\DebugHost.exe",
       "commandLineArgs": "restart $(ProjectName) dotnet exec $(TargetPath) Daemon Test",
       "workingDirectory": ".\\"
     },

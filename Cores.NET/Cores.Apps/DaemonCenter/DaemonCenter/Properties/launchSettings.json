@@ -2,7 +2,7 @@
   "profiles": {
     "DebugHost Run": {
       "commandName": "Executable",
-      "executablePath": "$(ProjectDir)..\\..\\..\\..\\Cores.NET\\\\Tools\\\\CompiledBin\\\\DebugHost.exe",
+      "executablePath": "$(ProjectDir)..\\..\\..\\..\\Cores.NET\\\\Dev.Tools\\\\CompiledBin\\\\DebugHost.exe",
       "commandLineArgs": "restart $(ProjectName) dotnet exec $(TargetPath) Daemon Test",
       "workingDirectory": ".\\"
     },
