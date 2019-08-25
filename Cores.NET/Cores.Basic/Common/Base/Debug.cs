@@ -529,7 +529,7 @@ namespace IPA.Cores.Basic
                             if (Str.TryNormalizeGitCommitId(commitIdStr, out commitIdStr))
                             {
                                 // UNIX 時刻のチェック
-                                DateTimeOffset dt = Util.UnixTimeToDateTime(unixTimeStr._ToULong())._AsDateTimeOffset(true);
+                                DateTimeOffset dt = Util.UnixTimeToDateTime(unixTimeStr._ToULong())._AsDateTimeOffset(false).ToLocalTime();
 
                                 descriptionStr = descriptionStr._NonNullTrim();
 
