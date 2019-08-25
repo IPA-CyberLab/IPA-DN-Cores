@@ -30,6 +30,8 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#pragma warning disable CA2235 // Mark all non-serializable fields
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1617,6 +1619,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Serializable]
     public class DbgGitCommitInfo
     {
         public string CommitId { get; }
