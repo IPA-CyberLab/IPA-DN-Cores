@@ -50,6 +50,49 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
+        [ConsoleCommand(
+            "EnumDir command",
+            "EnumDir [dir] /out:dest",
+            "EnumDir command")]
+        static int EnumDir(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dir]", ConsoleService.Prompt, "Target directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("out", ConsoleService.Prompt, "Destination filename: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dir = vl.DefaultParam.StrValue;
+            string dest = vl["out"].StrValue;
+
+            using var outFile = Lfs.Create(dest, flags: FileFlags.AutoCreateDirectory);
+            using var outStream = outFile.GetStream(false);
+            using var w = new StreamWriter(outStream);
+
+            DirectoryWalker walker = new DirectoryWalker(Lfs, EnumDirectoryFlags.NoGetPhysicalSize);
+
+            walker.WalkDirectory(rootDirectory: dir,
+                callback: (pathinfo, entry, cancel) =>
+                {
+                    w.WriteLine(PP.AppendDirectorySeparatorTail(pathinfo.FullPath));
+                    entry.Where(x => x.IsFile).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer)._DoForEach(file => w.WriteLine(file.FullPath));
+                    return true;
+                },
+                exceptionHandler: (pathinfo, exp, cancel) =>
+                {
+                    w.WriteLine($"*** Error: \"{pathinfo.FullPath}\": {exp.Message}");
+                    return true;
+                });
+
+            w.Flush();
+            outStream.Flush();
+
+            return 0;
+        }
+
         [ConsoleCommand(
             "CopyErrorFile command",
             "CopyErrorFile src /dest:dest",

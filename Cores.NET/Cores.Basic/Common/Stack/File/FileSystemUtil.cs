@@ -447,6 +447,9 @@ namespace IPA.Cores.Basic
             this.RelativePath = relativePath;
             this.Entity = entity;
         }
+
+        public override string? ToString()
+            => this.FullPath;
     }
 
     public class DirectoryWalker

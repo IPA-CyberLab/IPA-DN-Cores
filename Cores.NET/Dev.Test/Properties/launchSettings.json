@@ -54,6 +54,10 @@
     "TestDev /TcpStressClient SSL": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:TcpStressClient https://dn-lxd-vm2-test1/favicon.ico"
+    },
+    "TestDev /EnumDir": {
+      "commandName": "Project",
+      "commandLineArgs": "EnumDir c:\\tmp\\ /out:c:\\tmp\\test.c"
     }
   }
 }
