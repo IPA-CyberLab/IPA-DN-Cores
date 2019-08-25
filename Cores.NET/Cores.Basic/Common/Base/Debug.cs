@@ -394,6 +394,8 @@ namespace IPA.Cores.Basic
         public static bool IsGitCommandSupported() => IsGitCommandSupportedSingleton.CreateOrGet();
 
         static string? CurrentGitCommitIdCache = null;
+        static string? CurrentGitRootDirCache = null;
+
         public static string GetCurrentGitCommitId()
         {
             if (CurrentGitCommitIdCache == null)
@@ -427,6 +429,8 @@ namespace IPA.Cores.Basic
                     {
                         if (Str.TryNormalizeGitCommitId(line, out string commitId))
                         {
+                            CurrentGitRootDirCache = tmpPath;
+
                             return commitId;
                         }
 
@@ -434,6 +438,8 @@ namespace IPA.Cores.Basic
                         {
                             if (key._IsSamei("ref"))
                             {
+                                CurrentGitRootDirCache = tmpPath;
+
                                 string refFilename = value.Trim();
                                 string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
 
