@@ -288,8 +288,52 @@ namespace IPA.TestDev
             }
         }
 
+        [Serializable]
+        public class STest1
+        {
+            public string S1 { get; }
+            string P1 { get; }
+
+            public string GetP1() => P1;
+
+            public STest1(string arg1)
+            {
+                this.S1 = arg1;
+                this.P1 = arg1 + "_private";
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                STest1 t1 = new STest1("Hello");
+
+                string json1 = t1._ObjectToJson();
+
+                //json1._Print();
+
+                json1 = json1._ReplaceStr("Hello", "Bye");
+
+                STest1 t2 = json1._JsonToObject<STest1>()!;
+
+                //t2._PrintAsJson();
+
+                //t2.GetP1()._PrintAsJson();
+
+                string json2 = t1._ObjectToRuntimeJsonStr();
+
+                //STest1 t3 = t1._CloneDeep();
+
+                //t3._PrintAsJson();
+
+                //t3.GetP1()._PrintAsJson();
+
+                json2._Print();
+
+                return;
+            }
+
             if (true)
             {
                 var info = Dbg.GetCurrentGitCommitInfo();

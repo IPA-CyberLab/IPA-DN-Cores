@@ -121,6 +121,12 @@
                     <td nowrap>@inst.LastStat.StatFlag.ToString()</td>
                     <td nowrap>
                         現在: @inst.LastStat.CommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)
+                        @if (inst.LastStat.CommitInfo != null)
+                        {
+                            var info = inst.LastStat.CommitInfo;
+                            <BR /><text>(</text>@info.TimeStamp.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)<br />@info.Description._TruncStrEx(10)<text>)</text>
+                        }
+
                         @if ((IsFilled)inst.NextCommitId)
                         {
                             <BR /><text>次回: @inst.NextCommitId._TruncStrEx(Consts.MaxLens.GitCommitIdTruncateLen)</text>

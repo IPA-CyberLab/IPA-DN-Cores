@@ -25,7 +25,7 @@ namespace DaemonCenter
             CoresConfig.CertVaultSettings.DefaultUseAcme.Set(false);
 
             return StandardMainFunctions.DaemonMain.DoMain(
-                new CoresLibOptions(CoresMode.Application,
+                new CoresLibOptions(CoresMode.Daemon,
                     appName: appName,
                     defaultDebugMode: DebugMode.Debug,
                     defaultPrintStatToConsole: false,
