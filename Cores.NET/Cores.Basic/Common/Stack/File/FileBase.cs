@@ -1042,6 +1042,87 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
+    public interface ISequentialWriter<T>
+    {
+        public long CurrentPosition { get; }
+        public bool NeedFlush { get; }
+
+        public Exception? LastError { get; }
+        public bool HasError => LastError != null;
+
+        Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        Task<long> FlushAsync(CancellationToken cancel = default);
+
+        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => AppendAsync(data, cancel)._GetResult();
+        void Flush(CancellationToken cancel = default)
+            => FlushAsync(cancel)._GetResult();
+    }
+
+    // IRandomAccess インターフェイスのターゲットに対して追記のみの書き込みを提供するクラス
+    public class SequentialWriter<T> : ISequentialWriter<T>
+    {
+        public IRandomAccess<T> Target { get; }
+        public long CurrentPosition { get; private set; } = 0;
+
+        public Exception? LastError { get; private set; } = null;
+
+        public bool NeedFlush { get; private set; } = false;
+
+        public SequentialWriter(IRandomAccess<T> target)
+        {
+            this.Target = target;
+        }
+
+        public async Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            if (this.LastError != null) throw this.LastError;
+
+            if (data.Length == 0) return this.CurrentPosition;
+
+            try
+            {
+                await Target.WriteRandomAsync(this.CurrentPosition, data, cancel);
+
+                this.NeedFlush = true;
+                this.CurrentPosition += data.Length;
+
+                return this.CurrentPosition;
+            }
+            catch (Exception ex)
+            {
+                ErrorOccured(ex);
+                throw;
+            }
+        }
+
+        public async Task<long> FlushAsync(CancellationToken cancel = default)
+        {
+            if (this.LastError != null) throw this.LastError;
+
+            if (this.NeedFlush == false) return this.CurrentPosition;
+
+            try
+            {
+                await Target.FlushAsync(cancel);
+
+                this.NeedFlush = false;
+
+                return this.CurrentPosition;
+            }
+            catch (Exception ex)
+            {
+                ErrorOccured(ex);
+                throw;
+            }
+        }
+
+        void ErrorOccured(Exception ex)
+        {
+            this.LastError = ex;
+        }
+    }
+
     public interface IRandomAccess<T> : IDisposable
     {
         Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
