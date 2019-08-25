@@ -27,6 +27,7 @@ namespace IPA.Cores.Basic
     public enum CoresMode
     {
         Application = 0,
+        Daemon,
         Library,
     }
 
@@ -111,6 +112,8 @@ namespace IPA.Cores.Basic
         public static string AppNameFnSafe { get; private set; } = null!;
         public static CoresMode Mode { get; private set; }
 
+        public static string LogFileSuffix { get; private set; } = "";
+
         public static readonly string CoresLibSourceCodeFileName = Dbg.GetCallerSourceCodeFilePath();
 
         public static string[] Init(CoresLibOptions options, params string[] args)
@@ -127,6 +130,31 @@ namespace IPA.Cores.Basic
                 CoresLib.AppName = options.AppName;
                 CoresLib.AppNameFnSafe = PathParser.Windows.MakeSafeFileName(CoresLib.AppName);
                 CoresLib.Mode = options.Mode;
+                CoresLib.LogFileSuffix = "";
+
+#if CORES_BASIC_DAEMON
+                if (CoresLib.Mode == CoresMode.Daemon)
+                {
+                    // Daemon モードの場合は LogFileSuffix を決定するためにスタートアップ引数を先読みして動作モードを決定する
+                    bool isDaemonExecMode = false;
+
+                    foreach (string arg in args)
+                    {
+                        DaemonCmdType type = arg._ParseEnum(DaemonCmdType.Unknown);
+                        if (type.EqualsAny(DaemonCmdType.ExecMain, DaemonCmdType.Test, DaemonCmdType.TestDebug, DaemonCmdType.WinExecSvc))
+                        {
+                            isDaemonExecMode = true;
+                            break;
+                        }
+                    }
+
+                    if (isDaemonExecMode)
+                    {
+                        // Daemon のメイン処理を実行するモードのようであるから LogFileSuffix にそのことがわかる文字列を設定する
+                        CoresLib.LogFileSuffix = Consts.Strings.DaemonExecModeLogFileSuffix;
+                    }
+                }
+#endif
 
                 string[] newArgs = options.OverrideOptionsByArgs(args);
 

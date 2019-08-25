@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
 
             for (int uid = 0; uid < CoresConfig.BasicConfig.MaxPossibleConcurrentProcessCounts; uid++)
             {
-                string libName = CoresLib.Mode == CoresMode.Application ? "" : CoresLib.AppName;
+                string libName = CoresLib.Mode == CoresMode.Library ? CoresLib.AppName : "";
                 string uniqueName = $"UlogName_{Env.AppRootDir}_{CoresLib.Mode}_{libName}_{uid}";
 
                 SingleInstance? instance = SingleInstance.TryGet(uniqueName, true);
@@ -433,7 +433,8 @@ namespace IPA.Cores.Basic
                 "stat",
                 CoresConfig.LocalLogRouterSettings.LogStatDir.Value(),
                 CoresConfig.LocalLogRouterSettings.SwitchTypeForStat,
-                CoresConfig.LocalLogRouterSettings.InfoOptionsForStat));
+                CoresConfig.LocalLogRouterSettings.InfoOptionsForStat,
+                CoresConfig.Logger.DefaultAutoDeleteTotalMinSize_ForStat));
 
             // Access log (file)
             Router.InstallLogRoute(new LoggerLogRoute(LogKind.Access,

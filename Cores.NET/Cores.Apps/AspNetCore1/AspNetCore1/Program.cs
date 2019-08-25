@@ -18,10 +18,10 @@ namespace AspNetCore1
     {
         public static int Main(string[] args)
         {
-            const string appName = "AspNetCore1";
+            const string appName = nameof(AspNetCore1);
 
             return StandardMainFunctions.DaemonMain.DoMain(
-                new CoresLibOptions(CoresMode.Application,
+                new CoresLibOptions(CoresMode.Daemon,
                     appName: appName,
                     defaultDebugMode: DebugMode.Debug,
                     defaultPrintStatToConsole: false,

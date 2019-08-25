@@ -135,6 +135,8 @@ namespace IPA.Cores.Basic
             public const string RootUsername = "root";
 
             public const string DaemonDefFileMarker = "hTNdwaKmxL4MNPAyyes2qsgT";
+
+            public const string DaemonExecModeLogFileSuffix = "daemon";
         }
 
         public static partial class HiveNames

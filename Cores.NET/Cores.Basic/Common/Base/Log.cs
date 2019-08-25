@@ -52,6 +52,7 @@ namespace IPA.Cores.Basic
         public static partial class Logger
         {
             public static readonly Copenhagen<long> DefaultAutoDeleteTotalMinSize = 4000000000L; // 4GB
+            public static readonly Copenhagen<long> DefaultAutoDeleteTotalMinSize_ForStat = 100000000L; // 100MB
             public static readonly Copenhagen<long> DefaultMaxLogSize = 1073741823L; // 1GB
             public static readonly Copenhagen<int> DefaultMaxPendingRecords = 10000;
             public static readonly Copenhagen<int> EraserIntervalMsecs = 10 * 60 * 1000; // 10 mins
@@ -855,8 +856,14 @@ namespace IPA.Cores.Basic
             prefix = prefix._TrimNonNull();
             string dateTimePart = MakeLogFileNameStringFromTick(dateTime, switchType);
             string numberStr = "";
+            string logSuffixStr = "";
             string uniqueProcessIdStr = ("@" + uniqueProcessId.ToString("D3"));
             bool ret = false;
+
+            if (CoresLib.LogFileSuffix._IsFilled())
+            {
+                logSuffixStr = "@" + CoresLib.LogFileSuffix;
+            }
 
             if (num != 0)
             {
@@ -883,7 +890,7 @@ namespace IPA.Cores.Basic
                 oldDateStr = dateTimePart;
             }
 
-            name = Path.Combine(dir, prefix + dateTimePart + uniqueProcessIdStr + numberStr + this.Extension);
+            name = Path.Combine(dir, prefix + dateTimePart + logSuffixStr + uniqueProcessIdStr + numberStr + this.Extension);
 
             return ret;
         }
