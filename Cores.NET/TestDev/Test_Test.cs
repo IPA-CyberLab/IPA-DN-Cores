@@ -788,31 +788,6 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
-            {
-                using (FileSystemBasedProvider p = new FileSystemBasedProvider(EnsureInternal.Yes, Lfs, @"D:\tmp\190724"))
-                {
-                    IFileProvider fp = p;
-
-                    while (true)
-                    {
-                        Event e = new Event(true);
-
-                        var token = p.Watch("**/*");
-
-                        token.RegisterChangeCallback(x =>
-                        {
-                            Dbg.Where();
-                            e.Set();
-                        }, null);
-                    }
-
-                    return;
-
-                }
-                return;
-            }
-
             if (false)
             {
                 using (var fs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"D:\tmp\190724", FileSystemMode.ReadOnly)))
