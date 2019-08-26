@@ -1567,6 +1567,8 @@ namespace IPA.Cores.Basic
         // DateTime を DOS の日付に変換
         public static ushort DateTimeToDosDate(DateTime dt)
         {
+            if (dt == default) return 0;
+
             return (ushort)(
                 ((uint)(dt.Year - 1980) << 9) |
                 ((uint)dt.Month << 5) |
@@ -1576,6 +1578,8 @@ namespace IPA.Cores.Basic
         // DateTime を DOS の時刻に変換
         public static ushort DateTimeToDosTime(DateTime dt)
         {
+            if (dt == default) return 0;
+
             return (ushort)(
                 ((uint)dt.Hour << 11) |
                 ((uint)dt.Minute << 5) |
@@ -3375,6 +3379,31 @@ namespace IPA.Cores.Basic
             XmlData = xmlData;
             XsdFileName = xsdFileName;
             XsdData = xsdData;
+        }
+    }
+
+    // 1 人しか入れないリージョン (高速な非ブロッキング Mutex のようなもの)
+    public class SingleEntryDoor
+    {
+        volatile private int flag;
+
+        public IHolder Enter(Exception? ex = null)
+        {
+            if (Interlocked.CompareExchange(ref this.flag, 1, 0) != 0)
+            {
+                throw ex ?? new CoresException("Only single process can be invoked.");
+            }
+
+            return new ValueHolder(() =>
+            {
+                int r = Interlocked.CompareExchange(ref this.flag, 0, 1);
+
+                if (r != 1)
+                {
+                    throw new CoresException($"Bad state: r = {r}");
+                }
+            },
+            LeakCounterKind.SingleEntry);
         }
     }
 

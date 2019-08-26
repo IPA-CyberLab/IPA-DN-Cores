@@ -1419,6 +1419,7 @@ namespace IPA.Cores.Basic
         ManagedHiveRunning,
         StreamBasedBuffer,
         MemoryOrStorageBuffer,
+        SingleEntry,
     }
 
     public class LeakCheckerResult

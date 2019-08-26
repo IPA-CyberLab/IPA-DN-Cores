@@ -203,6 +203,7 @@ namespace IPA.Cores.Basic
         public bool IsThisEmpty() => (CommitId._IsEmpty() && AuthorName._IsEmpty() && CommitterName._IsEmpty() && Message._IsEmpty());
     }
 
+    [Serializable]
     public class FileMetadata
     {
         public const FileAttributes CopyableAttributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive
@@ -1020,7 +1021,7 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
-    public interface ISequentialWriter<T>
+    public interface ISequentialWritable<T>
     {
         public long CurrentPosition { get; }
         public bool NeedFlush { get; }
@@ -1028,49 +1029,85 @@ namespace IPA.Cores.Basic
         public Exception? LastError { get; }
         public bool HasError => LastError != null;
 
+        Task StartAsync(CancellationToken cancel = default);
         Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
         Task<long> FlushAsync(CancellationToken cancel = default);
+        Task<long> CompleteAsync(bool ok, CancellationToken cancel = default);
 
-        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        void Start(CancellationToken cancel = default)
+            => StartAsync(cancel);
+        long Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
             => AppendAsync(data, cancel)._GetResult();
-        void Flush(CancellationToken cancel = default)
+        long Flush(CancellationToken cancel = default)
             => FlushAsync(cancel)._GetResult();
+        long Complete(bool ok, CancellationToken cancel = default)
+            => CompleteAsync(ok, cancel)._GetResult();
     }
 
-    // IRandomAccess インターフェイスのターゲットに対して追記のみの書き込みを提供するクラス
-    public class SequentialWriter<T> : ISequentialWriter<T>
+    // ISequentialWritable<T> を容易に実装するためのクラス
+    public abstract class SequentialWritableImpl<T> : ISequentialWritable<T>
     {
-        public IRandomAccess<T> Target { get; }
-        public long CurrentPosition { get; private set; } = 0;
+        protected abstract Task StartImplAsync(CancellationToken cancel = default);
+        protected abstract Task AppendImplAsync(ReadOnlyMemory<T> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default);
+        protected abstract Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default);
+        protected abstract Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default);
 
-        public Exception? LastError { get; private set; } = null;
+        public long CurrentPosition { get; private set; }
 
-        public bool NeedFlush { get; private set; } = false;
+        public bool NeedFlush { get; private set; }
 
-        public SequentialWriter(IRandomAccess<T> target)
+        public Exception? LastError { get; private set; }
+
+        bool IsStarted = false;
+        bool IsCompleted = false;
+
+        public async Task StartAsync(CancellationToken cancel = default)
         {
-            this.Target = target;
+            if (this.LastError != null) throw this.LastError;
+
+            cancel.ThrowIfCancellationRequested();
+
+            if (IsStarted) throw new CoresException("Already started.");
+
+            try
+            {
+                await StartImplAsync(cancel);
+
+                IsStarted = true;
+            }
+            catch (Exception ex)
+            {
+                this.LastError = ex;
+                throw ex;
+            }
         }
 
         public async Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
         {
             if (this.LastError != null) throw this.LastError;
 
+            cancel.ThrowIfCancellationRequested();
+
             if (data.Length == 0) return this.CurrentPosition;
+
+            if (IsStarted == false) throw new CoresException("Not started.");
 
             try
             {
-                await Target.WriteRandomAsync(this.CurrentPosition, data, cancel);
+                long newPosition = CurrentPosition + data.Length;
 
-                this.NeedFlush = true;
-                this.CurrentPosition += data.Length;
+                await AppendImplAsync(data, CurrentPosition, newPosition, cancel);
+
+                CurrentPosition = newPosition;
+
+                NeedFlush = true;
 
                 return this.CurrentPosition;
             }
             catch (Exception ex)
             {
-                ErrorOccured(ex);
-                throw;
+                this.LastError = ex;
+                throw ex;
             }
         }
 
@@ -1078,27 +1115,83 @@ namespace IPA.Cores.Basic
         {
             if (this.LastError != null) throw this.LastError;
 
-            if (this.NeedFlush == false) return this.CurrentPosition;
+            cancel.ThrowIfCancellationRequested();
 
-            try
+            if (IsStarted == false) throw new CoresException("Not started.");
+
+            if (NeedFlush)
             {
-                await Target.FlushAsync(cancel);
+                try
+                {
+                    await FlushImplAsync(this.CurrentPosition, cancel);
 
-                this.NeedFlush = false;
+                    NeedFlush = false;
+                }
+                catch (Exception ex)
+                {
+                    this.LastError = ex;
+                    throw ex;
+                }
+            }
 
-                return this.CurrentPosition;
-            }
-            catch (Exception ex)
-            {
-                ErrorOccured(ex);
-                throw;
-            }
+            return this.CurrentPosition;
         }
 
-        void ErrorOccured(Exception ex)
+        public async Task<long> CompleteAsync(bool ok, CancellationToken cancel = default)
         {
-            this.LastError = ex;
+            if (this.LastError != null) throw this.LastError;
+
+            cancel.ThrowIfCancellationRequested();
+
+            if (IsCompleted)
+            {
+                throw new CoresException("Already completed.");
+            }
+
+            if (IsStarted == false) throw new CoresException("Not started.");
+
+            if (ok)
+            {
+                await FlushAsync(cancel);
+            }
+
+            await CompleteImplAsync(ok, this.CurrentPosition, cancel);
+
+            IsCompleted = true;
+
+            return this.CurrentPosition;
         }
+    }
+
+    // IRandomAccess インターフェイスのターゲットに対して追記のみの書き込みを提供するクラス
+    public class SequentialWritable<T> : SequentialWritableImpl<T>
+    {
+        public IRandomAccess<T> Target { get; }
+
+        public Func<bool, Task>? OnCompleted;
+
+        public SequentialWritable(IRandomAccess<T> target, Func<bool, Task>? onCompleted = null)
+        {
+            this.Target = target;
+            this.OnCompleted = onCompleted;
+        }
+
+        protected override Task AppendImplAsync(ReadOnlyMemory<T> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
+            => Target.WriteRandomAsync(hintCurrentLength, data, cancel);
+
+        protected override Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
+            => Target.FlushAsync(cancel);
+
+        protected override async Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
+        {
+            if (this.OnCompleted != null)
+            {
+                await this.OnCompleted(ok);
+            }
+        }
+
+        protected override Task StartImplAsync(CancellationToken cancel = default)
+            => Task.CompletedTask;
     }
 
     public interface IRandomAccess<T> : IDisposable

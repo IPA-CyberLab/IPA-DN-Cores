@@ -379,7 +379,19 @@ namespace IPA.Cores.Helper.Basic
         public static int _GetWidth(this string? s) => Str.GetStrWidth(s);
         public static bool _IsAllUpperStr(this string? s) => Str.IsAllUpperStr(s);
         public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
-        public static bool _CheckStrLen(this string? str, int len) => Str.CheckStrLen(str, len);
+        public static bool _CheckStrLen(this string? str, int maxLen) => Str.CheckStrLen(str, maxLen);
+
+        public static void _CheckStrLenException(this string? str, int maxLen, Exception? ex = null)
+        {
+            if (str._CheckStrLen(maxLen) == false) throw new ArgumentOutOfRangeException(nameof(str), $"The string length is too long. Allowed maximum length is {maxLen}.");
+        }
+
+        public static bool _CheckStrSize(this string? str, int maxSize, Encoding encoding) => Str.CheckStrSize(str, maxSize, encoding);
+        public static void _CheckStrSizeException(this string? str, int maxSize, Encoding encoding, Exception? ex = null)
+        {
+            if (str._CheckStrSize(maxSize, encoding) == false) throw new ArgumentOutOfRangeException(nameof(str), $"The string size is too big. Allowed maximum size is {maxSize}.");
+        }
+
         public static bool _CheckMailAddress(this string? str) => Str.CheckMailAddress(str);
         public static bool _IsSafeAsFileName(this string str, bool pathCharsAreNotGood = false) => Str.IsSafe(str, pathCharsAreNotGood);
         public static string _MakeSafePath(this string str) => Str.MakeSafePathName(str);
@@ -1642,6 +1654,9 @@ namespace IPA.Cores.Helper.Basic
 
             return default!;
         }
+
+        public static bool _IsUtf8Encoding(this Encoding enc) => enc.WebName._IsSamei("utf-8");
+        public static bool _IsShiftJisEncoding(this Encoding enc) => enc.WebName._IsSamei("shift_jis");
     }
 }
 

@@ -57,10 +57,9 @@ namespace IPA.Cores.Basic
 {
     public class ZipContainerOptions : FileContainerOptions
     {
-        public ZipContainerOptions(IRandomAccess<byte> baseFile, FileContainerFlags flags) : base(baseFile, flags)
+        public ZipContainerOptions(IRandomAccess<byte> physicalFile, FileContainerFlags flags = FileContainerFlags.CreateNewSequential, PathParser? pathParser = null)
+            : base(physicalFile, flags, pathParser ?? PathParser.Mac)
         {
-            if (this.Flags.BitAny(FileContainerFlags.Read))
-                throw new NotSupportedException("Read operations are not supported.");
         }
     }
 
@@ -73,18 +72,115 @@ namespace IPA.Cores.Basic
     {
         public new ZipContainerOptions Options => (ZipContainerOptions)base.Options;
 
-        SequentialWriter<byte> Writer;
+        readonly SequentialWritable<byte> Writer; // 物理ファイルライタ
 
         public ZipContainer(ZipContainerOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
             try
             {
-                this.Writer = new SequentialWriter<byte>(Options.BaseFile);
+                if (options.Flags.BitAny(FileContainerFlags.Read))
+                    throw new NotSupportedException("Read operation is unsupported.");
+
+                this.Writer = new SequentialWritable<byte>(Options.PhysicalFile);
             }
             catch
             {
                 this._DisposeSafe();
                 throw;
+            }
+        }
+
+        // ユーザーが新しいファイルの追加要求を行なうとこの実装メソッドが呼び出される。
+        // このメソッドで返した ISequentialWritable<byte> は、必ず Complete されることが保証されている。
+        // また、多重呼び出しがされないことが保証されている。
+        protected override async Task<ISequentialWritable<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default)
+        {
+            // fileParam をコピー (加工するため)
+            param = param._CloneDeep();
+
+            // ファイル名などのチェック
+            if (param.MetaData.IsDirectory) throw new ArgumentOutOfRangeException(nameof(param), "Directory is not supported.");
+
+            param.PathString._FilledOrException();
+            param.PathString = PathParser.NormalizeDirectorySeparatorIncludeWindowsBackslash(param.PathString);
+
+            if (PathParser.IsAbsolutePath(param.PathString)) throw new ArgumentOutOfRangeException(nameof(param), $"Absolute path '{param.PathString}' is not supported.");
+
+            Encoding encoding = param.GetEncoding();
+
+            param.PathString._CheckStrSizeException(ZipConsts.MaxFileNameSize, encoding);
+
+            Writable w = new Writable(this, param, encoding);
+
+            // ローカルファイルヘッダを書き込む
+            await w.StartAsync(cancel);
+
+            // 実装クラスを経由してユーザーに渡す
+            return w;
+        }
+
+        public class Writable : SequentialWritableImpl<byte>
+        {
+            readonly ZipContainer Zip;
+            readonly FileContainerEntityParam Param;
+            readonly Encoding Encoding;
+            readonly ReadOnlyMemory<byte> FileNameData;
+
+            SequentialWritable<byte> Writer => Zip.Writer;
+
+            public Writable(ZipContainer zip, FileContainerEntityParam param, Encoding encoding)
+            {
+                this.Zip = zip;
+                this.Param = param;
+                this.Encoding = encoding;
+                FileNameData = param.PathString._GetBytes(this.Encoding);
+            }
+
+            // 新しいファイルの書き込みを開始いたします
+            protected override async Task StartImplAsync(CancellationToken cancel = default)
+            {
+                checked
+                {
+                    ZipLocalFileHeader h = new ZipLocalFileHeader();
+
+                    MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+                    h.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
+                    h.NeedVersion = ZipFileVersions.Ver2_0;
+                    h.GeneralPurposeFlag = this.Encoding._IsUtf8Encoding() ? ZipGeneralPurposeFlags.Utf8 : ZipGeneralPurposeFlags.None;
+                    h.CompressionMethod = ZipCompressionMethods.Raw;
+                    h.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
+                    h.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
+                    h.Crc32 = 0;
+                    h.CompressedSize = 0;
+                    h.UncompressedSize = 0;
+                    h.FileNameSize = (ushort)this.FileNameData.Length;
+                    h.ExtraFieldSize = 0;
+
+                    buf.Write(h._AsReadOnlyByteSpan());
+
+                    buf.Write(this.FileNameData);
+
+                    await Writer.AppendAsync(buf, cancel);
+                }
+            }
+
+            // ファイルへの追記データがきました
+            protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
+            {
+                await Writer.AppendAsync(data, cancel);
+            }
+
+            // Flush 要求を受けました
+            protected override Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
+            {
+                return Writer.FlushAsync(cancel);
+            }
+
+            // このファイルの書き込みが完了しました (成功または失敗)  最後に必ず呼ばれます
+            protected override Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
+            {
+                throw new NotImplementedException();
             }
         }
     }

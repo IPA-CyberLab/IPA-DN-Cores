@@ -307,6 +307,11 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                return;
+            }
+
+            if (true)
+            {
                 using var buf = new MemoryOrDiskBuffer(new MemoryOrDiskBufferOptions(5));
                 using var w = new StreamWriter(new BufferBasedStream(buf), leaveOpen: true);
                 w.AutoFlush = true;

@@ -3538,6 +3538,21 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        public static bool CheckStrSize(string? str, int maxSize, Encoding encoding)
+        {
+            if (str == null)
+            {
+                return false;
+            }
+
+            if (encoding.GetByteCount(str) > maxSize)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         // 文字列が安全かどうか検査する
         public static bool IsSafe(string s, bool pathCharsAreNotGood = false)
         {

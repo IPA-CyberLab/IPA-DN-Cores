@@ -1074,17 +1074,36 @@ namespace IPA.Cores.Basic
     {
         public Stream BaseStream { get; }
         public bool AutoDispose { get; }
+        public bool IsMemoryStream { get; }
 
         IHolder LeakHolder;
 
-        public StreamBasedBuffer(Stream baseStream, bool autoDispose = false)
+        public StreamBasedBuffer(Stream baseStream, bool autoDispose = false, bool useBuffering = false)
         {
-            if (baseStream.CanSeek == false) throw new ArgumentException("Cannot seek", nameof(baseStream));
+            try
+            {
+                LeakHolder = LeakChecker.Enter(LeakCounterKind.StreamBasedBuffer);
 
-            this.BaseStream = baseStream;
-            this.AutoDispose = autoDispose;
+                if (baseStream.CanSeek == false) throw new ArgumentException("Cannot seek", nameof(baseStream));
 
-            LeakHolder = LeakChecker.Enter(LeakCounterKind.StreamBasedBuffer);
+                this.IsMemoryStream = baseStream is MemoryStream;
+
+                if (useBuffering == false)
+                {
+                    this.BaseStream = baseStream;
+                }
+                else
+                {
+                    this.BaseStream = new BufferedStream(baseStream);
+                }
+
+                this.AutoDispose = autoDispose;
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
@@ -3823,7 +3842,7 @@ namespace IPA.Cores.Basic
                 this.Options = options ?? new MemoryOrDiskBufferOptions();
 
                 // 最初はまず MemoryStream を作る
-                CurrentBuffer = new StreamBasedBuffer(new MemoryStream(), true);
+                CurrentBuffer = new StreamBasedBuffer(new MemoryStream(), true, false);
 
                 SwitchToFileBasedStreamIfNecessary();
             }
@@ -3837,12 +3856,12 @@ namespace IPA.Cores.Basic
         // 必要な場合はファイルベースのストリームに切替える
         void SwitchToFileBasedStreamIfNecessary()
         {
-            if (CurrentBuffer.BaseStream is MemoryStream ms)
+            if (CurrentBuffer.IsMemoryStream)
             {
                 if (CurrentBuffer.LongLength >= Options.UseStorageThreshold)
                 {
                     // 現在のサイズがスレッショルドを超過しているのでファイルベースのストリームに切替える
-                    long currentMemoryStreamPosition = ms.Position;
+                    long currentMemoryStreamPosition = CurrentBuffer.BaseStream.Position;
 
                     FileObject file = Lfs.CreateDynamicTempFile(prefix: "MemoryOrDiskBuffer");
                     try
@@ -3851,15 +3870,16 @@ namespace IPA.Cores.Basic
 
                         // 現在のメモリストリームの内容をファイルストリームに書き出す
                         // (現在の CurrentBuffer の内容は直ちに破棄するので中の MemoryStream から直接吸い出して問題無い)
-                        ms.Seek(0, SeekOrigin.Begin);
-                        ms.CopyTo(fileStream);
+                        CurrentBuffer.BaseStream.Seek(0, SeekOrigin.Begin);
+                        CurrentBuffer.BaseStream.CopyTo(fileStream);
 
                         fileStream.Seek(currentMemoryStreamPosition, SeekOrigin.Begin);
 
                         fileStream.Flush();
 
                         // コピーが完了したら CurrentBuffer を交換する
-                        StreamBasedBuffer newCurrentBuffer = new StreamBasedBuffer(fileStream, true);
+                        // この際はファイルベースのバッファであるので、オーバーヘッドを少なくするためバッファリングを有効にする
+                        StreamBasedBuffer newCurrentBuffer = new StreamBasedBuffer(fileStream, true, true);
 
                         CurrentBuffer._DisposeSafe(); // 古い MemoryStream は念のため Dispose する
 
@@ -3869,7 +3889,7 @@ namespace IPA.Cores.Basic
                     {
                         file._DisposeSafe();
 
-                        ms.Seek(currentMemoryStreamPosition, SeekOrigin.Begin);
+                        CurrentBuffer.BaseStream.Seek(currentMemoryStreamPosition, SeekOrigin.Begin);
                         throw;
                     }
                 }
