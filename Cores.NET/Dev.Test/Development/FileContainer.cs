@@ -56,21 +56,21 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    public enum ContainerFlags
+    public enum FileContainerFlags
     {
         None = 0,
         Read = 1,
         CreateNewSequential = 2,
     }
 
-    public abstract class ContainerOptions
+    public abstract class FileContainerOptions
     {
-        public ContainerFlags Flags { get; }
+        public FileContainerFlags Flags { get; }
         public IRandomAccess<byte> BaseFile { get; }
 
-        public ContainerOptions(IRandomAccess<byte> baseFile, ContainerFlags flags)
+        public FileContainerOptions(IRandomAccess<byte> baseFile, FileContainerFlags flags)
         {
-            if (this.Flags == ContainerFlags.None)
+            if (this.Flags == FileContainerFlags.None)
                 throw new ArgumentOutOfRangeException(nameof(flags));
 
             this.BaseFile = baseFile;
@@ -81,13 +81,13 @@ namespace IPA.Cores.Basic
     // 任意のコンテナフォーマットを読み書きするための抽象クラス
     // 注: 各オペレーションメソッドはスレッドセーフではない。シリアルな利用が前提である。
     //     スレッドセーフにする必要がある場合 (例: 上位のファイルシステムと接続する) は、自前で同期を取る必要があるので注意すること。
-    public abstract class Container : AsyncService
+    public abstract class FileContainer : AsyncService
     {
-        public ContainerOptions Options { get; }
+        public FileContainerOptions Options { get; }
 
         protected IRandomAccess<byte> BaseFile => Options.BaseFile;
 
-        protected Container(ContainerOptions options, CancellationToken cancel = default) : base(cancel)
+        protected FileContainer(FileContainerOptions options, CancellationToken cancel = default) : base(cancel)
         {
             try
             {

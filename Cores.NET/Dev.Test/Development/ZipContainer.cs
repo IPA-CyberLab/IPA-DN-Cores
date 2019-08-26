@@ -55,11 +55,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class ZipContainerOptions : ContainerOptions
+    public class ZipContainerOptions : FileContainerOptions
     {
-        public ZipContainerOptions(IRandomAccess<byte> baseFile, ContainerFlags flags) : base(baseFile, flags)
+        public ZipContainerOptions(IRandomAccess<byte> baseFile, FileContainerFlags flags) : base(baseFile, flags)
         {
-            if (this.Flags.BitAny(ContainerFlags.Read))
+            if (this.Flags.BitAny(FileContainerFlags.Read))
                 throw new NotSupportedException("Read operations are not supported.");
         }
     }
@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
     //     スレッドセーフにする必要がある場合 (例: 上位のファイルシステムと接続する) は、自前で同期を取る必要があるので注意すること。
     // 現状は、新規作成 (かつ個別ファイルの更新は不可) しかできない。
     // 将来機能を追加する場合は、派生クラスとして実装することを推奨する。
-    public class ZipContainer : Container
+    public class ZipContainer : FileContainer
     {
         public new ZipContainerOptions Options => (ZipContainerOptions)base.Options;
 

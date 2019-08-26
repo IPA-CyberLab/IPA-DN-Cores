@@ -1058,6 +1058,7 @@ namespace IPA.Cores.Basic
         long LongLength { get; }
         long LongInternalBufferSize { get; }
         void Write(ReadOnlySpan<T> data);
+        void WriteOne(T data);
         ReadOnlySpan<T> Read(long size, bool allowPartial = false);
         ReadOnlySpan<T> Peek(long size, bool allowPartial = false);
         T ReadOne();
@@ -1817,6 +1818,7 @@ namespace IPA.Cores.Basic
             return span[0];
         }
 
+        void IBuffer<T>.WriteOne(T data) => throw new NotSupportedException();
     }
 
     public class HugeMemoryBufferOptions
