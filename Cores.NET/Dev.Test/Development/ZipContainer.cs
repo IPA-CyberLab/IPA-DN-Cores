@@ -149,7 +149,7 @@ namespace IPA.Cores.Basic
 
                         h.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
                         h.NeedVersion = ZipFileVersions.Ver2_0;
-                        h.GeneralPurposeFlag = this.Encoding._IsUtf8Encoding() ? ZipGeneralPurposeFlags.Utf8 : ZipGeneralPurposeFlags.None;
+                        h.GeneralPurposeFlag = ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding());
                         h.CompressionMethod = ZipCompressionMethods.Raw;
                         h.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
                         h.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
