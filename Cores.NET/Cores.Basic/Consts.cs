@@ -70,6 +70,8 @@ namespace IPA.Cores.Basic
             public const long MaxMatchPoint = 1_0000_0000_0000_0000;
             public const long MaxMatchPoint2 = 1_0000_0000;
             public const long LogBrowserDefaultTailSize = 10_000;
+
+            public const int DefaultUseStorageThreshold = 1_000_000;
         }
 
         public static partial class MaxLens
@@ -183,6 +185,8 @@ namespace IPA.Cores.Basic
             public const string RootMarker_Library_CoresBasic = "cores_basic_root";
             public const string RootMarker_Library_CoresCodes = "cores_codes_root";
             public const string RootMarker_Library_CoresWeb = "cores_web_root";
+
+            public const string MyDynamicTempSubDirName = "_dynamic";
         }
 
         public static partial class Extensions

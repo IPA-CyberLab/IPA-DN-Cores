@@ -1417,6 +1417,8 @@ namespace IPA.Cores.Basic
         AllocUnmanagedMemory,
         FileBaseObject,
         ManagedHiveRunning,
+        StreamBasedBuffer,
+        MemoryOrStorageBuffer,
     }
 
     public class LeakCheckerResult

@@ -532,7 +532,7 @@ namespace IPA.Cores.Basic
             _MyLocalTempDir = "";
 
             // Global app temp dir
-            if (MyGlobalTempDir == null)
+            if (MyGlobalTempDir._IsEmpty())
             {
                 SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
                 MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
@@ -552,11 +552,11 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                if (_MyLocalTempDir != null) return _MyLocalTempDir;
+                if (_MyLocalTempDir._IsFilled()) return _MyLocalTempDir;
 
                 lock (MyLocalTempDirInitLock)
                 {
-                    if (_MyLocalTempDir == null)
+                    if (_MyLocalTempDir._IsEmpty())
                     {
                         // Local app temp dir
                         SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, CoresLib.AppNameFnSafe);

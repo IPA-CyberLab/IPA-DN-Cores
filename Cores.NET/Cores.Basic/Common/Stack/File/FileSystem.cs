@@ -619,7 +619,49 @@ namespace IPA.Cores.Basic
                     }
                     finally
                     {
-                        EventListeners.Fire(this, FileObjectEventType.Closed);
+                        try
+                        {
+                            EventListeners.Fire(this, FileObjectEventType.Closed);
+                        }
+                        catch { }
+
+                        if (this.FileParams.Flags.Bit(FileFlags.DeleteFileOnClose))
+                        {
+                            // ファイルを閉じる際に削除する
+                            string fullPath = this.FileParams.Path;
+
+                            if (fullPath._IsFilled() && this.FileSystem.PathParser.IsAbsolutePath(fullPath, true))
+                            {
+                                try
+                                {
+                                    await this.FileSystem.DeleteFileAsync(fullPath);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Debug();
+                                }
+
+                                // 上位ディレクトリが空ならばそれも削除する
+                                if (this.FileParams.Flags.Bit(FileFlags.DeleteParentDirOnClose))
+                                {
+                                    string parentDir = this.FileSystem.PathParser.GetDirectoryName(fullPath);
+                                    if (parentDir._IsFilled())
+                                    {
+                                        if (this.FileSystem.EnumDirectory(parentDir, false, EnumDirectoryFlags.NoGetPhysicalSize).Any() == false)
+                                        {
+                                            try
+                                            {
+                                                this.FileSystem.DeleteDirectory(parentDir);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                ex._Debug();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

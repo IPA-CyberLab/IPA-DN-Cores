@@ -307,6 +307,49 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var buf = new MemoryOrDiskBuffer(new MemoryOrDiskBufferOptions(5));
+                using var w = new StreamWriter(new BufferBasedStream(buf), leaveOpen: true);
+                w.AutoFlush = true;
+
+                w.Write("1");
+                w.Write("2");
+                w.Write("3");
+                w.Write("4");
+                w.Write("5");
+                w.Write("6");
+                w.Write("7");
+
+                Con.WriteLine(buf.LongCurrentPosition);
+
+                buf.Seek(3, SeekOrigin.Begin);
+
+                Con.WriteLine(buf.LongCurrentPosition);
+
+                buf.Write("abc"._GetBytes_Ascii());
+                buf.Flush();
+                
+
+                Con.ReadLine("?");
+
+                return;
+            }
+
+            if (true)
+            {
+                using var file = Lfs.CreateDynamicTempFile();
+                using var w = new StreamWriter(file.GetStream());
+                for (int i = 0; i < 100; i++)
+                {
+                    w.WriteLine(i.ToString());
+                }
+                w.Flush();
+                //file.Flush();
+                Con.ReadLine("?");
+                return;
+            }
+
+            if (true)
+            {
                 STest1 t1 = new STest1("Hello");
 
                 string json1 = t1._ObjectToJson();
@@ -484,7 +527,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                List<SniHostnameIpAddressPair> list = @"c:\tmp\list1.txt"._FileToObject< List<SniHostnameIpAddressPair>>();
+                List<SniHostnameIpAddressPair> list = @"c:\tmp\list1.txt"._FileToObject<List<SniHostnameIpAddressPair>>();
 
                 SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list.Take(0));
 
@@ -555,7 +598,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode : RateLimiterMode.NoPenalty));
+                RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode: RateLimiterMode.NoPenalty));
                 while (true)
                 {
                     Con.ReadLine();

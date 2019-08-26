@@ -77,9 +77,9 @@ namespace IPA.Cores.Helper.Basic
         public static ReadOnlyMemoryBuffer<T> _AsReadOnlyMemoryBuffer<T>(this T[] data, int offset) => new ReadOnlyMemoryBuffer<T>(data._AsReadOnlyMemory(offset));
         public static ReadOnlyMemoryBuffer<T> _AsReadOnlyMemoryBuffer<T>(this T[] data, int offset, int size) => new ReadOnlyMemoryBuffer<T>(data._AsReadOnlyMemory(offset, size));
 
-        public static BufferDirectStream _AsDirectStream(this MemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
-        public static BufferDirectStream _AsDirectStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
-        public static BufferDirectStream _AsDirectStream(this HugeMemoryBuffer<byte> buffer) => new BufferDirectStream(buffer);
+        public static BufferBasedStream _AsDirectStream(this MemoryBuffer<byte> buffer) => new BufferBasedStream(buffer);
+        public static BufferBasedStream _AsDirectStream(this ReadOnlyMemoryBuffer<byte> buffer) => new BufferBasedStream(buffer);
+        public static BufferBasedStream _AsDirectStream(this HugeMemoryBuffer<byte> buffer) => new BufferBasedStream(buffer);
     }
 
     public static class MemoryExtHelper

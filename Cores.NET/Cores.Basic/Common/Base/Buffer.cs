@@ -1066,14 +1066,206 @@ namespace IPA.Cores.Basic
         void Seek(long offset, SeekOrigin mode, bool allocate = false);
         void SetLength(long size);
         void Clear();
+        void Flush();
     }
 
+    // 任意の Stream 型を IBuffer<byte> 型に変換するクラス
+    public class StreamBasedBuffer : IBuffer<byte>, IDisposable
+    {
+        public Stream BaseStream { get; }
+        public bool AutoDispose { get; }
+
+        IHolder LeakHolder;
+
+        public StreamBasedBuffer(Stream baseStream, bool autoDispose = false)
+        {
+            if (baseStream.CanSeek == false) throw new ArgumentException("Cannot seek", nameof(baseStream));
+
+            this.BaseStream = baseStream;
+            this.AutoDispose = autoDispose;
+
+            LeakHolder = LeakChecker.Enter(LeakCounterKind.StreamBasedBuffer);
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.AutoDispose)
+            {
+                this.BaseStream._DisposeSafe();
+            }
+
+            LeakHolder._DisposeSafe();
+        }
+
+        public long LongCurrentPosition => BaseStream.Position;
+
+        public long LongLength => BaseStream.Length;
+
+        public long LongInternalBufferSize => BaseStream.Length;
+
+        public void Clear()
+        {
+            BaseStream.Seek(0, SeekOrigin.Begin);
+            BaseStream.SetLength(0);
+        }
+
+        public bool IsThisEmpty()
+        {
+            return BaseStream.Length == 0;
+        }
+
+        public ReadOnlySpan<byte> Peek(long size, bool allowPartial = false)
+        {
+            checked
+            {
+                int sizeToRead = (int)size;
+
+                long currentPosition = LongCurrentPosition;
+
+                try
+                {
+                    return Read(size, allowPartial);
+                }
+                finally
+                {
+                    Seek(currentPosition, SeekOrigin.Begin, false);
+                }
+            }
+        }
+
+        public byte PeekOne()
+        {
+            var tmp = Peek(1, false);
+            Debug.Assert(tmp.Length == 1);
+            return tmp[0];
+        }
+
+        public ReadOnlySpan<byte> Read(long size, bool allowPartial = false)
+        {
+            checked
+            {
+                int sizeToRead = (int)size;
+
+                Span<byte> buf = new byte[sizeToRead];
+
+                int resultSize = BaseStream.Read(buf);
+
+                if (resultSize == 0)
+                {
+                    // 最後に到達した
+                    if (allowPartial == false)
+                        throw new CoresException("End of stream");
+                    else
+                        return ReadOnlySpan<byte>.Empty;
+                }
+
+                Debug.Assert(resultSize <= sizeToRead);
+
+                if (allowPartial == false)
+                {
+                    if (resultSize < sizeToRead)
+                    {
+                        // 巻き戻す
+                        if (resultSize >= 1)
+                        {
+                            BaseStream.Seek(-resultSize, SeekOrigin.Current);
+                        }
+                        throw new CoresException($"resultSize ({resultSize}) < sizeToRead ({sizeToRead})");
+                    }
+                }
+
+                if (resultSize != sizeToRead)
+                {
+                    buf = buf.Slice(0, resultSize);
+                }
+
+                return buf;
+            }
+        }
+
+        public byte ReadOne()
+        {
+            var tmp = Read(1, false);
+            Debug.Assert(tmp.Length == 1);
+            return tmp[0];
+        }
+
+        public void Seek(long offset, SeekOrigin mode, bool allocate = false)
+        {
+            checked
+            {
+                long currentPosition = LongCurrentPosition;
+                long newPosition;
+                long currentLength = LongLength;
+                long newLength = currentLength;
+
+                if (mode == SeekOrigin.Current)
+                    newPosition = checked(currentPosition + offset);
+                else if (mode == SeekOrigin.End)
+                    newPosition = checked(currentLength + offset);
+                else
+                    newPosition = offset;
+
+                if (newPosition < 0) throw new ArgumentOutOfRangeException("newPosition < 0");
+
+                if (allocate == false)
+                {
+                    if (newPosition > currentLength) throw new ArgumentOutOfRangeException("newPosition > Size");
+                }
+                else
+                {
+                    newLength = Math.Max(newPosition, currentLength);
+                }
+
+                if (currentLength != newLength)
+                {
+                    BaseStream.SetLength(newLength);
+                }
+
+                if (currentPosition != newPosition)
+                {
+                    long ret = BaseStream.Seek(newPosition, SeekOrigin.Begin);
+
+                    if (ret != newPosition)
+                    {
+                        throw new CoresException($"ret {ret} != newPosition {newPosition}");
+                    }
+                }
+            }
+        }
+
+        public void SetLength(long size)
+        {
+            BaseStream.SetLength(size);
+        }
+
+        public void Write(ReadOnlySpan<byte> data)
+        {
+            BaseStream.Write(data);
+        }
+
+        public void WriteOne(byte data)
+        {
+            Write(data._SingleArray());
+        }
+
+        public void Flush()
+        {
+            BaseStream.Flush();
+        }
+    }
+
+
 #pragma warning disable CS1998
-    public class BufferDirectStream : Stream
+    public class BufferBasedStream : Stream
     {
         public IBuffer<byte> BaseBuffer { get; }
 
-        public BufferDirectStream(IBuffer<byte> baseBuffer)
+        public BufferBasedStream(IBuffer<byte> baseBuffer)
         {
             BaseBuffer = baseBuffer;
         }
@@ -1089,7 +1281,10 @@ namespace IPA.Cores.Basic
             set => Seek(value, SeekOrigin.Begin);
         }
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+            BaseBuffer.Flush();
+        }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
@@ -1101,14 +1296,12 @@ namespace IPA.Cores.Basic
             => BaseBuffer.SetLength(value);
 
         public override Task FlushAsync(CancellationToken cancellationToken)
-            => Task.CompletedTask;
+        {
+            this.Flush();
+            return Task.CompletedTask;
+        }
 
-#if !CORES_NETFX
-        override
-#else
-        virtual
-#endif
-        public int Read(Span<byte> buffer)
+        override public int Read(Span<byte> buffer)
         {
             var readSpan = BaseBuffer.Read(buffer.Length, true);
             readSpan.CopyTo(buffer);
@@ -1116,12 +1309,7 @@ namespace IPA.Cores.Basic
         }
 
 
-#if !CORES_NETFX
-        override
-#else
-        virtual
-#endif
-        public void Write(ReadOnlySpan<byte> buffer)
+        override public void Write(ReadOnlySpan<byte> buffer)
         {
             BaseBuffer.Write(buffer);
         }
@@ -1137,12 +1325,7 @@ namespace IPA.Cores.Basic
         }
 
 
-#if !CORES_NETFX
-        override
-#else
-        virtual
-#endif
-        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        override public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return this.Read(buffer.Span);
@@ -1154,12 +1337,7 @@ namespace IPA.Cores.Basic
             this.Write(buffer, offset, count);
         }
 
-#if !CORES_NETFX
-        override
-#else
-        virtual
-#endif
-        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        override public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             this.Write(buffer.Span);
@@ -1547,6 +1725,8 @@ namespace IPA.Cores.Basic
 
         public void SetLength(long size)
             => SetLength(checked((int)size));
+
+        public void Flush() { }
     }
 
     public class ReadOnlyMemoryBuffer<T> : IBuffer<T>
@@ -1819,6 +1999,8 @@ namespace IPA.Cores.Basic
         }
 
         void IBuffer<T>.WriteOne(T data) => throw new NotSupportedException();
+
+        public void Flush() => throw new NotSupportedException();
     }
 
     public class HugeMemoryBufferOptions
@@ -2364,6 +2546,8 @@ namespace IPA.Cores.Basic
             var span = Peek(1, false);
             return span[0];
         }
+
+        public void Flush() { }
     }
 
     public static class SpanMemoryBufferHelper
@@ -3610,5 +3794,151 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public class MemoryOrDiskBufferOptions
+    {
+        public int UseStorageThreshold { get; }
+
+        public MemoryOrDiskBufferOptions(int useStorageThreshold = Consts.Numbers.DefaultUseStorageThreshold)
+        {
+            UseStorageThreshold = useStorageThreshold._NonNegative();
+        }
+    }
+
+    // 一定サイズまではメモリ上、それを超えた場合は自動的にストレージ上に移行して保存されるバッファ (非同期アクセスはサポートしていない。将来遠隔ストレージに置くなどして非同期が必要になった場合は実装を追加すること)
+    public class MemoryOrDiskBuffer : IBuffer<byte>, IDisposable
+    {
+        public MemoryOrDiskBufferOptions Options { get; }
+
+        StreamBasedBuffer CurrentBuffer;
+
+        IHolder Leak;
+
+        public MemoryOrDiskBuffer(MemoryOrDiskBufferOptions? options = null)
+        {
+            try
+            {
+                Leak = LeakChecker.Enter(LeakCounterKind.MemoryOrStorageBuffer);
+
+                this.Options = options ?? new MemoryOrDiskBufferOptions();
+
+                // 最初はまず MemoryStream を作る
+                CurrentBuffer = new StreamBasedBuffer(new MemoryStream(), true);
+
+                SwitchToFileBasedStreamIfNecessary();
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        // 必要な場合はファイルベースのストリームに切替える
+        void SwitchToFileBasedStreamIfNecessary()
+        {
+            if (CurrentBuffer.BaseStream is MemoryStream ms)
+            {
+                if (CurrentBuffer.LongLength >= Options.UseStorageThreshold)
+                {
+                    // 現在のサイズがスレッショルドを超過しているのでファイルベースのストリームに切替える
+                    long currentMemoryStreamPosition = ms.Position;
+
+                    FileObject file = Lfs.CreateDynamicTempFile(prefix: "MemoryOrDiskBuffer");
+                    try
+                    {
+                        FileStream fileStream = file.GetStream(true);
+
+                        // 現在のメモリストリームの内容をファイルストリームに書き出す
+                        // (現在の CurrentBuffer の内容は直ちに破棄するので中の MemoryStream から直接吸い出して問題無い)
+                        ms.Seek(0, SeekOrigin.Begin);
+                        ms.CopyTo(fileStream);
+
+                        fileStream.Seek(currentMemoryStreamPosition, SeekOrigin.Begin);
+
+                        fileStream.Flush();
+
+                        // コピーが完了したら CurrentBuffer を交換する
+                        StreamBasedBuffer newCurrentBuffer = new StreamBasedBuffer(fileStream, true);
+
+                        CurrentBuffer._DisposeSafe(); // 古い MemoryStream は念のため Dispose する
+
+                        CurrentBuffer = newCurrentBuffer; // 交換完了
+                    }
+                    catch
+                    {
+                        file._DisposeSafe();
+
+                        ms.Seek(currentMemoryStreamPosition, SeekOrigin.Begin);
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            CurrentBuffer._DisposeSafe();
+
+            Leak._DisposeSafe();
+        }
+
+        public long LongCurrentPosition
+            => CurrentBuffer.LongCurrentPosition;
+
+        public long LongLength
+            => CurrentBuffer.LongLength;
+
+        public long LongInternalBufferSize
+            => CurrentBuffer.LongLength;
+
+        public void Clear()
+            => CurrentBuffer.Clear();
+
+        public bool IsThisEmpty()
+            => CurrentBuffer.IsThisEmpty();
+
+        public ReadOnlySpan<byte> Peek(long size, bool allowPartial = false)
+            => CurrentBuffer.Peek(size, allowPartial);
+
+        public byte PeekOne()
+            => CurrentBuffer.PeekOne();
+
+        public ReadOnlySpan<byte> Read(long size, bool allowPartial = false)
+            => CurrentBuffer.Read(size, allowPartial);
+
+        public byte ReadOne()
+            => CurrentBuffer.ReadOne();
+
+        public void Seek(long offset, SeekOrigin mode, bool allocate = false)
+        {
+            CurrentBuffer.Seek(offset, mode, allocate);
+            if (allocate)
+                SwitchToFileBasedStreamIfNecessary();
+        }
+
+        public void SetLength(long size)
+        {
+            CurrentBuffer.SetLength(size);
+            SwitchToFileBasedStreamIfNecessary();
+        }
+
+        public void Write(ReadOnlySpan<byte> data)
+        {
+            CurrentBuffer.Write(data);
+            SwitchToFileBasedStreamIfNecessary();
+        }
+
+        public void WriteOne(byte data)
+            => CurrentBuffer.WriteOne(data);
+
+        public void Flush()
+            => CurrentBuffer.Flush();
+    }
+
 }
 

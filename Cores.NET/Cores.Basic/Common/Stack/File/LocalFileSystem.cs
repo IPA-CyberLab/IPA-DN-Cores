@@ -823,6 +823,26 @@ namespace IPA.Cores.Basic
         }
 
         protected override IFileProvider CreateFileProviderForWatchImpl(string root) => new PhysicalFileProvider(root);
+
+        public Task<FileObject> CreateDynamicTempFileAsync(string extension = ".dat", string prefix = "", CancellationToken cancel = default)
+        {
+            extension = extension._NonNullTrim();
+            prefix = PP.MakeSafeFileName(prefix);
+
+            if (prefix._IsFilled()) prefix = prefix + "_";
+
+            if (extension.StartsWith(".") == false) extension = "." + extension;
+
+            string guid = Str.NewGuid();
+
+            string fn = prefix + guid + extension;
+
+            string fullPath = PP.Combine(Env.MyLocalTempDir, Consts.FileNames.MyDynamicTempSubDirName, guid.Substring(0, 2), fn);
+
+            return this.CreateAsync(fullPath, flags: FileFlags.AutoCreateDirectory | FileFlags.DeleteFileOnClose | FileFlags.DeleteParentDirOnClose);
+        }
+        public FileObject CreateDynamicTempFile(string extension = ".dat", string prefix = "", CancellationToken cancel = default)
+            => CreateDynamicTempFileAsync(extension, prefix, cancel)._GetResult();
     }
 
     public class LocalFileObject : FileObject

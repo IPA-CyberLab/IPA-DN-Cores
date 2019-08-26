@@ -461,6 +461,7 @@ namespace IPA.Cores.Basic
         {
             this.FileSystem = fileSystem;
             this.Flags = (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory);
+
         }
 
         async Task<bool> WalkDirectoryInternalAsync(string directoryFullPath, string directoryRelativePath,
