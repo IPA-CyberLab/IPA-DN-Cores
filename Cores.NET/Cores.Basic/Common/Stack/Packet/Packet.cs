@@ -481,6 +481,14 @@ namespace IPA.Cores.Basic
         {
             return new Datagram(in this.Elastic, timeStamp, flags);
         }
+
+        public Span<byte> SpanDangerous
+            => this.Elastic.Span;
+
+        public ReadOnlySpan<byte> GetSpan()
+            => this.Elastic.Span;
+
+        public Memory<byte> ToMemory() => GetSpan()._CloneMemory();
     }
 
     public readonly unsafe struct PacketSpan<T> where T : unmanaged

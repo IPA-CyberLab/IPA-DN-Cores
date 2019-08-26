@@ -135,7 +135,7 @@ namespace IPA.Cores.Basic
         }
 
         // FileContainer の派生クラスが具備すべきメソッド一覧
-        protected abstract Task<ISequentialWritable<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default);
+        protected abstract Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default);
 
         public async Task AddFileAsync(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, Task<bool>> composeProc, CancellationToken cancel = default)
         {
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
             using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
 
             // 実装の新規ファイル作成を呼び出す
-            ISequentialWritable<byte> obj = await AddFileAsyncImpl(param, c);
+            SequentialWritableImpl<byte> obj = await AddFileAsyncImpl(param, c);
 
             try
             {

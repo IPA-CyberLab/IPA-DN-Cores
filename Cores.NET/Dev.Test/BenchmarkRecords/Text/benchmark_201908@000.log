@@ -3334,3 +3334,39 @@
 2019/08/04 11:20:10.105 +09:00 Host: PC34
 2019/08/04 11:20:10.996 +09:00 RateLimiter: 59.41 ns, 16,832,157 / sec
 2019/08/04 11:20:11.498 +09:00 ignore case compare string 1: 45.07 ns, 22,185,888 / sec
+2019/08/26 21:37:23.757 +09:00 ----- Start new benchmark -----
+2019/08/26 21:37:23.788 +09:00 Commit: 2dccf7f13a0c6280288b40565e58fdc3600ca01b
+2019/08/26 21:37:23.788 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.0\Dev.Test.dll
+2019/08/26 21:37:23.788 +09:00 OS: Microsoft Windows 10.0.18362
+2019/08/26 21:37:23.788 +09:00 Framework: .NET Core 3.0.0-preview8-28405-07
+2019/08/26 21:37:23.788 +09:00 Host: PC34
+2019/08/26 21:37:24.687 +09:00 Sync(): 9.76 ns, 102,484,596 / sec
+2019/08/26 21:37:25.190 +09:00 RateLimiter: 115.95 ns, 8,624,541 / sec
+2019/08/26 21:37:37.072 +09:00 ----- Start new benchmark -----
+2019/08/26 21:37:37.108 +09:00 Commit: 2dccf7f13a0c6280288b40565e58fdc3600ca01b
+2019/08/26 21:37:37.108 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.0\Dev.Test.dll
+2019/08/26 21:37:37.108 +09:00 OS: Microsoft Windows 10.0.18362
+2019/08/26 21:37:37.108 +09:00 Framework: .NET Core 3.0.0-preview8-28405-07
+2019/08/26 21:37:37.108 +09:00 Host: PC34
+2019/08/26 21:37:37.970 +09:00 Sync(): 0.00 ns, 9,999,999,999,999 / sec
+2019/08/26 21:37:38.473 +09:00 RateLimiter: 107.72 ns, 9,283,498 / sec
+2019/08/26 21:37:57.844 +09:00 ----- Start new benchmark -----
+2019/08/26 21:37:57.873 +09:00 Commit: 2dccf7f13a0c6280288b40565e58fdc3600ca01b
+2019/08/26 21:37:57.873 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.0\Dev.Test.dll
+2019/08/26 21:37:57.874 +09:00 OS: Microsoft Windows 10.0.18362
+2019/08/26 21:37:57.874 +09:00 Framework: .NET Core 3.0.0-preview8-28405-07
+2019/08/26 21:37:57.874 +09:00 Host: PC34
+2019/08/26 21:37:58.709 +09:00 Sync(): 1.98 ns, 504,442,586 / sec
+2019/08/26 21:37:59.212 +09:00 RateLimiter: 141.49 ns, 7,067,511 / sec
+2019/08/26 21:37:59.716 +09:00 ignore case compare string 1: 30.39 ns, 32,906,283 / sec
+2019/08/26 21:38:00.219 +09:00 ignore case compare string 2: 18.42 ns, 54,303,001 / sec
+2019/08/26 21:38:00.721 +09:00 isemptystr #2: 6.80 ns, 147,086,774 / sec
+2019/08/26 21:38:01.225 +09:00 isemptystr #1: 6.78 ns, 147,437,199 / sec
+2019/08/26 21:38:33.240 +09:00 ----- Start new benchmark -----
+2019/08/26 21:38:33.273 +09:00 Commit: 2dccf7f13a0c6280288b40565e58fdc3600ca01b
+2019/08/26 21:38:33.273 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.0\Dev.Test.dll
+2019/08/26 21:38:33.273 +09:00 OS: Microsoft Windows 10.0.18362
+2019/08/26 21:38:33.273 +09:00 Framework: .NET Core 3.0.0-preview8-28405-07
+2019/08/26 21:38:33.273 +09:00 Host: PC34
+2019/08/26 21:38:34.154 +09:00 Sync(): 3.15 ns, 317,209,901 / sec
+2019/08/26 21:38:34.657 +09:00 RateLimiter: 132.67 ns, 7,537,733 / sec

@@ -404,6 +404,23 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"Sync()", Benchmark_CountForNormal, count =>
+            {
+                localTestAsync()._GetResult();
+
+                async Task localTestAsync()
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        Sync(() =>
+                        {
+                            Packet p = new Packet();
+                            Limbo.SInt32++;
+                        });
+                    }
+                }
+            }), enabled: true, priority: 190802)
+
             .Add(new MicroBenchmark($"RateLimiter", Benchmark_CountForVerySlow, count =>
             {
                 RateLimiter<int> rl = new RateLimiter<int>(new RateLimiterOptions(3, 1, mode: RateLimiterMode.Penalty));

@@ -1029,22 +1029,17 @@ namespace IPA.Cores.Basic
         public Exception? LastError { get; }
         public bool HasError => LastError != null;
 
-        Task StartAsync(CancellationToken cancel = default);
         Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
         Task<long> FlushAsync(CancellationToken cancel = default);
-        Task<long> CompleteAsync(bool ok, CancellationToken cancel = default);
 
-        void Start(CancellationToken cancel = default)
-            => StartAsync(cancel);
         long Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
             => AppendAsync(data, cancel)._GetResult();
         long Flush(CancellationToken cancel = default)
             => FlushAsync(cancel)._GetResult();
-        long Complete(bool ok, CancellationToken cancel = default)
-            => CompleteAsync(ok, cancel)._GetResult();
     }
 
     // ISequentialWritable<T> を容易に実装するためのクラス
+    // Start と Stop の概念もある
     public abstract class SequentialWritableImpl<T> : ISequentialWritable<T>
     {
         protected abstract Task StartImplAsync(CancellationToken cancel = default);

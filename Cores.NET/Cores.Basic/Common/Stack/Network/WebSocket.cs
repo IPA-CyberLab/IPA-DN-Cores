@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
 
                     if (isMasked)
                     {
-                        TaskUtil.DoSync(() =>
+                        TaskUtil.Sync(() =>
                         {
                             Span<byte> maskKeySpan = maskKey.Span;
                             Span<byte> dataSpan = data.Span;

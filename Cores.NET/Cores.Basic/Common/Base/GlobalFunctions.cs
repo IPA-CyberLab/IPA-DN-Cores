@@ -63,6 +63,12 @@ namespace IPA.Cores.Globals
 
         public static string UnixOrWindows(string unix, string windows) => Env.IsUnix ? unix : windows;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sync(Action action) => TaskUtil.Sync(action);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
+
         public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try

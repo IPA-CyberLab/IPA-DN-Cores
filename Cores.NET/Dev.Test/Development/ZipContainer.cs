@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         // ユーザーが新しいファイルの追加要求を行なうとこの実装メソッドが呼び出される。
         // このメソッドで返した ISequentialWritable<byte> は、必ず Complete されることが保証されている。
         // また、多重呼び出しがされないことが保証されている。
-        protected override async Task<ISequentialWritable<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default)
+        protected override async Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default)
         {
             // fileParam をコピー (加工するため)
             param = param._CloneDeep();
@@ -141,27 +141,30 @@ namespace IPA.Cores.Basic
             {
                 checked
                 {
-                    ZipLocalFileHeader h = new ZipLocalFileHeader();
+                    Memory<byte> memory = Sync(() =>
+                    {
+                        Packet p = new Packet();
 
-                    MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                        ref ZipLocalFileHeader h = ref p.AppendSpan<ZipLocalFileHeader>();
 
-                    h.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
-                    h.NeedVersion = ZipFileVersions.Ver2_0;
-                    h.GeneralPurposeFlag = this.Encoding._IsUtf8Encoding() ? ZipGeneralPurposeFlags.Utf8 : ZipGeneralPurposeFlags.None;
-                    h.CompressionMethod = ZipCompressionMethods.Raw;
-                    h.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
-                    h.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
-                    h.Crc32 = 0;
-                    h.CompressedSize = 0;
-                    h.UncompressedSize = 0;
-                    h.FileNameSize = (ushort)this.FileNameData.Length;
-                    h.ExtraFieldSize = 0;
+                        h.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
+                        h.NeedVersion = ZipFileVersions.Ver2_0;
+                        h.GeneralPurposeFlag = this.Encoding._IsUtf8Encoding() ? ZipGeneralPurposeFlags.Utf8 : ZipGeneralPurposeFlags.None;
+                        h.CompressionMethod = ZipCompressionMethods.Raw;
+                        h.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
+                        h.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
+                        h.Crc32 = 0;
+                        h.CompressedSize = 0;
+                        h.UncompressedSize = 0;
+                        h.FileNameSize = (ushort)this.FileNameData.Length;
+                        h.ExtraFieldSize = 0;
 
-                    buf.Write(h._AsReadOnlyByteSpan());
+                        p.AppendSpanWithData(this.FileNameData.Span);
 
-                    buf.Write(this.FileNameData);
+                        return p.ToMemory();
+                    });
 
-                    await Writer.AppendAsync(buf, cancel);
+                    await Writer.AppendAsync(memory, cancel);
                 }
             }
 
