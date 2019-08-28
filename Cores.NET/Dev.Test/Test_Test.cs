@@ -307,6 +307,19 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var outFile = Lfs.Create(@"c:\tmp\zip.zip");
+
+                using var zip = new ZipContainer(new ZipContainerOptions(outFile));
+
+                zip.AddFile(new FileContainerEntityParam("1.txt"),
+                    (w, c) =>
+                    {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        return true;
+                    });
+
+                zip.Finish();
+
                 return;
             }
 

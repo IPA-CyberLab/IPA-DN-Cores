@@ -75,20 +75,20 @@ namespace IPA.Cores.Basic
         public string PathString { get; internal set; }
         public FileMetadata MetaData { get; internal set; }
         public FileContainerEntityFlags Flags { get; internal set; }
-        public string EncodingName { get; internal set; }
+        public string EncodingWebName { get; internal set; }
 
-        public FileContainerEntityParam(string pathString, FileMetadata metaData, FileContainerEntityFlags flags, Encoding? encoding = null)
+        public FileContainerEntityParam(string pathString, FileMetadata? metaData = null, FileContainerEntityFlags flags = FileContainerEntityFlags.None, Encoding? encoding = null)
         {
             PathString = pathString;
-            MetaData = metaData;
+            MetaData = metaData ?? new FileMetadata();
             Flags = flags;
 
             encoding ??= Str.Utf8Encoding;
 
-            this.EncodingName = encoding.EncodingName;
+            this.EncodingWebName = encoding.WebName;
         }
 
-        public Encoding GetEncoding() => Encoding.GetEncoding(this.EncodingName);
+        public Encoding GetEncoding() => Encoding.GetEncoding(this.EncodingWebName);
     }
 
     public abstract class FileContainerOptions
@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
 
         public FileContainerOptions(IRandomAccess<byte> physicalFile, FileContainerFlags flags, PathParser pathParser)
         {
-            if (this.Flags == FileContainerFlags.None)
+            if (flags == FileContainerFlags.None)
                 throw new ArgumentOutOfRangeException(nameof(flags));
 
             this.PhysicalFile = physicalFile;
@@ -173,6 +173,8 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+        public void AddFile(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, bool> composeProc, CancellationToken cancel = default)
+            => AddFileAsync(param, (x, y) => Task.FromResult(composeProc(x, y)), cancel)._GetResult();
 
         public async Task FinishAsync(CancellationToken cancel = default)
         {
@@ -186,6 +188,8 @@ namespace IPA.Cores.Basic
             // 実装の Finish を呼び出す
             await FinishAsyncImpl(c);
         }
+        public void Finish(CancellationToken cancel = default)
+            => FinishAsync(cancel)._GetResult();
     }
 }
 

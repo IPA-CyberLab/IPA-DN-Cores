@@ -1060,7 +1060,9 @@ namespace IPA.Cores.Basic
         void Write(ReadOnlySpan<T> data);
         void WriteOne(T data);
         ReadOnlySpan<T> Read(long size, bool allowPartial = false);
+        ReadOnlyMemory<T> ReadAsMemory(long size, bool allowPartial = false);
         ReadOnlySpan<T> Peek(long size, bool allowPartial = false);
+        public ReadOnlyMemory<T> PeekAsMemory(long size, bool allowPartial = false);
         T ReadOne();
         T PeekOne();
         void Seek(long offset, SeekOrigin mode, bool allocate = false);
@@ -1137,7 +1139,7 @@ namespace IPA.Cores.Basic
             return BaseStream.Length == 0;
         }
 
-        public ReadOnlySpan<byte> Peek(long size, bool allowPartial = false)
+        public ReadOnlyMemory<byte> PeekAsMemory(long size, bool allowPartial = false)
         {
             checked
             {
@@ -1147,7 +1149,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    return Read(size, allowPartial);
+                    return ReadAsMemory(size, allowPartial);
                 }
                 finally
                 {
@@ -1155,6 +1157,8 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+        public ReadOnlySpan<byte> Peek(long size, bool allowPartial = false)
+            => PeekAsMemory(size, allowPartial).Span;
 
         public byte PeekOne()
         {
@@ -1163,15 +1167,15 @@ namespace IPA.Cores.Basic
             return tmp[0];
         }
 
-        public ReadOnlySpan<byte> Read(long size, bool allowPartial = false)
+        public ReadOnlyMemory<byte> ReadAsMemory(long size, bool allowPartial = false)
         {
             checked
             {
                 int sizeToRead = (int)size;
 
-                Span<byte> buf = new byte[sizeToRead];
+                Memory<byte> buf = new byte[sizeToRead];
 
-                int resultSize = BaseStream.Read(buf);
+                int resultSize = BaseStream.Read(buf.Span);
 
                 if (resultSize == 0)
                 {
@@ -1179,7 +1183,7 @@ namespace IPA.Cores.Basic
                     if (allowPartial == false)
                         throw new CoresException("End of stream");
                     else
-                        return ReadOnlySpan<byte>.Empty;
+                        return ReadOnlyMemory<byte>.Empty;
                 }
 
                 Debug.Assert(resultSize <= sizeToRead);
@@ -1205,6 +1209,8 @@ namespace IPA.Cores.Basic
                 return buf;
             }
         }
+        public ReadOnlySpan<byte> Read(long size, bool allowPartial = false)
+            => ReadAsMemory(size, allowPartial).Span;
 
         public byte ReadOne()
         {
@@ -1739,6 +1745,12 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
             => Peek(checked((int)size), allowPartial);
 
+        public ReadOnlyMemory<T> ReadAsMemory(long size, bool allowPartial = false)
+            => ReadAsMemory(checked((int)size), allowPartial);
+
+        public ReadOnlyMemory<T> PeekAsMemory(long size, bool allowPartial = false)
+            => PeekAsMemory(checked((int)size), allowPartial);
+
         public void Seek(long offset, SeekOrigin mode, bool allocate = false)
             => Seek(checked((int)offset), mode, allocate);
 
@@ -1998,6 +2010,12 @@ namespace IPA.Cores.Basic
 
         public ReadOnlySpan<T> Peek(long size, bool allowPartial = false)
             => Peek(checked((int)size), allowPartial);
+
+        public ReadOnlyMemory<T> ReadAsMemory(long size, bool allowPartial = false)
+            => ReadAsMemory(checked((int)size), allowPartial);
+
+        public ReadOnlyMemory<T> PeekAsMemory(long size, bool allowPartial = false)
+            => PeekAsMemory(checked((int)size), allowPartial);
 
         public void Seek(long offset, SeekOrigin mode, bool allocate = false)
             => Seek(checked((int)offset), mode, allocate);
@@ -2281,7 +2299,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public ReadOnlySpan<T> Read(int size, bool allowPartial = false)
+        public ReadOnlyMemory<T> ReadAsMemory(long size, bool allowPartial = false)
         {
             checked
             {
@@ -2295,17 +2313,19 @@ namespace IPA.Cores.Basic
                 if (chunkList.Count == 1)
                 {
                     // No need to copy
-                    return chunkList[0].GetMemoryOrGenerateSparse().Span;
+                    return chunkList[0].GetMemoryOrGenerateSparse();
                 }
 
-                Span<T> ret = new T[sizeToRead];
-                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret);
+                Memory<T> ret = new T[sizeToRead];
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret.Span);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
         }
+        public ReadOnlySpan<T> Read(int size, bool allowPartial = false)
+            => ReadAsMemory(size, allowPartial).Span;
 
-        public ReadOnlySpan<T> Peek(int size, bool allowPartial = false)
+        public ReadOnlyMemory<T> PeekAsMemory(long size, bool allowPartial = false)
         {
             checked
             {
@@ -2319,15 +2339,17 @@ namespace IPA.Cores.Basic
                 if (chunkList.Count == 1)
                 {
                     // No need to copy
-                    return chunkList[0].GetMemoryOrGenerateSparse().Span;
+                    return chunkList[0].GetMemoryOrGenerateSparse();
                 }
 
-                Span<T> ret = new T[sizeToRead];
-                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret);
+                Memory<T> ret = new T[sizeToRead];
+                long retSize = Util.CopySparseChunkListToSpan(chunkList, ret.Span);
                 Debug.Assert(retSize == sizeToRead);
                 return ret;
             }
         }
+        public ReadOnlySpan<T> Peek(int size, bool allowPartial = false)
+            => PeekAsMemory(size, allowPartial).Span;
 
         public ReadOnlyMemory<T> ReadAsMemory(int size, bool allowPartial = false)
         {
@@ -3925,11 +3947,17 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<byte> Peek(long size, bool allowPartial = false)
             => CurrentBuffer.Peek(size, allowPartial);
 
+        public ReadOnlyMemory<byte> PeekAsMemory(long size, bool allowPartial = false)
+            => CurrentBuffer.PeekAsMemory(size, allowPartial);
+
         public byte PeekOne()
             => CurrentBuffer.PeekOne();
 
         public ReadOnlySpan<byte> Read(long size, bool allowPartial = false)
             => CurrentBuffer.Read(size, allowPartial);
+
+        public ReadOnlyMemory<byte> ReadAsMemory(long size, bool allowPartial = false)
+            => CurrentBuffer.ReadAsMemory(size, allowPartial);
 
         public byte ReadOne()
             => CurrentBuffer.ReadOne();

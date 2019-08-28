@@ -1040,53 +1040,47 @@ namespace IPA.Cores.Basic
 
     public static class ISequentialWritableExtension
     {
-        //public static async Task<long> CopyFromBufferAsync(this ISequentialWritable<byte> dest, IBuffer<byte> src, CancellationToken cancel = default)
-        //{
-        //    long totalSize = 0;
+        public static async Task<long> CopyFromBufferAsync(this ISequentialWritable<byte> dest, IBuffer<byte> src, CancellationToken cancel = default)
+        {
+            long totalSize = 0;
 
-        //    int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた
+            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた定数
 
-        //    long len = src.LongLength;
-        //    long pos = src.LongPosition;
-        //    if (len <= pos)
-        //        bufferSize = 1;
-        //    else
-        //    {
-        //        long tmp = len - pos;
-        //        if (tmp > 0)
-        //            bufferSize = (int)Math.Min((long)bufferSize, tmp);
-        //    }
+            long len = src.LongLength;
+            long pos = src.LongPosition;
+            if (len <= pos)
+                bufferSize = 1;
+            else
+            {
+                long tmp = len - pos;
+                if (tmp > 0)
+                    bufferSize = (int)Math.Min((long)bufferSize, tmp);
+            }
 
-        //    byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            for (; ; )
+            {
+                ReadOnlyMemory<byte> buffer = src.ReadAsMemory(bufferSize, true);
 
-        //    try
-        //    {
-        //        for (; ; )
-        //        {
-        //            int num = await src.Read(new Memory<byte>(buffer), cancel);
-        //            if (num == 0)
-        //            {
-        //                break;
-        //            }
+                if (buffer.Length == 0)
+                {
+                    break;
+                }
 
-        //            totalSize += num;
+                totalSize += buffer.Length;
 
-        //            await dest.AppendAsync(new ReadOnlyMemory<byte>(buffer, 0, num), cancel);
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        ArrayPool<byte>.Shared.Return(buffer, false);
-        //    }
+                await dest.AppendAsync(buffer, cancel);
+            }
 
-        //    return totalSize;
-        //}
+            return totalSize;
+        }
+        public static Task<long> CopyToSequentialWritableAsync(this IBuffer<byte> src, ISequentialWritable<byte> dest, CancellationToken cancel = default)
+            => CopyFromBufferAsync(dest, src, cancel);
 
         public static async Task<long> CopyFromStreamAsync(this ISequentialWritable<byte> dest, Stream src, CancellationToken cancel = default)
         {
             long totalSize = 0;
 
-            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた
+            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた定数
 
             if (src.CanSeek)
             {
@@ -1126,6 +1120,8 @@ namespace IPA.Cores.Basic
 
             return totalSize;
         }
+        public static Task<long> CopyToSequentialWritableAsync(this Stream src, ISequentialWritable<byte> dest, CancellationToken cancel = default)
+            => CopyFromStreamAsync(dest, src, cancel);
     }
 
     // ISequentialWritable<T> を容易に実装するためのクラス
@@ -1163,7 +1159,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 this.LastError = ex;
-                throw ex;
+                throw;
             }
         }
 
@@ -1192,7 +1188,7 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 this.LastError = ex;
-                throw ex;
+                throw;
             }
         }
 
@@ -1215,7 +1211,7 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     this.LastError = ex;
-                    throw ex;
+                    throw;
                 }
             }
 
@@ -1259,6 +1255,8 @@ namespace IPA.Cores.Basic
         {
             this.Target = target;
             this.OnCompleted = onCompleted;
+
+            this.StartAsync()._GetResult();
         }
 
         protected override Task AppendImplAsync(ReadOnlyMemory<T> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)

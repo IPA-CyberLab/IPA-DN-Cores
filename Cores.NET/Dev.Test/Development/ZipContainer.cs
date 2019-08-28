@@ -87,6 +87,7 @@ namespace IPA.Cores.Basic
                     throw new NotSupportedException("Read operation is unsupported.");
 
                 this.Writer = new SequentialWritable<byte>(Options.PhysicalFile);
+
                 this.FooterBuffer = new MemoryOrDiskBuffer();
             }
             catch
@@ -141,8 +142,11 @@ namespace IPA.Cores.Basic
         protected override async Task FinishAsyncImpl(CancellationToken cancel = default)
         {
             // セントラルディレクトリヘッダ (一時バッファに溜めていたものを今こそ全部一気に書き出す)
-            //this.FooterBuffer.Seek(
-            //await this.Writer.CopyFromStreamAsync(
+            this.FooterBuffer.Seek(0, SeekOrigin.Begin);
+            await this.FooterBuffer.CopyToSequentialWritableAsync(Writer, cancel);
+
+            // 最後に書き込みバッファを Flush する
+            await Writer.FlushAsync(cancel);
         }
 
         public class Writable : SequentialWritableImpl<byte>
