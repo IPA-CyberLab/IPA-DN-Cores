@@ -74,6 +74,11 @@ namespace IPA.Cores.Basic
 
         readonly SequentialWritable<byte> Writer; // 物理ファイルライタ
 
+        // セントラルディレクトリヘッダ等の、ZIP ファイルの最後に集中して保存される情報のバッファ
+        // ファイルを追加していく際に内容を作っていく必要があり、かつ、ファイル数が極めて膨大になる場合でもメモリを消費しないように
+        // ディスク上の一時ファイルとして保存する必要があるのである
+        readonly MemoryOrDiskBuffer FooterBuffer;
+
         public ZipContainer(ZipContainerOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
             try
@@ -82,11 +87,24 @@ namespace IPA.Cores.Basic
                     throw new NotSupportedException("Read operation is unsupported.");
 
                 this.Writer = new SequentialWritable<byte>(Options.PhysicalFile);
+                this.FooterBuffer = new MemoryOrDiskBuffer();
             }
             catch
             {
                 this._DisposeSafe();
                 throw;
+            }
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.FooterBuffer._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
             }
         }
 
@@ -119,6 +137,14 @@ namespace IPA.Cores.Basic
             return w;
         }
 
+        // すべてのファイルの書き込みが完了したのでセントラルディレクトリヘッダ等を集中的に書き出す
+        protected override async Task FinishAsyncImpl(CancellationToken cancel = default)
+        {
+            // セントラルディレクトリヘッダ (一時バッファに溜めていたものを今こそ全部一気に書き出す)
+            //this.FooterBuffer.Seek(
+            //await this.Writer.CopyFromStreamAsync(
+        }
+
         public class Writable : SequentialWritableImpl<byte>
         {
             readonly ZipContainer Zip;
@@ -126,7 +152,18 @@ namespace IPA.Cores.Basic
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
 
+            long CurrentWrittenRawBytes;
+
+            ZipCrc32 Crc32;
+
             SequentialWritable<byte> Writer => Zip.Writer;
+
+            MemoryOrDiskBuffer FooterBuffer => Zip.FooterBuffer;
+
+            // 途中でメソッドにまたがって保存される必要がある状態変数
+            ZipLocalFileHeader LocalFileHeader;
+            ZipDataDescriptor DataDescriptor;
+            ulong RelativeOffsetOfLocalHeader;
 
             public Writable(ZipContainer zip, FileContainerEntityParam param, Encoding encoding)
             {
@@ -141,37 +178,48 @@ namespace IPA.Cores.Basic
             {
                 checked
                 {
-                    Memory<byte> memory = Sync(() =>
+                    var memory = Sync(() =>
                     {
+                        // このファイル用のローカルファイルヘッダを生成します
+                        LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
+                        LocalFileHeader.NeedVersion = ZipFileVersions.Ver2_0;
+                        LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
+                        LocalFileHeader.CompressionMethod = (ZipCompressionMethods.Raw)._LE_Endian16();
+                        LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
+                        LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
+                        LocalFileHeader.Crc32 = 0;
+                        LocalFileHeader.CompressedSize = 0;
+                        LocalFileHeader.UncompressedSize = 0;
+                        LocalFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
+                        LocalFileHeader.ExtraFieldSize = 0;
+
                         Packet p = new Packet();
 
-                        ref ZipLocalFileHeader h = ref p.AppendSpan<ZipLocalFileHeader>();
-
-                        h.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
-                        h.NeedVersion = ZipFileVersions.Ver2_0;
-                        h.GeneralPurposeFlag = ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding());
-                        h.CompressionMethod = ZipCompressionMethods.Raw;
-                        h.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
-                        h.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default);
-                        h.Crc32 = 0;
-                        h.CompressedSize = 0;
-                        h.UncompressedSize = 0;
-                        h.FileNameSize = (ushort)this.FileNameData.Length;
-                        h.ExtraFieldSize = 0;
+                        p.AppendSpanWithData(in this.LocalFileHeader);
 
                         p.AppendSpanWithData(this.FileNameData.Span);
 
                         return p.ToMemory();
                     });
 
+                    // ローカルヘッダを書き込む直前のオフセットを保存
+                    RelativeOffsetOfLocalHeader = (ulong)Writer.CurrentPosition;
+
                     await Writer.AppendAsync(memory, cancel);
                 }
             }
 
-            // ファイルへの追記データがきました
+            // ファイルへの書き込みが開始された後、追記データ (実データ) がきました
             protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
             {
+                // ひとまず そのまま書き込みます
                 await Writer.AppendAsync(data, cancel);
+
+                // CRC32 の計算を追加します
+                Crc32.Append(data.Span);
+
+                // 書き込んだサイズを加算します
+                CurrentWrittenRawBytes += data.Length;
             }
 
             // Flush 要求を受けました
@@ -181,10 +229,144 @@ namespace IPA.Cores.Basic
             }
 
             // このファイルの書き込みが完了しました (成功または失敗)  最後に必ず呼ばれます
-            protected override Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
+            protected override async Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
             {
-                throw new NotImplementedException();
+                checked
+                {
+                    var data = Sync(() =>
+                    {
+                        // このファイル用のデータデスクリプタ (フッタのようなもの) を書き込みます
+                        DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32();
+                        DataDescriptor.Crc32 = Crc32.Value._LE_Endian32();
+
+                        DataDescriptor.CompressedSize = DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+
+                        Packet p = new Packet();
+
+                        p.AppendSpanWithData(in DataDescriptor);
+
+                        return p.ToMemory();
+                    });
+
+                    await Writer.AppendAsync(data, cancel);
+
+                    var memory = Sync(() =>
+                    {
+                        // このファイル用のセントラルディレクトリヘッダを生成します (後で書き込みますが、今は書き込みません。バッファに一時保存するだけです)
+                        Packet p = new Packet();
+
+                        ref ZipCentralFileHeader centralFileHeader = ref p.AppendSpan<ZipCentralFileHeader>();
+
+                        centralFileHeader.Signature = ZipConsts.CentralFileHeaderSignature._LE_Endian32();
+                        centralFileHeader.MadeVersion = LocalFileHeader.NeedVersion;
+                        centralFileHeader.MadeFileSystemType = ZipFileSystemTypes.Ntfs;
+                        centralFileHeader.NeedVersion = LocalFileHeader.NeedVersion;
+                        centralFileHeader.GeneralPurposeFlag = LocalFileHeader.GeneralPurposeFlag;
+                        centralFileHeader.CompressionMethod = LocalFileHeader.CompressionMethod;
+                        centralFileHeader.LastModFileTime = LocalFileHeader.LastModFileTime;
+                        centralFileHeader.LastModFileDate = LocalFileHeader.LastModFileDate;
+                        centralFileHeader.Crc32 = Crc32.Value._LE_Endian32();
+                        centralFileHeader.CompressedSize = DataDescriptor.CompressedSize;
+                        centralFileHeader.UncompressedSize = DataDescriptor.UncompressedSize;
+                        centralFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
+                        centralFileHeader.ExtraFieldSize = 0;
+                        centralFileHeader.FileCommentSize = 0;
+                        centralFileHeader.DiskNumberStart = 0;
+                        centralFileHeader.InternalFileAttributes = 0;
+                        centralFileHeader.ExternalFileAttributes = (uint)(Param.MetaData.Attributes ?? FileAttributes.Normal)._LE_Endian32();
+                        centralFileHeader.RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian32();
+
+                        p.AppendSpanWithData(this.FileNameData.Span);
+
+                        return new Memory<byte>();
+                    });
+
+                    FooterBuffer.Write(memory.Span);
+                }
             }
+        }
+    }
+
+    // ZIP ファイル用 CRC32 計算構造体
+    public struct ZipCrc32
+    {
+        const int TableSize = 256;
+        static readonly ReadOnlyMemory<uint> Table;
+
+        static ZipCrc32()
+        {
+            uint[] table = new uint[TableSize];
+
+            uint poly = 0xEDB88320;
+            uint u, i, j;
+
+            for (i = 0; i < 256; i++)
+            {
+                u = i;
+
+                for (j = 0; j < 8; j++)
+                {
+                    if ((u & 0x1) != 0)
+                    {
+                        u = (u >> 1) ^ poly;
+                    }
+                    else
+                    {
+                        u >>= 1;
+                    }
+                }
+
+                table[i] = u;
+            }
+
+            ZipCrc32.Table = table;
+        }
+
+        uint CurrentInternal;
+        bool IsNotFirst;
+
+        public uint Value => GetValue();
+
+        // CRC32 計算対象データの追加
+        public void Append(ReadOnlySpan<byte> data)
+        {
+            if (IsNotFirst == false)
+            {
+                // 初回初期化
+                IsNotFirst = true;
+                CurrentInternal = 0xffffffff;
+            }
+
+            if (data.Length == 0) return;
+
+            var tableSpan = Table.Span;
+            uint ret = CurrentInternal;
+            int len = data.Length;
+            for (int i = 0; i < len; i++)
+            {
+                ret = (ret >> 8) ^ tableSpan[(int)(data[i] ^ (ret & 0xff))];
+            }
+            CurrentInternal = ret;
+        }
+
+        public uint GetValue()
+        {
+            if (IsNotFirst == false)
+            {
+                // 初回初期化
+                IsNotFirst = true;
+                CurrentInternal = 0xffffffff;
+            }
+
+            return this.CurrentInternal;
+        }
+
+        // 一発計算
+        public static uint Calc(ReadOnlySpan<byte> data)
+        {
+            ZipCrc32 c = new ZipCrc32();
+            c.Append(data);
+            return c.Value;
         }
     }
 }

@@ -71,6 +71,8 @@ namespace IPA.Cores.Basic
     public static class ZipConsts
     {
         public const uint LocalFileHeaderSignature = 0x04034b50;
+        public const uint DataDescriptorSignature = 0x08074b50;
+        public const uint CentralFileHeaderSignature = 0x02014B50;
 
         public const int MaxFileNameSize = 65535;
     }
@@ -110,7 +112,7 @@ namespace IPA.Cores.Basic
     {
         MsDos = 0,
         UNIX = 1,
-        Windows = 10,
+        Ntfs = 10,
         Darwin = 19,
     }
 
@@ -123,6 +125,7 @@ namespace IPA.Cores.Basic
     }
 
     // ローカルファイルヘッダ
+    // 4.3.7  Local file header
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct ZipLocalFileHeader
     {
@@ -153,17 +156,20 @@ namespace IPA.Cores.Basic
     }
 
     // データディスクリプタ
+    // 4.3.9  Data descriptor
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct ZipDataDescriptor
     {
+        public uint Signature;
         public uint Crc32;
         public uint CompressedSize;
         public uint UncompressedSize;
     }
 
     // セントラルディレクトリファイルヘッダ
+    // 4.3.12  Central directory structure
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public unsafe struct ZipCentralDirectoryFileHeader
+    public unsafe struct ZipCentralFileHeader
     {
         public uint Signature;
         public ZipFileVersions MadeVersion;
@@ -182,7 +188,7 @@ namespace IPA.Cores.Basic
         public ushort FileCommentSize;
         public ushort DiskNumberStart;
         public ushort InternalFileAttributes;
-        public ulong ExternalFileAttributes;
+        public uint ExternalFileAttributes;
         public uint RelativeOffsetOfLocalHeader;
 
         // Followed by:
@@ -202,6 +208,7 @@ namespace IPA.Cores.Basic
     }
 
     // エンドオブセントラルディレクトリレコード
+    // 4.3.16  End of central directory record
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct ZipEndOfCentralDirectoryRecord
     {

@@ -324,11 +324,11 @@ namespace IPA.TestDev
                 w.Write("6");
                 w.Write("7");
 
-                Con.WriteLine(buf.LongCurrentPosition);
+                Con.WriteLine(buf.LongPosition);
 
                 buf.Seek(3, SeekOrigin.Begin);
 
-                Con.WriteLine(buf.LongCurrentPosition);
+                Con.WriteLine(buf.LongPosition);
 
                 buf.Write("abc"._GetBytes_Ascii());
                 buf.Flush();

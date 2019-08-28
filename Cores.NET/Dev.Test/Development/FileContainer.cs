@@ -121,11 +121,19 @@ namespace IPA.Cores.Basic
 
         readonly SingleEntryDoor Door = new SingleEntryDoor();
 
+        public bool CanWrite = false;
+
         protected FileContainer(FileContainerOptions options, CancellationToken cancel = default) : base(cancel)
         {
             try
             {
                 this.Options = options;
+
+                // モードフラグをもとに可能状態を設定
+                if (this.Options.Flags.Bit(FileContainerFlags.CreateNewSequential))
+                {
+                    this.CanWrite = true;
+                }
             }
             catch
             {
@@ -136,11 +144,14 @@ namespace IPA.Cores.Basic
 
         // FileContainer の派生クラスが具備すべきメソッド一覧
         protected abstract Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default);
+        protected abstract Task FinishAsyncImpl(CancellationToken cancel = default);
 
         public async Task AddFileAsync(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, Task<bool>> composeProc, CancellationToken cancel = default)
         {
             using var doorHolder = Door.Enter();
             using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
+
+            if (this.CanWrite == false) throw new CoresException("Current state doesn't allow write operations.");
 
             // 実装の新規ファイル作成を呼び出す
             SequentialWritableImpl<byte> obj = await AddFileAsyncImpl(param, c);
@@ -161,6 +172,19 @@ namespace IPA.Cores.Basic
                 await obj.CompleteAsync(false, c);
                 throw;
             }
+        }
+
+        public async Task FinishAsync(CancellationToken cancel = default)
+        {
+            using var doorHolder = Door.Enter();
+            using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
+
+            if (this.CanWrite == false) throw new CoresException("Current state doesn't allow write operations.");
+
+            this.CanWrite = false;
+
+            // 実装の Finish を呼び出す
+            await FinishAsyncImpl(c);
         }
     }
 }

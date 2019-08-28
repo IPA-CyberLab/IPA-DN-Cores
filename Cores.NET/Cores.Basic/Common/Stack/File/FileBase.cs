@@ -1038,6 +1038,96 @@ namespace IPA.Cores.Basic
             => FlushAsync(cancel)._GetResult();
     }
 
+    public static class ISequentialWritableExtension
+    {
+        //public static async Task<long> CopyFromBufferAsync(this ISequentialWritable<byte> dest, IBuffer<byte> src, CancellationToken cancel = default)
+        //{
+        //    long totalSize = 0;
+
+        //    int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた
+
+        //    long len = src.LongLength;
+        //    long pos = src.LongPosition;
+        //    if (len <= pos)
+        //        bufferSize = 1;
+        //    else
+        //    {
+        //        long tmp = len - pos;
+        //        if (tmp > 0)
+        //            bufferSize = (int)Math.Min((long)bufferSize, tmp);
+        //    }
+
+        //    byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+        //    try
+        //    {
+        //        for (; ; )
+        //        {
+        //            int num = await src.Read(new Memory<byte>(buffer), cancel);
+        //            if (num == 0)
+        //            {
+        //                break;
+        //            }
+
+        //            totalSize += num;
+
+        //            await dest.AppendAsync(new ReadOnlyMemory<byte>(buffer, 0, num), cancel);
+        //        }
+        //    }
+        //    finally
+        //    {
+        //        ArrayPool<byte>.Shared.Return(buffer, false);
+        //    }
+
+        //    return totalSize;
+        //}
+
+        public static async Task<long> CopyFromStreamAsync(this ISequentialWritable<byte> dest, Stream src, CancellationToken cancel = default)
+        {
+            long totalSize = 0;
+
+            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた
+
+            if (src.CanSeek)
+            {
+                long len = src.Length;
+                long pos = src.Position;
+                if (len <= pos)
+                    bufferSize = 1;
+                else
+                {
+                    long tmp = len - pos;
+                    if (tmp > 0)
+                        bufferSize = (int)Math.Min((long)bufferSize, tmp);
+                }
+            }
+
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+            try
+            {
+                for (; ; )
+                {
+                    int num = await src.ReadAsync(new Memory<byte>(buffer), cancel);
+                    if (num == 0)
+                    {
+                        break;
+                    }
+
+                    totalSize += num;
+
+                    await dest.AppendAsync(new ReadOnlyMemory<byte>(buffer, 0, num), cancel);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer, false);
+            }
+
+            return totalSize;
+        }
+    }
+
     // ISequentialWritable<T> を容易に実装するためのクラス
     // Start と Stop の概念もある
     public abstract class SequentialWritableImpl<T> : ISequentialWritable<T>

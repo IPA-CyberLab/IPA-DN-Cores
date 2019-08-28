@@ -1054,7 +1054,7 @@ namespace IPA.Cores.Basic
 
     public interface IBuffer<T> : IEmptyChecker
     {
-        long LongCurrentPosition { get; }
+        long LongPosition { get; }
         long LongLength { get; }
         long LongInternalBufferSize { get; }
         void Write(ReadOnlySpan<T> data);
@@ -1120,7 +1120,7 @@ namespace IPA.Cores.Basic
             LeakHolder._DisposeSafe();
         }
 
-        public long LongCurrentPosition => BaseStream.Position;
+        public long LongPosition => BaseStream.Position;
 
         public long LongLength => BaseStream.Length;
 
@@ -1143,7 +1143,7 @@ namespace IPA.Cores.Basic
             {
                 int sizeToRead = (int)size;
 
-                long currentPosition = LongCurrentPosition;
+                long currentPosition = LongPosition;
 
                 try
                 {
@@ -1217,7 +1217,7 @@ namespace IPA.Cores.Basic
         {
             checked
             {
-                long currentPosition = LongCurrentPosition;
+                long currentPosition = LongPosition;
                 long newPosition;
                 long currentLength = LongLength;
                 long newLength = currentLength;
@@ -1296,7 +1296,7 @@ namespace IPA.Cores.Basic
 
         public override long Position
         {
-            get => BaseBuffer.LongCurrentPosition;
+            get => BaseBuffer.LongPosition;
             set => Seek(value, SeekOrigin.Begin);
         }
 
@@ -1308,7 +1308,7 @@ namespace IPA.Cores.Basic
         public override long Seek(long offset, SeekOrigin origin)
         {
             BaseBuffer.Seek(offset, origin, true);
-            return BaseBuffer.LongCurrentPosition;
+            return BaseBuffer.LongPosition;
         }
 
         public override void SetLength(long value)
@@ -1380,7 +1380,7 @@ namespace IPA.Cores.Basic
         public Span<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public Span<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
 
-        public long LongCurrentPosition => this.CurrentPosition;
+        public long LongPosition => this.CurrentPosition;
 
         public long LongLength => this.Length;
 
@@ -1764,7 +1764,7 @@ namespace IPA.Cores.Basic
         public ReadOnlySpan<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
         public ReadOnlySpan<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
 
-        public long LongCurrentPosition => this.CurrentPosition;
+        public long LongPosition => this.CurrentPosition;
 
         public long LongLength => this.Length;
 
@@ -2043,7 +2043,7 @@ namespace IPA.Cores.Basic
 
         public long PhysicalSize => this.Segments.Values.Select(x => (long)x.InternalBufferSize).Sum();
 
-        public long LongCurrentPosition => this.CurrentPosition;
+        public long LongPosition => this.CurrentPosition;
         public long LongLength => this.Length;
         public long LongInternalBufferSize => PhysicalSize;
 
@@ -3907,8 +3907,8 @@ namespace IPA.Cores.Basic
             Leak._DisposeSafe();
         }
 
-        public long LongCurrentPosition
-            => CurrentBuffer.LongCurrentPosition;
+        public long LongPosition
+            => CurrentBuffer.LongPosition;
 
         public long LongLength
             => CurrentBuffer.LongLength;
