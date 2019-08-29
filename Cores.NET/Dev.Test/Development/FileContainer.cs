@@ -56,15 +56,16 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
-    public enum FileContainerFlags
+    public enum FileContainerFlags : ulong
     {
         None = 0,
+        // モード
         Read = 1,
         CreateNewSequential = 2,
     }
 
     [Flags]
-    public enum FileContainerEntityFlags
+    public enum FileContainerEntityFlags : ulong
     {
         None = 0,
     }
@@ -143,10 +144,10 @@ namespace IPA.Cores.Basic
         }
 
         // FileContainer の派生クラスが具備すべきメソッド一覧
-        protected abstract Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default);
+        protected abstract Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, long? fileSizeHint, CancellationToken cancel = default);
         protected abstract Task FinishAsyncImpl(CancellationToken cancel = default);
 
-        public async Task AddFileAsync(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, Task<bool>> composeProc, CancellationToken cancel = default)
+        public async Task AddFileAsync(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, Task<bool>> composeProc, long? fileSizeHint = null, CancellationToken cancel = default)
         {
             using var doorHolder = Door.Enter();
             using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
@@ -154,7 +155,7 @@ namespace IPA.Cores.Basic
             if (this.CanWrite == false) throw new CoresException("Current state doesn't allow write operations.");
 
             // 実装の新規ファイル作成を呼び出す
-            SequentialWritableImpl<byte> obj = await AddFileAsyncImpl(param, c);
+            SequentialWritableImpl<byte> obj = await AddFileAsyncImpl(param, fileSizeHint, c);
 
             try
             {
@@ -173,8 +174,8 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
-        public void AddFile(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, bool> composeProc, CancellationToken cancel = default)
-            => AddFileAsync(param, (x, y) => Task.FromResult(composeProc(x, y)), cancel)._GetResult();
+        public void AddFile(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, bool> composeProc, long? fileSizeHint = null, CancellationToken cancel = default)
+            => AddFileAsync(param, (x, y) => Task.FromResult(composeProc(x, y)), fileSizeHint, cancel)._GetResult();
 
         public async Task FinishAsync(CancellationToken cancel = default)
         {

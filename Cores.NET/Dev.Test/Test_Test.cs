@@ -307,16 +307,65 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using var outFile = Lfs.Create(@"c:\tmp\zip.zip");
+                DateTimeOffset now = DateTimeOffset.Now;
+
+                using var outFile = Lfs.Create(@"c:\tmp\190829\zip.zip", flags: FileFlags.AutoCreateDirectory);
 
                 using var zip = new ZipContainer(new ZipContainerOptions(outFile));
 
-                zip.AddFile(new FileContainerEntityParam("1.txt"),
+                zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
                     (w, c) =>
                     {
                         w.Append("Hello"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
                         return true;
                     });
+
+                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                    (w, c) =>
+                    {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
+                        return true;
+                    });
+
+                if (false)
+                {
+                    zip.AddFile(new FileContainerEntityParam("3.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                        (w, c) =>
+                        {
+                            byte[] tmp = new byte[1_000_000_000];
+                            for (int i = 0; i < 5; i++)
+                            {
+                                w.Append(tmp, c);
+                            }
+                            return true;
+                        });
+                }
+
+                zip.AddFile(new FileContainerEntityParam("4.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                    (w, c) =>
+                    {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
+                        return true;
+                    });
+
+                if (false)
+                {
+                    for (int i = 10000; i < 90000; i++)
+                    {
+                        string ns = i.ToString();
+                        string fn = $"many/{ns.Substring(0, 2)}/{ns}.txt";
+
+                        zip.AddFile(new FileContainerEntityParam(fn, new FileMetadata(lastWriteTime: now, creationTime: now)),
+                            (w, c) =>
+                            {
+                                w.Append(i.ToString()._GetBytes_Ascii());
+                                return true;
+                            });
+                    }
+                }
 
                 zip.Finish();
 
@@ -345,7 +394,7 @@ namespace IPA.TestDev
 
                 buf.Write("abc"._GetBytes_Ascii());
                 buf.Flush();
-                
+
 
                 Con.ReadLine("?");
 

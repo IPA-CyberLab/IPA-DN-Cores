@@ -1227,10 +1227,10 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool IsZeroStruct<T>(T value, int size = DefaultSize) where T : unmanaged
+        public static unsafe bool IsZeroStruct<T>(in T value, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
-            byte* ptr = (byte*)Unsafe.AsPointer<T>(ref value);
+            byte* ptr = (byte*)Unsafe.AsPointer<T>(ref Unsafe.AsRef(in value));
             return IsZero(ptr, size);
         }
 
@@ -1316,10 +1316,10 @@ namespace IPA.Cores.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
-        public static unsafe bool IsZeroFastStruct<T>(T value, int size = DefaultSize) where T : unmanaged
+        public static unsafe bool IsZeroFastStruct<T>(in T value, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
-            byte* ptr = (byte*)Unsafe.AsPointer(ref value);
+            byte* ptr = (byte*)Unsafe.AsPointer(ref Unsafe.AsRef(in value));
             return IsZeroFast(ptr, size);
         }
 

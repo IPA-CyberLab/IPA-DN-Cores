@@ -2601,195 +2601,195 @@ namespace IPA.Cores.Basic
         public static void WriteBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this ref SpanBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this ref SpanBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this ref SpanBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteUInt16(this ref SpanBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteUInt32(this ref SpanBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteUInt64(this ref SpanBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, false), littleEndian);
         public static void WriteSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this ref SpanBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this ref SpanBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this ref SpanBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
+        public static void WriteSInt16(this ref SpanBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteSInt32(this ref SpanBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteSInt64(this ref SpanBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
 
         public static void SetBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this ref SpanBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this ref SpanBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this ref SpanBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetUInt16(this ref SpanBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, true), littleEndian);
+        public static void SetUInt32(this ref SpanBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, true), littleEndian);
+        public static void SetUInt64(this ref SpanBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, true), littleEndian);
         public static void SetSInt8(this ref SpanBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this ref SpanBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this ref SpanBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this ref SpanBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
+        public static void SetSInt16(this ref SpanBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, true), littleEndian);
+        public static void SetSInt32(this ref SpanBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, true), littleEndian);
+        public static void SetSInt64(this ref SpanBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, true), littleEndian);
 
         public static bool ReadBool8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(ref this SpanBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(ref this SpanBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(ref this SpanBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(ref this SpanBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(ref this SpanBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(ref this SpanBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(ref this SpanBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(ref this SpanBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(ref this SpanBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(ref this SpanBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(ref this SpanBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(ref this SpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
 
         public static bool ReadBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(ref this ReadOnlySpanBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(ref this ReadOnlySpanBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
 
         public static void WriteBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteUInt16(this ref FastMemoryBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteUInt32(this ref FastMemoryBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteUInt64(this ref FastMemoryBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, false), littleEndian);
         public static void WriteSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
+        public static void WriteSInt16(this ref FastMemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteSInt32(this ref FastMemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteSInt64(this ref FastMemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
 
         public static void SetBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this ref FastMemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this ref FastMemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this ref FastMemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetUInt16(this ref FastMemoryBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, true), littleEndian);
+        public static void SetUInt32(this ref FastMemoryBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, true), littleEndian);
+        public static void SetUInt64(this ref FastMemoryBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, true), littleEndian);
         public static void SetSInt8(this ref FastMemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this ref FastMemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this ref FastMemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this ref FastMemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
+        public static void SetSInt16(this ref FastMemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, true), littleEndian);
+        public static void SetSInt32(this ref FastMemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, true), littleEndian);
+        public static void SetSInt64(this ref FastMemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, true), littleEndian);
 
         public static bool ReadBool8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(ref this FastMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(ref this FastMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(ref this FastMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(ref this FastMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(ref this FastMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
 
         public static bool ReadBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
 
         public static void WriteBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
-        public static void WriteUInt16(this MemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, false));
-        public static void WriteUInt32(this MemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, false));
-        public static void WriteUInt64(this MemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, false));
+        public static void WriteUInt16(this MemoryBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteUInt32(this MemoryBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteUInt64(this MemoryBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, false), littleEndian);
         public static void WriteSInt8(this MemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, false));
-        public static void WriteSInt16(this MemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, false));
-        public static void WriteSInt32(this MemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, false));
-        public static void WriteSInt64(this MemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, false));
+        public static void WriteSInt16(this MemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
+        public static void WriteSInt32(this MemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
+        public static void WriteSInt64(this MemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
 
         public static void SetBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
-        public static void SetUInt16(this MemoryBuffer<byte> buf, ushort value) => value._SetUInt16(buf.Walk(2, true));
-        public static void SetUInt32(this MemoryBuffer<byte> buf, uint value) => value._SetUInt32(buf.Walk(4, true));
-        public static void SetUInt64(this MemoryBuffer<byte> buf, ulong value) => value._SetUInt64(buf.Walk(8, true));
+        public static void SetUInt16(this MemoryBuffer<byte> buf, ushort value, bool littleEndian = false) => value._SetUInt16(buf.Walk(2, true), littleEndian);
+        public static void SetUInt32(this MemoryBuffer<byte> buf, uint value, bool littleEndian = false) => value._SetUInt32(buf.Walk(4, true), littleEndian);
+        public static void SetUInt64(this MemoryBuffer<byte> buf, ulong value, bool littleEndian = false) => value._SetUInt64(buf.Walk(8, true), littleEndian);
         public static void SetSInt8(this MemoryBuffer<byte> buf, sbyte value) => value._SetSInt8(buf.Walk(1, true));
-        public static void SetSInt16(this MemoryBuffer<byte> buf, short value) => value._SetSInt16(buf.Walk(2, true));
-        public static void SetSInt32(this MemoryBuffer<byte> buf, int value) => value._SetSInt32(buf.Walk(4, true));
-        public static void SetSInt64(this MemoryBuffer<byte> buf, long value) => value._SetSInt64(buf.Walk(8, true));
+        public static void SetSInt16(this MemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, true), littleEndian);
+        public static void SetSInt32(this MemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, true), littleEndian);
+        public static void SetSInt64(this MemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, true), littleEndian);
 
         public static bool ReadBool8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(this MemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(this MemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(this MemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(this MemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(this MemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(this MemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(this MemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(this MemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(this MemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(this MemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(this MemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(this MemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(this MemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(this MemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(this MemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(this MemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
         public static bool ReadBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetBool8();
         public static byte ReadUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
         public static byte ReadByte(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetUInt8();
-        public static ushort ReadUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetUInt16();
-        public static uint ReadUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetUInt32();
-        public static ulong ReadUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetUInt64();
+        public static ushort ReadUInt16(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetUInt16(littleEndian);
+        public static uint ReadUInt32(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetUInt32(littleEndian);
+        public static ulong ReadUInt64(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetUInt64(littleEndian);
         public static sbyte ReadSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(1)._GetSInt8();
-        public static short ReadSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(2)._GetSInt16();
-        public static int ReadSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(4)._GetSInt32();
-        public static long ReadSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Read(8)._GetSInt64();
+        public static short ReadSInt16(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(2)._GetSInt16(littleEndian);
+        public static int ReadSInt32(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(4)._GetSInt32(littleEndian);
+        public static long ReadSInt64(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Read(8)._GetSInt64(littleEndian);
 
         public static bool PeekBool8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetBool8();
         public static byte PeekUInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetUInt8();
-        public static ushort PeekUInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetUInt16();
-        public static uint PeekUInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetUInt32();
-        public static ulong PeekUInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetUInt64();
+        public static ushort PeekUInt16(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetUInt16(littleEndian);
+        public static uint PeekUInt32(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetUInt32(littleEndian);
+        public static ulong PeekUInt64(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetUInt64(littleEndian);
         public static sbyte PeekSInt8(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(1)._GetSInt8();
-        public static short PeekSInt16(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(2)._GetSInt16();
-        public static int PeekSInt32(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(4)._GetSInt32();
-        public static long PeekSInt64(this ReadOnlyMemoryBuffer<byte> buf) => buf.Peek(8)._GetSInt64();
+        public static short PeekSInt16(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(2)._GetSInt16(littleEndian);
+        public static int PeekSInt32(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
+        public static long PeekSInt64(this ReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
     }
 
     public static class MemoryHelper
@@ -3264,9 +3264,12 @@ namespace IPA.Cores.Basic
                 EnsurePostSize(size);
 
             PostAllocSize -= size;
+
+            ref T ret = ref this.InternalBuffer[PreAllocSize + Length];
+
             Length += size;
 
-            return ref this.InternalBuffer[PreAllocSize + Length];
+            return ref ret;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

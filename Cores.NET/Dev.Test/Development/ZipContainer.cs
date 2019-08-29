@@ -78,6 +78,7 @@ namespace IPA.Cores.Basic
         // ファイルを追加していく際に内容を作っていく必要があり、かつ、ファイル数が極めて膨大になる場合でもメモリを消費しないように
         // ディスク上の一時ファイルとして保存する必要があるのである
         readonly MemoryOrDiskBuffer FooterBuffer;
+        int NumTotalFiles;
 
         public ZipContainer(ZipContainerOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
@@ -112,7 +113,7 @@ namespace IPA.Cores.Basic
         // ユーザーが新しいファイルの追加要求を行なうとこの実装メソッドが呼び出される。
         // このメソッドで返した ISequentialWritable<byte> は、必ず Complete されることが保証されている。
         // また、多重呼び出しがされないことが保証されている。
-        protected override async Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, CancellationToken cancel = default)
+        protected override async Task<SequentialWritableImpl<byte>> AddFileAsyncImpl(FileContainerEntityParam param, long? fileSizeHint, CancellationToken cancel = default)
         {
             // fileParam をコピー (加工するため)
             param = param._CloneDeep();
@@ -129,7 +130,7 @@ namespace IPA.Cores.Basic
 
             param.PathString._CheckStrSizeException(ZipConsts.MaxFileNameSize, encoding);
 
-            Writable w = new Writable(this, param, encoding);
+            Writable w = new Writable(this, param, encoding, fileSizeHint ?? long.MaxValue);
 
             // ローカルファイルヘッダを書き込む
             await w.StartAsync(cancel);
@@ -141,12 +142,95 @@ namespace IPA.Cores.Basic
         // すべてのファイルの書き込みが完了したのでセントラルディレクトリヘッダ等を集中的に書き出す
         protected override async Task FinishAsyncImpl(CancellationToken cancel = default)
         {
-            // セントラルディレクトリヘッダ (一時バッファに溜めていたものを今こそ全部一気に書き出す)
-            this.FooterBuffer.Seek(0, SeekOrigin.Begin);
-            await this.FooterBuffer.CopyToSequentialWritableAsync(Writer, cancel);
+            checked
+            {
+                long sizeOfCentralDirectory = this.FooterBuffer.LongLength;
+                long offsetOfCentralDirectory = this.Writer.CurrentPosition;
 
-            // 最後に書き込みバッファを Flush する
-            await Writer.FlushAsync(cancel);
+                // セントラルディレクトリヘッダ (一時バッファに溜めていたものを今こそ全部一気に書き出す)
+                this.FooterBuffer.Seek(0, SeekOrigin.Begin);
+                await this.FooterBuffer.CopyToSequentialWritableAsync(this.Writer, cancel);
+
+                var memory = Sync(() =>
+                {
+                    checked
+                    {
+                        bool useZip64 = false;
+
+                        // ZIP64 形式のヘッダが必要かどうか判定する
+                        if (NumTotalFiles > ushort.MaxValue) useZip64 = true;
+                        if (sizeOfCentralDirectory > uint.MaxValue) useZip64 = true;
+                        if (offsetOfCentralDirectory > uint.MaxValue) useZip64 = true;
+
+                        Packet p = new Packet();
+
+                        long offsetStartZip64CentralDirectoryRecord = this.Writer.CurrentPosition;
+
+                        if (useZip64)
+                        {
+                            // ZIP64 エンドオブセントラルディレクトリレコードの追記
+                            ref Zip64EndOfCentralDirectoryRecord endZip64Record = ref p.AppendSpan<Zip64EndOfCentralDirectoryRecord>();
+
+                            endZip64Record.Signature = ZipConsts.Zip64EndOfCentralDirectorySignature._LE_Endian32();
+
+                            unsafe
+                            {
+                                endZip64Record.SizeOfZip64EndOfCentralDirectoryRecord = ((ulong)(sizeof(Zip64EndOfCentralDirectoryRecord) - 12))._LE_Endian64();
+                            }
+
+                            endZip64Record.MadeVersion = ZipFileVersions.Ver4_5;
+                            endZip64Record.MadeFileSystemType = ZipFileSystemTypes.Ntfs;
+                            endZip64Record.NeedVersion = ZipFileVersions.Ver4_5;
+                            endZip64Record.Reserved = 0;
+                            endZip64Record.NumberOfThisDisk = 0;
+                            endZip64Record.DiskNumberStart = 0;
+                            endZip64Record.TotalNumberOfCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64();
+                            endZip64Record.TotalNumberOfEntriesOnCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64();
+                            endZip64Record.SizeOfCentralDirectory = ((ulong)sizeOfCentralDirectory)._LE_Endian64();
+                            endZip64Record.OffsetStartCentralDirectory = ((ulong)offsetOfCentralDirectory)._LE_Endian64();
+
+                            // ZIP64 エンドオブセントラルディレクトリロケータの追記
+                            ref Zip64EndOfCentralDirectoryLocator zip64Locator = ref p.AppendSpan<Zip64EndOfCentralDirectoryLocator>();
+
+                            zip64Locator.Signature = ZipConsts.Zip64EndOfCentralDirectoryLocatorSignature;
+                            zip64Locator.NumberOfThisDisk = 0;
+                            zip64Locator.OffsetStartZip64CentralDirectoryRecord = offsetStartZip64CentralDirectoryRecord._LE_Endian64_U();
+                            zip64Locator.TotalNumberOfDisk = 1._LE_Endian32_U();
+                        }
+
+                        // エンドオブセントラルディレクトリレコード
+                        ref ZipEndOfCentralDirectoryRecord endRecord = ref p.AppendSpan<ZipEndOfCentralDirectoryRecord>();
+
+                        endRecord.Signature = ZipConsts.EndOfCentralDirectorySignature._LE_Endian32();
+
+                        if (useZip64 == false)
+                        {
+                            endRecord.NumberOfThisDisk = 0;
+                            endRecord.NumberOfCentralDirectoryOnThisDisk = (ushort)NumTotalFiles._LE_Endian16();
+                            endRecord.TotalNumberOfCentralDirectory = (ushort)NumTotalFiles._LE_Endian16();
+                            endRecord.SizeOfCentralDirectory = ((uint)sizeOfCentralDirectory)._LE_Endian32();
+                            endRecord.OffsetStartCentralDirectory = ((uint)offsetOfCentralDirectory)._LE_Endian32();
+                        }
+                        else
+                        {
+                            endRecord.NumberOfThisDisk = 0xFFFF;
+                            endRecord.NumberOfCentralDirectoryOnThisDisk = 0xFFFF;
+                            endRecord.TotalNumberOfCentralDirectory = 0xFFFF;
+                            endRecord.SizeOfCentralDirectory = 0xFFFFFFFF;
+                            endRecord.OffsetStartCentralDirectory = 0xFFFFFFFF;
+                        }
+
+                        endRecord.CommentLength = 0;
+
+                        return p.ToMemory();
+                    }
+                });
+
+                await Writer.AppendAsync(memory, cancel);
+
+                // 最後に書き込みバッファを Flush する
+                await Writer.FlushAsync(cancel);
+            }
         }
 
         public class Writable : SequentialWritableImpl<byte>
@@ -155,6 +239,8 @@ namespace IPA.Cores.Basic
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
+
+            readonly long FileSizeHint;
 
             long CurrentWrittenRawBytes;
 
@@ -169,11 +255,13 @@ namespace IPA.Cores.Basic
             ZipDataDescriptor DataDescriptor;
             ulong RelativeOffsetOfLocalHeader;
 
-            public Writable(ZipContainer zip, FileContainerEntityParam param, Encoding encoding)
+            public Writable(ZipContainer zip, FileContainerEntityParam param, Encoding encoding, long fileSizeHint)
             {
                 this.Zip = zip;
                 this.Param = param;
                 this.Encoding = encoding;
+                this.FileSizeHint = fileSizeHint._NonNegative();
+
                 FileNameData = param.PathString._GetBytes(this.Encoding);
             }
 
@@ -184,26 +272,29 @@ namespace IPA.Cores.Basic
                 {
                     var memory = Sync(() =>
                     {
-                        // このファイル用のローカルファイルヘッダを生成します
-                        LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
-                        LocalFileHeader.NeedVersion = ZipFileVersions.Ver2_0;
-                        LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
-                        LocalFileHeader.CompressionMethod = (ZipCompressionMethods.Raw)._LE_Endian16();
-                        LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
-                        LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
-                        LocalFileHeader.Crc32 = 0;
-                        LocalFileHeader.CompressedSize = 0;
-                        LocalFileHeader.UncompressedSize = 0;
-                        LocalFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
-                        LocalFileHeader.ExtraFieldSize = 0;
+                        checked
+                        {
+                            // このファイル用のローカルファイルヘッダを生成します
+                            LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
+                            LocalFileHeader.NeedVersion = ZipFileVersions.Ver4_5;
+                            LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
+                            LocalFileHeader.CompressionMethod = (ZipCompressionMethods.Raw)._LE_Endian16();
+                            LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
+                            LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
+                            LocalFileHeader.Crc32 = 0;
+                            LocalFileHeader.CompressedSize = 0;
+                            LocalFileHeader.UncompressedSize = 0;
+                            LocalFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
+                            LocalFileHeader.ExtraFieldSize = 0;
 
-                        Packet p = new Packet();
+                            Packet p = new Packet();
 
-                        p.AppendSpanWithData(in this.LocalFileHeader);
+                            p.AppendSpanWithData(in this.LocalFileHeader);
 
-                        p.AppendSpanWithData(this.FileNameData.Span);
+                            p.AppendSpanWithData(this.FileNameData.Span);
 
-                        return p.ToMemory();
+                            return p.ToMemory();
+                        }
                     });
 
                     // ローカルヘッダを書き込む直前のオフセットを保存
@@ -235,27 +326,57 @@ namespace IPA.Cores.Basic
             // このファイルの書き込みが完了しました (成功または失敗)  最後に必ず呼ばれます
             protected override async Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
             {
-                checked
+                if (ok == false)
                 {
-                    var data = Sync(() =>
+                    // ファイルの書き込みをキャンセルすることが指示されたので、データデスクリプタやセントラルディレクトリヘッダは書き込みしない。
+                    // ただし、一度書き込んだデータそのものは、一方向性書き込みであるためキャンセルできない。
+                    // そのため、単に関数を抜けるだけとする。
+                    return;
+                }
+
+                // 結局 Zip64 形式が必要か不要かの判定
+                bool useZip64 = false;
+
+                if (CurrentWrittenRawBytes >= uint.MaxValue /* todo */ )
+                {
+                    useZip64 = true;
+                }
+
+                var data = Sync(() =>
+                {
+                    checked
                     {
                         // このファイル用のデータデスクリプタ (フッタのようなもの) を書き込みます
                         DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32();
                         DataDescriptor.Crc32 = Crc32.Value._LE_Endian32();
 
-                        DataDescriptor.CompressedSize = DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+                        if (useZip64 == false)
+                        {
+                            DataDescriptor.CompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+                            DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+                        }
+                        else
+                        {
+                            DataDescriptor.CompressedSize = 0xFFFFFFFF._LE_Endian32();
+                            DataDescriptor.UncompressedSize = 0xFFFFFFFF._LE_Endian32();
+                        }
 
                         Packet p = new Packet();
 
                         p.AppendSpanWithData(in DataDescriptor);
 
                         return p.ToMemory();
-                    });
+                    }
+                });
 
-                    await Writer.AppendAsync(data, cancel);
+                await Writer.AppendAsync(data, cancel);
 
-                    var memory = Sync(() =>
+                var memory = Sync(() =>
+                {
+                    checked
                     {
+                        Memory<byte> extraFieldsMemory = default;
+
                         // このファイル用のセントラルディレクトリヘッダを生成します (後で書き込みますが、今は書き込みません。バッファに一時保存するだけです)
                         Packet p = new Packet();
 
@@ -270,23 +391,74 @@ namespace IPA.Cores.Basic
                         centralFileHeader.LastModFileTime = LocalFileHeader.LastModFileTime;
                         centralFileHeader.LastModFileDate = LocalFileHeader.LastModFileDate;
                         centralFileHeader.Crc32 = Crc32.Value._LE_Endian32();
-                        centralFileHeader.CompressedSize = DataDescriptor.CompressedSize;
-                        centralFileHeader.UncompressedSize = DataDescriptor.UncompressedSize;
+
+                        if (useZip64 == false)
+                        {
+                            centralFileHeader.CompressedSize = DataDescriptor.CompressedSize;
+                            centralFileHeader.UncompressedSize = DataDescriptor.UncompressedSize;
+                        }
+                        else
+                        {
+                            centralFileHeader.CompressedSize = 0xFFFFFFFF;
+                            centralFileHeader.UncompressedSize = 0xFFFFFFFF;
+                        }
+
                         centralFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
                         centralFileHeader.ExtraFieldSize = 0;
                         centralFileHeader.FileCommentSize = 0;
-                        centralFileHeader.DiskNumberStart = 0;
+
+                        if (useZip64 == false)
+                        {
+                            centralFileHeader.DiskNumberStart = 0;
+                        }
+                        else
+                        {
+                            centralFileHeader.DiskNumberStart = 0xFFFF;
+                        }
+
                         centralFileHeader.InternalFileAttributes = 0;
                         centralFileHeader.ExternalFileAttributes = (uint)(Param.MetaData.Attributes ?? FileAttributes.Normal)._LE_Endian32();
-                        centralFileHeader.RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian32();
+
+                        if (useZip64 == false)
+                        {
+                            centralFileHeader.RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian32();
+                        }
+                        else
+                        {
+                            centralFileHeader.RelativeOffsetOfLocalHeader = 0xFFFFFFFF;
+                        }
+
+                        if (useZip64)
+                        {
+                            var extraList = new ZipExtraFieldsList();
+
+                            ZipExtZip64Field zip64 = new ZipExtZip64Field
+                            {
+                                UncompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
+                                CompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
+                                RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian64(),
+                                DiskNumberStart = 0,
+                            };
+
+                            extraList.Add(ZipExtHeaderIDs.Zip64, zip64);
+
+                            extraFieldsMemory = extraList.ToMemory();
+
+                            centralFileHeader.ExtraFieldSize = ((ushort)extraFieldsMemory.Length)._LE_Endian16();
+                        }
 
                         p.AppendSpanWithData(this.FileNameData.Span);
 
-                        return new Memory<byte>();
-                    });
+                        p.AppendSpanWithData(extraFieldsMemory.Span);
 
-                    FooterBuffer.Write(memory.Span);
-                }
+                        return p.ToMemory();
+                    }
+                });
+
+                FooterBuffer.Write(memory.Span);
+
+                // ファイル数カウント
+                Zip.NumTotalFiles++;
             }
         }
     }
@@ -362,7 +534,7 @@ namespace IPA.Cores.Basic
                 CurrentInternal = 0xffffffff;
             }
 
-            return this.CurrentInternal;
+            return ~this.CurrentInternal;
         }
 
         // 一発計算

@@ -52,6 +52,7 @@ using System.Diagnostics.CodeAnalysis;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
@@ -73,6 +74,9 @@ namespace IPA.Cores.Basic
         public const uint LocalFileHeaderSignature = 0x04034b50;
         public const uint DataDescriptorSignature = 0x08074b50;
         public const uint CentralFileHeaderSignature = 0x02014B50;
+        public const uint EndOfCentralDirectorySignature = 0x06054b50;
+        public const uint Zip64EndOfCentralDirectorySignature = 0x06064b50;
+        public const uint Zip64EndOfCentralDirectoryLocatorSignature = 0x07064b50;
 
         public const int MaxFileNameSize = 65535;
     }
@@ -197,13 +201,13 @@ namespace IPA.Cores.Basic
         // [file comment(variable size)]
     }
 
-    // 4.5.3 -Zip64 Extended Information Extra Field (0x0001)
+    // 4.5.3 Zip64 Extended Information Extra Field (0x0001)
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct ZipExtZip64Field
     {
         public ulong UncompressedSize;
         public ulong CompressedSize;
-        public ulong OffsetOfLocalHeader;
+        public ulong RelativeOffsetOfLocalHeader;
         public uint DiskNumberStart;
     }
 
@@ -223,6 +227,70 @@ namespace IPA.Cores.Basic
 
         // Followed by:
         // [.ZIP file comment (variable size)]
+    }
+
+    // ZIP64 エンドオブセントラルディレクトリレコード
+    // 4.3.14  Zip64 end of central directory record
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct Zip64EndOfCentralDirectoryRecord
+    {
+        public uint Signature;
+        public ulong SizeOfZip64EndOfCentralDirectoryRecord;        // 4.3.14.1 Size = SizeOfFixedFields + SizeOfVariableData - 12.
+        public ZipFileVersions MadeVersion;
+        public ZipFileSystemTypes MadeFileSystemType;
+        public ZipFileVersions NeedVersion;
+        public byte Reserved;
+        public uint NumberOfThisDisk;
+        public uint DiskNumberStart;
+        public ulong TotalNumberOfCentralDirectory;
+        public ulong TotalNumberOfEntriesOnCentralDirectory;
+        public ulong SizeOfCentralDirectory;
+        public ulong OffsetStartCentralDirectory;
+
+        // Followed by:
+        // [zip64 extensible data sector    (variable size)]
+    }
+
+    // ZIP64 エンドオブセントラルディレクトリロケータ
+    // 4.3.15 Zip64 end of central directory locator
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct Zip64EndOfCentralDirectoryLocator
+    {
+        public uint Signature;
+        public uint NumberOfThisDisk;
+        public ulong OffsetStartZip64CentralDirectoryRecord;
+        public uint TotalNumberOfDisk;
+    }
+
+    public class ZipExtraFieldsList : KeyValueList<ZipExtHeaderIDs, ReadOnlyMemory<byte>>
+    {
+        public void Add<T>(ZipExtHeaderIDs id, in T data, int dataSize = DefaultSize)
+            where T : unmanaged
+        {
+            ReadOnlyMemory<byte> a = Unsafe.AsRef(in data)._CopyToMemory();
+
+            base.Add(id, a);
+        }
+
+        public Memory<byte> ToMemory()
+        {
+            checked
+            {
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+                foreach (var item in this)
+                {
+                    // Header
+                    buf.WriteUInt16((ushort)item.Key, littleEndian: true);
+                    buf.WriteUInt16((ushort)item.Value.Length, littleEndian: true);
+
+                    // Data
+                    buf.Write(item.Value);
+                }
+
+                return buf.Memory;
+            }
+        }
     }
 }
 
