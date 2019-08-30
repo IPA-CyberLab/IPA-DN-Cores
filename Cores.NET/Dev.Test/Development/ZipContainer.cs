@@ -245,7 +245,9 @@ namespace IPA.Cores.Basic
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
-            readonly DeflateStream? CompressionStream = null; // 圧縮用ストリーム (null の場合は圧縮なし)
+            readonly Stream DataWriterStream; // データを書き込むべきストリーム (ここに書き込まれたデータが 圧縮 -> 暗号化された後に RawWriterStream に書き込まれる)
+            readonly ZipCompressionMethods CompressionMethod;
+            readonly List<Stream> MiddleStreamsList = new List<Stream>();
 
             readonly long FileSizeHint;
 
@@ -254,8 +256,8 @@ namespace IPA.Cores.Basic
 
             ZipCrc32 Crc32;
 
-            SequentialWritable<byte> Writer => Zip.Writer;
-            SequentialWritableBasedStream WriterStream => Zip.WriterStream;
+            SequentialWritable<byte> RawWriter => Zip.Writer;
+            SequentialWritableBasedStream RawWriterStream => Zip.WriterStream;
 
             MemoryOrDiskBuffer FooterBuffer => Zip.FooterBuffer;
 
@@ -273,11 +275,19 @@ namespace IPA.Cores.Basic
 
                 FileNameData = param.PathString._GetBytes(this.Encoding);
 
+                Stream dataWriterStream = DataWriterStream;
+
                 if (param.Flags.Bit(FileContainerEntityFlags.EnableCompression))
                 {
-                    // 圧縮有効
-                    CompressionStream = new DeflateStream(this.WriterStream, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true);
+                    // 圧縮レイヤーを追加
+                    dataWriterStream = new DeflateStream(dataWriterStream, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true);
+
+                    MiddleStreamsList.Add(dataWriterStream);
+
+                    CompressionMethod = ZipCompressionMethods.Deflated;
                 }
+
+                this.DataWriterStream = dataWriterStream;
             }
 
             // 新しいファイルの書き込みを開始いたします
@@ -293,7 +303,7 @@ namespace IPA.Cores.Basic
                             LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
                             LocalFileHeader.NeedVersion = ZipFileVersions.Ver4_5;
                             LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
-                            LocalFileHeader.CompressionMethod = (this.CompressionStream == null ? ZipCompressionMethods.Raw : ZipCompressionMethods.Deflated)._LE_Endian16();
+                            LocalFileHeader.CompressionMethod = CompressionMethod._LE_Endian16();
                             LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
                             LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
                             LocalFileHeader.Crc32 = 0;
@@ -313,28 +323,19 @@ namespace IPA.Cores.Basic
                     });
 
                     // ローカルヘッダを書き込む直前のオフセットを保存
-                    RelativeOffsetOfLocalHeader = (ulong)Writer.CurrentPosition;
+                    RelativeOffsetOfLocalHeader = (ulong)RawWriter.CurrentPosition;
 
-                    await Writer.AppendAsync(memory, cancel);
+                    await RawWriter.AppendAsync(memory, cancel);
 
                     // 書き込み開始時の offset を保存します
-                    WrittenDataStartOffset = Writer.CurrentPosition;
+                    WrittenDataStartOffset = RawWriter.CurrentPosition;
                 }
             }
 
             // ファイルへの書き込みが開始された後、追記データ (実データ) がきました
             protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
             {
-                if (this.CompressionStream == null)
-                {
-                    // そのまま書き込みます
-                    await Writer.AppendAsync(data, cancel);
-                }
-                else
-                {
-                    // 圧縮して書き込みます (書き込み操作そのものは DeflateStream によって実施されます)
-                    await CompressionStream.WriteAsync(data, cancel);
-                }
+                await this.DataWriterStream.WriteAsync(data, cancel);
 
                 // CRC32 の計算を追加します
                 Crc32.Append(data.Span);
@@ -346,10 +347,9 @@ namespace IPA.Cores.Basic
             // Flush 要求を受けました
             protected override async Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
             {
-                if (this.CompressionStream != null)
-                    await this.CompressionStream.FlushAsync(cancel);
+                await this.DataWriterStream.FlushAsync(cancel);
 
-                await Writer.FlushAsync(cancel);
+                await RawWriter.FlushAsync(cancel);
             }
 
             // このファイルの書き込みが完了しました (成功または失敗)  最後に必ず呼ばれます
@@ -360,23 +360,16 @@ namespace IPA.Cores.Basic
                     // ファイルの書き込みをキャンセルすることが指示されたので、データデスクリプタやセントラルディレクトリヘッダは書き込みしない。
                     // ただし、一度書き込んだデータそのものは、一方向性書き込みであるためキャンセルできない。
                     // そのため、単に関数を抜けるだけとする。
-
-                    // 圧縮ストリームを Dispose する
-                    await this.CompressionStream._DisposeAsyncSafe();
+                    MiddleStreamsList._DoForEach(s => s._DisposeSafe());
                     return;
                 }
 
-                // 圧縮モードの場合は圧縮ストリームを Flush する
-                if (this.CompressionStream != null)
-                {
-                    await this.CompressionStream.FlushAsync(cancel);
 
-                    // 圧縮ストリームを Dispose する
-                    await this.CompressionStream._DisposeAsyncSafe();
-                }
+
+                MiddleStreamsList._DoForEach(s => s._DisposeSafe());
 
                 // 圧縮後データサイズを計算
-                long currentWriteenCompressedBytes = this.Writer.CurrentPosition - WrittenDataStartOffset;
+                long currentWriteenCompressedBytes = this.RawWriter.CurrentPosition - WrittenDataStartOffset;
 
                 // 結局 Zip64 形式が必要か不要かの判定
                 bool useZip64 = false;
@@ -413,7 +406,7 @@ namespace IPA.Cores.Basic
                     }
                 });
 
-                await Writer.AppendAsync(data, cancel);
+                await RawWriter.AppendAsync(data, cancel);
 
                 var memory = Sync(() =>
                 {
@@ -504,89 +497,6 @@ namespace IPA.Cores.Basic
                 // ファイル数カウント
                 Zip.NumTotalFiles++;
             }
-        }
-    }
-
-    // ZIP ファイル用 CRC32 計算構造体
-    public struct ZipCrc32
-    {
-        const int TableSize = 256;
-        static readonly ReadOnlyMemory<uint> Table;
-
-        static ZipCrc32()
-        {
-            uint[] table = new uint[TableSize];
-
-            uint poly = 0xEDB88320;
-            uint u, i, j;
-
-            for (i = 0; i < 256; i++)
-            {
-                u = i;
-
-                for (j = 0; j < 8; j++)
-                {
-                    if ((u & 0x1) != 0)
-                    {
-                        u = (u >> 1) ^ poly;
-                    }
-                    else
-                    {
-                        u >>= 1;
-                    }
-                }
-
-                table[i] = u;
-            }
-
-            ZipCrc32.Table = table;
-        }
-
-        uint CurrentInternal;
-        bool IsNotFirst;
-
-        public uint Value => GetValue();
-
-        // CRC32 計算対象データの追加
-        public void Append(ReadOnlySpan<byte> data)
-        {
-            if (IsNotFirst == false)
-            {
-                // 初回初期化
-                IsNotFirst = true;
-                CurrentInternal = 0xffffffff;
-            }
-
-            if (data.Length == 0) return;
-
-            var tableSpan = Table.Span;
-            uint ret = CurrentInternal;
-            int len = data.Length;
-            for (int i = 0; i < len; i++)
-            {
-                ret = (ret >> 8) ^ tableSpan[(int)(data[i] ^ (ret & 0xff))];
-            }
-            CurrentInternal = ret;
-        }
-
-        public uint GetValue()
-        {
-            if (IsNotFirst == false)
-            {
-                // 初回初期化
-                IsNotFirst = true;
-                CurrentInternal = 0xffffffff;
-            }
-
-            return ~this.CurrentInternal;
-        }
-
-        // 一発計算
-        public static uint Calc(ReadOnlySpan<byte> data)
-        {
-            ZipCrc32 c = new ZipCrc32();
-            c.Append(data);
-            return c.Value;
         }
     }
 }

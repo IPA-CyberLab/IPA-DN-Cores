@@ -55,6 +55,137 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class StreamsStack : StreamImplBase, IHasError
+    {
+        public readonly StreamImplBaseOptions ImplBaseOptions;
+
+        class Layer
+        {
+            public readonly Stream Stream;
+            public readonly bool AutoDispose;
+
+            public Layer(Stream stream, bool autoDispose)
+            {
+                stream._NullCheck();
+
+                Stream = stream;
+                AutoDispose = autoDispose;
+            }
+        }
+
+        readonly List<Layer> LayerList = new List<Layer>(); // このリスト上は逆順 Bottom -> Top に並んでいるので注意
+        readonly Layer BottomLayer;
+        Layer TopLayer = null!;
+
+        public Exception? LastError => throw new NotImplementedException();
+
+        public StreamsStack(Stream bottomStream, StreamImplBaseOptions options, bool autoDispose = false)
+        {
+            try
+            {
+                this.ImplBaseOptions = new StreamImplBaseOptions(options.CanRead, options.CanWrite, false); // Seek はサポートしなくてよい
+
+                AddInternal(bottomStream, autoDispose);
+
+                this.BottomLayer = this.TopLayer;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        // ストリームレイヤを追加
+        public void Add(Func<Stream, Stream> newStream, bool autoDispose = false)
+        {
+            newStream._NullCheck();
+
+            Stream newSt = newStream(this.LayerList.Last().Stream);
+
+            try
+            {
+                AddInternal(newSt, autoDispose);
+            }
+            catch
+            {
+                newSt._DisposeSafe();
+
+                throw;
+            }
+        }
+
+        void AddInternal(Stream newStream, bool autoDispose)
+        {
+            newStream._NullCheck();
+
+            if (ImplBaseOptions.CanRead && newStream.CanRead == false) throw new ArgumentException("ImplBaseOptions.CanRead && newStream.CanRead == false", nameof(newStream));
+            if (ImplBaseOptions.CanWrite && newStream.CanWrite == false) throw new ArgumentException("ImplBaseOptions.CanWrite && newStream.CanWrite == false", nameof(newStream));
+
+            Layer layer = new Layer(newStream, autoDispose);
+            LayerList.Add(layer);
+
+            this.TopLayer = layer;
+        }
+
+        Once DisposeFlag;
+
+        public override bool DataAvailable => throw new NotImplementedException();
+
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        async Task DisposeInternalAsync()
+        {
+            // Top から Bottom に向かってすべての Stream を Dispose する
+            foreach (Layer a in this.LayerList.Reverse<Layer>())
+            {
+                await a.Stream._DisposeAsyncSafe();
+            }
+        }
+
+        protected override long GetLengthImpl() => throw new NotImplementedException();
+        protected override void SetLengthImpl(long length) => throw new NotImplementedException();
+        protected override long GetPositionImpl() => throw new NotImplementedException();
+        protected override void SetPositionImpl(long position) => throw new NotImplementedException();
+        protected override long SeekImpl(long offset, SeekOrigin origin) => throw new NotImplementedException();
+
+        protected override async Task FlushImplAsync(CancellationToken cancellationToken = default)
+        {
+            // Top から Bottom に向かってすべての Stream を Flush する
+            foreach (Layer a in this.LayerList.Reverse<Layer>())
+            {
+                await a.Stream.FlushAsync(cancellationToken);
+            }
+        }
+
+        protected override async ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            return await this.TopLayer.Stream.ReadAsync(buffer, cancellationToken);
+        }
+
+        protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await this.TopLayer.Stream.WriteAsync(buffer, cancellationToken);
+        }
+    }
 }
 
 #endif

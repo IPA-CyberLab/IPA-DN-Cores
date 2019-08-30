@@ -292,6 +292,235 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    // ZIP ファイル用 CRC32 計算構造体
+    public struct ZipCrc32
+    {
+        const int TableSize = 256;
+        static readonly ReadOnlyMemory<uint> Table;
+
+        static ZipCrc32()
+        {
+            uint[] table = new uint[TableSize];
+
+            uint poly = 0xEDB88320;
+            uint u, i, j;
+
+            for (i = 0; i < 256; i++)
+            {
+                u = i;
+
+                for (j = 0; j < 8; j++)
+                {
+                    if ((u & 0x1) != 0)
+                    {
+                        u = (u >> 1) ^ poly;
+                    }
+                    else
+                    {
+                        u >>= 1;
+                    }
+                }
+
+                table[i] = u;
+            }
+
+            ZipCrc32.Table = table;
+        }
+
+        uint CurrentInternal;
+        bool IsNotFirst;
+
+        public uint Value
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetValue();
+        }
+
+        // CRC32 計算対象データの追加
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Append(ReadOnlySpan<byte> data)
+        {
+            if (IsNotFirst == false)
+            {
+                // 初回初期化
+                IsNotFirst = true;
+                CurrentInternal = 0xffffffff;
+            }
+
+            if (data.Length == 0) return;
+
+            var tableSpan = Table.Span;
+            uint ret = CurrentInternal;
+            int len = data.Length;
+            for (int i = 0; i < len; i++)
+            {
+                ret = (ret >> 8) ^ tableSpan[(int)(data[i] ^ (ret & 0xff))];
+            }
+            CurrentInternal = ret;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint GetValue()
+        {
+            if (IsNotFirst == false)
+            {
+                // 初回初期化
+                IsNotFirst = true;
+                CurrentInternal = 0xffffffff;
+            }
+
+            return ~this.CurrentInternal;
+        }
+
+        // 一発計算
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Calc(ReadOnlySpan<byte> data)
+        {
+            ZipCrc32 c = new ZipCrc32();
+            c.Append(data);
+            return c.Value;
+        }
+
+        // ZIP 暗号化に使用する CRC
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint CalcCrc32ForZipEncryption(uint v1, byte v2)
+        {
+            Span<byte> tmp = stackalloc byte[5];
+
+            tmp._SetUInt32(v1, true);
+            tmp[4] = v2;
+
+            return Calc(tmp);
+        }
+    }
+
+    // ZIP 暗号化ストリーム
+    public class ZipEncryptStream : StreamImplBase
+    {
+        public Stream BaseStream { get; }
+
+        readonly ZipEncrypt Enc;
+
+        public Exception? Error { get; private set; } = null;
+
+        public ZipEncryptStream(Stream baseStream, string password) : base(new StreamImplBaseOptions(false, true, false))
+        {
+            this.BaseStream = baseStream;
+
+            this.Enc = new ZipEncrypt(password);
+
+            // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
+            byte[] header = Secure.Rand(12);
+
+            this.Write(header);
+        }
+
+        public override bool DataAvailable => false;
+
+        protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            ThrowIfError();
+
+            try
+            {
+                // データを暗号化いたします
+                Memory<byte> tmp = new byte[buffer.Length];
+
+                Enc.Encrypt(tmp.Span, buffer.Span);
+
+                // 暗号化したデータを書き込みいたします
+                await this.BaseStream.WriteAsync(tmp, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                this.Error = ex;
+                throw;
+            }
+        }
+
+        void ThrowIfError()
+        {
+            if (this.Error != null)
+                throw this.Error;
+        }
+
+        protected override Task FlushImplAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfError();
+
+            return BaseStream.FlushAsync(cancellationToken);
+        }
+
+        protected override long GetLengthImpl() => throw new NotImplementedException();
+        protected override long GetPositionImpl() => throw new NotImplementedException();
+        protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+        protected override long SeekImpl(long offset, SeekOrigin origin) => throw new NotImplementedException();
+        protected override void SetLengthImpl(long length) => throw new NotImplementedException();
+        protected override void SetPositionImpl(long position) => throw new NotImplementedException();
+    }
+
+    // ZIP 暗号化ルーチン
+    public class ZipEncrypt
+    {
+        uint Key0 = 305419896;
+        uint Key1 = 591751049;
+        uint Key2 = 878082192;
+
+        public ZipEncrypt(string password)
+        {
+            password = password._NonNull();
+
+            byte[] passwordData = password._GetBytes_UTF8();
+
+            foreach (byte b in passwordData)
+            {
+                UpdateKeys(b);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void UpdateKeys(byte c)
+        {
+            Key0 = ZipCrc32.CalcCrc32ForZipEncryption(Key0, c);
+            Key1 = (Key1 + (Key0 & 0xff)) * 134775813 + 1;
+            Key2 = ZipCrc32.CalcCrc32ForZipEncryption(Key2, (byte)(Key1 >> 24));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        byte GetNextXorByte()
+        {
+            ushort temp = (ushort)(Key2 | 2);
+            return (byte)((temp * (temp ^ 1)) >> 8);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Decrypt(Span<byte> dst, ReadOnlySpan<byte> src)
+        {
+            if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");
+            int len = dst.Length;
+            for (int i = 0; i < len; i++)
+            {
+                byte tmp = (byte)(src[i] ^ GetNextXorByte());
+                UpdateKeys(tmp);
+                dst[i] = tmp;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Encrypt(Span<byte> dst, ReadOnlySpan<byte> src)
+        {
+            if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");
+            int len = dst.Length;
+            for (int i = 0; i < len; i++)
+            {
+                byte tmp = src[i];
+                UpdateKeys(tmp);
+                dst[i] = (byte)(tmp ^ GetNextXorByte());
+            }
+        }
+    }
 }
 
 #endif

@@ -1168,13 +1168,16 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public interface ISequentialWritable<T>
+    public interface IHasError
+    {
+        Exception? LastError { get; }
+        bool HasError => LastError != null;
+    }
+
+    public interface ISequentialWritable<T> : IHasError
     {
         public long CurrentPosition { get; }
         public bool NeedFlush { get; }
-
-        public Exception? LastError { get; }
-        public bool HasError => LastError != null;
 
         Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
         Task<long> FlushAsync(CancellationToken cancel = default);
