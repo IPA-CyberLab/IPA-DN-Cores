@@ -1073,6 +1073,12 @@ namespace IPA.Cores.Basic
             }
             finally { base.Dispose(disposing); }
         }
+
+        protected override long GetLengthImpl() => throw new NotImplementedException();
+        protected override void SetLengthImpl(long length) => throw new NotImplementedException();
+        protected override long GetPositionImpl() => throw new NotImplementedException();
+        protected override void SetPositionImpl(long position) => throw new NotImplementedException();
+        protected override long SeekImpl(long offset, SeekOrigin origin) => throw new NotImplementedException();
     }
 
     public class FastNonBlockStateHelper
@@ -1763,15 +1769,28 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public readonly struct StreamImplBaseOptions
+    {
+        public readonly bool CanRead;
+        public readonly bool CanWrite;
+        public readonly bool CanSeek;
+
+        public StreamImplBaseOptions(bool canRead = true, bool canWrite = true, bool canSeek = false)
+        {
+            CanRead = canRead;
+            CanWrite = canWrite;
+            CanSeek = canSeek;
+        }
+    }
+
     public abstract class StreamImplBase : Stream
     {
         public abstract bool DataAvailable { get; }
+        public StreamImplBaseOptions StreamImplOptions { get; }
 
-        IHolder Leak;
-
-        public StreamImplBase()
+        public StreamImplBase(StreamImplBaseOptions? options = null)
         {
-            this.Leak = LeakChecker.Enter(LeakCounterKind.StreamImplBase);
+            StreamImplOptions = options ?? new StreamImplBaseOptions();
         }
 
         Once DisposeFlag;
@@ -1780,22 +1799,29 @@ namespace IPA.Cores.Basic
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                Leak._DisposeSafe();
             }
             finally { base.Dispose(disposing); }
         }
+
+        // 以下の段落の項目は CanSeek が有効なときのみ実装すればよい
+        protected abstract long GetLengthImpl();
+        protected abstract void SetLengthImpl(long length);
+        protected abstract long GetPositionImpl();
+        protected abstract void SetPositionImpl(long position);
+        protected abstract long SeekImpl(long offset, SeekOrigin origin);
 
         protected abstract Task FlushImplAsync(CancellationToken cancellationToken = default);
         protected abstract ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default);
         protected abstract ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default);
 
-        public sealed override bool CanRead => true;
-        public sealed override bool CanSeek => false;
-        public sealed override bool CanWrite => true;
-        public sealed override long Length => throw new NotImplementedException();
-        public sealed override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public sealed override long Seek(long offset, SeekOrigin origin) => throw new NotImplementedException();
-        public sealed override void SetLength(long value) => throw new NotImplementedException();
+        public sealed override bool CanRead => StreamImplOptions.CanRead;
+        public sealed override bool CanSeek => StreamImplOptions.CanSeek;
+        public sealed override bool CanWrite => StreamImplOptions.CanWrite;
+
+        public sealed override long Length => GetLengthImpl();
+        public sealed override long Position { get => GetPositionImpl(); set => SetPositionImpl(value); }
+        public sealed override long Seek(long offset, SeekOrigin origin) => SeekImpl(offset, origin);
+        public sealed override void SetLength(long value) => SetLengthImpl(value);
 
         public sealed override bool CanTimeout => true;
         public override int ReadTimeout { get; set; }

@@ -68,6 +68,8 @@ namespace IPA.Cores.Basic
     public enum FileContainerEntityFlags : ulong
     {
         None = 0,
+        EnableCompression = 1,      // 通常の圧縮を ON にする
+        CompressionMode_Fast = 2,   // 速度有効の圧縮
     }
 
     [Serializable]

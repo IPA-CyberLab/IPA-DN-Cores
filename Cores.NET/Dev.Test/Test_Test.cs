@@ -313,11 +313,12 @@ namespace IPA.TestDev
 
                 using var zip = new ZipContainer(new ZipContainerOptions(outFile));
 
-                zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression),
                     (w, c) =>
                     {
                         w.Append("Hello"._GetBytes_Ascii());
                         w.Append("World"._GetBytes_Ascii());
+                        w.Append(Str.MakeCharArray('x', 40000)._GetBytes_Ascii());
                         return true;
                     });
 

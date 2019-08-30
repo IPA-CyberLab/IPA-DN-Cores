@@ -1021,6 +1021,153 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
+    // ISequentialWritable<byte> に対して書き込むことができる Stream オブジェクト。シーケンシャルでない操作 (現在の番地以外へのシークなど) を要求すると例外が発生する
+    public class SequentialWritableBasedStream : Stream
+    {
+        public ISequentialWritable<byte> Target { get; }
+
+        long PositionCache;
+
+        readonly Func<Task>? OnDisposing;
+
+        public SequentialWritableBasedStream(ISequentialWritable<byte> target, Func<Task>? onDisposing = null)
+        {
+            Target = target;
+            this.PositionCache = target.CurrentPosition;
+            this.OnDisposing = onDisposing;
+        }
+
+        Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        Task DisposeInternalAsync()
+        {
+            if (OnDisposing != null)
+                OnDisposing();
+
+            return Task.CompletedTask;
+        }
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => Target.CurrentPosition;
+
+        public override long Position
+        {
+            get => Target.CurrentPosition;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+            Target.Flush();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            switch (origin)
+            {
+                case SeekOrigin.End:
+                    if (offset == 0)
+                    {
+                        return PositionCache;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                    }
+
+                case SeekOrigin.Begin:
+                    if (offset == PositionCache)
+                    {
+                        return PositionCache;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                    }
+
+                case SeekOrigin.Current:
+                    if (offset == 0)
+                    {
+                        return PositionCache;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                    }
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(origin));
+            }
+        }
+
+        public override void SetLength(long value)
+        {
+            if (PositionCache == value)
+                return;
+            else
+                throw new ArgumentOutOfRangeException(nameof(value), "Changing the length is not supported.");
+        }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            this.Flush();
+            return Task.CompletedTask;
+        }
+
+        override public int Read(Span<byte> buffer)
+            => throw new NotSupportedException();
+
+        override public void Write(ReadOnlySpan<byte> buffer)
+        {
+            Target.Append(buffer.ToArray());
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        override public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Target.AppendAsync(buffer.AsMemory(offset, count), cancellationToken);
+        }
+
+        override public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Target.AppendAsync(buffer, cancellationToken);
+        }
+    }
+
     public interface ISequentialWritable<T>
     {
         public long CurrentPosition { get; }
@@ -1040,6 +1187,9 @@ namespace IPA.Cores.Basic
 
     public static class ISequentialWritableExtension
     {
+        public static SequentialWritableBasedStream GetStream(this ISequentialWritable<byte> writable, Func<Task>? onDisposing = null)
+            => new SequentialWritableBasedStream(writable, onDisposing);
+
         public static async Task<long> CopyFromBufferAsync(this ISequentialWritable<byte> dest, IBuffer<byte> src, CancellationToken cancel = default)
         {
             long totalSize = 0;
@@ -1125,7 +1275,7 @@ namespace IPA.Cores.Basic
     }
 
     // ISequentialWritable<T> を容易に実装するためのクラス
-    // Start と Stop の概念もある
+    // Start と Stop の概念もある、Stream も実装する
     public abstract class SequentialWritableImpl<T> : ISequentialWritable<T>
     {
         protected abstract Task StartImplAsync(CancellationToken cancel = default);

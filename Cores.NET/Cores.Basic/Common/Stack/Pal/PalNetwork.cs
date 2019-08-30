@@ -435,6 +435,12 @@ namespace IPA.Cores.Basic
         }
 
         protected override Task FlushImplAsync(CancellationToken cancel = default) => NativeStream.FlushAsync(cancel);
+
+        protected override long GetLengthImpl() => throw new NotImplementedException();
+        protected override void SetLengthImpl(long length) => throw new NotImplementedException();
+        protected override long GetPositionImpl() => throw new NotImplementedException();
+        protected override void SetPositionImpl(long position) => throw new NotImplementedException();
+        protected override long SeekImpl(long offset, SeekOrigin origin) => throw new NotImplementedException();
     }
 
     public delegate bool PalSslValidateRemoteCertificateCallback(PalX509Certificate cert);

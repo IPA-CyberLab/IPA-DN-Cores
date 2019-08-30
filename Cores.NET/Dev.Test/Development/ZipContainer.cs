@@ -52,6 +52,7 @@ using System.Diagnostics.CodeAnalysis;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO.Compression;
 
 namespace IPA.Cores.Basic
 {
@@ -73,6 +74,7 @@ namespace IPA.Cores.Basic
         public new ZipContainerOptions Options => (ZipContainerOptions)base.Options;
 
         readonly SequentialWritable<byte> Writer; // 物理ファイルライタ
+        readonly SequentialWritableBasedStream WriterStream; // 物理ファイルライタに書き込むための Stream
 
         // セントラルディレクトリヘッダ等の、ZIP ファイルの最後に集中して保存される情報のバッファ
         // ファイルを追加していく際に内容を作っていく必要があり、かつ、ファイル数が極めて膨大になる場合でもメモリを消費しないように
@@ -89,6 +91,8 @@ namespace IPA.Cores.Basic
 
                 this.Writer = new SequentialWritable<byte>(Options.PhysicalFile);
 
+                this.WriterStream = this.Writer.GetStream();
+
                 this.FooterBuffer = new MemoryOrDiskBuffer();
             }
             catch
@@ -103,6 +107,8 @@ namespace IPA.Cores.Basic
             try
             {
                 this.FooterBuffer._DisposeSafe();
+
+                this.WriterStream._DisposeSafe();
             }
             finally
             {
@@ -239,14 +245,17 @@ namespace IPA.Cores.Basic
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
+            readonly DeflateStream? CompressionStream = null; // 圧縮用ストリーム (null の場合は圧縮なし)
 
             readonly long FileSizeHint;
 
             long CurrentWrittenRawBytes;
+            long WrittenDataStartOffset;
 
             ZipCrc32 Crc32;
 
             SequentialWritable<byte> Writer => Zip.Writer;
+            SequentialWritableBasedStream WriterStream => Zip.WriterStream;
 
             MemoryOrDiskBuffer FooterBuffer => Zip.FooterBuffer;
 
@@ -263,6 +272,12 @@ namespace IPA.Cores.Basic
                 this.FileSizeHint = fileSizeHint._NonNegative();
 
                 FileNameData = param.PathString._GetBytes(this.Encoding);
+
+                if (param.Flags.Bit(FileContainerEntityFlags.EnableCompression))
+                {
+                    // 圧縮有効
+                    CompressionStream = new DeflateStream(this.WriterStream, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true);
+                }
             }
 
             // 新しいファイルの書き込みを開始いたします
@@ -278,7 +293,7 @@ namespace IPA.Cores.Basic
                             LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
                             LocalFileHeader.NeedVersion = ZipFileVersions.Ver4_5;
                             LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
-                            LocalFileHeader.CompressionMethod = (ZipCompressionMethods.Raw)._LE_Endian16();
+                            LocalFileHeader.CompressionMethod = (this.CompressionStream == null ? ZipCompressionMethods.Raw : ZipCompressionMethods.Deflated)._LE_Endian16();
                             LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
                             LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
                             LocalFileHeader.Crc32 = 0;
@@ -301,26 +316,40 @@ namespace IPA.Cores.Basic
                     RelativeOffsetOfLocalHeader = (ulong)Writer.CurrentPosition;
 
                     await Writer.AppendAsync(memory, cancel);
+
+                    // 書き込み開始時の offset を保存します
+                    WrittenDataStartOffset = Writer.CurrentPosition;
                 }
             }
 
             // ファイルへの書き込みが開始された後、追記データ (実データ) がきました
             protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
             {
-                // ひとまず そのまま書き込みます
-                await Writer.AppendAsync(data, cancel);
+                if (this.CompressionStream == null)
+                {
+                    // そのまま書き込みます
+                    await Writer.AppendAsync(data, cancel);
+                }
+                else
+                {
+                    // 圧縮して書き込みます (書き込み操作そのものは DeflateStream によって実施されます)
+                    await CompressionStream.WriteAsync(data, cancel);
+                }
 
                 // CRC32 の計算を追加します
                 Crc32.Append(data.Span);
 
-                // 書き込んだサイズを加算します
+                // 書き込んだ元データサイズを加算します
                 CurrentWrittenRawBytes += data.Length;
             }
 
             // Flush 要求を受けました
-            protected override Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
+            protected override async Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
             {
-                return Writer.FlushAsync(cancel);
+                if (this.CompressionStream != null)
+                    await this.CompressionStream.FlushAsync(cancel);
+
+                await Writer.FlushAsync(cancel);
             }
 
             // このファイルの書き込みが完了しました (成功または失敗)  最後に必ず呼ばれます
@@ -331,13 +360,28 @@ namespace IPA.Cores.Basic
                     // ファイルの書き込みをキャンセルすることが指示されたので、データデスクリプタやセントラルディレクトリヘッダは書き込みしない。
                     // ただし、一度書き込んだデータそのものは、一方向性書き込みであるためキャンセルできない。
                     // そのため、単に関数を抜けるだけとする。
+
+                    // 圧縮ストリームを Dispose する
+                    await this.CompressionStream._DisposeAsyncSafe();
                     return;
                 }
+
+                // 圧縮モードの場合は圧縮ストリームを Flush する
+                if (this.CompressionStream != null)
+                {
+                    await this.CompressionStream.FlushAsync(cancel);
+
+                    // 圧縮ストリームを Dispose する
+                    await this.CompressionStream._DisposeAsyncSafe();
+                }
+
+                // 圧縮後データサイズを計算
+                long currentWriteenCompressedBytes = this.Writer.CurrentPosition - WrittenDataStartOffset;
 
                 // 結局 Zip64 形式が必要か不要かの判定
                 bool useZip64 = false;
 
-                if (CurrentWrittenRawBytes >= uint.MaxValue /* todo */ )
+                if (CurrentWrittenRawBytes >= uint.MaxValue || currentWriteenCompressedBytes >= uint.MaxValue)
                 {
                     useZip64 = true;
                 }
@@ -352,7 +396,7 @@ namespace IPA.Cores.Basic
 
                         if (useZip64 == false)
                         {
-                            DataDescriptor.CompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+                            DataDescriptor.CompressedSize = ((uint)currentWriteenCompressedBytes)._LE_Endian32();
                             DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
                         }
                         else
@@ -435,7 +479,7 @@ namespace IPA.Cores.Basic
                             ZipExtZip64Field zip64 = new ZipExtZip64Field
                             {
                                 UncompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
-                                CompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
+                                CompressedSize = currentWriteenCompressedBytes._LE_Endian64_U(),
                                 RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian64(),
                                 DiskNumberStart = 0,
                             };
