@@ -2895,15 +2895,48 @@ namespace IPA.Cores.Basic
 
             if (byteLength == 0) byteLength = 1;
 
-            p = Marshal.AllocHGlobal((IntPtr)byteLength);
-
-            ptr = p;
-
-            return new ValueHolder(() =>
+            if (byteLength >= 1_000_000)
             {
-                Marshal.FreeHGlobal(p);
-            },
-            LeakCounterKind.AllocUnmanagedMemory);
+                p = Marshal.AllocHGlobal((IntPtr)byteLength);
+                ptr = p;
+
+                return new ValueHolder(() =>
+                {
+                    Marshal.FreeHGlobal(p);
+                },
+                LeakCounterKind.AllocUnmanagedMemory);
+            }
+            else
+            {
+                p = Marshal.AllocCoTaskMem((int)byteLength);
+                ptr = p;
+
+                return new ValueHolder(() =>
+                {
+                    Marshal.FreeCoTaskMem(p);
+                },
+                LeakCounterKind.AllocUnmanagedMemory);
+            }
+        }
+
+        public static unsafe void* AllocUnmanagedMemory(long byteLength)
+        {
+            if (byteLength < 0) throw new ArgumentOutOfRangeException(nameof(byteLength));
+
+            if (byteLength == 0) byteLength = 1;
+
+            IntPtr p;
+
+            p = Marshal.AllocCoTaskMem((int)byteLength);
+
+            return (void*)p;
+        }
+
+        public static unsafe void FreeUnmanagedMemory(void* p)
+        {
+            if (p == null) return;
+
+            Marshal.FreeCoTaskMem((IntPtr)p);
         }
 
         unsafe struct DummyValueType

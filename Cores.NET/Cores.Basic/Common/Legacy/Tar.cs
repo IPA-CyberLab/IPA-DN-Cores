@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             TarHeader h2 = this;
             Array.Clear(h2.CheckSum, 0, h2.CheckSum.Length);
-            byte[] data = Util.StructToByte(h2);
+            byte[] data = Util.Legacy_StructToByte(h2);
             SetChecksum(data);
         }
 
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic.Legacy
             if (dirList.ContainsKey(name) == false)
             {
                 TarHeader h = TarUtil.CreateTarHeader(name, encoding, 5, 0, dt, mode);
-                fifo.Write(Util.StructToByte(h));
+                fifo.Write(Util.Legacy_StructToByte(h));
 
                 dirList.Add(name, 0);
             }
@@ -315,7 +315,7 @@ namespace IPA.Cores.Basic.Legacy
             }
 
             TarHeader h = TarUtil.CreateTarHeader(name, encoding, 0, size, dt, mode);
-            fifo.Write(Util.StructToByte(h));
+            fifo.Write(Util.Legacy_StructToByte(h));
 
             currentFileSize = size;
             currentPos = 0;

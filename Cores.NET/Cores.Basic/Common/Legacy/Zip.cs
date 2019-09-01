@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic.Legacy
             ZipDataHeader h = new ZipDataHeader();
             f.HeaderPos = (uint)fifo.TotalWriteSize;
             f.WriteZipDataHeader(ref h, false);
-            fifo.Write(Util.StructToByte(h));
+            fifo.Write(Util.Legacy_StructToByte(h));
             fifo.Write(this.Encoding.GetBytes(f.Name));
             f.Crc32 = 0xffffffff;
 
@@ -374,7 +374,7 @@ namespace IPA.Cores.Basic.Legacy
         {
             ZipDataFooter f = new ZipDataFooter();
             currentFile!.WriteZipDataFooter(ref f);
-            fifo.Write(Util.StructToByte(f));
+            fifo.Write(Util.Legacy_StructToByte(f));
         }
 
         public void Finish()
@@ -409,7 +409,7 @@ namespace IPA.Cores.Basic.Legacy
                 d.OutAttr = (ushort)f.Attributes;
                 d.HeaderPos = f.HeaderPos;
 
-                fifo.Write(Util.StructToByte(d));
+                fifo.Write(Util.Legacy_StructToByte(d));
                 fifo.Write(this.Encoding.GetBytes(f.Name!));
             }
             long posEnd = fifo.TotalWriteSize;
@@ -421,7 +421,7 @@ namespace IPA.Cores.Basic.Legacy
             e.DirSize = (uint)(posEnd - posStart);
             e.StartPos = (uint)posStart;
             e.CommentLen = 0;
-            fifo.Write(Util.StructToByte(e));
+            fifo.Write(Util.Legacy_StructToByte(e));
         }
     }
 }

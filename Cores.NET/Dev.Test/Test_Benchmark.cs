@@ -406,9 +406,12 @@ namespace IPA.TestDev
 
             .Add(new MicroBenchmark($"CalcCrc32ForZipEncryption", Benchmark_CountForNormal, count =>
             {
-                for (int c = 0; c < count; c++)
+                unsafe
                 {
-                    Limbo.UInt32 += ZipCrc32.CalcCrc32ForZipEncryption(1, 2);
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.UInt32 += ZipCrc32.CalcCrc32ForZipEncryption(1, 2);
+                    }
                 }
             }), enabled: true, priority: 190901)
 

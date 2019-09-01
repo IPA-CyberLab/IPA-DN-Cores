@@ -131,7 +131,7 @@ namespace IPA.Cores.Basic.Legacy
             h.OS = 3;
             h.CM = 8;
 
-            fifo.Write(Util.StructToByte(h));
+            fifo.Write(Util.Legacy_StructToByte(h));
         }
 
         public void Write(byte[] data, int pos, int len, bool finish)
@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic.Legacy
                 f.CRC32 = this.crc32;
                 f.ISIZE = (uint)(this.currentSize % 0x100000000);
 
-                fifo.Write(Util.StructToByte(f));
+                fifo.Write(Util.Legacy_StructToByte(f));
             }
         }
     }

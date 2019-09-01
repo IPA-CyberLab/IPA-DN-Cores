@@ -1856,7 +1856,7 @@ namespace IPA.Cores.Basic
         public static int Zero => 0;
 
         // バイト配列から構造体にコピー
-        public static object ByteToStruct(byte[] src, Type type)
+        public static object Legacy_ByteToStruct(byte[] src, Type type)
         {
             int size = src.Length;
             if (size != SizeOfStruct(type))
@@ -1883,7 +1883,7 @@ namespace IPA.Cores.Basic
         }
 
         // 構造体をバイト配列にコピー
-        public static byte[] StructToByte(object obj)
+        public static byte[] Legacy_StructToByte(object obj)
         {
             int size = SizeOfStruct(obj);
             IntPtr p = Marshal.AllocHGlobal(size);
@@ -3412,8 +3412,17 @@ namespace IPA.Cores.Basic
     {
         volatile private int flag;
         public void Set() => IsFirstCall();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
-        public bool IsSet => (this.flag != 0);
+
+        public bool IsSet
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (this.flag != 0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator bool(Once once) => once.flag != 0;
         public void Reset() => this.flag = 0;
 
