@@ -1908,7 +1908,14 @@ namespace IPA.Cores.Basic
 
         public sealed override bool Equals(object? obj) => object.Equals(this, obj);
         public sealed override int GetHashCode() => 0;
-        public override string ToString() => "StreamImplBase";
+
+        string? MyNameCache = null;
+
+        public override string ToString()
+        {
+            MyNameCache ??= this.GetType().ToString();
+            return MyNameCache;
+        }
         public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public sealed override void Close() => Dispose(true);
 

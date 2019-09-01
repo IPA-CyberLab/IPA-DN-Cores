@@ -309,7 +309,7 @@ namespace IPA.TestDev
             {
                 DateTimeOffset now = DateTimeOffset.Now;
 
-                using var outFile = Lfs.Create(@"c:\tmp\190829\zip.zip", flags: FileFlags.AutoCreateDirectory);
+                using var outFile = Lfs.Create(@"c:\tmp2\190829\zip.zip", flags: FileFlags.AutoCreateDirectory);
 
                 using var zip = new ZipWriter(new ZipContainerOptions(outFile));
 
@@ -322,15 +322,15 @@ namespace IPA.TestDev
                 //        return true;
                 //    });
 
-                //zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now), encryptPassword: "a"),
-                //    (w, c) =>
-                //    {
-                //        w.Append("Hello"._GetBytes_Ascii());
-                //        w.Append("World"._GetBytes_Ascii());
-                //        w.Append("Hello"._GetBytes_Ascii());
-                //        w.Append("World"._GetBytes_Ascii());
-                //        return true;
-                //    });
+                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now), encryptPassword: "a"),
+                    (w, c) =>
+                    {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        //w.Append("World"._GetBytes_Ascii());
+                        //w.Append("Hello"._GetBytes_Ascii());
+                        //w.Append("World"._GetBytes_Ascii());
+                        return true;
+                    });
 
                 if (false)
                 {
@@ -346,13 +346,13 @@ namespace IPA.TestDev
                         });
                 }
 
-                zip.AddFile(new FileContainerEntityParam("4.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
-                    (w, c) =>
-                    {
-                        w.Append("Hello"._GetBytes_Ascii());
-                        w.Append("World"._GetBytes_Ascii());
-                        return true;
-                    });
+                //zip.AddFile(new FileContainerEntityParam("4.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                //    (w, c) =>
+                //    {
+                //        w.Append("Hello"._GetBytes_Ascii());
+                //        w.Append("World"._GetBytes_Ascii());
+                //        return true;
+                //    });
 
                 if (false)
                 {

@@ -186,7 +186,7 @@ namespace IPA.Cores.Basic
 
                             endZip64Record.MadeVersion = ZipFileVersion.Ver4_5;
                             endZip64Record.MadeFileSystemType = ZipFileSystemType.Ntfs;
-                            endZip64Record.NeedVersion = ZipFileVersion.Ver4_5;
+                            endZip64Record.NeedVersion = ZipFileVersion.Ver2_0;
                             endZip64Record.Reserved = 0;
                             endZip64Record.NumberOfThisDisk = 0;
                             endZip64Record.DiskNumberStart = 0;
@@ -292,7 +292,7 @@ namespace IPA.Cores.Basic
                         {
                             // このファイル用のローカルファイルヘッダを生成します
                             LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
-                            LocalFileHeader.NeedVersion = ZipFileVersion.Ver4_5;
+                            LocalFileHeader.NeedVersion = ZipFileVersion.Ver2_0;
                             LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor |
                                 ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()) |
                                 ZipGeneralPurposeFlags.Encrypted.If(this.Param.IsEncryptionEnabled)
@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
                 // 結局 Zip64 形式が必要か不要かの判定
                 bool useZip64 = false;
 
-                if (CurrentWrittenRawBytes >= uint.MaxValue || currentWriteenCompressedBytes >= uint.MaxValue)
+                if (CurrentWrittenRawBytes >= uint.MaxValue || currentWriteenCompressedBytes >= uint.MaxValue || RelativeOffsetOfLocalHeader >= uint.MaxValue)
                 {
                     useZip64 = true;
                 }
@@ -431,7 +431,7 @@ namespace IPA.Cores.Basic
                         ref ZipCentralFileHeader centralFileHeader = ref p.AppendSpan<ZipCentralFileHeader>();
 
                         centralFileHeader.Signature = ZipConsts.CentralFileHeaderSignature._LE_Endian32();
-                        centralFileHeader.MadeVersion = LocalFileHeader.NeedVersion;
+                        centralFileHeader.MadeVersion = ZipFileVersion.Ver4_5;
                         centralFileHeader.MadeFileSystemType = ZipFileSystemType.Ntfs;
                         centralFileHeader.NeedVersion = LocalFileHeader.NeedVersion;
                         centralFileHeader.GeneralPurposeFlag = LocalFileHeader.GeneralPurposeFlag;

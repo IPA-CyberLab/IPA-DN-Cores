@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
 
         // ZIP 暗号化に使用する CRC
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint CalcCrc32ForZipEncryption(uint n1, uint n2)
+        public static uint CalcCrc32ForZipEncryption(uint n1, byte n2)
         {
             return Table[(int)((n1 ^ n2) & 0xFF)] ^ (n1 >> 8);
         }
@@ -405,7 +405,7 @@ namespace IPA.Cores.Basic
             // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
             byte[] header = Secure.Rand(12);
             
-            byte[] srcTest = "HelloWorldHelloWorld"._GetBytes_Ascii();
+            byte[] srcTest = "Hello"._GetBytes_Ascii();
             uint srcCrc = ZipCrc32.Calc(srcTest);
 
             header[11] = (byte)(srcCrc >> 24);
@@ -481,7 +481,7 @@ namespace IPA.Cores.Basic
         void UpdateKeys(byte c)
         {
             Key0 = ZipCrc32.CalcCrc32ForZipEncryption(Key0, c);
-            Key1 += (Key0 & 0xff);
+            Key1 += (byte)Key0;
             Key1 = Key1 * 134775813 + 1;
             Key2 = ZipCrc32.CalcCrc32ForZipEncryption(Key2, (byte)(Key1 >> 24));
         }
@@ -489,21 +489,8 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         byte GetNextXorByte()
         {
-            ushort temp = (ushort)((Key2 & 0xFFFF) | 2);
-            return (byte)(((temp * (temp ^ 1)) >> 8) & 0xFF);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decrypt(Span<byte> dst, ReadOnlySpan<byte> src)
-        {
-            if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");
-            int len = src.Length;
-            for (int i = 0; i < len; i++)
-            {
-                byte tmp = (byte)(src[i] ^ GetNextXorByte());
-                UpdateKeys(tmp);
-                dst[i] = tmp;
-            }
+            uint temp = (ushort)((Key2 & 0xFFFF) | 2);
+            return (byte)((temp * (temp ^ 1)) >> 8);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -513,10 +500,11 @@ namespace IPA.Cores.Basic
             int len = src.Length;
             for (int i = 0; i < len; i++)
             {
-                byte tmp = src[i];
-                byte t = GetNextXorByte();
-                UpdateKeys(tmp);
-                dst[i] = (byte)(tmp ^ t);
+                byte n = src[i];
+
+                dst[i] = (byte)(n ^ GetNextXorByte());
+
+                UpdateKeys(n);
             }
         }
     }
