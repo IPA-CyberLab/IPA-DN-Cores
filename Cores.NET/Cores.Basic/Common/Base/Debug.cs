@@ -1420,6 +1420,8 @@ namespace IPA.Cores.Basic
         StreamBasedBuffer,
         MemoryOrStorageBuffer,
         SingleEntry,
+        WriteOnlyStreamBasedRandomAccess,
+        StreamBasedSequentialWritable,
     }
 
     public class LeakCheckerResult

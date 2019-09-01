@@ -307,6 +307,81 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                string firstPassword = "ipa";
+
+                DateTimeOffset now = new DateTime(2003, 12, 17, 1, 2, 3);
+
+                string text = "おめでとう ございます！\r\n\r\n未踏ソフトウェア創造事業 万歳！！\r\n";
+
+                byte[] zipInternalContents = text._GetBytes_UTF8(true);
+                string zipInternalFilename = "IPA.txt";
+
+                int numZip = 10000;
+
+                List<string> pwList = new List<string>();
+
+                for (int i = 0; i < numZip; i++)
+                {
+                    string pw;
+                    if (i != (numZip - 1))
+                    {
+                        pw = Str.GenRandPassword(16);
+                    }
+                    else
+                    {
+                        pw = firstPassword;
+                    }
+
+                    pwList.Add(pw);
+                }
+
+                for (int i = 0; i < numZip; i++)
+                {
+                    $"{i} 回目"._Print();
+
+                    using MemoryStream outputMs = new MemoryStream();
+                    using var outputRandomAccess = outputMs._GetWriteOnlyStreamBasedRandomAccess(false);
+                    using var zip = new ZipWriter(new ZipContainerOptions(outputRandomAccess));
+
+                    if (i >= 1)
+                    {
+                        string text2 = @$"<< 暗号化パスワード通知 >>
+
+和式の伝統に則り、セキュリティを確保している安心感を得るためだけに、
+ZIP パスワードをかけておるのです。
+
+ZIP ファイルのパスワード:
+{pwList[i - 1]._Normalize(false, false, true, false)}
+
+(ただし、実際のパスワードは、なんと、これを半角にしたものであるぞ。
+ 十分注意せい。)
+
+";
+
+                        zip.AddFileSimpleData(new FileContainerEntityParam("Password.txt", new FileMetadata(creationTime: now, lastWriteTime: now),
+                             FileContainerEntityFlags.EnableCompression, encryptPassword: pwList[i]),
+                             text2._GetBytes_UTF8(true));
+                    }
+
+                    zip.AddFileSimpleData(new FileContainerEntityParam(zipInternalFilename, new FileMetadata(creationTime: now, lastWriteTime: now),
+                         FileContainerEntityFlags.EnableCompression, encryptPassword: pwList[i]),
+                         zipInternalContents);
+
+                    zip.Finish();
+
+                    //Lfs.WriteDataToFile(@"C:\TMP2\190829\zip3.zip", outputMs.ToArray(), FileFlags.AutoCreateDirectory);
+
+                    zipInternalContents = outputMs.ToArray();
+                    zipInternalFilename = $"Zip No. {numZip - i - 1}.zip";
+                }
+
+                Lfs.WriteDataToFile(@"C:\TMP2\190829\output.zip", zipInternalContents, FileFlags.AutoCreateDirectory);
+
+                return;
+            }
+
+            if (true)
+            {
                 string password = "x";
 
                 DateTimeOffset now = DateTimeOffset.Now;

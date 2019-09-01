@@ -1666,6 +1666,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _IsUtf8Encoding(this Encoding enc) => enc.WebName._IsSamei("utf-8");
         public static bool _IsShiftJisEncoding(this Encoding enc) => enc.WebName._IsSamei("shift_jis");
+
+        public static SeekableStreamBasedRandomAccess _CreateSeekableRandomAccess(this Stream stream, bool autoDisposeBase = false)
+            => new SeekableStreamBasedRandomAccess(stream, autoDisposeBase);
     }
 }
 

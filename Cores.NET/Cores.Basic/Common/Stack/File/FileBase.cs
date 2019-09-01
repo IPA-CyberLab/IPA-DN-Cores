@@ -692,8 +692,153 @@ namespace IPA.Cores.Basic
         Closed,
     }
 
+    public class WriteOnlyStreamBasedRandomAccess : SequentialWritableBasedRandomAccess<byte>
+    {
+        public new StreamBasedSequentialWritable BaseWritable => (StreamBasedSequentialWritable)base.BaseWritable;
+
+        readonly IHolder Leak;
+
+        public WriteOnlyStreamBasedRandomAccess(Stream baseStream, bool autoDispose = false) : base(baseStream._GetSequentialWritable(autoDispose))
+        {
+            this.Leak = LeakChecker.Enter(LeakCounterKind.WriteOnlyStreamBasedRandomAccess);
+        }
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+                BaseWritable._DisposeSafe();
+
+                this.Leak._DisposeSafe();
+            }
+            finally { base.Dispose(disposing); }
+        }
+    }
+
+    public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasError
+    {
+        public ISequentialWritable<T> BaseWritable { get; }
+
+        public AsyncLock SharedAsyncLock { get; set; } = new AsyncLock();
+
+        public Exception? LastError { get; private set; }
+
+        readonly Action? OnDispose = null;
+
+        bool IsNotFirst = false;
+        long StartVirtualPosition = 0;
+
+        long CurrentLength = 0;
+
+        public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Action? onDispose = null)
+        {
+            this.BaseWritable = baseWritable;
+            this.OnDispose = onDispose;
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            if (this.OnDispose != null)
+            {
+                this.OnDispose();
+            }
+        }
+
+        public Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default)
+            => throw new NotImplementedException();
+
+        public async Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            if (IsNotFirst == false)
+            {
+                StartVirtualPosition = position;
+                IsNotFirst = true;
+            }
+
+            ((IHasError)this).ThrowIfError();
+
+            try
+            {
+                checked
+                {
+                    // 内部 position に変換する
+                    long internalPos = position - StartVirtualPosition;
+
+                    // 書き込み場所が移動していないかどうか確認
+                    if (CurrentLength != internalPos)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(position), $"CurrentLength != internalPos. CurrentLength: {CurrentLength}, internalPos: {internalPos}, StartVirtualPosition: {StartVirtualPosition}, position: {position}");
+                    }
+
+                    await BaseWritable.AppendAsync(data, cancel);
+
+                    CurrentLength += data.Length;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.LastError = ex;
+                throw;
+            }
+        }
+
+        public Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => WriteRandomAsync(this.CurrentLength, data, cancel);
+
+        public Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
+        {
+            if (IsNotFirst == false)
+            {
+                throw new CoresException("Not yet written any data.");
+            }
+
+            ((IHasError)this).ThrowIfError();
+
+            try
+            {
+                checked
+                {
+                    return Task.FromResult(this.CurrentLength + StartVirtualPosition);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.LastError = ex;
+                throw;
+            }
+        }
+
+        public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+            => GetFileSizeAsync(false, cancel);
+
+        public Task SetFileSizeAsync(long size, CancellationToken cancel = default)
+            => throw new NotImplementedException();
+
+        public Task FlushAsync(CancellationToken cancel = default)
+        {
+            ((IHasError)this).ThrowIfError();
+
+            try
+            {
+                return BaseWritable.FlushAsync(cancel);
+            }
+            catch (Exception ex)
+            {
+                this.LastError = ex;
+                throw;
+            }
+        }
+    }
+
 #pragma warning disable CS1998
-    public class StreamRandomAccessWrapper : IRandomAccess<byte>
+    public class SeekableStreamBasedRandomAccess : IRandomAccess<byte>
     {
         public Stream BaseStream { get; }
 
@@ -704,7 +849,7 @@ namespace IPA.Cores.Basic
 
         readonly bool AutoDisposeBase;
 
-        public StreamRandomAccessWrapper(Stream baseStream, bool autoDisposeBase = false)
+        public SeekableStreamBasedRandomAccess(Stream baseStream, bool autoDisposeBase = false)
         {
             this.BaseStream = baseStream;
             this.AutoDisposeBase = autoDisposeBase;
@@ -1021,6 +1166,75 @@ namespace IPA.Cores.Basic
         public void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default) => WriteRandomAsync(position, data, cancel)._GetResult();
     }
 
+    // Stream に対して書き込むことができる ISequentialWritable<byte> オブジェクト。Stream に対して決して Seek 操作をしない。
+    public class StreamBasedSequentialWritable : SequentialWritableImpl<byte>, IDisposable, IAsyncDisposable
+    {
+        readonly IHolder Leak;
+
+        public Stream BaseStream { get; }
+        public bool AutoDispose { get; }
+
+        public StreamBasedSequentialWritable(Stream baseStream, bool autoDispose = false)
+        {
+            try
+            {
+                this.BaseStream = baseStream;
+                this.AutoDispose = autoDispose;
+
+                this.Leak = LeakChecker.Enter(LeakCounterKind.StreamBasedSequentialWritable);
+
+                this.StartAsync()._GetResult();
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            this.Leak._DisposeSafe();
+            
+            if (this.AutoDispose)
+            {
+                await BaseStream._DisposeAsyncSafe();
+            }
+        }
+
+        protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
+        {
+            await BaseStream.WriteAsync(data, cancel);
+        }
+
+        protected override Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override async Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
+        {
+            await BaseStream.FlushAsync(cancel);
+        }
+
+        protected override Task StartImplAsync(CancellationToken cancel = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     // ISequentialWritable<byte> に対して書き込むことができる Stream オブジェクト。シーケンシャルでない操作 (現在の番地以外へのシークなど) を要求すると例外が発生する
     public class SequentialWritableBasedStream : Stream
     {
@@ -1172,6 +1386,16 @@ namespace IPA.Cores.Basic
     {
         Exception? LastError { get; }
         bool HasError => LastError != null;
+
+        public void ThrowIfError(Exception? overrideError = null)
+        {
+            Exception? lastError = this.LastError;
+            if (lastError != null)
+            {
+                Exception throwError = overrideError ?? lastError;
+                throw throwError;
+            }
+        }
     }
 
     public interface ISequentialWritable<T> : IHasError
@@ -1190,6 +1414,12 @@ namespace IPA.Cores.Basic
 
     public static class ISequentialWritableExtension
     {
+        public static StreamBasedSequentialWritable _GetSequentialWritable(this Stream baseStream, bool autoDispose = false)
+            => new StreamBasedSequentialWritable(baseStream, autoDispose);
+
+        public static WriteOnlyStreamBasedRandomAccess _GetWriteOnlyStreamBasedRandomAccess(this Stream baseStream, bool autoDispose = false)
+            => new WriteOnlyStreamBasedRandomAccess(baseStream, autoDispose);
+
         public static SequentialWritableBasedStream GetStream(this ISequentialWritable<byte> writable, Func<Task>? onDisposing = null)
             => new SequentialWritableBasedStream(writable, onDisposing);
 
@@ -1278,7 +1508,6 @@ namespace IPA.Cores.Basic
     }
 
     // ISequentialWritable<T> を容易に実装するためのクラス
-    // Start と Stop の概念もある、Stream も実装する
     public abstract class SequentialWritableImpl<T> : ISequentialWritable<T>
     {
         protected abstract Task StartImplAsync(CancellationToken cancel = default);
@@ -1433,25 +1662,32 @@ namespace IPA.Cores.Basic
     public interface IRandomAccess<T> : IDisposable
     {
         Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
-        int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default);
+        int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default)
+            => ReadRandomAsync(position, data, cancel)._GetResult();
 
         Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default);
-        void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => WriteRandomAsync(position, data, cancel)._GetResult();
 
         Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
-        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => AppendAsync(data, cancel)._GetResult();
 
         Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
-        long GetFileSize(bool refresh = false, CancellationToken cancel = default);
+        long GetFileSize(bool refresh = false, CancellationToken cancel = default)
+            => GetFileSizeAsync(refresh, cancel)._GetResult();
 
         Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default);
-        long GetPhysicalSize(CancellationToken cancel = default);
+        long GetPhysicalSize(CancellationToken cancel = default)
+            => GetPhysicalSizeAsync(cancel)._GetResult();
 
         Task SetFileSizeAsync(long size, CancellationToken cancel = default);
-        void SetFileSize(long size, CancellationToken cancel = default);
+        void SetFileSize(long size, CancellationToken cancel = default)
+            => SetFileSizeAsync(size, cancel)._GetResult();
 
         Task FlushAsync(CancellationToken cancel = default);
-        void Flush(CancellationToken cancel = default);
+        void Flush(CancellationToken cancel = default)
+            => FlushAsync(cancel)._GetResult();
 
         AsyncLock SharedAsyncLock { get; }
     }

@@ -66,7 +66,7 @@ namespace IPA.Cores.Basic
             Blob blob = fileSystem.Commit.GetFile(fileParams.Path);
 
             Stream stream = blob.GetContentStream();
-            IRandomAccess<byte> randomAccess = new StreamRandomAccessWrapper(stream, true);
+            IRandomAccess<byte> randomAccess = new SeekableStreamBasedRandomAccess(stream, true);
             try
             {
                 GitFileObject f = new GitFileObject(fileSystem, fileParams, randomAccess);

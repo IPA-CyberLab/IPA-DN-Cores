@@ -185,6 +185,19 @@ namespace IPA.Cores.Basic
         public void AddFile(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, bool> composeProc, long? fileSizeHint = null, CancellationToken cancel = default)
             => AddFileAsync(param, (x, y) => Task.FromResult(composeProc(x, y)), fileSizeHint, cancel)._GetResult();
 
+        public async Task AddFileSimpleDataAsync(FileContainerEntityParam param, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            await AddFileAsync(param, async (w, c) =>
+            {
+                await w.AppendAsync(data, cancel);
+                return true;
+            },
+            fileSizeHint: data.Length,
+            cancel: cancel);
+        }
+        public void AddFileSimpleData(FileContainerEntityParam param, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+            => AddFileSimpleDataAsync(param, data, cancel)._GetResult();
+
         public async Task FinishAsync(CancellationToken cancel = default)
         {
             using var doorHolder = Door.Enter();
@@ -196,6 +209,9 @@ namespace IPA.Cores.Basic
 
             // 実装の Finish を呼び出す
             await FinishAsyncImpl(c);
+
+            // 最後に書き込みバッファを Flush する
+            await this.PhysicalFile.FlushAsync(cancel);
         }
         public void Finish(CancellationToken cancel = default)
             => FinishAsync(cancel)._GetResult();

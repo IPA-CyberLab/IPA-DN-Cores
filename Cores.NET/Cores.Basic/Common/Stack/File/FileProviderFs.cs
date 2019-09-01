@@ -62,7 +62,7 @@ namespace IPA.Cores.Basic
 
         protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
         {
-            return new StreamRandomAccessWrapper(this.FileInfo.CreateReadStream());
+            return new SeekableStreamBasedRandomAccess(this.FileInfo.CreateReadStream());
         }
     }
 
