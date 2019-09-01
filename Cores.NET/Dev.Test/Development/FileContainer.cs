@@ -79,8 +79,12 @@ namespace IPA.Cores.Basic
         public FileMetadata MetaData { get; internal set; }
         public FileContainerEntityFlags Flags { get; internal set; }
         public string EncodingWebName { get; internal set; }
+        public string EncryptPassword { get; internal set; }
 
-        public FileContainerEntityParam(string pathString, FileMetadata? metaData = null, FileContainerEntityFlags flags = FileContainerEntityFlags.None, Encoding? encoding = null)
+        public bool IsEncryptionEnabled => !EncryptPassword._IsNullOrZeroLen();
+
+        public FileContainerEntityParam(string pathString, FileMetadata? metaData = null, FileContainerEntityFlags flags = FileContainerEntityFlags.None, Encoding? encoding = null,
+            string? encryptPassword = null)
         {
             PathString = pathString;
             MetaData = metaData ?? new FileMetadata();
@@ -89,6 +93,8 @@ namespace IPA.Cores.Basic
             encoding ??= Str.Utf8Encoding;
 
             this.EncodingWebName = encoding.WebName;
+
+            this.EncryptPassword = encryptPassword._NonNull();
         }
 
         public Encoding GetEncoding() => Encoding.GetEncoding(this.EncodingWebName);

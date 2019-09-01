@@ -184,9 +184,9 @@ namespace IPA.Cores.Basic
                                 endZip64Record.SizeOfZip64EndOfCentralDirectoryRecord = ((ulong)(sizeof(Zip64EndOfCentralDirectoryRecord) - 12))._LE_Endian64();
                             }
 
-                            endZip64Record.MadeVersion = ZipFileVersions.Ver4_5;
-                            endZip64Record.MadeFileSystemType = ZipFileSystemTypes.Ntfs;
-                            endZip64Record.NeedVersion = ZipFileVersions.Ver4_5;
+                            endZip64Record.MadeVersion = ZipFileVersion.Ver4_5;
+                            endZip64Record.MadeFileSystemType = ZipFileSystemType.Ntfs;
+                            endZip64Record.NeedVersion = ZipFileVersion.Ver4_5;
                             endZip64Record.Reserved = 0;
                             endZip64Record.NumberOfThisDisk = 0;
                             endZip64Record.DiskNumberStart = 0;
@@ -245,8 +245,8 @@ namespace IPA.Cores.Basic
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
-            readonly StreamsStack FileContentWriterStream; // データを書き込むべきストリーム 圧縮や暗号化などで多重レイヤが実装されている (ここに書き込まれたデータが 圧縮 -> 暗号化された後に RawWriterStream に書き込まれる)
-            readonly ZipCompressionMethods CompressionMethod;
+            StreamsStack FileContentWriterStream = null!; // データを書き込むべきストリーム 圧縮や暗号化などで多重レイヤが実装されている (ここに書き込まれたデータが 圧縮 -> 暗号化された後に RawWriterStream に書き込まれる)
+            readonly ZipCompressionMethod CompressionMethod = ZipCompressionMethod.Raw;
 
             readonly long FileSizeHint;
 
@@ -274,15 +274,10 @@ namespace IPA.Cores.Basic
 
                 FileNameData = param.PathString._GetBytes(this.Encoding);
 
-                this.FileContentWriterStream = new StreamsStack(zip.WriterStream, new StreamImplBaseOptions(canRead: false, canWrite: true, canSeek: false), autoDispose: false);
-
-                if (param.Flags.Bit(FileContainerEntityFlags.EnableCompression))
+                if (Param.Flags.Bit(FileContainerEntityFlags.EnableCompression))
                 {
-                    // 圧縮レイヤーを追加
-                    this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
-                        autoDispose: true);
-
-                    CompressionMethod = ZipCompressionMethods.Deflated;
+                    // ZIP 圧縮アルゴリズムを決定
+                    CompressionMethod = ZipCompressionMethod.Deflated;
                 }
             }
 
@@ -297,8 +292,11 @@ namespace IPA.Cores.Basic
                         {
                             // このファイル用のローカルファイルヘッダを生成します
                             LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
-                            LocalFileHeader.NeedVersion = ZipFileVersions.Ver4_5;
-                            LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor | ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()))._LE_Endian16();
+                            LocalFileHeader.NeedVersion = ZipFileVersion.Ver4_5;
+                            LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor |
+                                ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()) |
+                                ZipGeneralPurposeFlags.Encrypted.If(this.Param.IsEncryptionEnabled)
+                                )._LE_Endian16();
                             LocalFileHeader.CompressionMethod = CompressionMethod._LE_Endian16();
                             LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
                             LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
@@ -325,6 +323,22 @@ namespace IPA.Cores.Basic
 
                     // 書き込み開始時の offset を保存します
                     WrittenDataStartOffset = RawWriter.CurrentPosition;
+
+                    // ファイルコンテンツを書き出すためのストリームを準備します
+                    this.FileContentWriterStream = new StreamsStack(Zip.WriterStream, new StreamImplBaseOptions(canRead: false, canWrite: true, canSeek: false), autoDispose: false);
+
+                    if (CompressionMethod != ZipCompressionMethod.Raw)
+                    {
+                        // 圧縮レイヤーを追加
+                        this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
+                            autoDispose: true);
+                    }
+
+                    if (Param.IsEncryptionEnabled)
+                    {
+                        // 暗号化レイヤーを追加
+                        this.FileContentWriterStream.Add((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword), autoDispose: true);
+                    }
                 }
             }
 
@@ -418,7 +432,7 @@ namespace IPA.Cores.Basic
 
                         centralFileHeader.Signature = ZipConsts.CentralFileHeaderSignature._LE_Endian32();
                         centralFileHeader.MadeVersion = LocalFileHeader.NeedVersion;
-                        centralFileHeader.MadeFileSystemType = ZipFileSystemTypes.Ntfs;
+                        centralFileHeader.MadeFileSystemType = ZipFileSystemType.Ntfs;
                         centralFileHeader.NeedVersion = LocalFileHeader.NeedVersion;
                         centralFileHeader.GeneralPurposeFlag = LocalFileHeader.GeneralPurposeFlag;
                         centralFileHeader.CompressionMethod = LocalFileHeader.CompressionMethod;

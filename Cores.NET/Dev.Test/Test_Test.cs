@@ -322,9 +322,11 @@ namespace IPA.TestDev
                         return true;
                     });
 
-                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now), encryptPassword: "a"),
                     (w, c) =>
                     {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
                         w.Append("Hello"._GetBytes_Ascii());
                         w.Append("World"._GetBytes_Ascii());
                         return true;

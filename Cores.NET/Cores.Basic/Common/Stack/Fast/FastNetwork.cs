@@ -1783,6 +1783,48 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public abstract class WrapperStreamImplBase : StreamImplBase
+    {
+        public Stream BaseStream { get; }
+        public bool LeaveStreamOpen { get; }
+
+        public WrapperStreamImplBase(Stream baseStream, bool leaveStreamOpen, StreamImplBaseOptions? options = null) : base(options)
+        {
+            this.BaseStream = baseStream;
+            this.LeaveStreamOpen = leaveStreamOpen;
+        }
+
+        Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        async Task DisposeInternalAsync()
+        {
+            if (this.LeaveStreamOpen == false)
+            {
+                await this.BaseStream._DisposeAsyncSafe();
+            }
+        }
+    }
+
     public abstract class StreamImplBase : Stream
     {
         public abstract bool DataAvailable { get; }
@@ -1794,13 +1836,30 @@ namespace IPA.Cores.Basic
         }
 
         Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
         protected override void Dispose(bool disposing)
         {
             try
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
             }
             finally { base.Dispose(disposing); }
+        }
+        Task DisposeInternalAsync()
+        {
+            return Task.CompletedTask;
         }
 
         // 以下の段落の項目は CanSeek が有効なときのみ実装すればよい

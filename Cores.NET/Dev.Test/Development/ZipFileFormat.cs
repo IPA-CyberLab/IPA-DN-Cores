@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
 
     // 4.4.5 compression method: (2 bytes)
     [Flags]
-    public enum ZipCompressionMethods : ushort
+    public enum ZipCompressionMethod : ushort
     {
         Raw = 0,
         Deflated = 8,
@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
 
     // 4.4.3 version needed to extract (2 bytes)
     [Flags]
-    public enum ZipFileSystemTypes : byte
+    public enum ZipFileSystemType : byte
     {
         MsDos = 0,
         UNIX = 1,
@@ -122,7 +122,7 @@ namespace IPA.Cores.Basic
 
     // 4.4.2 version made by (2 bytes)
     [Flags]
-    public enum ZipFileVersions : byte
+    public enum ZipFileVersion : byte
     {
         Ver2_0 = 20,
         Ver4_5 = 45,
@@ -134,10 +134,10 @@ namespace IPA.Cores.Basic
     public unsafe struct ZipLocalFileHeader
     {
         public uint Signature;
-        public ZipFileVersions NeedVersion;
+        public ZipFileVersion NeedVersion;
         public byte Reserved;
         public ZipGeneralPurposeFlags GeneralPurposeFlag;
-        public ZipCompressionMethods CompressionMethod;
+        public ZipCompressionMethod CompressionMethod;
         public ushort LastModFileTime;
         public ushort LastModFileDate;
         public uint Crc32;
@@ -176,12 +176,12 @@ namespace IPA.Cores.Basic
     public unsafe struct ZipCentralFileHeader
     {
         public uint Signature;
-        public ZipFileVersions MadeVersion;
-        public ZipFileSystemTypes MadeFileSystemType;
-        public ZipFileVersions NeedVersion;
+        public ZipFileVersion MadeVersion;
+        public ZipFileSystemType MadeFileSystemType;
+        public ZipFileVersion NeedVersion;
         public byte Reserved;
         public ZipGeneralPurposeFlags GeneralPurposeFlag;
-        public ZipCompressionMethods CompressionMethod;
+        public ZipCompressionMethod CompressionMethod;
         public ushort LastModFileTime;
         public ushort LastModFileDate;
         public uint Crc32;
@@ -236,9 +236,9 @@ namespace IPA.Cores.Basic
     {
         public uint Signature;
         public ulong SizeOfZip64EndOfCentralDirectoryRecord;        // 4.3.14.1 Size = SizeOfFixedFields + SizeOfVariableData - 12.
-        public ZipFileVersions MadeVersion;
-        public ZipFileSystemTypes MadeFileSystemType;
-        public ZipFileVersions NeedVersion;
+        public ZipFileVersion MadeVersion;
+        public ZipFileSystemType MadeFileSystemType;
+        public ZipFileVersion NeedVersion;
         public byte Reserved;
         public uint NumberOfThisDisk;
         public uint DiskNumberStart;
@@ -384,34 +384,30 @@ namespace IPA.Cores.Basic
 
         // ZIP 暗号化に使用する CRC
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint CalcCrc32ForZipEncryption(uint v1, byte v2)
+        public static uint CalcCrc32ForZipEncryption(uint n1, uint n2)
         {
-            Span<byte> tmp = stackalloc byte[5];
-
-            tmp._SetUInt32(v1, true);
-            tmp[4] = v2;
-
-            return Calc(tmp);
+            return Table.Span[(int)((n1 ^ n2) & 0xFF)] ^ (n1 >> 8);
         }
     }
 
     // ZIP 暗号化ストリーム
-    public class ZipEncryptStream : StreamImplBase
+    public class ZipEncryptionStream : WrapperStreamImplBase
     {
-        public Stream BaseStream { get; }
-
-        readonly ZipEncrypt Enc;
+        readonly ZipEncryption Enc;
 
         public Exception? Error { get; private set; } = null;
 
-        public ZipEncryptStream(Stream baseStream, string password) : base(new StreamImplBaseOptions(false, true, false))
+        public ZipEncryptionStream(Stream baseStream, bool leaveStreamOpen, string password) : base(baseStream, leaveStreamOpen, new StreamImplBaseOptions(false, true, false))
         {
-            this.BaseStream = baseStream;
-
-            this.Enc = new ZipEncrypt(password);
+            this.Enc = new ZipEncryption(password);
 
             // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
             byte[] header = Secure.Rand(12);
+
+            byte[] srcTest = "HelloWorldHelloWorld"._GetBytes_Ascii();
+            uint srcCrc = ZipCrc32.Calc(srcTest);
+
+            header[11] = (byte)(srcCrc >> 24);
 
             this.Write(header);
         }
@@ -462,13 +458,13 @@ namespace IPA.Cores.Basic
     }
 
     // ZIP 暗号化ルーチン
-    public class ZipEncrypt
+    public class ZipEncryption
     {
         uint Key0 = 305419896;
         uint Key1 = 591751049;
         uint Key2 = 878082192;
 
-        public ZipEncrypt(string password)
+        public ZipEncryption(string password)
         {
             password = password._NonNull();
 

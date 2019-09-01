@@ -404,6 +404,14 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"CalcCrc32ForZipEncryption", Benchmark_CountForNormal, count =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.UInt32 += ZipCrc32.CalcCrc32ForZipEncryption(1, 2);
+                }
+            }), enabled: true, priority: 190901)
+
             .Add(new MicroBenchmark($"Sync()", Benchmark_CountForNormal, count =>
             {
                 localTestAsync()._GetResult();
