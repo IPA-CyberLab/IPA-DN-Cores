@@ -64,6 +64,7 @@ namespace IPA.Cores.Basic
     // https://atrsas.exblog.jp/9675346/
     // https://atrsas.exblog.jp/9677162/
     // https://atrsas.exblog.jp/9683786/
+    // https://www.tnksoft.com/reading/zipfile/index.php?p=cryptzip
     //
     // 2019-08-26 メモ
     // 現状は ZIP Version 4.5 に対応している。
@@ -294,14 +295,17 @@ namespace IPA.Cores.Basic
     }
 
     // ZIP ファイル用 CRC32 計算構造体
-    public struct ZipCrc32
+    public unsafe struct ZipCrc32
     {
         const int TableSize = 256;
-        static readonly ReadOnlyMemory<uint> Table;
+
+        static readonly uint* Table;
 
         static ZipCrc32()
         {
-            uint[] table = new uint[TableSize];
+            // Table のメモリは Unmanaged メモリを初期化時に動的に確保し、その後一生解放しない。
+            // 厳密にはメモリリークであるが、少量かつ 1 回のみであるから、問題無いのである。
+            Table = (uint *)MemoryHelper.AllocUnmanagedMemory(sizeof(int) * 256);
 
             uint poly = 0xEDB88320;
             uint u, i, j;
@@ -322,10 +326,8 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                table[i] = u;
+                Table[i] = u;
             }
-
-            ZipCrc32.Table = table;
         }
 
         uint CurrentInternal;
@@ -350,12 +352,11 @@ namespace IPA.Cores.Basic
 
             if (data.Length == 0) return;
 
-            var tableSpan = Table.Span;
             uint ret = CurrentInternal;
             int len = data.Length;
             for (int i = 0; i < len; i++)
             {
-                ret = (ret >> 8) ^ tableSpan[(int)(data[i] ^ (ret & 0xff))];
+                ret = (ret >> 8) ^ Table[(int)(data[i] ^ (ret & 0xff))];
             }
             CurrentInternal = ret;
         }
@@ -386,7 +387,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalcCrc32ForZipEncryption(uint n1, uint n2)
         {
-            return Table.Span[(int)((n1 ^ n2) & 0xFF)] ^ (n1 >> 8);
+            return Table[(int)((n1 ^ n2) & 0xFF)] ^ (n1 >> 8);
         }
     }
 
@@ -403,7 +404,7 @@ namespace IPA.Cores.Basic
 
             // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
             byte[] header = Secure.Rand(12);
-
+            
             byte[] srcTest = "HelloWorldHelloWorld"._GetBytes_Ascii();
             uint srcCrc = ZipCrc32.Calc(srcTest);
 
@@ -480,22 +481,23 @@ namespace IPA.Cores.Basic
         void UpdateKeys(byte c)
         {
             Key0 = ZipCrc32.CalcCrc32ForZipEncryption(Key0, c);
-            Key1 = (Key1 + (Key0 & 0xff)) * 134775813 + 1;
+            Key1 += (Key0 & 0xff);
+            Key1 = Key1 * 134775813 + 1;
             Key2 = ZipCrc32.CalcCrc32ForZipEncryption(Key2, (byte)(Key1 >> 24));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         byte GetNextXorByte()
         {
-            ushort temp = (ushort)(Key2 | 2);
-            return (byte)((temp * (temp ^ 1)) >> 8);
+            ushort temp = (ushort)((Key2 & 0xFFFF) | 2);
+            return (byte)(((temp * (temp ^ 1)) >> 8) & 0xFF);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Decrypt(Span<byte> dst, ReadOnlySpan<byte> src)
         {
             if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");
-            int len = dst.Length;
+            int len = src.Length;
             for (int i = 0; i < len; i++)
             {
                 byte tmp = (byte)(src[i] ^ GetNextXorByte());
@@ -508,12 +510,13 @@ namespace IPA.Cores.Basic
         public void Encrypt(Span<byte> dst, ReadOnlySpan<byte> src)
         {
             if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");
-            int len = dst.Length;
+            int len = src.Length;
             for (int i = 0; i < len; i++)
             {
                 byte tmp = src[i];
+                byte t = GetNextXorByte();
                 UpdateKeys(tmp);
-                dst[i] = (byte)(tmp ^ GetNextXorByte());
+                dst[i] = (byte)(tmp ^ t);
             }
         }
     }

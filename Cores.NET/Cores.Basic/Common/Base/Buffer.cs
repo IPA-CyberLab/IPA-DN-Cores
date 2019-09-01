@@ -2919,7 +2919,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static unsafe void* AllocUnmanagedMemory(long byteLength)
+        public static unsafe void* AllocUnmanagedMemory(int byteLength)
         {
             if (byteLength < 0) throw new ArgumentOutOfRangeException(nameof(byteLength));
 
