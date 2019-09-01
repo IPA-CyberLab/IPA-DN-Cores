@@ -69,7 +69,7 @@ namespace IPA.Cores.Basic
     //     スレッドセーフにする必要がある場合 (例: 上位のファイルシステムと接続する) は、自前で同期を取る必要があるので注意すること。
     // 現状は、新規作成 (かつ個別ファイルの更新は不可) しかできない。
     // 将来機能を追加する場合は、派生クラスとして実装することを推奨する。
-    public class ZipContainer : FileContainer
+    public class ZipWriter : FileContainer
     {
         public new ZipContainerOptions Options => (ZipContainerOptions)base.Options;
 
@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
         readonly MemoryOrDiskBuffer FooterBuffer;
         int NumTotalFiles;
 
-        public ZipContainer(ZipContainerOptions options, CancellationToken cancel = default) : base(options, cancel)
+        public ZipWriter(ZipContainerOptions options, CancellationToken cancel = default) : base(options, cancel)
         {
             try
             {
@@ -241,7 +241,7 @@ namespace IPA.Cores.Basic
 
         public class Writable : SequentialWritableImpl<byte>
         {
-            readonly ZipContainer Zip;
+            readonly ZipWriter Zip;
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
@@ -265,7 +265,7 @@ namespace IPA.Cores.Basic
             ZipDataDescriptor DataDescriptor;
             ulong RelativeOffsetOfLocalHeader;
 
-            public Writable(ZipContainer zip, FileContainerEntityParam param, Encoding encoding, long fileSizeHint)
+            public Writable(ZipWriter zip, FileContainerEntityParam param, Encoding encoding, long fileSizeHint)
             {
                 this.Zip = zip;
                 this.Param = param;

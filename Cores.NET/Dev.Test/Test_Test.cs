@@ -311,7 +311,7 @@ namespace IPA.TestDev
 
                 using var outFile = Lfs.Create(@"c:\tmp\190829\zip.zip", flags: FileFlags.AutoCreateDirectory);
 
-                using var zip = new ZipContainer(new ZipContainerOptions(outFile));
+                using var zip = new ZipWriter(new ZipContainerOptions(outFile));
 
                 zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression),
                     (w, c) =>
