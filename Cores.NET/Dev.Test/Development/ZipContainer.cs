@@ -245,9 +245,8 @@ namespace IPA.Cores.Basic
             readonly FileContainerEntityParam Param;
             readonly Encoding Encoding;
             readonly ReadOnlyMemory<byte> FileNameData;
-            readonly Stream DataWriterStream; // データを書き込むべきストリーム (ここに書き込まれたデータが 圧縮 -> 暗号化された後に RawWriterStream に書き込まれる)
+            readonly StreamsStack FileContentWriterStream; // データを書き込むべきストリーム 圧縮や暗号化などで多重レイヤが実装されている (ここに書き込まれたデータが 圧縮 -> 暗号化された後に RawWriterStream に書き込まれる)
             readonly ZipCompressionMethods CompressionMethod;
-            readonly List<Stream> MiddleStreamsList = new List<Stream>();
 
             readonly long FileSizeHint;
 
@@ -275,19 +274,16 @@ namespace IPA.Cores.Basic
 
                 FileNameData = param.PathString._GetBytes(this.Encoding);
 
-                Stream dataWriterStream = DataWriterStream;
+                this.FileContentWriterStream = new StreamsStack(zip.WriterStream, new StreamImplBaseOptions(canRead: false, canWrite: true, canSeek: false), autoDispose: false);
 
                 if (param.Flags.Bit(FileContainerEntityFlags.EnableCompression))
                 {
                     // 圧縮レイヤーを追加
-                    dataWriterStream = new DeflateStream(dataWriterStream, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true);
-
-                    MiddleStreamsList.Add(dataWriterStream);
+                    this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
+                        autoDispose: true);
 
                     CompressionMethod = ZipCompressionMethods.Deflated;
                 }
-
-                this.DataWriterStream = dataWriterStream;
             }
 
             // 新しいファイルの書き込みを開始いたします
@@ -335,7 +331,7 @@ namespace IPA.Cores.Basic
             // ファイルへの書き込みが開始された後、追記データ (実データ) がきました
             protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
             {
-                await this.DataWriterStream.WriteAsync(data, cancel);
+                await this.FileContentWriterStream.WriteAsync(data, cancel);
 
                 // CRC32 の計算を追加します
                 Crc32.Append(data.Span);
@@ -347,7 +343,7 @@ namespace IPA.Cores.Basic
             // Flush 要求を受けました
             protected override async Task FlushImplAsync(long hintCurrentLength, CancellationToken cancel = default)
             {
-                await this.DataWriterStream.FlushAsync(cancel);
+                await this.FileContentWriterStream.FlushAsync(cancel);
 
                 await RawWriter.FlushAsync(cancel);
             }
@@ -360,13 +356,14 @@ namespace IPA.Cores.Basic
                     // ファイルの書き込みをキャンセルすることが指示されたので、データデスクリプタやセントラルディレクトリヘッダは書き込みしない。
                     // ただし、一度書き込んだデータそのものは、一方向性書き込みであるためキャンセルできない。
                     // そのため、単に関数を抜けるだけとする。
-                    MiddleStreamsList._DoForEach(s => s._DisposeSafe());
+
+                    await this.FileContentWriterStream._DisposeAsyncSafe();
                     return;
                 }
 
+                await this.FileContentWriterStream.FlushAsync(cancel);
 
-
-                MiddleStreamsList._DoForEach(s => s._DisposeSafe());
+                await this.FileContentWriterStream._DisposeAsyncSafe();
 
                 // 圧縮後データサイズを計算
                 long currentWriteenCompressedBytes = this.RawWriter.CurrentPosition - WrittenDataStartOffset;

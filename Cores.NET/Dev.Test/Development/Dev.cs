@@ -83,6 +83,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                if (options.CanSeek) throw new ArgumentOutOfRangeException(nameof(options), "Cannot support seek.");
+
                 this.ImplBaseOptions = new StreamImplBaseOptions(options.CanRead, options.CanWrite, false); // Seek はサポートしなくてよい
 
                 AddInternal(bottomStream, autoDispose);
@@ -157,7 +159,10 @@ namespace IPA.Cores.Basic
             // Top から Bottom に向かってすべての Stream を Dispose する
             foreach (Layer a in this.LayerList.Reverse<Layer>())
             {
-                await a.Stream._DisposeAsyncSafe();
+                if (a.AutoDispose)
+                {
+                    await a.Stream._DisposeAsyncSafe();
+                }
             }
         }
 
