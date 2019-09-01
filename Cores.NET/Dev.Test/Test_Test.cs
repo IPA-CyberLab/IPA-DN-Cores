@@ -307,34 +307,39 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                string password = "x";
+
                 DateTimeOffset now = DateTimeOffset.Now;
 
                 using var outFile = Lfs.Create(@"c:\tmp2\190829\zip.zip", flags: FileFlags.AutoCreateDirectory);
 
                 using var zip = new ZipWriter(new ZipContainerOptions(outFile));
 
-                //zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression),
-                //    (w, c) =>
-                //    {
-                //        w.Append("Hello"._GetBytes_Ascii());
-                //        w.Append("World"._GetBytes_Ascii());
-                //        w.Append(Str.MakeCharArray('x', 40000)._GetBytes_Ascii());
-                //        return true;
-                //    });
-
-                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.None, encryptPassword: "a"),
+                zip.AddFile(new FileContainerEntityParam("1.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression),
                     (w, c) =>
                     {
                         w.Append("Hello"._GetBytes_Ascii());
-                        //w.Append("World"._GetBytes_Ascii());
-                        //w.Append("Hello"._GetBytes_Ascii());
-                        //w.Append("World"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
+                        w.Append(Str.MakeCharArray('x', 40000)._GetBytes_Ascii());
                         return true;
                     });
 
-                if (false)
+                zip.AddFile(new FileContainerEntityParam("2.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression, encryptPassword: password),
+                    (w, c) =>
+                    {
+                        for (int i = 0; i < 100; i++)
+                        {
+                            w.Append("Hello"._GetBytes_Ascii());
+                            w.Append("World"._GetBytes_Ascii());
+                            w.Append("Hello"._GetBytes_Ascii());
+                            w.Append("World"._GetBytes_Ascii());
+                        }
+                        return true;
+                    });
+
+                if (true)
                 {
-                    zip.AddFile(new FileContainerEntityParam("3.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
+                    zip.AddFile(new FileContainerEntityParam("3.txt", new FileMetadata(lastWriteTime: now, creationTime: now), FileContainerEntityFlags.EnableCompression | FileContainerEntityFlags.CompressionMode_Fast, encryptPassword: password),
                         (w, c) =>
                         {
                             byte[] tmp = new byte[1_000_000_000];
@@ -346,13 +351,13 @@ namespace IPA.TestDev
                         });
                 }
 
-                //zip.AddFile(new FileContainerEntityParam("4.txt", new FileMetadata(lastWriteTime: now, creationTime: now)),
-                //    (w, c) =>
-                //    {
-                //        w.Append("Hello"._GetBytes_Ascii());
-                //        w.Append("World"._GetBytes_Ascii());
-                //        return true;
-                //    });
+                zip.AddFile(new FileContainerEntityParam("4.txt", new FileMetadata(lastWriteTime: now, creationTime: now), encryptPassword: password),
+                    (w, c) =>
+                    {
+                        w.Append("Hello"._GetBytes_Ascii());
+                        w.Append("World"._GetBytes_Ascii());
+                        return true;
+                    });
 
                 if (false)
                 {
@@ -361,7 +366,7 @@ namespace IPA.TestDev
                         string ns = i.ToString();
                         string fn = $"many/{ns.Substring(0, 2)}/{ns}.txt";
 
-                        zip.AddFile(new FileContainerEntityParam(fn, new FileMetadata(lastWriteTime: now, creationTime: now)),
+                        zip.AddFile(new FileContainerEntityParam(fn, new FileMetadata(lastWriteTime: now, creationTime: now), flags: FileContainerEntityFlags.None, encryptPassword: password),
                             (w, c) =>
                             {
                                 w.Append(i.ToString()._GetBytes_Ascii());

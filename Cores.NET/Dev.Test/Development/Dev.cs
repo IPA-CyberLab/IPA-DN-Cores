@@ -55,6 +55,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    // 複数の Stream を積み重ねて読み書きするためのクラス
+    // コンストラクタで一番下のレイヤ (たいていは物理ファイルやネットワークソケット) を指定する。
+    // その後、下から上に向かって Add() で順に中間ストリームを積み重ねていく。
+    // アプリケーションからの書き込み要求は、最後に追加されたレイヤーから順に処理される。
+    // たとえば、圧縮と暗号化を積み重ねる場合、まず暗号化を Add() して、その後に圧縮を Add() する必要がある。(逆にすると圧縮されない)
     public class StreamsStack : StreamImplBase, IHasError
     {
         public readonly StreamImplBaseOptions ImplBaseOptions;

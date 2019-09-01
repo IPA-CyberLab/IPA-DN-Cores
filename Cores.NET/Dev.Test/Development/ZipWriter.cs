@@ -324,15 +324,9 @@ namespace IPA.Cores.Basic
                     // ファイルコンテンツを書き出すためのストリームを準備します
                     this.FileContentWriterStream = new StreamsStack(Zip.WriterStream, new StreamImplBaseOptions(canRead: false, canWrite: true, canSeek: false), autoDispose: false);
 
-                    if (CompressionMethod != ZipCompressionMethod.Raw)
-                    {
-                        // 圧縮レイヤーを追加
-                        this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
-                            autoDispose: true);
-                    }
-
                     if (Param.IsEncryptionEnabled)
                     {
+                        // 暗号化レイヤーを追加
                         byte byte11th = LocalFileHeader.LastModFileTime._RawReadValueUInt8(1);
 
                         // ！！ byte11th に入れるべき値について 重要 ！！
@@ -355,6 +349,13 @@ namespace IPA.Cores.Basic
 
                         // 暗号化レイヤーを追加
                         this.FileContentWriterStream.Add((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword, byte11th), autoDispose: true);
+                    }
+
+                    if (CompressionMethod != ZipCompressionMethod.Raw)
+                    {
+                        // 圧縮レイヤーを追加
+                        this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
+                            autoDispose: true);
                     }
                 }
             }
