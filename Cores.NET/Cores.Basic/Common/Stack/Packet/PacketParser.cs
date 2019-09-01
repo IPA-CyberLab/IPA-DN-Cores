@@ -403,7 +403,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            int payloadSize = pppoe.PayloadLength._Endian16();
+            int payloadSize = pppoe.PayloadLength._Endian16_U();
             if (payloadSize < sizeof(PPPProtocolId))
             {
                 SetError($"PayloadLength < {sizeof(PPPProtocolId)}");
@@ -446,7 +446,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            int totalLen = ipv4.TotalLength._Endian16();
+            int totalLen = ipv4.TotalLength._Endian16_U();
             if (totalLen < headerLen)
             {
                 SetError($"Invalid TotalLength: {totalLen}");
@@ -489,8 +489,8 @@ namespace IPA.Cores.Basic
 
             this.L4 = new L4(udpSpan);
 
-            this.Info.L4_SrcPort = udp.SrcPort._Endian16();
-            this.Info.L4_DestPort = udp.DstPort._Endian16();
+            this.Info.L4_SrcPort = udp.SrcPort._Endian16_U();
+            this.Info.L4_DestPort = udp.DstPort._Endian16_U();
 
             PacketSpan<GenericHeader> payloadSpan = udpSpan.GetNextSpan<GenericHeader>(ref pkt, size: udpSpan.GetPayloadSize(ref pkt));
 
@@ -517,8 +517,8 @@ namespace IPA.Cores.Basic
 
             this.L4 = new L4(tcpSpanFull);
 
-            this.Info.L4_SrcPort = tcp.SrcPort._Endian16();
-            this.Info.L4_DestPort = tcp.DstPort._Endian16();
+            this.Info.L4_SrcPort = tcp.SrcPort._Endian16_U();
+            this.Info.L4_DestPort = tcp.DstPort._Endian16_U();
 
             PacketSpan<GenericHeader> payloadSpan = tcpSpanFull.GetNextSpan<GenericHeader>(ref pkt, size: tcpSpanFull.GetPayloadSize(ref pkt));
 
@@ -567,16 +567,16 @@ namespace IPA.Cores.Basic
                 flags.Bit(L2TPPacketFlag.Sequence) == false)
             {
                 // Suitable for standard data packet: parse with the structure for faster processing
-                parsed.Length = l2tpStd.Length._Endian16();
+                parsed.Length = l2tpStd.Length._Endian16_U();
 
                 if (parsed.Length > span.Length || parsed.Length < sizeof(L2TPHeaderForStdData))
                 {
                     return false;
                 }
 
-                parsed.TunnelId = l2tpStd.TunnelId._Endian16();
+                parsed.TunnelId = l2tpStd.TunnelId._Endian16_U();
 
-                parsed.SessionId = l2tpStd.SessionId._Endian16();
+                parsed.SessionId = l2tpStd.SessionId._Endian16_U();
 
                 parsed.Data = payloadSpan.GetInnerSpan<GenericHeader>(ref pkt, sizeof(L2TPHeaderForStdData), parsed.Length - sizeof(L2TPHeaderForStdData));
             }

@@ -177,12 +177,9 @@ namespace IPA.Cores.Basic
                             // ZIP64 エンドオブセントラルディレクトリレコードの追記
                             ref Zip64EndOfCentralDirectoryRecord endZip64Record = ref p.AppendSpan<Zip64EndOfCentralDirectoryRecord>();
 
-                            endZip64Record.Signature = ZipConsts.Zip64EndOfCentralDirectorySignature._LE_Endian32();
+                            endZip64Record.Signature = ZipConsts.Zip64EndOfCentralDirectorySignature._LE_Endian32_U();
 
-                            unsafe
-                            {
-                                endZip64Record.SizeOfZip64EndOfCentralDirectoryRecord = ((ulong)(sizeof(Zip64EndOfCentralDirectoryRecord) - 12))._LE_Endian64();
-                            }
+                            endZip64Record.SizeOfZip64EndOfCentralDirectoryRecord = ((ulong)(Util.SizeOfStruct<Zip64EndOfCentralDirectoryRecord>() - 12))._LE_Endian64_U();
 
                             endZip64Record.MadeVersion = ZipFileVersion.Ver4_5;
                             endZip64Record.MadeFileSystemType = ZipFileSystemType.Ntfs;
@@ -190,10 +187,10 @@ namespace IPA.Cores.Basic
                             endZip64Record.Reserved = 0;
                             endZip64Record.NumberOfThisDisk = 0;
                             endZip64Record.DiskNumberStart = 0;
-                            endZip64Record.TotalNumberOfCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64();
-                            endZip64Record.TotalNumberOfEntriesOnCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64();
-                            endZip64Record.SizeOfCentralDirectory = ((ulong)sizeOfCentralDirectory)._LE_Endian64();
-                            endZip64Record.OffsetStartCentralDirectory = ((ulong)offsetOfCentralDirectory)._LE_Endian64();
+                            endZip64Record.TotalNumberOfCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64_U();
+                            endZip64Record.TotalNumberOfEntriesOnCentralDirectory = ((ulong)NumTotalFiles)._LE_Endian64_U();
+                            endZip64Record.SizeOfCentralDirectory = ((ulong)sizeOfCentralDirectory)._LE_Endian64_U();
+                            endZip64Record.OffsetStartCentralDirectory = ((ulong)offsetOfCentralDirectory)._LE_Endian64_U();
 
                             // ZIP64 エンドオブセントラルディレクトリロケータの追記
                             ref Zip64EndOfCentralDirectoryLocator zip64Locator = ref p.AppendSpan<Zip64EndOfCentralDirectoryLocator>();
@@ -207,15 +204,15 @@ namespace IPA.Cores.Basic
                         // エンドオブセントラルディレクトリレコード
                         ref ZipEndOfCentralDirectoryRecord endRecord = ref p.AppendSpan<ZipEndOfCentralDirectoryRecord>();
 
-                        endRecord.Signature = ZipConsts.EndOfCentralDirectorySignature._LE_Endian32();
+                        endRecord.Signature = ZipConsts.EndOfCentralDirectorySignature._LE_Endian32_U();
 
                         if (useZip64 == false)
                         {
                             endRecord.NumberOfThisDisk = 0;
-                            endRecord.NumberOfCentralDirectoryOnThisDisk = (ushort)NumTotalFiles._LE_Endian16();
-                            endRecord.TotalNumberOfCentralDirectory = (ushort)NumTotalFiles._LE_Endian16();
-                            endRecord.SizeOfCentralDirectory = ((uint)sizeOfCentralDirectory)._LE_Endian32();
-                            endRecord.OffsetStartCentralDirectory = ((uint)offsetOfCentralDirectory)._LE_Endian32();
+                            endRecord.NumberOfCentralDirectoryOnThisDisk = (ushort)NumTotalFiles._LE_Endian16_S();
+                            endRecord.TotalNumberOfCentralDirectory = (ushort)NumTotalFiles._LE_Endian16_S();
+                            endRecord.SizeOfCentralDirectory = ((uint)sizeOfCentralDirectory)._LE_Endian32_U();
+                            endRecord.OffsetStartCentralDirectory = ((uint)offsetOfCentralDirectory)._LE_Endian32_U();
                         }
                         else
                         {
@@ -291,19 +288,19 @@ namespace IPA.Cores.Basic
                         checked
                         {
                             // このファイル用のローカルファイルヘッダを生成します
-                            LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32();
+                            LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32_U();
                             LocalFileHeader.NeedVersion = ZipFileVersion.Ver2_0;
                             LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor |
                                 ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()) |
                                 ZipGeneralPurposeFlags.Encrypted.If(this.Param.IsEncryptionEnabled)
                                 )._LE_Endian16();
                             LocalFileHeader.CompressionMethod = CompressionMethod._LE_Endian16();
-                            LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
-                            LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16();
+                            LocalFileHeader.LastModFileTime = Util.DateTimeToDosTime(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16_U();
+                            LocalFileHeader.LastModFileDate = Util.DateTimeToDosDate(Param.MetaData.LastWriteTime?.LocalDateTime ?? default)._LE_Endian16_U();
                             LocalFileHeader.Crc32 = 0;
                             LocalFileHeader.CompressedSize = 0;
                             LocalFileHeader.UncompressedSize = 0;
-                            LocalFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
+                            LocalFileHeader.FileNameSize = this.FileNameData.Length._LE_Endian16_U();
                             LocalFileHeader.ExtraFieldSize = 0;
 
                             Packet p = new Packet();
@@ -395,18 +392,18 @@ namespace IPA.Cores.Basic
                     checked
                     {
                         // このファイル用のデータデスクリプタ (フッタのようなもの) を書き込みます
-                        DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32();
-                        DataDescriptor.Crc32 = Crc32.Value._LE_Endian32();
+                        DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32_U();
+                        DataDescriptor.Crc32 = Crc32.Value._LE_Endian32_U();
 
                         if (useZip64 == false)
                         {
-                            DataDescriptor.CompressedSize = ((uint)currentWriteenCompressedBytes)._LE_Endian32();
-                            DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32();
+                            DataDescriptor.CompressedSize = ((uint)currentWriteenCompressedBytes)._LE_Endian32_U();
+                            DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32_U();
                         }
                         else
                         {
-                            DataDescriptor.CompressedSize = 0xFFFFFFFF._LE_Endian32();
-                            DataDescriptor.UncompressedSize = 0xFFFFFFFF._LE_Endian32();
+                            DataDescriptor.CompressedSize = 0xFFFFFFFF._LE_Endian32_U();
+                            DataDescriptor.UncompressedSize = 0xFFFFFFFF._LE_Endian32_U();
                         }
 
                         Packet p = new Packet();
@@ -430,7 +427,7 @@ namespace IPA.Cores.Basic
 
                         ref ZipCentralFileHeader centralFileHeader = ref p.AppendSpan<ZipCentralFileHeader>();
 
-                        centralFileHeader.Signature = ZipConsts.CentralFileHeaderSignature._LE_Endian32();
+                        centralFileHeader.Signature = ZipConsts.CentralFileHeaderSignature._LE_Endian32_U();
                         centralFileHeader.MadeVersion = ZipFileVersion.Ver4_5;
                         centralFileHeader.MadeFileSystemType = ZipFileSystemType.Ntfs;
                         centralFileHeader.NeedVersion = LocalFileHeader.NeedVersion;
@@ -438,7 +435,7 @@ namespace IPA.Cores.Basic
                         centralFileHeader.CompressionMethod = LocalFileHeader.CompressionMethod;
                         centralFileHeader.LastModFileTime = LocalFileHeader.LastModFileTime;
                         centralFileHeader.LastModFileDate = LocalFileHeader.LastModFileDate;
-                        centralFileHeader.Crc32 = Crc32.Value._LE_Endian32();
+                        centralFileHeader.Crc32 = Crc32.Value._LE_Endian32_U();
 
                         if (useZip64 == false)
                         {
@@ -451,7 +448,7 @@ namespace IPA.Cores.Basic
                             centralFileHeader.UncompressedSize = 0xFFFFFFFF;
                         }
 
-                        centralFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16();
+                        centralFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16_S();
                         centralFileHeader.ExtraFieldSize = 0;
                         centralFileHeader.FileCommentSize = 0;
 
@@ -469,7 +466,7 @@ namespace IPA.Cores.Basic
 
                         if (useZip64 == false)
                         {
-                            centralFileHeader.RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian32();
+                            centralFileHeader.RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian32_U();
                         }
                         else
                         {
@@ -484,7 +481,7 @@ namespace IPA.Cores.Basic
                             {
                                 UncompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
                                 CompressedSize = currentWriteenCompressedBytes._LE_Endian64_U(),
-                                RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian64(),
+                                RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian64_U(),
                                 DiskNumberStart = 0,
                             };
 
@@ -492,7 +489,7 @@ namespace IPA.Cores.Basic
 
                             extraFieldsMemory = extraList.ToMemory();
 
-                            centralFileHeader.ExtraFieldSize = ((ushort)extraFieldsMemory.Length)._LE_Endian16();
+                            centralFileHeader.ExtraFieldSize = ((ushort)extraFieldsMemory.Length)._LE_Endian16_U();
                         }
 
                         p.AppendSpanWithData(this.FileNameData.Span);

@@ -851,23 +851,23 @@ namespace IPA.TestDev
 
                         ref var tcpHeader = ref p.PrependSpan<TCPHeader>(sizeof(TCPHeader) + 4);
 
-                        tcpHeader.AckNumber = 123U._Endian32();
-                        tcpHeader.SeqNumber = 456U._Endian32();
-                        tcpHeader.Checksum = 0x1234U._Endian16();
-                        tcpHeader.SrcPort = 80U._Endian16();
-                        tcpHeader.DstPort = 443U._Endian16();
+                        tcpHeader.AckNumber = 123U._Endian32_U();
+                        tcpHeader.SeqNumber = 456U._Endian32_U();
+                        tcpHeader.Checksum = 0x1234U._Endian16_U();
+                        tcpHeader.SrcPort = 80U._Endian16_U();
+                        tcpHeader.DstPort = 443U._Endian16_U();
                         tcpHeader.Flag = TCPFlags.Ack | TCPFlags.Fin | TCPFlags.Psh | TCPFlags.Rst;
                         tcpHeader.HeaderLen = (byte)((sizeof(TCPHeader) + 4) / 4);
-                        tcpHeader.WindowSize = 1234U._Endian16();
+                        tcpHeader.WindowSize = 1234U._Endian16_U();
 
                         ref var v4Hedaer = ref p.PrependSpan<IPv4Header>();
 
                         v4Hedaer.SrcIP = 0x12345678;
                         v4Hedaer.DstIP = 0xdeadbeef;
-                        v4Hedaer.Checksum = 0x1234U._Endian16();
+                        v4Hedaer.Checksum = 0x1234U._Endian16_U();
                         v4Hedaer.Flags = IPv4Flags.DontFragment | IPv4Flags.MoreFragments;
                         v4Hedaer.HeaderLen = (byte)(sizeof(IPv4Header) / 4);
-                        v4Hedaer.Identification = 0x1234U._Endian16();
+                        v4Hedaer.Identification = 0x1234U._Endian16_U();
                         v4Hedaer.Protocol = IPProtocolNumber.TCP;
                         v4Hedaer.TimeToLive = 12;
                         v4Hedaer.TotalLength = (ushort)(sizeof(IPv4Header) + sizeof(TCPHeader) + 4);

@@ -728,7 +728,7 @@ namespace IPA.TestDev
             if (true)
             {
                 SpanBuffer<byte> buf = new SpanBuffer<byte>();
-                buf.WriteSInt64(1234567890L._Endian64());
+                buf.WriteSInt64(1234567890L._Endian64_S());
                 ReadOnlySpan<byte> span = buf.Span.Slice(0, 1);
                 span._RawReadValueUInt64()._Debug();
                 return;
@@ -1376,13 +1376,13 @@ namespace IPA.TestDev
             PacketSpan<TCPHeader> tcp = p.PrependSpanWithData<TCPHeader>(
                 new TCPHeader()
                 {
-                    AckNumber = 123U._Endian32(),
-                    SeqNumber = 456U._Endian32(),
-                    SrcPort = 80U._Endian16(),
-                    DstPort = 443U._Endian16(),
+                    AckNumber = 123U._Endian32_U(),
+                    SeqNumber = 456U._Endian32_U(),
+                    SrcPort = 80U._Endian16_U(),
+                    DstPort = 443U._Endian16_U(),
                     Flag = TCPFlags.Ack | TCPFlags.Psh,
                     HeaderLen = (byte)((sizeof(TCPHeader)) / 4),
-                    WindowSize = 1234U._Endian16(),
+                    WindowSize = 1234U._Endian16_U(),
                 },
                 sizeof(TCPHeader));
 
@@ -1393,10 +1393,10 @@ namespace IPA.TestDev
                     DstIP = 0xdeadbeef,
                     Flags = IPv4Flags.DontFragment,
                     HeaderLen = (byte)(sizeof(IPv4Header) / 4),
-                    Identification = 0x1234U._Endian16(),
+                    Identification = 0x1234U._Endian16_U(),
                     Protocol = IPProtocolNumber.TCP,
                     TimeToLive = 12,
-                    TotalLength = ((ushort)(sizeof(IPv4Header) + tcp.GetTotalPacketSize(ref p)))._Endian16(),
+                    TotalLength = ((ushort)(sizeof(IPv4Header) + tcp.GetTotalPacketSize(ref p)))._Endian16_U(),
                     Version = 4,
                 });
 
