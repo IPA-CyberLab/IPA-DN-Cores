@@ -209,8 +209,8 @@ namespace IPA.Cores.Basic
                         if (useZip64 == false)
                         {
                             endRecord.NumberOfThisDisk = 0;
-                            endRecord.NumberOfCentralDirectoryOnThisDisk = (ushort)NumTotalFiles._LE_Endian16_S();
-                            endRecord.TotalNumberOfCentralDirectory = (ushort)NumTotalFiles._LE_Endian16_S();
+                            endRecord.NumberOfCentralDirectoryOnThisDisk = NumTotalFiles._LE_Endian16_U();
+                            endRecord.TotalNumberOfCentralDirectory = NumTotalFiles._LE_Endian16_U();
                             endRecord.SizeOfCentralDirectory = ((uint)sizeOfCentralDirectory)._LE_Endian32_U();
                             endRecord.OffsetStartCentralDirectory = ((uint)offsetOfCentralDirectory)._LE_Endian32_U();
                         }
@@ -333,8 +333,28 @@ namespace IPA.Cores.Basic
 
                     if (Param.IsEncryptionEnabled)
                     {
+                        byte byte11th = LocalFileHeader.LastModFileTime._RawReadValueUInt8(1);
+
+                        // ！！ byte11th に入れるべき値について 重要 ！！
+                        // In the case that bit 3 of the general purpose bit flag is set to
+                        // indicate the presence of a 'data descriptor' (signature
+                        // 0x08074b50), the last byte of the decrypted header is sometimes
+                        // compared with the high-order byte of the lastmodified time,
+                        // rather than the high-order byte of the CRC, to verify the
+                        // password.
+                        //
+                        // This is not documented in the PKWare Appnote.txt.
+                        // This was discovered this by analysis of the Crypt.c source file in the
+                        // InfoZip library
+                        // http://www.info-zip.org/pub/infozip/
+                        // 
+                        // https://github.com/dnobori/DotNetZip.Semverd/blob/506f11b4d7b5f5a733b1200fb65e8f37ade4c9f9/src/Zip.Shared/ZipEntry.Write.cs#L2287
+                        // より引用!
+                        // 
+                        // こんなんわかるかいな！
+
                         // 暗号化レイヤーを追加
-                        this.FileContentWriterStream.Add((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword), autoDispose: true);
+                        this.FileContentWriterStream.Add((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword, byte11th), autoDispose: true);
                     }
                 }
             }
@@ -344,7 +364,7 @@ namespace IPA.Cores.Basic
             {
                 await this.FileContentWriterStream.WriteAsync(data, cancel);
 
-                // CRC32 の計算を追加します
+                // CRC32 の更新を実施します
                 Crc32.Append(data.Span);
 
                 // 書き込んだ元データサイズを加算します
@@ -448,7 +468,7 @@ namespace IPA.Cores.Basic
                             centralFileHeader.UncompressedSize = 0xFFFFFFFF;
                         }
 
-                        centralFileHeader.FileNameSize = (ushort)this.FileNameData.Length._LE_Endian16_S();
+                        centralFileHeader.FileNameSize = this.FileNameData.Length._LE_Endian16_U();
                         centralFileHeader.ExtraFieldSize = 0;
                         centralFileHeader.FileCommentSize = 0;
 

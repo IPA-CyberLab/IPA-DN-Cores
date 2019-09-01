@@ -328,6 +328,7 @@ namespace IPA.Cores.Basic
 
                 Table[i] = u;
             }
+
         }
 
         uint CurrentInternal;
@@ -398,17 +399,16 @@ namespace IPA.Cores.Basic
 
         public Exception? Error { get; private set; } = null;
 
-        public ZipEncryptionStream(Stream baseStream, bool leaveStreamOpen, string password) : base(baseStream, leaveStreamOpen, new StreamImplBaseOptions(false, true, false))
+        public ZipEncryptionStream(Stream baseStream, bool leaveStreamOpen, string password, byte byte11th) : base(baseStream, leaveStreamOpen, new StreamImplBaseOptions(false, true, false))
         {
             this.Enc = new ZipEncryption(password);
 
             // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
-            byte[] header = Secure.Rand(12);
-            
-            byte[] srcTest = "Hello"._GetBytes_Ascii();
-            uint srcCrc = ZipCrc32.Calc(srcTest);
 
-            header[11] = (byte)(srcCrc >> 24);
+            byte[] header = new byte[12];
+            Secure.Rand(12);
+            
+            header[11] = byte11th;
 
             this.Write(header);
         }
