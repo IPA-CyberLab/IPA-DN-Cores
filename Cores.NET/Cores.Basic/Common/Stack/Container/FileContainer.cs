@@ -84,9 +84,11 @@ namespace IPA.Cores.Basic
 
         public bool IsEncryptionEnabled => !EncryptPassword._IsNullOrZeroLen();
 
-        public FileContainerEntityParam(string pathString, FileMetadata? metaData = null, FileContainerEntityFlags flags = FileContainerEntityFlags.None, Encoding? encoding = null,
+        public FileContainerEntityParam(string? pathString = null, FileMetadata? metaData = null, FileContainerEntityFlags flags = FileContainerEntityFlags.None, Encoding? encoding = null,
             string? encryptPassword = null)
         {
+            pathString = pathString._NonNull();
+
             PathString = pathString;
             MetaData = metaData ?? new FileMetadata();
             Flags = flags;

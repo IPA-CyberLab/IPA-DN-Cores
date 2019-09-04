@@ -458,9 +458,11 @@ namespace IPA.Cores.Basic
     // ユーティリティクラス
     public static partial class Util
     {
+        // Do not change
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
         public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
 
+        // Do not change
         public static readonly DateTime MaxDateTimeValue = new DateTime(9931, 12, 21, 0, 0, 0);
         public static readonly DateTimeOffset MaxDateTimeOffsetValue = new DateTimeOffset(9931, 12, 21, 0, 0, 0, new TimeSpan(9, 0, 0));
 
@@ -6371,7 +6373,7 @@ namespace IPA.Cores.Basic
         [return: MaybeNull]
         public static implicit operator T(ResultAndError<T> resultOrException) => resultOrException.Value;
 
-        public static implicit operator bool(ResultAndError<T> resultOrException) => resultOrException.IsOk;
+        public static implicit operator bool(ResultAndError<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
     }
 
     // 戻り値またはエラー (エラーのときは戻り値がなく、戻り値があるときはエラーはない)
@@ -6421,7 +6423,7 @@ namespace IPA.Cores.Basic
         [return: MaybeNull]
         public static implicit operator T(ResultOrError<T> resultOrException) => resultOrException.Value;
 
-        public static implicit operator bool(ResultOrError<T> resultOrException) => resultOrException.IsOk;
+        public static implicit operator bool(ResultOrError<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
     }
 
     public class ResultOrExeption<T>

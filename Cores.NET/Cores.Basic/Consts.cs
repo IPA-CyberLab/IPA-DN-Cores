@@ -72,6 +72,9 @@ namespace IPA.Cores.Basic
             public const long LogBrowserDefaultTailSize = 10_000;
 
             public const int DefaultUseStorageThreshold = 1_000_000;
+
+            public static readonly int MaxYear = (Util.MaxDateTimeValue.Year - 1);
+            public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
         }
 
         public static partial class MaxLens

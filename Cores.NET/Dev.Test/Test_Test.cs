@@ -307,12 +307,38 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using var outFile = Lfs.Create(@"c:\tmp\190904\190904_2.zip", flags: FileFlags.AutoCreateDirectory);
-                using var zip = new ZipWriter(new ZipContainerOptions(outFile));
+                FileHistoryManager mgr = new FileHistoryManager(new FileHistoryManagerOptions(
+                    fn => Str.FileNameStrToDateTimeOffset(PP.GetFileNameWithoutExtension(fn)),
+                    FileHistoryManagerPolicy.GetTestPolicy()));
 
-                zip.ImportDirectory(@"C:\Dev\ACCamera", directoryPrefix: "a/b/c", paramTemplate: new FileContainerEntityParam(pathString: "", flags: FileContainerEntityFlags.EnableCompression, encryptPassword: "a"));
+                string dir = @"C:\tmp\190904logtest";
+                Lfs.CreateDirectory(dir);
 
-                zip.Finish();
+                while (true)
+                {
+                    var currentFiles = Lfs.EnumDirectory(dir, false).Where(x => x.IsFile).Select(x => x.FullPath);
+
+                    string newFile = PP.Combine(dir, Str.DateTimeOffsetToFileNameStr(DateTimeOffset.Now)) + ".log";
+
+                    var deleteList = mgr.GenerateFileListToDelete(currentFiles);
+
+                    deleteList.ForEach(x => Lfs.DeleteFile(x));
+
+                    if (mgr.DetermineIsNewFileToCreate(currentFiles, newFile))
+                    {
+                        "ABC"._WriteTextFile(newFile);
+                    }
+                    
+                    Dbg.Where();
+                    Sleep(100);
+                }
+
+                return;
+            }
+
+            if (true)
+            {
+                Lfs.CreateZipArchive(@"C:\TMP\190904\190904_3.zip", @"C:\Dev\ACCamera");
 
                 return;
             }

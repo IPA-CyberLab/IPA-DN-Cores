@@ -1560,6 +1560,12 @@ namespace IPA.Cores.Helper.Basic
         public static IPAddress? _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
             => IPUtil.StrToIP(str, allowed, noException);
 
+        public static int _DataToFile(this byte[] data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => (fs ?? Lfs).WriteDataToFile(path, data, flags, doNotOverwrite, cancel);
+
+        public static int _DataToFile(this Memory<byte> data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => (fs ?? Lfs).WriteDataToFile(path, data, flags, doNotOverwrite, cancel);
+
         public static int _DataToFile(this ReadOnlyMemory<byte> data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
             => (fs ?? Lfs).WriteDataToFile(path, data, flags, doNotOverwrite, cancel);
 

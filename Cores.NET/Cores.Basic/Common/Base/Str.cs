@@ -4580,7 +4580,7 @@ namespace IPA.Cores.Basic
                     day = StrToInt(dayStr);
                 }
 
-                if (year < 1800 || year >= 2100 || month <= 0 || month >= 13 || day <= 0 || day >= 32)
+                if (year < Consts.Numbers.MinYear || year > Consts.Numbers.MaxYear || month <= 0 || month >= 13 || day <= 0 || day >= 32)
                 {
                     throw new ArgumentException(str);
                 }
@@ -4599,7 +4599,7 @@ namespace IPA.Cores.Basic
                     int month = int.Parse(monthStr);
                     int day = int.Parse(dayStr);
 
-                    if (year < 1800 || year >= 2100 || month <= 0 || month >= 13 || day <= 0 || day >= 32)
+                    if (year < Consts.Numbers.MinYear || year > Consts.Numbers.MaxYear || month <= 0 || month >= 13 || day <= 0 || day >= 32)
                     {
                         throw new ArgumentException(str);
                     }
@@ -4616,7 +4616,7 @@ namespace IPA.Cores.Basic
                     int month = int.Parse(monthStr);
                     int day = int.Parse(dayStr);
 
-                    if (year < 1800 || year >= 2100 || month <= 0 || month >= 13 || day <= 0 || day >= 32)
+                    if (year < Consts.Numbers.MinYear || year > Consts.Numbers.MaxYear || month <= 0 || month >= 13 || day <= 0 || day >= 32)
                     {
                         throw new ArgumentException(str);
                     }
@@ -4892,6 +4892,84 @@ namespace IPA.Cores.Basic
             ret += " " + dt.ToString("%K");
 
             return ret;
+        }
+
+        // "20190924-123456+0900" という形式のファイル名をパースする
+        public static ResultOrError<DateTimeOffset> FileNameStrToDateTimeOffset(string str)
+        {
+            str = str._NonNullTrim();
+
+            ReadOnlySpan<char> stra = str;
+
+            if (stra.Length < 20) return false;
+
+            if (stra.Length > 20)
+                stra = stra.Slice(0, 20);
+
+            if (stra[8] != '-') return false;
+
+            bool positive;
+            if (stra[15] == '+')
+                positive = true;
+            else if (stra[15] == '-')
+                positive = false;
+            else
+                return false;
+
+            if (int.TryParse(stra.Slice(0, 4), out int year) == false ||
+                int.TryParse(stra.Slice(4, 2), out int month) == false ||
+                int.TryParse(stra.Slice(6, 2), out int day) == false ||
+                int.TryParse(stra.Slice(9, 2), out int hour) == false ||
+                int.TryParse(stra.Slice(11, 2), out int minute) == false ||
+                int.TryParse(stra.Slice(13, 2), out int second) == false ||
+                int.TryParse(stra.Slice(16, 2), out int offsetHour) == false ||
+                int.TryParse(stra.Slice(18, 2), out int offsetMinute) == false)
+            {
+                return false;
+            }
+
+            if (year < Consts.Numbers.MinYear || year > Consts.Numbers.MaxYear) return false;
+            if (month < 1 || month > 12) return false;
+            if (day < 1 || day > 31) return false;
+            if (hour < 0 || hour >= 24) return false;
+            if (minute < 0 || minute >= 60) return false;
+            if (second < 0 || second >= 60) return false;
+            if (offsetHour < 0 || offsetHour >= 24) return false;
+            if (offsetMinute < 0 || offsetMinute >= 60) return false;
+
+            TimeSpan offset = new TimeSpan(offsetHour, offsetMinute, 0);
+            if (positive == false) offset = -offset;
+
+            return new DateTimeOffset(year, month, day, hour, minute, second, 0, offset);
+        }
+
+        // "20190924-123456+0900" という形式のファイル名を出力する
+        public static string DateTimeOffsetToFileNameStr(DateTimeOffset dt)
+        {
+            StringBuilder b = new StringBuilder();
+            b.Append(dt.ToString("yyyyMMdd-HHmmss"));
+
+            TimeSpan ts = dt.Offset;
+            bool positive = true;
+
+            if (ts.Ticks < 0)
+            {
+                ts = -ts;
+                positive = false;
+            }
+
+            if (ts >= new TimeSpan(24, 0, 0)) throw new ArgumentOutOfRangeException(nameof(dt.Offset));
+            if (ts.Seconds != 0 || ts.Milliseconds != 0) throw new ArgumentOutOfRangeException(nameof(dt.Offset));
+
+            if (positive)
+                b.Append("+");
+            else
+                b.Append("-");
+
+            b.Append(ts.Hours.ToString("D2"));
+            b.Append(ts.Minutes.ToString("D2"));
+
+            return b.ToString();
         }
 
         // 文字列置換

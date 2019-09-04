@@ -272,6 +272,28 @@ namespace IPA.Cores.Basic
         public string ReadStringFromFile(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => ReadStringFromFileAsync(path, encoding, maxSize, flags, oneLine, cancel)._GetResult();
 
+        public async Task CreateZipArchiveAsync(FilePath destZipFilePath, string srcRootDir,
+            FileContainerEntityParam? paramTemplate = null,
+            Func<FileSystemEntity, bool>? fileFilter = null,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+            string? directoryPrefix = null,
+            CancellationToken cancel = default)
+        {
+            using var outFile = await destZipFilePath.CreateAsync(cancel: cancel);
+            using var zip = new ZipWriter(new ZipContainerOptions(outFile));
+
+            await zip.ImportDirectoryAsync(srcRootDir, paramTemplate, fileFilter, exceptionHandler, directoryPrefix, cancel);
+
+            await zip.FinishAsync();
+        }
+        public void CreateZipArchive(FilePath destZipFilePath, string srcRootDir,
+            FileContainerEntityParam? paramTemplate = null,
+            Func<FileSystemEntity, bool>? fileFilter = null,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+            string? directoryPrefix = null,
+            CancellationToken cancel = default)
+            => CreateZipArchiveAsync(destZipFilePath, srcRootDir, paramTemplate, fileFilter, exceptionHandler, directoryPrefix, cancel)._GetResult();
+
         class FindSingleFileData
         {
             public string FullPath;
@@ -554,11 +576,11 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, 
-            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, 
-            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null, 
-            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null, 
-            bool recursive = true, 
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory,
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+            bool recursive = true,
             CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
