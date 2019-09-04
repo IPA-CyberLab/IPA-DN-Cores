@@ -435,13 +435,15 @@ namespace IPA.Cores.Basic
 
     public class DirectoryPathInfo
     {
+        public FileSystem FileSystem { get; }
         public bool IsRoot { get; }
         public string FullPath { get; }
         public string RelativePath { get; }
         public FileSystemEntity Entity { get; }
 
-        public DirectoryPathInfo(bool isRoot, string fullPath, string relativePath, FileSystemEntity entity)
+        public DirectoryPathInfo(FileSystem fileSystem, bool isRoot, string fullPath, string relativePath, FileSystemEntity entity)
         {
+            this.FileSystem = fileSystem;
             this.IsRoot = isRoot;
             this.FullPath = fullPath;
             this.RelativePath = relativePath;
@@ -490,7 +492,7 @@ namespace IPA.Cores.Basic
                 );
             }
 
-            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(isRootDir, directoryFullPath, directoryRelativePath, dirEntity);
+            DirectoryPathInfo currentDirInfo = new DirectoryPathInfo(this.FileSystem, isRootDir, directoryFullPath, directoryRelativePath, dirEntity);
 
             try
             {
@@ -516,7 +518,7 @@ namespace IPA.Cores.Basic
             if (isRootDir)
             {
                 var rootDirEntry = entityList.Where(x => x.IsCurrentDirectory).Single();
-                currentDirInfo = new DirectoryPathInfo(true, directoryFullPath, directoryRelativePath, rootDirEntry);
+                currentDirInfo = new DirectoryPathInfo(this.FileSystem, true, directoryFullPath, directoryRelativePath, rootDirEntry);
             }
 
             if (await callback(currentDirInfo, entityList, opCancel) == false)
@@ -552,7 +554,12 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> WalkDirectoryAsync(string rootDirectory, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null, Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null, bool recursive = true, CancellationToken cancel = default)
+        public async Task<bool> WalkDirectoryAsync(string rootDirectory, 
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback, 
+            Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null, 
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null, 
+            bool recursive = true, 
+            CancellationToken cancel = default)
         {
             cancel.ThrowIfCancellationRequested();
 

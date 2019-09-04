@@ -6332,6 +6332,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 戻り値とエラー (戻り値およびエラーは独立しており、エラーの場合も戻り値は返すことができる)
     public class ResultAndError<T>
     {
         readonly T ResultInternal = default!;
@@ -6373,6 +6374,7 @@ namespace IPA.Cores.Basic
         public static implicit operator bool(ResultAndError<T> resultOrException) => resultOrException.IsOk;
     }
 
+    // 戻り値またはエラー (エラーのときは戻り値がなく、戻り値があるときはエラーはない)
     public class ResultOrError<T>
     {
         readonly T ResultInternal = default!;

@@ -38,6 +38,7 @@
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
 using System;
+using System.Buffers;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -73,7 +74,7 @@ namespace IPA.Cores.Basic
     }
 
     [Serializable]
-    public sealed class FileContainerEntityParam
+    public sealed class FileContainerEntityParam : IValidatable
     {
         public string PathString { get; internal set; }
         public FileMetadata MetaData { get; internal set; }
@@ -98,6 +99,12 @@ namespace IPA.Cores.Basic
         }
 
         public Encoding GetEncoding() => Encoding.GetEncoding(this.EncodingWebName);
+
+        public void Validate()
+        {
+            this.PathString._FilledOrException();
+            this.MetaData._NullCheck();
+        }
     }
 
     public abstract class FileContainerOptions
@@ -157,6 +164,8 @@ namespace IPA.Cores.Basic
 
         public async Task AddFileAsync(FileContainerEntityParam param, Func<ISequentialWritable<byte>, CancellationToken, Task<bool>> composeProc, long? fileSizeHint = null, CancellationToken cancel = default)
         {
+            param.Validate();
+
             using var doorHolder = Door.Enter();
             using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
 
@@ -215,8 +224,117 @@ namespace IPA.Cores.Basic
         }
         public void Finish(CancellationToken cancel = default)
             => FinishAsync(cancel)._GetResult();
+
+
+        ///////////// 以下はユーティリティ関数
+
+        // 任意のファイルシステムの物理ファイルをインポートする
+        public async Task ImportFileAsync(FilePath srcFilePath, FileContainerEntityParam destParam, CancellationToken cancel = default)
+        {
+            destParam._NullCheck();
+
+            destParam = destParam._CloneDeep();
+
+            // 元ファイルのメタデータ読み込み
+            destParam.MetaData = await srcFilePath.GetFileMetadataAsync(FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoPreciseFileSize | FileMetadataGetFlags.NoSecurity);
+
+            int bufferSize = CoresConfig.BufferSizes.FileCopyBufferSize;
+
+            // 元ファイルを開く
+            using (var srcFile = await srcFilePath.OpenAsync(false, cancel: cancel))
+            {
+                // 先ファイルを作成
+                await this.AddFileAsync(destParam, async (w, c) =>
+                {
+                    // 元ファイルから先ファイルにデータをコピー
+                    byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+                    try
+                    {
+                        while (true)
+                        {
+                            int readSize = await srcFile.ReadAsync(buffer, cancel);
+                            if (readSize == 0) break;
+
+                            await w.AppendAsync(buffer.AsMemory(0, readSize), cancel);
+                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer, false);
+                    }
+
+                    return true;
+                },
+                destParam.MetaData.Size,
+                cancel);
+            }
+        }
+        public void ImportFile(FilePath srcFilePath, FileContainerEntityParam destParam, CancellationToken cancel = default)
+            => ImportFileAsync(srcFilePath, destParam, cancel)._GetResult();
+
+        // 任意のファイルシステムのディレクトリ内のファイルを再帰的にインポートする
+        public async Task ImportDirectoryAsync(DirectoryPath srcRootDir,
+            FileContainerEntityParam? paramTemplate = null,
+            Func<FileSystemEntity, bool>? fileFilter = null,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+            string? directoryPrefix = null,
+            CancellationToken cancel = default)
+        {
+            if (paramTemplate == null)
+                paramTemplate = new FileContainerEntityParam("");
+
+            directoryPrefix = directoryPrefix._NonNullTrim();
+
+            if (directoryPrefix._IsFilled())
+            {
+                if (directoryPrefix[0] == '\\' || directoryPrefix[0] == '/')
+                    directoryPrefix = directoryPrefix.Substring(1);
+
+                directoryPrefix = PathParser.Windows.RemoveLastSeparatorChar(directoryPrefix);
+            }
+
+            await srcRootDir.FileSystem.DirectoryWalker.WalkDirectoryAsync(srcRootDir,
+                async (dirInfo, entries, c) =>
+                {
+                    foreach (var e in entries.Where(x => x.IsFile))
+                    {
+                        // フィルタ検査
+                        if (fileFilter != null && fileFilter(e) == false)
+                            continue;
+
+                        // ファイル名の決定
+                        string relativeFileName = dirInfo.FileSystem.PathParser.GetRelativeFileName(e.FullPath, srcRootDir);
+                        FileContainerEntityParam fileParam = paramTemplate._CloneDeep();
+
+                        if (directoryPrefix._IsFilled())
+                        {
+                            relativeFileName = directoryPrefix + "/" + relativeFileName;
+                        }
+
+                        fileParam.PathString = relativeFileName;
+
+                        await this.ImportFileAsync(new FilePath(e.FullPath, dirInfo.FileSystem), fileParam, c);
+                    }
+
+                    return true;
+                },
+                null,
+                exceptionHandler,
+                true,
+                cancel);
+        }
+        public void ImportDirectory(DirectoryPath srcRootDir,
+            FileContainerEntityParam? paramTemplate = null,
+            Func<FileSystemEntity, bool>? fileFilter = null,
+            Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+            string? directoryPrefix = null,
+            CancellationToken cancel = default)
+            => ImportDirectoryAsync(srcRootDir, paramTemplate, fileFilter, exceptionHandler, directoryPrefix, cancel)._GetResult();
+
     }
 }
 
 #endif
+
 

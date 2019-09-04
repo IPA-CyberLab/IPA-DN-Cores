@@ -307,6 +307,18 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var outFile = Lfs.Create(@"c:\tmp\190904\190904_2.zip", flags: FileFlags.AutoCreateDirectory);
+                using var zip = new ZipWriter(new ZipContainerOptions(outFile));
+
+                zip.ImportDirectory(@"C:\Dev\ACCamera", directoryPrefix: "a/b/c", paramTemplate: new FileContainerEntityParam(pathString: "", flags: FileContainerEntityFlags.EnableCompression, encryptPassword: "a"));
+
+                zip.Finish();
+
+                return;
+            }
+
+            if (true)
+            {
                 string firstPassword = "ipa";
 
                 DateTimeOffset now = new DateTime(2003, 12, 17, 1, 2, 3);

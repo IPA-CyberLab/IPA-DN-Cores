@@ -289,4 +289,13 @@ namespace IPA.Cores.Basic
             public const int Rapid = 5 * 1000;
         }
     }
+
+    public static partial class CoresConfig
+    {
+        public static partial class BufferSizes
+        {
+            public static readonly Copenhagen<int> FileCopyBufferSize = 81920;  // .NET の Stream クラスの実装からもらってきた定数
+        }
+    }
 }
+

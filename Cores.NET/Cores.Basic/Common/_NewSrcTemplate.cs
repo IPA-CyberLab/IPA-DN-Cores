@@ -38,6 +38,7 @@
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
 using System;
+using System.Buffers;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;

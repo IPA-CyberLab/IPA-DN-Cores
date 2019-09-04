@@ -1427,7 +1427,7 @@ namespace IPA.Cores.Basic
         {
             long totalSize = 0;
 
-            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた定数
+            int bufferSize = CoresConfig.BufferSizes.FileCopyBufferSize;
 
             long len = src.LongLength;
             long pos = src.LongPosition;
@@ -1463,7 +1463,7 @@ namespace IPA.Cores.Basic
         {
             long totalSize = 0;
 
-            int bufferSize = 81920; // .NET の Stream クラスの実装からもらってきた定数
+            int bufferSize = CoresConfig.BufferSizes.FileCopyBufferSize;
 
             if (src.CanSeek)
             {
