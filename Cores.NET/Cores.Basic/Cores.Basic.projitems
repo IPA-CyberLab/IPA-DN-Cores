@@ -28,6 +28,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\FileContainer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipFileFormat.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Consts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SourceCodeCounter\SourceCodeCounter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Csv.cs" />
