@@ -1675,6 +1675,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static SeekableStreamBasedRandomAccess _CreateSeekableRandomAccess(this Stream stream, bool autoDisposeBase = false)
             => new SeekableStreamBasedRandomAccess(stream, autoDisposeBase);
+
+        public static Task<TResult> _TaskResult<TResult>(this TResult result) => Task.FromResult(result);
     }
 }
 

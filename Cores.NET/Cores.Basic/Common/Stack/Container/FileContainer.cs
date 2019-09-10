@@ -296,7 +296,7 @@ namespace IPA.Cores.Basic
                 directoryPrefix = PathParser.Windows.RemoveLastSeparatorChar(directoryPrefix);
             }
 
-            await srcRootDir.FileSystem.DirectoryWalker.WalkDirectoryAsync(srcRootDir,
+            bool ret = await srcRootDir.FileSystem.DirectoryWalker.WalkDirectoryAsync(srcRootDir,
                 async (dirInfo, entries, c) =>
                 {
                     foreach (var e in entries.Where(x => x.IsFile))
@@ -325,6 +325,8 @@ namespace IPA.Cores.Basic
                 exceptionHandler,
                 true,
                 cancel);
+
+            if (ret == false) throw new OperationCanceledException();
         }
         public void ImportDirectory(DirectoryPath srcRootDir,
             FileContainerEntityParam? paramTemplate = null,

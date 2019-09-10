@@ -927,6 +927,9 @@ namespace IPA.Cores.Basic
         public Task MoveFileAsync(string destPath, CancellationToken cancel = default)
             => this.FileSystem.MoveFileAsync(this.PathString, destPath, cancel);
 
+        public void MoveFile(string destPath, CancellationToken cancel = default)
+            => MoveFileAsync(destPath, cancel)._GetResult();
+
         public Task<bool> TryAddOrRemoveAttributeFromExistingFile(FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
             => this.FileSystem.TryAddOrRemoveAttributeFromExistingFile(this.PathString, attributesToAdd, attributesToRemove, cancel);
 

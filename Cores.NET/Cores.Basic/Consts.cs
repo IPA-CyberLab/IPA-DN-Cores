@@ -190,6 +190,8 @@ namespace IPA.Cores.Basic
             public const string RootMarker_Library_CoresWeb = "cores_web_root";
 
             public const string MyDynamicTempSubDirName = "_dynamic";
+
+            public const string AutoArchiveSubDirName = "_AutoArchiveBackup";
         }
 
         public static partial class Extensions
@@ -202,6 +204,8 @@ namespace IPA.Cores.Basic
             public const string Filter_Pkcs12s = "*.p12;*.pfx";
             public const string Filter_Certificates = "*.cer;*.crt";
             public const string Filter_Keys = "*.key;*.pem";
+
+            public const string Zip = ".zip";
 
             public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
         }
@@ -285,6 +289,8 @@ namespace IPA.Cores.Basic
             public const int DaemonCenterRebootRequestTimeout = 15 * 1000;
 
             public const int JsonRpcClientEndPointInfoUpdateInterval = 60 * 1000;
+
+            public const int AutoArchivePollingInterval = 200;
         }
 
         public static partial class Timeouts

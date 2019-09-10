@@ -437,7 +437,7 @@ namespace IPA.Cores.Basic
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
         static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
 
-        static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config");
+        static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config", (CoresLib.Mode == CoresMode.Library ? "Lib_" : "App_") + CoresLib.AppNameFnSafe);
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
         static readonly string UserConfigHiveDirName = Path.Combine(Env.HomeDir, ".Cores.NET/Config");
 

@@ -55,6 +55,195 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class AutoArchiveOptions
+    {
+        public DirectoryPath RootDir { get; }
+        public DirectoryPath ArchiveDestDir { get; }
+        public FileHistoryManagerPolicy HistoryPolicy { get; }
+        public int PollingInterval { get; }
+
+        public AutoArchiveOptions(DirectoryPath rootDir, FileHistoryManagerPolicy historyPolicy, string subDirName = Consts.FileNames.AutoArchiveSubDirName, int pollingInterval = Consts.Intervals.AutoArchivePollingInterval)
+        {
+            this.RootDir = rootDir;
+            this.ArchiveDestDir = this.RootDir.GetSubDirectory(subDirName, path2NeverAbsolutePath: true);
+            this.HistoryPolicy = historyPolicy;
+            this.PollingInterval = pollingInterval._Max(1000);
+        }
+    }
+
+    // 自動アーカイバ。指定したディレクトリ内のファイル (主に設定ファイル) を定期的に ZIP 圧縮して履歴ファイルとして世代保存する。
+    public class AutoArchive : AsyncServiceWithMainLoop
+    {
+        public AutoArchiveOptions Options { get; }
+
+        FileSystem FileSystem => Options.RootDir.FileSystem;
+        PathParser Parser => FileSystem.PathParser;
+
+        readonly FileHistoryManager History;
+
+        public AutoArchive(AutoArchiveOptions option)
+        {
+            this.Options = option;
+
+            this.History = new FileHistoryManager(new FileHistoryManagerOptions(PathToDateTime, Options.HistoryPolicy));
+
+            this.StartMainLoop(MainLoop);
+        }
+
+        // .zip ファイルのパスを入力して日時を返す関数
+        ResultOrError<DateTimeOffset> PathToDateTime(string path)
+        {
+            string ext = Parser.GetExtension(path);
+            string fileName = Parser.GetFileNameWithoutExtension(path);
+
+            // 拡張子の検査
+            if (ext._IsSamei(Consts.Extensions.Zip) == false)
+                return false;
+
+            // ファイル名の検査 ("20190924-123456+0900" という形式のファイル名をパースする)
+            return Str.FileNameStrToDateTimeOffset(fileName);
+        }
+
+        async Task MainLoop(CancellationToken cancel)
+        {
+            while (cancel.IsCancellationRequested == false)
+            {
+                try
+                {
+                    await Poll(cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Options.PollingInterval));
+            }
+        }
+
+        async Task Poll(CancellationToken cancel)
+        {
+            DateTimeOffset now = DateTimeOffset.Now;
+
+            if ((await Options.RootDir.IsDirectoryExistsAsync(cancel)) == false)
+            {
+                // 入力元ディレクトリ未存在
+                Dbg.Where();
+                return;
+            }
+
+            if ((await Options.ArchiveDestDir.IsDirectoryExistsAsync(cancel)) == false)
+            {
+                // 出力先ディレクトリ未存在
+                Dbg.Where();
+                return;
+            }
+
+            // バックアップ先のディレクトリのファイル名一覧 (.zip の一覧) を取得する
+            FileSystemEntity[] zipFiles = await Options.ArchiveDestDir.EnumDirectoryAsync(false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+
+            // 新しいバックアップを実施すると仮定した場合の出力先ファイル名を決定する
+            FilePath destZipFile = Options.ArchiveDestDir.Combine(Str.DateTimeOffsetToFileNameStr(now) + Consts.Extensions.Zip);
+
+            // .ziptmp ファイル名を決定する
+            FilePath destZipTempPath = Options.ArchiveDestDir.Combine("_output.zip.tmp");
+
+            // 今すぐ新しいバックアップを実施すべきかどうか判断をする
+            if (History.DetermineIsNewFileToCreate(zipFiles.Where(x => x.IsFile).Select(x => x.Name), destZipFile, now) == false)
+            {
+                // 実施しない
+                Dbg.Where();
+                return;
+            }
+
+            // 入力元のディレクトリを列挙して 1 つでもファイルが存在するかどうか確認する
+            DirectoryWalker walker = new DirectoryWalker(FileSystem, EnumDirectoryFlags.NoGetPhysicalSize);
+
+            RefBool isAnyFileExists = new RefBool(false);
+
+            await walker.WalkDirectoryAsync(Options.RootDir,
+                (pathInfo, dir, c) =>
+                {
+                    if (pathInfo.FullPath._IsSamei(Options.ArchiveDestDir.PathString) == false)
+                    {
+                        if (dir.Where(x => x.IsFile).Any())
+                        {
+                            isAnyFileExists.Set(true);
+                            return TR(false);
+                        }
+                    }
+
+                    return TR(true);
+                },
+                exceptionHandler: (pathInfo, ex, c) =>
+                {
+                    ex._Debug();
+                    return TR(false);
+                },
+                cancel: cancel);
+
+            if (isAnyFileExists == false)
+            {
+                // ファイルが 1 つも存在していないのでバックアップは実施いたしません
+                Dbg.Where();
+                return;
+            }
+
+            // バックアップを実施いたします
+            // (まずは .zip.tmp ファイルに出力をいたします)
+            try
+            {
+                await Lfs.CreateZipArchiveAsync(destZipTempPath, Options.RootDir, new FileContainerEntityParam(flags: FileContainerEntityFlags.EnableCompression),
+                    (entity) =>
+                    {
+                        if (Parser.NormalizeDirectorySeparator(entity.FullPath, true).StartsWith(Parser.NormalizeDirectorySeparator(Options.ArchiveDestDir, true), StringComparison.OrdinalIgnoreCase))
+                        {
+                            // 出力先ディレクトリに含まれているファイルはバックアップいたしません (無限肥大が発生してしまうことを避けるため)
+                            return false;
+                        }
+
+                        return true;
+                    },
+                    (pathinfo, ex, c) =>
+                    {
+                        ex._Debug();
+                        return TR(true);
+                    },
+                    cancel: cancel);
+            }
+            catch
+            {
+                // 例外が発生しました。一時的に出力中であった .zip.tmp ファイルを削除いたします
+                try
+                {
+                    await destZipTempPath.DeleteFileAsync(cancel: cancel);
+                }
+                catch { }
+                throw;
+            }
+
+            // .zip.tmp ファイルを .zip ファイルにリネームしてバックアップ処理を完了します
+            await destZipTempPath.MoveFileAsync(destZipFile, cancel);
+
+            // 古くなった履歴ファイルを削除します
+            List<string> deleteList = History.GenerateFileListToDelete(zipFiles.Where(x => x.IsFile).Select(x => x.Name), now);
+
+            foreach (string deleteFile in deleteList)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                try
+                {
+                    await FileSystem.DeleteFileAsync(deleteFile, cancel: cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+        }
+    }
+
     public class FileHistoryManagerPolicy : IValidatable
     {
         IReadOnlyList<PolicyEntry> List => InternalList;

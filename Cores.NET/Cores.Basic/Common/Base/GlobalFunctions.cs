@@ -144,6 +144,8 @@ namespace IPA.Cores.Globals
         public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
 
         public const int DefaultSize = int.MinValue;
+
+        public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
     }
 }
 

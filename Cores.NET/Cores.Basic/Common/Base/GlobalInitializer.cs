@@ -36,7 +36,7 @@ namespace IPA.Cores.Basic
         public DebugMode DebugMode { get; private set; }
         public bool PrintStatToConsole { get; private set; }
         public bool RecordLeakFullStack { get; private set; }
-        public CoresMode Mode {get;}
+        public CoresMode Mode { get; }
         public string AppName { get; }
 
         public CoresLibOptions(CoresMode mode, string appName, DebugMode defaultDebugMode = DebugMode.Debug, bool defaultPrintStatToConsole = false, bool defaultRecordLeakFullStack = false)
@@ -102,7 +102,7 @@ namespace IPA.Cores.Basic
     {
         static Once SetDebugModeOnce;
 
-        static bool Inited = false;
+        public static bool Inited { get; private set; } = false;
         static readonly CriticalSection InitLockObj = new CriticalSection();
 
         public static IReadOnlyList<string> Args { get; private set; } = null!;
@@ -110,7 +110,17 @@ namespace IPA.Cores.Basic
 
         public static string AppName { get; private set; } = null!;
         public static string AppNameFnSafe { get; private set; } = null!;
-        public static CoresMode Mode { get; private set; }
+
+        static CoresMode mode;
+        public static CoresMode Mode
+        {
+            get
+            {
+                CheckInited();
+                return mode;
+            }
+            private set => mode = value;
+        }
 
         public static string LogFileSuffix { get; private set; } = "";
 
@@ -133,7 +143,7 @@ namespace IPA.Cores.Basic
                 CoresLib.LogFileSuffix = "";
 
 #if CORES_BASIC_DAEMON
-                if (CoresLib.Mode == CoresMode.Daemon)
+                if (CoresLib.mode == CoresMode.Daemon)
                 {
                     // Daemon モードの場合は LogFileSuffix を決定するためにスタートアップ引数を先読みして動作モードを決定する
                     bool isDaemonExecMode = false;
@@ -163,9 +173,17 @@ namespace IPA.Cores.Basic
                     Dbg.SetDebugMode(options.DebugMode, options.PrintStatToConsole, options.RecordLeakFullStack);
                 }
 
-                InitModules(options);
-
                 Inited = true;
+
+                try
+                {
+                    InitModules(options);
+                }
+                catch
+                {
+                    Inited = false;
+                    throw;
+                }
 
                 CoresLib.Args = newArgs.ToList();
 
@@ -173,6 +191,14 @@ namespace IPA.Cores.Basic
 
                 return newArgs;
             }
+        }
+
+        public static bool CheckInited()
+        {
+            if (Inited == false)
+                throw new CoresException("Cores Library is not inited.");
+
+            return true;
         }
 
         public static CoresLibraryResult Free()

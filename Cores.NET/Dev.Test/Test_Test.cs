@@ -307,6 +307,19 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Hive.AppSettings["test2"].AccessData(true, kv =>
+                {
+                    kv.SetStr("Str", "123");
+                });
+                Hive.LocalAppSettings["test2"].AccessData(true, kv =>
+                {
+                    kv.SetStr("Str", "123");
+                });
+                return;
+            }
+
+            if (true)
+            {
                 FileHistoryManager mgr = new FileHistoryManager(new FileHistoryManagerOptions(
                     fn => Str.FileNameStrToDateTimeOffset(PP.GetFileNameWithoutExtension(fn)),
                     FileHistoryManagerPolicy.GetTestPolicy()));
