@@ -290,7 +290,7 @@ namespace IPA.Cores.Basic
 
             public const int JsonRpcClientEndPointInfoUpdateInterval = 60 * 1000;
 
-            public const int AutoArchivePollingInterval = 200;
+            public const int AutoArchivePollingInterval = 12 * 60 * 1000;
         }
 
         public static partial class Timeouts

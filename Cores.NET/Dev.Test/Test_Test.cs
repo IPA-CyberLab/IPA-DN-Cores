@@ -305,6 +305,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+
             if (true)
             {
                 Hive.AppSettings["test2"].AccessData(true, kv =>
@@ -341,7 +342,7 @@ namespace IPA.TestDev
                     {
                         "ABC"._WriteTextFile(newFile);
                     }
-                    
+
                     Dbg.Where();
                     Sleep(100);
                 }

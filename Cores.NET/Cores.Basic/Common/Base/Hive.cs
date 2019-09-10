@@ -404,15 +404,24 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider { get; }
         public bool IsPollingEnabled { get; }
 
+        public bool IsAutoArchiverEnabled { get; }
+        public string? PhysicalRootPath { get; }
+
         public Copenhagen<int> SyncIntervalMsec { get; } = new Copenhagen<int>(CoresConfig.DefaultHiveOptions.SyncIntervalMsec);
 
-        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false, bool globalLock = false)
-            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore, globalLock: globalLock)), enableManagedSync, syncInterval) { }
+        public HiveOptions(string rootDirectoryPath, bool enableManagedSync = false, int? syncInterval = null, bool singleInstance = false, bool putGitIgnore = false, bool globalLock = false, bool enableAutoArchiver = false)
+            : this(new FileHiveStorageProvider(new FileHiveStorageOptions(LfsUtf8, rootDirectoryPath, singleInstance: singleInstance, putGitIgnore: putGitIgnore, globalLock: globalLock)), enableManagedSync, syncInterval, enableAutoArchiver) { }
 
-        public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null)
+        public HiveOptions(HiveStorageProvider provider, bool enablePolling = false, int? syncInterval = null, bool enableAutoArchiver = false)
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
             this.StorageProvider = provider;
+
+            if (this.StorageProvider is FileHiveStorageProvider fsProvider)
+            {
+                this.IsAutoArchiverEnabled = true;
+                PhysicalRootPath = fsProvider.Options.RootDirectoryPath;
+            }
 
             if (enablePolling == false)
             {
@@ -426,6 +435,16 @@ namespace IPA.Cores.Basic
                 this.SyncIntervalMsec.SetValue(syncInterval.Value);
 
             this.IsPollingEnabled = enablePolling;
+
+            if (enableAutoArchiver)
+            {
+                if (this.PhysicalRootPath._IsEmpty())
+                {
+                    throw new ApplicationException("enableAutoArchiver is true while PhysicalRootPath is null.");
+                }
+            }
+
+            this.IsAutoArchiverEnabled = enableAutoArchiver;
         }
     }
 
@@ -479,11 +498,11 @@ namespace IPA.Cores.Basic
             Module.AddAfterInitAction(() =>
             {
                 // Create shared config hive
-                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true));
+                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true, enableAutoArchiver: true));
 
-                SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true, globalLock: true));
+                SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true, globalLock: true, enableAutoArchiver: true));
 
-                SharedUserConfigHive = new Hive(new HiveOptions(UserConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true));
+                SharedUserConfigHive = new Hive(new HiveOptions(UserConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true, enableAutoArchiver: true));
             });
         }
 
@@ -518,6 +537,8 @@ namespace IPA.Cores.Basic
 
         readonly AsyncManualResetEvent EventWhenFirstHiveDataRegistered = new AsyncManualResetEvent();
 
+        readonly AutoArchiver? Archiver = null;
+
         public Hive(HiveOptions options)
         {
             try
@@ -533,6 +554,11 @@ namespace IPA.Cores.Basic
                 if (this.Options.IsPollingEnabled)
                 {
                     this.StartMainLoop(MainLoopProcAsync);
+                }
+
+                if (this.Options.IsAutoArchiverEnabled)
+                {
+                    this.Archiver = new AutoArchiver(new AutoArchiverOptions(options.PhysicalRootPath._NullCheck(), new FileHistoryManagerPolicy(EnsureSpecial.Yes)));
                 }
             }
             catch
@@ -662,6 +688,8 @@ namespace IPA.Cores.Basic
                 {
                     RunningHivesList.Remove(this);
                 }
+
+                this.Archiver._DisposeSafe();
 
                 this.Options.StorageProvider._DisposeSafe();
             }
