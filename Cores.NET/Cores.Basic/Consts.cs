@@ -191,7 +191,7 @@ namespace IPA.Cores.Basic
 
             public const string MyDynamicTempSubDirName = "_dynamic";
 
-            public const string AutoArchiveSubDirName = "_AutoArchiveBackup";
+            public const string AutoArchiveSubDirName = ".AutoBackup";
         }
 
         public static partial class Extensions
