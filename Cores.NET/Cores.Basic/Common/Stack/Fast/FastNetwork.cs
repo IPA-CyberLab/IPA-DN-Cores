@@ -1769,11 +1769,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public readonly struct StreamImplBaseOptions
+    public class StreamImplBaseOptions
     {
-        public readonly bool CanRead;
-        public readonly bool CanWrite;
-        public readonly bool CanSeek;
+        public bool CanRead { get; }
+        public bool CanWrite { get; }
+        public bool CanSeek { get; }
 
         public StreamImplBaseOptions(bool canRead = true, bool canWrite = true, bool canSeek = false)
         {
