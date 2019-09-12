@@ -153,10 +153,20 @@ namespace IPA.Cores.Basic
                 // URL のチェック
                 requestPathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qsList);
 
-                if (uri.AbsolutePath._TryTrimStartWith(out string relativePath, StringComparison.OrdinalIgnoreCase, this.AbsolutePathPrefix) == false)
+                string relativePath;
+
+                if (this.AbsolutePathPrefix._IsFilled())
                 {
-                    // Not found
-                    return new HttpStringResult("404 Not Found", statusCode: 404);
+                    // AbsolutePathPrefix の検査
+                    if (uri.AbsolutePath._TryTrimStartWith(out relativePath, StringComparison.OrdinalIgnoreCase, this.AbsolutePathPrefix) == false)
+                    {
+                        // Not found
+                        return new HttpStringResult("404 Not Found", statusCode: 404);
+                    }
+                }
+                else
+                {
+                    relativePath = uri.AbsolutePath;
                 }
 
                 if (relativePath.StartsWith("/") == false) relativePath = "/" + relativePath;
