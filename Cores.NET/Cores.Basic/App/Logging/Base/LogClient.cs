@@ -253,21 +253,23 @@ namespace IPA.Cores.Basic
             return Task.CompletedTask;
         }
 
-        public override void ReceiveLog(LogRecord record)
+        public override void ReceiveLog(LogRecord record, string kind)
         {
+            Console.WriteLine("Log!");
             LogJsonData data = new LogJsonData
             {
                 TimeStamp = record.TimeStamp,
                 Guid = record.Guid._NonNull(),
                 MachineName = Env.MachineName,
                 AppName = this.AppName,
-                //Kind = record.kin
+                Kind = kind._NonNull(),
                 Priority = record.Priority.ToString(),
                 Tag = record.Tag._NonNull(),
                 TypeName = record.Data?.GetType().Name ?? "null",
                 Data = record.Data,
             };
-            //Client.WriteLog
+
+            Client.WriteLog(data);
         }
     }
 
@@ -275,12 +277,17 @@ namespace IPA.Cores.Basic
     public class LogClientInstaller : IDisposable
     {
         public LogClient Client { get; }
+        public LogClientLogRoute LogRoute { get; }
 
-        public LogClientInstaller(LogClientOptions options, string kind, LogPriority minimalPriority)
+        public LogClientInstaller(LogClientOptions options, string appName, string kind, LogPriority minimalPriority)
         {
             try
             {
                 this.Client = new LogClient(options);
+
+                this.LogRoute = new LogClientLogRoute(this.Client, appName, kind, minimalPriority);
+
+                LocalLogRouter.Router?.InstallLogRoute(this.LogRoute);
             }
             catch
             {
@@ -296,7 +303,15 @@ namespace IPA.Cores.Basic
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
 
-            // アンインストールの実施
+            try
+            {
+                // アンインストールの実施
+                LocalLogRouter.Router?.UninstallLogRoute(this.LogRoute);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
 
             // クライアントの破棄
             this.Client._DisposeSafe();

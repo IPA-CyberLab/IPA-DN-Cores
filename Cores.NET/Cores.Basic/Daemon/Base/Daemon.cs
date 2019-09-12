@@ -415,7 +415,7 @@ namespace IPA.Cores.Basic
             Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
 
         // LogClient を有効化すべきかどうかのフラグ
-        bool IsLogServerEnabled() => (this.Settings.LogServerEnable && this.Settings.LogServerHost._IsFilled());
+        bool IsLogServerEnabled() => (this.Settings.LogServerEnable && this.Settings.DaemonPauseFlag != PauseFlag.Pause && this.Settings.LogServerHost._IsFilled());
 
         IService? CurrentRunningService = null;
 
@@ -469,13 +469,17 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
+                // LogClient を起動する
+                using (StartLogClientIfEnabled())
                 {
-                    this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
+                    using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
+                    {
+                        this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                    Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+                        Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
 
-                    this.Daemon.Stop(false);
+                        this.Daemon.Stop(false);
+                    }
                 }
             }
             finally
@@ -532,14 +536,18 @@ namespace IPA.Cores.Basic
 
             CurrentRunningService = service;
 
-            // DaemonUtil クラスを起動する
-            using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
+            // LogClient を起動する
+            using (StartLogClientIfEnabled())
             {
-                // DaemonCenter クライアントを起動する (有効な場合)
-                using (IDisposable client = StartDaemonCenterClientIfEnabled())
+                // DaemonUtil クラスを起動する
+                using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
                 {
-                    // サービス本体処理を実施する
-                    service.ExecMain();
+                    // DaemonCenter クライアントを起動する (有効な場合)
+                    using (IDisposable client = StartDaemonCenterClientIfEnabled())
+                    {
+                        // サービス本体処理を実施する
+                        service.ExecMain();
+                    }
                 }
             }
         }
@@ -603,7 +611,10 @@ namespace IPA.Cores.Basic
 
             PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, Settings.LogServerCertSha);
 
-            LogClientInstaller installer = new LogClientInstaller(new LogClientOptions(null, cliSsl, Settings.LogServerHost, Settings.LogServerPort));
+            LogClientInstaller installer = new LogClientInstaller(new LogClientOptions(null, cliSsl, Settings.LogServerHost, Settings.LogServerPort),
+                this.Daemon.Name,
+                Settings.LogServerFilter, 
+                LogPriority.Debug.ParseAsDefault(Settings.LogServerMinimalPriority));
 
             return installer;
         }

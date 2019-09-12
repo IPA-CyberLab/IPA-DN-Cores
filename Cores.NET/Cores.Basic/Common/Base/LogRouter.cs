@@ -76,7 +76,7 @@ namespace IPA.Cores.Basic
 
         public override Task FlushAsync(CancellationToken cancel = default) => Task.CompletedTask;
 
-        public override void ReceiveLog(LogRecord record)
+        public override void ReceiveLog(LogRecord record, string kind)
         {
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
             record.WriteRecordToBuffer(this.LogInfoOptions, buf);
@@ -149,7 +149,7 @@ namespace IPA.Cores.Basic
             return Task.CompletedTask;
         }
 
-        public override void ReceiveLog(LogRecord record)
+        public override void ReceiveLog(LogRecord record, string kind)
         {
             if (record.Flags.Bit(LogFlags.NoOutputToConsole) == false)
             {
@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
             return Log?.FlushAsync(cancel) ?? Task.CompletedTask;
         }
 
-        public override void ReceiveLog(LogRecord record)
+        public override void ReceiveLog(LogRecord record, string kind)
         {
             Log?.Add(record);
         }
@@ -214,7 +214,7 @@ namespace IPA.Cores.Basic
             this.KindHash = hash;
         }
 
-        public abstract void ReceiveLog(LogRecord record);
+        public abstract void ReceiveLog(LogRecord record, string kind);
 
         public abstract Task FlushAsync(CancellationToken cancel = default);
     }
@@ -309,7 +309,7 @@ namespace IPA.Cores.Basic
                         {
                             try
                             {
-                                route.ReceiveLog(record);
+                                route.ReceiveLog(record, kind);
                             }
                             catch { }
                         }
