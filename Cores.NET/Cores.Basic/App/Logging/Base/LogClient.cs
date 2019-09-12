@@ -235,6 +235,73 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    // LogClient を用いてログを送付するための LogRoute
+    public class LogClientLogRoute : LogRouteBase
+    {
+        readonly LogClient Client;
+        readonly string AppName;
+
+        public LogClientLogRoute(LogClient client, string appName, string kind, LogPriority minimalPriority) : base(kind, minimalPriority)
+        {
+            this.AppName = appName._NullCheck();
+            this.Client = client;
+        }
+
+        public override Task FlushAsync(CancellationToken cancel = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override void ReceiveLog(LogRecord record)
+        {
+            LogJsonData data = new LogJsonData
+            {
+                TimeStamp = record.TimeStamp,
+                Guid = record.Guid._NonNull(),
+                MachineName = Env.MachineName,
+                AppName = this.AppName,
+                //Kind = record.kin
+                Priority = record.Priority.ToString(),
+                Tag = record.Tag._NonNull(),
+                TypeName = record.Data?.GetType().Name ?? "null",
+                Data = record.Data,
+            };
+            //Client.WriteLog
+        }
+    }
+
+    // LogClient の稼働を開始させた上で、ローカルのログのルーティングを LogClient に対して適切に設定するためのユーティリティクラス
+    public class LogClientInstaller : IDisposable
+    {
+        public LogClient Client { get; }
+
+        public LogClientInstaller(LogClientOptions options, string kind, LogPriority minimalPriority)
+        {
+            try
+            {
+                this.Client = new LogClient(options);
+            }
+            catch
+            {
+                this._DisposeSafe();
+
+                throw;
+            }
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            // アンインストールの実施
+
+            // クライアントの破棄
+            this.Client._DisposeSafe();
+        }
+    }
 }
 
 #endif  // CORES_BASIC_JSON

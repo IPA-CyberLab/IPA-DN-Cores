@@ -318,12 +318,40 @@ namespace IPA.Cores.Basic
         [DataMember]
         public PauseFlag DaemonPauseFlag = PauseFlag.Run;
 
+        [DataMember]
+        public bool LogServerEnable = false;
+
+        [DataMember]
+        public string LogServerHost = "";
+
+        [DataMember]
+        public int LogServerPort = 0;
+
+        [DataMember]
+        public string LogServerCertSha = "";
+
+        [DataMember]
+        public string LogServerFilter = "";
+
+        [DataMember]
+        public string LogServerMinimalPriority = "";
+
         public void Normalize()
         {
             this.DaemonCenterRpcUrl = this.DaemonCenterRpcUrl._NonNullTrim();
             this.DaemonCenterCertSha = this.DaemonCenterCertSha._NonNullTrim();
             this.DaemonStartupArgument = this.DaemonStartupArgument._NonNullTrim();
             this.DaemonCenterAppId = this.DaemonCenterAppId._NonNullTrim();
+
+            this.LogServerHost = this.LogServerHost._NonNullTrim();
+            this.LogServerCertSha = this.LogServerCertSha._NonNullTrim();
+
+            if (this.LogServerFilter._IsEmpty())
+            {
+                this.LogServerFilter = BufferedLogRoute.DefaultFilter;
+            }
+
+            LogServerMinimalPriority = LogPriority.Debug.ParseAsDefault(this.LogServerMinimalPriority).ToString();
 
             // 新しいシークレットを作成する
             if (this.DaemonSecret._IsEmpty()) this.DaemonSecret = Str.GenRandPassword(32);
@@ -333,6 +361,11 @@ namespace IPA.Cores.Basic
 
             if (this.DaemonPauseFlag != PauseFlag.Pause)
                 this.DaemonPauseFlag = PauseFlag.Run;
+
+            if (this.LogServerPort == 0)
+            {
+                this.LogServerPort = Consts.Ports.LogServerDefaultServicePort;
+            }
         }
     }
 
@@ -380,6 +413,9 @@ namespace IPA.Cores.Basic
             this.Settings.DaemonCenterEnable && this.Settings.DaemonCenterRpcUrl._IsFilled() &&
             Env.IsWindows == false &&
             Env.IsDotNetCore && Env.IsHostedByDotNetProcess);
+
+        // LogClient を有効化すべきかどうかのフラグ
+        bool IsLogServerEnabled() => (this.Settings.LogServerEnable && this.Settings.LogServerHost._IsFilled());
 
         IService? CurrentRunningService = null;
 
@@ -558,6 +594,18 @@ namespace IPA.Cores.Basic
             Client cli = new Client(cs, vars, DaemonCenterRestartRequestedCallback);
 
             return cli;
+        }
+
+        // LogClient を起動する (有効な場合)
+        IDisposable StartLogClientIfEnabled()
+        {
+            if (IsLogServerEnabled() == false) return new EmptyDisposable();
+
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, Settings.LogServerCertSha);
+
+            LogClientInstaller installer = new LogClientInstaller(new LogClientOptions(null, cliSsl, Settings.LogServerHost, Settings.LogServerPort));
+
+            return installer;
         }
 
 
