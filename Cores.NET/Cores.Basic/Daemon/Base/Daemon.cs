@@ -266,7 +266,17 @@ namespace IPA.Cores.Basic
 
                 Con.WriteLine("Flushing local logs...");
 
-                await LocalLogRouter.FlushAsync();
+                // LogClient を Flush する
+                try
+                {
+                    await TaskUtil.DoAsyncWithTimeout(async c =>
+                    {
+                        await LocalLogRouter.FlushAsync(cancel: c);
+                        return 0;
+                    },
+                    timeout: Consts.Timeouts.DaemonStopLogFinish);
+                }
+                catch { }
 
                 Con.WriteLine("Flushing local logs completed.");
 
@@ -470,7 +480,7 @@ namespace IPA.Cores.Basic
             try
             {
                 // LogClient を起動する
-                using (IDisposable logClient = StartLogClientIfEnabled())
+                using (IDisposable logClient = StartLogClientInstallerIfEnabled())
                 {
                     using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
                     {
@@ -480,13 +490,6 @@ namespace IPA.Cores.Basic
 
                         this.Daemon.Stop(false);
                     }
-
-                    // LogClient を Flush する
-                    try
-                    {
-                        (logClient as LogClientInstaller)?.FlushAsync(timeout: Consts.Timeouts.LogClientFlush)._GetResult();
-                    }
-                    catch { }
                 }
             }
             finally
@@ -544,7 +547,7 @@ namespace IPA.Cores.Basic
             CurrentRunningService = service;
 
             // LogClient を起動する
-            using (IDisposable logClient = StartLogClientIfEnabled())
+            using (IDisposable logClient = StartLogClientInstallerIfEnabled())
             {
                 // DaemonUtil クラスを起動する
                 using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
@@ -556,13 +559,6 @@ namespace IPA.Cores.Basic
                         service.ExecMain();
                     }
                 }
-
-                // LogClient を Flush する
-                try
-                {
-                    (logClient as LogClientInstaller)?.FlushAsync(timeout: Consts.Timeouts.LogClientFlush)._GetResult();
-                }
-                catch { }
             }
         }
 
@@ -619,7 +615,7 @@ namespace IPA.Cores.Basic
         }
 
         // LogClient を起動する (有効な場合)
-        IDisposable StartLogClientIfEnabled()
+        IDisposable StartLogClientInstallerIfEnabled()
         {
             if (IsLogServerEnabled() == false) return new EmptyDisposable();
 

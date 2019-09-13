@@ -142,6 +142,8 @@ namespace IPA.Cores.Basic
             
             while (this.Reader.StreamReader.Length > threshold)
             {
+                cancel.ThrowIfCancellationRequested();
+
                 FlushNowEvent.Set(true);
 
                 await EmptyEvent.WaitOneAsync(cancel: cancel);
@@ -321,17 +323,6 @@ namespace IPA.Cores.Basic
 
                 throw;
             }
-        }
-
-        public async Task FlushAsync(bool halfFlush = false, int timeout = Timeout.Infinite, CancellationToken cancel = default)
-        {
-            await TaskUtil.DoAsyncWithTimeout(async c =>
-            {
-                await this.Client.FlushAsync(halfFlush, c);
-                return 0;
-            },
-            timeout: timeout,
-            cancel: cancel);
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
