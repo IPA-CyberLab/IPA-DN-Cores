@@ -3862,7 +3862,16 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
-            public Task CloseAsync() => this.Object.CloseAsync();
+            public async Task CloseAndDisposeAsync()
+            {
+                try
+                {
+                    await this.Object.CloseAsync();
+                }
+                catch { }
+
+                this._DisposeSafe();
+            }
 
             public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
             Once DisposeFlag;
@@ -3931,7 +3940,7 @@ namespace IPA.Cores.Basic
                     if (ret == null)
                     {
                         ObjectList.Remove(key);
-                        await entry.CloseAsync()._TryWaitAsync();
+                        await entry.CloseAndDisposeAsync()._TryWaitAsync();
                         numRetry++;
                         if (numRetry >= 100)
                             throw new ApplicationException("numRetry >= 100");
@@ -3982,7 +3991,7 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            await entry.CloseAsync();
+                            await entry.CloseAndDisposeAsync();
                         }
                         catch { }
 
@@ -4051,7 +4060,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                await deleteTargetEntry.CloseAsync();
+                                await deleteTargetEntry.CloseAndDisposeAsync();
                             }
                             catch (Exception ex)
                             {

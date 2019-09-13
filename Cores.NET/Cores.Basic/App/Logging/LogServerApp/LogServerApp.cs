@@ -105,7 +105,8 @@ namespace IPA.Cores.Basic
 
                     PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true), true, null);
 
-                    this.LogServer = new LogServer(new LogServerOptions(Lfs, logDestDir, FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                    this.LogServer = new LogServer(new LogServerOptions(null, logDestDir,
+                        FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag | FileFlags.LargeFs_AppendWithoutCrossBorder | FileFlags.LargeFs_AppendNewLineForCrossBorder,
                         setDestinationProc: null,
                         sslAuthOptions: sslOptions,
                         tcpIp: LocalNet,

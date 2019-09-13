@@ -52,7 +52,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalLargeFileSystemSettings
         {
-            public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000_000; // 1 TB
+            public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000_000; // 1GB
             public static readonly Copenhagen<long> LogicalMaxSize = 1_000_000_000_000_000_000; // 1 EB
             public static readonly Copenhagen<string> SplitStr = "~~~";
         }
