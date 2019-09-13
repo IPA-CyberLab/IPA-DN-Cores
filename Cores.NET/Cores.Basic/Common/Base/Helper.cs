@@ -1546,9 +1546,9 @@ namespace IPA.Cores.Helper.Basic
         {
             List<string> ret = new List<string>();
 
-            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA1);
-            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
-            cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA512);
+            ret.Add(cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA1));
+            ret.Add(cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256));
+            ret.Add(cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA512));
 
             return ret;
         }
