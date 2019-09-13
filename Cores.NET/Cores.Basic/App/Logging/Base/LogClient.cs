@@ -103,6 +103,8 @@ namespace IPA.Cores.Basic
 
         public const int ClientVersion = 1;
 
+        public bool UnderConnectionError { get; private set; } = false;
+
         public LogClient(LogClientOptions options)
         {
             this.Options = options;
@@ -135,14 +137,18 @@ namespace IPA.Cores.Basic
         {
             long threshold = 0;
 
+            if (UnderConnectionError) return;
+
             if (halfFlush)
             {
                 threshold = this.Reader.StreamReader.Threshold / 2;
             }
-            
+
             while (this.Reader.StreamReader.Length > threshold)
             {
-                cancel.ThrowIfCancellationRequested();
+                if (UnderConnectionError) return;
+
+                if (cancel.IsCancellationRequested) return;
 
                 FlushNowEvent.Set(true);
 
@@ -152,31 +158,44 @@ namespace IPA.Cores.Basic
 
         async Task MainLoopAsync(CancellationToken cancel)
         {
-            int numRetry = 0;
-            using (PipeStream reader = new PipeStream(this.Reader))
+            try
             {
-                while (true)
+                int numRetry = 0;
+                using (PipeStream reader = new PipeStream(this.Reader))
                 {
-                    if (cancel.IsCancellationRequested) return;
-
-                    try
+                    while (true)
                     {
-                        await ConnectAndSendAsync(reader, cancel);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (ex._IsCancelException())
-                            return;
+                        if (cancel.IsCancellationRequested) return;
 
-                        numRetry++;
+                        try
+                        {
+                            UnderConnectionError = false;
 
-                        int nextRetryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryIntervalMax);
+                            await ConnectAndSendAsync(reader, cancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            UnderConnectionError = true;
+                            EmptyEvent.Set(true);
 
-                        Con.WriteError($"LogClient: Error (numRetry = {numRetry}, nextWait = {nextRetryInterval}): {ex.ToString()}");
+                            if (ex._IsCancelException())
+                                return;
 
-                        await cancel._WaitUntilCanceledAsync(nextRetryInterval);
+                            numRetry++;
+
+                            int nextRetryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryIntervalMax);
+
+                            Con.WriteError($"LogClient: Error (numRetry = {numRetry}, nextWait = {nextRetryInterval}): {ex.ToString()}");
+
+                            await cancel._WaitUntilCanceledAsync(nextRetryInterval);
+                        }
                     }
                 }
+            }
+            finally
+            {
+                EmptyEvent.Set(true);
+                UnderConnectionError = true;
             }
         }
 

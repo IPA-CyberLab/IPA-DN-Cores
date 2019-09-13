@@ -329,6 +329,10 @@ namespace IPA.Cores.Basic
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
+        static int PostDataCounter = 0;
+
+        static int PostDataFlushCountPer = CoresConfig.LocalLogRouterSettings.PostDataFlushCountPer;
+
         static int DetermineUniqueLogProcessId()
         {
             int ret = 0;
@@ -363,6 +367,8 @@ namespace IPA.Cores.Basic
 
         static void ModuleInit()
         {
+            PostDataCounter = 0;
+
             // Determine the Unique Log Process Id
             if (UniqueLogProcessId == -1)
             {
@@ -476,14 +482,28 @@ namespace IPA.Cores.Basic
         public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
-        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
+        public static Task PostDataAsync(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
         {
             Post(obj, priority, kind: LogKind.Data, tag: tag);
+
             if (copyToDebug)
             {
                 Post(new PostedData() { Data = obj, Tag = tag }, priority: LogPriority.Debug, kind: LogKind.Default, tag: tag);
             }
+
+            // データを post したときは一定個数ごとに Half Flush し、Half Flush 完了まで待機をする (消失防止のため)
+            if (PostDataFlushCountPer == 0 || (Interlocked.Increment(ref PostDataCounter) % PostDataFlushCountPer) == 0)
+            {
+                return FlushAsync(halfFlush: true, cancel: cancel);
+            }
+            else
+            {
+                return Task.CompletedTask;
+            }
         }
+
+        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
+            => PostDataAsync(obj, tag, copyToDebug, priority, cancel)._GetResult();
 
         public static void PostStat(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {
@@ -543,6 +563,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class LocalLogRouterSettings
         {
+            public static readonly Copenhagen<int> PostDataFlushCountPer = 30; // Post データ何個ごとに Half Flush するか
+
             public static readonly Copenhagen<string> LogRootDir = Path.Combine(Env.AppRootDir, "Log");
 
             // Debug

@@ -1270,8 +1270,11 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _IsAnonymousType<T>(this T instance) => _IsAnonymousType(instance!.GetType());
 
-        public static void _PostData(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
-            => LocalLogRouter.PostData(obj, tag, copyToDebug, priority);
+        public static void _PostData(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
+            => LocalLogRouter.PostData(obj, tag, copyToDebug, priority, cancel);
+
+        public static Task _PostDataAsync(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
+            => LocalLogRouter.PostDataAsync(obj, tag, copyToDebug, priority, cancel);
 
         public static void _PostAccessLog(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);

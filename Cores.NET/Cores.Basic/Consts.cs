@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic
         {
             public const int Rapid = 5 * 1000;
 
-            public const int DaemonStopLogFinish = 1 * 1000;
+            public const int DaemonStopLogFinish = 15 * 1000;
         }
     }
 
