@@ -132,14 +132,14 @@ namespace IPA.Cores.Basic
     public class LogJsonData
     {
         public DateTimeOffset? TimeStamp;
-        public string? Guid;
-        public string? MachineName;
-        public string? AppName;
+        public object? Data;
+        public string? TypeName;
         public string? Kind;
         public string? Priority;
         public string? Tag;
-        public string? TypeName;
-        public object? Data;
+        public string? AppName;
+        public string? MachineName;
+        public string? Guid;
 
         static readonly PathParser WinParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
         public LogFlags Flags { get; }
         public string? Tag { get; }
         public string Guid { get; }
-
+        
         public LogRecord(object? data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string? tag = null) : this(0, data, priority, flags, tag) { }
 
         public LogRecord(long tick, object? data, LogPriority priority = LogPriority.Debug, LogFlags flags = LogFlags.None, string? tag = null)
