@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
 
         public static string DnsHostName { get; }
         public static string DnsDomainName { get; }
-        public static string DnsFqdnHostName => DnsHostName + (string.IsNullOrEmpty(DnsDomainName) ? "" : "." + DnsDomainName);
+        public static string DnsFqdnHostName { get; }
 
         public static DateTimeOffset BootTime { get; }
 
@@ -261,6 +261,7 @@ namespace IPA.Cores.Basic
 
             DnsHostName = dnsHostName;
             DnsDomainName = dnsDomainName;
+            DnsFqdnHostName = DnsHostName + (string.IsNullOrEmpty(DnsDomainName) ? "" : "." + DnsDomainName);
 
             if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
             {

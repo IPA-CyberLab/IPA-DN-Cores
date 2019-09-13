@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
             MasterBuffer = new FastStreamBuffer(false, this.BufferSize);
         }
 
-        public override Task FlushAsync(CancellationToken cancel = default) => Task.CompletedTask;
+        public override Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default) => Task.CompletedTask;
 
         public override void ReceiveLog(LogRecord record, string kind)
         {
@@ -143,7 +143,7 @@ namespace IPA.Cores.Basic
     {
         public ConsoleLogRoute(string kind, LogPriority minimalPriority) : base(kind, minimalPriority) { }
 
-        public override Task FlushAsync(CancellationToken cancel = default)
+        public override Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
         {
             Console.Out.Flush();
             return Task.CompletedTask;
@@ -177,9 +177,9 @@ namespace IPA.Cores.Basic
             AddDirectDisposeLink(Log);
         }
 
-        public override Task FlushAsync(CancellationToken cancel = default)
+        public override Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
         {
-            return Log?.FlushAsync(cancel) ?? Task.CompletedTask;
+            return Log?.FlushAsync(halfFlush, cancel) ?? Task.CompletedTask;
         }
 
         public override void ReceiveLog(LogRecord record, string kind)
@@ -216,7 +216,7 @@ namespace IPA.Cores.Basic
 
         public abstract void ReceiveLog(LogRecord record, string kind);
 
-        public abstract Task FlushAsync(CancellationToken cancel = default);
+        public abstract Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default);
     }
 
     public class LogRouter : AsyncService
@@ -271,7 +271,7 @@ namespace IPA.Cores.Basic
         public void UninstallLogRoute(LogRouteBase route)
             => UninstallLogRouteAsync(route)._GetResult();
 
-        public async Task FlushAsync(CancellationToken cancel = default)
+        public async Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
         {
             try
             {
@@ -281,7 +281,7 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        flushTaskList.Add(route.FlushAsync(cancel));
+                        flushTaskList.Add(route.FlushAsync(halfFlush, cancel));
                     }
                     catch { }
                 }
@@ -465,8 +465,8 @@ namespace IPA.Cores.Basic
             BufferedLogRoute = null!;
         }
 
-        public static Task FlushAsync(CancellationToken cancel = default)
-            => Router?.FlushAsync(cancel) ?? Task.CompletedTask;
+        public static Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
+            => Router?.FlushAsync(halfFlush, cancel) ?? Task.CompletedTask;
 
         public static void Post(LogRecord record, string kind = LogKind.Default) => Router?.PostLog(record, kind);
 

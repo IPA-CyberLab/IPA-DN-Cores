@@ -830,7 +830,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> FlushAsync(CancellationToken cancel = default)
+        public async Task<bool> FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
         {
             this.Event.Set();
 
@@ -840,7 +840,15 @@ namespace IPA.Cores.Basic
                 lock (this.RecordQueue)
                     num = this.RecordQueue.Count;
 
-                if (num == 0) return true;
+                if (halfFlush == false)
+                {
+                    if (num == 0) return true;
+                }
+                else
+                {
+                    if (num <= (this.MaxPendingRecords / 2)) return true;
+                }
+
                 if (this.GrandCancel.IsCancellationRequested) return false;
                 if (cancel.IsCancellationRequested) return false;
 

@@ -296,6 +296,8 @@ namespace IPA.Cores.Basic
         public static partial class Timeouts
         {
             public const int Rapid = 5 * 1000;
+
+            public const int LogClientFlush = 30 * 1000;
         }
     }
 

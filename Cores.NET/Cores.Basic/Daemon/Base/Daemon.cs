@@ -470,7 +470,7 @@ namespace IPA.Cores.Basic
             try
             {
                 // LogClient を起動する
-                using (StartLogClientIfEnabled())
+                using (IDisposable logClient = StartLogClientIfEnabled())
                 {
                     using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
                     {
@@ -480,6 +480,13 @@ namespace IPA.Cores.Basic
 
                         this.Daemon.Stop(false);
                     }
+
+                    // LogClient を Flush する
+                    try
+                    {
+                        (logClient as LogClientInstaller)?.FlushAsync(timeout: Consts.Timeouts.LogClientFlush)._GetResult();
+                    }
+                    catch { }
                 }
             }
             finally
@@ -537,7 +544,7 @@ namespace IPA.Cores.Basic
             CurrentRunningService = service;
 
             // LogClient を起動する
-            using (StartLogClientIfEnabled())
+            using (IDisposable logClient = StartLogClientIfEnabled())
             {
                 // DaemonUtil クラスを起動する
                 using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
@@ -549,6 +556,13 @@ namespace IPA.Cores.Basic
                         service.ExecMain();
                     }
                 }
+
+                // LogClient を Flush する
+                try
+                {
+                    (logClient as LogClientInstaller)?.FlushAsync(timeout: Consts.Timeouts.LogClientFlush)._GetResult();
+                }
+                catch { }
             }
         }
 

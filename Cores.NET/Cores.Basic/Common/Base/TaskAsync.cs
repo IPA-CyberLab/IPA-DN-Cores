@@ -1233,6 +1233,14 @@ namespace IPA.Cores.Basic
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
 
+        public AsyncAutoResetEvent(bool initialState = false)
+        {
+            if (initialState)
+            {
+                this.Set();
+            }
+        }
+
         public async Task<bool> WaitOneAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             try

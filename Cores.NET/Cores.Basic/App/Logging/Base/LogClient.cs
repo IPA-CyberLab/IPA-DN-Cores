@@ -92,10 +92,14 @@ namespace IPA.Cores.Basic
     {
         public LogClientOptions Options { get; }
 
-        PipePoint Reader;
-        PipePoint Writer;
+        readonly PipePoint Reader;
+        readonly PipePoint Writer;
 
-        Task MainProcTask;
+        readonly Task MainProcTask;
+
+        readonly AsyncAutoResetEvent EmptyEvent = new AsyncAutoResetEvent(true); // すべてのデータが送付されて空になるたびに発生する非同期イベント
+
+        readonly AsyncAutoResetEvent FlushNowEvent = new AsyncAutoResetEvent(); // 今すぐ Flush するべき指示のイベント
 
         public const int ClientVersion = 1;
 
@@ -125,6 +129,23 @@ namespace IPA.Cores.Basic
             buf.Write(jsonBuf);
 
             this.Writer.StreamWriter.NonStopWriteWithLock(buf, true, FastStreamNonStopWriteMode.DiscardWritingData, true);
+        }
+
+        public async Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
+        {
+            long threshold = 0;
+
+            if (halfFlush)
+            {
+                threshold = this.Reader.StreamReader.Threshold / 2;
+            }
+            
+            while (this.Reader.StreamReader.Length > threshold)
+            {
+                FlushNowEvent.Set(true);
+
+                await EmptyEvent.WaitOneAsync(cancel: cancel);
+            }
         }
 
         async Task MainLoopAsync(CancellationToken cancel)
@@ -193,7 +214,11 @@ namespace IPA.Cores.Basic
                         {
                             if (reader.IsReadyToReceive() == false)
                             {
-                                await cancel._WaitUntilCanceledAsync(this.Options.Delay);
+                                EmptyEvent.Set(true);
+
+                                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(),
+                                    events: this.FlushNowEvent._SingleArray(),
+                                    timeout: this.Options.Delay);
 
                                 cancel.ThrowIfCancellationRequested();
 
@@ -248,19 +273,20 @@ namespace IPA.Cores.Basic
             this.Client = client;
         }
 
-        public override Task FlushAsync(CancellationToken cancel = default)
+        public override Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
         {
-            return Task.CompletedTask;
+            return this.Client.FlushAsync(halfFlush, cancel);
         }
 
         public override void ReceiveLog(LogRecord record, string kind)
         {
-            Console.WriteLine("Log!");
+            //Console.WriteLine("Log!");
+            //"Log!"._Debug();
             LogJsonData data = new LogJsonData
             {
                 TimeStamp = record.TimeStamp,
                 Guid = record.Guid._NonNull(),
-                MachineName = Env.MachineName,
+                MachineName = Env.DnsFqdnHostName,
                 AppName = this.AppName,
                 Kind = kind._NonNull(),
                 Priority = record.Priority.ToString(),
@@ -295,6 +321,17 @@ namespace IPA.Cores.Basic
 
                 throw;
             }
+        }
+
+        public async Task FlushAsync(bool halfFlush = false, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        {
+            await TaskUtil.DoAsyncWithTimeout(async c =>
+            {
+                await this.Client.FlushAsync(halfFlush, c);
+                return 0;
+            },
+            timeout: timeout,
+            cancel: cancel);
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
