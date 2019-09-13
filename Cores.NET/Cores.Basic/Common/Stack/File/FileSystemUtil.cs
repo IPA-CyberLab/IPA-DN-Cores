@@ -1043,13 +1043,23 @@ namespace IPA.Cores.Basic
         {
             while (cancel.IsCancellationRequested == false)
             {
-                try
+                // 同一ディレクトリを対象とした他プロセスによる活動がある場合は本プロセスは何も実施をしない
+                SingleInstance? singleInstance = SingleInstance.TryGet("Archiver_" + Options.RootDir.ToString());
+
+                if (singleInstance != null)
                 {
-                    await Poll(cancel);
-                }
-                catch (Exception ex)
-                {
-                    ex._Debug();
+                    try
+                    {
+                        await Poll(cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                    finally
+                    {
+                        singleInstance._DisposeSafe();
+                    }
                 }
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Options.PollingInterval));
