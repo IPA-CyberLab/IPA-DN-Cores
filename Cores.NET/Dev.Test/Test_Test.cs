@@ -305,6 +305,19 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    Task t = TaskUtil.StartSyncTaskAsync(() =>
+                    {
+                        while (true)
+                        {
+                            Limbo.SInt32++;
+                        }
+                    });
+                }
+            }
 
             if (true)
             {
