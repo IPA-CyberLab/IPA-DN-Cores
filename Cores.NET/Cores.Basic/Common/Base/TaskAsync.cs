@@ -616,13 +616,23 @@ namespace IPA.Cores.Basic
 
         static bool FailedFlag_GetScheduledTimersCount = false;
 
-        static readonly FieldInfo? TimerQueueTimer_mNext_FieldInfo = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic) : null;
+        static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo1 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 2.x
+        static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo2 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 3.x
 
         public static int GetScheduledTimersCount()
         {
             if (FailedFlag_GetScheduledTimersCount) return -1;
 
-            if (TimerQueueType == null || TimerQueueTimersFieldList == null || TimerQueueTimer_mNext_FieldInfo == null)
+            if (TimerQueueType == null || TimerQueueTimersFieldList == null)
+            {
+                FailedFlag_GetScheduledTimersCount = true;
+                return -1;
+            }
+
+            FieldInfo? Timer_Next_Field_info = TimerQueueTimer_Next_FieldInfo1;
+            if (Timer_Next_Field_info == null) Timer_Next_Field_info = TimerQueueTimer_Next_FieldInfo2;
+
+            if (Timer_Next_Field_info == null)
             {
                 FailedFlag_GetScheduledTimersCount = true;
                 return -1;
@@ -654,7 +664,7 @@ namespace IPA.Cores.Basic
                                 {
                                     while (timer != null)
                                     {
-                                        timer = TimerQueueTimer_mNext_FieldInfo.GetValue(timer);
+                                        timer = Timer_Next_Field_info.GetValue(timer);
                                         num++;
                                     }
                                 }
