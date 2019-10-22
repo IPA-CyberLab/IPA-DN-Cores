@@ -146,7 +146,7 @@ namespace IPA.Cores.Basic
     {
         public readonly static StaticModule Module = new StaticModule(InitModule, FreeModule);
         static Singleton<HiveData<TelnetLocalLogWatcherConfig>> _ConfigSingleton = null!;
-        static HiveData<TelnetLocalLogWatcherConfig> Config => _ConfigSingleton = null!;
+        static HiveData<TelnetLocalLogWatcherConfig> Config => _ConfigSingleton;
 
         static void InitModule()
         {

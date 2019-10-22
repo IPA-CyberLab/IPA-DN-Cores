@@ -46,7 +46,7 @@ using static IPA.Cores.Globals.Basic;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.LogServer
 {
     class LogServerDaemon : Daemon
     {
@@ -82,7 +82,7 @@ namespace IPA.TestDev
         }
     }
 
-    partial class TestDevCommands
+    partial class LogServerCommands
     {
         [ConsoleCommand(
             "Start or stop the LogServerDaemon daemon",
