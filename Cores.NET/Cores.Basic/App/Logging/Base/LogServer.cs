@@ -53,8 +53,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class LogProtocolSettings
         {
-            public static readonly Copenhagen<int> DefaultRecvTimeout = 2000;
-            public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1000;
+            public static readonly Copenhagen<int> DefaultRecvTimeout = 30 * 1000; // 30 secs
+            public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1 * 1000; // 1 secs
 
             public static readonly Copenhagen<int> BufferingSizeThresholdPerServer = (16 * 1024 * 1024); // 16MB
 
