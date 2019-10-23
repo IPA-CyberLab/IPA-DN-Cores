@@ -213,6 +213,11 @@ namespace IPA.Cores.Basic
                             readSize = tail;
                         }
 
+                        if (tail != 0)
+                        {
+                            mimeType = Consts.MimeTypes.Text;
+                        }
+
                         return new HttpFileResult(file, readStart, readSize, mimeType);
                     }
                     catch

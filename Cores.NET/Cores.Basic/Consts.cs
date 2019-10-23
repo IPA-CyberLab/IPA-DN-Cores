@@ -159,6 +159,7 @@ namespace IPA.Cores.Basic
             public const string DirectoryOpening = "text/directory-open";
             public const string Html = "text/html";
 
+            public const string Text = "text/plain";
             public const string TextUtf8 = "text/plain; charset=UTF-8";
             public const string HtmlUtf8 = "text/html; charset=UTF-8";
         }
