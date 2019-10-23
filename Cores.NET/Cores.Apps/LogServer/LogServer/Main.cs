@@ -46,17 +46,6 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.LogServer
 {
-    static class IsDebugBuildChecker
-    {
-        public static readonly bool IsDebugBuild;
-        static IsDebugBuildChecker()
-        {
-            int debugChecker = 0;
-            Debug.Assert((++debugChecker) >= 1);
-            IsDebugBuild = (debugChecker >= 1);
-        }
-    }
-
     class LogServerAppMain
     {
         static int Main(string[] args)
