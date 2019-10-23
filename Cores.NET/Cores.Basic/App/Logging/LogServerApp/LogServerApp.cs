@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
                         tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
                     }
 
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(Env.AppRootDir);
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(logDestDir);
 
                     this.LogBrowserHttpServer = LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, ""));
                 });
