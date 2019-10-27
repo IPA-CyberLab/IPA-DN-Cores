@@ -389,13 +389,13 @@ namespace IPA.Cores.Basic
                     // ただし、一度書き込んだデータそのものは、一方向性書き込みであるためキャンセルできない。
                     // そのため、単に関数を抜けるだけとする。
 
-                    await this.FileContentWriterStream._DisposeAsyncSafe();
+                    await this.FileContentWriterStream._DisposeSafeAsync();
                     return;
                 }
 
                 await this.FileContentWriterStream.FlushAsync(cancel);
 
-                await this.FileContentWriterStream._DisposeAsyncSafe();
+                await this.FileContentWriterStream._DisposeSafeAsync();
 
                 // 圧縮後データサイズを計算
                 long currentWriteenCompressedBytes = this.RawWriter.CurrentPosition - WrittenDataStartOffset;

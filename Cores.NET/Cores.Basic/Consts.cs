@@ -73,6 +73,9 @@ namespace IPA.Cores.Basic
 
             public const int DefaultUseStorageThreshold = 1_000_000;
 
+            public const int DefaultSmallBufferSize = 8192;
+            public const int DefaultLargeBufferSize = 65536;
+
             public static readonly int MaxYear = (Util.MaxDateTimeValue.Year - 1);
             public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
         }

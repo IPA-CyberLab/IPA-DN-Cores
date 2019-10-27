@@ -399,6 +399,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _TruncStr(this string? str, int len) => Str.TruncStr(str, len);
         public static string _TruncStrEx(this string? str, int len, string? appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
         public static string? _NullIfEmpty(this string? str) => Str.IsFilledStr(str) ? str : null;
+        public static string? _NullIfZeroLen(this string? str) => str == null ? null : (str.Length == 0 ? null : str);
         public static T _NullIfEmpty<T>(this T obj) => Util.IsFilled(obj) ? obj : default;
         public static byte[] _HashSHA256(this string? str) => Str.HashStrSHA256(str);
         public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);
@@ -565,6 +566,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _TryWait(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
         public static Task _TryWaitAsync(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
+        public static Task _TryAwait(this Task? t, bool noDebugMessage = false) => _TryWaitAsync(t, noDebugMessage);
 
         public static T[] _ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 
@@ -694,6 +696,47 @@ namespace IPA.Cores.Helper.Basic
                 }
                 catch { }
             });
+        }
+
+        public static async Task<Memory<byte>> _ReadAsync(this Stream stream, int bufferSize = Consts.Numbers.DefaultSmallBufferSize, CancellationToken cancel = default)
+        {
+            Memory<byte> tmp = new byte[bufferSize];
+
+            int sz = await stream.ReadAsync(tmp, cancel);
+
+            return tmp.Slice(0, sz);
+        }
+        public static Memory<byte> _Read(this Stream stream, int bufferSize = Consts.Numbers.DefaultSmallBufferSize, CancellationToken cancel = default)
+            => _ReadAsync(stream, bufferSize, cancel)._GetResult();
+
+        // 指定したサイズを超えないデータを切断されるまでに受信する
+        public static async Task<Memory<byte>> _ReadWithMaxBufferSizeAsync(this Stream stream, int maxBufferSize, CancellationToken cancel = default)
+        {
+            maxBufferSize._SetMax(1);
+
+            MemoryBuffer<byte> buffer = new MemoryBuffer<byte>();
+
+            Memory<byte> tmp = new byte[Consts.Numbers.DefaultSmallBufferSize];
+
+            while (true)
+            {
+                int readSize = Math.Min(tmp.Length, maxBufferSize - buffer.Length);
+                if (readSize <= 0)
+                {
+                    break;
+                }
+
+                int sz = await stream.ReadAsync(tmp, cancel);
+
+                if (sz == 0)
+                {
+                    break;
+                }
+
+                buffer.Write(tmp.Slice(0, sz));
+            }
+
+            return buffer.Memory;
         }
 
         public static async Task<Memory<byte>> _ReadAllAsync(this Stream stream, int size, CancellationToken cancel = default)
@@ -842,7 +885,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static async Task _DisposeAsyncSafe(this IAsyncDisposable? obj)
+        public static async Task _DisposeSafeAsync(this IAsyncDisposable? obj)
         {
             try
             {

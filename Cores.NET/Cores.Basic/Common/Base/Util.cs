@@ -6627,7 +6627,7 @@ namespace IPA.Cores.Basic
             {
                 if (a.AutoDispose)
                 {
-                    await a.Stream._DisposeAsyncSafe();
+                    await a.Stream._DisposeSafeAsync();
                 }
             }
         }

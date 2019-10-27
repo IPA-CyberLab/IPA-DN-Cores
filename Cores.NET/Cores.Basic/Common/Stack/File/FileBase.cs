@@ -1210,7 +1210,7 @@ namespace IPA.Cores.Basic
             
             if (this.AutoDispose)
             {
-                await BaseStream._DisposeAsyncSafe();
+                await BaseStream._DisposeSafeAsync();
             }
         }
 

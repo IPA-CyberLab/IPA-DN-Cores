@@ -356,6 +356,10 @@ namespace IPA.Cores.Basic
         public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
+        public static async Task StartAsyncTaskAsync(Task task, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await task._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
+        public static async Task<T> StartAsyncTaskAsync<T>(Task<T> task, bool yieldOnStart = true, bool leakCheck = true)
+        { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await task._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
 
         public static async Task StartSyncTaskAsync(Action<object?> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
@@ -1647,6 +1651,8 @@ namespace IPA.Cores.Basic
         }
 
         Exception CancelReason = new OperationCanceledException();
+
+        public void Disconnect() => Cancel(new DisconnectedException());
 
         Once Canceled;
         public void Cancel(Exception? ex = null)

@@ -305,6 +305,76 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                string cmd = @"c:\windows\system32\cmd.exe";
+
+                if (Env.IsUnix)
+                {
+                    cmd = "/bin/bash";
+                }
+
+                using (ExecInstance inst = new ExecInstance(new ExecOptions(@"c:\windows\system32\cmd.exe", "", flags: ExecFlags.KillProcessGroup)))
+                {
+                    using var stub = inst.InputOutputPipePoint.GetNetAppProtocolStub();
+                    using var stream = stub.GetStream();
+
+                    Task printTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        while (true)
+                        {
+                            Memory<byte> mem = await stream._ReadAsync();
+                            if (mem.Length == 0)
+                            {
+                                break;
+                            }
+
+                            Console.Write(mem._GetString(inst.OutputEncoding));
+                        }
+                    });
+
+                    Task inputTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        while (true)
+                        {
+                            string line = Console.ReadLine();
+
+                            await stream.WriteAsync((line + Env.NewLine)._GetBytes(inst.InputEncoding));
+                        }
+                    });
+
+                    int ret = inst.WaitForExit();
+
+                    printTask._TryWait(true);
+                    inputTask._TryWait(true);
+
+                    Con.WriteLine(ret);
+                }
+                return;
+            }
+
+            if (true)
+            {
+                string cmd = @"c:\windows\system32\ipconfig.exe";
+                string arg = "/all";
+
+                if (Env.IsUnix)
+                {
+                    cmd = "/sbin/ifconfig";
+                    arg = "-a";
+                }
+
+                using (ExecInstance inst = new ExecInstance(new ExecOptions(cmd, arg, easyOutputMaxSize: int.MaxValue)))
+                {
+                    int ret = inst.WaitForExit();
+
+                    inst.EasyOutputStr._Print();
+
+                    Con.WriteLine(ret);
+                }
+                return;
+            }
+
             if (true)
             {
                 for (int i = 0; i < 16; i++)

@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
 
         public PipePoint GetPipePoint()
         {
-            Lower.CheckCanceled();
+            Lower.CheckCanceledAndNoMoreData();
 
             return Lower;
         }
@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                Lower.CheckCanceled();
+                Lower.CheckCanceledAndNoMoreData();
                 return this.LowerAttach;
             }
         }

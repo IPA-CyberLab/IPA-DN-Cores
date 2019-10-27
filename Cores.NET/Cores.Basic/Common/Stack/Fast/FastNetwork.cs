@@ -330,6 +330,17 @@ namespace IPA.Cores.Basic
         protected override Task CleanupImplAsync(Exception? ex)
             => Task.CompletedTask;
 
+        public void CheckDisconnectedAndNoMoreData()
+        {
+            if (this.StreamAtoB.IsReadyToRead() == false &&
+                this.StreamBtoA.IsReadyToRead() == false &&
+                this.DatagramAtoB.IsReadyToRead() == false &&
+                this.DatagramBtoA.IsReadyToRead() == false)
+            {
+                CheckDisconnected();
+            }
+        }
+
         public void CheckDisconnected()
         {
             StreamAtoB.CheckDisconnected();
@@ -414,6 +425,9 @@ namespace IPA.Cores.Basic
             => new NetAppStub(this, cancel);
 
         public void CheckCanceled() => Pipe.CheckDisconnected();
+        public void CheckCanceledAndNoMoreData() => Pipe.CheckDisconnectedAndNoMoreData();
+
+        public void Disconnect() => Cancel(new DisconnectedException());
 
         public void Cancel(Exception? ex = null) { this.Pipe.Cancel(ex); }
 
@@ -447,7 +461,7 @@ namespace IPA.Cores.Basic
                 if (attachDirection != Direction)
                     throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
 
-                end.CheckCanceled();
+                end.CheckCanceledAndNoMoreData();
 
                 lock (end._InternalAttachHandleLock)
                 {
@@ -616,7 +630,7 @@ namespace IPA.Cores.Basic
 
         public PipeStream(PipePoint pipePoint, bool autoFlush = true)
         {
-            pipePoint.CheckCanceled();
+            pipePoint.CheckCanceledAndNoMoreData();
 
             Point = pipePoint;
             AutoFlush = autoFlush;
@@ -1573,17 +1587,22 @@ namespace IPA.Cores.Basic
 
     public class PipePointStreamWrapper : PipePointAsyncObjectWrapperBase
     {
-        public Stream Stream { get; }
+        public Stream ReadStream { get; }
+        public Stream WriteStream { get; }
         public int RecvTmpBufferSize { get; private set; }
         public const int SendTmpBufferSize = 65536;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public PipePointStreamWrapper(PipePoint pipePoint, Stream stream, CancellationToken cancel = default) : base(pipePoint, cancel)
+        public PipePointStreamWrapper(PipePoint pipePoint, Stream readWriteStream, CancellationToken cancel = default) : this(pipePoint, readWriteStream, readWriteStream, cancel) { }
+        public PipePointStreamWrapper(PipePoint pipePoint, Stream readStream, Stream writeStream, CancellationToken cancel = default) : base(pipePoint, cancel)
         {
-            this.Stream = stream;
+            this.ReadStream = readStream;
+            this.WriteStream = writeStream;
+
             SupportedDataTypes = PipeSupportedDataTypes.Stream;
 
-            Stream.ReadTimeout = Stream.WriteTimeout = Timeout.Infinite;
+            if (ReadStream.CanTimeout) ReadStream.ReadTimeout = Timeout.Infinite;
+            if (WriteStream.CanTimeout) WriteStream.WriteTimeout = Timeout.Infinite;
 
             this.StartBaseAsyncLoops();
         }
@@ -1605,13 +1624,13 @@ namespace IPA.Cores.Basic
                             if (size == 0)
                                 break;
 
-                            await Stream.WriteAsync(buffer.Slice(0, size), cancel);
+                            await WriteStream.WriteAsync(buffer.Slice(0, size), cancel);
                             flush = true;
                         }
                     }
 
                     if (flush)
-                        await Stream.FlushAsync(cancel);
+                        await WriteStream.FlushAsync(cancel);
 
                     return 0;
                 },
@@ -1631,7 +1650,7 @@ namespace IPA.Cores.Basic
             }
 
             Memory<byte> tmp = me.FastMemoryAllocatorForStream.Reserve(me.RecvTmpBufferSize);
-            int r = await me.Stream.ReadAsync(tmp, cancel);
+            int r = await me.ReadStream.ReadAsync(tmp, cancel);
             if (r < 0) throw new BaseStreamDisconnectedException();
             me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
             if (r == 0) return new ValueOrClosed<ReadOnlyMemory<byte>>();
@@ -1665,14 +1684,16 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception? ex)
         {
-            Stream._DisposeSafe();
+            ReadStream._DisposeSafe();
+            if (WriteStream != ReadStream) WriteStream._DisposeSafe();
 
             base.CancelImpl(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
         {
-            Stream._DisposeSafe();
+            ReadStream._DisposeSafe();
+            if (WriteStream != ReadStream) WriteStream._DisposeSafe();
 
             base.DisposeImpl(ex);
         }
@@ -1756,16 +1777,26 @@ namespace IPA.Cores.Basic
 
         protected override void CancelImpl(Exception? ex)
         {
-            InternalDisconnect(ex);
-
-            base.CancelImpl(ex);
+            try
+            {
+                InternalDisconnect(ex);
+            }
+            finally
+            {
+                base.CancelImpl(ex);
+            }
         }
 
         protected override void DisposeImpl(Exception? ex)
         {
-            InternalDisconnect(ex);
-
-            base.DisposeImpl(ex);
+            try
+            {
+                InternalDisconnect(ex);
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
         }
     }
 
@@ -1820,7 +1851,7 @@ namespace IPA.Cores.Basic
         {
             if (this.LeaveStreamOpen == false)
             {
-                await this.BaseStream._DisposeAsyncSafe();
+                await this.BaseStream._DisposeSafeAsync();
             }
         }
     }
