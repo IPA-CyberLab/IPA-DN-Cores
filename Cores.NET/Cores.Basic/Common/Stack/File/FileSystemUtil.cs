@@ -1052,10 +1052,6 @@ namespace IPA.Cores.Basic
                     {
                         await Poll(cancel);
                     }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
                     finally
                     {
                         singleInstance._DisposeSafe();
