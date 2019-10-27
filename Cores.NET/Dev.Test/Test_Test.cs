@@ -305,31 +305,36 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
                 string cmd = @"c:\windows\system32\cmd.exe";
+                string arg = "";
 
                 if (Env.IsUnix)
                 {
                     cmd = "/bin/bash";
+                    arg = "";
                 }
 
-                using (ExecInstance inst = new ExecInstance(new ExecOptions(@"c:\windows\system32\cmd.exe", "", flags: ExecFlags.KillProcessGroup)))
+                using (ExecInstance inst = new ExecInstance(new ExecOptions(cmd, arg, flags: ExecFlags.KillProcessGroup)))
                 {
-                    using var stub = inst.InputOutputPipePoint.GetNetAppProtocolStub();
-                    using var stream = stub.GetStream();
+                    using var stdStub = inst.InputOutputPipePoint.GetNetAppProtocolStub();
+                    using var stdStream = stdStub.GetStream();
+
+                    using var errStub = inst.ErrorPipePoint.GetNetAppProtocolStub();
+                    using var errStream = errStub.GetStream();
 
                     Task printTask = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
                         while (true)
                         {
-                            Memory<byte> mem = await stream._ReadAsync();
+                            Memory<byte> mem = await stdStream._ReadAsync();
                             if (mem.Length == 0)
                             {
                                 break;
                             }
 
-                            Console.Write(mem._GetString(inst.OutputEncoding));
+                            Console.WriteLine("" + mem._GetString(inst.OutputEncoding) + "");
                         }
                     });
 
@@ -339,7 +344,27 @@ namespace IPA.TestDev
                         {
                             string line = Console.ReadLine();
 
-                            await stream.WriteAsync((line + Env.NewLine)._GetBytes(inst.InputEncoding));
+                            if (line == "q")
+                            {
+                                inst.Cancel();
+                            }
+
+                            await stdStream.WriteAsync((line + Env.NewLine)._GetBytes(inst.InputEncoding));
+                        }
+                    });
+
+
+                    Task errorTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        while (true)
+                        {
+                            Memory<byte> mem = await errStream._ReadAsync();
+                            if (mem.Length == 0)
+                            {
+                                break;
+                            }
+
+                            Console.WriteLine("" + mem._GetString(inst.ErrorEncoding) + "");
                         }
                     });
 
@@ -347,6 +372,7 @@ namespace IPA.TestDev
 
                     printTask._TryWait(true);
                     inputTask._TryWait(true);
+                    errorTask._TryWait(true);
 
                     Con.WriteLine(ret);
                 }
@@ -362,6 +388,8 @@ namespace IPA.TestDev
                 {
                     cmd = "/sbin/ifconfig";
                     arg = "-a";
+                    //cmd = "/bin/bash";
+                    //arg = "aaa";
                 }
 
                 using (ExecInstance inst = new ExecInstance(new ExecOptions(cmd, arg, easyOutputMaxSize: int.MaxValue)))
@@ -369,6 +397,7 @@ namespace IPA.TestDev
                     int ret = inst.WaitForExit();
 
                     inst.EasyOutputStr._Print();
+                    inst.EasyErrorStr._Print();
 
                     Con.WriteLine(ret);
                 }

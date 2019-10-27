@@ -8,7 +8,7 @@ git clone --recursive git@github.com:IPA-CyberLab/IPA-DN-Cores.git
 
 
 ■ 2 回目以降
-cd ~/IPA-DN-Cores/Cores.NET/TestDev/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
 
 
 ■ Web サーバーテスト
@@ -26,7 +26,7 @@ cd ~/ && rm -fr ~/Copy-IPA-DN-Cores-Copy/
 _internal_CopyToTestLXDContainer.cmd
 
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run test
+cd ~/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/ && dotnet run test
 
 Web サーバーテスト
 
@@ -35,18 +35,18 @@ cd ~/Copy-IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && rm -
 
 ベンチマーク
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && dotnet run -c Release BenchMark
+cd ~/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/ && dotnet run -c Release BenchMark
 
 
 
 プロファイリング
 
-cd ~/IPA-DN-Cores/Cores.NET/TestDev/
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/
 COMPlus_PerfMapEnabled=1 dotnet run net
 pid を調べる
 ps auxf | grep -i "dotnet exec"
 
-cd ~/IPA-DN-Cores/Cores.NET/TestDev/
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/
 perf record -p 1115305 -g
 
 Ctrl+C
@@ -69,13 +69,13 @@ gdb
 
 gdb /usr/bin/dotnet
 
-run exec /root/Copy-IPA-DN-Cores/Cores.NET/TestDev/bin/Debug/netcoreapp2.1/TestDev.dll net
+run exec /root/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/bin/Debug/netcoreapp2.1/Dev.Test.dll net
 
-strace /usr/bin/dotnet exec /root/Copy-IPA-DN-Cores/Cores.NET/TestDev/bin/Debug/netcoreapp2.1/TestDev.dll net
+strace /usr/bin/dotnet exec /root/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/bin/Debug/netcoreapp2.1/Dev.Test.dll net
 
 
 
 ストレステスト クライアント
 
-cd ~/Copy-IPA-DN-Cores/Cores.NET/TestDev/ && rm -fr bin/ && perl -pi -e 's/netcoreapp2\.1/netcoreapp2\.2/g' TestDev.csproj && dotnet run TcpStressServer
+cd ~/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/ && rm -fr bin/ && perl -pi -e 's/netcoreapp2\.1/netcoreapp2\.2/g' Dev.Test.csproj && dotnet run TcpStressServer
 
