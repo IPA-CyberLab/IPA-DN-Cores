@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
     [Serializable]
     public class LogDefSocket
     {
-        public LogDefSocketAction Action;
+        public string Action = "";
 
         public string? NetworkSystem;
         public string? SockGuid;
