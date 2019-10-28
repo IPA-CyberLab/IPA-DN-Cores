@@ -365,12 +365,19 @@ namespace IPA.Cores.Basic
             try
             {
                 var newStub = new NetPalTcpProtocolStub(null, null, cancelForNewSocket);
+                try
+                {
+                    // ソケット情報の取得等
+                    // 接続後直ちに切断されたクライアントの場合は、ここで例外が発生する場合がある
+                    newStub.InitSocketWrapperFromSocket(newSocket);
 
-                // ソケット情報の取得等
-                // 接続後直ちに切断されたクライアントの場合は、ここで例外が発生する場合がある
-                newStub.InitSocketWrapperFromSocket(newSocket);
-
-                return newStub;
+                    return newStub;
+                }
+                finally
+                {
+                    // エラー発生時は newStub を解放 (解放しないとメモリリークするため)
+                    newStub._DisposeSafe();
+                }
             }
             catch (Exception ex)
             {
