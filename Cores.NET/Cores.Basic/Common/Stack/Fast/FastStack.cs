@@ -354,22 +354,42 @@ namespace IPA.Cores.Basic
 
         protected override async Task<NetTcpProtocolStubBase> AcceptImplAsync(CancellationToken cancelForNewSocket = default)
         {
+            int numSocketError = 0;
             if (ListeningSocket == null) throw new CoresException("This protocol stack is not a listening socket.");
 
+            LABEL_RETRY:
+
+            // Accept でエラーが発生した場合は直ちにこの関数を抜ける (try で囲まない)
             PalSocket newSocket = await ListeningSocket.AcceptAsync();
+
             try
             {
                 var newStub = new NetPalTcpProtocolStub(null, null, cancelForNewSocket);
 
+                // ソケット情報の取得等
+                // 接続後直ちに切断されたクライアントの場合は、ここで例外が発生する場合がある
                 newStub.InitSocketWrapperFromSocket(newSocket);
 
                 return newStub;
             }
             catch (Exception ex)
             {
+                newSocket._DisposeSafe();
+
+                numSocketError++;
+
+                if (numSocketError <= 10)
+                {
+                    // Accept が完了した後にソケット情報を取得しようとするときにエラーが発生したら
+                    // これは Accept されたソケットが直ちに切断されたということを意味するので
+                    // 特に何も考えずに 10 回は再試行をする
+                    goto LABEL_RETRY;
+                }
+
+                // 10 回も再試行しても連続してダメならば Accept 用ソケットが異常状態となっている可能性もあるので
+                // エラーを throw して処理を抜ける
                 ex._Debug();
 
-                newSocket._DisposeSafe();
                 throw;
             }
         }
@@ -880,7 +900,7 @@ namespace IPA.Cores.Basic
                             if (reportError)
                             {
                                 reportError = false;
-                                Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.ToString());
+                                Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.Message);
                             }
                         }
                     }
