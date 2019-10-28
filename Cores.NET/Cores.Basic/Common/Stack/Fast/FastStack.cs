@@ -878,7 +878,7 @@ namespace IPA.Cores.Basic
                             if (reportError)
                             {
                                 reportError = false;
-                                Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.Message);
+                                Con.WriteDebug($"Listener error on [{IPAddress.ToString()}]:{Port}. Error: " + ex.ToString());
                             }
                         }
                     }
