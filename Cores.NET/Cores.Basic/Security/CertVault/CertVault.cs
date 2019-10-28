@@ -497,6 +497,12 @@ namespace IPA.Cores.Basic
                 AcmeQueue = new List<string>();
             }
 
+            if (queue.Count == 0)
+            {
+                // キューがない
+                return;
+            }
+
             using (AcmeClient client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl!, this.TcpIp)))
             {
                 AcmeAccount account = await client.LoginAccountAsync(this.AcmeAccountKey!, ("mailto:" + this.Settings.AcmeContactEmail)._SingleArray(), cancel);
