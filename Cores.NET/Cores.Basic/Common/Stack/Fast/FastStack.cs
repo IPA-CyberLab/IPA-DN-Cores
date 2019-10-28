@@ -373,10 +373,11 @@ namespace IPA.Cores.Basic
 
                     return newStub;
                 }
-                finally
+                catch
                 {
                     // エラー発生時は newStub を解放 (解放しないとメモリリークするため)
                     newStub._DisposeSafe();
+                    throw;
                 }
             }
             catch (Exception ex)
