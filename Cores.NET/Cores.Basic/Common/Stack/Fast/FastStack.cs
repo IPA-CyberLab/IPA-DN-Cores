@@ -441,7 +441,7 @@ namespace IPA.Cores.Basic
                 ex._Debug();
             }
 
-            ret.Action = action.ToString();
+            ret.Action = action;
 
             ret.SockGuid = this.Guid;
             ret.SockType = this.GetType().ToString();
