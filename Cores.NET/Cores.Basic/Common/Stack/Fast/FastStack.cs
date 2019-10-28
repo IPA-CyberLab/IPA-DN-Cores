@@ -365,8 +365,10 @@ namespace IPA.Cores.Basic
 
                 return newStub;
             }
-            catch
+            catch (Exception ex)
             {
+                ex._Debug();
+
                 newSocket._DisposeSafe();
                 throw;
             }
