@@ -175,11 +175,10 @@ namespace IPA.Cores.Basic
                         }
                         catch (Exception ex)
                         {
+                            if (cancel.IsCancellationRequested) return;
+
                             UnderConnectionError = true;
                             EmptyEvent.Set(true);
-
-                            if (ex._IsCancelException())
-                                return;
 
                             numRetry++;
 
