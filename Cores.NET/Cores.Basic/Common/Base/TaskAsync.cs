@@ -1486,8 +1486,25 @@ namespace IPA.Cores.Basic
         {
             if (proc != null)
             {
+                bool callNow = false;
+
                 lock (LockObj)
-                    this.OnCancelList.Add(proc);
+                {
+                    if (this.IsCanceled)
+                    {
+                        callNow = true;
+                    }
+                    else
+                    {
+                        this.OnCancelList.Add(proc);
+                    }
+                }
+
+                if (callNow)
+                {
+                    // 既にキャンセルされているので今すぐ呼び出す
+                    TaskUtil.StartSyncTaskAsync(proc, true)._LaissezFaire(noDebugMessage: true);
+                }
             }
         }
 
@@ -1495,8 +1512,25 @@ namespace IPA.Cores.Basic
         {
             if (proc != null)
             {
+                bool callNow = false;
+
                 lock (LockObj)
-                    this.OnDisposeList.Add(proc);
+                {
+                    if (this.Disposed.IsSet)
+                    {
+                        callNow = true;
+                    }
+                    else
+                    {
+                        this.OnDisposeList.Add(proc);
+                    }
+                }
+
+                if (callNow)
+                {
+                    // 既に Dispose されているので今すぐ呼び出す
+                    TaskUtil.StartSyncTaskAsync(proc, true)._LaissezFaire(noDebugMessage: true);
+                }
             }
         }
 
