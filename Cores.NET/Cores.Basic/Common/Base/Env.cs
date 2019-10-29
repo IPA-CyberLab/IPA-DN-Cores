@@ -96,6 +96,9 @@ namespace IPA.Cores.Basic
         public string DnsHostName = Env.DnsHostName;
         public string DnsDomainName = Env.DnsDomainName;
         public string DnsFqdnHostName = Env.DnsFqdnHostName;
+        public string GcMode = Env.GcMode;
+        public string GcCompactionMode = Env.GcCompactionMode;
+        public string GcLatencyMode = Env.GcLatencyMode;
     }
 
     public static class Env
@@ -154,6 +157,10 @@ namespace IPA.Cores.Basic
         public static bool IsHostedByDotNetProcess { get; }
         public static string DotNetHostProcessExeName { get; } = "";
         public static int NumCpus { get; }
+
+        public static string GcMode { get; } = System.Runtime.GCSettings.IsServerGC ? "ServerGC" : "WorkstationGC";
+        public static string GcCompactionMode { get; } = System.Runtime.GCSettings.LargeObjectHeapCompactionMode.ToString();
+        public static string GcLatencyMode { get; } = System.Runtime.GCSettings.LatencyMode.ToString();
 
         public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 

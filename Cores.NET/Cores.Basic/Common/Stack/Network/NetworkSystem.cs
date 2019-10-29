@@ -45,6 +45,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class SocketLogSettings
+        {
+            public static readonly Copenhagen<bool> DisableSocketLog = false;   // ソケットログを無効にする
+        }
+    }
+
     public class NetworkStackException : Exception
     {
         public NetworkStackException(string message) : base(message) { }
@@ -84,33 +92,45 @@ namespace IPA.Cores.Basic
                 this.RemoveFromOpenedSockList(sock);
             });
 
-            try
+            if (CoresConfig.SocketLogSettings.DisableSocketLog == false)
             {
-                LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Connected);
-                log.NetworkSystem = this.ToString();
-                LocalLogRouter.PostSocketLog(log, logTag);
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
+                try
+                {
+                    LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Connected);
+                    log.NetworkSystem = this.ToString();
+                    LocalLogRouter.PostSocketLog(log, logTag);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
         }
 
         protected void RemoveFromOpenedSockList(NetSock sock)
         {
-            try
+            if (CoresConfig.SocketLogSettings.DisableSocketLog == false)
             {
-                LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Disconnected);
-                log.NetworkSystem = this.ToString();
-                LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
+                try
+                {
+                    LogDefSocket log = sock.GenerateLogDef(LogDefSocketAction.Disconnected);
+                    log.NetworkSystem = this.ToString();
+                    LocalLogRouter.PostSocketLog(log, LogTag.SocketDisconnected);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
 
             lock (LockObj)
                 OpenedSockList.Remove(sock);
+
+            //if (OpenedSockList.Count == 0)
+            //{
+            //    Dbg.Where();
+            //    Dbg.GcCollect();
+            //}
         }
 
         public int GetOpenedSockCount()
