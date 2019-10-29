@@ -1024,6 +1024,7 @@ namespace IPA.Cores.Basic
             {
                 await AcceptedProc(listener, sock);
             }
+            catch (DisconnectedException) { }
             catch (SocketException ex) when (ex._IsSocketErrorDisconnected()) { }
             catch (OperationCanceledException) { }
             catch (TimeoutException) { }
