@@ -1503,7 +1503,11 @@ namespace IPA.Cores.Basic
                 if (callNow)
                 {
                     // 既にキャンセルされているので今すぐ呼び出す
-                    TaskUtil.StartSyncTaskAsync(proc, true)._LaissezFaire(noDebugMessage: true);
+                    try
+                    {
+                        proc();
+                    }
+                    catch { }
                 }
             }
         }
@@ -1529,7 +1533,11 @@ namespace IPA.Cores.Basic
                 if (callNow)
                 {
                     // 既に Dispose されているので今すぐ呼び出す
-                    TaskUtil.StartSyncTaskAsync(proc, true)._LaissezFaire(noDebugMessage: true);
+                    try
+                    {
+                        proc();
+                    }
+                    catch { }
                 }
             }
         }
