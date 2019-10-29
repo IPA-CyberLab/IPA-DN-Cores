@@ -310,6 +310,8 @@ namespace IPA.Cores.Basic
         public static partial class BufferSizes
         {
             public static readonly Copenhagen<int> FileCopyBufferSize = 81920;  // .NET の Stream クラスの実装からもらってきた定数
+
+            public static readonly Copenhagen<int> MaxNetworkStreamSendRecvBufferSize = 65536;  // ストリームソケットの送受信バッファの最大サイズ
         }
     }
 }

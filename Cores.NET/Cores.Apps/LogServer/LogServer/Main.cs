@@ -52,8 +52,6 @@ namespace IPA.LogServer
         {
             int ret = -1;
 
-            CoresConfig.SocketLogSettings.DisableSocketLog.Set(true);
-
             //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
 
             CoresLib.Init(new CoresLibOptions(CoresMode.Daemon, "LogServer", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);

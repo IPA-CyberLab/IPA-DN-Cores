@@ -1479,14 +1479,14 @@ namespace IPA.Cores.Basic
 
         FastMemoryPool<byte> FastMemoryAllocatorForStream = new FastMemoryPool<byte>();
 
-        static readonly int MaxStreamBufferLength = CoresConfig.PipeConfig.MaxStreamBufferLength;
+        static readonly int MaxStreamBufferLength = Math.Min(CoresConfig.PipeConfig.MaxStreamBufferLength, CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize);
 
         AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointSocketWrapper> StreamBulkReceiver = new AsyncBulkReceiver<ReadOnlyMemory<byte>, PipePointSocketWrapper>(async (me, cancel) =>
         {
             if (me.RecvTmpBufferSize == 0)
             {
                 int i = me.Socket.ReceiveBufferSize;
-                if (i <= 0) i = 65536;
+                if (i <= 0) i = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
                 me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
@@ -1590,7 +1590,7 @@ namespace IPA.Cores.Basic
         public Stream ReadStream { get; }
         public Stream WriteStream { get; }
         public int RecvTmpBufferSize { get; private set; }
-        public const int SendTmpBufferSize = 65536;
+        public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
         public PipePointStreamWrapper(PipePoint pipePoint, Stream readWriteStream, CancellationToken cancel = default) : this(pipePoint, readWriteStream, readWriteStream, cancel) { }
@@ -1645,7 +1645,7 @@ namespace IPA.Cores.Basic
         {
             if (me.RecvTmpBufferSize == 0)
             {
-                int i = 65536;
+                int i = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
                 me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
@@ -1703,7 +1703,7 @@ namespace IPA.Cores.Basic
     {
         public override PipeSupportedDataTypes SupportedDataTypes { get; }
 
-        public const int SendTmpBufferSize = 65536;
+        public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
         public int RecvTmpBufferSize { get; private set; }
 
         readonly PipeWriter PipeToWrite;
