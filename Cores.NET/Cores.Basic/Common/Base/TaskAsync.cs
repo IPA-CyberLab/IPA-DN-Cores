@@ -1547,8 +1547,25 @@ namespace IPA.Cores.Basic
         {
             if (service != null)
             {
+                bool disposeNow = false;
+
                 lock (DirectDisposeList)
-                    DirectDisposeList.Add(service);
+                {
+                    if (this.IsCanceled || this.IsDisposed || this.IsCleanuped)
+                    {
+                        disposeNow = true;
+                    }
+                    else
+                    {
+                        DirectDisposeList.Add(service);
+                    }
+                }
+
+                if (disposeNow)
+                {
+                    // すぐに Dispose する (安全のため非同期に実行する)
+                    TaskUtil.StartSyncTaskAsync(() => service._DisposeSafe())._LaissezFaire(noDebugMessage: true);
+                }
             }
             return service;
         }
@@ -1558,8 +1575,25 @@ namespace IPA.Cores.Basic
         {
             if (service != null)
             {
+                bool disposeNow = false;
+
                 lock (IndirectDisposeList)
-                    IndirectDisposeList.Add(service);
+                {
+                    if (this.IsCanceled || this.IsDisposed || this.IsCleanuped)
+                    {
+                        disposeNow = true;
+                    }
+                    else
+                    {
+                        IndirectDisposeList.Add(service);
+                    }
+                }
+
+                if (disposeNow)
+                {
+                    // すぐに Dispose する (安全のため非同期に実行する)
+                    TaskUtil.StartSyncTaskAsync(() => service._DisposeSafe())._LaissezFaire(noDebugMessage: true);
+                }
             }
             return service;
         }
