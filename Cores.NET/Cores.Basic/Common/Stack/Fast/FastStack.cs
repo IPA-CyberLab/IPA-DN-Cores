@@ -1010,7 +1010,7 @@ namespace IPA.Cores.Basic
             await s._InternalStopAsync();
             return true;
         }
-
+        
         NetTcpListenerPort? Search(string hashKey)
         {
             if (List.TryGetValue(hashKey, out NetTcpListenerPort? ret) == false)
@@ -1025,6 +1025,8 @@ namespace IPA.Cores.Basic
                 await AcceptedProc(listener, sock);
             }
             catch (SocketException ex) when (ex._IsSocketErrorDisconnected()) { }
+            catch (OperationCanceledException) { }
+            catch (TimeoutException) { }
             catch (Exception ex)
             {
                 if (HideAcceptProcError == false)
