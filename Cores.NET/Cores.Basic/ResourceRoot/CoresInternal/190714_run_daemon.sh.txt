@@ -30,6 +30,7 @@ do
 		echo ${errstr}
 		logger ${errstr}
 
+		$IPA_DN_CORES_DOTNET_EXE clean -c $IPA_DN_CORES_BUILD_CONFIGURATION --force
 		$IPA_DN_CORES_DOTNET_EXE build -c $IPA_DN_CORES_BUILD_CONFIGURATION --force
 		retcode2=$?
 
