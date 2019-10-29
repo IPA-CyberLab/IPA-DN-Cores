@@ -216,7 +216,7 @@ namespace IPA.Cores.Basic
             Dbg.IsJsonSupported = isJsonSupported;
         }
 
-        public static string HelloMsgTest => "Cores Hello 28!";
+        public static string HelloMsgTest => "Cores Hello 32!";
 
         public static bool SetDebugMode(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
         {
