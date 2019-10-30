@@ -42,6 +42,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.Serialization;
 
 namespace IPA.Cores.Basic
 {
@@ -389,6 +390,135 @@ namespace IPA.Cores.Basic
             }
 
             return sockEntry.Socket;
+        }
+    }
+
+    [Serializable]
+    [DataContract]
+    public class IpConnectionRateLimiterOptions : INormalizable
+    {
+        [DataMember]
+        public bool Enabled { get; set; } = true;
+
+        [DataMember]
+        public int SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
+        [DataMember]
+        public int SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
+        [DataMember]
+        public bool SrcIPExcludeLocalNetwork { get; set; } = true;
+
+        [DataMember]
+        public double Burst { get; set; } = Consts.RateLimiter.DefaultBurst;
+        [DataMember]
+        public double LimitPerSecond { get; set; } = Consts.RateLimiter.DefaultLimitPerSecond;
+        [DataMember]
+        public int ExpiresMsec { get; set; } = Consts.RateLimiter.DefaultExpiresMsec;
+        [DataMember]
+        public int MaxEntries { get; set; } = Consts.RateLimiter.DefaultMaxEntries;
+        [DataMember]
+        public bool EnablePenalty { get; set; } = true;
+        [DataMember]
+        public int GcInterval { get; set; } = Consts.RateLimiter.DefaultGcInterval;
+
+        [DataMember]
+        public int MaxConcurrentRequests { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequests;
+
+        public void Normalize()
+        {
+            if (SrcIPv4SubnetLength <= 0 || SrcIPv4SubnetLength > 32) SrcIPv4SubnetLength = 24;
+            if (SrcIPv6SubnetLength <= 0 || SrcIPv6SubnetLength > 128) SrcIPv6SubnetLength = 56;
+
+            if (Burst <= 0.0) Burst = Consts.RateLimiter.DefaultBurst;
+            if (LimitPerSecond <= 0.0) LimitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond;
+            if (ExpiresMsec <= 0) ExpiresMsec = Consts.RateLimiter.DefaultExpiresMsec;
+            if (MaxEntries <= 0) MaxEntries = Consts.RateLimiter.DefaultMaxEntries;
+            if (GcInterval <= 0) GcInterval = Consts.RateLimiter.DefaultGcInterval;
+            if (MaxConcurrentRequests <= 0) MaxConcurrentRequests = Consts.RateLimiter.DefaultMaxConcurrentRequests;
+        }
+    }
+
+    public class IpConnectionRateLimiter
+    {
+        readonly IpConnectionRateLimiterOptions Options;
+
+        readonly RateLimiter<HashKeys.SingleIPAddress> RateLimiter;
+        readonly ConcurrentLimiter<HashKeys.SingleIPAddress> ConcurrentLimiter;
+
+        public IpConnectionRateLimiter(string hiveName)
+        {
+            hiveName._NotEmptyCheck(nameof(hiveName));
+
+            using var config = new HiveData<IpConnectionRateLimiterOptions>(Hive.SharedLocalConfigHive, $"NetworkSettings/IpConnectionRateLimiter/{hiveName}",
+                () => new IpConnectionRateLimiterOptions(),
+                policy: HiveSyncPolicy.None);
+
+            lock (config.DataLock)
+            {
+                this.Options = config.ManagedData;
+            }
+
+            this.RateLimiter = new RateLimiter<HashKeys.SingleIPAddress>(new RateLimiterOptions(this.Options.Burst, this.Options.LimitPerSecond, this.Options.ExpiresMsec,
+                this.Options.EnablePenalty ? RateLimiterMode.Penalty : RateLimiterMode.NoPenalty,
+                this.Options.MaxEntries,
+                this.Options.GcInterval));
+
+            this.ConcurrentLimiter = new ConcurrentLimiter<HashKeys.SingleIPAddress>(this.Options.MaxConcurrentRequests);
+        }
+
+        public ResultOrError<IDisposable> TryEnter(IPAddress srcIp)
+        {
+            if (Options.Enabled == false) return new EmptyDisposable();
+
+            // Src IP の処理
+            srcIp = srcIp._UnmapIPv4();
+
+            if (this.Options.SrcIPExcludeLocalNetwork)
+            {
+                // ローカルネットワークを除外する
+                if (srcIp._GetIPAddressType()._IsLocalNetwork())
+                {
+                    return new EmptyDisposable();
+                }
+            }
+
+            // サブネットマスクの AND をする
+            if (srcIp.AddressFamily == AddressFamily.InterNetwork)
+            {
+                // IPv4
+                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask4(this.Options.SrcIPv4SubnetLength));
+            }
+            else
+            {
+                // IPv6
+                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask6(this.Options.SrcIPv6SubnetLength));
+            }
+
+            HashKeys.SingleIPAddress key = new HashKeys.SingleIPAddress(srcIp);
+
+            // RateLimiter でチェック
+            if (this.RateLimiter.TryInput(key, out _) == false)
+            {
+                // 失敗
+                return false;
+            }
+
+            // 同時接続数検査
+            if (this.ConcurrentLimiter.TryEnter(key, out _))
+            {
+                // 同時接続数 OK
+                return new Holder<HashKeys.SingleIPAddress>(key2 =>
+                {
+                    // Dispose 時に同時接続数デクメリントを実施
+                    this.ConcurrentLimiter.Exit(key, out _);
+                },
+                key,
+                LeakCounterKind.IpConnectionRateLimiterTryEnterHolder);
+            }
+            else
+            {
+                // 失敗
+                return false;
+            }
         }
     }
 }

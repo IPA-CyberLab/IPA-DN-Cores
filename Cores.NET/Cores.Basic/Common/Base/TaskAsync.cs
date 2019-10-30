@@ -344,32 +344,34 @@ namespace IPA.Cores.Basic
     {
         static int NumPendingAsyncTasks = 0;
 
+        const bool YieldOnStartDefault = false;
+
         public static int GetNumPendingAsyncTasks() => NumPendingAsyncTasks;
 
-        public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartSyncTaskAsync(Action action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartSyncTaskAsync<T>(Func<T> action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartAsyncTaskAsync(Func<Task> action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        public static async Task StartAsyncTaskAsync(Task task, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartAsyncTaskAsync(Task task, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await task._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartAsyncTaskAsync<T>(Task<T> task, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartAsyncTaskAsync<T>(Task<T> task, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await task._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
 
-        public static async Task StartSyncTaskAsync(Action<object?> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartSyncTaskAsync(Action<object?> action, object? param, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartSyncTaskAsync<T>(Func<object?, T> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartSyncTaskAsync<T>(Func<object?, T> action, object? param, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await Task.Factory.StartNew(action, param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        public static async Task StartAsyncTaskAsync(Func<object?, Task> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task StartAsyncTaskAsync(Func<object?, Task> action, object? param, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
-        public static async Task<T> StartAsyncTaskAsync<T>(Func<object?, Task<T>> action, object? param, bool yieldOnStart = true, bool leakCheck = true)
+        public static async Task<T> StartAsyncTaskAsync<T>(Func<object?, Task<T>> action, object? param, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

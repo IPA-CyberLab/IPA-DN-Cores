@@ -138,21 +138,21 @@ namespace IPA.Cores.Basic
 
     public class HttpRequestRateLimiterOptions<TKey> where TKey : IHttpRequestRateLimiterHashKey
     {
-        public int SrcIPv4SubnetLength { get; set; } = 24;
-        public int SrcIPv6SubnetLength { get; set; } = 56;
+        public int SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
+        public int SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
         public bool SrcIPExcludeLocalNetwork { get; set; } = true;
 
         public bool EnableRateLimiter { get; set; } = true;
         public RateLimiterOptions RateLimiterOptions { get; set; }
             = new RateLimiterOptions(
-                burst: 200,
-                limitPerSecond: 10,
-                expiresMsec: 20000,
+                burst: Consts.RateLimiter.DefaultBurst,
+                limitPerSecond: Consts.RateLimiter.DefaultLimitPerSecond,
+                expiresMsec: Consts.RateLimiter.DefaultExpiresMsec,
                 mode: RateLimiterMode.Penalty,
-                maxEntries: 1_000_000,
-                gcInterval: 100_000);
+                maxEntries: Consts.RateLimiter.DefaultMaxEntries,
+                gcInterval: Consts.RateLimiter.DefaultGcInterval);
 
-        public int MaxConcurrentRequests { get; set; } = 30;
+        public int MaxConcurrentRequests { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequests;
     }
 
     public class HttpRequestRateLimiterMiddleware<TKey> where TKey : IHttpRequestRateLimiterHashKey

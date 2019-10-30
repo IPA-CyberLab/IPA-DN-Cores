@@ -1203,12 +1203,79 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T _NullCheck<T>([NotNull] this T? obj, Exception? ex = null)
+        public static T _NullCheck<T>([NotNull] this T? obj, string? paramName = null, Exception? exception = null)
             where T: class
         {
             if (obj == null)
             {
+                if (exception == null)
+                {
+                    if (paramName._IsEmpty() == false)
+                    {
+                        exception = new NullReferenceException(paramName);
+                    }
+                    else
+                    {
+                        exception = new NullReferenceException();
+                    }
+                }
+                throw exception;
+            }
+
+            return obj;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T _NotEmptyCheck<T>([NotNull] this T? obj, string? paramName = null, Exception? exception = null)
+            where T : class
+        {
+            if (obj == null)
+            {
+                if (exception == null)
+                {
+                    if (paramName._IsEmpty() == false)
+                    {
+                        exception = new NullReferenceException(paramName);
+                    }
+                    else
+                    {
+                        exception = new NullReferenceException();
+                    }
+                }
+                throw exception;
+            }
+
+            if (obj._IsEmpty())
+            {
+                if (exception == null)
+                {
+                    if (paramName._IsEmpty() == false)
+                    {
+                        exception = new CoresEmptyException(paramName);
+                    }
+                    else
+                    {
+                        exception = new CoresEmptyException();
+                    }
+                }
+                throw exception;
+            }
+
+            return obj;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static string _NotEmptyCheck([NotNull] string obj, Exception? ex = null)
+        {
+            if (obj == null)
+            {
                 if (ex == null) ex = new NullReferenceException();
+                throw ex;
+            }
+
+            if (obj._IsEmpty())
+            {
+                if (ex == null) ex = new CoresEmptyException();
                 throw ex;
             }
 

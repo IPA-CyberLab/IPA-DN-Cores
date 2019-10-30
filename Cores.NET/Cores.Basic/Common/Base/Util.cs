@@ -6072,6 +6072,7 @@ namespace IPA.Cores.Basic
             if (limitPerSecond < 0.0) throw new ArgumentOutOfRangeException(nameof(limitPerSecond));
             if (expiresMsec <= 0) throw new ArgumentOutOfRangeException(nameof(expiresMsec));
             if (maxEntries <= 0) throw new ArgumentOutOfRangeException(nameof(maxEntries));
+            if (gcInterval <= 0) throw new ArgumentOutOfRangeException(nameof(gcInterval));
 
             this.Burst = burst;
             this.LimitPerSecond = limitPerSecond;

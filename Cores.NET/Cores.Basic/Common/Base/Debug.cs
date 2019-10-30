@@ -1422,6 +1422,7 @@ namespace IPA.Cores.Basic
         SingleEntry,
         WriteOnlyStreamBasedRandomAccess,
         StreamBasedSequentialWritable,
+        IpConnectionRateLimiterTryEnterHolder,
     }
 
     public class LeakCheckerResult
