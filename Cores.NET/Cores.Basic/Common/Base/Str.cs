@@ -5698,6 +5698,31 @@ namespace IPA.Cores.Basic
             return str;
         }
 
+        // コマンドラインをビルドする
+        public static string BuildCmdLine(IEnumerable<string> args)
+        {
+            List<string> o = new List<string>();
+
+            foreach (string arg in args)
+            {
+                if (arg != null)
+                {
+                    // 1 つの " を 2 つの "" に置換する
+                    string tmp = arg._ReplaceStr("\"", "\"\"");
+
+                    if (tmp._InStr(" "))
+                    {
+                        // 文字列にスペースが含まれる場合は前後を "" で囲む
+                        tmp = " " + tmp + " ";
+                    }
+
+                    o.Add(tmp);
+                }
+            }
+
+            return o._Combine(" ");
+        }
+
         // コマンドラインをパースする
         public static string[] ParseCmdLine(string str)
         {

@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
         static public string UserName { get; }
         static public string UserNameEx { get; }
         static public string MachineName { get; }
-        public static string CommandLine { get; }
+        public static string CommandLine { get; private set; }
         public static OperatingSystem OsInfo { get; }
         public static bool IsWindows { get; }
         public static bool IsUnix => !IsWindows;
@@ -413,7 +413,9 @@ namespace IPA.Cores.Basic
                 UserNameEx = UserName;
             }
             MachineName = Environment.MachineName;
+
             CommandLine = initCommandLine(Environment.CommandLine);
+
             IsLittleEndian = BitConverter.IsLittleEndian;
             ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
             IsAdmin = CheckIsAdmin();
@@ -439,6 +441,11 @@ namespace IPA.Cores.Basic
                 // Unix: 現在のユーザー名が「root」であるかどうかで判別をする
                 return Env.UserName._IsSamei(Consts.Strings.RootUsername);
             }
+        }
+
+        internal static void _SetCommandLineInternal(string cmdLine)
+        {
+            Env.CommandLine = cmdLine;
         }
 
         static string initCommandLine(string src)

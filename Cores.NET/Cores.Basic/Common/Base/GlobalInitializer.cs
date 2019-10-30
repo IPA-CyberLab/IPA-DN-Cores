@@ -187,6 +187,8 @@ namespace IPA.Cores.Basic
 
                 CoresLib.Args = newArgs.ToList();
 
+                Env._SetCommandLineInternal(Str.BuildCmdLine(CoresLib.Args));
+
                 CoresLib.Options = options;
 
                 return newArgs;
