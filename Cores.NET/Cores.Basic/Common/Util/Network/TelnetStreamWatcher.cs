@@ -102,8 +102,32 @@ namespace IPA.Cores.Basic
 
                         using (var pipePoint = await SubscribeImplAsync())
                         {
+                            // ソケットから Enter キー入力を待機する
+                            Task keyInputTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                            {
+                                using StreamReader lineReader = new StreamReader(destStream);
+
+                                while (true)
+                                {
+                                    string? line = await lineReader.ReadLineAsync();
+
+                                    if (line == null) break;
+
+                                    Dbg.WriteLine($"Manual GC is called by the administrator.");
+
+                                    long start = FastTick64.Now;
+                                    Dbg.GcCollect();
+                                    long end = FastTick64.Now;
+
+                                    long spentTime = end - start;
+
+                                    Dbg.WriteLine($"Manual GC Took Time: {spentTime} msecs.");
+                                }
+                            });
+
                             try
                             {
+                                // ソケットに対して、pipePoint のストリームをそのまま非同期で流し込む
                                 using (var pipeStub = pipePoint.GetNetAppProtocolStub())
                                 using (var srcStream = pipeStub.GetStream())
                                 {
@@ -115,6 +139,8 @@ namespace IPA.Cores.Basic
                                 await UnsubscribeImplAsync(pipePoint);
 
                                 await pipePoint.CleanupAsync(new DisconnectedException());
+
+                                await keyInputTask._TryAwait(noDebugMessage: true);
                             }
                         }
                     }
