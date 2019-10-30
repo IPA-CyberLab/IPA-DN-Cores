@@ -6,7 +6,7 @@
     <LangVersion>8.0</LangVersion>
     <PackageId>Cores.Web</PackageId>
     <Authors>IPA-CyberLab</Authors>
-    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
     <Nullable>enable</Nullable>
