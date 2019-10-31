@@ -116,7 +116,7 @@ namespace IPA.Cores.Basic
             if (Listener != null)
                 throw new ApplicationException("Listener is already bound.");
 
-            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes,ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint));
+            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes,ListenerAcceptNewSocketCallback, EndPointInformation.IPEndPoint, "Kestrel2"));
 
             return Task.CompletedTask;
         }
