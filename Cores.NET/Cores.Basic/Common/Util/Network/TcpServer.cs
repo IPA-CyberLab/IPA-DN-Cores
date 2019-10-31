@@ -51,11 +51,13 @@ namespace IPA.Cores.Basic
     {
         public IReadOnlyList<IPEndPoint> EndPoints { get; }
         public TcpIpSystem TcpIp { get; }
+        public string? RateLimiterConfigName { get; }
 
-        public TcpServerOptions(TcpIpSystem? tcpIp, params IPEndPoint[] endPoints)
+        public TcpServerOptions(TcpIpSystem? tcpIp, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
         {
             this.TcpIp = tcpIp ?? LocalNet;
             this.EndPoints = endPoints.ToList();
+            this.RateLimiterConfigName = rateLimiterConfigName;
         }
     }
 
@@ -71,7 +73,7 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
-                Listener = this.Options.TcpIp.CreateListener(new TcpListenParam(ListenerCallbackAsync, this.Options.EndPoints.ToArray()));
+                Listener = this.Options.TcpIp.CreateListener(new TcpListenParam(ListenerCallbackAsync, options.RateLimiterConfigName, this.Options.EndPoints.ToArray()));
             }
             catch
             {
@@ -104,7 +106,7 @@ namespace IPA.Cores.Basic
     {
         public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
 
-        public SslServerOptions(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints) : base(tcpIp, endPoints)
+        public SslServerOptions(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints) : base(tcpIp, rateLimiterConfigName, endPoints)
         {
             this.SslServerAuthenticationOptions = sslAuthOptions;
         }

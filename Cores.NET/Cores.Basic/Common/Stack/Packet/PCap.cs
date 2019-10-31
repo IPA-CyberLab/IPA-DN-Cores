@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
 
         Once FinishedOrReset;
 
-        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object? state)
+        void EventListenerCallback(IFastBufferState caller, FastBufferCallbackEventType type, object? state, object? eventState)
         {
             state._MarkNotNull();
 

@@ -201,6 +201,7 @@ namespace IPA.Cores.Basic
                         }
                     }
                 },
+                "SpeedTest",
                 this.ServerPorts));
 
                 try

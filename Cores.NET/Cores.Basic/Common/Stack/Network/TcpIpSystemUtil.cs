@@ -398,42 +398,45 @@ namespace IPA.Cores.Basic
     public class IpConnectionRateLimiterOptions : INormalizable
     {
         [DataMember]
-        public bool Enabled { get; set; } = true;
+        public bool Common_Enabled { get; set; } = true;
+        [DataMember]
+        public bool Common_ReportDebugLog { get; set; } = true;
 
         [DataMember]
-        public int SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
+        public int Common_SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
         [DataMember]
-        public int SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
+        public int Common_SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
         [DataMember]
-        public bool SrcIPExcludeLocalNetwork { get; set; } = true;
+        public bool Common_SrcIPExcludeLocalNetwork { get; set; } = true;
 
         [DataMember]
-        public double Burst { get; set; } = Consts.RateLimiter.DefaultBurst;
+        public double RateLimiter_Burst { get; set; } = Consts.RateLimiter.DefaultBurst;
         [DataMember]
-        public double LimitPerSecond { get; set; } = Consts.RateLimiter.DefaultLimitPerSecond;
+        public double RateLimiter_LimitPerSecond { get; set; } = Consts.RateLimiter.DefaultLimitPerSecond;
         [DataMember]
-        public int ExpiresMsec { get; set; } = Consts.RateLimiter.DefaultExpiresMsec;
+        public int RateLimiter_ExpiresMsec { get; set; } = Consts.RateLimiter.DefaultExpiresMsec;
         [DataMember]
-        public int MaxEntries { get; set; } = Consts.RateLimiter.DefaultMaxEntries;
+        public int RateLimiter_MaxEntries { get; set; } = Consts.RateLimiter.DefaultMaxEntries;
         [DataMember]
-        public bool EnablePenalty { get; set; } = true;
+        public bool RateLimiter_EnablePenalty { get; set; } = true;
         [DataMember]
-        public int GcInterval { get; set; } = Consts.RateLimiter.DefaultGcInterval;
+        public int RateLimiter_GcIntervalMsec { get; set; } = Consts.RateLimiter.DefaultGcIntervalMsec;
 
         [DataMember]
-        public int MaxConcurrentRequests { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequests;
+        public int ConcurrentLimiter_MaxConcurrentRequestsPerSrcSubnet { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequestsPerSrcSubnet;
 
         public void Normalize()
         {
-            if (SrcIPv4SubnetLength <= 0 || SrcIPv4SubnetLength > 32) SrcIPv4SubnetLength = 24;
-            if (SrcIPv6SubnetLength <= 0 || SrcIPv6SubnetLength > 128) SrcIPv6SubnetLength = 56;
+            if (Common_SrcIPv4SubnetLength <= 0 || Common_SrcIPv4SubnetLength > 32) Common_SrcIPv4SubnetLength = 24;
+            if (Common_SrcIPv6SubnetLength <= 0 || Common_SrcIPv6SubnetLength > 128) Common_SrcIPv6SubnetLength = 56;
 
-            if (Burst <= 0.0) Burst = Consts.RateLimiter.DefaultBurst;
-            if (LimitPerSecond <= 0.0) LimitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond;
-            if (ExpiresMsec <= 0) ExpiresMsec = Consts.RateLimiter.DefaultExpiresMsec;
-            if (MaxEntries <= 0) MaxEntries = Consts.RateLimiter.DefaultMaxEntries;
-            if (GcInterval <= 0) GcInterval = Consts.RateLimiter.DefaultGcInterval;
-            if (MaxConcurrentRequests <= 0) MaxConcurrentRequests = Consts.RateLimiter.DefaultMaxConcurrentRequests;
+            if (RateLimiter_Burst <= 0.0) RateLimiter_Burst = Consts.RateLimiter.DefaultBurst;
+            if (RateLimiter_LimitPerSecond <= 0.0) RateLimiter_LimitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond;
+            if (RateLimiter_ExpiresMsec <= 0) RateLimiter_ExpiresMsec = Consts.RateLimiter.DefaultExpiresMsec;
+            if (RateLimiter_MaxEntries <= 0) RateLimiter_MaxEntries = Consts.RateLimiter.DefaultMaxEntries;
+            if (RateLimiter_GcIntervalMsec <= 0) RateLimiter_GcIntervalMsec = Consts.RateLimiter.DefaultGcIntervalMsec;
+
+            if (ConcurrentLimiter_MaxConcurrentRequestsPerSrcSubnet <= 0) ConcurrentLimiter_MaxConcurrentRequestsPerSrcSubnet = Consts.RateLimiter.DefaultMaxConcurrentRequestsPerSrcSubnet;
         }
     }
 
@@ -444,9 +447,13 @@ namespace IPA.Cores.Basic
         readonly RateLimiter<HashKeys.SingleIPAddress> RateLimiter;
         readonly ConcurrentLimiter<HashKeys.SingleIPAddress> ConcurrentLimiter;
 
+        public string HiveName;
+
         public IpConnectionRateLimiter(string hiveName)
         {
             hiveName._NotEmptyCheck(nameof(hiveName));
+
+            this.HiveName = hiveName;
 
             using var config = new HiveData<IpConnectionRateLimiterOptions>(Hive.SharedLocalConfigHive, $"NetworkSettings/IpConnectionRateLimiter/{hiveName}",
                 () => new IpConnectionRateLimiterOptions(),
@@ -457,66 +464,89 @@ namespace IPA.Cores.Basic
                 this.Options = config.ManagedData;
             }
 
-            this.RateLimiter = new RateLimiter<HashKeys.SingleIPAddress>(new RateLimiterOptions(this.Options.Burst, this.Options.LimitPerSecond, this.Options.ExpiresMsec,
-                this.Options.EnablePenalty ? RateLimiterMode.Penalty : RateLimiterMode.NoPenalty,
-                this.Options.MaxEntries,
-                this.Options.GcInterval));
+            this.RateLimiter = new RateLimiter<HashKeys.SingleIPAddress>(new RateLimiterOptions(this.Options.RateLimiter_Burst, this.Options.RateLimiter_LimitPerSecond, this.Options.RateLimiter_ExpiresMsec,
+                this.Options.RateLimiter_EnablePenalty ? RateLimiterMode.Penalty : RateLimiterMode.NoPenalty,
+                this.Options.RateLimiter_MaxEntries,
+                this.Options.RateLimiter_GcIntervalMsec));
 
-            this.ConcurrentLimiter = new ConcurrentLimiter<HashKeys.SingleIPAddress>(this.Options.MaxConcurrentRequests);
+            this.ConcurrentLimiter = new ConcurrentLimiter<HashKeys.SingleIPAddress>(this.Options.ConcurrentLimiter_MaxConcurrentRequestsPerSrcSubnet);
+
+            if (this.Options.Common_ReportDebugLog)
+            {
+                this.RateLimiter.EventListener.RegisterCallback((a, b, c, d) =>
+                {
+                    string? str = d as string;
+                    if (str._IsFilled()) Dbg.WriteLine($"IpConnectionRateLimiter[{this.HiveName}]: {str}");
+                });
+
+                this.ConcurrentLimiter.EventListener.RegisterCallback((a, b, c, d) =>
+                {
+                    string? str = d as string;
+                    if (str._IsFilled()) Dbg.WriteLine($"IpConnectionRateLimiter[{this.HiveName}]: {str}");
+                });
+            }
         }
 
         public ResultOrError<IDisposable> TryEnter(IPAddress srcIp)
         {
-            if (Options.Enabled == false) return new EmptyDisposable();
-
-            // Src IP の処理
-            srcIp = srcIp._UnmapIPv4();
-
-            if (this.Options.SrcIPExcludeLocalNetwork)
+            try
             {
-                // ローカルネットワークを除外する
-                if (srcIp._GetIPAddressType()._IsLocalNetwork())
+                if (Options.Common_Enabled == false) return new EmptyDisposable();
+
+                // Src IP の処理
+                srcIp = srcIp._UnmapIPv4();
+
+                if (this.Options.Common_SrcIPExcludeLocalNetwork)
                 {
-                    return new EmptyDisposable();
+                    // ローカルネットワークを除外する
+                    if (srcIp._GetIPAddressType()._IsLocalNetwork())
+                    {
+                        return new EmptyDisposable();
+                    }
+                }
+
+                // サブネットマスクの AND をする
+                if (srcIp.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    // IPv4
+                    srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask4(this.Options.Common_SrcIPv4SubnetLength));
+                }
+                else
+                {
+                    // IPv6
+                    srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask6(this.Options.Common_SrcIPv6SubnetLength));
+                }
+
+                HashKeys.SingleIPAddress key = new HashKeys.SingleIPAddress(srcIp);
+
+                // RateLimiter でチェック
+                if (this.RateLimiter.TryInput(key, out _) == false)
+                {
+                    // 失敗
+                    return false;
+                }
+
+                // 同時接続数検査
+                if (this.ConcurrentLimiter.TryEnter(key, out _))
+                {
+                    // 同時接続数 OK
+                    return new Holder<HashKeys.SingleIPAddress>(key2 =>
+                    {
+                        // Dispose 時に同時接続数デクメリントを実施
+                        this.ConcurrentLimiter.Exit(key, out _);
+                    },
+                    key,
+                    LeakCounterKind.IpConnectionRateLimiterTryEnterHolder);
+                }
+                else
+                {
+                    // 失敗
+                    return false;
                 }
             }
-
-            // サブネットマスクの AND をする
-            if (srcIp.AddressFamily == AddressFamily.InterNetwork)
+            catch (Exception ex)
             {
-                // IPv4
-                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask4(this.Options.SrcIPv4SubnetLength));
-            }
-            else
-            {
-                // IPv6
-                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask6(this.Options.SrcIPv6SubnetLength));
-            }
-
-            HashKeys.SingleIPAddress key = new HashKeys.SingleIPAddress(srcIp);
-
-            // RateLimiter でチェック
-            if (this.RateLimiter.TryInput(key, out _) == false)
-            {
-                // 失敗
-                return false;
-            }
-
-            // 同時接続数検査
-            if (this.ConcurrentLimiter.TryEnter(key, out _))
-            {
-                // 同時接続数 OK
-                return new Holder<HashKeys.SingleIPAddress>(key2 =>
-                {
-                    // Dispose 時に同時接続数デクメリントを実施
-                    this.ConcurrentLimiter.Exit(key, out _);
-                },
-                key,
-                LeakCounterKind.IpConnectionRateLimiterTryEnterHolder);
-            }
-            else
-            {
-                // 失敗
+                ex._Debug();
                 return false;
             }
         }

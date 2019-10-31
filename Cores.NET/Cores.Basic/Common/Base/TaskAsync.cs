@@ -1749,7 +1749,7 @@ namespace IPA.Cores.Basic
         protected virtual Task CleanupImplAsync(Exception? ex) => Task.CompletedTask;
         protected virtual void DisposeImpl(Exception? ex) { }
 
-        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object? userState)
+        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object? userState, object? eventState)
             => CancelInternalMain();
 
         Once CanceledInternal;
@@ -2145,7 +2145,7 @@ namespace IPA.Cores.Basic
 
     public interface IHolder : IDisposable { }
 
-    public delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState);
+    public delegate void FastEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState, object? eventParam);
 
     public class FastEvent<TCaller, TEventType>
     {
@@ -2158,11 +2158,11 @@ namespace IPA.Cores.Basic
             this.UserState = userState;
         }
 
-        public void CallSafe(TCaller buffer, TEventType type)
+        public void CallSafe(TCaller buffer, TEventType type, object? eventParam)
         {
             try
             {
-                this.Proc(buffer, type, UserState);
+                this.Proc(buffer, type, UserState, eventParam);
             }
             catch { }
         }
@@ -2207,12 +2207,12 @@ namespace IPA.Cores.Basic
         public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
             => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
-        public void Fire(TCaller caller, TEventType type)
+        public void Fire(TCaller caller, TEventType type, object? eventState = null)
         {
             var listenerList = ListenerList.GetListFast();
             if (listenerList != null)
                 foreach (var e in listenerList)
-                    e.CallSafe(caller, type);
+                    e.CallSafe(caller, type, eventState);
 
             var asyncEventList = AsyncEventList.GetListFast();
             if (asyncEventList != null)
@@ -2220,9 +2220,9 @@ namespace IPA.Cores.Basic
                     e.Set();
         }
 
-        public void FireSoftly(TCaller caller, TEventType type)
+        public void FireSoftly(TCaller caller, TEventType type, object? eventState = null)
         {
-            TaskUtil.StartSyncTaskAsync(() => Fire(caller, type), true, false)._LaissezFaire();
+            TaskUtil.StartSyncTaskAsync(() => Fire(caller, type, eventState), true, false)._LaissezFaire();
         }
     }
 
@@ -3609,7 +3609,7 @@ namespace IPA.Cores.Basic
                     if (inc)
                     {
                         InternalVersion++;
-                        EventListener.Fire(CacheData, 0);
+                        EventListener.Fire(CacheData, 0, null);
                     }
                 }
 
@@ -3681,7 +3681,7 @@ namespace IPA.Cores.Basic
                     if (inc)
                     {
                         InternalVersion++;
-                        EventListener.Fire(CacheData!, 0);
+                        EventListener.Fire(CacheData!, 0, null);
                     }
 
                     nextGetDataTick = tm.AddTimeout(nextInterval);
@@ -3842,7 +3842,7 @@ namespace IPA.Cores.Basic
             lock (LockObj)
             {
                 Interlocked.Increment(ref counter);
-                EventListener.Fire(this, RefCounterEventType.Increment);
+                EventListener.Fire(this, RefCounterEventType.Increment, null);
             }
         }
 
@@ -3852,10 +3852,10 @@ namespace IPA.Cores.Basic
             {
                 int r = Interlocked.Decrement(ref counter);
                 Debug.Assert(r >= 0);
-                EventListener.Fire(this, RefCounterEventType.Decrement);
+                EventListener.Fire(this, RefCounterEventType.Decrement, null);
 
                 if (r == 0)
-                    EventListener.Fire(this, RefCounterEventType.AllReleased);
+                    EventListener.Fire(this, RefCounterEventType.AllReleased, null);
             }
         }
 
@@ -3871,7 +3871,7 @@ namespace IPA.Cores.Basic
         {
             this.Object = obj;
             RefCounter counter = new RefCounter();
-            counter.EventListener.RegisterCallback((caller, eventType, state) =>
+            counter.EventListener.RegisterCallback((caller, eventType, state, evState) =>
             {
                 switch (eventType)
                 {
@@ -3921,7 +3921,7 @@ namespace IPA.Cores.Basic
                 this.PoolBase = poolBase;
                 this.Key = key;
 
-                this.Counter.EventListener.RegisterCallback((caller, eventType, state) =>
+                this.Counter.EventListener.RegisterCallback((caller, eventType, state, evState) =>
                 {
                     lock (LockObj)
                     {

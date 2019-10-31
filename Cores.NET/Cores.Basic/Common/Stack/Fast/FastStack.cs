@@ -192,6 +192,8 @@ namespace IPA.Cores.Basic
     public abstract class NetTcpProtocolOptionsBase : NetBottomProtocolOptionsBase
     {
         public NetDnsClientStub? DnsClient { get; set; }
+
+        public string? RateLimiterConfigName { get; set; } = null;
     }
 
     public abstract class NetTcpProtocolStubBase : NetBottomProtocolStubBase
@@ -288,6 +290,8 @@ namespace IPA.Cores.Basic
 
         PalSocket? ListeningSocket = null;
 
+        IpConnectionRateLimiter? RateLimiter = null;
+
         public NetPalTcpProtocolStub(PipePoint? upper = null, NetPalTcpProtocolOptions? options = null, CancellationToken cancel = default)
             : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel)
         {
@@ -317,7 +321,7 @@ namespace IPA.Cores.Basic
 
             PalSocket s = new PalSocket(remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp, TcpDirectionType.Client);
 
-            this.CancelWatcher.EventList.RegisterCallback((a, b, c) => s._DisposeSafe());
+            this.CancelWatcher.EventList.RegisterCallback((a, b, c, d) => s._DisposeSafe());
 
             await TaskUtil.DoAsyncWithTimeout(async localCancel =>
             {
@@ -342,6 +346,12 @@ namespace IPA.Cores.Basic
                 s.Bind(localEndPoint);
 
                 s.Listen(int.MaxValue);
+
+                if (this.Options.RateLimiterConfigName._IsFilled())
+                {
+                    // RateLimiter の作成
+                    this.RateLimiter = new IpConnectionRateLimiter(this.Options.RateLimiterConfigName);
+                }
             }
             catch
             {
@@ -364,13 +374,41 @@ namespace IPA.Cores.Basic
 
             try
             {
+                if (this.RateLimiter != null)
+                {
+                    // RateLimiter の適用
+                    // Socket API の仕様により、一旦 Accept が完了した後でなければ Source Address を取得することができない
+                    // ので、このようになっているのである。
+                    IPAddress srcIp = ((IPEndPoint)newSocket.RemoteEndPoint).Address;
+
+                    var rateLimiterRet = this.RateLimiter.TryEnter(srcIp);
+
+                    if (rateLimiterRet == false)
+                    {
+                        // RateLimiter によって制限された
+                        newSocket._DisposeSafe();
+
+                        numSocketError = 0;
+
+                        goto LABEL_RETRY;
+                    }
+                    else
+                    {
+                        // rateLimiterRet を、newSocket の Dispose() 時に Dispose するよう登録をする
+                        newSocket.AddDisposeOnDispose(rateLimiterRet.Value);
+                    }
+                }
+
                 var newStub = new NetPalTcpProtocolStub(null, null, cancelForNewSocket);
+
                 try
                 {
                     // ソケット情報の取得等
                     // 接続後直ちに切断されたクライアントの場合は、ここで例外が発生する場合がある
                     newStub.InitSocketWrapperFromSocket(newSocket);
 
+                    // 成功
+                    numSocketError = 0;
                     return newStub;
                 }
                 catch
@@ -1126,9 +1164,21 @@ namespace IPA.Cores.Basic
 
     public class NetPalTcpListener : NetTcpListener
     {
-        public NetPalTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc) : base(acceptedProc) { }
+        public string? RateLimiterConfigName { get; }
+
+        public NetPalTcpListener(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null) : base(acceptedProc)
+        {
+            this.RateLimiterConfigName = rateLimiterConfigName;
+        }
 
         protected internal override NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel)
-            => new NetPalTcpProtocolStub(null, null, cancel);
+        {
+            NetPalTcpProtocolOptions options = new NetPalTcpProtocolOptions()
+            {
+                RateLimiterConfigName = this.RateLimiterConfigName,
+            };
+
+            return new NetPalTcpProtocolStub(null, options, cancel);
+        }
     }
 }

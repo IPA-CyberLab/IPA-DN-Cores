@@ -811,7 +811,7 @@ namespace IPA.Cores.Basic
                 case FileSystemStyle.Windows:
                     this.DirectorySeparator = '\\';
                     this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
-                    this.PossibleDirectorySeparators = new char[] { '\\', '/'};
+                    this.PossibleDirectorySeparators = new char[] { '\\', '/' };
                     break;
 
                 case FileSystemStyle.Mac:
@@ -846,7 +846,7 @@ namespace IPA.Cores.Basic
             return path;
         }
 
-        static readonly char[] PossibleDirectorySeparatorsForAllPlatform = new char[] { '\\', '/'};
+        static readonly char[] PossibleDirectorySeparatorsForAllPlatform = new char[] { '\\', '/' };
         public string RemoveDangerousDirectoryTraversal(string path)
         {
             path = path._NonNull();
@@ -1699,7 +1699,7 @@ namespace IPA.Cores.Basic
 
             string currentFullPath = "/";
 
-            for (int i = 0; i < elements.Length;i++)
+            for (int i = 0; i < elements.Length; i++)
             {
                 string element = elements[i];
 
@@ -1810,7 +1810,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        void FileEventListenerCallback(FileBase obj, FileObjectEventType eventType, object? userState)
+        void FileEventListenerCallback(FileBase obj, FileObjectEventType eventType, object? userState, object? eventState)
         {
             switch (eventType)
             {

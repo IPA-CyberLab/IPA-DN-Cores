@@ -284,12 +284,12 @@ namespace IPA.Cores.Basic
             // RateLimiter
             public const double DefaultBurst = 200;
             public const double DefaultLimitPerSecond = 10;
-            public const int DefaultExpiresMsec = 20_000;
+            public const int DefaultExpiresMsec = 30_000;
             public const int DefaultMaxEntries = 1_000_000; // 100 万セッションまで対応!?
-            public const int DefaultGcInterval = 100_000;
+            public const int DefaultGcIntervalMsec = 15_000;
 
             // ConcurrentLimiter
-            public const int DefaultMaxConcurrentRequests = 30;
+            public const int DefaultMaxConcurrentRequestsPerSrcSubnet = 30;
         }
 
         public static partial class Intervals

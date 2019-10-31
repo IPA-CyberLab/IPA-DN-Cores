@@ -73,13 +73,13 @@ namespace IPA.Cores.Basic
     {
         public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
 
-        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, params IPEndPoint[] endPoints)
-            : base(tcpIp, sslAuthOptions, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.LogServerDefaultServicePort))
+        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
+            : base(tcpIp, sslAuthOptions, rateLimiterConfigName, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.LogServerDefaultServicePort))
         {
         }
 
-        public LogServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
-            : base(tcpIp, sslAuthOptions, IPUtil.GenerateListeningEndPointsList(false, ports))
+        public LogServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
+            : base(tcpIp, sslAuthOptions, rateLimiterConfigName, IPUtil.GenerateListeningEndPointsList(false, ports))
         {
         }
     }
@@ -220,8 +220,8 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public LogServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports)
-            : base(tcpIp, sslAuthOptions, ports)
+        public LogServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
+            : base(tcpIp, sslAuthOptions, ports, rateLimiterConfigName)
         {
             if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
 

@@ -327,6 +327,14 @@ namespace IPA.Cores.Basic
         {
             if (DisposeFlag.IsFirstCall() && disposing)
             {
+                IDisposable[] disposeList;
+                lock (DisposeOnDisposeList)
+                {
+                    disposeList = DisposeOnDisposeList.ToArray();
+                    DisposeOnDisposeList.Clear();
+                }
+                disposeList._DoForEach(x => x._DisposeSafe());
+
                 try
                 {
                     _Socket.Shutdown(SocketShutdown.Both);
@@ -335,6 +343,32 @@ namespace IPA.Cores.Basic
                 _Socket._DisposeSafe();
 
                 Leak._DisposeSafe();
+            }
+        }
+
+        readonly List<IDisposable> DisposeOnDisposeList = new List<IDisposable>();
+
+        public void AddDisposeOnDispose(IDisposable? dispose)
+        {
+            if (dispose == null) return;
+
+            bool disposeNow = false;
+
+            lock (DisposeOnDisposeList)
+            {
+                if (DisposeFlag.IsSet)
+                {
+                    disposeNow = true;
+                }
+                else
+                {
+                    DisposeOnDisposeList.Add(dispose);
+                }
+            }
+
+            if (disposeNow)
+            {
+                dispose._DisposeSafe();
             }
         }
 

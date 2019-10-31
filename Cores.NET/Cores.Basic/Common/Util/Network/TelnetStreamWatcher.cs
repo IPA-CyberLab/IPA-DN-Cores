@@ -149,7 +149,9 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Disconnected: {sock.EndPointInfo._GetObjectDump()}");
                 }
-            }, this.Options.EndPoints.ToArray()));
+            },
+            "TelnetStreamWatcher",
+            this.Options.EndPoints.ToArray()));
 
             this.AddIndirectDisposeLink(this.Listener);
         }

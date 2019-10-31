@@ -6062,37 +6062,39 @@ namespace IPA.Cores.Basic
         public int ExpiresMsec { get; }
         public int MaxEntries { get; }
         public RateLimiterMode Mode { get; }
-        public int GcInterval { get; }
+        public int GcIntervalMsec { get; }
 
         public RateLimiterOptions(double burst = Consts.RateLimiter.DefaultBurst, double limitPerSecond = Consts.RateLimiter.DefaultLimitPerSecond,
             int expiresMsec = Consts.RateLimiter.DefaultExpiresMsec, RateLimiterMode mode = RateLimiterMode.Penalty, int maxEntries = Consts.RateLimiter.DefaultMaxEntries,
-            int gcInterval = Consts.RateLimiter.DefaultGcInterval)
+            int gcIntervalMsec = Consts.RateLimiter.DefaultGcIntervalMsec)
         {
             if (burst <= 0.0) throw new ArgumentOutOfRangeException(nameof(burst));
             if (limitPerSecond < 0.0) throw new ArgumentOutOfRangeException(nameof(limitPerSecond));
             if (expiresMsec <= 0) throw new ArgumentOutOfRangeException(nameof(expiresMsec));
             if (maxEntries <= 0) throw new ArgumentOutOfRangeException(nameof(maxEntries));
-            if (gcInterval <= 0) throw new ArgumentOutOfRangeException(nameof(gcInterval));
+            if (gcIntervalMsec <= 0) throw new ArgumentOutOfRangeException(nameof(gcIntervalMsec));
 
             this.Burst = burst;
             this.LimitPerSecond = limitPerSecond;
             this.ExpiresMsec = expiresMsec;
             this.MaxEntries = maxEntries;
             this.Mode = mode;
-            this.GcInterval = gcInterval;
+            this.GcIntervalMsec = gcIntervalMsec;
         }
     }
 
     public class RateLimiterEntry
     {
-        readonly RateLimiterOptions Options;
-        readonly CriticalSection LockObj = new CriticalSection();
+        public RateLimiterOptions Options { get; }
+        public readonly CriticalSection LockObj = new CriticalSection();
 
         public long CreatedTick { get; }
         public long ExpiresTick => this.LastInputTick + Options.ExpiresMsec;
         public double CurrentAmount { get; private set; } = 0.0;
 
         public long LastInputTick { get; private set; }
+
+        public long LastErrorReportedTick = 0;
 
         internal RateLimiterEntry(EnsureInternal yes, RateLimiterOptions options, long createdTick)
         {
@@ -6164,11 +6166,19 @@ namespace IPA.Cores.Basic
     public class ConcurrentLimiter<TKey> : IConcurrentLimiter
         where TKey : notnull
     {
+        class Entry
+        {
+            public int Count = 0;
+            public long LastErrorReportTick = 0;
+        }
+
         public int MaxConcurrentRequests { get; }
 
         readonly CriticalSection LockObj = new CriticalSection();
 
-        readonly Dictionary<TKey, int> Table = new Dictionary<TKey, int>();
+        readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
+
+        public FastEventListenerList<ConcurrentLimiter<TKey>, NonsenseEventType> EventListener { get; } = new FastEventListenerList<ConcurrentLimiter<TKey>, NonsenseEventType>();
 
         public ConcurrentLimiter(int maxConcurrentRequests)
         {
@@ -6185,23 +6195,41 @@ namespace IPA.Cores.Basic
 
             lock (LockObj)
             {
-                if (this.Table.TryGetValue(key, out currentCount) == false)
+                if (this.Table.TryGetValue(key, out Entry? entry) == false)
                 {
                     currentCount = 0;
                 }
                 else
                 {
+                    currentCount = entry!.Count;
                     Debug.Assert(currentCount >= 1);
                 }
 
                 if (currentCount >= this.MaxConcurrentRequests)
                 {
+                    if (entry != null)
+                    {
+                        long now = Time.Tick64;
+
+                        if (entry.LastErrorReportTick == 0 || (now >= (entry.LastErrorReportTick + 1000L)))
+                        {
+                            entry.LastErrorReportTick = now;
+                            this.EventListener.Fire(this, NonsenseEventType.Nonsense, $"ConcurrentLimiter exceeded: Key = '{key.ToString()}', Current = {currentCount}, Max = {this.MaxConcurrentRequests}");
+                        }
+                    }
+
                     return false;
                 }
 
                 currentCount++;
 
-                this.Table[key] = currentCount;
+                if (entry == null)
+                {
+                    entry = new Entry();
+                    this.Table[key] = entry;
+                }
+
+                this.Table[key].Count = currentCount;
 
                 return true;
             }
@@ -6217,24 +6245,22 @@ namespace IPA.Cores.Basic
 
             lock (LockObj)
             {
-                if (this.Table.TryGetValue(key, out currentCount) == false)
+                if (this.Table.TryGetValue(key, out Entry? entry) == false)
                 {
                     // Error!
                     Debug.Assert(false);
                 }
 
-                Debug.Assert(currentCount >= 1);
+                Debug.Assert(entry!.Count >= 1);
 
-                currentCount--;
+                entry.Count--;
 
-                if (currentCount <= 0)
+                if (entry.Count <= 0)
                 {
                     this.Table.Remove(key);
                 }
-                else
-                {
-                    this.Table[key] = currentCount;
-                }
+
+                currentCount = Math.Max(entry.Count, 0);
             }
         }
 
@@ -6266,12 +6292,16 @@ namespace IPA.Cores.Basic
 
         long NextGcTick = 0;
 
+        public FastEventListenerList<RateLimiter<TKey>, NonsenseEventType> EventListener { get; } = new FastEventListenerList<RateLimiter<TKey>, NonsenseEventType>();
+
+        long exceededErrorLastReport = 0;
+
         public RateLimiter(RateLimiterOptions options)
         {
             this.Options = options;
 
-            if (options.GcInterval > 0)
-                this.NextGcTick = Tick64.Now + options.GcInterval;
+            if (options.GcIntervalMsec > 0)
+                this.NextGcTick = Tick64.Now + options.GcIntervalMsec;
         }
 
         // 有効期限が経過したエントリを削除する
@@ -6304,7 +6334,7 @@ namespace IPA.Cores.Basic
                 // GC の実行
                 if (this.NextGcTick != 0 && this.NextGcTick <= now)
                 {
-                    this.NextGcTick = now + Options.GcInterval;
+                    this.NextGcTick = now + Options.GcIntervalMsec;
 
                     GcCollect(now);
                 }
@@ -6316,6 +6346,14 @@ namespace IPA.Cores.Basic
                     {
                         // 最大登録可能数を超過しているため作成できない
                         entry = null;
+
+                        if (exceededErrorLastReport == 0 || (now >= (exceededErrorLastReport + 1000L)))
+                        {
+                            exceededErrorLastReport = now;
+
+                            this.EventListener.Fire(this, NonsenseEventType.Nonsense, $"RateLimiter entry count exceeded. Current = {Table.Count}, Max = {this.Options.MaxEntries}");
+                        }
+
                         return false;
                     }
 
@@ -6325,7 +6363,22 @@ namespace IPA.Cores.Basic
             }
 
             // 取得されたエントリに対して流入操作を実行する
-            return entry!.TryInput(now, amount);
+            bool ret = entry!.TryInput(now, amount);
+
+            if (ret == false)
+            {
+                lock (entry.LockObj)
+                {
+                    if (entry.LastErrorReportedTick == 0 || (now >= (entry.LastErrorReportedTick + 1000L)))
+                    {
+                        entry.LastErrorReportedTick = now;
+
+                        this.EventListener.Fire(this, NonsenseEventType.Nonsense, $"RateLimiter input flow exceeded. Key = '{key.ToString()}', Current = {entry.CurrentAmount:F2}, LimitPerSec = {entry.Options.LimitPerSecond:F2}, Burst = {entry.Options.Burst:F2}");
+                    }
+                }
+            }
+
+            return ret;
         }
 
         public bool TryInput(object key, [NotNullWhen(true)] out RateLimiterEntry entry, double amount = 1, long now = 0)

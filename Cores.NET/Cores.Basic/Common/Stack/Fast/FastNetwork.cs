@@ -537,7 +537,7 @@ namespace IPA.Cores.Basic
                         return false;
                     });
 
-                    receiveTimeoutProcId = PipePoint.StreamReader.EventListeners.RegisterCallback((buffer, type, state) =>
+                    receiveTimeoutProcId = PipePoint.StreamReader.EventListeners.RegisterCallback((buffer, type, state, eventState) =>
                     {
                         if (type == FastBufferCallbackEventType.Written || type == FastBufferCallbackEventType.NonEmptyToEmpty)
                             receiveTimeoutDetector.Keep();
@@ -580,7 +580,7 @@ namespace IPA.Cores.Basic
                         return false;
                     });
 
-                    sendTimeoutProcId = PipePoint.StreamWriter.EventListeners.RegisterCallback((buffer, type, state) =>
+                    sendTimeoutProcId = PipePoint.StreamWriter.EventListeners.RegisterCallback((buffer, type, state, eventState) =>
                     {
                         //                            WriteLine($"{type}  {buffer.Length}  {buffer.IsReadyToWrite}");
                         if (type == FastBufferCallbackEventType.Read || type == FastBufferCallbackEventType.EmptyToNonEmpty)

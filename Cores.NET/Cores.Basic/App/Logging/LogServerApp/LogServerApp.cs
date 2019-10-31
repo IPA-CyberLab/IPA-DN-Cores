@@ -110,7 +110,8 @@ namespace IPA.Cores.Basic
                         setDestinationProc: null,
                         sslAuthOptions: sslOptions,
                         tcpIp: LocalNet,
-                        ports: Str.ParsePortsList(servicePortsStr)
+                        ports: Str.ParsePortsList(servicePortsStr),
+                        rateLimiterConfigName: "LogServer"
                         ));
 
                     // Start HTTP Server-based Web log browser

@@ -182,6 +182,7 @@ namespace IPA.Cores.Basic
     {
         public NetTcpListenerAcceptedProcCallback? AcceptCallback { get; }
         public IReadOnlyList<IPEndPoint> EndPointsList { get; }
+        public string? RateLimiterConfigName { get; }
 
         static IPEndPoint[] PortsToEndPoints(int[] ports)
         {
@@ -196,16 +197,17 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
-        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, params int[] ports)
-            : this(acceptCallback, PortsToEndPoints(ports)) { }
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, string? rateLimiterConfigName = null, params int[] ports)
+            : this(acceptCallback, rateLimiterConfigName, PortsToEndPoints(ports)) { }
 
-        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, params IPEndPoint[] endPoints)
+        public TcpListenParam(NetTcpListenerAcceptedProcCallback? acceptCallback, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
         {
             this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
+            this.RateLimiterConfigName = rateLimiterConfigName;
         }
 
-        public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint)
+        public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint, string? rateLimiterConfigName = null)
         {
             List<IPEndPoint> ret = new List<IPEndPoint>();
 
@@ -221,6 +223,7 @@ namespace IPA.Cores.Basic
 
             this.EndPointsList = ret;
             this.AcceptCallback = acceptCallback;
+            this.RateLimiterConfigName = rateLimiterConfigName;
         }
     }
 
@@ -331,7 +334,7 @@ namespace IPA.Cores.Basic
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
-        protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc);
+        protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
 
         AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
 
@@ -416,7 +419,7 @@ namespace IPA.Cores.Basic
                             // GenericAcceptQueueUtil ユーティリティでキューに登録する
                             await acceptQueueUtil!.InjectAndWaitAsync(sock);
                         }
-                    });
+                    }, param.RateLimiterConfigName);
 
                     if (acceptQueueUtil != null)
                     {

@@ -106,9 +106,9 @@ namespace IPA.Cores.Basic
             return tcp;
         }
 
-        protected override NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc)
+        protected override NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null)
         {
-            NetPalTcpListener ret = new NetPalTcpListener(acceptedProc);
+            NetPalTcpListener ret = new NetPalTcpListener(acceptedProc, rateLimiterConfigName);
 
             return ret;
         }

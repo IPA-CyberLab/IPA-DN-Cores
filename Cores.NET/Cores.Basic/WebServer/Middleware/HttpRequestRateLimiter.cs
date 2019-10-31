@@ -150,9 +150,9 @@ namespace IPA.Cores.Basic
                 expiresMsec: Consts.RateLimiter.DefaultExpiresMsec,
                 mode: RateLimiterMode.Penalty,
                 maxEntries: Consts.RateLimiter.DefaultMaxEntries,
-                gcInterval: Consts.RateLimiter.DefaultGcInterval);
+                gcIntervalMsec: Consts.RateLimiter.DefaultGcIntervalMsec);
 
-        public int MaxConcurrentRequests { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequests;
+        public int MaxConcurrentRequestsPerSrcSubnet { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequestsPerSrcSubnet;
     }
 
     public class HttpRequestRateLimiterMiddleware<TKey> where TKey : IHttpRequestRateLimiterHashKey
@@ -173,7 +173,7 @@ namespace IPA.Cores.Basic
             Options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
             RateLimiter = new RateLimiter<TKey>(RateLimiterOptions);
-            ConcurrentLimiter = new ConcurrentLimiter<TKey>(Options.MaxConcurrentRequests);
+            ConcurrentLimiter = new ConcurrentLimiter<TKey>(Options.MaxConcurrentRequestsPerSrcSubnet);
         }
 
         public async Task Invoke(HttpContext context)
