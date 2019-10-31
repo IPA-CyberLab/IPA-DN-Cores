@@ -289,7 +289,7 @@ namespace IPA.Cores.Basic
             public const int DefaultGcIntervalMsec = 15_000;
 
             // ConcurrentLimiter
-            public const int DefaultMaxConcurrentRequestsPerSrcSubnet = 30;
+            public const int DefaultMaxConcurrentRequestsPerSrcSubnet = 40;
         }
 
         public static partial class Intervals
