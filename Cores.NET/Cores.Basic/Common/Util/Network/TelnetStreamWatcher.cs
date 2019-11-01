@@ -113,15 +113,61 @@ namespace IPA.Cores.Basic
 
                                     if (line == null) break;
 
-                                    Dbg.WriteLine($"Manual GC is called by the administrator.");
+                                    line = line.Trim();
 
-                                    long start = FastTick64.Now;
-                                    Dbg.GcCollect();
-                                    long end = FastTick64.Now;
+                                    if (line._IsSamei("s"))
+                                    {
+                                        // Socket リストの表示
+                                        var list = LocalNet.GetSockList().OrderBy(x => x.Connected);
 
-                                    long spentTime = end - start;
+                                        StringWriter w = new StringWriter();
 
-                                    Dbg.WriteLine($"Manual GC Took Time: {spentTime} msecs.");
+                                        w.WriteLine();
+
+                                        int index = 0;
+
+                                        foreach (var sock in list)
+                                        {
+                                            index++;
+                                            string tmp = $"#{index}: " + sock._GetObjectDump();
+                                            w.WriteLine(tmp);
+                                        }
+
+                                        w.WriteLine();
+
+                                        w.WriteLine($"Total sockets: {list.Count()}");
+
+                                        w.WriteLine();
+
+                                        byte[] data = w.ToString()._GetBytes_Ascii();
+
+                                        var pipe = pipePoint;
+                                        if (pipe.CounterPart != null)
+                                        {
+                                            lock (pipe.CounterPart.StreamWriter.LockObj)
+                                            {
+                                                if (pipe.CounterPart.StreamWriter.NonStopWriteWithLock(data, false, FastStreamNonStopWriteMode.DiscardExistingData) != 0)
+                                                {
+                                                    // To avoid deadlock, CompleteWrite() must be called from other thread.
+                                                    // (CompleteWrite() ==> Disconnect ==> Socket Log will recorded ==> ReceiveLog() ==> this function will be called!)
+                                                    TaskUtil.StartSyncTaskAsync(() => pipe.CounterPart.StreamWriter.CompleteWrite(false), false, false)._LaissezFaire(true);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // GC
+                                        Dbg.WriteLine($"Manual GC is called by the administrator.");
+
+                                        long start = FastTick64.Now;
+                                        Dbg.GcCollect();
+                                        long end = FastTick64.Now;
+
+                                        long spentTime = end - start;
+
+                                        Dbg.WriteLine($"Manual GC Took Time: {spentTime} msecs.");
+                                    }
                                 }
                             });
 

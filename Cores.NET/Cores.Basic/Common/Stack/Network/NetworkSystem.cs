@@ -60,6 +60,27 @@ namespace IPA.Cores.Basic
 
     public class NetworkStackShutdownException : DisconnectedException { }
 
+    [Flags]
+    public enum ConnectedSockType
+    {
+        Unknown = 0,
+        Tcp = 1,
+        Udp = 2,
+    }
+
+    public class ConnectedSockListEntry
+    {
+        public string? Guid { get; set; }
+        public string? Type { get; set; }
+        public DateTimeOffset Connected { get; set; }
+        public string? Direction { get; set; }
+        public long Handle { get; set; }
+        public string? LocalIp { get; set; }
+        public string? RemoteIp { get; set; }
+        public int LocalPort { get; set; }
+        public int RemotePort { get; set; }
+    }
+
     public class NetworkSystemParam
     {
         public string Name { get; }
@@ -80,6 +101,37 @@ namespace IPA.Cores.Basic
         public NetworkSystemBase(NetworkSystemParam param)
         {
             this.Param = param;
+        }
+
+        public ConnectedSockListEntry[] GetSockList()
+        {
+            List<ConnectedSockListEntry> ret = new List<ConnectedSockListEntry>();
+
+            lock (LockObj)
+            {
+                foreach (NetSock s in this.OpenedSockList)
+                {
+                    ILayerInfoIpEndPoint? ip = s.Info.Ip;
+                    ILayerInfoTcpEndPoint? tcp = s.Info.Tcp;
+
+                    ConnectedSockListEntry e = new ConnectedSockListEntry
+                    {
+                        Guid = s.Guid,
+                        Type = ((tcp != null) ? ConnectedSockType.Tcp : ConnectedSockType.Unknown).ToString(),
+                        Connected = s.Connected,
+                        Direction = (tcp?.Direction ?? TcpDirectionType.Unknown).ToString(),
+                        Handle = ip?.NativeHandle ?? 0,
+                        LocalIp = ip?.LocalIPAddress?.ToString() ?? "",
+                        RemoteIp = ip?.RemoteIPAddress?.ToString() ?? "",
+                        LocalPort = tcp?.LocalPort ?? 0,
+                        RemotePort = tcp?.RemotePort ?? 0,
+                    };
+
+                    ret.Add(e);
+                }
+            }
+
+            return ret.ToArray();
         }
 
         protected void AddToOpenedSockList(NetSock sock, string logTag)
