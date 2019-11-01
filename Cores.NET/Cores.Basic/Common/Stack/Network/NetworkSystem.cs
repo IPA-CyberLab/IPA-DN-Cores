@@ -70,6 +70,7 @@ namespace IPA.Cores.Basic
 
     public class ConnectedSockListEntry
     {
+        public long Id { get; set; }
         public string? Guid { get; set; }
         public string? Type { get; set; }
         public DateTimeOffset Connected { get; set; }
@@ -116,6 +117,7 @@ namespace IPA.Cores.Basic
 
                     ConnectedSockListEntry e = new ConnectedSockListEntry
                     {
+                        Id = s.Id,
                         Guid = s.Guid,
                         Type = ((tcp != null) ? ConnectedSockType.Tcp : ConnectedSockType.Unknown).ToString(),
                         Connected = s.Connected,
@@ -134,10 +136,15 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
+        long IdSeed = 0;
+
         protected void AddToOpenedSockList(NetSock sock, string logTag)
         {
             lock (LockObj)
+            {
+                sock.Id = (++IdSeed);
                 OpenedSockList.Add(sock);
+            }
 
             sock.AddOnCancelAction(() =>
             {

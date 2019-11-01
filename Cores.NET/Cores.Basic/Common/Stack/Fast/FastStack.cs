@@ -459,7 +459,7 @@ namespace IPA.Cores.Basic
         public string Guid { get; } = Str.NewGuid();
         public DateTimeOffset Connected { get; } = DateTimeOffset.Now;
         public DateTimeOffset? Disconnected { get; private set; }
-
+        public long Id { get; set; } = 0;
 
         public NetSock(NetProtocolBase protocolStack, CancellationToken cancel = default) : base(cancel)
         {

@@ -124,12 +124,9 @@ namespace IPA.Cores.Basic
 
                                         w.WriteLine();
 
-                                        int index = 0;
-
                                         foreach (var sock in list)
                                         {
-                                            index++;
-                                            string tmp = $"#{index}: " + sock._GetObjectDump();
+                                            string tmp = $"#{sock.Id}: " + sock._GetObjectDump();
                                             w.WriteLine(tmp);
                                         }
 
