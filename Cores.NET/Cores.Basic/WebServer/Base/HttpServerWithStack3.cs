@@ -521,7 +521,8 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 // Stop the socket (for just in case)
-                Sock._CancelSafe(new DisconnectedException());
+                this.Sock._CancelSafe(new DisconnectedException());
+                this.Sock._DisposeSafe(new DisconnectedException());
 
                 ex._Debug();
             }
@@ -537,17 +538,22 @@ namespace IPA.Cores.Basic
             {
                 await _processingTask;
             }
+
+            // ソケットの切断 (これをしないとリークしたり、AcceptQueue でいつまでも待機したりしてしまう)
+            await this.Sock._DisposeSafeAsync();
         }
 
         public override void Abort()
         {
             this.Sock._CancelSafe();
+            this.Sock._DisposeSafe();
             base.Abort();
         }
 
         public override void Abort(ConnectionAbortedException abortReason)
         {
             this.Sock._CancelSafe(abortReason);
+            this.Sock._DisposeSafe(abortReason);
             base.Abort(abortReason);
         }
     }

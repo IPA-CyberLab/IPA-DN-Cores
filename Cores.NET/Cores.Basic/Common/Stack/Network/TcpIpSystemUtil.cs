@@ -298,8 +298,8 @@ namespace IPA.Cores.Basic
                 this.Socket = sock;
                 this.DisconnectedEvent = new AsyncManualResetEvent();
 
-                // この Socket がユーザーによって Dispose されたときにイベントを発生させる
-                this.Socket.AddOnDisposeAction(() =>
+                // この Socket がユーザーによって Cancel されたときにイベントを発生させる
+                this.Socket.AddOnCancelAction(() =>
                 {
                     this.DisconnectedEvent.Set(true);
                 });
@@ -348,7 +348,7 @@ namespace IPA.Cores.Basic
             }
 
             // このソケットがユーザーによって Dispose されるまでの間待機する
-            await sockEntry.DisconnectedEvent.WaitAsync();
+            await sockEntry.DisconnectedEvent.WaitAsync(timeout: Timeout.Infinite, cancel: this.GrandCancel);
 
             return true;
         }

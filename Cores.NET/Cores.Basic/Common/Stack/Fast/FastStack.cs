@@ -418,25 +418,16 @@ namespace IPA.Cores.Basic
                     throw;
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 newSocket._DisposeSafe();
 
                 numSocketError++;
 
-                if (numSocketError <= 10)
-                {
-                    // Accept が完了した後にソケット情報を取得しようとするときにエラーが発生したら
-                    // これは Accept されたソケットが直ちに切断されたということを意味するので
-                    // 特に何も考えずに 10 回は再試行をする
-                    goto LABEL_RETRY;
-                }
-
-                // 10 回も再試行しても連続してダメならば Accept 用ソケットが異常状態となっている可能性もあるので
-                // エラーを throw して処理を抜ける
-                ex._Debug();
-
-                throw;
+                // Accept が完了した後にソケット情報を取得しようとするときにエラーが発生したら
+                // これは Accept されたソケットが直ちに切断されたということを意味するので
+                // 特に何も考えずにそのまま再試行する
+                goto LABEL_RETRY;
             }
         }
 
