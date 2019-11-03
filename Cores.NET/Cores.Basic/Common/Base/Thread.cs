@@ -462,6 +462,12 @@ namespace IPA.Cores.Basic
             if (LockedCount <= 0) throw new ApplicationException("locked_count <= 0");
             if (LockedCount == 1)
             {
+                try
+                {
+                    UnixApi.FLock(this.FileHandle, UnixApi.LockOperations.LOCK_UN);
+                }
+                catch { }
+
                 UnixApi.Close(this.FileHandle);
 
                 this.FileHandle = IntPtr.Zero;
