@@ -483,6 +483,11 @@ namespace IPA.Cores.Basic
                             }
 
                             log._PostAccessLog(LogTag.JsonRpcRequestProcessor, copyToDebug: log.RpcResultOk == false);
+
+                            if (log.RpcResultOk == false)
+                            {
+                                LocalLogRouter.Post(log, LogPriority.Error, LogKind.Default, LogFlags.NoOutputToConsole, LogTag.JsonRpcRequestProcessor);
+                            }
                         }
                     }
                     finally
