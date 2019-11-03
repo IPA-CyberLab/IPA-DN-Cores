@@ -440,7 +440,7 @@ namespace IPA.Cores.Basic
 
                 UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
 
-                IntPtr fd = UnixApi.Open(Filename, UnixApi.OpenFlags.O_CREAT, (int)perm);
+                IntPtr fd = UnixApi.Open(Filename, UnixApi.OpenFlags.O_CREAT | UnixApi.OpenFlags.O_CLOEXEC, (int)perm);
                 if (fd.ToInt64() < 0)
                 {
                     throw new IOException("Open failed.");
@@ -493,7 +493,7 @@ namespace IPA.Cores.Basic
 
                             bool okToDelete = false;
 
-                            IntPtr fd = UnixApi.Open(fileFullPath, UnixApi.OpenFlags.O_CREAT, (int)perm);
+                            IntPtr fd = UnixApi.Open(fileFullPath, UnixApi.OpenFlags.O_CREAT | UnixApi.OpenFlags.O_CLOEXEC, (int)perm);
 
                             if (fd.ToInt64() >= 0)
                             {
@@ -506,7 +506,17 @@ namespace IPA.Cores.Basic
                                 }
                                 finally
                                 {
-                                    UnixApi.Close(fd);
+                                    try
+                                    {
+                                        UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_UN);
+                                    }
+                                    catch { }
+
+                                    try
+                                    {
+                                        UnixApi.Close(fd);
+                                    }
+                                    catch { }
                                 }
                             }
 
