@@ -1417,7 +1417,7 @@ namespace IPA.Cores.Helper.Basic
                 if (noDebugMessage == false)
                 {
                     Con.WriteDebug("TryGetResult error");
-                    Con.WriteDebug(ex);
+                    Con.WriteDebug(ex._GetSingleException());
                 }
 
                 return default!;
@@ -1436,7 +1436,7 @@ namespace IPA.Cores.Helper.Basic
                 if (noDebugMessage == false)
                 {
                     Con.WriteDebug("TryGetResult error");
-                    Con.WriteDebug(ex);
+                    Con.WriteDebug(ex._GetSingleException());
                 }
             }
         }
@@ -1453,7 +1453,7 @@ namespace IPA.Cores.Helper.Basic
                 if (noDebugMessage == false)
                 {
                     Con.WriteDebug("TryGetResult error");
-                    Con.WriteDebug(ex);
+                    Con.WriteDebug(ex._GetSingleException());
                 }
 
                 return default!;
@@ -1472,7 +1472,7 @@ namespace IPA.Cores.Helper.Basic
                 if (noDebugMessage == false)
                 {
                     Con.WriteDebug("TryGetResult error");
-                    Con.WriteDebug(ex);
+                    Con.WriteDebug(ex._GetSingleException());
                 }
             }
         }

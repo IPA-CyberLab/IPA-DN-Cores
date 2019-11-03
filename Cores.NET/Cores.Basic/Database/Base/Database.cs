@@ -52,6 +52,7 @@ using System.Diagnostics.CodeAnalysis;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Threading;
 
 namespace IPA.Cores.Basic
 {
@@ -291,7 +292,7 @@ namespace IPA.Cores.Basic
     }
 
     // Using トランザクション
-    public struct UsingTran : IDisposable
+    public struct UsingTran : IDisposable, IAsyncDisposable
     {
         Database db;
         Once Once;
@@ -300,6 +301,11 @@ namespace IPA.Cores.Basic
         {
             this.db = db;
             this.Once = new Once();
+        }
+
+        public async Task CommitAsync()
+        {
+            await this.db.CommitAsync();
         }
 
         public void Commit()
@@ -314,6 +320,17 @@ namespace IPA.Cores.Basic
             if (db != null)
             {
                 db.Cancel();
+                db = null!;
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Once.IsFirstCall() == false) return;
+
+            if (db != null)
+            {
+                await db.CancelAsync();
                 db = null!;
             }
         }
@@ -333,7 +350,7 @@ namespace IPA.Cores.Basic
     }
 
     // データベースアクセス
-    public sealed class Database : IDisposable
+    public sealed class Database : AsyncService
     {
         static Database()
         {
@@ -410,7 +427,7 @@ namespace IPA.Cores.Basic
         {
             EnsureOpen();
 
-            closeQuery();
+            CloseQuery();
             DbCommand cmd = buildCommand(commandStr, args);
 
             DataReader = cmd.ExecuteReader();
@@ -420,7 +437,8 @@ namespace IPA.Cores.Basic
         {
             await EnsureOpenAsync();
 
-            closeQuery();
+            await CloseQueryAsync();
+
             DbCommand cmd = buildCommand(commandStr, args);
 
             DataReader = await cmd.ExecuteReaderAsync();
@@ -655,7 +673,7 @@ namespace IPA.Cores.Basic
         {
             EnsureOpen();
 
-            closeQuery();
+            CloseQuery();
             DbCommand cmd = buildCommand(commandStr, args);
 
             return cmd.ExecuteNonQuery();
@@ -665,7 +683,8 @@ namespace IPA.Cores.Basic
         {
             await EnsureOpenAsync();
 
-            closeQuery();
+            await CloseQueryAsync();
+
             DbCommand cmd = buildCommand(commandStr, args);
 
             return await cmd.ExecuteNonQueryAsync();
@@ -675,7 +694,7 @@ namespace IPA.Cores.Basic
         {
             EnsureOpen();
 
-            closeQuery();
+            CloseQuery();
             DbCommand cmd = buildCommand(commandStr, args);
 
             return new DatabaseValue(cmd.ExecuteScalar());
@@ -685,7 +704,8 @@ namespace IPA.Cores.Basic
         {
             await EnsureOpenAsync();
 
-            closeQuery();
+            await CloseQueryAsync();
+
             DbCommand cmd = buildCommand(commandStr, args);
 
             return new DatabaseValue(await cmd.ExecuteScalarAsync());
@@ -778,12 +798,21 @@ namespace IPA.Cores.Basic
         }
 
         // クエリの終了
-        void closeQuery()
+        async Task CloseQueryAsync()
+        {
+            if (DataReader != null)
+            {
+                await DataReader.CloseAsync();
+                await DataReader._DisposeSafeAsync();
+                DataReader = null;
+            }
+        }
+        void CloseQuery()
         {
             if (DataReader != null)
             {
                 DataReader.Close();
-                DataReader.Dispose();
+                DataReader._DisposeSafe();
                 DataReader = null;
             }
         }
@@ -943,16 +972,36 @@ namespace IPA.Cores.Basic
         }
 
         // リソースの解放
-        public void Dispose()
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
-            closeQuery();
-            Cancel();
-            if (Connection != null)
+            try
             {
-                IsOpened = false;
-                Connection.Close();
-                Connection.Dispose();
-                Connection = null!;
+                await CloseQueryAsync();
+
+                await CancelAsync();
+
+                if (Connection != null)
+                {
+                    IsOpened = false;
+                    await Connection.CloseAsync();
+                    await Connection._DisposeSafeAsync();
+                    Connection = null!;
+                }
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
             }
         }
 
@@ -1086,7 +1135,7 @@ namespace IPA.Cores.Basic
         {
             EnsureOpen();
 
-            closeQuery();
+            CloseQuery();
 
             if (iso == IsolationLevel.Unspecified)
             {
@@ -1098,6 +1147,33 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // トランザクションの開始 (UsingTran オブジェクト作成)
+        public async Task<UsingTran> UsingTranAsync(IsolationLevel iso = IsolationLevel.Unspecified)
+        {
+            UsingTran t = new UsingTran(this);
+
+            await BeginAsync(iso);
+
+            return t;
+        }
+
+        // トランザクションの開始
+        public async Task BeginAsync(IsolationLevel iso = IsolationLevel.Unspecified)
+        {
+            await EnsureOpenAsync();
+
+            await CloseQueryAsync();
+
+            if (iso == IsolationLevel.Unspecified)
+            {
+                Transaction = await Connection.BeginTransactionAsync();
+            }
+            else
+            {
+                Transaction = await Connection.BeginTransactionAsync(iso);
+            }
+        }
+
         // トランザクションのコミット
         public void Commit()
         {
@@ -1106,9 +1182,23 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            closeQuery();
+            CloseQuery();
             Transaction.Commit();
             Transaction.Dispose();
+            Transaction = null;
+        }
+        public async Task CommitAsync()
+        {
+            if (Transaction == null)
+            {
+                return;
+            }
+
+            await CloseQueryAsync();
+
+            await Transaction.CommitAsync();
+
+            await Transaction._DisposeSafeAsync();
             Transaction = null;
         }
 
@@ -1120,9 +1210,23 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            closeQuery();
+            CloseQuery();
             Transaction.Rollback();
             Transaction.Dispose();
+            Transaction = null;
+        }
+        public async Task CancelAsync()
+        {
+            if (Transaction == null)
+            {
+                return;
+            }
+
+            await CloseQueryAsync();
+
+            await Transaction.RollbackAsync();
+
+            await Transaction._DisposeSafeAsync();
             Transaction = null;
         }
     }

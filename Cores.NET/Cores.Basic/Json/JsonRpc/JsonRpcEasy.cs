@@ -44,7 +44,8 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public abstract class EasyJsonRpcClient<TInterface> where TInterface : class
+    public abstract class EasyJsonRpcClient<TInterface> : AsyncService
+        where TInterface : class
     {
         public JsonRpcHttpClient<TInterface> Client { get; }
         public WebApi WebApi { get => this.Client.WebApi; }
@@ -54,6 +55,18 @@ namespace IPA.Cores.Basic
         public EasyJsonRpcClient(string baseUrl, WebApiOptions webApiOptions)
         {
             this.Client = new JsonRpcHttpClient<TInterface>(baseUrl, webApiOptions);
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.Client._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
         }
     }
 }

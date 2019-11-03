@@ -76,6 +76,12 @@ namespace IPA.Cores.Globals
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Async(Func<Task> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._TryGetResult(noDebugMessage);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Async<T>(Func<Task<T>> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._TryGetResult(noDebugMessage);
+
         public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try

@@ -49,6 +49,7 @@ using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;

@@ -530,7 +530,7 @@ namespace IPA.Cores.Basic
         {
             opt.AddServerHeader = !this.HideKestrelServerHeader;
 
-            KestrelServerWithStackOptions withStackOpt = (KestrelServerWithStackOptions)opt;
+            KestrelServerWithStackOptions? withStackOpt = opt as KestrelServerWithStackOptions;
 
             if (this.LocalHostOnly)
             {
