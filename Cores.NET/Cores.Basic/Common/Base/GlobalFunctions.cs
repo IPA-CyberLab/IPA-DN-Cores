@@ -58,6 +58,7 @@ namespace IPA.Cores.Globals
         public static int NoOp()
         {
             VolatileZero = 0;
+            VolatileZero = VolatileZero & VolatileZero;
             return 0;
         }
 
