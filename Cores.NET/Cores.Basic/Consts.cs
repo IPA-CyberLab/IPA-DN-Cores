@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
 
             public const int GitCommitIdTruncateLen = 8;
             public const int StandardTruncateLen = 32;
+
+            public const int ExceptionStrTruncateLen = 800;
         }
 
         public static partial class Ports
@@ -314,6 +316,18 @@ namespace IPA.Cores.Basic
             public const int Rapid = 5 * 1000;
 
             public const int DaemonStopLogFinish = 15 * 1000;
+
+            public const int DefaultEasyExecTimeout = 60 * 1000;
+        }
+
+        public static partial class LinuxCommands
+        {
+            public const string Ip = "/sbin/ip";
+            public const string Ifconfig = "/sbin/ifconfig";
+            public const string PppoeDiscovery = "/usr/sbin/pppoe-discovery";
+            public const string PppoeStart = "/usr/sbin/pppoe-start";
+            public const string KillAll = "/usr/bin/killall";
+            public const string Reboot = "/sbin/reboot";
         }
     }
 

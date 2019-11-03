@@ -214,6 +214,160 @@ namespace IPA.Cores.Basic
         Default = KillProcessGroup | ExecFlags.EasyInputOutputMode,
     }
 
+    // 簡易実行
+    public static class EasyExec
+    {
+        public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int timeout = Consts.Timeouts.DefaultEasyExecTimeout,
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
+        {
+            if (timeout <= 0) timeout = Timeout.Infinite;
+
+            ExecOptions opt = new ExecOptions(fileName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr);
+
+            if (debug)
+            {
+                Dbg.WriteLine($"ExecAsync: Starting process '{fileName}' with arguments '{arguments}' ...");
+            }
+
+            EasyExecResult result;
+
+            try
+            {
+                using ExecInstance exec = new ExecInstance(opt);
+
+                try
+                {
+                    await exec.WaitForExitAsync(timeout, cancel);
+                }
+                finally
+                {
+                    exec.Cancel();
+                }
+
+                result = new EasyExecResult(exec);
+            }
+            catch (Exception ex)
+            {
+                Dbg.WriteLine($"Error on starting process '{fileName}' with arguments '{arguments}'. Exception: {ex.Message}");
+                throw;
+            }
+
+            if (debug)
+            {
+                Dbg.WriteLine($"ExecAsync: The result of process '{fileName}' with arguments '{arguments}': " + result.ToString(Str.GetCrlfStr(), false));
+            }
+
+            if (throwOnErrorExitCode)
+            {
+                result.ThrowExceptionIfError();
+            }
+
+            return result;
+        }
+    }
+
+    public class CoresEasyExecException : CoresException
+    {
+        public CoresEasyExecException(EasyExecResult result)
+            : base(result.ToString())
+        {
+        }
+    }
+
+    // 簡易実行の結果
+    public class EasyExecResult
+    {
+        public int ExitCode => Instance.ExitCode;
+        public bool IsOk => (ExitCode == 0);
+
+        public int ProcessId => Instance.ProcessId;
+
+        public string OutputStr { get; }
+        public string ErrorStr { get; }
+
+        ReadOnlyMemory<byte> OutputData => Instance.EasyOutputData;
+        ReadOnlyMemory<byte> ErrorData => Instance.EasyErrorData;
+
+        public string OutputAndErrorStr { get; }
+        public string ErrorAndOutputStr { get; }
+
+        public long TookTime => Instance.TookTime;
+
+        public bool IsTimeouted => Instance.IsTimeouted;
+
+        public ExecInstance Instance { get; }
+
+        public EasyExecResult(ExecInstance exec)
+        {
+            this.Instance = exec;
+
+            this.OutputStr = exec.EasyOutputStr._NonNull()._NormalizeCrlf(true);
+            this.ErrorStr = exec.EasyErrorStr._NonNull()._NormalizeCrlf(true);
+
+            this.OutputAndErrorStr = this.OutputStr + this.ErrorStr;
+            this.ErrorAndOutputStr = this.ErrorStr + this.OutputStr;
+        }
+
+        public Exception? GetExceptionIfError()
+        {
+            if (this.IsOk) return null;
+
+            return new CoresEasyExecException(this);
+        }
+
+        public void ThrowExceptionIfError()
+        {
+            Exception? ex = GetExceptionIfError();
+            if (ex != null) throw ex;
+        }
+
+        public override string ToString()
+            => ToString(", ", true);
+
+        public string ToString(string separator, bool oneLine)
+        {
+            List<string> w = new List<string>();
+
+            w.Add($"Command: \"{Instance.Options.FileName}\"");
+            if (Instance.ExitCode == 0)
+            {
+                w.Add($"Result: OK (Exit code = 0)");
+            }
+            else
+            {
+                if (this.IsTimeouted == false)
+                {
+                    w.Add($"Result: Error (Exit code = {ExitCode})");
+                }
+                else
+                {
+                    w.Add($"Result: Error Timed Out");
+                }
+            }
+
+            w.Add($"Took time: {TookTime._ToString3()}");
+            w.Add($"Process Id: {ProcessId}");
+
+            if (Instance.Options.ArgumentsList != null)
+            {
+                w.Add($"Arguments: \"{Instance.Options.ArgumentsList._Combine(" ")}\"");
+            }
+            else
+            {
+                w.Add($"Arguments: \"{Instance.Options.Arguments}\"");
+            }
+
+            string errorStr = oneLine ? this.ErrorStr._OneLine(" / ") : this.ErrorStr;
+            string outputStr = oneLine ? this.OutputStr._OneLine(" / ") : this.OutputStr;
+
+            if (this.ErrorStr._IsFilled()) w.Add($"ErrorStr: \"{errorStr}\"");
+            if (this.OutputStr._IsFilled()) w.Add($"OutputStr: \"{outputStr}\"");
+
+            return w._Combine(separator);
+        }
+    }
+
     // 子プロセスの実行パラメータ
     public class ExecOptions
     {
@@ -290,7 +444,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Memory<byte> EasyOutputData
+        public ReadOnlyMemory<byte> EasyOutputData
         {
             get
             {
@@ -300,7 +454,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Memory<byte> EasyErrorData
+        public ReadOnlyMemory<byte> EasyErrorData
         {
             get
             {
@@ -346,6 +500,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public int ProcessId { get; private set; }
+
         readonly Process Proc;
 
         readonly Task? EasyInputTask = null;
@@ -356,6 +512,31 @@ namespace IPA.Cores.Basic
         readonly PipeStream? EasyInputOutputStream = null;
         readonly NetAppStub? EasyErrorStub = null;
         readonly PipeStream? EasyErrorStream = null;
+
+        public long StartTick { get; }
+        public long EndTick { get; private set; }
+
+        public bool IsTimeouted
+        {
+            get
+            {
+                if (_ExitCode == null) return false;
+                if ((_ExitCode ?? 0) == 0) return false;
+                return _TimeoutedFlag;
+            }
+        }
+
+        bool _TimeoutedFlag = false;
+
+        public long TookTime
+        {
+            get
+            {
+                if (StartTick == 0 || EndTick == 0) return 0;
+
+                return EndTick - StartTick;
+            }
+        }
 
         public ExecInstance(ExecOptions options)
         {
@@ -386,7 +567,11 @@ namespace IPA.Cores.Basic
                     info.Arguments = options.Arguments._NullIfZeroLen();
                 }
 
+                StartTick = Time.HighResTick64;
+
                 Proc = Process.Start(info);
+
+                this.ProcessId = Proc.Id;
 
                 // 標準入出力を接続する
                 this.StandardPipePoint_MySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
@@ -436,14 +621,18 @@ namespace IPA.Cores.Basic
             {
                 // 終了するまで待機する (Cancel された場合は Kill されるので以下の待機は自動的に解除される)
                 Proc.WaitForExit();
+                if (this.EndTick == 0) this.EndTick = Time.HighResTick64;
             }
             catch (Exception ex)
             {
+                if (this.EndTick == 0) this.EndTick = Time.HighResTick64;
                 ex._Debug();
                 throw;
             }
             finally
             {
+                if (this.EndTick == 0) this.EndTick = Time.HighResTick64;
+
                 // 終了した or 待機に失敗した
                 // 戻り値をセットする
                 try
@@ -460,14 +649,21 @@ namespace IPA.Cores.Basic
                     await this.EasyInputTask._TryAwait();
                 }
 
-                if (this.EasyOutputTask != null)
+                try
                 {
-                    this._EasyOutputData = await this.EasyOutputTask;
-                }
+                    if (this.EasyOutputTask != null)
+                    {
+                        this._EasyOutputData = await this.EasyOutputTask;
+                    }
 
-                if (this.EasyErrorTask != null)
+                    if (this.EasyErrorTask != null)
+                    {
+                        this._EasyErrorData = await this.EasyErrorTask;
+                    }
+                }
+                catch (Exception ex)
                 {
-                    this._EasyErrorData = await this.EasyErrorTask;
+                    ex._Debug();
                 }
 
                 EasyOutputAndErrorDataCompleted = true;
@@ -497,7 +693,14 @@ namespace IPA.Cores.Basic
                 {
                     if (Proc.HasExited == false)
                     {
-                        Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
+                        try
+                        {
+                            Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
+                            _TimeoutedFlag = true;
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
             }

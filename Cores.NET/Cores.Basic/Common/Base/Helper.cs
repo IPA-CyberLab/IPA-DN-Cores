@@ -430,7 +430,10 @@ namespace IPA.Cores.Helper.Basic
         //public static bool _IsSafeAndPrintable(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(c, crlIsOk, html_tag_ng);
 
         [return: NotNullIfNotNull("str")]
-        public static string _NormalizeCrlf(this string str, CrlfStyle style) => Str.NormalizeCrlf(str, style);
+        public static string _NormalizeCrlf(this string str, CrlfStyle style = CrlfStyle.LocalPlatform, bool ensureLastLineCrlf = false) => Str.NormalizeCrlf(str, style, ensureLastLineCrlf);
+
+        [return: NotNullIfNotNull("str")]
+        public static string _NormalizeCrlf(this string str, bool ensureLastLineCrlf) => Str.NormalizeCrlf(str, CrlfStyle.LocalPlatform, ensureLastLineCrlf);
 
         //public static byte[] NormalizeCrlfWindows(this Span<byte> s) => Str.NormalizeCrlfWindows(s);
         //public static byte[] NormalizeCrlfUnix(this Span<byte> s) => Str.NormalizeCrlfUnix(s);
@@ -571,7 +574,7 @@ namespace IPA.Cores.Helper.Basic
         public static T[] _ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 
         public static T? _GetFirstOrNull<T>(this List<T> list) where T : class => (list == null ? null : (list.Count == 0 ? null : list[0]));
-        public static T? _GetFirstOrNull<T>(this T[] list) where T: class => (list == null ? null : (list.Length == 0 ? null : list[0]));
+        public static T? _GetFirstOrNull<T>(this T[] list) where T : class => (list == null ? null : (list.Length == 0 ? null : list[0]));
 
         public static T _GetFirstOrDefault<T>(this List<T> list) where T : struct => (list == null ? default(T) : (list.Count == 0 ? default(T) : list[0]));
         public static T _GetFirstOrDefault<T>(this T[] list) where T : struct => (list == null ? default(T) : (list.Length == 0 ? default(T) : list[0]));
@@ -642,7 +645,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static string _GetStr<T>(this IDictionary<string, T> d, string key, string defaultStr = "")
-            where T: notnull
+            where T : notnull
         {
             try
             {
@@ -726,7 +729,23 @@ namespace IPA.Cores.Helper.Basic
                     break;
                 }
 
-                int sz = await stream.ReadAsync(tmp, cancel);
+                int sz;
+
+                try
+                {
+                    sz = await stream.ReadAsync(tmp, cancel);
+                }
+                catch (Exception ex)
+                {
+                    if (ex._IsCancelException())
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        throw ex;
+                    }
+                }
 
                 if (sz == 0)
                 {
@@ -1178,7 +1197,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [return: NotNullIfNotNull("defaultValue")]
         public static string? _FilledOrDefault(this string? str, string? defaultValue = null) => (str._IsFilled() ? str : defaultValue);
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [return: NotNullIfNotNull("defaultValue")]
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
@@ -1204,7 +1223,7 @@ namespace IPA.Cores.Helper.Basic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T _NullCheck<T>([NotNull] this T? obj, string? paramName = null, Exception? exception = null)
-            where T: class
+            where T : class
         {
             if (obj == null)
             {
