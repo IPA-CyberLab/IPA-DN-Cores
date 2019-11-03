@@ -91,7 +91,7 @@ namespace IPA.Cores.Basic
         public static partial class Ports
         {
             public const int TelnetLogWatcher = 8023;
-            public const int LogServerDefaultServicePort = 7003;
+
             public const int LogServerDefaultHttpPort = 80;
             public const int LogServerDefaultHttpsPort = 443;
 
@@ -111,6 +111,11 @@ namespace IPA.Cores.Basic
             public const int DynamicPortCheckRetryMaxCount = 200;
 
             public static readonly IEnumerable<int> PotentialHttpsPorts = new int[] { Https, Smtps, Pop3s, Imap4s };
+
+            // Unique server ports
+            public const int MistPPPoEServerHttp = 7001;
+            public const int MistPPPoEServerHttps = 7002;
+            public const int LogServerDefaultServicePort = 7003;
         }
 
         public static partial class DaemonArgKeys

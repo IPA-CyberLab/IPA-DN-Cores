@@ -486,7 +486,7 @@ namespace IPA.Cores.Basic
                     {
                         this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                        Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]");
+                        Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]\n");
 
                         this.Daemon.Stop(false);
                     }
