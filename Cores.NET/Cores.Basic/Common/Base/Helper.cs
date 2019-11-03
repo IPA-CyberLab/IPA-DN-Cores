@@ -1809,6 +1809,11 @@ namespace IPA.Cores.Helper.Basic
             => new SeekableStreamBasedRandomAccess(stream, autoDisposeBase);
 
         public static Task<TResult> _TaskResult<TResult>(this TResult result) => Task.FromResult(result);
+
+        public static IOrderedEnumerable<TSource> _Shuffle<TSource>(this IEnumerable<TSource> source)
+        {
+            return source.OrderBy(x => Util.RandSInt63());
+        }
     }
 }
 
