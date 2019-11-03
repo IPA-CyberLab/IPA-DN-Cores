@@ -55,13 +55,19 @@ namespace IPA.Cores.Globals
 
         public static readonly CriticalSection GlobalSuperLock = new CriticalSection();
 
-        public static int NoOp() => VolatileZero;
+        public static int NoOp()
+        {
+            VolatileZero = 0;
+            return 0;
+        }
 
-        public static int DoNothing() => VolatileZero;
+        public static int DoNothing() => NoOp();
 
         public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
 
-        public static string UnixOrWindows(string unix, string windows) => Env.IsUnix ? unix : windows;
+        public static Task SleepAsync(int msecs) => Task.Delay(msecs);
+
+        public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Sync(Action action) => TaskUtil.Sync(action);
