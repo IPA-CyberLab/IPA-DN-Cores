@@ -50,6 +50,11 @@ namespace IPA.Cores.Basic
         public const string SocketConnected = "SocketConnected";
         public const string SocketAccepted = "SocketAccepted";
         public const string SocketDisconnected = "SocketDisconnected";
+
+        public partial class Data
+        {
+            public const string FletsBRASInfo = "FletsBRASInfo";
+        }
     }
 
     public partial class LogKind

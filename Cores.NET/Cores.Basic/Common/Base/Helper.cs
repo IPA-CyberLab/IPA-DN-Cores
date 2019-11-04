@@ -321,7 +321,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsSameTrimi(this string? s, string? t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
 
         public static string[] _GetLines(this string s) => Str.GetLines(s);
-        public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
+        public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
         public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
         public static bool _IsLong(this string s) => Str.IsLong(s);
@@ -1814,6 +1814,10 @@ namespace IPA.Cores.Helper.Basic
         {
             return source.OrderBy(x => Util.RandSInt63());
         }
+
+        public static byte[] _StrToMac(this string src) => Str.StrToMac(src);
+        public static string _NormalizeMac(this string src, string paddingStr = "-", bool lowerStr = false) => Str.NormalizeMac(src, paddingStr, lowerStr);
+        public static string _NormalizeMac(this string src, MacAddressStyle style) => Str.NormalizeMac(src, style);
     }
 }
 

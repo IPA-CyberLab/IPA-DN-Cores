@@ -808,6 +808,13 @@ namespace IPA.Cores.Basic
 
     public delegate bool RemoveStringFunction(string str);
 
+    [Flags]
+    public enum MacAddressStyle
+    {
+        Windows,
+        Linux,
+    }
+
     // 文字列操作
     public static class Str
     {
@@ -899,6 +906,61 @@ namespace IPA.Cores.Basic
 
         static CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        // MAC アドレスをパース
+        public static byte[] StrToMac(string src)
+        {
+            byte[] ret = Str.HexToByte(src);
+            if (ret.Length != 6)
+            {
+                return new byte[6];
+            }
+            return ret;
+        }
+
+        // MAC アドレスを文字列に変換
+        public static string MacToStr(ReadOnlySpan<byte> mac, string src, string paddingStr = "-", bool lowerStr = false)
+        {
+            if (mac.Length > 6)
+            {
+                mac = mac.Slice(0, 6);
+            }
+            else if (mac.Length < 6)
+            {
+                Span<byte> mac2 = new byte[6];
+                mac.CopyTo(mac2);
+                mac = mac2;
+            }
+
+            string str = Str.ByteToHex(mac, paddingStr);
+
+            if (lowerStr) str = str.ToLower();
+
+            return str;
+        }
+        public static string MacToStr(ReadOnlySpan<byte> mac, string src, MacAddressStyle style)
+        {
+            switch (style)
+            {
+                case MacAddressStyle.Linux:
+                    return MacToStr(mac, src, ":", true);
+
+                default:
+                    return MacToStr(mac, src, "-", false);
+            }
+        }
+
+        // MAC アドレスを正規化
+        public static string NormalizeMac(string src, string paddingStr = "-", bool lowerStr = false)
+        {
+            byte[] data = Str.StrToMac(src);
+            return Str.MacToStr(data, src, paddingStr, lowerStr);
+        }
+        public static string NormalizeMac(string src, MacAddressStyle style)
+        {
+            byte[] data = Str.StrToMac(src);
+            return Str.MacToStr(data, src, style);
+        }
 
         // 16 進数文字列を正規化
         public static string NormalizeHexString(string? src, bool lowerCase = false, string padding = "")
@@ -5338,12 +5400,12 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列からキーと値を取得する
-        public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr = Consts.Strings.DefaultSplitStr)
+        public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
         {
             uint mode = 0;
             string keystr = "", valuestr = "";
 
-            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
+            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
 
             foreach (char c in str)
             {
