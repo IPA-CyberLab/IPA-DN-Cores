@@ -706,6 +706,9 @@ namespace IPA.Cores.Basic
 
             if (hostName._IsEmpty()) hostName = "unknown-host";
 
+            hostName = hostName.ToLower();
+            domainName = domainName.ToLower();
+
             return prop;
         }
 

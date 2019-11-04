@@ -253,20 +253,24 @@ namespace IPA.Cores.Basic
             LogPriority priority = data.JsonData!.Priority._ParseEnum(LogPriority.None);
             LogJsonData d = data.JsonData;
 
+            // マシン名の正規化
+            string machineName = d.MachineName?.ToLower() ?? "";
+            if (machineName._IsEmpty()) machineName = "unknown";
+
             if (d.Kind._IsSamei(LogKind.Default))
             {
                 if (priority >= LogPriority.Debug)
-                    Add($"{d.AppName}/{d.MachineName}/Debug");
+                    Add($"{d.AppName}/{machineName}/Debug");
 
                 if (priority >= LogPriority.Info)
-                    Add($"{d.AppName}/{d.MachineName}/Info");
+                    Add($"{d.AppName}/{machineName}/Info");
 
                 if (priority >= LogPriority.Error)
-                    Add($"{d.AppName}/{d.MachineName}/Error");
+                    Add($"{d.AppName}/{machineName}/Error");
             }
             else
             {
-                Add($"{d.AppName}/{d.MachineName}/{d.Kind}");
+                Add($"{d.AppName}/{machineName}/{d.Kind}");
             }
 
             void Add(string filename)
