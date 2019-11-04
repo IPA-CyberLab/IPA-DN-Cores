@@ -77,16 +77,44 @@ namespace IPA.Cores.Globals
         public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Async(Func<Task> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+        public static void Async(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T Async<T>(Func<Task<T>> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+        public static T Async<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task AsyncAwait(Func<Task> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+        public static Task AsyncAwait(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+        public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static IAsyncDisposable AsyncAwaitScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task<T> task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncAwaitScoped);
+
+            return h;
+        }
 
         public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {

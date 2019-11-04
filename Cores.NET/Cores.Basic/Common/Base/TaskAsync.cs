@@ -2093,6 +2093,68 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class AsyncHolder : AsyncHolder<int>
+    {
+        public AsyncHolder(Func<Task> disposeProcAsync, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+            : base(_ => disposeProcAsync(), default, leakCheckKind) { }
+    }
+
+    public class AsyncHolder<T> : IAsyncHolder
+    {
+        public T Value { get; }
+        Func<T, Task> DisposeProcAsync;
+        IHolder? Leak = null;
+        LeakCounterKind LeakKind;
+
+        static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
+
+        public AsyncHolder(Func<T, Task> disposeProcAsync, [AllowNull] T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        {
+            this.Value = value;
+            this.DisposeProcAsync = disposeProcAsync;
+
+            this.LeakKind = leakCheckKind;
+
+            if (FullStackTrace && leakCheckKind != LeakCounterKind.DoNotTrack)
+            {
+                Leak = LeakChecker.Enter(leakCheckKind);
+            }
+            else
+            {
+                LeakChecker.IncrementLeakCounter(this.LeakKind);
+            }
+        }
+
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            try
+            {
+                if (DisposeProcAsync != null)
+                    await DisposeProcAsync(Value);
+            }
+            finally
+            {
+                if (Leak != null)
+                    Leak._DisposeSafe();
+                else
+                    LeakChecker.DecrementLeakCounter(this.LeakKind);
+            }
+        }
+    }
+
     public struct ValueHolder<T> : IHolder
     {
         public T Value { get; }
@@ -2142,6 +2204,8 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public interface IAsyncHolder : IDisposable, IAsyncDisposable { }
 
     public interface IHolder : IDisposable { }
 
