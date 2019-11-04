@@ -13,7 +13,15 @@ info="update_daemon_git.sh: updating the git commit ID to '$1' ..."
 
 logger ${info}
 
-git stash && git submodule foreach 'git stash' && git fetch --tags --recurse-submodules=yes && git checkout --force --no-recurse-submodules $1 && git submodule update --init --recursive --force
+git stash
+
+git submodule foreach 'git stash'
+
+git fetch --tags --recurse-submodules=yes
+
+git checkout --force --no-recurse-submodules $1
+
+git submodule update --init --recursive --force
 
 info="update_daemon_git.sh: OK! Commit ID :'$1'."
 

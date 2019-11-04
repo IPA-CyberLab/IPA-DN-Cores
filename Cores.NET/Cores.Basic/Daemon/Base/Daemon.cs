@@ -776,6 +776,7 @@ namespace IPA.Cores.Basic
                         if (p.ExitCode == 0)
                         {
                             // Git 更新に成功した場合はプロセスを再起動する
+                            log.WriteLine($"Git command '{info.Arguments}' result:\n{err1}\n{err2}");
                             log.WriteLine("DaemonCenter Client: Update completed. Rebooting...");
 
                             try
