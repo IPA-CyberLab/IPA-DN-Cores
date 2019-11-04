@@ -627,7 +627,7 @@ namespace IPA.Cores.Basic
 
             LogClientInstaller installer = new LogClientInstaller(new LogClientOptions(null, cliSsl, Settings.LogServerHost, Settings.LogServerPort),
                 this.Daemon.Name,
-                Settings.LogServerFilter, 
+                Settings.LogServerFilter,
                 LogPriority.Debug.ParseAsDefault(Settings.LogServerMinimalPriority));
 
             return installer;
@@ -912,6 +912,26 @@ namespace IPA.Cores.Basic
                                     stopCommand = $"{Env.AppRealProcessExeFileName} /cmd:{cmdName} stop";
                                 }
 
+                                StringWriter envListStr = new StringWriter();
+
+                                string[] envNamesList = { "GIT_SSH", "HTTPS_PROXY", "HTTP_PROXY", "LANG", "PATH" };
+
+                                foreach (string envName in envNamesList)
+                                {
+                                    string? envValue = Environment.GetEnvironmentVariable(envName);
+                                    if (envValue._IsFilled())
+                                    {
+                                        envValue = envValue.Trim();
+                                        if (envValue._IsFilled())
+                                        {
+                                            if (envValue._NormalizeCrlf()._InStr("\n") == false && envValue._InStr("=") == false)
+                                            {
+                                                envListStr.WriteLine($"Environment={envName}={envValue}");
+                                            }
+                                        }
+                                    }
+                                }
+
                                 templateBody = templateBody._ReplaceStrWithReplaceClass(new
                                 {
                                     _EXE_ = Env.AppExecutableExeOrDllFileName,
@@ -921,6 +941,7 @@ namespace IPA.Cores.Basic
                                     _STOP_ = stopCommand,
                                     _PIDFILE_ = PP.Combine(Env.AppRootDir, $@"Local/DaemonPid/{daemon.Name}.pid"),
                                     _DIR_ = Env.AppRootDir,
+                                    _ADDITIONAL_ENV_ = envListStr.ToString(),
                                 });
 
                                 // すでに以前の定義ファイルが存在しているか?
