@@ -601,6 +601,9 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<Func<string>> LogSocketDir = new Func<string>(() => Path.Combine(LogRootDir, "Socket"));
             public static readonly Copenhagen<LogSwitchType> SwitchTypeForSocket = LogSwitchType.Day;
             public static readonly Copenhagen<LogInfoOptions> InfoOptionsForSocket = new LogInfoOptions() { WithTypeName = true, WriteAsJsonFormat = true, WithTag = true, WithGuid = true };
+
+            // DaemonUpdate log
+            public static readonly Copenhagen<Func<string>> LogDaemonUpdateDir = new Func<string>(() => Path.Combine(LogRootDir, "DaemonUpdate"));
         }
     }
 }

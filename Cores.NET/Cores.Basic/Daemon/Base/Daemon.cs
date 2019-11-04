@@ -712,8 +712,34 @@ namespace IPA.Cores.Basic
             }
             else
             {
+                // 以下のログは、ログファイルへの保存が不能であるため
+                // 代わりに Log/DaemonUpdate/YYYYMMDD_HH.log に保存する
+                string logFileName = Path.Combine(CoresConfig.LocalLogRouterSettings.LogDaemonUpdateDir.Value(), DateTime.Now.ToString("yyyyMMdd_HH") + ".log");
+
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(logFileName));
+                }
+                catch { }
+
+                StreamWriter log;
+
+                try
+                {
+                    log = new StreamWriter(logFileName, true, Str.Utf8Encoding);
+                    log.AutoFlush = true;
+                }
+                catch
+                {
+                    log = StreamWriter.Null;
+                }
+
+                log.WriteLine("----------------------------------------");
+                log.WriteLine(DateTimeOffset.Now._ToDtStr());
+                log.WriteLine("DaemonCenter: DaemonCenterRestartRequestedCallback() Update Routine");
+
                 // Git Commit ID に変化がある場合
-                Con.WriteError($"DaemonCenter Client: NextCommitId = '{commitId}'");
+                log.WriteLine($"DaemonCenter Client: NextCommitId = '{commitId}'");
 
                 // git のローカルリポジトリの update を試みる
                 // Prepare update_daemon_git.sh
@@ -733,7 +759,7 @@ namespace IPA.Cores.Basic
                     WorkingDirectory = Env.AppRootDir,
                 };
 
-                Con.WriteError($"DaemonCenter Client: Trying to execute {info.FileName} {info.Arguments} ...");
+                log.WriteLine($"DaemonCenter Client: Trying to execute {info.FileName} {info.Arguments} ...");
                 try
                 {
                     using (Process p = Process.Start(info))
@@ -750,21 +776,35 @@ namespace IPA.Cores.Basic
                         if (p.ExitCode == 0)
                         {
                             // Git 更新に成功した場合はプロセスを再起動する
-                            Con.WriteError("DaemonCenter Client: Update completed. Rebooting...");
+                            log.WriteLine("DaemonCenter Client: Update completed. Rebooting...");
+
+                            try
+                            {
+                                log.Flush();
+                            }
+                            catch { }
 
                             Environment.Exit(Consts.ExitCodes.DaemonCenterRebootRequestd_GitUpdated);
                         }
                         else
                         {
-                            Con.WriteError($"Git command '{info.Arguments}' execution error code: {p.ExitCode}");
-                            Con.WriteError($"Git command '{info.Arguments}' result:\n{err1}\n{err2}");
+                            log.WriteLine($"Git command '{info.Arguments}' execution error code: {p.ExitCode}");
+                            log.WriteLine($"Git command '{info.Arguments}' result:\n{err1}\n{err2}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Con.WriteError($"Git command '{info.Arguments}' execution error: {ex.Message}");
+                    log.WriteLine($"Git command '{info.Arguments}' execution error: {ex.Message}");
                 }
+
+                log.WriteLine("Exiting the process with code 0...");
+
+                try
+                {
+                    log.Flush();
+                }
+                catch { }
 
                 // 失敗した場合はエラーコード 0 で終了する (Daemon を完全終了し、再起動させない)
                 Environment.Exit(Consts.ExitCodes.NoError);
