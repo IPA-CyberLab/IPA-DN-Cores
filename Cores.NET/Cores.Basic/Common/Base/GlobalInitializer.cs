@@ -36,7 +36,7 @@ namespace IPA.Cores.Basic
         public DebugMode DebugMode { get; private set; }
         public bool PrintStatToConsole { get; private set; }
         public bool RecordLeakFullStack { get; private set; }
-        public CoresMode Mode { get; }
+        public CoresMode Mode { get; private set; }
         public string AppName { get; }
 
         public CoresLibOptions(CoresMode mode, string appName, DebugMode defaultDebugMode = DebugMode.Debug, bool defaultPrintStatToConsole = false, bool defaultRecordLeakFullStack = false)
@@ -49,6 +49,11 @@ namespace IPA.Cores.Basic
             this.AppName = appName._NonNullTrim();
 
             if (this.AppName._IsEmpty()) throw new ArgumentNullException("AppName");
+        }
+
+        public void InternalSetMode(EnsureInternal yes, CoresMode mode)
+        {
+            this.Mode = mode;
         }
 
         public string[] OverrideOptionsByArgs(string[] args)
@@ -143,26 +148,32 @@ namespace IPA.Cores.Basic
                 CoresLib.LogFileSuffix = "";
 
 #if CORES_BASIC_DAEMON
-                if (CoresLib.mode == CoresMode.Daemon)
-                {
-                    // Daemon モードの場合は LogFileSuffix を決定するためにスタートアップ引数を先読みして動作モードを決定する
-                    bool isDaemonExecMode = false;
+                // Daemon モードの場合は LogFileSuffix を決定するためにスタートアップ引数を先読みして動作モードを決定する
+                bool isDaemonExecMode = false;
 
-                    foreach (string arg in args)
+                foreach (string arg in args)
+                {
+                    DaemonCmdType type = arg._ParseEnum(DaemonCmdType.Unknown);
+                    if (type.EqualsAny(DaemonCmdType.ExecMain, DaemonCmdType.Test, DaemonCmdType.TestDebug, DaemonCmdType.WinExecSvc))
                     {
-                        DaemonCmdType type = arg._ParseEnum(DaemonCmdType.Unknown);
-                        if (type.EqualsAny(DaemonCmdType.ExecMain, DaemonCmdType.Test, DaemonCmdType.TestDebug, DaemonCmdType.WinExecSvc))
+                        if (CoresLib.mode == CoresMode.Daemon || args.Where(x => x._InStr("daemon", true)).Any())
                         {
+                            // 明示的に CoresLib.Mode == Daemon と指定された場合か、
+                            // またはコマンドライン引数によって Daemon である旨が指定された場合
                             isDaemonExecMode = true;
                             break;
                         }
                     }
+                }
 
-                    if (isDaemonExecMode)
-                    {
-                        // Daemon のメイン処理を実行するモードのようであるから LogFileSuffix にそのことがわかる文字列を設定する
-                        CoresLib.LogFileSuffix = Consts.Strings.DaemonExecModeLogFileSuffix;
-                    }
+                if (isDaemonExecMode)
+                {
+                    // Daemon のメイン処理を実行するモードのようであるから LogFileSuffix にそのことがわかる文字列を設定する
+                    CoresLib.LogFileSuffix = Consts.Strings.DaemonExecModeLogFileSuffix;
+
+                    CoresLib.Mode = CoresMode.Daemon;
+
+                    options.InternalSetMode(EnsureInternal.Yes, CoresMode.Daemon);
                 }
 #endif
 
