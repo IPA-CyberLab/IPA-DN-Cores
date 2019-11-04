@@ -126,7 +126,7 @@ namespace IPA.Cores.Basic
 
                                         foreach (var sock in list)
                                         {
-                                            string tmp = $"#{sock.Id}: " + sock._GetObjectDump();
+                                            string tmp = sock._GetObjectDump();
                                             w.WriteLine(tmp);
                                         }
 
