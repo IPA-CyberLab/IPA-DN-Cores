@@ -308,6 +308,9 @@ namespace IPA.Cores.Basic
         public string DaemonCenterRpcUrl = "";
 
         [DataMember]
+        public bool DaemonCenterUseProxy = false;
+
+        [DataMember]
         public string DaemonCenterCertSha = "";
 
         [DataMember]
@@ -598,6 +601,7 @@ namespace IPA.Cores.Basic
                 HostName = hostData.FqdnHostName,
                 ServerUrl = Settings.DaemonCenterRpcUrl,
                 ServerCertSha = Settings.DaemonCenterCertSha,
+                UseProxy = Settings.DaemonCenterUseProxy,
             };
 
             ClientVariables vars = new ClientVariables

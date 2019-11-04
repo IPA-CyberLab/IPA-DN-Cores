@@ -72,6 +72,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
     {
         public string? ServerUrl;
         public string? ServerCertSha;
+        public bool UseProxy;
 
         public string? AppId;
         public string? HostName;
@@ -138,8 +139,8 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 webOptions.Settings.SslAcceptAnyCerts = false;
             }
 
-            // Proxy は使用しないようにする
-            webOptions.Settings.UseProxy = false;
+            // Proxy の利用設定
+            webOptions.Settings.UseProxy = settings.UseProxy;
 
             // RPC Client を作成する
             this.RpcClient = new JsonRpcHttpClient(this.Settings.ServerUrl._NullCheck(), webOptions);
