@@ -66,12 +66,12 @@ namespace IPA.Cores.Basic
 
         public new NetAppStubOptionsBase Options => (NetAppStubOptionsBase)base.Options;
 
-        public NetAppStubBase(PipePoint lower, NetAppStubOptionsBase options, CancellationToken cancel = default)
+        public NetAppStubBase(PipePoint lower, NetAppStubOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false)
             : base(options, cancel)
         {
             try
             {
-                LowerAttach = lower.Attach(AttachDirection.B_UpperSide);
+                LowerAttach = lower.Attach(AttachDirection.B_UpperSide, noCheckDisconnected);
                 Lower = lower;
 
                 AddIndirectDisposeLink(Lower);
@@ -89,11 +89,14 @@ namespace IPA.Cores.Basic
 
     public class NetAppStub : NetAppStubBase
     {
+        readonly bool NoCheckDisconnected = false;
+
         public new NetAppStubOptions Options => (NetAppStubOptions)base.Options;
 
-        public NetAppStub(PipePoint lower, CancellationToken cancel = default, NetAppStubOptions? options = null)
-            : base(lower, options ?? new NetAppStubOptions(), cancel)
+        public NetAppStub(PipePoint lower, CancellationToken cancel = default, NetAppStubOptions? options = null, bool noCheckDisconnected = false)
+            : base(lower, options ?? new NetAppStubOptions(), cancel, noCheckDisconnected)
         {
+            this.NoCheckDisconnected = noCheckDisconnected;
         }
 
         CriticalSection LockObj = new CriticalSection();
@@ -124,7 +127,11 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                Lower.CheckCanceledAndNoMoreData();
+                if (NoCheckDisconnected == false)
+                {
+                    Lower.CheckCanceledAndNoMoreData();
+                }
+
                 return this.LowerAttach;
             }
         }
@@ -154,7 +161,7 @@ namespace IPA.Cores.Basic
 
         public new NetProtocolOptionsBase Options => (NetProtocolOptionsBase)base.Options;
 
-        public NetProtocolBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default)
+        public NetProtocolBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false)
             : base(options, cancel)
         {
             try
@@ -164,7 +171,7 @@ namespace IPA.Cores.Basic
                     upper = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
                 }
 
-                UpperAttach = upper.Attach(AttachDirection.A_LowerSide);
+                UpperAttach = upper.Attach(AttachDirection.A_LowerSide, noCheckDisconnected: noCheckDisconnected);
                 Upper = upper;
 
                 AddIndirectDisposeLink(Upper);
@@ -184,7 +191,7 @@ namespace IPA.Cores.Basic
     {
         public new NetBottomProtocolOptionsBase Options => (NetBottomProtocolOptionsBase)base.Options;
 
-        public NetBottomProtocolStubBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetBottomProtocolStubBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false) : base(upper, options, cancel, noCheckDisconnected)
         {
         }
     }
@@ -202,7 +209,7 @@ namespace IPA.Cores.Basic
 
         public new NetTcpProtocolOptionsBase Options => (NetTcpProtocolOptionsBase)base.Options;
 
-        public NetTcpProtocolStubBase(PipePoint? upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default) : base(upper, options, cancel)
+        public NetTcpProtocolStubBase(PipePoint? upper, NetTcpProtocolOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false) : base(upper, options, cancel, noCheckDisconnected)
         {
         }
 
@@ -292,8 +299,8 @@ namespace IPA.Cores.Basic
 
         IpConnectionRateLimiter? RateLimiter = null;
 
-        public NetPalTcpProtocolStub(PipePoint? upper = null, NetPalTcpProtocolOptions? options = null, CancellationToken cancel = default)
-            : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel)
+        public NetPalTcpProtocolStub(PipePoint? upper = null, NetPalTcpProtocolOptions? options = null, CancellationToken cancel = default, bool noCheckDisconnected = false)
+            : base(upper, options ?? new NetPalTcpProtocolOptions(), cancel, noCheckDisconnected)
         {
         }
 
@@ -648,12 +655,12 @@ namespace IPA.Cores.Basic
 
         public new NetMiddleProtocolOptionsBase Options => (NetMiddleProtocolOptionsBase)base.Options;
 
-        public NetMiddleProtocolStackBase(PipePoint lower, PipePoint? upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default)
-            : base(upper, options, cancel)
+        public NetMiddleProtocolStackBase(PipePoint lower, PipePoint? upper, NetMiddleProtocolOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false)
+            : base(upper, options, cancel, noCheckDisconnected)
         {
             try
             {
-                LowerAttach = AddIndirectDisposeLink(lower.Attach(AttachDirection.B_UpperSide));
+                LowerAttach = AddIndirectDisposeLink(lower.Attach(AttachDirection.B_UpperSide, noCheckDisconnected: noCheckDisconnected));
                 Lower = AddIndirectDisposeLink(lower);
 
                 Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);

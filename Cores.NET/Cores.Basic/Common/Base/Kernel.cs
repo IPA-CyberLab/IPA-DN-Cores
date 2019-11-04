@@ -587,10 +587,10 @@ namespace IPA.Cores.Basic
 
                 if (options.Flags.Bit(ExecFlags.EasyInputOutputMode))
                 {
-                    this.EasyInputOutputStub = this._InputOutputPipePoint.GetNetAppProtocolStub();
+                    this.EasyInputOutputStub = this._InputOutputPipePoint.GetNetAppProtocolStub(noCheckDisconnected: true);
                     this.EasyInputOutputStream = this.EasyInputOutputStub.GetStream();
 
-                    this.EasyErrorStub = this._ErrorPipePoint.GetNetAppProtocolStub();
+                    this.EasyErrorStub = this._ErrorPipePoint.GetNetAppProtocolStub(noCheckDisconnected: true);
                     this.EasyErrorStream = this.EasyErrorStub.GetStream();
 
                     if (options.EasyInputStr != null)

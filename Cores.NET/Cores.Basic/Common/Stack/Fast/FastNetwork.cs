@@ -416,13 +416,13 @@ namespace IPA.Cores.Basic
         internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
         internal AttachHandle? _InternalCurrentAttachHandle = null;
 
-        public AttachHandle Attach(AttachDirection attachDirection, object? userState = null) => new AttachHandle(this, attachDirection, userState);
+        public AttachHandle Attach(AttachDirection attachDirection, object? userState = null, bool noCheckDisconnected = false) => new AttachHandle(this, attachDirection, userState, noCheckDisconnected);
 
         internal PipeStream _InternalGetStream(bool autoFlush = true)
             => new PipeStream(this, autoFlush);
 
-        public NetAppStub GetNetAppProtocolStub(CancellationToken cancel = default)
-            => new NetAppStub(this, cancel);
+        public NetAppStub GetNetAppProtocolStub(CancellationToken cancel = default, bool noCheckDisconnected = false)
+            => new NetAppStub(this, cancel, noCheckDisconnected: noCheckDisconnected);
 
         public void CheckCanceled() => Pipe.CheckDisconnected();
         public void CheckCanceledAndNoMoreData() => Pipe.CheckDisconnectedAndNoMoreData();
@@ -449,7 +449,7 @@ namespace IPA.Cores.Basic
         IHolder Leak;
         CriticalSection LockObj = new CriticalSection();
 
-        public AttachHandle(PipePoint end, AttachDirection attachDirection, object? userState = null) : base()
+        public AttachHandle(PipePoint end, AttachDirection attachDirection, object? userState = null, bool noCheckDisconnected = false) : base()
         {
             try
             {
@@ -461,7 +461,10 @@ namespace IPA.Cores.Basic
                 if (attachDirection != Direction)
                     throw new ArgumentException($"attachDirection ({attachDirection}) != {Direction}");
 
-                end.CheckCanceledAndNoMoreData();
+                if (noCheckDisconnected == false)
+                {
+                    end.CheckCanceledAndNoMoreData();
+                }
 
                 lock (end._InternalAttachHandleLock)
                 {
