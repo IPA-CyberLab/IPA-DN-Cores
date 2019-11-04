@@ -42,6 +42,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net.NetworkInformation;
 
 namespace IPA.Cores.Basic
 {
@@ -56,6 +57,7 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<int> ConnectTimeout = 15 * 1000;
             public static readonly Copenhagen<int> DnsTimeout = 15 * 1000;
+            public static readonly Copenhagen<int> DnsTimeoutForSendPing = 8 * 1000;
         }
     }
 
@@ -336,6 +338,8 @@ namespace IPA.Cores.Basic
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
         protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
 
+        protected abstract Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout);
+
         AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
 
         public TcpIpSystem(TcpIpSystemParam param) : base(param)
@@ -346,6 +350,36 @@ namespace IPA.Cores.Basic
         }
 
         public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
+
+        public async Task<SendPingReply> SendPingAsync(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
+            int timeout = Consts.Timeouts.DefaultSendPingTimeout, int dnsTimeout = 0, CancellationToken dnsCancel = default)
+        {
+            try
+            {
+                if (dnsTimeout <= 0) dnsTimeout = CoresConfig.TcpIpStackDefaultSettings.DnsTimeoutForSendPing;
+
+                var ip = await this.GetIpAsync(hostName, v4v6, dnsTimeout, dnsCancel);
+
+                return await SendPingAsync(ip, data, timeout);
+            }
+            catch (Exception ex)
+            {
+                return new SendPingReply(IPStatus.Unknown, default, ex);
+            }
+        }
+        public SendPingReply SendPing(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
+            int timeout = Consts.Timeouts.DefaultSendPingTimeout, int dnsTimeout = 0, CancellationToken dnsCancel = default)
+            => SendPingAsync(hostName, v4v6, data, timeout, dnsTimeout, dnsCancel)._GetResult();
+
+        public async Task<SendPingReply> SendPingAsync(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
+        {
+            if (data == null) data = Util.Rand(Consts.Numbers.DefaultSendPingSize);
+            if (timeout <= 0) timeout = Consts.Timeouts.DefaultSendPingTimeout;
+
+            return await SendPingImplAsync(target, data, timeout);
+        }
+        public SendPingReply SendPing(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
+            => SendPingAsync(target, data, timeout)._GetResult();
 
         public async Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
@@ -519,5 +553,38 @@ namespace IPA.Cores.Basic
             return ret ?? new HashSet<IPAddress>();
         }
     }
+
+    // Ping 応答
+    public class SendPingReply
+    {
+        public TimeSpan RttTimeSpan { get; }
+
+        public double RttDouble { get; }
+
+        public IPStatus Status { get; }
+
+        public bool Ok { get; }
+
+        public Exception? OptionalException { get; }
+
+        public SendPingReply(IPStatus status, TimeSpan span, Exception? optionalException)
+        {
+            this.Status = status;
+
+            if (this.Status == IPStatus.Success)
+            {
+                this.RttTimeSpan = span;
+                this.RttDouble = span.Ticks / 10000000.0;
+                Ok = true;
+            }
+            else
+            {
+                Ok = false;
+
+                this.OptionalException = optionalException;
+            }
+        }
+    }
+
 }
 

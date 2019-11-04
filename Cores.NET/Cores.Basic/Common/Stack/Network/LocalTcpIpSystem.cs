@@ -128,6 +128,11 @@ namespace IPA.Cores.Basic
         }
 
         public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe() => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes);
+
+        protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout)
+        {
+            return Legacy.SendPing.SendAsync(target, data, timeout);
+        }
     }
 }
 

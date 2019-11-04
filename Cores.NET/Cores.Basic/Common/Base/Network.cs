@@ -307,6 +307,47 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        // Ping 送信
+        public static class SendPing
+        {
+            public static async Task<SendPingReply> SendAsync(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
+            {
+                try
+                {
+                    if (data == null)
+                    {
+                        data = Util.Rand(Consts.Numbers.DefaultSendPingSize);
+                    }
+                    if (timeout == 0)
+                    {
+                        timeout = Consts.Timeouts.DefaultSendPingTimeout;
+                    }
+
+                    using (Ping p = new Ping())
+                    {
+                        DateTime startDateTime = Time.NowHighResDateTimeUtc;
+
+                        PingReply ret = await p.SendPingAsync(target, timeout, data);
+
+                        DateTime endDateTime = Time.NowHighResDateTimeUtc;
+
+                        TimeSpan span = endDateTime - startDateTime;
+
+                        SendPingReply r = new SendPingReply(ret.Status, span, null);
+
+                        return r;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return new SendPingReply(IPStatus.Unknown, default, ex);
+                }
+            }
+            public static SendPingReply Send(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
+                => SendAsync(target, data, timeout)._GetResult();
+        }
+
     }
 
     // IP アドレスの種類
@@ -2813,106 +2854,6 @@ namespace IPA.Cores.Basic
                 }
 
                 return true;
-            }
-        }
-
-        // Ping 応答
-        public class SendPingReply
-        {
-            public TimeSpan RttTimeSpan { get; }
-
-            public double RttDouble { get; }
-
-            internal IPStatus Status { get; }
-
-            public bool Ok { get; }
-
-            public object? UserObject { get; }
-
-            internal SendPingReply(IPStatus status, TimeSpan span, object? userObject)
-            {
-                this.Status = status;
-                this.UserObject = userObject;
-
-                if (this.Status == IPStatus.Success)
-                {
-                    this.RttTimeSpan = span;
-                    this.RttDouble = span.Ticks / 10000000.0;
-                    Ok = true;
-                }
-                else
-                {
-                    Ok = false;
-                }
-            }
-        }
-
-        // Ping 送信
-        public class SendPing
-        {
-            public const int DefaultSendSize = 32;
-            public const int DefaultTimeout = 1000;
-
-            public static SendPingReply Send(IPAddress target)
-            {
-                return Send(target, 0);
-            }
-            public static SendPingReply Send(IPAddress target, int timeout)
-            {
-                return Send(target, null, timeout);
-            }
-            public static SendPingReply Send(string target)
-            {
-                return Send(target, 0);
-            }
-            public static SendPingReply Send(string target, int timeout)
-            {
-                return Send(target, null, timeout);
-            }
-            public static SendPingReply Send(string target, byte[]? data)
-            {
-                return Send(target, data, 0);
-            }
-            public static SendPingReply Send(string target, byte[]? data, int timeout)
-            {
-                return Send(Domain.GetIP46(target, true)![0], data, timeout);
-            }
-            public static SendPingReply Send(IPAddress target, byte[]? data)
-            {
-                return Send(target, data, 0);
-            }
-            public static SendPingReply Send(IPAddress target, byte[]? data, int timeout)
-            {
-                try
-                {
-                    if (data == null)
-                    {
-                        data = Secure.Rand(DefaultSendSize);
-                    }
-                    if (timeout == 0)
-                    {
-                        timeout = DefaultTimeout;
-                    }
-
-                    using (Ping p = new Ping())
-                    {
-                        DateTime startDateTime = Time.NowHighResDateTimeUtc;
-
-                        PingReply ret = p.Send(target, timeout, data);
-
-                        DateTime endDateTime = Time.NowHighResDateTimeUtc;
-
-                        TimeSpan span = endDateTime - startDateTime;
-
-                        SendPingReply r = new SendPingReply(ret.Status, span, null);
-
-                        return r;
-                    }
-                }
-                catch
-                {
-                    return new SendPingReply(IPStatus.Unknown, new TimeSpan(), null);
-                }
             }
         }
 

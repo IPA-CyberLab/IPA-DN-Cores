@@ -227,7 +227,7 @@ namespace IPA.Cores.Basic
 
             if (debug)
             {
-                Dbg.WriteLine($"ExecAsync: Starting process '{fileName}' with arguments '{arguments}' ...");
+                Dbg.WriteLine($"ExecAsync: --- Starting process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\" ---");
             }
 
             EasyExecResult result;
@@ -249,13 +249,13 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                Dbg.WriteLine($"Error on starting process '{fileName}' with arguments '{arguments}'. Exception: {ex.Message}");
+                Dbg.WriteLine($"Error on starting process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\". Exception: {ex.Message}");
                 throw;
             }
 
             if (debug)
             {
-                Dbg.WriteLine($"ExecAsync: The result of process '{fileName}' with arguments '{arguments}': " + result.ToString(Str.GetCrlfStr(), false));
+                Dbg.WriteLine($"ExecAsync: The result of process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\": " + result.ToString(Str.GetCrlfStr(), false));
             }
 
             if (throwOnErrorExitCode)
@@ -329,7 +329,18 @@ namespace IPA.Cores.Basic
         {
             List<string> w = new List<string>();
 
-            w.Add($"Command: \"{Instance.Options.FileName}\"");
+            string argsStr;
+
+            if (Instance.Options.ArgumentsList != null)
+            {
+                argsStr = Instance.Options.ArgumentsList._Combine(" ");
+            }
+            else
+            {
+                argsStr = Instance.Options.Arguments;
+            }
+
+            w.Add($"Command: \"{Instance.Options.FileName}{(argsStr._IsFilled() ? " " : "")}{argsStr}\"");
             if (Instance.ExitCode == 0)
             {
                 w.Add($"Result: OK (Exit code = 0)");
@@ -342,27 +353,18 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    w.Add($"Result: Error Timed Out");
+                    w.Add($"Result: Timeout Error");
                 }
             }
 
             w.Add($"Took time: {TookTime._ToString3()}");
             w.Add($"Process Id: {ProcessId}");
 
-            if (Instance.Options.ArgumentsList != null)
-            {
-                w.Add($"Arguments: \"{Instance.Options.ArgumentsList._Combine(" ")}\"");
-            }
-            else
-            {
-                w.Add($"Arguments: \"{Instance.Options.Arguments}\"");
-            }
-
             string errorStr = oneLine ? this.ErrorStr._OneLine(" / ") : this.ErrorStr;
             string outputStr = oneLine ? this.OutputStr._OneLine(" / ") : this.OutputStr;
 
-            if (this.ErrorStr._IsFilled()) w.Add($"ErrorStr: \"{errorStr}\"");
-            if (this.OutputStr._IsFilled()) w.Add($"OutputStr: \"{outputStr}\"");
+            if (this.ErrorStr._IsFilled()) w.Add($"ErrorStr: \"{errorStr.Trim()}\"");
+            if (this.OutputStr._IsFilled()) w.Add($"OutputStr: \"{outputStr.Trim()}\"");
 
             return w._Combine(separator);
         }

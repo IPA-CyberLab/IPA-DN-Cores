@@ -78,6 +78,8 @@ namespace IPA.Cores.Basic
 
             public static readonly int MaxYear = (Util.MaxDateTimeValue.Year - 1);
             public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
+
+            public const int DefaultSendPingSize = 32;
         }
 
         public static partial class MaxLens
@@ -318,6 +320,8 @@ namespace IPA.Cores.Basic
             public const int DaemonStopLogFinish = 15 * 1000;
 
             public const int DefaultEasyExecTimeout = 60 * 1000;
+
+            public const int DefaultSendPingTimeout = 1 * 1000;
         }
 
         public static partial class LinuxCommands
