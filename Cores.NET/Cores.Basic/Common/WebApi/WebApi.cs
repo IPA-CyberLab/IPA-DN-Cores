@@ -540,13 +540,17 @@ namespace IPA.Cores.Basic
         public int StatusCode { get; }
         public string? ContentType { get; }
 
+        public ReadOnlyMemory<byte> PreData { get; }
+        public ReadOnlyMemory<byte> PostData { get; }
+
         public Stream Stream { get; }
         public long Offset { get; }
         public long? Length { get; }
 
         public bool DisposeStream { get; }
 
-        public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true)
+        public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true,
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -560,6 +564,8 @@ namespace IPA.Cores.Basic
             this.Length = length;
             this.ContentType = contentType;
             this.StatusCode = statusCode;
+            this.PreData = preData;
+            this.PostData = postData;
 
             this.DisposeStream = disposeStream;
         }
@@ -594,8 +600,9 @@ namespace IPA.Cores.Basic
     // 指定されたファイルを HTTP 応答するクラス
     public class HttpFileResult : HttpResult
     {
-        public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true)
-            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true) { }
+        public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true,
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
+            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData) { }
     }
 }
 

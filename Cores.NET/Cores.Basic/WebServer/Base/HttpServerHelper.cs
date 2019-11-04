@@ -61,12 +61,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static async Task _SendHttpResultAsync(this HttpResponse h, HttpResult result, CancellationToken cancel = default)
         {
-            if (result.Offset != 0)
-            {
-                result.Stream.Seek(result.Offset, SeekOrigin.Begin);
-            }
+            result.Stream.Seek(result.Offset, SeekOrigin.Begin);
 
-            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel);
+            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData);
         }
 
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
@@ -101,12 +98,17 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default,
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
         {
             h.ContentType = contentsType;
-            h.ContentLength = count;
+            h.ContentLength = count + preData.Length + postData.Length;
+
+            if (preData.IsEmpty == false) await h.Body.WriteAsync(preData, cancel);
 
             await StreamCopyOperation.CopyToAsync(sourceStream, h.Body, count, cancel);
+
+            if (postData.IsEmpty == false) await h.Body.WriteAsync(postData, cancel);
         }
 
         // From: https://github.com/aspnet/HttpAbstractions/blob/31a836c9f35987c736161bf6e3f763517da8d504/src/Microsoft.AspNetCore.Http.Extensions/SendFileResponseExtensions.cs

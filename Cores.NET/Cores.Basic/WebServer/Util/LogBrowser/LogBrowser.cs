@@ -218,7 +218,27 @@ namespace IPA.Cores.Basic
                             mimeType = Consts.MimeTypes.Text;
                         }
 
-                        return new HttpFileResult(file, readStart, readSize, mimeType);
+                        byte[] preData = new byte[0];
+
+                        if (readSize != 0 && fileSize >= 3)
+                        {
+                            try
+                            {
+                                // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
+                                // 応答データに先頭にも BOM を付ける
+                                byte[] bom = new byte[3];
+                                if (await file.ReadRandomAsync(0, bom, cancel) == 3)
+                                {
+                                    if (Str.BOM_UTF_8._MemEquals(bom))
+                                    {
+                                        preData = bom;
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        return new HttpFileResult(file, readStart, readSize, mimeType, preData: preData);
                     }
                     catch
                     {
