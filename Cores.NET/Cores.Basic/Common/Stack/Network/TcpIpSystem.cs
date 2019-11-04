@@ -334,11 +334,13 @@ namespace IPA.Cores.Basic
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
         protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
+        protected abstract int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev);
+        protected abstract void UnregisterHostInfoChangedEventImpl(int registerId);
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
         protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
 
-        protected abstract Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout);
+        protected abstract Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel);
 
         AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
 
@@ -351,32 +353,45 @@ namespace IPA.Cores.Basic
 
         public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
 
+        public int RegisterHostInfoChangedEvent(AsyncAutoResetEvent ev) => RegisterHostInfoChangedEventImpl(ev);
+        public void UnregisterHostInfoChangedEvent(int registerId) => UnregisterHostInfoChangedEventImpl(registerId);
+
+
         public async Task<SendPingReply> SendPingAsync(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
-            int timeout = Consts.Timeouts.DefaultSendPingTimeout, int dnsTimeout = 0, CancellationToken dnsCancel = default)
+            int pingTimeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default, int dnsTimeout = 0, CancellationToken dnsCancel = default)
         {
-            try
+            using (CreatePerTaskCancellationToken(out CancellationToken opPingCancel, dnsCancel))
             {
-                if (dnsTimeout <= 0) dnsTimeout = CoresConfig.TcpIpStackDefaultSettings.DnsTimeoutForSendPing;
+                using (CreatePerTaskCancellationToken(out CancellationToken opDnsCancel, dnsCancel))
+                {
+                    using (EnterCriticalCounter())
+                    {
+                        try
+                        {
+                            if (dnsTimeout <= 0) dnsTimeout = CoresConfig.TcpIpStackDefaultSettings.DnsTimeoutForSendPing;
 
-                var ip = await this.GetIpAsync(hostName, v4v6, dnsTimeout, dnsCancel);
+                            var ip = await this.GetIpAsync(hostName, v4v6, dnsTimeout, opDnsCancel);
 
-                return await SendPingAsync(ip, data, timeout);
-            }
-            catch (Exception ex)
-            {
-                return new SendPingReply(IPStatus.Unknown, default, ex);
+                            return await SendPingAsync(ip, data, pingTimeout, opPingCancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            return new SendPingReply(IPStatus.Unknown, default, ex);
+                        }
+                    }
+                }
             }
         }
         public SendPingReply SendPing(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
-            int timeout = Consts.Timeouts.DefaultSendPingTimeout, int dnsTimeout = 0, CancellationToken dnsCancel = default)
-            => SendPingAsync(hostName, v4v6, data, timeout, dnsTimeout, dnsCancel)._GetResult();
+            int timeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default, int dnsTimeout = 0, CancellationToken dnsCancel = default)
+            => SendPingAsync(hostName, v4v6, data, timeout, pingCancel, dnsTimeout, dnsCancel)._GetResult();
 
-        public async Task<SendPingReply> SendPingAsync(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
+        public async Task<SendPingReply> SendPingAsync(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default)
         {
             if (data == null) data = Util.Rand(Consts.Numbers.DefaultSendPingSize);
             if (timeout <= 0) timeout = Consts.Timeouts.DefaultSendPingTimeout;
 
-            return await SendPingImplAsync(target, data, timeout);
+            return await SendPingImplAsync(target, data, timeout, pingCancel);
         }
         public SendPingReply SendPing(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
             => SendPingAsync(target, data, timeout)._GetResult();

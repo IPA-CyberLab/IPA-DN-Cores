@@ -731,8 +731,8 @@ namespace IPA.Cores.Basic
             return AsyncPreciseDelay.PreciseDelay(msec);
         }
 
-        public static async Task<ExceptionWhen> WaitObjectsAsync(Task[]? tasks = null, CancellationToken[]? cancels = null, AsyncAutoResetEvent?[]? events = null,
-            AsyncManualResetEvent?[]? manualEvents = null, int timeout = Timeout.Infinite,
+        public static async Task<ExceptionWhen> WaitObjectsAsync(IEnumerable<Task>? tasks = null, IEnumerable<CancellationToken>? cancels = null, IEnumerable<AsyncAutoResetEvent?>? events = null,
+            IEnumerable<AsyncManualResetEvent?>? manualEvents = null, int timeout = Timeout.Infinite,
             ExceptionWhen exceptions = ExceptionWhen.None, LeakCounterKind leakCounterKind = LeakCounterKind.WaitObjectsAsync)
         {
             LeakChecker.IncrementLeakCounter(leakCounterKind);
@@ -3532,7 +3532,7 @@ namespace IPA.Cores.Basic
 
         static volatile int NumRead = 0;
 
-        static volatile int InternalVersion = 0;
+        static volatile int InternalVersion = 1;
 
         static bool CallbackIsRegistered = false;
 

@@ -82,6 +82,12 @@ namespace IPA.Cores.Globals
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T Async<T>(Func<Task<T>> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Task AsyncAwait(Func<Task> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc, bool noDebugMessage = false) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+
         public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try
@@ -158,6 +164,7 @@ namespace IPA.Cores.Globals
 
         public const int DefaultSize = int.MinValue;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
     }
 }

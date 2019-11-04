@@ -99,6 +99,16 @@ namespace IPA.Cores.Basic
 
         protected override TcpIpSystemHostInfo GetHostInfoImpl() => new HostInfo();
 
+        protected override int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev)
+        {
+            return BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(ev);
+        }
+
+        protected override void UnregisterHostInfoChangedEventImpl(int registerId)
+        {
+            BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(registerId);
+        }
+
         protected override NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
         {
             NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel);
@@ -129,9 +139,13 @@ namespace IPA.Cores.Basic
 
         public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe() => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes);
 
-        protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout)
+        protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel)
         {
-            return Legacy.SendPing.SendAsync(target, data, timeout);
+            // 現時点で SendAsync メソッドはキャンセルや厳密なタイムアウトを実現していないので DoAsyncWithTimeout() を用いて無理矢理実現する
+            return TaskUtil.DoAsyncWithTimeout((c) =>
+            {
+                return Legacy.SendPing.SendAsync(target, data, timeout);
+            }, timeout: timeout + 1000, cancel: cancel);
         }
     }
 }
