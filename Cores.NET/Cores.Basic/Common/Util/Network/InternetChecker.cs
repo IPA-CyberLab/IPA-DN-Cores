@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
     public class InternetCheckerOptions
     {
         // HTTP タイムアウト
-        public int HttpTimeout = 5 * 1000;
+        public int HttpTimeout = 10 * 1000;
 
         // Ping タイムアウト
         public int PingTimeout = 1 * 1000;
@@ -95,8 +95,14 @@ namespace IPA.Cores.Basic
         // 再試行間隔
         public int RetryIntervalMin = 1 * 1000;
         public int RetryIntervalMax = 180 * 1000;
-        public int RetryINtervalMaxPing = 3 * 1000;
+        public int RetryIntervalMaxPing = 5 * 1000;
         public int RetryWhenNetworkChanged = 1 * 1000;
+
+        // 一度インターネットとの接続が完了した後、接続試験を実施する間隔
+        public int CheckIntervalAfterEstablished = 60 * 1000;
+
+        // 切断されたと認識されるまでのタイムアウト
+        public int TimeoutToDetectDisconnected = 30 * 1000;
 
 #if true
         // HTTP テスト先
@@ -108,8 +114,8 @@ namespace IPA.Cores.Basic
                 // Microsoft #2
                 new InternetCheckerHttpTestItem { Fqdn = "www.msftconnecttest.com", Family = AddressFamily.InterNetwork, Port = 80, Path = "/connecttest.txt", ExpectedResultString = "Microsoft Connect Test" },
 
-                // Yahoo!
-                new InternetCheckerHttpTestItem { Fqdn = "www.yahoo.co.jp", Family = AddressFamily.InterNetwork, Port = 80, Path = "/", ExpectedResultString = "yahoo." },
+                // SoftEther
+                new InternetCheckerHttpTestItem { Fqdn = "www.softether.com", Family = AddressFamily.InterNetwork, Port = 80, Path = "/", ExpectedResultString = "softether." },
             };
 
         // Ping テスト先
@@ -157,14 +163,87 @@ namespace IPA.Cores.Basic
         public readonly TcpIpSystem TcpIp;
         public readonly InternetCheckerOptions Options;
 
+        public readonly FastEventListenerList<InternetChecker, NonsenseEventType> EventListener = new FastEventListenerList<InternetChecker, NonsenseEventType>();
+
+        public readonly AsyncManualResetEvent FirstConnectedEvent = new AsyncManualResetEvent();
+        public readonly AsyncManualResetEvent FirstDisconnectedEvent = new AsyncManualResetEvent();
+
+        public bool IsInternetConnected => _IsInternetConnected;
+
+        volatile bool _IsInternetConnected = false;
+
         public InternetChecker(InternetCheckerOptions? options = null, TcpIpSystem? tcpIp = null)
         {
             this.Options = options?._CloneIfClonable() ?? new InternetCheckerOptions();
             this.TcpIp = tcpIp ?? LocalNet;
+
+            this.StartMainLoop(MainLoopAsync);
+        }
+
+        // メインループ
+        async Task MainLoopAsync(CancellationToken cancel)
+        {
+            while (cancel.IsCancellationRequested == false)
+            {
+                // インターネットが接続されるまで待機する
+                if (await WaitForInternetAsync(cancel) == false)
+                {
+                    // キャンセルされた
+                    return;
+                }
+
+                // 接続された
+                _IsInternetConnected = true;
+                FirstConnectedEvent.Set(true);
+                EventListener.FireSoftly(this, NonsenseEventType.Nonsense, true);
+
+                int lastNetworkVersion = TcpIp.GetHostInfo().InfoVersion;
+
+                AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
+                int eventRegisterId = TcpIp.RegisterHostInfoChangedEvent(networkChangedEvent);
+                try
+                {
+                    // 定期的に、現在もインターネットに接続されているかどうか確認する
+                    while (cancel.IsCancellationRequested == false)
+                    {
+                        // 一定時間待つ ただしネットワーク状態の変化が発生したときは待ちを解除する
+                        await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(), events: networkChangedEvent._SingleArray(),
+                            timeout: Options.CheckIntervalAfterEstablished);
+
+                        if (cancel.IsCancellationRequested) break;
+
+                        // 接続検査を再実行する
+                        // ただし、今度はタイムアウトを設定する
+                        CancellationTokenSource timeoutCts = new CancellationTokenSource();
+                        timeoutCts.CancelAfter(Options.TimeoutToDetectDisconnected);
+
+                        bool ret = await StartEveryTestAsync(timeoutCts.Token, null);
+
+                        if (cancel.IsCancellationRequested) break;
+
+                        if (ret == false)
+                        {
+                            // 接続試験に失敗 (タイムアウト発生)
+                            // 切断された
+                            _IsInternetConnected = false;
+                            FirstDisconnectedEvent.Set(true);
+                            EventListener.FireSoftly(this, NonsenseEventType.Nonsense, false);
+
+                            break;
+                        }
+                    }
+                }
+                finally
+                {
+                    TcpIp.UnregisterHostInfoChangedEvent(eventRegisterId);
+                }
+            }
         }
 
         // インターネットが接続されるまで待機する
-        public async Task<bool> WaitForInternet(CancellationToken cancel = default)
+        // true: 接続された
+        // false: キャンセルされた
+        async Task<bool> WaitForInternetAsync(CancellationToken cancel = default)
         {
             using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
@@ -198,9 +277,9 @@ namespace IPA.Cores.Basic
 
         // ランダムに配列した各テストを 1 秒間隔で順に実行していき、1 つでも成功したら抜ける
         // 1 つでも成功した場合は true、成功するまでにネットワークの状態が変化した場合は false を返す
-        async Task<bool> StartEveryTestAsync(CancellationToken cancel, AsyncAutoResetEvent networkChangedEvent)
+        async Task<bool> StartEveryTestAsync(CancellationToken cancel, AsyncAutoResetEvent? networkChangedEvent)
         {
-            int startNetworkVersion = TcpIp.GetHostInfo().InfoVersion;
+            int startNetworkVersion = (networkChangedEvent == null) ? 0 : TcpIp.GetHostInfo().InfoVersion;
 
             CancellationTokenSource cts = new CancellationTokenSource();
 
@@ -219,7 +298,7 @@ namespace IPA.Cores.Basic
                 {
                     Task<bool> t = AsyncAwait(async () =>
                     {
-                        Con.WriteDebug($"{test} - Waiting {num} secs...");
+                        //Con.WriteDebug($"{test} - Waiting {num} secs...");
 
                         if (await opCancel._WaitUntilCanceledAsync(1000 * num))
                         {
@@ -235,7 +314,7 @@ namespace IPA.Cores.Basic
 
                             bool ret = await PerformSingleTestAsync(test, opCancel);
 
-                            Con.WriteDebug($"{test} - {ret}");
+                            //Con.WriteDebug($"{test} - {ret}");
 
                             if (ret)
                             {
@@ -254,7 +333,7 @@ namespace IPA.Cores.Basic
 
                             if (test is InternetCheckerPingTestItem)
                             {
-                                retryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryINtervalMaxPing);
+                                retryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryIntervalMaxPing);
                             }
 
                             await TaskUtil.WaitObjectsAsync(cancels: opCancel._SingleArray(), events: networkChangedEvent._SingleArray(),
