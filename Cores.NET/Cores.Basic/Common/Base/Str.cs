@@ -919,7 +919,7 @@ namespace IPA.Cores.Basic
         }
 
         // MAC アドレスを文字列に変換
-        public static string MacToStr(ReadOnlySpan<byte> mac, string src, string paddingStr = "-", bool lowerStr = false)
+        public static string MacToStr(ReadOnlySpan<byte> mac, string paddingStr = "-", bool lowerStr = false)
         {
             if (mac.Length > 6)
             {
@@ -938,15 +938,15 @@ namespace IPA.Cores.Basic
 
             return str;
         }
-        public static string MacToStr(ReadOnlySpan<byte> mac, string src, MacAddressStyle style)
+        public static string MacToStr(ReadOnlySpan<byte> mac, MacAddressStyle style)
         {
             switch (style)
             {
                 case MacAddressStyle.Linux:
-                    return MacToStr(mac, src, ":", true);
+                    return MacToStr(mac, ":", true);
 
                 default:
-                    return MacToStr(mac, src, "-", false);
+                    return MacToStr(mac, "-", false);
             }
         }
 
@@ -954,12 +954,12 @@ namespace IPA.Cores.Basic
         public static string NormalizeMac(string src, string paddingStr = "-", bool lowerStr = false)
         {
             byte[] data = Str.StrToMac(src);
-            return Str.MacToStr(data, src, paddingStr, lowerStr);
+            return Str.MacToStr(data, paddingStr, lowerStr);
         }
         public static string NormalizeMac(string src, MacAddressStyle style)
         {
             byte[] data = Str.StrToMac(src);
-            return Str.MacToStr(data, src, style);
+            return Str.MacToStr(data, style);
         }
 
         // 16 進数文字列を正規化
