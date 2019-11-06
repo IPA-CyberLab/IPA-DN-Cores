@@ -907,6 +907,16 @@ namespace IPA.Cores.Basic
         static CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 
+        // ランダム MAC アドレスを生成
+        public static string GenRandomMacStr(string seedStr, byte firstByte = 0xAE, string paddingStr = "-", bool lowerStr = false)
+        {
+            return MacToStr(IPUtil.GenRandomMac(seedStr, firstByte).Span, paddingStr, lowerStr);
+        }
+        public static string GenRandomMacStr(string seedStr, MacAddressStyle style, byte firstByte = 0xAE)
+        {
+            return MacToStr(IPUtil.GenRandomMac(seedStr, firstByte).Span, style);
+        }
+
         // MAC アドレスをパース
         public static byte[] StrToMac(string src)
         {

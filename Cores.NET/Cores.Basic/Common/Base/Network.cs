@@ -393,6 +393,14 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     public static partial class IPUtil
     {
+        // MAC アドレスのランダム生成
+        public static ReadOnlyMemory<byte> GenRandomMac(string seedStr, byte firstByte = 0xAE)
+        {
+            byte[] hash = Secure.HashSHA256($"random_mac_seed{seedStr}"._GetBytes());
+            hash[0] = firstByte;
+            return (hash.AsMemory()).Slice(0, 6);
+        }
+
         public static IPEndPoint[] GenerateListeningEndPointsList(bool localHostOnly, params int[] ports)
         {
             List<IPEndPoint> ret = new List<IPEndPoint>();
