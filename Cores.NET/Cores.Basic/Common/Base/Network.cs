@@ -1816,6 +1816,14 @@ namespace IPA.Cores.Basic
 
             return false;
         }
+
+        // 指定された IPv4 アドレスの逆引き PTR レコードを取得する
+        public static string GetIPv4PtrRecord(IPAddress ip)
+        {
+            if (ip.AddressFamily != AddressFamily.InterNetwork) throw new ArgumentException(nameof(ip) + " is not IPv4");
+            byte[] ip4 = ip.GetAddressBytes();
+            return $"{ip4[3]}.{ip4[2]}.{ip4[1]}.{ip4[0]}.in-addr.arpa";
+        }
     }
 
     namespace Legacy
