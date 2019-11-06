@@ -241,7 +241,8 @@ namespace IPA.Cores.Basic
                     string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".pid");
                     try
                     {
-                        Lfs.DeleteFile(pidFileName);
+                        // 2019/11/06 .pid ファイルを削除しないようにした
+                        //Lfs.DeleteFile(pidFileName);
                     }
                     catch { }
 
