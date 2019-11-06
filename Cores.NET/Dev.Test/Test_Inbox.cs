@@ -148,7 +148,7 @@ namespace IPA.TestDev
 
                 inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
 
-                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state, eventArg) =>
                 {
                     var box = inbox.GetMessageBox();
 
@@ -175,7 +175,7 @@ namespace IPA.TestDev
 
                 inbox.StartAdapter(gmailAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
 
-                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state, eventArg) =>
                 {
                     var box = inbox.GetMessageBox();
 
@@ -200,7 +200,7 @@ namespace IPA.TestDev
 
                 inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "" });
 
-                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state, eventArg) =>
                 {
                     var box = inbox.GetMessageBox();
 
@@ -226,7 +226,7 @@ namespace IPA.TestDev
 
                 inbox.StartAdapter(slackAdapter.Guid, new InboxAdapterUserCredential { AccessToken = "_________________" });
 
-                inbox.StateChangeEventListener.RegisterCallback((caller, type, state) =>
+                inbox.StateChangeEventListener.RegisterCallback((caller, type, state, eventArg) =>
                 {
                     var box = inbox.GetMessageBox();
 

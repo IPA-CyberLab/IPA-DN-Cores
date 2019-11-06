@@ -50,9 +50,9 @@ namespace IPA.Cores.Basic
 
         public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default) : base(cancel)
         {
-            JsonRpcServerConfig rpc_cfg = new JsonRpcServerConfig();
+            JsonRpcServerConfig rpcCfg = new JsonRpcServerConfig();
 
-            this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpc_cfg, this, cancel);
+            this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this, cancel);
         }
     }
 }

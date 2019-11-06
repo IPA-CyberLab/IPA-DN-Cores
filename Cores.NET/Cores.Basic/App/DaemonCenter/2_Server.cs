@@ -52,10 +52,75 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 using Microsoft.AspNetCore.Builder;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using System.Security.Cryptography.X509Certificates;
 
 namespace IPA.Cores.Basic.App.DaemonCenterLib
 {
-    // サーバー
+    // サーバーの HTTP-RPC ホスト (独立ポート)
+    public class DaemonCenterServerRpcHttpHost : AsyncServiceWithMainLoop
+    {
+        readonly CertVault CertVault;
+        readonly HttpServer<JsonRpcHttpServerBuilder> HttpServer;
+        readonly Server DaemonCenterServer;
+
+        public DaemonCenterServerRpcHttpHost(Server daemonCenterServer)
+        {
+            try
+            {
+                // Start Log Server
+                string certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(@"Local/DaemonCenterRpc_CertVault/");
+
+                this.CertVault = new CertVault(certVaultDir,
+                    new CertVaultSettings(EnsureSpecial.Yes)
+                    {
+                        ReloadIntervalMsecs = 3600 * 1000,
+                        UseAcme = false,
+                        NonAcmeEnableAutoGenerateSubjectNameCert = false,
+                    });
+
+                PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true), true, null);
+
+                this.DaemonCenterServer = daemonCenterServer;
+
+                JsonRpcServerConfig rpcCfg = new JsonRpcServerConfig();
+
+                HttpServerOptions httpConfig = new HttpServerOptions
+                {
+                    HttpPortsList = new List<int>(),
+                    HttpsPortsList = Consts.Ports.DaemonCenterHttps._SingleList(),
+                    UseStaticFiles = false,
+                    AutomaticRedirectToHttpsIfPossible = false,
+                    HiveName = "DaemonCenterRpcHttpServer",
+                    DenyRobots = true,
+                    UseGlobalCertVault = false,
+                    ServerCertSelector = (param, sni) => (X509Certificate2)(this.CertVault.X509CertificateSelector(sni, true).NativeCertificate),
+                };
+
+                this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this.DaemonCenterServer);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.HttpServer._DisposeSafe();
+
+                this.CertVault._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
+
+    // DaemonCenter サーバー
     public class Server : JsonRpcServerApi, IRpc
     {
         readonly JsonRpcHttpServer JsonRpcServer;

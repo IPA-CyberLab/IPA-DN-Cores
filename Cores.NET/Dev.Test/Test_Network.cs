@@ -370,6 +370,7 @@ namespace IPA.TestDev
                 AllowAnyClientCert = true,
                 ServerCertificate = DevTools.TestSampleCert,
             },
+            null,
             IPUtil.GenerateListeningEndPointsList(false, 444));
 
             using (SslServerTest svr = new SslServerTest(opt))
@@ -589,6 +590,7 @@ Content-Length: {totalSize}
                                 }
                             }
                         },
+                        null,
                         port));
 
                 listener.HideAcceptProcError = true;
@@ -655,6 +657,7 @@ Content-Length: {totalSize}
                             }
                         }
                     },
+                    null,
                     80)))
             {
                 Con.ReadLine(" > ");
@@ -676,6 +679,7 @@ Content-Length: {totalSize}
                             await Task.Delay(100);
                         }
                     },
+                    null,
                     9821)))
             {
                 Con.ReadLine(">");
@@ -684,7 +688,7 @@ Content-Length: {totalSize}
 
         static void Net_Test3_2_PlainTcp_Server_AcceptQueue()
         {
-            using (var listener = LocalNet.CreateListener(new TcpListenParam(null, 9821)))
+            using (var listener = LocalNet.CreateListener(new TcpListenParam(null, null, 9821)))
             {
                 Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
                 {

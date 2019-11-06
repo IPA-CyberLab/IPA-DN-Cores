@@ -120,6 +120,7 @@ namespace IPA.Cores.Basic
             public const int MistPPPoEServerHttp = 7001;
             public const int MistPPPoEServerHttps = 7002;
             public const int LogServerDefaultServicePort = 7003;
+            public const int DaemonCenterHttps = 7004;
         }
 
         public static partial class DaemonArgKeys

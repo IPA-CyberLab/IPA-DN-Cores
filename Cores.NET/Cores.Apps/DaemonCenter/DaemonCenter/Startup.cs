@@ -33,6 +33,9 @@ namespace DaemonCenter
         readonly HttpServerStartupHelper StartupHelper;
         readonly AspNetLib AspNetLib;
 
+        Server DaemonCenterServer = null;
+        DaemonCenterServerRpcHttpHost DaemonCenterRpcHost = null;
+
         public Startup(IConfiguration configuration)
         {
             // HttpServer ヘルパーの初期化
@@ -71,8 +74,13 @@ namespace DaemonCenter
             services.AddControllersWithViews()
                 .ConfigureMvcWithAspNetLib(AspNetLib);
 
+            this.DaemonCenterServer = new Server();
+
             // シングルトンサービスの注入
-            services.AddSingleton(new Server());
+            services.AddSingleton(this.DaemonCenterServer);
+
+            // Daemon Center RPC 独立ポートサーバーの作成
+            this.DaemonCenterRpcHost = new DaemonCenterServerRpcHttpHost(this.DaemonCenterServer);
 
             // 全ページ共通コンテキストの注入
             services.AddScoped<PageContext>();
@@ -108,8 +116,8 @@ namespace DaemonCenter
             // Static ファイルを追加
             app.UseStaticFiles();
             
-            // JSON-RPC を追加
-            server.RegisterRoutesToHttpServer(app, "/rpc");
+            // JSON-RPC は閲覧用 Web サーバーでは追加しない (2019/11/06 無効化)
+            // server.RegisterRoutesToHttpServer(app, "/rpc");
 
             // ルーティングを有効可 (認証を利用する場合は認証前に呼び出す必要がある)
             app.UseRouting();
@@ -117,14 +125,6 @@ namespace DaemonCenter
             // 認証・認可を実施
             app.UseAuthentication();
             app.UseAuthorization();
-
-            //// LogBrowser を実装
-            //LogBrowserImpl impl = new LogBrowserImpl(new LogBrowserHttpServerOptions(Env.AppRootDir, absolutePathPrefix: "/log"));
-
-            //RouteBuilder rb = new RouteBuilder(app);
-            //rb.MapGet(impl.AbsolutePathPrefix + "/{*path}", impl.GetRequestHandler);
-            //IRouter router = rb.Build();
-            //app.UseRouter(router);
 
             // ルートマップを定義
             app.UseEndpoints(endpoints =>
@@ -137,10 +137,12 @@ namespace DaemonCenter
             // クリーンアップ動作を定義
             lifetime.ApplicationStopping.Register(() =>
             {
-                server._DisposeSafe();
+                this.DaemonCenterRpcHost._DisposeSafe();
+                this.DaemonCenterServer._DisposeSafe();
 
                 AspNetLib._DisposeSafe();
                 StartupHelper._DisposeSafe();
+
 
                 //impl._DisposeSafe();
             });

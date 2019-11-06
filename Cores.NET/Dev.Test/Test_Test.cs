@@ -307,6 +307,15 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                var info = LocalNet.GetTcpIpHostDataJsonSafe();
+
+                info._PrintAsJson();
+
+                return;
+            }
+
+            if (true)
+            {
                 string cmd = @"c:\windows\system32\cmd.exe";
                 string arg = "";
 
@@ -736,20 +745,6 @@ ZIP ファイルのパスワード:
 
             if (true)
             {
-                int port = Util.GenerateDynamicListenableTcpPortWithSeed("aaa")._Print();
-
-                LocalNet.CreateListener(new TcpListenParam((l, s) =>
-                {
-                    return Task.CompletedTask;
-                },
-                port));
-
-                ThreadObj.Sleep(Timeout.Infinite);
-                return;
-            }
-
-            if (true)
-            {
                 OneLineParams ol = new OneLineParams();
 
                 ol._SetSingle("a", "1");
@@ -1142,24 +1137,6 @@ ZIP ファイルのパスワード:
 
                     }
                 }
-                return;
-            }
-
-            if (false)
-            {
-                using (var fs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"D:\tmp\190724", FileSystemMode.ReadOnly)))
-                {
-                    using (var w = fs.CreateFileSystemEventWatcher("/"))
-                    {
-                        w.EventListeners.RegisterCallback((x, y, z) =>
-                        {
-                            Dbg.Where();
-                        });
-
-                        Con.ReadLine();
-                    }
-                }
-
                 return;
             }
 
