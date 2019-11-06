@@ -229,6 +229,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+
         // SHA256
         public static byte[] HashSHA256(ReadOnlySpan<byte> src)
         {
