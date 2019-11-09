@@ -688,7 +688,7 @@ namespace IPA.Cores.Basic
             try
             {
                 Con.WriteError($"Calling LocalLogRouter.FlushAsync() ...");
-                if (LocalLogRouter.FlushAsync().Wait(CoresConfig.Timeouts.DaemonCenterRebootRequestTimeout))
+                if (LocalLogRouter.FlushAsync().Wait(CoresConfig.Timeouts.DaemonStopLogFinish))
                 {
                     Con.WriteError($"LocalLogRouter.FlushAsync() completed.");
                 }
@@ -766,7 +766,7 @@ namespace IPA.Cores.Basic
                     {
                         string err1 = p.StandardError.ReadToEnd();
                         string err2 = p.StandardError.ReadToEnd();
-                        p.WaitForExit(CoresConfig.Timeouts.DaemonCenterRebootRequestTimeout);
+                        p.WaitForExit(CoresConfig.Timeouts.DaemonCenterGitUpdateTimeout);
                         try
                         {
                             p.Kill();
