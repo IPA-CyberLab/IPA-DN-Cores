@@ -54,11 +54,12 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> MaxDatagramQueueLength = 65536;
             public static readonly Copenhagen<int> MaxPollingTimeout = 256 * 1000;
 
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
             public static void ApplyHeavyLoadServerConfig()
             {
-                MaxStreamBufferLength.Set(65536);
-                MaxPollingTimeout.Set(4321);
-                MaxDatagramQueueLength.Set(1024);
+                MaxStreamBufferLength.TrySet(65536);
+                MaxPollingTimeout.TrySet(4321);
+                MaxDatagramQueueLength.TrySet(1024);
             }
 
             public static int PollingTimeout

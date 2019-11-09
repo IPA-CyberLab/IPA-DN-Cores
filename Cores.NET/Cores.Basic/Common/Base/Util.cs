@@ -61,15 +61,6 @@ using System.Text;
 
 namespace IPA.Cores.Basic
 {
-    public static partial class CoresConfig
-    {
-        public static partial class DaemonSettings
-        {
-            public static readonly Copenhagen<int> DefaultStopTimeout = 180 * 1000;
-            public static readonly Copenhagen<int> StartExecTimeout = 20 * 60 * 1000; // タイムアウトは原理上めったに発生しないはず
-        }
-    }
-
     namespace Legacy
     {
         // 言語一覧
@@ -5934,7 +5925,7 @@ namespace IPA.Cores.Basic
         public DaemonOptions(string name, string friendlyName, bool singleInstance, int stopTimeout = 0)
         {
             if (stopTimeout == 0)
-                stopTimeout = CoresConfig.DaemonSettings.DefaultStopTimeout;
+                stopTimeout = CoresConfig.Timeouts.DaemonDefaultStopTimeout;
 
             if (stopTimeout < 0) stopTimeout = Timeout.Infinite;
 

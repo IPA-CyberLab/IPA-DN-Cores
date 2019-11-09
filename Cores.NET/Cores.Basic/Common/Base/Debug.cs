@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
                 {
                     string err1 = p.StandardError.ReadToEnd();
                     string err2 = p.StandardOutput.ReadToEnd();
-                    p.WaitForExit(10000);
+                    p.WaitForExit(CoresConfig.Timeouts.GitCommandTimeout);
                     try
                     {
                         p.Kill();

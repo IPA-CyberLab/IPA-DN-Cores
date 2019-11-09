@@ -1820,6 +1820,25 @@ namespace IPA.Cores.Helper.Basic
         public static string _NormalizeMac(this string src, MacAddressStyle style) => Str.NormalizeMac(src, style);
 
         public static string _GetIPv4PtrRecord(this IPAddress ip) => IPUtil.GetIPv4PtrRecord(ip);
+
+        public static int _NormalizeTimeout(this int? argValue, int defaultValue = Timeout.Infinite)
+        {
+            if (argValue.HasValue)
+            {
+                int val = argValue.Value;
+                if (val <= 0)
+                    return Timeout.Infinite;
+                else
+                    return val;
+            }
+            else
+            {
+                if (defaultValue <= 0)
+                    return Timeout.Infinite;
+                else
+                    return defaultValue;
+            }
+        }
     }
 }
 

@@ -309,8 +309,6 @@ namespace IPA.Cores.Basic
             public const int MinKeepAliveIntervalsMsec = 1 * 1000;
             public const int MaxKeepAliveIntervalsMsec = 24 * 60 * 60 * 1000;
 
-            public const int DaemonCenterRebootRequestTimeout = 3 * 60 * 1000;
-
             public const int JsonRpcClientEndPointInfoUpdateInterval = 60 * 1000;
 
             public const int AutoArchivePollingInterval = 12 * 60 * 1000;
@@ -319,10 +317,6 @@ namespace IPA.Cores.Basic
         public static partial class Timeouts
         {
             public const int Rapid = 5 * 1000;
-
-            public const int DaemonStopLogFinish = 60 * 1000;
-
-            public const int DefaultEasyExecTimeout = 60 * 1000;
 
             public const int DefaultSendPingTimeout = 1 * 1000;
         }
@@ -335,17 +329,58 @@ namespace IPA.Cores.Basic
             public const string PppoeStart = "/usr/sbin/pppoe-start";
             public const string KillAll = "/usr/bin/killall";
             public const string Reboot = "/sbin/reboot";
+            public const string Sync = "/bin/sync";
             public const string Ping = "/bin/ping";
         }
     }
 
     public static partial class CoresConfig
     {
+        public static partial class Timeouts
+        {
+            public static readonly Copenhagen<int> DaemonCenterRebootRequestTimeout = 60 * 1000;
+
+            public static readonly Copenhagen<int> DaemonStopLogFinish = 60 * 1000;
+
+            public static readonly Copenhagen<int> DefaultEasyExecTimeout = 60 * 1000;
+
+            public static readonly Copenhagen<int> RebootDangerous_Sync_Timeout = 20 * 1000;
+
+            public static readonly Copenhagen<int> RebootDangerous_Reboot_Timeout = 60 * 1000;
+
+            public static readonly Copenhagen<int> GitCommandTimeout = 60 * 1000;
+
+            public static readonly Copenhagen<int> DaemonDefaultStopTimeout = 60 * 1000;
+
+            public static readonly Copenhagen<int> DaemonStartExecTimeout = 20 * 60 * 1000; // タイムアウトは原理上めったに発生しないはず
+
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+            public static void ApplyHeavyLoadServerConfig()
+            {
+                DaemonCenterRebootRequestTimeout.TrySet(15 * 60 * 1000);
+                DaemonStopLogFinish.TrySet(3 * 60 * 1000);
+                DefaultEasyExecTimeout.TrySet(20 * 60 * 1000);
+                RebootDangerous_Reboot_Timeout.TrySet(5 * 60 * 1000);
+                GitCommandTimeout.TrySet(15 * 60 * 1000);
+                DaemonDefaultStopTimeout.TrySet(15 * 60 * 1000);
+            }
+        }
+
         public static partial class BufferSizes
         {
             public static readonly Copenhagen<int> FileCopyBufferSize = 81920;  // .NET の Stream クラスの実装からもらってきた定数
 
             public static readonly Copenhagen<int> MaxNetworkStreamSendRecvBufferSize = 65536;  // ストリームソケットの送受信バッファの最大サイズ
+        }
+    }
+
+    public static partial class CoresConfig
+    {
+        // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+        public static void ApplyHeavyLoadServerConfigAll()
+        {
+            Timeouts.ApplyHeavyLoadServerConfig();
+            PipeConfig.ApplyHeavyLoadServerConfig();
         }
     }
 }

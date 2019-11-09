@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
                         await LocalLogRouter.FlushAsync(cancel: c);
                         return 0;
                     },
-                    timeout: Consts.Timeouts.DaemonStopLogFinish);
+                    timeout: CoresConfig.Timeouts.DaemonStopLogFinish);
                 }
                 catch { }
 
@@ -678,7 +678,7 @@ namespace IPA.Cores.Basic
                 }
             });
 
-            if (stopThread.WaitForEnd(Consts.Intervals.DaemonCenterRebootRequestTimeout) == false)
+            if (stopThread.WaitForEnd(CoresConfig.Timeouts.DaemonCenterRebootRequestTimeout) == false)
             {
                 // タイムアウトが発生した
                 Con.WriteError("Stopping the daemon service caused timed out.");
@@ -688,7 +688,7 @@ namespace IPA.Cores.Basic
             try
             {
                 Con.WriteError($"Calling LocalLogRouter.FlushAsync() ...");
-                if (LocalLogRouter.FlushAsync().Wait(Consts.Intervals.DaemonCenterRebootRequestTimeout))
+                if (LocalLogRouter.FlushAsync().Wait(CoresConfig.Timeouts.DaemonCenterRebootRequestTimeout))
                 {
                     Con.WriteError($"LocalLogRouter.FlushAsync() completed.");
                 }
@@ -766,7 +766,7 @@ namespace IPA.Cores.Basic
                     {
                         string err1 = p.StandardError.ReadToEnd();
                         string err2 = p.StandardError.ReadToEnd();
-                        p.WaitForExit(Consts.Intervals.DaemonCenterRebootRequestTimeout);
+                        p.WaitForExit(CoresConfig.Timeouts.DaemonCenterRebootRequestTimeout);
                         try
                         {
                             p.Kill();
@@ -1126,7 +1126,7 @@ namespace IPA.Cores.Basic
                                     }
                                 }, leakCheck: false);
 
-                                var result = TaskUtil.WaitObjectsAsync(new Task[] { outputReaderTask, errorReaderTask }, timeout: CoresConfig.DaemonSettings.StartExecTimeout)._GetResult();
+                                var result = TaskUtil.WaitObjectsAsync(new Task[] { outputReaderTask, errorReaderTask }, timeout: CoresConfig.Timeouts.DaemonStartExecTimeout)._GetResult();
 
                                 cts.Cancel();
 

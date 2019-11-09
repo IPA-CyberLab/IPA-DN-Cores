@@ -132,13 +132,16 @@ namespace IPA.Cores.Basic
                     // sync, sync, sync
                     for (int i = 0; i < 3; i++)
                     {
-                        UnixTryRunSystemProgram(EnsureInternal.Yes, "sync", "", 5 * 1000);
+                        UnixTryRunSystemProgram(EnsureInternal.Yes, Consts.LinuxCommands.Sync, "", CoresConfig.Timeouts.RebootDangerous_Sync_Timeout);
                     }
 
                     Sleep(300);
 
                     // reboot
-                    UnixTryRunSystemProgram(EnsureInternal.Yes, "reboot", "--reboot --force", 10 * 1000);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        UnixTryRunSystemProgram(EnsureInternal.Yes, Consts.LinuxCommands.Reboot, "--reboot --force", CoresConfig.Timeouts.RebootDangerous_Reboot_Timeout);
+                    }
 
                     Sleep(300);
 
@@ -148,6 +151,10 @@ namespace IPA.Cores.Basic
                     Sleep(300);
 
                     Lfs.WriteStringToFile(@"/proc/sysrq-trigger", "b");
+                }
+                else
+                {
+                    throw new CoresException("Already rebooting");
                 }
             }
             else
@@ -218,7 +225,7 @@ namespace IPA.Cores.Basic
     public static class EasyExec
     {
         public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
-            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int timeout = Consts.Timeouts.DefaultEasyExecTimeout,
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
@@ -238,7 +245,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    await exec.WaitForExitAsync(timeout, cancel);
+                    await exec.WaitForExitAsync(timeout._NormalizeTimeout(CoresConfig.Timeouts.DefaultEasyExecTimeout), cancel);
                 }
                 finally
                 {
