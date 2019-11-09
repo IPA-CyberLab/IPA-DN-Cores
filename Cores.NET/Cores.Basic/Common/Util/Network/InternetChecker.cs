@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
     public class InternetCheckerOptions
     {
         // HTTP タイムアウト
-        public int HttpTimeout = 10 * 1000;
+        public int HttpTimeout = 15 * 1000;
 
         // Ping タイムアウト
         public int PingTimeout = 1 * 1000;
@@ -99,10 +99,10 @@ namespace IPA.Cores.Basic
         public int RetryWhenNetworkChanged = 1 * 1000;
 
         // 一度インターネットとの接続が完了した後、接続試験を実施する間隔
-        public int CheckIntervalAfterEstablished = 60 * 1000;
+        public int CheckIntervalAfterEstablished = 180 * 1000;
 
         // 切断されたと認識されるまでのタイムアウト
-        public int TimeoutToDetectDisconnected = 30 * 1000;
+        public int TimeoutToDetectDisconnected = 180 * 1000;
 
 #if true
         // HTTP テスト先

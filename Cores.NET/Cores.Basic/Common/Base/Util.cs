@@ -65,8 +65,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class DaemonSettings
         {
-            public static readonly Copenhagen<int> DefaultStopTimeout = 60 * 1000;
-            public static readonly Copenhagen<int> StartExecTimeout = 15 * 1000;
+            public static readonly Copenhagen<int> DefaultStopTimeout = 180 * 1000;
+            public static readonly Copenhagen<int> StartExecTimeout = 20 * 60 * 1000; // タイムアウトは原理上めったに発生しないはず
         }
     }
 

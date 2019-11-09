@@ -2523,7 +2523,7 @@ namespace IPA.Cores.Basic
             if (fqdn._IsEmpty()) return "";
             int[] dots = fqdn._FindStringIndexes(".", true);
             if (dots.Length == 0)
-                return fqdn;
+                return "";
 
             int i = dots.First();
             return fqdn.Substring(i);
