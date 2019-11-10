@@ -21,8 +21,8 @@ ExecStart=_START_
 ExecStop=_STOP_
 PIDFile=_PIDFILE_
 WorkingDirectory=_DIR_
-TimeoutStartSec=600
-TimeoutStopSec=120
+TimeoutStartSec=_TIMEOUT_START_
+TimeoutStopSec=_TIMEOUT_STOP_
 Restart=on-abort
 Environment=HOME=/root
 Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1

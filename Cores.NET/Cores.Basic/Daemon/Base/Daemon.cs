@@ -942,6 +942,8 @@ namespace IPA.Cores.Basic
                                     _PIDFILE_ = PP.Combine(Env.AppRootDir, $@"Local/DaemonPid/{daemon.Name}.pid"),
                                     _DIR_ = Env.AppRootDir,
                                     _ADDITIONAL_ENV_ = envListStr.ToString(),
+                                    _TIMEOUT_START_ = CoresConfig.Timeouts.DaemonStartExecTimeout.ToString(),
+                                    _TIMEOUT_STOP_ = CoresConfig.Timeouts.DaemonSystemdStopTimeoutSecs.ToString(),
                                 });
 
                                 // すでに以前の定義ファイルが存在しているか?
