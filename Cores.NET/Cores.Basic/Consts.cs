@@ -356,17 +356,23 @@ namespace IPA.Cores.Basic
 
             public static readonly Copenhagen<int> DaemonStartExecTimeout = 5 * 60 * 1000;
 
+            public static readonly Copenhagen<int> DaemonSystemdStartTimeoutSecs = 10 * 60;
+
+            public static readonly Copenhagen<int> DaemonSystemdStopTimeoutSecs = 2 * 60;
+
             // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
             public static void ApplyHeavyLoadServerConfig()
             {
-                DaemonStartExecTimeout.TrySet(60 * 60 * 1000);
+                DaemonStartExecTimeout.TrySet(3 * 60 * 60 * 1000);
                 DaemonCenterRebootRequestTimeout.TrySet(15 * 60 * 1000);
-                DaemonCenterGitUpdateTimeout.TrySet(60 * 60 * 1000);
+                DaemonCenterGitUpdateTimeout.TrySet(3 * 60 * 60 * 1000);
                 DaemonStopLogFinish.TrySet(3 * 60 * 1000);
-                DefaultEasyExecTimeout.TrySet(30 * 60 * 1000);
+                DefaultEasyExecTimeout.TrySet(1 * 60 * 60 * 1000);
                 RebootDangerous_Reboot_Timeout.TrySet(5 * 60 * 1000);
-                GitCommandTimeout.TrySet(30 * 60 * 1000);
-                DaemonDefaultStopTimeout.TrySet(30 * 60 * 1000);
+                GitCommandTimeout.TrySet(60 * 60 * 1000);
+                DaemonDefaultStopTimeout.TrySet(3 * 60 * 60 * 1000);
+                DaemonSystemdStartTimeoutSecs.TrySet(3 * 60 * 60);
+                DaemonSystemdStopTimeoutSecs.TrySet(3 * 60 * 60);
             }
         }
 

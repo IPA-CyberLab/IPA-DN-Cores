@@ -2197,7 +2197,7 @@ namespace IPA.Cores.Basic
         public static List<string> RemoteStringFromList(List<string> str, RemoveStringFunction func)
         {
             List<string> ret = new List<string>();
-
+            
             foreach (string s in str)
             {
                 if (func(s) == false)
