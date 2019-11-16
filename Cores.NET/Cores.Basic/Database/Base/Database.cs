@@ -56,6 +56,19 @@ using System.Threading;
 
 namespace IPA.Cores.Basic
 {
+
+    public static partial class CoresConfig
+    {
+        public static partial class Database
+        {
+            public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.ReadCommitted;
+
+            public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
+
+            public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryCount = 10;
+        }
+    }
+
     public class EasyTable : TableAttribute
     {
         public EasyTable(string tableName) : base(tableName) { }
@@ -365,18 +378,27 @@ namespace IPA.Cores.Basic
         public const int DefaultCommandTimeoutSecs = 60;
         public int CommandTimeoutSecs { get; set; } = DefaultCommandTimeoutSecs;
 
-        public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig = new DeadlockRetryConfig(4000, 10);
+        public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig
+            = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
 
-        public DeadlockRetryConfig DeadlockRetryConfig = DefaultDeadlockRetryConfig;
+        public DeadlockRetryConfig DeadlockRetryConfig { get; } = DefaultDeadlockRetryConfig;
+
+        public IsolationLevel DefaultIsolationLevel { get; } = CoresConfig.Database.DefaultIsolationLevel;
 
         // コンストラクタ
-        public Database(string sqlServerConnectionString)
+        public Database(string sqlServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null)
         {
+            if (deadlockRetryConfig != null) this.DeadlockRetryConfig = deadlockRetryConfig;
+            if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+
             Connection = new SqlConnection(sqlServerConnectionString);
         }
 
-        public Database(DbConnection dbConnection)
+        public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null)
         {
+            if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
+            if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+
             Connection = dbConnection;
         }
 
@@ -1012,9 +1034,9 @@ namespace IPA.Cores.Basic
         public delegate Task TransactionalReadOnlyTaskAsync();
 
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
-        public void Tran(TransactionalTask task) => Tran(IsolationLevel.Serializable, null, task);
-        public void Tran(IsolationLevel iso, TransactionalTask task) => Tran(iso, null, task);
-        public void Tran(IsolationLevel iso, DeadlockRetryConfig? retryConfig, TransactionalTask task)
+        public void Tran(TransactionalTask task) => Tran(null, null, task);
+        public void Tran(IsolationLevel? isolationLevel, TransactionalTask task) => Tran(isolationLevel, null, task);
+        public void Tran(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTask task)
         {
             EnsureOpen();
             if (retryConfig == null)
@@ -1027,7 +1049,7 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                using (UsingTran u = this.UsingTran(iso))
+                using (UsingTran u = this.UsingTran(isolationLevel))
                 {
                     if (task())
                     {
@@ -1066,9 +1088,9 @@ namespace IPA.Cores.Basic
             });
         }
 
-        public Task TranAsync(TransactionalTaskAsync task) => TranAsync(IsolationLevel.Serializable, null, task);
-        public Task TranAsync(IsolationLevel iso, TransactionalTaskAsync task) => TranAsync(iso, null, task);
-        public async Task TranAsync(IsolationLevel iso, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task)
+        public Task TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task);
+        public Task TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task);
+        public async Task TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task)
         {
             await EnsureOpenAsync();
             if (retryConfig == null)
@@ -1081,16 +1103,17 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                using (UsingTran u = this.UsingTran(iso))
-                {
-                    if (await task())
+                    using (UsingTran u = this.UsingTran(isolationLevel))
                     {
-                        u.Commit();
+                        if (await task())
+                        {
+                            u.Commit();
+                        }
                     }
-                }
             }
             catch (SqlException sqlex)
             {
+                //sqlex._Debug();
                 if (sqlex.Number == 1205)
                 {
                     // デッドロック発生
@@ -1121,56 +1144,56 @@ namespace IPA.Cores.Basic
         }
 
         // トランザクションの開始 (UsingTran オブジェクト作成)
-        public UsingTran UsingTran(IsolationLevel iso = IsolationLevel.Unspecified)
+        public UsingTran UsingTran(IsolationLevel? isolationLevel = null)
         {
             UsingTran t = new UsingTran(this);
 
-            Begin(iso);
+            Begin(isolationLevel);
 
             return t;
         }
 
         // トランザクションの開始
-        public void Begin(IsolationLevel iso = IsolationLevel.Unspecified)
+        public void Begin(IsolationLevel? isolationLevel = null)
         {
             EnsureOpen();
 
             CloseQuery();
 
-            if (iso == IsolationLevel.Unspecified)
+            if (isolationLevel == IsolationLevel.Unspecified)
             {
                 Transaction = Connection.BeginTransaction();
             }
             else
             {
-                Transaction = Connection.BeginTransaction(iso);
+                Transaction = Connection.BeginTransaction(isolationLevel ?? this.DefaultIsolationLevel);
             }
         }
 
         // トランザクションの開始 (UsingTran オブジェクト作成)
-        public async Task<UsingTran> UsingTranAsync(IsolationLevel iso = IsolationLevel.Unspecified)
+        public async Task<UsingTran> UsingTranAsync(IsolationLevel? isolationLevel = null)
         {
             UsingTran t = new UsingTran(this);
 
-            await BeginAsync(iso);
+            await BeginAsync(isolationLevel);
 
             return t;
         }
 
         // トランザクションの開始
-        public async Task BeginAsync(IsolationLevel iso = IsolationLevel.Unspecified)
+        public async Task BeginAsync(IsolationLevel? isolationLevel = null)
         {
             await EnsureOpenAsync();
 
             await CloseQueryAsync();
 
-            if (iso == IsolationLevel.Unspecified)
+            if (isolationLevel == IsolationLevel.Unspecified)
             {
                 Transaction = await Connection.BeginTransactionAsync();
             }
             else
             {
-                Transaction = await Connection.BeginTransactionAsync(iso);
+                Transaction = await Connection.BeginTransactionAsync(isolationLevel ?? this.DefaultIsolationLevel);
             }
         }
 

@@ -433,12 +433,16 @@ namespace IPA.Cores.Basic
             TaskVar.Set<JsonRpcClientInfo>(clientInfo);
             try
             {
-                object? param1 = this.Api.StartCall(clientInfo);
+                object? param1 = null;
                 try
                 {
-                    object? param2 = await this.Api.StartCallAsync(clientInfo, param1);
+                    param1 = this.Api.StartCall(clientInfo);
+
+                    object? param2 = null;
                     try
                     {
+                        param2 = await this.Api.StartCallAsync(clientInfo, param1);
+
                         foreach (JsonRpcRequest req in requestList)
                         {
                             LogDefJsonRpc log = new LogDefJsonRpc()
@@ -492,12 +496,24 @@ namespace IPA.Cores.Basic
                     }
                     finally
                     {
-                        await this.Api.FinishCallAsync(param2);
+                        try
+                        {
+                            await this.Api.FinishCallAsync(param2);
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
                 finally
                 {
-                    this.Api.FinishCall(param1);
+                    try
+                    {
+                        this.Api.FinishCall(param1);
+                    }
+                    catch
+                    {
+                    }
                 }
             }
             finally
