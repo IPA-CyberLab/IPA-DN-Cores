@@ -586,7 +586,7 @@ namespace IPA.Cores.Basic
                         // パイプを切断する。デッドロック防止のため非同期呼び出しとする。
                         // (Cancel -> Detach -> SetStreamReceiveTimeout 解除 -> 上の if 文の _DisposeSafe(); でデッドロックするため)
                         TaskUtil.StartSyncTaskAsync(() => PipePoint.Pipe.Cancel(new TimeoutException("StreamSendTimeout")))._LaissezFaire(noDebugMessage: true);
-
+                        
                         return false;
                     });
 

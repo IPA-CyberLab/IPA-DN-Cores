@@ -4205,7 +4205,7 @@ namespace IPA.Cores.Basic
                         {
                             int numToDelete = numRemains - this.MaxObjects;
 
-                            Con.WriteLine(numToDelete);
+                            //Con.WriteLine(numToDelete);
 
                             this.ObjectList.Values.Where(x => gcTargetList.Contains(x) == false).OrderBy(x => x.LastAccessCounterValue).Take(numToDelete)._DoForEach(x => gcTargetList.Add(x));
                         }
