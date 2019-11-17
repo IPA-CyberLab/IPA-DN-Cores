@@ -194,6 +194,18 @@ namespace IPA.Cores.Globals
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
+
+        public static void For(int count, Action<int> action)
+        {
+            for (int i = 0; i < count; i++)
+                action(i);
+        }
+
+        public static void For(int count, Action action)
+        {
+            for (int i = 0; i < count; i++)
+                action();
+        }
     }
 }
 
