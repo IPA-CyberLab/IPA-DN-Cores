@@ -270,9 +270,20 @@ namespace IPA.Cores.Basic
 
             pathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
 
-            using (HttpResult result = await callback(method, uri.LocalPath, qs, routeData, local, remote, cancel))
+            try
             {
-                await response._SendHttpResultAsync(result, cancel);
+                using (HttpResult result = await callback(method, uri.LocalPath, qs, routeData, local, remote, cancel))
+                {
+                    await response._SendHttpResultAsync(result, cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+
+                HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
+
+                await response._SendHttpResultAsync(errResult, cancel);
             }
         }
     }

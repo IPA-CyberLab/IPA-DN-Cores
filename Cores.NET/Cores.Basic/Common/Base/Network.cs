@@ -558,8 +558,10 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を IP アドレスに変換
-        public static IPAddress? StrToIP(string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
+        public static IPAddress? StrToIP(string? str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
         {
+            if (str._IsEmpty()) return null;
+
             if (noExceptionAndReturnNull == false)
             {
                 if (Str.InStr(str, ":") == false && Str.InStr(str, ".") == false)
@@ -1239,7 +1241,7 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレス同士を比較する
-        public static bool CompareIPAddress(string a, string b)
+        public static bool CompareIPAddress(string? a, string? b)
         {
             return CompareIPAddress(StrToIP(a), StrToIP(b));
         }
@@ -1257,7 +1259,7 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレス同士を比較する
-        public static int CompareIPAddressRetInt(string a, string b)
+        public static int CompareIPAddressRetInt(string? a, string? b)
         {
             return CompareIPAddressRetInt(StrToIP(a), StrToIP(b));
         }

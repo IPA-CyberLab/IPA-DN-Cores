@@ -302,6 +302,10 @@ namespace IPA.Cores.Helper.Basic
         public static int _Cmp(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
         public static int _Cmpi(this string? s, string? t, bool ignoreCase = false) => _Cmp(s, t, true);
 
+        public static bool _IsSameIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddress(ip1, ip2);
+        public static int _CmpIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddressRetInt(ip1, ip2);
+
+
         public static int _CmpTrim(this string? s, string? t, StringComparison comparison = StringComparison.Ordinal)
         {
             s = s._NonNullTrim();
@@ -534,6 +538,13 @@ namespace IPA.Cores.Helper.Basic
             Dbg.WriteLine(o);
             return o;
         }
+        public static object? _Error(this object? o)
+        {
+            if (o is Exception ex) o = o.ToString();
+
+            Dbg.WriteError(o);
+            return o;
+        }
 
         public static T[] _SingleArray<T>(this T t) => new T[] { t };
         public static Span<T> _SingleSpan<T>(this T t) => new T[] { t };
@@ -547,6 +558,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _ToDtStr(this DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSecs, option, withNanoSecs);
         public static string _ToDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSsecs, option, withNanoSecs);
+        public static string _ToLocalDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
+            => dt.LocalDateTime._ToDtStr(withMSsecs, option, withNanoSecs);
 
         public static string _ToTsStr(this TimeSpan timeSpan, bool withMSecs = false, bool withNanoSecs = false) => Str.TimeSpanToTsStr(timeSpan, withMSecs, withNanoSecs);
 

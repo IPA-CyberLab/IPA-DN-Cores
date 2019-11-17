@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(obj ?? "null", priority: LogPriority.Debug);
             return obj;
         }
-        public static string WriteLine(string str)
+        public static string? WriteLine(string? str)
         {
             if (Dbg.IsDebugMode == false) return str;
             if (str == null) str = "null";
@@ -257,26 +257,26 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Debug);
             return str;
         }
-        public static void WriteLine(string str, params object[] args)
+        public static void WriteLine(string? str, params object[] args)
         {
             if (Dbg.IsDebugMode == false) return;
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Debug);
         }
 
-        public static object WriteError(object obj)
+        public static object WriteError(object? obj)
         {
             if (obj == null) obj = "null";
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Error);
             return obj;
         }
-        public static void WriteError(string str)
+        public static void WriteError(string? str)
         {
             if (str == null) str = "null";
             str = Str.RemoveLastCrlf(str);
             LocalLogRouter.PrintConsole(str, priority: LogPriority.Error);
         }
-        public static void WriteError(string str, params object[] args)
+        public static void WriteError(string? str, params object[] args)
         {
             if (str == null) str = "null";
             LocalLogRouter.PrintConsole(string.Format(str, args), priority: LogPriority.Error);
