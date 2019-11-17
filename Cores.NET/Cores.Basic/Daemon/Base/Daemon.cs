@@ -942,7 +942,7 @@ namespace IPA.Cores.Basic
                                     _PIDFILE_ = PP.Combine(Env.AppRootDir, $@"Local/DaemonPid/{daemon.Name}.pid"),
                                     _DIR_ = Env.AppRootDir,
                                     _ADDITIONAL_ENV_ = envListStr.ToString(),
-                                    _TIMEOUTSTART_ = CoresConfig.Timeouts.DaemonStartExecTimeout.ToString(),
+                                    _TIMEOUTSTART_ = CoresConfig.Timeouts.DaemonSystemdStartTimeoutSecs.ToString(),
                                     _TIMEOUTSTOP_ = CoresConfig.Timeouts.DaemonSystemdStopTimeoutSecs.ToString(),
                                 });
 
