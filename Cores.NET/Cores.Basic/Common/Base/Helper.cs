@@ -1414,6 +1414,17 @@ namespace IPA.Cores.Helper.Basic
             list.ToList().ForEach(action);
         }
 
+        public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                action(t, i);
+            }
+        }
+
 
         public static T _GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 
@@ -1813,6 +1824,12 @@ namespace IPA.Cores.Helper.Basic
         public static IOrderedEnumerable<TSource> _Shuffle<TSource>(this IEnumerable<TSource> source)
         {
             return source.OrderBy(x => Util.RandSInt63());
+        }
+
+        // 重み付きシャッフル (getWeigth の戻り値で重みを指定する。2 以上を指定するべきである。)
+        public static IOrderedEnumerable<TSource> _ShuffleWithWeight<TSource>(this IEnumerable<TSource> source, Func<TSource, int> getWeigth)
+        {
+            return source.OrderByDescending(x => Util.RandDouble0To1() * (double)(getWeigth(x)._Max(1)));
         }
 
         public static byte[] _StrToMac(this string src) => Str.StrToMac(src);

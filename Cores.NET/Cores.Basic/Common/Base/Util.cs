@@ -1967,6 +1967,14 @@ namespace IPA.Cores.Basic
 
         public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
 
+        public static double RandDouble0To1()
+        {
+            lock (RandomShared)
+            {
+                return RandomShared.NextDouble();
+            }
+        }
+
         public static void Rand(Span<byte> dest)
         {
             if (Env.IsWindows)
@@ -1981,6 +1989,14 @@ namespace IPA.Cores.Basic
             {
                 RandomShared.NextBytes(dest);
             }
+        }
+
+        public static double RandDouble(double a, double b)
+        {
+            double minimum = Math.Min(a, b);
+            double maximum = Math.Max(a, b);
+
+            return RandDouble0To1() * (maximum - minimum) + minimum;
         }
 
         public static byte RandUInt8()

@@ -535,7 +535,7 @@ namespace IPA.Cores.Basic
     }
 
     // 任意の Stream の一部を HTTP 応答するクラス
-    public class HttpResult : IDisposable
+    public partial class HttpResult : IDisposable
     {
         public int StatusCode { get; }
         public string? ContentType { get; }

@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using System.Text;
 using System.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http.Extensions;
 
 using IPA.Cores.Basic;
@@ -46,6 +47,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Collections.Generic;
 using Microsoft.Extensions.Primitives;
 using System.Linq;
+using System.Net;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -170,6 +172,16 @@ namespace IPA.Cores.Helper.Basic
             }
 
             return ret;
+        }
+
+        public static void _MapGetStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler)
+        {
+            routeBuilder.MapGet(template, HttpResult.GetStandardRequestHandler(handler));
+        }
+
+        public static void _MapPostStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler)
+        {
+            routeBuilder.MapPost(template, HttpResult.GetStandardRequestHandler(handler));
         }
     }
 }

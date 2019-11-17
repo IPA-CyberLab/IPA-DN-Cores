@@ -245,6 +245,37 @@ namespace IPA.Cores.Basic
             });
         }
     }
+
+    public delegate Task<HttpResult> HttpResultStandardRequestAsyncCallback(WebMethods method, string path, QueryStringList queryString, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default);
+    
+    public partial class HttpResult
+    {
+        public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
+        {
+            return (context) => StandardRequestHandlerAsync(context.Request, context.Response, context.GetRouteData(), handler);
+        }
+
+        static async Task StandardRequestHandlerAsync(HttpRequest request, HttpResponse response, RouteData routeData, HttpResultStandardRequestAsyncCallback callback)
+        {
+            WebMethods method = request.Method._ParseEnum(WebMethods.GET);
+
+            CancellationToken cancel = request._GetRequestCancellationToken();
+
+            ConnectionInfo connInfo = request.HttpContext.Connection;
+
+            IPEndPoint remote = new IPEndPoint(connInfo.RemoteIpAddress._UnmapIPv4(), connInfo.RemotePort);
+            IPEndPoint local = new IPEndPoint(connInfo.LocalIpAddress._UnmapIPv4(), connInfo.LocalPort);
+
+            string pathAndQueryString = request._GetRequestPathAndQueryString();
+
+            pathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
+
+            using (HttpResult result = await callback(method, uri.LocalPath, qs, routeData, local, remote, cancel))
+            {
+                await response._SendHttpResultAsync(result, cancel);
+            }
+        }
+    }
 }
 
 #endif
