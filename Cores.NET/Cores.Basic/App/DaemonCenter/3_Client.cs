@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
             bool firstConnected = false;
 
-            Con.WriteError($"DaemonCenterClient: Trying to connect to the DaemonCenter Server '{this.Settings.ServerUrl}' ...");
+            Con.WriteInfo($"DaemonCenterClient: Trying to connect to the DaemonCenter Server '{this.Settings.ServerUrl}' ...");
 
             while (this.GrandCancel.IsCancellationRequested == false)
             {
@@ -181,7 +181,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     {
                         firstConnected = true;
 
-                        Con.WriteError($"DaemonCenterClient: Connected OK.");
+                        Con.WriteInfo($"DaemonCenterClient: Connected OK.");
                     }
 
                     if (nextInterval == -1)

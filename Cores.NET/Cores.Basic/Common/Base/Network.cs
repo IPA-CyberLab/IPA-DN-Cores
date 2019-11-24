@@ -674,19 +674,19 @@ namespace IPA.Cores.Basic
         }
 
         // 指定された文字列が IP アドレスかどうか検査
-        public static bool IsStrIP(string str)
+        public static bool IsStrIP(string? str)
         {
             return StrToIP(str, AllowedIPVersions.All, true) != null;
         }
 
         // 指定された文字列が IPv4 アドレスかどうか検査
-        public static bool IsStrIPv4(string str)
+        public static bool IsStrIPv4(string? str)
         {
             return StrToIP(str, AllowedIPVersions.IPv4, true) != null;
         }
 
         // 指定された文字列が IPv6 アドレスかどうか検査
-        public static bool IsStrIPv6(string str)
+        public static bool IsStrIPv6(string? str)
         {
             return StrToIP(str, AllowedIPVersions.IPv6, true) != null;
         }
@@ -810,19 +810,55 @@ namespace IPA.Cores.Basic
         // IP アドレスとマスクのパース
         public static void ParseIPAndMask(string str, out IPAddress ip, out IPAddress mask)
         {
-            string ipstr, subnetstr;
+            string ipstr;
+            string? subnetstr;
             IPAddress? ip2, mask2;
 
             string[] tokens = str.Split('/');
-            if (tokens.Length != 2)
+
+            if (tokens.Length == 2)
             {
-                throw new ArgumentException("str is invalid.");
+                // ip/subnet
+                ipstr = tokens[0].Trim();
+                subnetstr = tokens[1].Trim();
+            }
+            else if (tokens.Length == 1)
+            {
+                // exach host?
+                ipstr = tokens[0].Trim();
+                subnetstr = null;
+            }
+            else
+            {
+                // invalid
+                throw new ArgumentException("Invalid ip and subnet mask format.");
             }
 
-            ipstr = tokens[0].Trim();
-            subnetstr = tokens[1].Trim();
-
             ip2 = StrToIP(ipstr);
+
+            if (subnetstr == null)
+            {
+                // exact host?
+                if (IsIPv6(ip2))
+                {
+                    // IPv6 exact host
+                    ip = ip2;
+                    mask = IntToSubnetMask6(128);
+                }
+                else if (IsIPv4(ip2))
+                {
+                    // IPv4 exact host
+                    ip = ip2;
+                    mask = IntToSubnetMask4(32);
+                }
+                else
+                {
+                    throw new ArgumentException("ip is invalid.");
+                }
+
+                return;
+            }
+
             if (IsStrIP(subnetstr))
             {
                 mask2 = StrToIP(subnetstr);

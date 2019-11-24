@@ -641,7 +641,7 @@ namespace IPA.Cores.Basic
         {
             if (RebootRequestedOnce.IsFirstCall() == false) return;
 
-            Con.WriteError($"The DaemonCenter Server requested rebooting.\r\nMessage = '{res._ObjectToRuntimeJsonStr()}'");
+            Con.WriteInfo($"The DaemonCenter Server requested rebooting.\r\nMessage = '{res._ObjectToRuntimeJsonStr()}'");
 
             // 次回起動引数が指定されている場合は設定ファイルを更新する
             if (res.NextInstanceArguments._IsFilled())
@@ -662,7 +662,7 @@ namespace IPA.Cores.Basic
             }
 
             // Daemon の正常停止を試行する
-            Con.WriteError($"Shutting down the daemon service normally...");
+            Con.WriteInfo($"Shutting down the daemon service normally...");
 
             ThreadObj stopThread = new ThreadObj((obj) =>
             {
@@ -670,7 +670,7 @@ namespace IPA.Cores.Basic
                 {
                     (this.CurrentRunningService as UserModeService)?.InternalStop();
 
-                    Con.WriteError("Stopping the daemon service completed.");
+                    Con.WriteInfo("Stopping the daemon service completed.");
                 }
                 catch (Exception ex)
                 {
@@ -687,10 +687,10 @@ namespace IPA.Cores.Basic
             // ローカルログを Flush する
             try
             {
-                Con.WriteError($"Calling LocalLogRouter.FlushAsync() ...");
+                Con.WriteInfo($"Calling LocalLogRouter.FlushAsync() ...");
                 if (LocalLogRouter.FlushAsync().Wait(CoresConfig.Timeouts.DaemonStopLogFinish))
                 {
-                    Con.WriteError($"LocalLogRouter.FlushAsync() completed.");
+                    Con.WriteInfo($"LocalLogRouter.FlushAsync() completed.");
                 }
                 else
                 {

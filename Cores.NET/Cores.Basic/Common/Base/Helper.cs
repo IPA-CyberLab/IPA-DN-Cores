@@ -1424,6 +1424,25 @@ namespace IPA.Cores.Helper.Basic
         public static void _PostAccessLog(this object obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
             => LocalLogRouter.PostAccessLog(obj, tag, copyToDebug, priority);
 
+        public static int _IndexOf<T>(this IEnumerable<T> list, Func<T, bool> predict)
+            => _IndexOf(list, 0, predict);
+        public static int _IndexOf<T>(this IEnumerable<T> list, int startIndex, Func<T, bool> predict)
+        {
+            int index = 0;
+            foreach (var item in list)
+            {
+                if (index >= startIndex)
+                {
+                    if (predict(item))
+                    {
+                        return index;
+                    }
+                }
+                index++;
+            }
+            return -1;
+        }
+
         public static void _DoForEach<T>(this IEnumerable<T> list, Action<T> action)
         {
             list._NullCheck();
@@ -1712,11 +1731,11 @@ namespace IPA.Cores.Helper.Basic
             return ret;
         }
 
-        public static bool _IsStrIP(this string str) => IPUtil.IsStrIP(str);
-        public static bool _IsStrIPv4(this string str) => IPUtil.IsStrIPv4(str);
-        public static bool _IsStrIPv6(this string str) => IPUtil.IsStrIPv6(str);
+        public static bool _IsStrIP(this string? str) => IPUtil.IsStrIP(str);
+        public static bool _IsStrIPv4(this string? str) => IPUtil.IsStrIPv4(str);
+        public static bool _IsStrIPv6(this string? str) => IPUtil.IsStrIPv6(str);
 
-        public static IPAddress? _StrToIP(this string str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
+        public static IPAddress? _StrToIP(this string? str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
             => IPUtil.StrToIP(str, allowed, noException);
 
         public static int _DataToFile(this byte[] data, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)

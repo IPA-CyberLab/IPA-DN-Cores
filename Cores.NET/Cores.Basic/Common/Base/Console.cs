@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
 
         public static void WriteError()
         {
-            WriteLine("");
+            WriteError("");
         }
 
         public static void WriteError(object arg)
@@ -245,6 +245,67 @@ namespace IPA.Cores.Basic
                 LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true, priority: LogPriority.Error);
             }
         }
+
+
+
+        public static void WriteInfo()
+        {
+            WriteInfo("");
+        }
+
+        public static void WriteInfo(object arg)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(arg._GetObjectDump(), LogPriority.Info);
+            }
+            else
+            {
+                Console.WriteLine(arg._GetObjectDump());
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
+            }
+        }
+
+        public static void WriteInfo(string str)
+        {
+            str = Str.RemoveLastCrlf(str);
+            if (cs != null)
+            {
+                cs.WriteLine(str, LogPriority.Info);
+            }
+            else
+            {
+                Console.WriteLine(str);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info);
+            }
+        }
+
+        public static void WriteInfo(string str, object arg)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(str, arg, LogPriority.Info);
+            }
+            else
+            {
+                Console.WriteLine(str, arg);
+                LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true, priority: LogPriority.Info);
+            }
+        }
+
+        public static void WriteInfo(string str, params object[] args)
+        {
+            if (cs != null)
+            {
+                cs.WriteLine(str, args, LogPriority.Info);
+            }
+            else
+            {
+                Console.WriteLine(str, args);
+                LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true, priority: LogPriority.Info);
+            }
+        }
+
 
 
         public static void WriteDebug() => Dbg.WriteLine();

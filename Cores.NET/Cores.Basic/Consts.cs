@@ -325,12 +325,14 @@ namespace IPA.Cores.Basic
         {
             public const string Ip = "/sbin/ip";
             public const string Ifconfig = "/sbin/ifconfig";
+            public const string ConnTrack = "/usr/sbin/conntrack";
             public const string PppoeDiscovery = "/usr/sbin/pppoe-discovery";
             public const string PppoeStart = "/usr/sbin/pppoe-start";
             public const string KillAll = "/usr/bin/killall";
             public const string Reboot = "/sbin/reboot";
             public const string Sync = "/bin/sync";
             public const string Ping = "/bin/ping";
+            public const string IpTables = "/sbin/iptables";
         }
     }
 

@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
                 WorkingDirectory = Env.AppRootDir,
             };
 
-            Con.WriteError("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
+            Con.WriteInfo("IsGitCommandSupportedSingleton: Trying to determine if git is supported...");
 
             try
             {
@@ -390,7 +390,7 @@ namespace IPA.Cores.Basic
                 Con.WriteError($"Git command execution error: {ex.Message}");
             }
 
-            Con.WriteError("Git is not supported.");
+            Con.WriteInfo("Git is not supported.");
 
             return false;
         });
