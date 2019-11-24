@@ -466,7 +466,7 @@ namespace IPA.Cores.Basic
                 Span<byte> rand = new byte[20];
                 sha.TryComputeHash(System.Text.Encoding.ASCII.GetBytes(Guid.NewGuid().ToString()), rand, out _);
 
-                int seed = BitConverter.ToInt32(rand.Slice(0, 4));
+                int seed = BitConverter.ToInt32(rand.Slice(0, 4)) & 0x7fffffff;
                 RandomShared = new Random(seed);
             }
         }
