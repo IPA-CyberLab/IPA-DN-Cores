@@ -307,6 +307,16 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Str.CombineStringArrayForCsv("a", "b", "c")._Print();
+                Str.CombineStringArrayForCsv("this,is", "a,test", "string")._Print();
+                Str.CombineStringArrayForCsv("printf(\"Hello World\");")._Print();
+                Str.CombineStringArrayForCsv("new\r\nline")._Print();
+
+                return;
+            }
+
+            if (true)
+            {
                 var info = LocalNet.GetTcpIpHostDataJsonSafe();
 
                 info._PrintAsJson();

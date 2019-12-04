@@ -2197,7 +2197,7 @@ namespace IPA.Cores.Basic
         public static List<string> RemoteStringFromList(List<string> str, RemoveStringFunction func)
         {
             List<string> ret = new List<string>();
-            
+
             foreach (string s in str)
             {
                 if (func(s) == false)
@@ -3806,6 +3806,34 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        // 複数の文字列を CSV 結合する
+        public static string CombineStringArrayForCsv(params string?[]? strs)
+        {
+            return CombineStringArrayForCsv((IEnumerable<string?>?)strs);
+        }
+        public static string CombineStringArrayForCsv(IEnumerable<string?>? strs)
+        {
+            if (strs == null) strs = new string[0];
+
+            List<string> tmp = new List<string>();
+
+            foreach (string? str in strs)
+            {
+                string str2 = str._NonNull();
+
+                str2 = str2._GetLines()._Combine(" ");
+
+                if (str2._InStr(",") || str2._InStr("\""))
+                {
+                    str2 = "\"" + str2._ReplaceStr("\"", "\"\"") + "\"";
+                }
+
+                tmp.Add(str2);
+            }
+
+            return tmp._Combine(",");
+        }
+
         // 複数の文字列を結合する
         public static string CombineStringArray(string sepstr, params string?[]? strs)
         {
@@ -4097,6 +4125,16 @@ namespace IPA.Cores.Basic
                 return ((double)(size) / 1024.0f).ToString(".00") + " KB";
             }
             return ((double)(size)).ToString() + " Bytes";
+        }
+
+        // 2 つの hex 文字列を比較する
+        public static int CompareHex(string? hex1, string? hex2)
+        {
+            return Util.MemCompare(hex1._GetHexBytes(), hex2._GetHexBytes());
+        }
+        public static bool IsSameHex(string? hex1, string? hex2)
+        {
+            return Util.MemEquals(hex1._GetHexBytes(), hex2._GetHexBytes());
         }
 
         // int 型を文字列に変換する
@@ -6796,7 +6834,7 @@ namespace IPA.Cores.Basic
 
             StringBuilder sb = new StringBuilder();
 
-            for (int i = 0;i < this.Count;i++)
+            for (int i = 0; i < this.Count; i++)
             {
                 var kv = this[i];
                 bool isLast = (i == (this.Count - 1));

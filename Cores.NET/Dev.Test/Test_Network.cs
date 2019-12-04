@@ -80,11 +80,14 @@ namespace IPA.TestDev
             {
                 new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("OUT", ConsoleService.Prompt, "outDir: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("HASH"),
             };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
             string dirZonesDir = vl.DefaultParam.StrValue;
             string outDir = vl["OUT"].StrValue;
+            string hashliststr = vl["HASH"].StrValue;
+            string[] hashlist = hashliststr._Split(StringSplitOptions.RemoveEmptyEntries, ";", "/", ",", ":", " ");
 
             var dirList = Lfs.EnumDirectory(dirZonesDir, false);
             if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
@@ -118,6 +121,19 @@ namespace IPA.TestDev
             SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list);
 
             IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
+
+            if (hashlist.Length >= 1)
+            {
+                List<SslCertCollectorItem> filtered = new List<SslCertCollectorItem>();
+                ret.Where(x => hashlist.Where(y => y._IsSameHex(x.CertHashSha1)).Any())._DoForEach(x => filtered.Add(x));
+                ret = filtered;
+            }
+
+            ret = ret.OrderBy(x => x.FriendName._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, ".").Reverse()._Combine("."), StrComparer.IgnoreCaseTrimComparer).ToList();
+
+            StringWriter csv = new StringWriter();
+
+            // TODO TODO ret._DoForEach(x => Str.CombineStringArrayForCsv(
 
             XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
 

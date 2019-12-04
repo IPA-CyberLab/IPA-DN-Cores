@@ -1891,6 +1891,9 @@ namespace IPA.Cores.Helper.Basic
                     return defaultValue;
             }
         }
+
+        public static int _CompareHex(this string? hex1, string? hex2) => Str.CompareHex(hex1, hex2);
+        public static bool _IsSameHex(this string? hex1, string? hex2) => Str.IsSameHex(hex1, hex2);
     }
 }
 
