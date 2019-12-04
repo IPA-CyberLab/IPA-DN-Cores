@@ -5492,13 +5492,23 @@ namespace IPA.Cores.Basic
             var m1 = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.InvokeMethod);
             var m2 = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod);
 
+            List<string> fieldOrPropertyNamesList = new List<string>();
+            List<string> methodNamesList = new List<string>();
+
             foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>().Concat(methods.Cast<MemberInfo>())))
             {
-                MetadataTable.TryAdd(info.Name, info);
+                if (MetadataTable.TryAdd(info.Name, info))
+                {
+                    if (info is FieldInfo || info is PropertyInfo)
+                        fieldOrPropertyNamesList.Add(info.Name);
+
+                    if (info is MethodInfo)
+                        methodNamesList.Add(info.Name);
+                }
             }
 
-            this.FieldOrPropertyNamesList = new List<string>(MetadataTable.Values.Where(x => x is FieldInfo || x is PropertyInfo).Select(x => x.Name));
-            this.MethodNamesList = new List<string>(MetadataTable.Values.Where(x => x is MethodInfo).Select(x => x.Name));
+            this.FieldOrPropertyNamesList = fieldOrPropertyNamesList;
+            this.MethodNamesList = methodNamesList;
         }
 
         public static FieldReaderWriter GetCached(Type type) => _PublicSingleton.CreateOrGet(type);

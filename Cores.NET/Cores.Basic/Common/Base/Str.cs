@@ -3806,6 +3806,74 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        // オブジェクト配列を CSV に変換する
+        public static string ObjectArrayToCsv<T>(IEnumerable<T> array, bool withHeader = false)
+            where T : notnull
+        {
+            StringWriter w = new StringWriter();
+
+            if (withHeader)
+            {
+                string header = ObjectHeaderToCsv<T>();
+
+                w.WriteLine(header);
+            }
+
+            foreach (T item in array)
+            {
+                w.WriteLine(ObjectDataToCsv(item));
+            }
+
+            return w.ToString();
+        }
+
+        // オブジェクトのヘッダを CSV に変換する
+        public static string ObjectHeaderToCsv<T>()
+            => ObjectHeaderToCsv(typeof(T));
+        public static string ObjectHeaderToCsv(Type objType)
+        {
+            FieldReaderWriter rw = objType._GetFieldReaderWriter(false);
+
+            List<string> o = new List<string>();
+
+            foreach (string name in rw.FieldOrPropertyNamesList)
+            {
+                o.Add(name);
+            }
+
+            return CombineStringArrayForCsv(o);
+        }
+
+        // オブジェクトのデータを CSV に変換する
+        public static string ObjectDataToCsv<T>(T obj)
+            where T: notnull
+        {
+            FieldReaderWriter rw = obj._GetFieldReaderWriter(false);
+
+            return ObjectDataToCsv(obj, rw);
+        }
+
+        private static string ObjectDataToCsv<T>(T obj, FieldReaderWriter rw) where T : notnull
+        {
+            List<string> o = new List<string>();
+
+            foreach (string name in rw.FieldOrPropertyNamesList)
+            {
+                object? value = rw.GetValue(obj, name);
+
+                string str = "";
+
+                if (value != null)
+                {
+                    str = value.ToString()._NonNull();
+                }
+
+                o.Add(str);
+            }
+
+            return CombineStringArrayForCsv(o);
+        }
+
         // 複数の文字列を CSV 結合する
         public static string CombineStringArrayForCsv(params string?[]? strs)
         {

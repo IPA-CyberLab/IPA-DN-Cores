@@ -131,9 +131,11 @@ namespace IPA.TestDev
 
             ret = ret.OrderBy(x => x.FriendName._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, ".").Reverse()._Combine("."), StrComparer.IgnoreCaseTrimComparer).ToList();
 
-            StringWriter csv = new StringWriter();
+            // 結果表示
+            Con.WriteLine($"Results: {ret.Count} endpoints");
 
-            // TODO TODO ret._DoForEach(x => Str.CombineStringArrayForCsv(
+            // 結果保存
+            string csv = ret._ObjectArrayToCsv(withHeader: true);
 
             XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
 
@@ -141,6 +143,7 @@ namespace IPA.TestDev
 
             Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XmlFileName), xmlData.XmlData, flags: FileFlags.AutoCreateDirectory);
             Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XsdFileName), xmlData.XsdData, flags: FileFlags.AutoCreateDirectory);
+            Lfs.WriteStringToFile(Lfs.PathParser.Combine(dir, "csv.csv"), csv, flags: FileFlags.AutoCreateDirectory, writeBom: true);
 
             return 0;
         }

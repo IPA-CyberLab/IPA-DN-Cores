@@ -1585,6 +1585,9 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static FieldReaderWriter _GetFieldReaderWriter(this Type type, bool includePrivate = false) => includePrivate ? FieldReaderWriter.GetCachedPrivate(type) : FieldReaderWriter.GetCached(type);
+        public static FieldReaderWriter _GetFieldReaderWriter<T>(this T typeSample, bool includePrivate = false) => includePrivate ? FieldReaderWriter.GetCachedPrivate<T>() : FieldReaderWriter.GetCached<T>();
+
         public static object? _PrivateGet(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(obj.GetType()).GetValue(obj, name);
         public static object? _PrivateGet<T>(this object obj, string name) => FieldReaderWriter.GetCachedPrivate(typeof(T)).GetValue(obj, name);
 
@@ -1894,6 +1897,18 @@ namespace IPA.Cores.Helper.Basic
 
         public static int _CompareHex(this string? hex1, string? hex2) => Str.CompareHex(hex1, hex2);
         public static bool _IsSameHex(this string? hex1, string? hex2) => Str.IsSameHex(hex1, hex2);
+
+        public static string _ObjectArrayToCsv<T>(this IEnumerable<T> array, bool withHeader = false)where T : notnull
+            => Str.ObjectArrayToCsv(array, withHeader);
+
+        public static string _ObjectHeaderToCsv(this Type objType)
+            => Str.ObjectHeaderToCsv(objType);
+
+        public static string _ObjectHeaderToCsv<T>(this T objSample) where T : notnull
+            => Str.ObjectHeaderToCsv<T>();
+
+        public static string _ObjectDataToCsv<T>(this T obj) where T : notnull
+            => Str.ObjectDataToCsv(obj);
     }
 }
 

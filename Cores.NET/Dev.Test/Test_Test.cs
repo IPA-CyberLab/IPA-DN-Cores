@@ -46,6 +46,7 @@ using System.Security.AccessControl;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Diagnostics;
+using System.Reflection;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -303,8 +304,26 @@ namespace IPA.TestDev
             }
         }
 
+        public class TestClass1
+        {
+            public string? b { get; set; }
+            public string? c { get; set; }
+            public string? a { get; set; }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                List<TestClass1> o = new List<TestClass1>();
+                o.Add(new TestClass1 { a = "hello", b = "World", c = "a,b,c" });
+                o.Add(new TestClass1 { a = null, b = "neko", c = "x\"y" });
+
+                Str.ObjectArrayToCsv(o, withHeader: true)._Print();
+
+                return;
+            }
+
             if (true)
             {
                 Str.CombineStringArrayForCsv("a", "b", "c")._Print();
