@@ -315,6 +315,15 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using (DirSuperBackup b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, @"c:\tmp\191208\log\all.log", @"c:\tmp\191208\log\error.log")))
+                {
+                    Dbg.Where();
+                }
+                return;
+            }
+
+            if (true)
+            {
                 List<TestClass1> o = new List<TestClass1>();
                 o.Add(new TestClass1 { a = "hello", b = "World", c = "a,b,c" });
                 o.Add(new TestClass1 { a = null, b = "neko", c = "x\"y" });
